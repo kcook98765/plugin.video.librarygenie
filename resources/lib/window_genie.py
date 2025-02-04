@@ -4,6 +4,7 @@ import pyxbmct
 import xbmcgui
 from resources.lib.database_manager import DatabaseManager
 from resources.lib.config_manager import Config
+from resources.lib.llm_api_manager import LLMApiManager
 from resources.lib.window_results import ResultsWindow
 from resources.lib import utils
 

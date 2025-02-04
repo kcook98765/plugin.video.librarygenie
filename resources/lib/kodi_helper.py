@@ -7,6 +7,7 @@ import xbmcplugin
 import xbmcaddon
 from resources.lib.jsonrpc_manager import JSONRPC
 from resources.lib.utils import get_addon_handle
+from resources.lib import utils
 from resources.lib.listitem_infotagvideo import set_info, set_art
 
 class KodiHelper:
