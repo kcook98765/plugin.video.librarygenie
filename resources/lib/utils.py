@@ -27,6 +27,8 @@ def log(message, level=None):
     }
     xbmc_level = level_map.get(level.upper(), xbmc.LOGDEBUG)
     xbmc.log(f"LibraryGenie: {message}", xbmc_level)
+import xbmcgui
+
 def show_notification(heading, message, icon=xbmcgui.NOTIFICATION_INFO, time=5000):
     """Centralized notification display"""
     xbmcgui.Dialog().notification(heading, message, icon, time)
