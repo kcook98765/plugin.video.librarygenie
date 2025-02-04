@@ -98,9 +98,9 @@ class GenieWindow(pyxbmct.AddonDialogWindow):
             self.close()
 
     def close(self):
-        utils.log("Closing GenieWindow...")
+        utils.log("Closing GenieWindow")
         pyxbmct.AddonDialogWindow.close(self)
         del self
 
     def __del__(self):
-        utils.log("Deleting GenieWindow instance...")
+        utils.log("Deleting GenieWindow instance")

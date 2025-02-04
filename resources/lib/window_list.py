@@ -32,7 +32,7 @@ class ListWindow(pyxbmct.AddonDialogWindow):
         self.setFocus(self.media_list_control)  # Ensure focus is set to the media list
 
     def populate_list(self):
-        utils.log(f"Populating list for list ID {self.list_id}...")
+        utils.log(f"Populating list for list ID {self.list_id}")
         db_manager = DatabaseManager(Config().db_path)
         media_items = db_manager.fetch_list_items(self.list_id)
         self.media_list_control.reset()
@@ -44,7 +44,7 @@ class ListWindow(pyxbmct.AddonDialogWindow):
             list_item.setProperty('info', json.dumps(item['info']))
             list_item.setProperty('media_item_id', str(item['id']))
             self.media_list_control.addItem(list_item)
-            utils.log(f"Added item - Title: {item['title']}, Info: {item['info']}")
+            utils.log(f"Added item - Title: {item['title']}, Info: {item['info']}", xbmc.LOGDEBUG)
 
         self.add_genie_list_option()
 
@@ -77,7 +77,7 @@ class ListWindow(pyxbmct.AddonDialogWindow):
             self.remove_media_item(media_item_id)
 
     def remove_media_item(self, media_item_id):
-        utils.log(f"Removing media item ID {media_item_id} from list ID {self.list_id}...")
+        utils.log(f"Removing media item ID {media_item_id} from list ID {self.list_id}")
         db_manager = DatabaseManager(Config().db_path)
         db_manager.remove_media_item_from_list(self.list_id, media_item_id)
         xbmcgui.Dialog().notification("Media List", "Media item removed from the list", xbmcgui.NOTIFICATION_INFO, 5000)
@@ -95,12 +95,12 @@ class ListWindow(pyxbmct.AddonDialogWindow):
             super().onAction(action)
 
     def close(self):
-        utils.log("Closing ListWindow...")
+        utils.log("Closing ListWindow")
         pyxbmct.AddonDialogWindow.close(self)
         del self
 
     def __del__(self):
-        utils.log("Deleting ListWindow instance...")
+        utils.log("Deleting ListWindow instance")
         if hasattr(self, 'media_list_control'):
             del self.media_list_control
 
