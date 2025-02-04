@@ -114,9 +114,15 @@ class LLMApiManager:
 
             data_length = len(response)
 
-            utils.log(f"Raw response data length: {data_length}")
+            utils.log(f"Raw response data length: {data_length}", "DEBUG")
             response_data = json.loads(response)
             movies = response_data.get('result', {}).get('movies', [])
+            if data_length > 1024:
+                utils.log(f"Large response received - {data_length} bytes", "WARNING")
+            if movies:
+                utils.log(f"Found {len(movies)} movies", "INFO")
+            else:
+                utils.log("No movies found in response", "WARNING")
             return movies
         except KeyError as e:
             utils.log(f"Key error in RPC query: {e}", "ERROR")
@@ -129,6 +135,7 @@ class LLMApiManager:
             return []
         except Exception as e:  # pylint: disable=broad-except
             utils.log(f"Unexpected error in RPC query: {e}", "ERROR")
+            xbmcgui.Dialog().notification("ListGenius", "Error executing RPC query", xbmcgui.NOTIFICATION_ERROR, 5000)
             return []
 
 
@@ -136,10 +143,10 @@ class LLMApiManager:
         headers = request.headers.copy()
         if 'Authorization' in headers:
             headers['Authorization'] = '__REDACTED__'
-        utils.log(f"Sending request to {request.full_url}")
-        utils.log(f"Headers: {headers}")
-        utils.log(f"Body: {request.data.decode('utf-8')}")
+        utils.log(f"Sending request to {request.full_url}", "INFO")
+        utils.log(f"Headers: {headers}", "DEBUG")
+        utils.log(f"Body: {request.data.decode('utf-8')}", "DEBUG")
 
 
     def log_response(self, response):
-        utils.log(f"Response: {response}")
+        utils.log(f"Response: {response}", "DEBUG")
