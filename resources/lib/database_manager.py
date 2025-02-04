@@ -719,8 +719,7 @@ class DatabaseManager:
         query = """
             INSERT INTO imdb_exports 
             (kodi_id, imdb_id, title, year, filename, path)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """
+            VALUES (?, ?, ?, ?, ?, ?)        """
         for movie in movies:
             file_path = movie.get('file', '')
             filename = file_path.split('/')[-1] if file_path else ''
