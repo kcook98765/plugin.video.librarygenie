@@ -49,7 +49,7 @@ class KodiHelper:
         for folder in folders:
             list_item = xbmcgui.ListItem(label=folder['name'])
             url = f'{self.addon_url}?action=show_folder&folder_id={folder["id"]}'
-            xbmc.log(f"ListGenius: Adding folder URL - {url}", xbmc.LOGDEBUG)
+            utils.log(f"Adding folder URL - {url}")
             xbmcplugin.addDirectoryItem(
                 handle=self.addon_handle,
                 url=url,
@@ -193,7 +193,7 @@ class KodiHelper:
         db_id = xbmc.getInfoLabel('ListItem.DBID')
         media_type = xbmc.getInfoLabel('ListItem.DBTYPE')
         media_type = 'movie'
-        xbmc.log(f"ListGenius: Retrieved DBID: {db_id}, Media type: {media_type}", xbmc.LOGDEBUG)
+        utils.log(f"Retrieved DBID: {db_id}, Media type: {media_type}")
 
         if db_id:
             if media_type == 'movie':
@@ -204,9 +204,9 @@ class KodiHelper:
                 episode = xbmc.getInfoLabel('ListItem.Episode')
                 xbmc.executebuiltin(f"ActivateWindow(movieinformation,{show_id},{season},{episode},{db_id})")
             else:
-                xbmc.log("ListGenius: Invalid media type or path", xbmc.LOGDEBUG)
+                utils.log("Invalid media type or path")
         else:
-            xbmc.log("ListGenius: No DBID found for the item", xbmc.LOGDEBUG)
+            utils.log("No DBID found for the item")
 
     def get_cast_info(self):
         cast = []
