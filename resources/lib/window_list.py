@@ -50,14 +50,16 @@ class ListWindow(BaseWindow):
 
         for item in media_items:
             label = f"{item['title']}"
-            list_item = ListItemBuilder.build_video_item({
+            media_info = {
                 'title': item['title'],
-                'thumbnail': item['info'].get('thumbnail', ''),
-                'fanart': item['info'].get('fanart', ''),
-                'file': item['info'].get('file', ''),
+                'thumbnail': item.get('thumbnail', ''),
+                'fanart': item.get('fanart', ''),
+                'file': item.get('file', ''),
                 'type': 'movie',
-                **item['info']
-            })
+                **item
+            }
+            utils.log(f"Building ListItem with media info: {media_info}", "DEBUG")
+            list_item = ListItemBuilder.build_video_item(media_info)
             list_item.setProperty('media_item_id', str(item['id']))
             self.media_list_control.addItem(list_item)
             utils.log(f"Added item with metadata - Title: {item['title']}, Info: {item['info']}", "DEBUG")
