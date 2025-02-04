@@ -585,11 +585,16 @@ class DatabaseManager:
         return count
 
     def get_folder_media_count(self, folder_id):
-        def fetch_all_subfolder_ids(parent_id):
+        def fetch_all_subfolder_ids(parent_id, visited=None):
+            if visited is None:
+                visited = set()
+            if parent_id in visited:
+                return []
+            visited.add(parent_id)
             subfolders = [f['id'] for f in self.fetch_folders(parent_id)]
             all_subfolders = subfolders[:]
             for subfolder_id in subfolders:
-                all_subfolders.extend(fetch_all_subfolder_ids(subfolder_id))
+                all_subfolders.extend(fetch_all_subfolder_ids(subfolder_id, visited))
             return all_subfolders
 
         folder_ids = [folder_id] + fetch_all_subfolder_ids(folder_id)

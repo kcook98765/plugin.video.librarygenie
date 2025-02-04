@@ -55,14 +55,17 @@ class ListWindow(BaseWindow):
 
     def add_genie_list_option(self):
         db_manager = DatabaseManager(Config().db_path)
-        genie_list = db_manager.get_genie_list(self.list_id)
-        if genie_list:
-            label = "<Edit GenieList>"
-        else:
-            label = "<Add GenieList>"
-        genie_list_item = xbmcgui.ListItem(label)
-        genie_list_item.setProperty('is_genie_list', 'true')
-        self.media_list_control.addItem(genie_list_item)
+        try:
+            genie_list = db_manager.get_genie_list(self.list_id)
+            if genie_list:
+                label = "<Edit GenieList>"
+            else:
+                label = "<Add GenieList>"
+            genie_list_item = xbmcgui.ListItem(label)
+            genie_list_item.setProperty('is_genie_list', 'true')
+            self.media_list_control.addItem(genie_list_item)
+        finally:
+            db_manager.close()
 
     def on_media_item_click(self):
         selected_item = self.media_list_control.getSelectedItem()
