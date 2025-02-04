@@ -76,17 +76,17 @@ class LLMApiManager:
                 busy_dialog.close()
                 return rpc, name, []
         except urllib.error.HTTPError as e:
-            xbmc.log(f"ListGenius: HTTP error: {e.code} {e.reason}", level=xbmc.LOGERROR)
+            utils.log(f"HTTP error: {e.code} {e.reason}", "ERROR")
         except urllib.error.URLError as e:
-            xbmc.log(f"ListGenius: URL error: {e.reason}", level=xbmc.LOGERROR)
+            utils.log(f"URL error: {e.reason}", "ERROR")
         except json.JSONDecodeError as e:
-            xbmc.log(f"ListGenius: JSON decode error: {e.msg}", level=xbmc.LOGERROR)
+            utils.log(f"JSON decode error: {e.msg}", "ERROR")
         except TypeError as e:
-            xbmc.log(f"ListGenius: Type error: {e}", level=xbmc.LOGERROR)
+            utils.log(f"Type error: {e}", "ERROR")
         except ValueError as e:
-            xbmc.log(f"ListGenius: Value error: {e}", level=xbmc.LOGERROR)
+            utils.log(f"Value error: {e}", "ERROR")
         except Exception as e:
-            xbmc.log(f"ListGenius: Unexpected error: {e}", level=xbmc.LOGERROR)
+            utils.log(f"Unexpected error: {e}", "ERROR")
             raise
 
         busy_dialog.close()
@@ -109,26 +109,26 @@ class LLMApiManager:
                 },
                 "id": 1
             }
-            xbmc.log(f"ListGenius: Executing RPC query: {json.dumps(query)}", level=xbmc.LOGDEBUG)
+            utils.log(f"Executing RPC query: {json.dumps(query)}")
             response = xbmc.executeJSONRPC(json.dumps(query))
 
             data_length = len(response)
 
-            xbmc.log(f"ListGenius: Raw response data length: {data_length}", level=xbmc.LOGDEBUG)
+            utils.log(f"Raw response data length: {data_length}")
             response_data = json.loads(response)
             movies = response_data.get('result', {}).get('movies', [])
             return movies
         except KeyError as e:
-            xbmc.log(f"ListGenius: Key error in RPC query: {e}", level=xbmc.LOGERROR)
+            utils.log(f"Key error in RPC query: {e}", "ERROR")
             return []
         except json.JSONDecodeError as e:
-            xbmc.log(f"ListGenius: JSON decode error in RPC query: {e}", level=xbmc.LOGERROR)
+            utils.log(f"JSON decode error in RPC query: {e}", "ERROR")
             return []
         except TypeError as e:
-            xbmc.log(f"ListGenius: Type error in RPC query: {e}", level=xbmc.LOGERROR)
+            utils.log(f"Type error in RPC query: {e}", "ERROR")
             return []
         except Exception as e:  # pylint: disable=broad-except
-            xbmc.log(f"ListGenius: Unexpected error in RPC query: {e}", level=xbmc.LOGERROR)
+            utils.log(f"Unexpected error in RPC query: {e}", "ERROR")
             return []
 
 
@@ -136,10 +136,10 @@ class LLMApiManager:
         headers = request.headers.copy()
         if 'Authorization' in headers:
             headers['Authorization'] = '__REDACTED__'
-        xbmc.log(f"ListGenius: Sending request to {request.full_url}", level=xbmc.LOGINFO)
-        xbmc.log(f"ListGenius: Headers: {headers}", level=xbmc.LOGINFO)
-        xbmc.log(f"ListGenius: Body: {request.data.decode('utf-8')}", level=xbmc.LOGINFO)
+        utils.log(f"Sending request to {request.full_url}")
+        utils.log(f"Headers: {headers}")
+        utils.log(f"Body: {request.data.decode('utf-8')}")
 
 
     def log_response(self, response):
-        xbmc.log(f"ListGenius: Response: {response}", level=xbmc.LOGINFO)
+        utils.log(f"Response: {response}")
