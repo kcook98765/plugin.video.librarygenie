@@ -1,12 +1,14 @@
 """ /resources/lib/window_genie.py """
+import json
 import pyxbmct
 import xbmcgui
-from resources.lib import utils
-from resources.lib.llm_api_manager import LLMApiManager
 from resources.lib.database_manager import DatabaseManager
 from resources.lib.config_manager import Config
 from resources.lib.window_results import ResultsWindow
+from resources.lib import utils
 
+# Initialize logging
+utils.log("Genie Window module initialized", "INFO")
 
 class GenieWindow(pyxbmct.AddonDialogWindow):
     def __init__(self, list_id, title="Genie List Setup"):
