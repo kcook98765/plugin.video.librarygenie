@@ -111,6 +111,7 @@ class LLMApiManager:
             }
             utils.log(f"Executing RPC query: {json.dumps(query)}", "DEBUG")
             response = xbmc.executeJSONRPC(json.dumps(query))
+            utils.log(f"RPC response length: {len(response)}", "DEBUG")
 
             data_length = len(response)
 

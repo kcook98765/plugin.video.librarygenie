@@ -8,7 +8,10 @@ import xbmcgui
 from resources.lib.database_manager import DatabaseManager
 from resources.lib.config_manager import Config
 from resources.lib.window_list import ListWindow
-import utils # Assuming utils module exists and provides logging functionality
+from resources.lib import utils
+
+# Initialize logging
+utils.log("Window Main module initialized", "INFO")
 
 class MainWindow(pyxbmct.AddonDialogWindow):
     INDENTATION_MULTIPLIER = 3  # Set the indentation multiplier

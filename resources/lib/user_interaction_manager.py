@@ -4,7 +4,10 @@ import xbmc
 import xbmcgui
 from resources.lib.database_manager import DatabaseManager
 from resources.lib.config_manager import Config
-import utils # Assuming utils.log exists
+from resources.lib import utils
+
+# Initialize logging
+utils.log("User Interaction Manager initialized", "INFO")
 
 class UserInteractionManager:
 
