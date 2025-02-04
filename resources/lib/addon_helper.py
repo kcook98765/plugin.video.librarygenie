@@ -1,4 +1,3 @@
-python
 """ /resources/lib/addon_helper.py """
 import sys
 import urllib.parse
