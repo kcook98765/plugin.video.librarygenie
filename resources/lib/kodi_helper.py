@@ -49,7 +49,7 @@ class KodiHelper:
         for folder in folders:
             list_item = xbmcgui.ListItem(label=folder['name'])
             url = f'{self.addon_url}?action=show_folder&folder_id={folder["id"]}'
-            utils.log(f"Adding folder URL - {url}", "DEBUG")
+            utils.log(f"Adding folder: {folder['name']} with URL - {url}", "INFO")
             xbmcplugin.addDirectoryItem(
                 handle=self.addon_handle,
                 url=url,
@@ -59,7 +59,7 @@ class KodiHelper:
         for list_ in lists:
             list_item = xbmcgui.ListItem(label=list_['name'])
             url = f'{self.addon_url}?action=show_list&list_id={list_["id"]}'
-            utils.log(f"Adding list URL - {url}", "DEBUG")
+            utils.log(f"Adding list: {list_['name']} with URL - {url}", "INFO")
             xbmcplugin.addDirectoryItem(
                 handle=self.addon_handle,
                 url=url,
@@ -125,10 +125,11 @@ class KodiHelper:
             else:
                 params['episodeid'] = int(db_id)
 
-            utils.log(f"Fetching details via RPC - Method: {method}, Params: {params}")
+            utils.log(f"Fetching details via RPC - Method: {method}, Params: {params}", "DEBUG")
             response = self.jsonrpc.execute(method, params)
-            utils.log(f"RPC Response: {response}")
+            utils.log(f"RPC Response: {response}", "DEBUG")
             details = response.get('result', {}).get('moviedetails' if method == 'VideoLibrary.GetMovieDetails' else 'episodedetails', {})
+            utils.log(f"Extracted details for media type: {media_type}", "INFO")
 
             # Parse cast details
             cast_list = details.get('cast', [])
@@ -193,20 +194,22 @@ class KodiHelper:
         db_id = xbmc.getInfoLabel('ListItem.DBID')
         media_type = xbmc.getInfoLabel('ListItem.DBTYPE')
         media_type = 'movie'
-        utils.log(f"Retrieved DBID: {db_id}, Media type: {media_type}")
+        utils.log(f"Retrieved DBID: {db_id}, Media type: {media_type}", "INFO")
 
         if db_id:
             if media_type == 'movie':
+                utils.log(f"Opening movie information window for ID: {db_id}", "DEBUG")
                 xbmc.executebuiltin(f"ActivateWindow(movieinformation,{db_id})")
             elif media_type == 'episode':
                 show_id = xbmc.getInfoLabel('ListItem.TVShowDBID')
                 season = xbmc.getInfoLabel('ListItem.Season')
                 episode = xbmc.getInfoLabel('ListItem.Episode')
+                utils.log(f"Opening episode information window for Show: {show_id}, S{season}E{episode}", "DEBUG")
                 xbmc.executebuiltin(f"ActivateWindow(movieinformation,{show_id},{season},{episode},{db_id})")
             else:
-                utils.log("Invalid media type or path")
+                utils.log("Invalid media type or path", "WARNING")
         else:
-            utils.log("No DBID found for the item")
+            utils.log("No DBID found for the item", "WARNING")
 
     def get_cast_info(self):
         cast = []
