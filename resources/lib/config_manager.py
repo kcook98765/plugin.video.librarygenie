@@ -63,7 +63,7 @@ class Config:
 
     @property
     def db_path(self):
-        db_path = os.path.join(self.addondir, "listgenius.db")
+        db_path = os.path.join(self.addondir, "librarygenie.db")
         utils.log(f"Database path: {db_path}", "DEBUG")
         return db_path
 

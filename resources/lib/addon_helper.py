@@ -55,7 +55,7 @@ def run_addon():
     except Exception as e:
         log(f"Error running addon: {str(e)}", "ERROR") # Updated error logging
         import xbmcgui #Import here to avoid circular dependency
-        xbmcgui.Dialog().notification("ListGenius", "Error running addon", xbmcgui.NOTIFICATION_ERROR, 5000)
+        xbmcgui.Dialog().notification("LibraryGenie", "Error running addon", xbmcgui.NOTIFICATION_ERROR, 5000)
 
 def show_folder(db_manager, kodihelper, args):
     folder_id = int(args.get('folder_id', [None])[0])

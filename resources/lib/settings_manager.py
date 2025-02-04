@@ -3,7 +3,7 @@ import xbmcaddon
 import xbmcvfs
 
 class SettingsManager:
-    def __init__(self, addon_id='plugin.video.listgenius'):
+    def __init__(self, addon_id='plugin.video.librarygenie'):
         self.addon = xbmcaddon.Addon(id=addon_id)
         self._cache = {}
 

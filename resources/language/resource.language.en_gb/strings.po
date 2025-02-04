@@ -1,6 +1,6 @@
 # XBMC Media Center language file
-# Addon Name: ListGenius
-# Addon id: plugin.video.listgenius
+# Addon Name: LibraryGenie
+# Addon id: plugin.video.librarygenie
 # Addon Provider: [Your Name or Organization]
 msgid ""
 msgstr ""

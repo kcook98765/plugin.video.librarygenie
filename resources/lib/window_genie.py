@@ -65,7 +65,7 @@ class GenieWindow(pyxbmct.AddonDialogWindow):
 
         # Ensure the description is not empty
         if not description:
-            xbmcgui.Dialog().notification("ListGenius", "Description cannot be empty", xbmcgui.NOTIFICATION_WARNING, 5000)
+            xbmcgui.Dialog().notification("LibraryGenie", "Description cannot be empty", xbmcgui.NOTIFICATION_WARNING, 5000)
             return
 
         rpc, name, movies = self.llm_api_manager.generate_query(description)

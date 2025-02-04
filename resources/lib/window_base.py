@@ -8,7 +8,7 @@ class BaseWindow(pyxbmct.AddonDialogWindow):
         super().__init__(title)
         
     def show_notification(self, message, icon=xbmcgui.NOTIFICATION_INFO):
-        utils.show_notification("ListGenius", message, icon)
+        utils.show_notification("LibraryGenie", message, icon)
         
     def handle_name_input(self, current_name="", entity_type="item"):
         new_name = utils.show_dialog_input(f"Enter new {entity_type} name", current_name)

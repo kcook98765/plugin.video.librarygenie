@@ -57,7 +57,7 @@ class LLMApiManager:
         self.log_request(req)
 
         busy_dialog = xbmcgui.DialogProgress()
-        busy_dialog.create("ListGenius", "Processing request, please wait...")
+        busy_dialog.create("LibraryGenie", "Processing request, please wait...")
 
         try:
             with urllib.request.urlopen(req) as response:
@@ -136,7 +136,7 @@ class LLMApiManager:
             return []
         except Exception as e:  # pylint: disable=broad-except
             utils.log(f"Unexpected error in RPC query: {e}", "ERROR")
-            xbmcgui.Dialog().notification("ListGenius", "Error executing RPC query", xbmcgui.NOTIFICATION_ERROR, 5000)
+            xbmcgui.Dialog().notification("LibraryGenie", "Error executing RPC query", xbmcgui.NOTIFICATION_ERROR, 5000)
             return []
 
 

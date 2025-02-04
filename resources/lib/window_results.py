@@ -68,7 +68,7 @@ class ResultsWindow(BaseWindow):
 
         except Exception as e:
             utils.log(f"Error running LLM request: {str(e)}", "ERROR")
-            xbmcgui.Dialog().notification("ListGenius", "Error running LLM request", xbmcgui.NOTIFICATION_ERROR, 5000)
+            xbmcgui.Dialog().notification("LibraryGenie", "Error running LLM request", xbmcgui.NOTIFICATION_ERROR, 5000)
 
 
     def search_movies(self, movie_list):
@@ -126,10 +126,10 @@ class ResultsWindow(BaseWindow):
                     # Insert matched movie into the list
                     db_manager.insert_data('list_items', data)
 
-                xbmcgui.Dialog().notification("ListGenius", f"{len(matched_movies)} movies added to the list", xbmcgui.NOTIFICATION_INFO, 5000)
+                xbmcgui.Dialog().notification("LibraryGenie", f"{len(matched_movies)} movies added to the list", xbmcgui.NOTIFICATION_INFO, 5000)
             except Exception as e:
                 utils.log(f"Error adding matched movies to list: {str(e)}", "ERROR")
-                xbmcgui.Dialog().notification("ListGenius", "Error adding matched movies to list", xbmcgui.NOTIFICATION_ERROR, 5000)
+                xbmcgui.Dialog().notification("LibraryGenie", "Error adding matched movies to list", xbmcgui.NOTIFICATION_ERROR, 5000)
         else:
             utils.log("No list_id provided, cannot add matched movies", "ERROR")
         self.close()
