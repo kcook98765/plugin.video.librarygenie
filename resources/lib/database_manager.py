@@ -1,7 +1,7 @@
 import sqlite3
 import json
-import xbmc
 import time
+from resources.lib import utils
 from resources.lib.config_manager import Config
 
 class DatabaseManager:

@@ -3,8 +3,8 @@ import urllib.request
 import urllib.parse
 import json
 import re
-import xbmc
 import xbmcgui
+from resources.lib import utils
 from resources.lib.config_manager import Config
 
 class LLMApiManager:
