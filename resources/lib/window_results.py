@@ -119,7 +119,7 @@ class ResultsWindow(pyxbmct.AddonDialogWindow):
         }
 
     def on_ok(self):
-        utils.log("OK button clicked", xbmc.LOGDEBUG)
+        utils.log("OK button clicked", "DEBUG")
         if self.list_id is not None:
             try:
                 matched_movies = [movie for movie in self.movies if movie.get('matched', False)]
@@ -179,5 +179,5 @@ class ResultsWindow(pyxbmct.AddonDialogWindow):
         self.setFocus(self.movies_list_control)
 
     def on_cancel(self):
-        utils.log("Cancel button clicked")
+        utils.log("Cancel button clicked", "DEBUG")
         self.close()
