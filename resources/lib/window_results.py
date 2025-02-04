@@ -91,29 +91,10 @@ class ResultsWindow(pyxbmct.AddonDialogWindow):
     def build_combined_query(self, title, year, director):
         return {
             "filter": {
-                "or": [
-                    {
-                        "and": [
-                            {"field": "title", "operator": "is", "value": title},
-                            {
-                                "or": [
-                                    {"field": "year", "operator": "greaterthan", "value": year - 2},
-                                    {"field": "year", "operator": "lessthan", "value": year + 2}
-                                ]
-                            }
-                        ]
-                    },
-                    {
-                        "and": [
-                            {"field": "director", "operator": "is", "value": director},
-                            {
-                                "or": [
-                                    {"field": "year", "operator": "greaterthan", "value": year - 2},
-                                    {"field": "year", "operator": "lessthan", "value": year + 2}
-                                ]
-                            }
-                        ]
-                    }
+                "and": [
+                    {"field": "title", "operator": "is", "value": title},
+                    {"field": "year", "operator": "is", "value": year},
+                    {"field": "director", "operator": "contains", "value": director}
                 ]
             },
             "properties": [

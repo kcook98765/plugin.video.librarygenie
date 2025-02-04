@@ -268,10 +268,27 @@ class MainWindow(pyxbmct.AddonDialogWindow):
         focus_is_folder = self.selected_is_folder if self.selected_is_folder is not None else True
 
         if focus_id is not None:
+            db_manager = DatabaseManager(Config().db_path)
+            item_exists = False
+            
+            if focus_is_folder:
+                item_exists = db_manager.fetch_folder_by_id(focus_id) is not None
+            else:
+                item_exists = db_manager.fetch_list_by_id(focus_id) is not None
+
+            if not item_exists:
+                utils.log(f"Item with ID {focus_id} no longer exists", "DEBUG")
+                self.list_control.selectItem(0)
+                self.setFocus(self.list_control)
+                return
+
             for index in range(self.list_control.size()):
                 list_item = self.list_control.getListItem(index)
                 is_folder = list_item.getProperty('isFolder') == 'true'
-                list_item_id = int(list_item.getProperty('folder_id') if is_folder else list_item.getProperty('list_id'))
+                try:
+                    list_item_id = int(list_item.getProperty('folder_id' if is_folder else 'list_id'))
+                except (ValueError, TypeError):
+                    continue
 
                 utils.log(f"Checking list item. Index={index}, ID={list_item_id}, IsFolder={is_folder}, Label={list_item.getLabel()}", "DEBUG")
                 if list_item_id == focus_id and is_folder == focus_is_folder:
@@ -281,6 +298,8 @@ class MainWindow(pyxbmct.AddonDialogWindow):
                     break
             else:
                 utils.log(f"Could not find item to reselect with ID {focus_id} and IsFolder={focus_is_folder}", "DEBUG")
+                self.list_control.selectItem(0)
+                self.setFocus(self.list_control)
 
     def on_list_item_click(self):
         selected_item = self.list_control.getSelectedItem()

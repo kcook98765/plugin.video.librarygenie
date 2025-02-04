@@ -523,19 +523,19 @@ class DatabaseManager:
             data['votes'] = int(data['votes']) if data['votes'] else 0
             data['year'] = int(data['year']) if data['year'] else 0
             data['source'] = 'genielist'
-            data['country'] = ','.join(data['country'])
-            data['director'] = ','.join(data['director'])
-            data['genre'] = ','.join(data['genre'])
-            data['studio'] = ','.join(data['studio'])
-            data['writer'] = ','.join(data['writer'])
+            data['country'] = ','.join(data['country']) if isinstance(data['country'], list) else data['country']
+            data['director'] = ','.join(data['director']) if isinstance(data['director'], list) else data['director']
+            data['genre'] = ','.join(data['genre']) if isinstance(data['genre'], list) else data['genre']
+            data['studio'] = ','.join(data['studio']) if isinstance(data['studio'], list) else data['studio']
+            data['writer'] = ','.join(data['writer']) if isinstance(data['writer'], list) else data['writer']
 
             if 'cast' in data and isinstance(data['cast'], list):
                 data['cast'] = json.dumps(data['cast'])
 
             self.insert_data('media_items', data)
             media_item_id = self.cursor.lastrowid
-        list_item_data = {'list_id': list_id, 'media_item_id': media_item_id}
-        self.insert_data('list_items', list_item_data)
+            list_item_data = {'list_id': list_id, 'media_item_id': media_item_id}
+            self.insert_data('list_items', list_item_data)
 
     def get_list_media_count(self, list_id):
         query = """
