@@ -84,11 +84,10 @@ class ResultsWindow(BaseWindow):
 
         return results
 
-     def search_movie_by_criteria(self, title, year, director):
-        query = self.build_combined_query(title, year, director)
-        result = self.jsonrpc.execute("VideoLibrary.GetMovies", query)
-        movies = result.get('result', {}).get('movies', [])
-        return movies
+    def search_movie_by_criteria(self, title, year=None, director=None):
+        from resources.lib.results_manager import ResultsManager
+        results_manager = ResultsManager()
+        return results_manager.search_movie_by_criteria(title, year, director)
 
     def build_combined_query(self, title, year, director):
         return {

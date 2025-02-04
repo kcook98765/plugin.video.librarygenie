@@ -19,11 +19,11 @@ class KodiHelper:
 
     def list_items(self, items, content_type='video'):
         from resources.lib.listitem_builder import ListItemBuilder
-        
+
         for item in items:
             list_item = ListItemBuilder.build_video_item(item)
             url = f'{self.addon_url}?action=play_item&id={item.get("id")}'
-            
+
             xbmcplugin.addDirectoryItem(
                 handle=self.addon_handle,
                 url=url,
@@ -81,34 +81,9 @@ class KodiHelper:
         xbmcplugin.setResolvedUrl(self.addon_handle, True, listitem=list_item)
 
     def get_focused_item_basic_info(self):
-        item_info = {
-            'kodi_id': xbmc.getInfoLabel('ListItem.DBID'),
-            'country': xbmc.getInfoLabel('ListItem.Country'),
-            'dateadded': xbmc.getInfoLabel('ListItem.DateAdded'),
-            'title': xbmc.getInfoLabel('ListItem.Title'),
-            'year': xbmc.getInfoLabel('ListItem.Year'),
-            'plot': xbmc.getInfoLabel('ListItem.Plot'),
-            'genre': xbmc.getInfoLabel('ListItem.Genre'),
-            'director': xbmc.getInfoLabel('ListItem.Director'),
-            'cast': xbmc.getInfoLabel('ListItem.Cast'),
-            'rating': xbmc.getInfoLabel('ListItem.Rating'),
-            'thumbnail': xbmc.getInfoLabel('ListItem.Art(poster)'),  # Collect poster
-            'fanart': xbmc.getInfoLabel('ListItem.Art(fanart)'),
-            'duration': xbmc.getInfoLabel('ListItem.Duration'),
-            'tagline': xbmc.getInfoLabel('ListItem.Tagline'),
-            'writer': xbmc.getInfoLabel('ListItem.Writer'),
-            'imdbnumber': xbmc.getInfoLabel('ListItem.IMDBNumber'),
-            'premiered': xbmc.getInfoLabel('ListItem.Premiered'),
-            'studio': xbmc.getInfoLabel('ListItem.Studio'),
-            'mpaa': xbmc.getInfoLabel('ListItem.Mpaa'),
-            'trailer': xbmc.getInfoLabel('ListItem.Trailer'),
-            'file': xbmc.getInfoLabel('ListItem.FileNameAndPath'),  # Use full path and file name
-            'is_playable': xbmc.getInfoLabel('ListItem.Property(IsPlayable)') == 'true',
-            'play': xbmc.getInfoLabel('ListItem.Path')  # Set the play field to a valid value
-        }
-
-        utils.log(f"Basic item info gathered: {item_info}")
-        return item_info
+        from resources.lib.media_manager import MediaManager
+        media_manager = MediaManager()
+        return media_manager.get_media_info()
 
     def get_focused_item_details(self):
         db_id = xbmc.getInfoLabel('ListItem.DBID')
@@ -233,4 +208,3 @@ class KodiHelper:
                     'thumbnail': thumbnail
                 })
         return json.dumps(cast)
-
