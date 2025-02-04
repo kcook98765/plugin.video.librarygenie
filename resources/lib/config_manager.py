@@ -5,40 +5,6 @@ import xbmcvfs
 from resources.lib import utils
 
 class Config:
-    def __init__(self):
-        self.addon = xbmcaddon.Addon()
-        self.addonpath = xbmcvfs.translatePath(self.addon.getAddonInfo('path'))
-        self.profile = xbmcvfs.translatePath(self.addon.getAddonInfo('profile'))
-        if not os.path.exists(self.profile):
-            os.makedirs(self.profile)
-        self.db_path = os.path.join(self.profile, 'librarygenie.db')
-        self.max_folder_depth = 5
-
-    FIELDS = [
-        'title TEXT',
-        'kodi_id INTEGER',
-        'play TEXT',
-        'plot TEXT',
-        'genre TEXT',
-        'director TEXT',
-        'writer TEXT',
-        'cast TEXT',
-        'rating REAL',
-        'votes INTEGER',
-        'duration INTEGER',
-        'year INTEGER',
-        'country TEXT',
-        'studio TEXT',
-        'trailer TEXT',
-        'tagline TEXT',
-        'source TEXT',
-        'premiered TEXT',
-        'thumbnail TEXT',
-        'fanart TEXT',
-        'mpaa TEXT'
-    ]
-
-class Config:
     """ FIELDS should align with table list_items fields AND for use in listitem building """
     FIELDS = [
         "cast TEXT",
@@ -75,10 +41,15 @@ class Config:
         """
         Initializes the Config with addon settings and paths.
         """
+        self.addon = xbmcaddon.Addon()
+        self.addonpath = xbmcvfs.translatePath(self.addon.getAddonInfo('path'))
+        self.profile = xbmcvfs.translatePath(self.addon.getAddonInfo('profile'))
+        if not os.path.exists(self.profile):
+            os.makedirs(self.profile)
+
         from resources.lib.settings_manager import SettingsManager
         self.settings = SettingsManager()
         self.addondir = self.settings.addon_data_path
-        self.addonpath = self.settings.addon_path
         self._openai_api_key = self.settings.get_setting('openai_api_key')
         self._base_url = self.settings.get_setting('base_url')
         self._api_temperature = float(self.settings.get_setting('api_temperature', '0.7'))
@@ -88,18 +59,16 @@ class Config:
         utils.log(f"Addon path - {self.addonpath}", "DEBUG")
 
     @property
+    def db_path(self):
+        return os.path.join(self.profile, 'librarygenie.db')
+
+    @property
     def openai_api_key(self):
         return self._openai_api_key or ""
 
     @property
     def base_url(self):
         return self._base_url or "https://api.openai.com/v1/completions"
-
-    @property
-    def db_path(self):
-        db_path = os.path.join(self.addondir, "librarygenie.db")
-        utils.log(f"Database path: {db_path}", "DEBUG")
-        return db_path
 
     @property
     def api_temperature(self):
