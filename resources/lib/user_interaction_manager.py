@@ -5,6 +5,7 @@ import xbmcgui
 from resources.lib.database_manager import DatabaseManager
 from resources.lib.config_manager import Config
 from resources.lib import utils
+from resources.lib import utils
 
 # Initialize logging
 utils.log("User Interaction Manager initialized", "INFO")
