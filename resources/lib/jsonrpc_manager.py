@@ -35,10 +35,10 @@ class JSONRPC:
             if 'result' in result and 'movies' in result['result']:
                 return result['result']['movies']
             else:
-                utils.log("No movies found in response", "DEBUG")
+                utils.log("No movies found in RPC response", "WARNING")
                 return []
         except Exception as e:
-            utils.log(f"Error fetching movies: {str(e)}", "ERROR")
+            utils.log(f"Error fetching movies via RPC: {str(e)}", "ERROR")
             raise
 
     def get_movie_details(self, movie_id):

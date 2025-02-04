@@ -10,8 +10,8 @@ from resources.lib.config_manager import Config
 from resources.lib.window_list import ListWindow
 from resources.lib import utils
 
-# Initialize logging
-utils.log("Window Main module initialized", "INFO")
+# Initialize window logging
+utils.log("Initializing MainWindow module", "INFO")
 
 class MainWindow(pyxbmct.AddonDialogWindow):
     INDENTATION_MULTIPLIER = 3  # Set the indentation multiplier
@@ -413,6 +413,9 @@ class MainWindow(pyxbmct.AddonDialogWindow):
 
             db_manager = DatabaseManager(Config().db_path)
             existing_folder_id = db_manager.get_folder_id_by_name(new_folder_name)
+        except:
+            utils.log(f"Error creating new folder. ParentID={parent_id}, NewFolderName={new_folder_name}", "ERROR")
+            return
         if existing_folder_id:
             xbmcgui.Dialog().notification("ListGenius", f"The folder name '{new_folder_name}' already exists", xbmcgui.NOTIFICATION_WARNING, 5000)
             return
@@ -485,6 +488,10 @@ class MainWindow(pyxbmct.AddonDialogWindow):
             if existing_list_id:
                 xbmcgui.Dialog().notification("ListGenius", f"The list name '{new_list_name}' already exists", xbmcgui.NOTIFICATION_WARNING, 5000)
                 return
+
+        except:
+            utils.log(f"Error creating new list. ParentID={parent_id}, NewListName={new_list_name}", "ERROR")
+            return
 
         parent_id = int(parent_id) if parent_id != 'None' else None
         utils.log(f"Creating new list '{new_list_name}' under parent ID '{parent_id}'", "DEBUG")
