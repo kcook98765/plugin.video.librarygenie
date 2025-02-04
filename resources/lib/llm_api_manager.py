@@ -1,0 +1,145 @@
+""" /resources/lib/llm_api_manager.py """
+import urllib.request
+import urllib.parse
+import json
+import re
+import xbmc
+import xbmcgui
+from resources.lib.config_manager import Config
+
+class LLMApiManager:
+
+    def __init__(self):
+        """
+        Initializes the LLMApiManager with the provided API key from the Kodi addon settings.
+        """
+        config = Config()
+        self.api_key = config.openai_api_key
+        self.base_url = 'https://api.openai.com/v1/chat/completions'
+        self.api_temperature = config.api_temperature
+        self.api_max_tokens = 3000
+
+    def extract_json_from_response(self, response_text):
+        # Use regular expression to extract JSON data delimited by ```json ... ```
+        match = re.search(r'```json\s+(.*?)\s+```', response_text, re.DOTALL)
+        if match:
+            return match.group(1)
+        return ""
+
+    def generate_query(self, input_data):
+        system_message = "You are a helpful assistant."
+        user_message = (
+            f"Here is the user request, interpret this and build a json "
+            f"response file containing movies list with title, year and director: "
+            f"```{input_data}``` "
+            f"Response should be a single JSON format"
+        )
+
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {self.api_key}'
+        }
+        data = {
+            "model": "gpt-3.5-turbo",
+            "messages": [
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": user_message}
+            ],
+            "max_tokens": self.api_max_tokens,
+            "temperature": self.api_temperature
+        }
+
+        data_bytes = json.dumps(data).encode('utf-8')
+
+        req = urllib.request.Request(self.base_url, data=data_bytes, headers=headers)
+        self.log_request(req)
+
+        busy_dialog = xbmcgui.DialogProgress()
+        busy_dialog.create("ListGenius", "Processing request, please wait...")
+
+        try:
+            with urllib.request.urlopen(req) as response:
+                response_body = response.read().decode('utf-8')
+                response_data = json.loads(response_body)
+                response_text = response_data['choices'][0]['message']['content']
+                self.log_response(response_text)
+
+                json_data = self.extract_json_from_response(response_text)
+                parsed_data = json.loads(json_data)
+                rpc = parsed_data.get('RPC', '')
+                name = parsed_data.get('name', '')
+
+                if rpc:
+                    movies = self.execute_rpc_query(rpc)
+                    busy_dialog.close()
+                    return rpc, name, movies
+                busy_dialog.close()
+                return rpc, name, []
+        except urllib.error.HTTPError as e:
+            xbmc.log(f"ListGenius: HTTP error: {e.code} {e.reason}", level=xbmc.LOGERROR)
+        except urllib.error.URLError as e:
+            xbmc.log(f"ListGenius: URL error: {e.reason}", level=xbmc.LOGERROR)
+        except json.JSONDecodeError as e:
+            xbmc.log(f"ListGenius: JSON decode error: {e.msg}", level=xbmc.LOGERROR)
+        except TypeError as e:
+            xbmc.log(f"ListGenius: Type error: {e}", level=xbmc.LOGERROR)
+        except ValueError as e:
+            xbmc.log(f"ListGenius: Value error: {e}", level=xbmc.LOGERROR)
+        except Exception as e:
+            xbmc.log(f"ListGenius: Unexpected error: {e}", level=xbmc.LOGERROR)
+            raise
+
+        busy_dialog.close()
+        return "", "", []
+
+    def execute_rpc_query(self, rpc):
+        try:
+            query = {
+                "jsonrpc": "2.0",
+                "method": "VideoLibrary.GetMovies",
+                "params": {
+                    "properties": [
+                        "title", "genre", "year", "director", "cast", "plot", "rating",
+                        "thumbnail", "fanart", "runtime", "tagline",
+                        "writer", "imdbnumber", "premiered", "mpaa", "trailer", "votes",
+                        "country", "dateadded", "studio"
+                    ],
+                    "filter": 
+                    rpc['filter']
+                },
+                "id": 1
+            }
+            xbmc.log(f"ListGenius: Executing RPC query: {json.dumps(query)}", level=xbmc.LOGDEBUG)
+            response = xbmc.executeJSONRPC(json.dumps(query))
+
+            data_length = len(response)
+
+            xbmc.log(f"ListGenius: Raw response data length: {data_length}", level=xbmc.LOGDEBUG)
+            response_data = json.loads(response)
+            movies = response_data.get('result', {}).get('movies', [])
+            return movies
+        except KeyError as e:
+            xbmc.log(f"ListGenius: Key error in RPC query: {e}", level=xbmc.LOGERROR)
+            return []
+        except json.JSONDecodeError as e:
+            xbmc.log(f"ListGenius: JSON decode error in RPC query: {e}", level=xbmc.LOGERROR)
+            return []
+        except TypeError as e:
+            xbmc.log(f"ListGenius: Type error in RPC query: {e}", level=xbmc.LOGERROR)
+            return []
+        except Exception as e:  # pylint: disable=broad-except
+            xbmc.log(f"ListGenius: Unexpected error in RPC query: {e}", level=xbmc.LOGERROR)
+            return []
+
+
+    def log_request(self, request):
+        headers = request.headers.copy()
+        if 'Authorization' in headers:
+            headers['Authorization'] = '__REDACTED__'
+        xbmc.log(f"ListGenius: Sending request to {request.full_url}", level=xbmc.LOGINFO)
+        xbmc.log(f"ListGenius: Headers: {headers}", level=xbmc.LOGINFO)
+        xbmc.log(f"ListGenius: Body: {request.data.decode('utf-8')}", level=xbmc.LOGINFO)
+
+
+    def log_response(self, response):
+        xbmc.log(f"ListGenius: Response: {response}", level=xbmc.LOGINFO)
