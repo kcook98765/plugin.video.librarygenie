@@ -14,14 +14,14 @@ class JSONRPC:
         query_json = json.dumps(query)
 
         # Log the query being sent
-        xbmc.log(f"ListGenius: Executing JSONRPC method: {method}", xbmc.LOGINFO)
-        xbmc.log(f"ListGenius: Query: {query_json}", xbmc.LOGDEBUG)
+        utils.log(f"Executing JSONRPC method: {method}", "INFO")
+        utils.log(f"Query: {query_json}", "DEBUG")
 
         response = xbmc.executeJSONRPC(query_json)
         response_json = json.loads(response)
 
         # Log the response received
-        xbmc.log(f"ListGenius: Response: {response}", xbmc.LOGDEBUG)
+        utils.log(f"Response: {response}", "DEBUG")
 
         return response_json
 
@@ -35,10 +35,10 @@ class JSONRPC:
             if 'result' in result and 'movies' in result['result']:
                 return result['result']['movies']
             else:
-                xbmc.log("ListGenius: No movies found in response", xbmc.LOGDEBUG)
+                utils.log("No movies found in response", "DEBUG")
                 return []
         except Exception as e:
-            xbmc.log(f"ListGenius: Error fetching movies: {str(e)}", xbmc.LOGERROR)
+            utils.log(f"Error fetching movies: {str(e)}", "ERROR")
             raise
 
     def get_movie_details(self, movie_id):
@@ -80,9 +80,9 @@ class JSONRPC:
         return details
 
     def log_request(self, request):
-        xbmc.log(f"ListGenius: Sending request to {request.full_url}", level=xbmc.LOGINFO)
-        xbmc.log(f"ListGenius: Headers: {request.headers}", level=xbmc.LOGINFO)
-        xbmc.log(f"ListGenius: Body: {request.data.decode('utf-8')}", level=xbmc.LOGINFO)
+        utils.log(f"Sending request to {request.full_url}", "INFO")
+        utils.log(f"Headers: {request.headers}", "INFO")
+        utils.log(f"Body: {request.data.decode('utf-8')}", "INFO")
 
     def log_response(self, response):
-        xbmc.log(f"ListGenius: Response: {response}", level=xbmc.LOGINFO)
+        utils.log(f"Response: {response}", "INFO")
