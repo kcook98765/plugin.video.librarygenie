@@ -604,7 +604,7 @@ class MainWindow(BaseWindow):
 
     def open_settings(self):
         utils.log("Opening settings", "DEBUG")
-        xbmc.executebuiltin("Addon.OpenSettings(plugin.video.listgenius)")
+        xbmc.executebuiltin("Addon.OpenSettings(plugin.video.librarygenie)")
 
     def create_new_list(self, parent_id):
         try:
