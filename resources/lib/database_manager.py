@@ -21,7 +21,7 @@ class DatabaseManager:
                 return func(*args, **kwargs)
             except sqlite3.OperationalError as e:
                 if 'database is locked' in str(e):
-                    xbmc.log(f"ListGenius: Database is locked, retrying... ({i+1}/{retries})", xbmc.LOGWARNING)
+                    utils.log(f"Database is locked, retrying... ({i+1}/{retries})", "WARNING")
                     time.sleep(0.5)  # Wait for 0.5 seconds before retrying
                 else:
                     raise
@@ -121,7 +121,7 @@ class DatabaseManager:
             WHERE parent_id IS ?
             ORDER BY name COLLATE NOCASE
         """
-        xbmc.log(f"ListGenius: Executing SQL: {query}", xbmc.LOGDEBUG)
+        utils.log(f"Executing SQL: {query}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (parent_id,))
         rows = self.cursor.fetchall()
         return [{'id': row[0], 'name': row[1], 'parent_id': row[2]} for row in rows]
@@ -136,7 +136,7 @@ class DatabaseManager:
             WHERE folder_id IS ?
             ORDER BY name COLLATE NOCASE
         """
-        xbmc.log(f"ListGenius: Executing SQL: {query}", xbmc.LOGDEBUG)
+        utils.log(f"Executing SQL: {query}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (folder_id,))
         rows = self.cursor.fetchall()
         return [{'id': row[0], 'name': row[1], 'folder_id': row[2]} for row in rows]
@@ -146,7 +146,7 @@ class DatabaseManager:
             INSERT INTO folders (name, parent_id)
             VALUES (?, ?)
         """
-        xbmc.log(f"ListGenius: Executing SQL: {query} with name={name}, parent_id={parent_id}", xbmc.LOGDEBUG)
+        utils.log(f"Executing SQL: {query} with name={name}, parent_id={parent_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (name, parent_id))
         self.connection.commit()
 
@@ -156,7 +156,7 @@ class DatabaseManager:
             SET folder_id = ?
             WHERE id = ?
         """
-        xbmc.log(f"ListGenius: Executing SQL: {query} with list_id={list_id}, folder_id={folder_id}", xbmc.LOGDEBUG)
+        utils.log(f"Executing SQL: {query} with list_id={list_id}, folder_id={folder_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (folder_id, list_id))
         self.connection.commit()
 
@@ -175,7 +175,7 @@ class DatabaseManager:
             )
             ORDER BY lists.name COLLATE NOCASE
         """
-        xbmc.log(f"ListGenius: Executing SQL: {query} with item_id={item_id}", xbmc.LOGDEBUG)
+        utils.log(f"Executing SQL: {query} with item_id={item_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (item_id,))
         rows = self.cursor.fetchall()
         return [{'id': row[0], 'name': row[1], 'is_member': row[2]} for row in rows]
@@ -196,7 +196,7 @@ class DatabaseManager:
             )
             ORDER BY lists.folder_id, lists.name COLLATE NOCASE
         """
-        xbmc.log(f"ListGenius: Executing SQL: {query} with item_id={item_id}", xbmc.LOGDEBUG)
+        utils.log(f"Executing SQL: {query} with item_id={item_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (item_id,))
         rows = self.cursor.fetchall()
         return [{'id': row[0], 'name': row[1], 'folder_id': row[2], 'is_member': row[3]} for row in rows]
@@ -209,11 +209,11 @@ class DatabaseManager:
             JOIN media_items ON list_items.media_item_id = media_items.id
             WHERE list_items.list_id = ?
         """
-        xbmc.log(f"ListGenius: Executing SQL: {query} with list_id={list_id}", xbmc.LOGDEBUG)
+        utils.log(f"Executing SQL: {query} with list_id={list_id}", "DEBUG")
         try:
             self._execute_with_retry(self.cursor.execute, query, (list_id,))
             rows = self.cursor.fetchall()
-            xbmc.log(f"ListGenius: Fetched rows: {rows}", xbmc.LOGDEBUG)  # Log the fetched rows
+            utils.log(f"Fetched rows: {rows}", "DEBUG")  # Log the fetched rows
 
             items = []
             for row in rows:
@@ -222,11 +222,11 @@ class DatabaseManager:
                     'title': row[self.config.FIELDS.index('title TEXT') + 1],
                     'info': {field.split()[0]: (json.loads(row[idx + 1]) if field.split()[0] == 'cast' and row[idx + 1] else row[idx + 1]) for idx, field in enumerate(self.config.FIELDS) if field.split()[0] != 'title'}
                 }
-                xbmc.log(f"ListGenius: Collected path: {item['info'].get('path')}", xbmc.LOGDEBUG)  # Log the path here
+                utils.log(f"Collected path: {item['info'].get('path')}", "DEBUG")  # Log the path here
                 items.append(item)
             return items
         except sqlite3.OperationalError as e:
-            xbmc.log(f"ListGenius: SQL error: {e}", xbmc.LOGERROR)
+            utils.log(f"SQL error: {e}", "ERROR")
             return []
 
     def truncate_data(self, data, max_length=10):
@@ -245,26 +245,26 @@ class DatabaseManager:
             data['cast'] = json.dumps(data['cast'])
 
         truncated_data = self.truncate_data(data)
-        xbmc.log(f"ListGenius: Final data for insertion: {truncated_data}", xbmc.LOGDEBUG)  # Additional logging
+        utils.log(f"Final data for insertion: {truncated_data}", "DEBUG")  # Additional logging
 
         if table == 'list_items':
             # Extract field names from self.config.FIELDS
             field_names = [field.split()[0] for field in self.config.FIELDS]
-            xbmc.log(f"ListGenius: Field names for media data: {field_names}", xbmc.LOGDEBUG)  # Log field names
+            utils.log(f"Field names for media data: {field_names}", "DEBUG")  # Log field names
 
-            xbmc.log(f"ListGenius: Keys in data dictionary: {list(data.keys())}", xbmc.LOGDEBUG)  # Log keys in data
+            utils.log(f"Keys in data dictionary: {list(data.keys())}", "DEBUG")  # Log keys in data
 
             # Insert or ignore into media_items
             media_data = {key: data[key] for key in data if key in field_names}
 
             truncated_data = self.truncate_data(media_data)
-            xbmc.log(f"ListGenius: Media data for insertion after comprehension: {truncated_data}", xbmc.LOGDEBUG)  # Log media_data
+            utils.log(f"Media data for insertion after comprehension: {truncated_data}", "DEBUG")  # Log media_data
 
             # Insert or ignore into media_items
             columns = ', '.join(media_data.keys())
             placeholders = ', '.join('?' for _ in media_data)
             query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
-            xbmc.log(f"ListGenius: Executing SQL: {query} with data={media_data}", xbmc.LOGDEBUG)
+            utils.log(f"Executing SQL: {query} with data={media_data}", "DEBUG")
             self._execute_with_retry(self.cursor.execute, query, tuple(media_data.values()))
             self.connection.commit()
 
@@ -274,10 +274,10 @@ class DatabaseManager:
                 FROM media_items
                 WHERE kodi_id = ? AND play = ?
             """
-            xbmc.log(f"ListGenius: Executing SQL: {query} with kodi_id={media_data.get('kodi_id')} and play={media_data.get('play')}", xbmc.LOGDEBUG)
+            utils.log(f"Executing SQL: {query} with kodi_id={media_data.get('kodi_id')} and play={media_data.get('play')}", "DEBUG")
             self._execute_with_retry(self.cursor.execute, query, (media_data['kodi_id'], media_data['play']))
             media_item_id = self.cursor.fetchone()
-            xbmc.log(f"ListGenius: Fetched media_item_id: {media_item_id}", xbmc.LOGDEBUG)
+            utils.log(f"Fetched media_item_id: {media_item_id}", "DEBUG")
 
             if media_item_id:
                 media_item_id = media_item_id[0]
@@ -289,24 +289,24 @@ class DatabaseManager:
                 columns = ', '.join(list_data.keys())
                 placeholders = ', '.join('?' for _ in list_data)
                 query = f'INSERT INTO {table} ({columns}) VALUES ({placeholders})'
-                xbmc.log(f"ListGenius: Executing SQL: {query} with data={list_data}", xbmc.LOGDEBUG)
+                utils.log(f"Executing SQL: {query} with data={list_data}", "DEBUG")
                 self._execute_with_retry(self.cursor.execute, query, tuple(list_data.values()))
             else:
-                xbmc.log("ListGenius: No media_item_id found, insertion skipped", xbmc.LOGERROR)
+                utils.log("No media_item_id found, insertion skipped", "ERROR")
         else:
             columns = ', '.join(data.keys())
             placeholders = ', '.join('?' for _ in data)
             query = f'INSERT INTO {table} ({columns}) VALUES ({placeholders})'
-            xbmc.log(f"ListGenius: Executing SQL: {query} with data={data}", xbmc.LOGDEBUG)
+            utils.log(f"Executing SQL: {query} with data={data}", "DEBUG")
             self._execute_with_retry(self.cursor.execute, query, tuple(data.values()))
 
         self.connection.commit()
-        xbmc.log(f"ListGenius: Data inserted into {table} successfully", xbmc.LOGDEBUG)  # Log after insertion
+        utils.log(f"Data inserted into {table} successfully", "DEBUG")  # Log after insertion
 
     def _insert_or_ignore(self, table_name, data):
         # Check if data is not empty
         if not data:
-            xbmc.log(f"ListGenius: _insert_or_ignore data is empty: {data}", xbmc.LOGDEBUG)
+            utils.log(f"_insert_or_ignore data is empty: {data}", "DEBUG")
             return
 
         # Prepare column names and placeholders for values
@@ -323,19 +323,19 @@ class DatabaseManager:
     def update_data(self, table, data, condition):
         columns = ', '.join(f'{col} = ?' for col in data)
         query = f'UPDATE {table} SET {columns} WHERE {condition}'
-        xbmc.log(f"ListGenius: Executing SQL: {query} with data={data}", xbmc.LOGDEBUG)
+        utils.log(f"Executing SQL: {query} with data={data}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, tuple(data.values()))
         self.connection.commit()
 
     def delete_data(self, table, condition):
         query = f'DELETE FROM {table} WHERE {condition}'
-        xbmc.log(f"ListGenius: Executing SQL: {query}", xbmc.LOGDEBUG)
+        utils.log(f"Executing SQL: {query}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query)
         self.connection.commit()
 
     def get_list_id_by_name(self, list_name):
         query = "SELECT id FROM lists WHERE name = ?"
-        xbmc.log(f"ListGenius: Executing SQL: {query} with list_name={list_name}", xbmc.LOGDEBUG)
+        utils.log(f"Executing SQL: {query} with list_name={list_name}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (list_name,))
         row = self.cursor.fetchone()
         return row[0] if row else None
@@ -348,7 +348,7 @@ class DatabaseManager:
             JOIN media_items ON list_items.media_item_id = media_items.id
             WHERE media_items.kodi_id = ?
         """
-        xbmc.log(f"ListGenius: Executing SQL: {query} with item_id={item_id}", xbmc.LOGDEBUG)
+        utils.log(f"Executing SQL: {query} with item_id={item_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (item_id,))
         rows = self.cursor.fetchall()
         return [row[0] for row in rows]
@@ -362,7 +362,7 @@ class DatabaseManager:
             FROM folders
             ORDER BY parent_id, name COLLATE NOCASE
         """
-        xbmc.log(f"ListGenius: Executing SQL: {query}", xbmc.LOGDEBUG)
+        utils.log(f"Executing SQL: {query}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query)
         rows = self.cursor.fetchall()
         return [{'id': row[0], 'name': row[1], 'parent_id': row[2]} for row in rows]
@@ -376,7 +376,7 @@ class DatabaseManager:
             FROM lists
             ORDER BY folder_id, name COLLATE NOCASE
         """
-        xbmc.log(f"ListGenius: Executing SQL: {query}", xbmc.LOGDEBUG)
+        utils.log(f"Executing SQL: {query}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query)
         rows = self.cursor.fetchall()
         return [{'id': row[0], 'name': row[1], 'folder_id': row[2]} for row in rows]
@@ -388,27 +388,27 @@ class DatabaseManager:
             JOIN media_items ON list_items.media_item_id = media_items.id
             WHERE list_items.list_id = ? AND media_items.title = ?
         """
-        xbmc.log(f"ListGenius: Executing SQL: {query} with list_id={list_id}, title={title}", xbmc.LOGDEBUG)
+        utils.log(f"Executing SQL: {query} with list_id={list_id}, title={title}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (list_id, title))
         row = self.cursor.fetchone()
         return row[0] if row else None
 
     def get_folder_id_by_name(self, folder_name):
         query = "SELECT id FROM folders WHERE name = ?"
-        xbmc.log(f"ListGenius: Executing SQL: {query} with folder_name={folder_name}", xbmc.LOGDEBUG)
+        utils.log(f"Executing SQL: {query} with folder_name={folder_name}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (folder_name,))
         row = self.cursor.fetchone()
         return row[0] if row else None
 
     def update_folder_name(self, folder_id, new_name):
         query = "UPDATE folders SET name = ? WHERE id = ?"
-        xbmc.log(f"ListGenius: Executing SQL: {query} with folder_id={folder_id}, new_name={new_name}", xbmc.LOGDEBUG)
+        utils.log(f"Executing SQL: {query} with folder_id={folder_id}, new_name={new_name}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (new_name, folder_id))
         self.connection.commit()
 
     def update_folder_parent(self, folder_id, new_parent_id):
         query = "UPDATE folders SET parent_id = ? WHERE id = ?"
-        xbmc.log(f"ListGenius: Executing SQL: {query} with folder_id={folder_id}, new_parent_id={new_parent_id}", xbmc.LOGDEBUG)
+        utils.log(f"Executing SQL: {query} with folder_id={folder_id}, new_parent_id={new_parent_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (new_parent_id, folder_id))
         self.connection.commit()
 
@@ -452,7 +452,7 @@ class DatabaseManager:
             )
             ORDER BY folders.name COLLATE NOCASE
         """
-        xbmc.log(f"ListGenius: Executing SQL: {query} with item_id={item_id}", xbmc.LOGDEBUG)
+        utils.log(f"Executing SQL: {query} with item_id={item_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (item_id,))
         rows = self.cursor.fetchall()
         return [{'id': row[0], 'name': row[1], 'parent_id': row[2], 'is_member': row[3]} for row in rows]
@@ -462,10 +462,10 @@ class DatabaseManager:
             DELETE FROM list_items
             WHERE list_id = ? AND media_item_id = ?
         """
-        xbmc.log(f"ListGenius: Executing SQL: {query} with list_id={list_id}, media_item_id={media_item_id}", xbmc.LOGDEBUG)
+        utils.log(f"Executing SQL: {query} with list_id={list_id}, media_item_id={media_item_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (list_id, media_item_id))
         self.connection.commit()
-        xbmc.log(f"ListGenius: Media item ID {media_item_id} removed from list ID {list_id}", xbmc.LOGDEBUG)
+        utils.log(f"Media item ID {media_item_id} removed from list ID {list_id}", "DEBUG")
 
     def get_genie_list(self, list_id):
         query = "SELECT description, rpc FROM genie_lists WHERE list_id = ?"
@@ -480,9 +480,9 @@ class DatabaseManager:
         try:
             self._execute_with_retry(self.cursor.execute, query, (description, json.dumps(rpc), list_id))
             self.connection.commit()
-            xbmc.log(f"ListGenius: Updated genie_list for list_id={list_id}", xbmc.LOGDEBUG)
+            utils.log(f"Updated genie_list for list_id={list_id}", "DEBUG")
         except sqlite3.OperationalError as e:
-            xbmc.log(f"ListGenius: SQL error in update_genie_list: {e}", xbmc.LOGERROR)
+            utils.log(f"SQL error in update_genie_list: {e}", "ERROR")
             # Optional: Retry logic or additional error handling here
 
     def insert_genie_list(self, list_id, description, rpc):
@@ -490,9 +490,9 @@ class DatabaseManager:
         try:
             self._execute_with_retry(self.cursor.execute, query, (list_id, description, json.dumps(rpc)))
             self.connection.commit()
-            xbmc.log(f"ListGenius: Inserted genie_list for list_id={list_id}", xbmc.LOGDEBUG)
+            utils.log(f"Inserted genie_list for list_id={list_id}", "DEBUG")
         except sqlite3.OperationalError as e:
-            xbmc.log(f"ListGenius: SQL error in insert_genie_list: {e}", xbmc.LOGERROR)
+            utils.log(f"SQL error in insert_genie_list: {e}", "ERROR")
             # Optional: Retry logic or additional error handling here
 
     def delete_genie_list(self, list_id):
@@ -507,7 +507,7 @@ class DatabaseManager:
                 SELECT id FROM media_items WHERE source = 'genielist'
             )
         """
-        xbmc.log(f"ListGenius: Removing GenieList entries for list_id={list_id}", xbmc.LOGDEBUG)
+        utils.log(f"Removing GenieList entries for list_id={list_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (list_id,))
         self.connection.commit()
 
