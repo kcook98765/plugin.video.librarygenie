@@ -1,6 +1,10 @@
 """ /resources/lib/jsonrpc_manager.py """
 import json
+import xbmc
 from resources.lib import utils
+
+# Initialize logging
+utils.log("JSONRPC Manager module initialized", "INFO")
 
 class JSONRPC:
 

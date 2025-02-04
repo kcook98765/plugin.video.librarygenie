@@ -8,6 +8,9 @@ from resources.lib.database_manager import DatabaseManager
 from resources.lib.config_manager import Config
 from resources.lib.window_genie import GenieWindow
 
+# Initialize logging
+utils.log("List Window module initialized", "INFO")
+
 class ListWindow(pyxbmct.AddonDialogWindow):
     def __init__(self, list_id, title="Media List"):
         super().__init__(title)
@@ -44,7 +47,7 @@ class ListWindow(pyxbmct.AddonDialogWindow):
             list_item.setProperty('info', json.dumps(item['info']))
             list_item.setProperty('media_item_id', str(item['id']))
             self.media_list_control.addItem(list_item)
-            utils.log(f"Added item - Title: {item['title']}, Info: {item['info']}", xbmc.LOGDEBUG)
+            utils.log(f"Added item - Title: {item['title']}, Info: {item['info']}", "DEBUG")
 
         self.add_genie_list_option()
 
