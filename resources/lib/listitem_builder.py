@@ -17,11 +17,29 @@ class ListItemBuilder:
         info_tag = list_item.getVideoInfoTag()
         
         # Ensure proper media type string
-        media_type = str(media_info.get('type', 'movie')).lower()
+        media_type = str(media_info.get('media_type', 'movie')).lower()
         if media_type not in ['movie', 'tvshow', 'season', 'episode']:
             media_type = 'movie'
+
+        # Map all available metadata fields
+        info_dict = {
+            'plot': media_info.get('plot', ''),
+            'tagline': media_info.get('tagline', ''),
+            'cast': json.loads(media_info.get('cast', '[]')),
+            'country': media_info.get('country', ''),
+            'director': media_info.get('director', ''),
+            'genre': media_info.get('genre', ''),
+            'mpaa': media_info.get('mpaa', ''),
+            'premiered': media_info.get('premiered', ''),
+            'rating': media_info.get('rating', 0.0),
+            'studio': media_info.get('studio', ''),
+            'trailer': media_info.get('trailer', ''),
+            'votes': media_info.get('votes', ''),
+            'writer': media_info.get('writer', ''),
+            'year': media_info.get('year', '')
+        }
         
-        # Set artwork if available
+        # Set artwork
         art_dict = {
             'thumb': media_info.get('thumbnail', ''),
             'poster': media_info.get('thumbnail', ''),
@@ -31,9 +49,9 @@ class ListItemBuilder:
         utils.log(f"Setting art for ListItem: {art_dict}", "DEBUG")
         set_art(list_item, art_dict)
 
-        # Set video info
-        utils.log(f"Setting video info for ListItem: {media_info}", "DEBUG")
-        set_info(info_tag, media_info, media_type)
+        # Set all video info
+        utils.log(f"Setting video info for ListItem: {info_dict}", "DEBUG")
+        set_info(info_tag, info_dict, media_type)
         
         # Set content properties
         list_item.setProperty('IsPlayable', 'true')
