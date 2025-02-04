@@ -1,3 +1,4 @@
+
 """ /resources/lib/utils.py """
 import sys
 
@@ -11,17 +12,17 @@ def log(message, level=None):
     """Unified logging function for LibraryGenie addon.
     Args:
         message: String message to log
-        level: LOGDEBUG, LOGINFO, LOGWARNING, LOGERROR, or LOGFATAL
+        level: 'DEBUG', 'INFO', 'WARNING', 'ERROR', or 'FATAL'
     """
     if level is None:
-        level = xbmc.LOGDEBUG
-    elif isinstance(level, str):
-        level_map = {
-            'DEBUG': xbmc.LOGDEBUG,
-            'INFO': xbmc.LOGINFO,
-            'WARNING': xbmc.LOGWARNING,
-            'ERROR': xbmc.LOGERROR,
-            'FATAL': xbmc.LOGFATAL
-        }
-        level = level_map.get(level.upper(), xbmc.LOGDEBUG)
-    xbmc.log(f"LibraryGenie: {message}", level)
+        level = 'DEBUG'
+        
+    level_map = {
+        'DEBUG': xbmc.LOGDEBUG,
+        'INFO': xbmc.LOGINFO, 
+        'WARNING': xbmc.LOGWARNING,
+        'ERROR': xbmc.LOGERROR,
+        'FATAL': xbmc.LOGFATAL
+    }
+    xbmc_level = level_map.get(level.upper(), xbmc.LOGDEBUG)
+    xbmc.log(f"LibraryGenie: {message}", xbmc_level)
