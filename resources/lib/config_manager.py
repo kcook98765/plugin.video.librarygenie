@@ -1,3 +1,4 @@
+
 """ /resources/lib/config_manager.py """
 import os
 import xbmcaddon
