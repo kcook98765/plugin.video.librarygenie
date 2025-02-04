@@ -400,7 +400,8 @@ class MainWindow(pyxbmct.AddonDialogWindow):
         self.populate_list()
 
     def create_new_folder(self, parent_id):
-        new_folder_name = xbmcgui.Dialog().input("Enter new folder name").strip()
+        try:
+            new_folder_name = xbmcgui.Dialog().input("Enter new folder name").strip()
         xbmc.log(f"ListGenius: Creating new folder. ParentID={parent_id}, NewFolderName={new_folder_name}", xbmc.LOGDEBUG)
         if not new_folder_name:
             xbmcgui.Dialog().notification("ListGenius", "Invalid name entered", xbmcgui.NOTIFICATION_WARNING, 5000)

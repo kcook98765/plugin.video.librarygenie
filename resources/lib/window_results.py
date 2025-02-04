@@ -13,7 +13,7 @@ class ResultsWindow(pyxbmct.AddonDialogWindow):
 
     def __init__(self, rpc=None, name='', list_id=None, movies=None):
         super(ResultsWindow, self).__init__()
-        self.rpc = rpc or {}
+        self.rpc = rpc if rpc is not None else {}
         self.name = name
         self.list_id = list_id
         self.movies = movies or []
