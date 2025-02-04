@@ -5,6 +5,40 @@ import xbmcvfs
 from resources.lib import utils
 
 class Config:
+    def __init__(self):
+        self.addon = xbmcaddon.Addon()
+        self.addonpath = xbmcvfs.translatePath(self.addon.getAddonInfo('path'))
+        self.profile = xbmcvfs.translatePath(self.addon.getAddonInfo('profile'))
+        if not os.path.exists(self.profile):
+            os.makedirs(self.profile)
+        self.db_path = os.path.join(self.profile, 'librarygenie.db')
+        self.max_folder_depth = 5
+
+    FIELDS = [
+        'title TEXT',
+        'kodi_id INTEGER',
+        'play TEXT',
+        'plot TEXT',
+        'genre TEXT',
+        'director TEXT',
+        'writer TEXT',
+        'cast TEXT',
+        'rating REAL',
+        'votes INTEGER',
+        'duration INTEGER',
+        'year INTEGER',
+        'country TEXT',
+        'studio TEXT',
+        'trailer TEXT',
+        'tagline TEXT',
+        'source TEXT',
+        'premiered TEXT',
+        'thumbnail TEXT',
+        'fanart TEXT',
+        'mpaa TEXT'
+    ]
+
+class Config:
     """ FIELDS should align with table list_items fields AND for use in listitem building """
     FIELDS = [
         "cast TEXT",
