@@ -20,6 +20,9 @@ class KodiHelper:
     def list_items(self, items, content_type='video'):
         from resources.lib.listitem_builder import ListItemBuilder
 
+        # Set content type for proper display
+        xbmcplugin.setContent(self.addon_handle, content_type)
+        
         for item in items:
             list_item = ListItemBuilder.build_video_item(item)
             url = f'{self.addon_url}?action=play_item&id={item.get("id")}'
@@ -30,6 +33,11 @@ class KodiHelper:
                 listitem=list_item,
                 isFolder=False
             )
+            
+        # Enable media flags and sorting
+        xbmcplugin.setContent(self.addon_handle, content_type)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_TITLE)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
 
         xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url="", listitem=list_item, isFolder=False)
         xbmcplugin.endOfDirectory(self.addon_handle)
