@@ -9,6 +9,9 @@ from resources.lib.config_manager import Config
 from resources.lib.jsonrpc_manager import JSONRPC
 from resources.lib.llm_api_manager import LLMApiManager
 
+# Initialize logging
+utils.log("Results Window module initialized", "INFO")
+
 class ResultsWindow(pyxbmct.AddonDialogWindow):
     INDENTATION_MULTIPLIER = 3  # Set the indentation multiplier
 

@@ -12,16 +12,11 @@ class JSONRPC:
             "id": 1
         }
         query_json = json.dumps(query)
-
-        # Log the query being sent
-        utils.log(f"Executing JSONRPC method: {method}", "INFO")
-        utils.log(f"Query: {query_json}", "DEBUG")
+        utils.log(f"Executing JSONRPC method: {method} with params: {query_json}", "DEBUG")
 
         response = xbmc.executeJSONRPC(query_json)
         response_json = json.loads(response)
-
-        # Log the response received
-        utils.log(f"Response: {response}", "DEBUG")
+        utils.log(f"JSONRPC response: {response}", "DEBUG")
 
         return response_json
 
