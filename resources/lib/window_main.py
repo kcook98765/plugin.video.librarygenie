@@ -407,8 +407,8 @@ class MainWindow(pyxbmct.AddonDialogWindow):
                 xbmcgui.Dialog().notification("ListGenius", "Invalid name entered", xbmcgui.NOTIFICATION_WARNING, 5000)
                 return
 
-        db_manager = DatabaseManager(Config().db_path)
-        existing_folder_id = db_manager.get_folder_id_by_name(new_folder_name)
+            db_manager = DatabaseManager(Config().db_path)
+            existing_folder_id = db_manager.get_folder_id_by_name(new_folder_name)
         if existing_folder_id:
             xbmcgui.Dialog().notification("ListGenius", f"The folder name '{new_folder_name}' already exists", xbmcgui.NOTIFICATION_WARNING, 5000)
             return
