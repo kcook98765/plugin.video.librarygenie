@@ -1,6 +1,7 @@
 
 """ /resources/lib/utils.py """
 import sys
+import xbmc
 
 def get_addon_handle():
     try:
