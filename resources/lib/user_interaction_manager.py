@@ -4,14 +4,18 @@ import xbmc
 import xbmcgui
 from resources.lib.database_manager import DatabaseManager
 from resources.lib.config_manager import Config
+import utils # Assuming utils.log exists
 
 class UserInteractionManager:
 
     def __init__(self, addon_handle):
+        utils.log("User Interaction Manager initialized", "INFO")
         self.addon_handle = addon_handle
         self.db_manager = DatabaseManager(Config().db_path)
 
     def context_menu_action(self, action):
+        """Handle context menu actions"""
+        utils.log(f"Context menu action: {action}", "DEBUG")
         if action == "flag_item":
             item_id = self.get_focused_item_id()
             self.flag_list_item(item_id)
@@ -24,20 +28,23 @@ class UserInteractionManager:
         dialog = xbmcgui.Dialog()
         dialog.textviewer(xbmc.getLocalizedString(30008), data)
 
-    def save_list_item(self, list_id, item):
-        # Extract FIELDS keys without data types
-        fields_keys = [field.split()[0] for field in Config.FIELDS]
+    def save_list_item(self, list_id, item_data):
+        """Save an item to a list"""
+        utils.log(f"Saving item to list {list_id}", "INFO")
+        if not item_data:
+            utils.log("No item data provided", "WARNING")
+            return False
 
-        # Prepare data dictionary using fields
-        data = {field: item.get(field) for field in fields_keys}
-        data['list_id'] = list_id
-
-        # Convert the cast list to a JSON string if it exists
-        if 'cast' in data and isinstance(data['cast'], list):
-            data['cast'] = json.dumps(data['cast'])
-
-        xbmc.log(f"ListGenius: Saving item to database: {data}", xbmc.LOGDEBUG)
-        self.db_manager.insert_data('list_items', data)
+        try:
+            self.db_manager.insert_data('list_items', {
+                'list_id': list_id,
+                **item_data
+            })
+            utils.log("Item saved successfully", "INFO")
+            return True
+        except Exception as e:
+            utils.log(f"Error saving item: {str(e)}", "ERROR")
+            return False
 
     def flag_list_item(self, item_id):
         self.db_manager.update_data('list_items', {'flagged': 1}, f'id={item_id}')
