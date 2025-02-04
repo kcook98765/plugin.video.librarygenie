@@ -428,12 +428,17 @@ class MainWindow(pyxbmct.AddonDialogWindow):
             start += limit
             
         progress.close()
-        xbmcgui.Dialog().notification(
-            "ListGenius",
-            f"Exported {total_processed} movies to IMDB list",
-            xbmcgui.NOTIFICATION_INFO,
-            5000
+        
+        # Get IMDB stats
+        stats = db.get_imdb_export_stats()
+        stats_message = (
+            f"Export Complete\n\n"
+            f"Total Movies: {stats['total']}\n"
+            f"Valid IMDB Numbers: {stats['valid_imdb']}\n"
+            f"Percentage: {stats['percentage']:.1f}%"
         )
+        
+        xbmcgui.Dialog().ok("IMDB Export Statistics", stats_message)
 
     def handle_paste_action(self, action, target_id):
         utils.log(f"Handling paste action. Action={action}, TargetID={target_id}", "DEBUG")

@@ -598,6 +598,22 @@ class DatabaseManager:
         self._execute_with_retry(self.cursor.execute, query, (request_id, title, year, director))
         self.connection.commit()
 
+    def get_imdb_export_stats(self):
+        """Get statistics about IMDB numbers in exports"""
+        query = """
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN imdb_id IS NOT NULL AND imdb_id != '' AND imdb_id LIKE 'tt%' THEN 1 ELSE 0 END) as valid_imdb
+            FROM imdb_exports
+        """
+        self._execute_with_retry(self.cursor.execute, query)
+        result = self.cursor.fetchone()
+        return {
+            'total': result[0],
+            'valid_imdb': result[1],
+            'percentage': (result[1] / result[0] * 100) if result[0] > 0 else 0
+        }
+
     def insert_imdb_export(self, movies):
         """Insert multiple movies into imdb_exports table"""
         query = """
