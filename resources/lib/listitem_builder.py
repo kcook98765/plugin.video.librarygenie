@@ -1,4 +1,5 @@
 
+import json
 import xbmcgui
 from resources.lib.listitem_infotagvideo import set_info, set_art
 from resources.lib import utils
