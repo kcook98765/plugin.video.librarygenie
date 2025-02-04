@@ -29,11 +29,15 @@ class ListItemBuilder:
             'icon': media_info.get('thumbnail', '')
         }
         set_art(list_item, art_dict)
+
+        # Set video info
+        set_info(info_tag, media_info, media_type)
         
         # Set content properties
         list_item.setProperty('IsPlayable', 'true')
         if media_info.get('file'):
             list_item.setPath(media_info['file'])
+            utils.log(f"Setting path for item: {media_info['file']}", "DEBUG")
             
         return list_item
 

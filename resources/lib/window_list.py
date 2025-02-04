@@ -45,12 +45,17 @@ class ListWindow(BaseWindow):
 
         for item in media_items:
             label = f"{item['title']}"
-            list_item = xbmcgui.ListItem(label)
-            list_item.setProperty('title', item['title'])
-            list_item.setProperty('info', json.dumps(item['info']))
+            list_item = ListItemBuilder.build_video_item({
+                'title': item['title'],
+                'thumbnail': item['info'].get('thumbnail', ''),
+                'fanart': item['info'].get('fanart', ''),
+                'file': item['info'].get('file', ''),
+                'type': 'movie',
+                **item['info']
+            })
             list_item.setProperty('media_item_id', str(item['id']))
             self.media_list_control.addItem(list_item)
-            utils.log(f"Added item - Title: {item['title']}, Info: {item['info']}", "DEBUG")
+            utils.log(f"Added item with metadata - Title: {item['title']}, Info: {item['info']}", "DEBUG")
 
         self.add_genie_list_option()
 
