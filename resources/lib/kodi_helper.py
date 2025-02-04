@@ -59,7 +59,7 @@ class KodiHelper:
         for list_ in lists:
             list_item = xbmcgui.ListItem(label=list_['name'])
             url = f'{self.addon_url}?action=show_list&list_id={list_["id"]}'
-            xbmc.log(f"ListGenius: Adding list URL - {url}", xbmc.LOGDEBUG)
+            utils.log(f"Adding list URL - {url}")
             xbmcplugin.addDirectoryItem(
                 handle=self.addon_handle,
                 url=url,
@@ -102,7 +102,7 @@ class KodiHelper:
             'play': xbmc.getInfoLabel('ListItem.Path')  # Set the play field to a valid value
         }
 
-        xbmc.log(f"ListGenius: Basic item info gathered: {item_info}", xbmc.LOGDEBUG)
+        utils.log(f"Basic item info gathered: {item_info}")
         return item_info
 
     def get_focused_item_details(self):
@@ -125,9 +125,9 @@ class KodiHelper:
             else:
                 params['episodeid'] = int(db_id)
 
-            xbmc.log(f"ListGenius: Fetching details via RPC - Method: {method}, Params: {params}", xbmc.LOGDEBUG)
+            utils.log(f"Fetching details via RPC - Method: {method}, Params: {params}")
             response = self.jsonrpc.execute(method, params)
-            xbmc.log(f"ListGenius: RPC Response: {response}", xbmc.LOGDEBUG)
+            utils.log(f"RPC Response: {response}")
             details = response.get('result', {}).get('moviedetails' if method == 'VideoLibrary.GetMovieDetails' else 'episodedetails', {})
 
             # Parse cast details
@@ -150,7 +150,7 @@ class KodiHelper:
             details['file'] = xbmc.getInfoLabel('ListItem.FileNameAndPath')
             details['kodi_id'] = int(db_id)  # Ensure dbid is included
             details['play'] = details['file']  # Set the play field to a valid value
-            xbmc.log(f"ListGenius: Final gathered item details: {details}", xbmc.LOGDEBUG)
+            utils.log(f"Final gathered item details: {details}")
             return details
 
         # Fallback: Gather details directly from ListItem labels
@@ -186,7 +186,7 @@ class KodiHelper:
             'play': xbmc.getInfoLabel('ListItem.Path')  # Set the play field to a valid value
     }
 
-        xbmc.log(f"ListGenius: Directly collected item details: {details}", xbmc.LOGDEBUG)
+        utils.log(f"Directly collected item details: {details}")
         return details
 
     def show_information(self):

@@ -70,7 +70,7 @@ class GenieWindow(pyxbmct.AddonDialogWindow):
 
         # Check if rpc and name are valid before proceeding
         if not rpc or not name:
-            xbmc.log(f"ListGenius: Invalid RPC or Name returned from LLMApiManager. RPC: {rpc}, Name: {name}", xbmc.LOGDEBUG)
+            utils.log(f"Invalid RPC or Name returned from LLMApiManager. RPC: {rpc}, Name: {name}")
             return
 
         if self.genie_list:
@@ -98,9 +98,9 @@ class GenieWindow(pyxbmct.AddonDialogWindow):
             self.close()
 
     def close(self):
-        xbmc.log("GenieWindow: Closing GenieWindow...", xbmc.LOGDEBUG)
+        utils.log("Closing GenieWindow...")
         pyxbmct.AddonDialogWindow.close(self)
         del self
 
     def __del__(self):
-        xbmc.log("GenieWindow: Deleting GenieWindow instance...", xbmc.LOGDEBUG)
+        utils.log("Deleting GenieWindow instance...")
