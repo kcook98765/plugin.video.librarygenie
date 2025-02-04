@@ -8,8 +8,12 @@ from urllib.parse import quote
 import xbmc
 from xbmc import InfoTagVideo, Actor
 from xbmcgui import ListItem
+from resources.lib import utils
 
 __all__ = ['set_info', 'set_art']
+
+# Initialize logging
+utils.log("ListItem InfoTagVideo module initialized", "INFO")
 
 StreamDetailsType = Union[xbmc.VideoStreamDetail, xbmc.AudioStreamDetail, xbmc.SubtitleStreamDetail]
 
@@ -186,12 +190,14 @@ MEDIA_PROPERTIES: List[Tuple[str, str, Type[SimpleMediaPropertySetter]]] = [
 
 
 def set_info(info_tag: InfoTagVideo, media_info: dict, mediatype: str) -> None:
+    utils.log(f"Setting info for mediatype: {mediatype}", "DEBUG")
     kodi_version = get_kodi_version()
 
     info_tag.setMediaType(mediatype)
     for media_property, info_tag_method, setter_class in MEDIA_PROPERTIES:
         setter = setter_class(media_property, media_info, info_tag_method)
         if setter.should_set():
+            utils.log(f"Setting {media_property} using {info_tag_method}", "DEBUG")
             # For Kodi 19, use setInfo, for Kodi 20+, use explicit setters
             if kodi_version >= 20:
                 setter.set_info_tag_property(info_tag)
@@ -201,5 +207,7 @@ def set_info(info_tag: InfoTagVideo, media_info: dict, mediatype: str) -> None:
 
 
 def set_art(list_item: ListItem, raw_art: Dict[str, str]) -> None:
+    utils.log("Setting art for ListItem", "DEBUG")
     art = {art_type: raw_url for art_type, raw_url in raw_art.items()}
     list_item.setArt(art)
+    utils.log(f"Art types set: {', '.join(art.keys())}", "DEBUG")
