@@ -374,6 +374,7 @@ class MainWindow(pyxbmct.AddonDialogWindow):
             "Edit This List",
             "Delete This List",
             "Export IMDB List",
+            "Upload IMDB List",
             "Settings"
         ])
 
@@ -396,8 +397,58 @@ class MainWindow(pyxbmct.AddonDialogWindow):
             self.delete_list(list_data['id'], list_data['name'])
         elif options[selected_option] == "Export IMDB List":
             self.export_imdb_list(list_data['id'])
+        elif options[selected_option] == "Upload IMDB List":
+            self.upload_imdb_list()
         elif options[selected_option] == "Settings":
             self.open_settings()
+            
+    def upload_imdb_list(self):
+        """Upload IMDB numbers to configured API endpoint"""
+        import requests
+        
+        upload_url = xbmcaddon.Addon().getSetting('imdb_upload_url')
+        api_key = xbmcaddon.Addon().getSetting('imdb_upload_key')
+        
+        if not upload_url or not api_key:
+            xbmcgui.Dialog().ok("Error", "Please configure IMDB Upload API URL and Key in settings")
+            return
+            
+        db = DatabaseManager(Config().db_path)
+        imdb_numbers = db.get_valid_imdb_numbers()
+        
+        if not imdb_numbers:
+            xbmcgui.Dialog().notification(
+                "ListGenius",
+                "No valid IMDB numbers found to upload",
+                xbmcgui.NOTIFICATION_INFO,
+                5000
+            )
+            return
+            
+        progress = xbmcgui.DialogProgress()
+        progress.create("Uploading IMDB List")
+        
+        try:
+            response = requests.post(
+                upload_url,
+                json={'imdb_numbers': imdb_numbers},
+                headers={'Authorization': f'Bearer {api_key}'},
+                timeout=30
+            )
+            response.raise_for_status()
+            
+            xbmcgui.Dialog().notification(
+                "ListGenius",
+                f"Successfully uploaded {len(imdb_numbers)} IMDB numbers",
+                xbmcgui.NOTIFICATION_INFO,
+                5000
+            )
+            
+        except Exception as e:
+            utils.log(f"Error uploading IMDB list: {str(e)}", "ERROR")
+            xbmcgui.Dialog().ok("Error", f"Failed to upload IMDB list: {str(e)}")
+        finally:
+            progress.close()
 
     def export_imdb_list(self, list_id):
         """Export list items to IMDB format"""

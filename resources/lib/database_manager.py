@@ -641,6 +641,20 @@ class DatabaseManager:
         self.connection.commit()
 
 
+    def get_valid_imdb_numbers(self):
+        """Get all valid IMDB numbers from exports table"""
+        query = """
+            SELECT imdb_id
+            FROM imdb_exports
+            WHERE imdb_id IS NOT NULL 
+            AND imdb_id != '' 
+            AND imdb_id LIKE 'tt%'
+            ORDER BY imdb_id
+        """
+        self._execute_with_retry(self.cursor.execute, query)
+        rows = self.cursor.fetchall()
+        return [row[0] for row in rows]
+
     def __del__(self):
         if getattr(self, 'connection', None):
             self.connection.close()
