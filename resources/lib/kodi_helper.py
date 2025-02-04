@@ -72,13 +72,28 @@ class KodiHelper:
         xbmcplugin.endOfDirectory(self.addon_handle)
 
     def play_item(self, item, content_type='video'):
-        utils.log(f"Playing item: {item.get('title', 'Unknown')}", "INFO")
-        list_item = xbmcgui.ListItem(label=item['title'])
-        list_item.setInfo(content_type, item.get('info', {}))
-        list_item.setPath(item.get('file', ''))  # Use the full path to play the item
-        utils.log(f"Setting path: {item.get('file', '')}", "DEBUG")
+        try:
+            if not item or not item.get('title'):
+                utils.log("Invalid item data", "ERROR")
+                return False
+                
+            utils.log(f"Playing item: {item.get('title', 'Unknown')}", "INFO")
+            list_item = xbmcgui.ListItem(label=item['title'])
+            list_item.setInfo(content_type, item.get('info', {}))
+            
+            file_path = item.get('file', '')
+            if not file_path:
+                utils.log("No file path provided", "ERROR")
+                return False
+                
+            list_item.setPath(file_path)
+            utils.log(f"Setting path: {file_path}", "DEBUG")
 
-        xbmcplugin.setResolvedUrl(self.addon_handle, True, listitem=list_item)
+            xbmcplugin.setResolvedUrl(self.addon_handle, True, listitem=list_item)
+            return True
+        except Exception as e:
+            utils.log(f"Error playing item: {str(e)}", "ERROR")
+            return False
 
     def get_focused_item_basic_info(self):
         from resources.lib.media_manager import MediaManager
@@ -192,19 +207,24 @@ class KodiHelper:
             utils.log("No DBID found for the item", "WARNING")
 
     def get_cast_info(self):
-        utils.log("Gathering cast information", "DEBUG")
-        cast = []
-        for i in range(1, 21):  # Assuming a maximum of 20 cast members
-            name = xbmc.getInfoLabel(f'ListItem.CastAndRole.{i}.Name')
-            role = xbmc.getInfoLabel(f'ListItem.CastAndRole.{i}.Role')
-            order = i - 1  # Zero-based index
-            utils.log(f"Cast member {i}: {name} as {role}", "DEBUG")
-            thumbnail = xbmc.getInfoLabel(f'ListItem.CastAndRole.{i}.Thumb')
-            if name:
+        try:
+            utils.log("Gathering cast information", "DEBUG")
+            cast = []
+            for i in range(1, 21):  # Assuming a maximum of 20 cast members
+                name = xbmc.getInfoLabel(f'ListItem.CastAndRole.{i}.Name')
+                if not name:
+                    continue
+                role = xbmc.getInfoLabel(f'ListItem.CastAndRole.{i}.Role')
+                order = i - 1  # Zero-based index
+                utils.log(f"Cast member {i}: {name} as {role}", "DEBUG")
+                thumbnail = xbmc.getInfoLabel(f'ListItem.CastAndRole.{i}.Thumb')
                 cast.append({
                     'name': name,
                     'role': role,
                     'order': order,
                     'thumbnail': thumbnail
                 })
-        return json.dumps(cast)
+            return json.dumps(cast) if isinstance(cast, list) else cast
+        except Exception as e:
+            utils.log(f"Error getting cast info: {str(e)}", "ERROR")
+            return "[]"
