@@ -30,13 +30,13 @@ class AddonContext:
         return urllib.parse.parse_qs(sys.argv[2][1:]) if len(sys.argv) > 2 else {}
 
 def run_addon():
-    log("ListGenius: Running addon...", xbmc.LOGDEBUG) # Updated logging
+    log("Running addon...", "DEBUG")
     context = AddonContext()
     context.log_arguments()
     args = context.parse_args()
-    log(f"ListGenius: Args - {args}", xbmc.LOGDEBUG) # Updated logging
+    log(f"Args - {args}", "DEBUG")
     action = args.get('action', [None])[0] or sys.argv[1] if len(sys.argv) > 1 else None
-    log(f"ListGenius: Action - {action}", xbmc.LOGDEBUG) # Updated logging
+    log(f"Action - {action}", "DEBUG")
     action_handlers = {
         "show_folder": lambda: show_folder(context.db_manager, context.kodihelper, args),
         "show_list": lambda: show_list(context.db_manager, context.kodihelper, args),

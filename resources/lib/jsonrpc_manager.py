@@ -30,7 +30,7 @@ class JSONRPC:
             result = self.execute("VideoLibrary.GetMovies", rpc)
 
             # Log the result of the fetch operation
-            xbmc.log(f"ListGenius: Fetch result: {json.dumps(result, indent=2)}", xbmc.LOGDEBUG)
+            utils.log(f"Fetch result: {json.dumps(result, indent=2)}", "DEBUG")
 
             if 'result' in result and 'movies' in result['result']:
                 return result['result']['movies']
