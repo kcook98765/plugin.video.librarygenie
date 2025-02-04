@@ -1,6 +1,7 @@
 """ /resources/lib/window_results.py """
 import pyxbmct
 import xbmc
+from resources.lib import utils
 import xbmcgui
 import json
 from resources.lib.database_manager import DatabaseManager
@@ -61,7 +62,7 @@ class ResultsWindow(pyxbmct.AddonDialogWindow):
             self.populate_movies_list()
 
         except Exception as e:
-            xbmc.log(f"ListGenius: Error running LLM request: {str(e)}", xbmc.LOGERROR)
+            utils.log(f"Error running LLM request: {str(e)}", "ERROR")
             xbmcgui.Dialog().notification("ListGenius", "Error running LLM request", xbmcgui.NOTIFICATION_ERROR, 5000)
 
 
