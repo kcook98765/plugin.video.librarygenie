@@ -11,6 +11,8 @@ from resources.lib.user_interaction_manager import UserInteractionManager
 from resources.lib.window_main import MainWindow
 from resources.lib.utils import get_addon_handle, log # Added import for utils.log
 
+from resources.lib import utils
+
 class AddonContext:
     def __init__(self):
         self.ADDON_HANDLE = get_addon_handle()
@@ -24,7 +26,7 @@ class AddonContext:
 
     def log_arguments(self):
         for i, arg in enumerate(sys.argv):
-            log(f"ListGenius: sys.argv[{i}] = {arg}", xbmc.LOGDEBUG) # Updated logging
+            utils.log(f"sys.argv[{i}] = {arg}", "DEBUG")
 
     def parse_args(self):
         return urllib.parse.parse_qs(sys.argv[2][1:]) if len(sys.argv) > 2 else {}
