@@ -100,7 +100,7 @@ class ListWindow(pyxbmct.AddonDialogWindow):
         del self
 
     def __del__(self):
-        xbmc.log("ListWindow: Deleting ListWindow instance...", xbmc.LOGDEBUG)
+        utils.log("Deleting ListWindow instance...")
         if hasattr(self, 'media_list_control'):
             del self.media_list_control
 
