@@ -51,12 +51,25 @@ class ListWindow(BaseWindow):
         for item in media_items:
             label = f"{item['title']}"
             media_info = {
-                'title': item['title'],
-                'thumbnail': item.get('thumbnail', ''),
-                'fanart': item.get('fanart', ''),
-                'file': item.get('file', ''),
-                'type': 'movie',
-                **item
+                'title': item[23],  # title
+                'thumbnail': item[22],  # thumbnail
+                'fanart': item[6],  # fanart
+                'file': item[12],  # path
+                'plot': item[14],  # plot
+                'tagline': item[21],  # tagline
+                'cast': item[1],  # cast
+                'country': item[2],  # country
+                'director': item[4],  # director
+                'genre': item[7],  # genre
+                'mpaa': item[11],  # mpaa
+                'premiered': item[15],  # premiered
+                'rating': item[16],  # rating
+                'studio': item[20],  # studio
+                'trailer': item[24],  # trailer
+                'votes': item[26],  # votes
+                'writer': item[27],  # writer
+                'year': item[28],  # year
+                'media_type': 'movie'
             }
             utils.log(f"Building ListItem with media info: {media_info}", "DEBUG")
             list_item = ListItemBuilder.build_video_item(media_info)
