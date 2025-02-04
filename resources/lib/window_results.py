@@ -119,7 +119,7 @@ class ResultsWindow(pyxbmct.AddonDialogWindow):
         }
 
     def on_ok(self):
-        xbmc.log("ListGenius: OK button clicked", xbmc.LOGDEBUG)
+        utils.log("OK button clicked", xbmc.LOGDEBUG)
         if self.list_id is not None:
             try:
                 matched_movies = [movie for movie in self.movies if movie.get('matched', False)]
@@ -139,10 +139,10 @@ class ResultsWindow(pyxbmct.AddonDialogWindow):
 
                 xbmcgui.Dialog().notification("ListGenius", f"{len(matched_movies)} movies added to the list", xbmcgui.NOTIFICATION_INFO, 5000)
             except Exception as e:
-                xbmc.log(f"ListGenius: Error adding matched movies to list: {str(e)}", xbmc.LOGERROR)
+                utils.log(f"Error adding matched movies to list: {str(e)}", "ERROR")
                 xbmcgui.Dialog().notification("ListGenius", "Error adding matched movies to list", xbmcgui.NOTIFICATION_ERROR, 5000)
         else:
-            xbmc.log("ListGenius: No list_id provided, cannot add matched movies", xbmc.LOGERROR)
+            utils.log("No list_id provided, cannot add matched movies", "ERROR")
         self.close()
 
     def set_info_controls(self):
@@ -179,5 +179,5 @@ class ResultsWindow(pyxbmct.AddonDialogWindow):
         self.setFocus(self.movies_list_control)
 
     def on_cancel(self):
-        xbmc.log("ListGenius: Cancel button clicked", xbmc.LOGDEBUG)
+        utils.log("Cancel button clicked")
         self.close()
