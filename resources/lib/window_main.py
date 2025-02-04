@@ -469,17 +469,18 @@ class MainWindow(pyxbmct.AddonDialogWindow):
         xbmc.executebuiltin("Addon.OpenSettings(plugin.video.listgenius)")
 
     def create_new_list(self, parent_id):
-        new_list_name = xbmcgui.Dialog().input("Enter new list name").strip()
-        xbmc.log(f"ListGenius: Creating new list. ParentID={parent_id}, NewListName={new_list_name}", xbmc.LOGDEBUG)
-        if not new_list_name:
-            xbmcgui.Dialog().notification("ListGenius", "Invalid name entered", xbmcgui.NOTIFICATION_WARNING, 5000)
-            return
+        try:
+            new_list_name = xbmcgui.Dialog().input("Enter new list name").strip()
+            xbmc.log(f"ListGenius: Creating new list. ParentID={parent_id}, NewListName={new_list_name}", xbmc.LOGDEBUG)
+            if not new_list_name:
+                xbmcgui.Dialog().notification("ListGenius", "Invalid name entered", xbmcgui.NOTIFICATION_WARNING, 5000)
+                return
 
-        db_manager = DatabaseManager(Config().db_path)
-        existing_list_id = db_manager.get_list_id_by_name(new_list_name)
-        if existing_list_id:
-            xbmcgui.Dialog().notification("ListGenius", f"The list name '{new_list_name}' already exists", xbmcgui.NOTIFICATION_WARNING, 5000)
-            return
+            db_manager = DatabaseManager(Config().db_path)
+            existing_list_id = db_manager.get_list_id_by_name(new_list_name)
+            if existing_list_id:
+                xbmcgui.Dialog().notification("ListGenius", f"The list name '{new_list_name}' already exists", xbmcgui.NOTIFICATION_WARNING, 5000)
+                return
 
         parent_id = int(parent_id) if parent_id != 'None' else None
         xbmc.log(f"ListGenius: Creating new list '{new_list_name}' under parent ID '{parent_id}'", xbmc.LOGDEBUG)
