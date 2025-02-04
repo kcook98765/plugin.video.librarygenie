@@ -24,9 +24,14 @@ class ListWindow(BaseWindow):
         self.setFocus(self.media_list_control)  # Set focus to media list control after populating it
 
     def setup_ui(self):
-        self.placeControl(self.media_list_control, 1, 0, rowspan=9, columnspan=10, pad_x=10, pad_y=10)
-        self.connect(self.media_list_control, self.on_media_item_click)
-        self.set_navigation()
+        try:
+            self.placeControl(self.media_list_control, 1, 0, rowspan=9, columnspan=10, pad_x=10, pad_y=10)
+            self.connect(self.media_list_control, self.on_media_item_click)
+            if self.media_list_control and hasattr(self.media_list_control, 'getId'):
+                self.media_list_control.setEnabled(True)
+            self.set_navigation()
+        except Exception as e:
+            utils.log(f"Error in setup_ui: {str(e)}", "ERROR")
 
     def set_navigation(self):
         utils.log("Setting up window navigation controls", "DEBUG")

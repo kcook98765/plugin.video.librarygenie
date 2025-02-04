@@ -48,6 +48,15 @@ class SimpleMediaPropertySetter:
             return int(value)
         except (ValueError, TypeError):
             return 0
+            
+    def get_method_args(self) -> Iterable[Any]:
+        return (self._property_value,)
+
+    def set_info_tag_property(self, info_tag: InfoTagVideo) -> None:
+        if self.should_set():
+            method = getattr(info_tag, self._info_tag_method)
+            args = self.get_method_args()
+            method(*args)
 
 class NotNoneValueSetter(SimpleMediaPropertySetter):
 
