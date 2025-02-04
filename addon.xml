@@ -1,0 +1,22 @@
+<addon id="plugin.video.listgenius" version="1.0.1" name="LibraryGenie" provider-name="kcook98765">
+    <!-- """ /addon.xml """ -->
+    <requires>
+        <import addon="xbmc.python" version="3.0.0"/>
+        <import addon="script.module.pyxbmct" />
+    </requires>
+    <extension point="xbmc.python.pluginsource" library="main.py">
+        <provides>video</provides>
+    </extension>
+    <extension point="xbmc.python.script" library="main.py"/>
+    <extension point="xbmc.addon.metadata">
+        <summary>LibraryGenie is a Kodi addon handles lists and integration with AI enabled features.</summary>
+    </extension>
+    <extension point="kodi.context.item">
+      <menu id="kodi.core.main">
+        <item library="main.py" args="show_main_window">
+            <label>LibraryGenie</label>
+            <visible>true</visible>
+        </item>
+      </menu>
+    </extension>
+</addon>
