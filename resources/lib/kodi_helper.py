@@ -23,7 +23,7 @@ class KodiHelper:
 
         # Set content type for proper display
         xbmcplugin.setContent(self.addon_handle, content_type)
-        
+
         for item in items:
             list_item = ListItemBuilder.build_video_item(item)
             url = f'{self.addon_url}?action=play_item&id={item.get("id")}'
@@ -34,13 +34,12 @@ class KodiHelper:
                 listitem=list_item,
                 isFolder=False
             )
-            
+
         # Enable media flags and sorting
         xbmcplugin.setContent(self.addon_handle, content_type)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_TITLE)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
 
-        xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url="", listitem=list_item, isFolder=False)
         xbmcplugin.endOfDirectory(self.addon_handle)
 
     def list_folders(self, folders):
@@ -85,16 +84,16 @@ class KodiHelper:
             if not item or not item.get('title'):
                 utils.log("Invalid item data", "ERROR")
                 return False
-                
+
             utils.log(f"Playing item: {item.get('title', 'Unknown')}", "INFO")
             list_item = xbmcgui.ListItem(label=item['title'])
             list_item.setInfo(content_type, item.get('info', {}))
-            
+
             file_path = item.get('file', '')
             if not file_path:
                 utils.log("No file path provided", "ERROR")
                 return False
-                
+
             list_item.setPath(file_path)
             utils.log(f"Setting path: {file_path}", "DEBUG")
 
@@ -189,7 +188,7 @@ class KodiHelper:
             'is_playable': xbmc.getInfoLabel('ListItem.Property(IsPlayable)') == 'true',
             'dbid': db_id,
             'play': xbmc.getInfoLabel('ListItem.Path')  # Set the play field to a valid value
-    }
+        }
 
         utils.log(f"Directly collected item details: {details}")
         return details
