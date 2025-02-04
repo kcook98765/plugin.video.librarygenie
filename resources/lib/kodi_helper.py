@@ -49,7 +49,7 @@ class KodiHelper:
         for folder in folders:
             list_item = xbmcgui.ListItem(label=folder['name'])
             url = f'{self.addon_url}?action=show_folder&folder_id={folder["id"]}'
-            utils.log(f"Adding folder URL - {url}")
+            utils.log(f"Adding folder URL - {url}", "DEBUG")
             xbmcplugin.addDirectoryItem(
                 handle=self.addon_handle,
                 url=url,
@@ -59,7 +59,7 @@ class KodiHelper:
         for list_ in lists:
             list_item = xbmcgui.ListItem(label=list_['name'])
             url = f'{self.addon_url}?action=show_list&list_id={list_["id"]}'
-            utils.log(f"Adding list URL - {url}")
+            utils.log(f"Adding list URL - {url}", "DEBUG")
             xbmcplugin.addDirectoryItem(
                 handle=self.addon_handle,
                 url=url,
