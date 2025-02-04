@@ -440,9 +440,16 @@ class DatabaseManager:
 
     def update_folder_parent(self, folder_id, new_parent_id):
         if new_parent_id is not None:
-            # Check if move would exceed max depth
-            current_depth = self.get_folder_depth(new_parent_id)
-            if current_depth >= self.config.max_folder_depth - 1:
+            # Get the depth of the subtree being moved
+            subtree_depth = self._get_subtree_depth(folder_id)
+            
+            # Get the depth at the new location
+            target_depth = self.get_folder_depth(new_parent_id)
+            
+            # Calculate total depth after move
+            total_depth = target_depth + subtree_depth + 1
+            
+            if total_depth > self.config.max_folder_depth:
                 raise ValueError(f"Moving folder would exceed maximum depth of {self.config.max_folder_depth}")
             
             # Check if move would create a cycle
@@ -454,6 +461,24 @@ class DatabaseManager:
                 self._execute_with_retry(self.cursor.execute, query, (temp_parent,))
                 result = self.cursor.fetchone()
                 temp_parent = result[0] if result else None
+                
+    def _get_subtree_depth(self, folder_id):
+        """Calculate the maximum depth of a folder's subtree"""
+        query = """
+            WITH RECURSIVE folder_tree AS (
+                SELECT id, parent_id, 0 as depth
+                FROM folders 
+                WHERE id = ?
+                UNION ALL
+                SELECT f.id, f.parent_id, ft.depth + 1
+                FROM folders f
+                JOIN folder_tree ft ON f.parent_id = ft.id
+            )
+            SELECT MAX(depth) FROM folder_tree
+        """
+        self._execute_with_retry(self.cursor.execute, query, (folder_id,))
+        result = self.cursor.fetchone()
+        return result[0] if result[0] is not None else 0
 
         query = "UPDATE folders SET parent_id = ? WHERE id = ?"
         utils.log(f"Executing SQL: {query} with folder_id={folder_id}, new_parent_id={new_parent_id}", "DEBUG")
