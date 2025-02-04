@@ -85,9 +85,13 @@ class ResultsWindow(BaseWindow):
         return results
 
     def search_movie_by_criteria(self, title, year=None, director=None):
-        from resources.lib.results_manager import ResultsManager
-        results_manager = ResultsManager()
-        return results_manager.search_movie_by_criteria(title, year, director)
+        try:
+            from resources.lib.results_manager import ResultsManager
+            results_manager = ResultsManager()
+            return results_manager.search_movie_by_criteria(title, year, director)
+        except Exception as e:
+            utils.log(f"Error searching for movie: {str(e)}", "ERROR")
+            return []
 
     def build_combined_query(self, title, year, director):
         return {

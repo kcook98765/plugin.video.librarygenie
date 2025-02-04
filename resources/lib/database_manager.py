@@ -425,11 +425,35 @@ class DatabaseManager:
         self.connection.commit()
 
     def delete_folder_and_contents(self, folder_id):
-        # Delete all lists in the folder
-        self._execute_with_retry(self.cursor.execute, "DELETE FROM lists WHERE folder_id = ?", (folder_id,))
-        # Delete the folder itself
-        self._execute_with_retry(self.cursor.execute, "DELETE FROM folders WHERE id = ?", (folder_id,))
-        self.connection.commit()
+        try:
+            self.connection.execute("BEGIN")
+            # Get all nested folder IDs
+            self._execute_with_retry(self.cursor.execute, """
+                WITH RECURSIVE nested_folders AS (
+                    SELECT id FROM folders WHERE id = ?
+                    UNION ALL
+                    SELECT f.id FROM folders f
+                    JOIN nested_folders nf ON f.parent_id = nf.id
+                )
+                SELECT id FROM nested_folders
+            """, (folder_id,))
+            folder_ids = [row[0] for row in self.cursor.fetchall()]
+            
+            # Delete lists in all nested folders
+            placeholders = ','.join('?' * len(folder_ids))
+            self._execute_with_retry(self.cursor.execute, 
+                f"DELETE FROM lists WHERE folder_id IN ({placeholders})", 
+                folder_ids)
+            
+            # Delete all nested folders
+            self._execute_with_retry(self.cursor.execute, 
+                f"DELETE FROM folders WHERE id IN ({placeholders})", 
+                folder_ids)
+                
+            self.connection.commit()
+        except Exception as e:
+            self.connection.rollback()
+            raise e
 
     def fetch_folder_by_id(self, folder_id):
         query = "SELECT id, name, parent_id FROM folders WHERE id = ?"
