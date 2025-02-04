@@ -1,6 +1,6 @@
 """ /resources/lib/jsonrpc_manager.py """
 import json
-import xbmc
+from resources.lib import utils
 
 class JSONRPC:
 

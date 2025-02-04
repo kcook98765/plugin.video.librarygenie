@@ -1,7 +1,7 @@
 """ /resources/lib/window_genie.py """
 import pyxbmct
-import xbmc
 import xbmcgui
+from resources.lib import utils
 from resources.lib.llm_api_manager import LLMApiManager
 from resources.lib.database_manager import DatabaseManager
 from resources.lib.config_manager import Config
