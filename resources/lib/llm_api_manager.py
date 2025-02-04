@@ -50,6 +50,8 @@ class LLMApiManager:
         }
 
         data_bytes = json.dumps(data).encode('utf-8')
+        utils.log(f"Preparing API request with temperature: {self.api_temperature}", "DEBUG")
+        utils.log(f"API request max tokens: {self.api_max_tokens}", "DEBUG")
 
         req = urllib.request.Request(self.base_url, data=data_bytes, headers=headers)
         self.log_request(req)

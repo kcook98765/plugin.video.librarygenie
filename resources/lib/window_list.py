@@ -29,6 +29,7 @@ class ListWindow(BaseWindow):
         self.set_navigation()
 
     def set_navigation(self):
+        utils.log("Setting up window navigation controls", "DEBUG")
         # Set navigation controls for the media list
         self.media_list_control.controlUp(self.media_list_control)
         self.media_list_control.controlDown(self.media_list_control)

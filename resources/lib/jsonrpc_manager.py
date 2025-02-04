@@ -51,6 +51,7 @@ class JSONRPC:
             return []
 
     def get_movie_details(self, movie_id):
+        utils.log(f"Fetching details for movie ID: {movie_id}", "DEBUG")
         method = 'VideoLibrary.GetMovieDetails'
         params = {
             'movieid': movie_id,
