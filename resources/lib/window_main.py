@@ -13,7 +13,9 @@ from resources.lib import utils
 # Initialize window logging
 utils.log("Initializing MainWindow module", "INFO")
 
-class MainWindow(pyxbmct.AddonDialogWindow):
+from resources.lib.window_base import BaseWindow
+
+class MainWindow(BaseWindow):
     INDENTATION_MULTIPLIER = 3  # Set the indentation multiplier
 
     def __init__(self, item_info, title="Item Info"):

@@ -12,7 +12,9 @@ from resources.lib.llm_api_manager import LLMApiManager
 # Initialize logging with utils.log
 utils.log("Results Window module initialized", "INFO")
 
-class ResultsWindow(pyxbmct.AddonDialogWindow):
+from resources.lib.window_base import BaseWindow
+
+class ResultsWindow(BaseWindow):
     INDENTATION_MULTIPLIER = 3  # Set the indentation multiplier
 
     def __init__(self, rpc=None, name='', list_id=None, movies=None):

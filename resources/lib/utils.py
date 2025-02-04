@@ -27,3 +27,18 @@ def log(message, level=None):
     }
     xbmc_level = level_map.get(level.upper(), xbmc.LOGDEBUG)
     xbmc.log(f"LibraryGenie: {message}", xbmc_level)
+def show_notification(heading, message, icon=xbmcgui.NOTIFICATION_INFO, time=5000):
+    """Centralized notification display"""
+    xbmcgui.Dialog().notification(heading, message, icon, time)
+
+def show_dialog_ok(heading, message):
+    """Centralized OK dialog"""
+    xbmcgui.Dialog().ok(heading, message)
+
+def show_dialog_yesno(heading, message):
+    """Centralized Yes/No dialog"""
+    return xbmcgui.Dialog().yesno(heading, message)
+
+def show_dialog_input(heading, default=""):
+    """Centralized input dialog"""
+    return xbmcgui.Dialog().input(heading, defaultt=default).strip()

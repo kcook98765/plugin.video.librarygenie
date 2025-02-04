@@ -11,7 +11,9 @@ from resources.lib.window_genie import GenieWindow
 # Initialize logging
 utils.log("List Window module initialized", "INFO")
 
-class ListWindow(pyxbmct.AddonDialogWindow):
+from resources.lib.window_base import BaseWindow
+
+class ListWindow(BaseWindow):
     def __init__(self, list_id, title="Media List"):
         super().__init__(title)
         self.setGeometry(800, 600, 10, 10)
