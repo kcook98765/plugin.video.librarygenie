@@ -28,9 +28,11 @@ class ListItemBuilder:
             'fanart': media_info.get('fanart', ''),
             'icon': media_info.get('thumbnail', '')
         }
+        utils.log(f"Setting art for ListItem: {art_dict}", "DEBUG")
         set_art(list_item, art_dict)
 
         # Set video info
+        utils.log(f"Setting video info for ListItem: {media_info}", "DEBUG")
         set_info(info_tag, media_info, media_type)
         
         # Set content properties

@@ -56,6 +56,7 @@ class SimpleMediaPropertySetter:
         if self.should_set():
             method = getattr(info_tag, self._info_tag_method)
             args = self.get_method_args()
+            utils.log(f"Setting InfoTagVideo property: method={self._info_tag_method}, args={args}", "DEBUG")
             method(*args)
 
 class NotNoneValueSetter(SimpleMediaPropertySetter):
