@@ -30,6 +30,18 @@ class DatabaseManager:
         fields_str = ', '.join(self.config.FIELDS)
         table_creations = [
             '''
+                CREATE TABLE IF NOT EXISTS imdb_exports (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    kodi_id INTEGER,
+                    imdb_id TEXT,
+                    title TEXT,
+                    year INTEGER,
+                    filename TEXT,
+                    path TEXT,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            ''',
+            '''
                 CREATE TABLE IF NOT EXISTS folders (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT UNIQUE,
@@ -584,6 +596,32 @@ class DatabaseManager:
             VALUES (?, ?, ?, ?)
         """
         self._execute_with_retry(self.cursor.execute, query, (request_id, title, year, director))
+        self.connection.commit()
+
+    def insert_imdb_export(self, movies):
+        """Insert multiple movies into imdb_exports table"""
+        query = """
+            INSERT INTO imdb_exports 
+            (kodi_id, imdb_id, title, year, filename, path)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """
+        for movie in movies:
+            file_path = movie.get('file', '')
+            filename = file_path.split('/')[-1] if file_path else ''
+            path = '/'.join(file_path.split('/')[:-1]) if file_path else ''
+            
+            self._execute_with_retry(
+                self.cursor.execute, 
+                query,
+                (
+                    movie.get('movieid'), 
+                    movie.get('imdbnumber'),
+                    movie.get('title'),
+                    movie.get('year'),
+                    filename,
+                    path
+                )
+            )
         self.connection.commit()
 
 

@@ -373,6 +373,7 @@ class MainWindow(pyxbmct.AddonDialogWindow):
             "Move This List",
             "Edit This List",
             "Delete This List",
+            "Export IMDB List",
             "Settings"
         ])
 
@@ -393,8 +394,46 @@ class MainWindow(pyxbmct.AddonDialogWindow):
             self.edit_list(list_data['id'])
         elif options[selected_option] == "Delete This List":
             self.delete_list(list_data['id'], list_data['name'])
+        elif options[selected_option] == "Export IMDB List":
+            self.export_imdb_list(list_data['id'])
         elif options[selected_option] == "Settings":
             self.open_settings()
+
+    def export_imdb_list(self, list_id):
+        """Export list items to IMDB format"""
+        progress = xbmcgui.DialogProgress()
+        progress.create("Exporting IMDB List")
+        
+        jsonrpc = JSONRPC()
+        db = DatabaseManager(Config().db_path)
+        
+        start = 0
+        limit = 50
+        total_processed = 0
+        
+        while True:
+            movies, total = jsonrpc.get_movies_for_export(start, limit)
+            if not movies:
+                break
+                
+            db.insert_imdb_export(movies)
+            total_processed += len(movies)
+            
+            percent = (total_processed * 100) // total if total > 0 else 100
+            progress.update(percent, f"Processed {total_processed} of {total} movies...")
+            
+            if total_processed >= total:
+                break
+                
+            start += limit
+            
+        progress.close()
+        xbmcgui.Dialog().notification(
+            "ListGenius",
+            f"Exported {total_processed} movies to IMDB list",
+            xbmcgui.NOTIFICATION_INFO,
+            5000
+        )
 
     def handle_paste_action(self, action, target_id):
         utils.log(f"Handling paste action. Action={action}, TargetID={target_id}", "DEBUG")
