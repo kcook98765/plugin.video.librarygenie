@@ -27,6 +27,7 @@ class KodiHelper:
 
         # Set the media info using the set_info function
         set_info(info_tag, media_info, 'movie')
+        utils.log(f"Setting media info for {media_info.get('title', 'Unknown')}", "DEBUG")
 
         xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url="", listitem=list_item, isFolder=False)
         xbmcplugin.endOfDirectory(self.addon_handle)
@@ -69,9 +70,11 @@ class KodiHelper:
         xbmcplugin.endOfDirectory(self.addon_handle)
 
     def play_item(self, item, content_type='video'):
+        utils.log(f"Playing item: {item.get('title', 'Unknown')}", "INFO")
         list_item = xbmcgui.ListItem(label=item['title'])
         list_item.setInfo(content_type, item.get('info', {}))
         list_item.setPath(item.get('file', ''))  # Use the full path to play the item
+        utils.log(f"Setting path: {item.get('file', '')}", "DEBUG")
 
         xbmcplugin.setResolvedUrl(self.addon_handle, True, listitem=list_item)
 
@@ -212,11 +215,13 @@ class KodiHelper:
             utils.log("No DBID found for the item", "WARNING")
 
     def get_cast_info(self):
+        utils.log("Gathering cast information", "DEBUG")
         cast = []
         for i in range(1, 21):  # Assuming a maximum of 20 cast members
             name = xbmc.getInfoLabel(f'ListItem.CastAndRole.{i}.Name')
             role = xbmc.getInfoLabel(f'ListItem.CastAndRole.{i}.Role')
             order = i - 1  # Zero-based index
+            utils.log(f"Cast member {i}: {name} as {role}", "DEBUG")
             thumbnail = xbmc.getInfoLabel(f'ListItem.CastAndRole.{i}.Thumb')
             if name:
                 cast.append({
