@@ -1,0 +1,18 @@
+2025-02-04 15:00:27.552 T:7380    error <general>: EXCEPTION Thrown (PythonToCppException) : -->Python callback/script returned the following error<--
+                                                    - NOTE: IGNORING THIS CAN LEAD TO MEMORY LEAKS!
+                                                   Error Type: <class 'NameError'>
+                                                   Error Contents: name 'xbmcgui' is not defined
+                                                   Traceback (most recent call last):
+                                                     File "C:\Users\kcook\AppData\Roaming\Kodi\addons\plugin.video.librarygenie\main.py", line 2, in <module>
+                                                       from resources.lib.addon_helper import run_addon  # Updated import
+                                                     File "C:\Users\kcook\AppData\Roaming\Kodi\addons\plugin.video.librarygenie\resources\lib\addon_helper.py", line 5, in <module>
+                                                       from resources.lib.config_manager import Config
+                                                     File "C:\Users\kcook\AppData\Roaming\Kodi\addons\plugin.video.librarygenie\resources\lib\config_manager.py", line 5, in <module>
+                                                       from resources.lib import utils
+                                                     File "C:\Users\kcook\AppData\Roaming\Kodi\addons\plugin.video.librarygenie\resources\lib\utils.py", line 30, in <module>
+                                                       def show_notification(heading, message, icon=xbmcgui.NOTIFICATION_INFO, time=5000):
+                                                   NameError: name 'xbmcgui' is not defined
+                                                   -->End of Python script error report<--
+                                                   
+2025-02-04 15:00:27.579 T:25292   error <general>: XFILE::CDirectory::GetDirectory - Error getting plugin://plugin.video.librarygenie/
+2025-02-04 15:00:27.586 T:26540   error <general>: CGUIMediaWindow::GetDirectory(plugin://plugin.video.librarygenie/) failed
