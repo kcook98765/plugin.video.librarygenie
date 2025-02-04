@@ -402,10 +402,10 @@ class MainWindow(pyxbmct.AddonDialogWindow):
     def create_new_folder(self, parent_id):
         try:
             new_folder_name = xbmcgui.Dialog().input("Enter new folder name").strip()
-        xbmc.log(f"ListGenius: Creating new folder. ParentID={parent_id}, NewFolderName={new_folder_name}", xbmc.LOGDEBUG)
-        if not new_folder_name:
-            xbmcgui.Dialog().notification("ListGenius", "Invalid name entered", xbmcgui.NOTIFICATION_WARNING, 5000)
-            return
+            xbmc.log(f"ListGenius: Creating new folder. ParentID={parent_id}, NewFolderName={new_folder_name}", xbmc.LOGDEBUG)
+            if not new_folder_name:
+                xbmcgui.Dialog().notification("ListGenius", "Invalid name entered", xbmcgui.NOTIFICATION_WARNING, 5000)
+                return
 
         db_manager = DatabaseManager(Config().db_path)
         existing_folder_id = db_manager.get_folder_id_by_name(new_folder_name)
