@@ -59,30 +59,30 @@ def run_addon():
 
 def show_folder(db_manager, kodihelper, args):
     folder_id = int(args.get('folder_id', [None])[0])
-    log(f"ListGenius: Showing folder ID {folder_id}...", xbmc.LOGDEBUG) # Updated logging
+    utils.log(f"Showing folder ID {folder_id}...", "DEBUG")
     folders = db_manager.fetch_folders(folder_id)
     lists = db_manager.fetch_lists(folder_id)
     kodihelper.list_folders_and_lists(folders, lists)
 
 def show_list(db_manager, kodihelper, args):
-    log("ListGenius: Showing list...", xbmc.LOGDEBUG) # Updated logging
+    utils.log("Showing list...", "DEBUG")
     list_id = int(args.get('list_id', [0])[0])
     items = db_manager.fetch_list_items(list_id)
     kodihelper.list_items(items)
 
 def show_main_window(kodihelper):
-    log("ListGenius: Showing Main window...", xbmc.LOGDEBUG) # Updated logging
+    utils.log("Showing Main window...", "DEBUG")
     db_id = xbmc.getInfoLabel('ListItem.DBID')
     item_info = kodihelper.get_focused_item_details() if db_id.isdigit() and int(db_id) > 0 else kodihelper.get_focused_item_basic_info()
     window = MainWindow(item_info)
     window.doModal()
 
 def show_info(kodihelper):
-    log("ListGenius: Showing info...", xbmc.LOGDEBUG) # Updated logging
+    utils.log("Showing info...", "DEBUG")
     kodihelper.show_information()
 
 def list_root_folders_and_lists(db_manager, kodihelper):
-    log("ListGenius: Default action - listing root folders and lists", xbmc.LOGDEBUG) # Updated logging
+    utils.log("Default action - listing root folders and lists", "DEBUG")
     root_folders = db_manager.fetch_folders(None)
     root_lists = db_manager.fetch_lists(None)
     kodihelper.list_folders_and_lists(root_folders, root_lists)
