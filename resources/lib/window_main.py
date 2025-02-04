@@ -692,9 +692,14 @@ class MainWindow(BaseWindow):
         return text
 
     def set_navigation(self):
-        self.list_control.controlUp(self.list_control)
-        self.list_control.controlDown(self.list_control)
-        self.setFocus(self.list_control)
+        try:
+            if self.list_control and hasattr(self.list_control, 'getId'):
+                self.list_control.controlUp(self.list_control)
+                self.list_control.controlDown(self.list_control)
+                self.list_control.setEnabled(True)
+                self.setFocus(self.list_control)
+        except Exception as e:
+            utils.log(f"Error setting navigation: {str(e)}", "ERROR")
 
     def get_parent_folder_id(self, folder_id):
         db_manager = DatabaseManager(Config().db_path)

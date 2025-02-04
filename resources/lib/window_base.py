@@ -22,8 +22,16 @@ class BaseWindow(pyxbmct.AddonDialogWindow):
 
     def set_basic_navigation(self, control):
         """Set up basic navigation for a single control"""
-        control.controlUp(control)
-        control.controlDown(control)
-        control.controlLeft(control)
-        control.controlRight(control)
-        self.setFocus(control)
+        try:
+            # First check if control exists and is valid
+            if control and hasattr(control, 'getId') and control.getId() > 0:
+                control.controlUp(control)
+                control.controlDown(control)
+                control.controlLeft(control)
+                control.controlRight(control)
+                # Only set focus if control is focusable
+                if hasattr(control, 'setEnabled'):
+                    control.setEnabled(True)
+                self.setFocus(control)
+        except Exception as e:
+            utils.log(f"Error setting navigation for control: {str(e)}", "ERROR")
