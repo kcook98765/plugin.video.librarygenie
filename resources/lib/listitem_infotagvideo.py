@@ -70,9 +70,18 @@ class CastSetter(SimpleMediaPropertySetter):
 class ResumePointSetter(SimpleMediaPropertySetter):
 
     def get_method_args(self) -> Iterable[Any]:
-        time = self._property_value.get('position', 0.0)
-        totaltime = self._property_value.get('total', 0.0)
-        return time, totaltime
+        try:
+            time = float(self._property_value.get('position', 0.0))
+            totaltime = float(self._property_value.get('total', 0.0))
+            if time < 0:
+                time = 0.0
+            if totaltime < 0:
+                totaltime = 0.0
+            if time > totaltime:
+                time = totaltime
+            return time, totaltime
+        except (ValueError, TypeError):
+            return 0.0, 0.0
 
 
 class VideoStreamSetter(SimpleMediaPropertySetter):

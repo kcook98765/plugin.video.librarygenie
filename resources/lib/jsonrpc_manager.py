@@ -27,18 +27,28 @@ class JSONRPC:
     def fetch_movies_from_rpc(self, rpc):
         try:
             result = self.execute("VideoLibrary.GetMovies", rpc)
-
-            # Log the result of the fetch operation
             utils.log(f"Fetch result: {json.dumps(result, indent=2)}", "DEBUG")
+
+            if 'error' in result:
+                error_msg = result['error'].get('message', 'Unknown error')
+                utils.log(f"JSONRPC error: {error_msg}", "ERROR")
+                return []
 
             if 'result' in result and 'movies' in result['result']:
                 return result['result']['movies']
-            else:
-                utils.log("No movies found in RPC response", "WARNING")
-                return []
+
+            utils.log("No movies found in RPC response", "WARNING")
+            return []
+
+        except json.JSONDecodeError as e:
+            utils.log(f"Invalid JSON in RPC response: {str(e)}", "ERROR")
+            return []
+        except KeyError as e:
+            utils.log(f"Missing key in RPC response: {str(e)}", "ERROR")
+            return []
         except Exception as e:
-            utils.log(f"Error fetching movies via RPC: {str(e)}", "ERROR")
-            raise
+            utils.log(f"Unexpected error in RPC call: {str(e)}", "ERROR")
+            return []
 
     def get_movie_details(self, movie_id):
         method = 'VideoLibrary.GetMovieDetails'
