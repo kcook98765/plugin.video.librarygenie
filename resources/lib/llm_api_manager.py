@@ -71,9 +71,7 @@ class LLMApiManager:
 
                 if rpc:
                     movies = self.execute_rpc_query(rpc)
-                    busy_dialog.close()
                     return rpc, name, movies
-                busy_dialog.close()
                 return rpc, name, []
         except urllib.error.HTTPError as e:
             utils.log(f"HTTP error: {e.code} {e.reason}", "ERROR")

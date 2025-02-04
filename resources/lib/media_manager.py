@@ -26,7 +26,8 @@ class MediaManager:
     def get_cast_info(self):
         """Get cast information for current media"""
         cast = []
-        for i in range(1, 21):
+        i = 1
+        while True:
             name = xbmc.getInfoLabel(f'ListItem.CastAndRole.{i}.Name')
             if not name:
                 break
@@ -36,4 +37,5 @@ class MediaManager:
                 'order': i - 1,
                 'thumbnail': xbmc.getInfoLabel(f'ListItem.CastAndRole.{i}.Thumb')
             })
+            i += 1
         return json.dumps(cast)
