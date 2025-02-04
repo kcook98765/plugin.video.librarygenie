@@ -1,3 +1,4 @@
+python
 """ /resources/lib/addon_helper.py """
 import sys
 import urllib.parse
@@ -8,7 +9,7 @@ from resources.lib.kodi_helper import KodiHelper
 from resources.lib.llm_api_manager import LLMApiManager
 from resources.lib.user_interaction_manager import UserInteractionManager
 from resources.lib.window_main import MainWindow
-from resources.lib.utils import get_addon_handle
+from resources.lib.utils import get_addon_handle, log # Added import for utils.log
 
 class AddonContext:
     def __init__(self):
@@ -23,19 +24,19 @@ class AddonContext:
 
     def log_arguments(self):
         for i, arg in enumerate(sys.argv):
-            xbmc.log(f"ListGenius: sys.argv[{i}] = {arg}", xbmc.LOGDEBUG)
+            log(f"ListGenius: sys.argv[{i}] = {arg}", xbmc.LOGDEBUG) # Updated logging
 
     def parse_args(self):
         return urllib.parse.parse_qs(sys.argv[2][1:]) if len(sys.argv) > 2 else {}
 
 def run_addon():
-    xbmc.log("ListGenius: Running addon...", xbmc.LOGDEBUG)
+    log("ListGenius: Running addon...", xbmc.LOGDEBUG) # Updated logging
     context = AddonContext()
     context.log_arguments()
     args = context.parse_args()
-    xbmc.log(f"ListGenius: Args - {args}", xbmc.LOGDEBUG)
+    log(f"ListGenius: Args - {args}", xbmc.LOGDEBUG) # Updated logging
     action = args.get('action', [None])[0] or sys.argv[1] if len(sys.argv) > 1 else None
-    xbmc.log(f"ListGenius: Action - {action}", xbmc.LOGDEBUG)
+    log(f"ListGenius: Action - {action}", xbmc.LOGDEBUG) # Updated logging
     action_handlers = {
         "show_folder": lambda: show_folder(context.db_manager, context.kodihelper, args),
         "show_list": lambda: show_list(context.db_manager, context.kodihelper, args),
@@ -47,34 +48,39 @@ def run_addon():
         "flag_item": lambda: context.ui_manager.flag_list_item(int(args.get('item_id', [0])[0])),
         "default": lambda: list_root_folders_and_lists(context.db_manager, context.kodihelper)
     }
-    action_handlers.get(action, action_handlers["default"])()
+    try:
+        action_handlers.get(action, action_handlers["default"])()
+    except Exception as e:
+        log(f"Error running addon: {str(e)}", "ERROR") # Updated error logging
+        import xbmcgui #Import here to avoid circular dependency
+        xbmcgui.Dialog().notification("ListGenius", "Error running addon", xbmcgui.NOTIFICATION_ERROR, 5000)
 
 def show_folder(db_manager, kodihelper, args):
     folder_id = int(args.get('folder_id', [None])[0])
-    xbmc.log(f"ListGenius: Showing folder ID {folder_id}...", xbmc.LOGDEBUG)
+    log(f"ListGenius: Showing folder ID {folder_id}...", xbmc.LOGDEBUG) # Updated logging
     folders = db_manager.fetch_folders(folder_id)
     lists = db_manager.fetch_lists(folder_id)
     kodihelper.list_folders_and_lists(folders, lists)
 
 def show_list(db_manager, kodihelper, args):
-    xbmc.log("ListGenius: Showing list...", xbmc.LOGDEBUG)
+    log("ListGenius: Showing list...", xbmc.LOGDEBUG) # Updated logging
     list_id = int(args.get('list_id', [0])[0])
     items = db_manager.fetch_list_items(list_id)
     kodihelper.list_items(items)
 
 def show_main_window(kodihelper):
-    xbmc.log("ListGenius: Showing Main window...", xbmc.LOGDEBUG)
+    log("ListGenius: Showing Main window...", xbmc.LOGDEBUG) # Updated logging
     db_id = xbmc.getInfoLabel('ListItem.DBID')
     item_info = kodihelper.get_focused_item_details() if db_id.isdigit() and int(db_id) > 0 else kodihelper.get_focused_item_basic_info()
     window = MainWindow(item_info)
     window.doModal()
 
 def show_info(kodihelper):
-    xbmc.log("ListGenius: Showing info...", xbmc.LOGDEBUG)
+    log("ListGenius: Showing info...", xbmc.LOGDEBUG) # Updated logging
     kodihelper.show_information()
 
 def list_root_folders_and_lists(db_manager, kodihelper):
-    xbmc.log("ListGenius: Default action - listing root folders and lists", xbmc.LOGDEBUG)
+    log("ListGenius: Default action - listing root folders and lists", xbmc.LOGDEBUG) # Updated logging
     root_folders = db_manager.fetch_folders(None)
     root_lists = db_manager.fetch_lists(None)
     kodihelper.list_folders_and_lists(root_folders, root_lists)
