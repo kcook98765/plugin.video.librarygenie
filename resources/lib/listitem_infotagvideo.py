@@ -37,14 +37,17 @@ class SimpleMediaPropertySetter:
     def should_set(self) -> bool:
         return bool(self._property_value)
 
-    def get_method_args(self) -> Iterable[Any]:
-        return (self._property_value,)
+    def _convert_to_float(self, value: Any) -> float:
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return 0.0
 
-    def set_info_tag_property(self, info_tag: InfoTagVideo) -> None:
-        args = self.get_method_args()
-        method = getattr(info_tag, self._info_tag_method)
-        method(*args)
-
+    def _convert_to_int(self, value: Any) -> int:
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return 0
 
 class NotNoneValueSetter(SimpleMediaPropertySetter):
 

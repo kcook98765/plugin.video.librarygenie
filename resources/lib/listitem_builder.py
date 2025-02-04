@@ -7,12 +7,19 @@ class ListItemBuilder:
     @staticmethod
     def build_video_item(media_info):
         """Build a complete video ListItem with all available metadata"""
-        list_item = xbmcgui.ListItem(label=media_info.get('title', ''))
+        # Ensure media_info is a dict
+        if not isinstance(media_info, dict):
+            media_info = {}
+            
+        # Create ListItem with proper string title
+        title = str(media_info.get('title', ''))
+        list_item = xbmcgui.ListItem(label=title)
         info_tag = list_item.getVideoInfoTag()
         
-        # Set media info with proper media type
-        media_type = media_info.get('type', 'movie')
-        set_info(info_tag, media_info, media_type)
+        # Ensure proper media type string
+        media_type = str(media_info.get('type', 'movie')).lower()
+        if media_type not in ['movie', 'tvshow', 'season', 'episode']:
+            media_type = 'movie'
         
         # Set artwork if available
         art_dict = {
