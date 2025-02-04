@@ -8,6 +8,7 @@ import xbmcgui
 from resources.lib.database_manager import DatabaseManager
 from resources.lib.config_manager import Config
 from resources.lib.window_list import ListWindow
+import utils # Assuming utils module exists and provides logging functionality
 
 class MainWindow(pyxbmct.AddonDialogWindow):
     INDENTATION_MULTIPLIER = 3  # Set the indentation multiplier
@@ -78,7 +79,7 @@ class MainWindow(pyxbmct.AddonDialogWindow):
             folder_id = int(selected_item.getProperty('folder_id'))
             self.selected_item_id = folder_id  # Set the selected item ID
             self.selected_is_folder = True  # Indicate that the selected item is a folder
-            xbmc.log(f"ListGenius: Expanding folder with ID {folder_id}", xbmc.LOGDEBUG)
+            utils.log(f"Expanding folder with ID {folder_id}", "DEBUG")
             if not self.folder_expanded_states.get(folder_id, False):
                 self.update_folder_expanded_states(folder_id, True)
                 self.populate_list(folder_id)  # Pass folder_id to reselect it
@@ -89,13 +90,13 @@ class MainWindow(pyxbmct.AddonDialogWindow):
             folder_id = int(selected_item.getProperty('folder_id'))
             self.selected_item_id = folder_id  # Set the selected item ID
             self.selected_is_folder = True  # Indicate that the selected item is a folder
-            xbmc.log(f"ListGenius: Collapsing folder with ID {folder_id}", xbmc.LOGDEBUG)
+            utils.log(f"Collapsing folder with ID {folder_id}", "DEBUG")
             if self.folder_expanded_states.get(folder_id, False):
                 self.update_folder_expanded_states(folder_id, False)
                 self.populate_list(folder_id)  # Pass folder_id to reselect it
 
     def update_folder_expanded_states(self, current_folder_id, expand):
-        xbmc.log(f"ListGenius: Updating folder expanded states for folder ID {current_folder_id}, expand={expand}", xbmc.LOGDEBUG)
+        utils.log(f"Updating folder expanded states for folder ID {current_folder_id}, expand={expand}", "DEBUG")
         for folder_id in self.folder_expanded_states.keys():
             if folder_id != current_folder_id:
                 self.folder_expanded_states[folder_id] = False
@@ -106,7 +107,7 @@ class MainWindow(pyxbmct.AddonDialogWindow):
             parent_id = self.get_parent_folder_id(parent_id)
 
     def populate_list(self, focus_folder_id=None):
-        xbmc.log("ListGenius: Populating list...", xbmc.LOGDEBUG)
+        utils.log("Populating list...", "DEBUG")
         db_manager = DatabaseManager(Config().db_path)
         self.list_control.reset()
 
@@ -133,7 +134,7 @@ class MainWindow(pyxbmct.AddonDialogWindow):
                 if folder['is_member']:
                     propagate_status(folder['parent_id'], 'green')
 
-            xbmc.log(f"ListGenius: Folder color statuses: {folder_color_status}", xbmc.LOGDEBUG)
+            utils.log(f"Folder color statuses: {folder_color_status}", "DEBUG")
 
         self.list_data = []
 
@@ -142,13 +143,13 @@ class MainWindow(pyxbmct.AddonDialogWindow):
 
         combined_root = root_folders + root_lists
         combined_root.sort(key=lambda x: self.clean_name(x['name']).lower())
-        xbmc.log(f"ListGenius: Sorted combined root items: {[(self.clean_name(i['name']), i['name']) for i in combined_root]}", xbmc.LOGDEBUG)
+        utils.log(f"Sorted combined root items: {[(self.clean_name(i['name']), i['name']) for i in combined_root]}", "DEBUG")
 
         any_root_folder_expanded = False
         for item in combined_root:
             if 'parent_id' in item:
                 folder_media_count = db_manager.get_folder_media_count(item['id'])
-                xbmc.log(f"ListGenius: Adding root folder item - ID: {item['id']}, Name: {item['name']} ({folder_media_count})", xbmc.LOGDEBUG)
+                utils.log(f"Adding root folder item - ID: {item['id']}, Name: {item['name']} ({folder_media_count})", "DEBUG")
                 self.add_folder_items(item, 0, all_folders, all_lists, folder_color_status)
                 any_root_folder_expanded = any_root_folder_expanded or self.folder_expanded_states.get(item['id'], False)
             else:
@@ -180,7 +181,7 @@ class MainWindow(pyxbmct.AddonDialogWindow):
         expanded = self.folder_expanded_states.get(folder['id'], False)
         color = folder_color_status.get(folder['id'], 'red') if self.is_playable else None
         prefix = "<" if expanded else ">"
-        xbmc.log(f"ListGenius: Adding folder - Name: {folder['name']}, Expanded: {expanded}, Indent: {indent}, Color: {color}", xbmc.LOGDEBUG)
+        utils.log(f"Adding folder - Name: {folder['name']}, Expanded: {expanded}, Indent: {indent}, Color: {color}", "DEBUG")
 
         db_manager = DatabaseManager(Config().db_path)
         folder_media_count = db_manager.get_folder_media_count(folder['id'])
@@ -199,7 +200,7 @@ class MainWindow(pyxbmct.AddonDialogWindow):
             lists = [l for l in all_lists if l['folder_id'] == folder['id']]
             combined = subfolders + lists
             combined.sort(key=lambda x: self.clean_name(x['name']).lower())
-            xbmc.log(f"ListGenius: Sorted combined items for {folder['name']}: {[(self.clean_name(i['name']), i['name']) for i in combined]}", xbmc.LOGDEBUG)
+            utils.log(f"Sorted combined items for {folder['name']}: {[(self.clean_name(i['name']), i['name']) for i in combined]}", "DEBUG")
 
             any_subfolder_expanded = False
             for item in combined:
@@ -259,7 +260,7 @@ class MainWindow(pyxbmct.AddonDialogWindow):
             self.list_data.append({'name': f'<Paste Folder Here : {self.moving_folder_name}>', 'isFolder': True, 'isSpecial': True, 'id': parent_folder['id'], 'indent': indent, 'action': f"paste_folder_here:{self.moving_folder_id}"})
 
     def reselect_previous_item(self, focus_folder_id=None):
-        xbmc.log(f"ListGenius: Reselecting previous item. focus_folder_id={focus_folder_id}, selected_item_id={self.selected_item_id}, selected_is_folder={self.selected_is_folder}", xbmc.LOGDEBUG)
+        utils.log(f"Reselecting previous item. focus_folder_id={focus_folder_id}, selected_item_id={self.selected_item_id}, selected_is_folder={self.selected_is_folder}", "DEBUG")
         focus_id = self.selected_item_id if self.selected_item_id is not None else focus_folder_id
         focus_is_folder = self.selected_is_folder if self.selected_is_folder is not None else True
 
@@ -269,14 +270,14 @@ class MainWindow(pyxbmct.AddonDialogWindow):
                 is_folder = list_item.getProperty('isFolder') == 'true'
                 list_item_id = int(list_item.getProperty('folder_id') if is_folder else list_item.getProperty('list_id'))
 
-                xbmc.log(f"ListGenius: Checking list item. Index={index}, ID={list_item_id}, IsFolder={is_folder}, Label={list_item.getLabel()}", xbmc.LOGDEBUG)
+                utils.log(f"Checking list item. Index={index}, ID={list_item_id}, IsFolder={is_folder}, Label={list_item.getLabel()}", "DEBUG")
                 if list_item_id == focus_id and is_folder == focus_is_folder:
                     self.list_control.selectItem(index)
                     self.setFocus(self.list_control)
-                    xbmc.log(f"ListGenius: Item reselected. Index={index}, ID={list_item_id}, Label={list_item.getLabel()}", xbmc.LOGDEBUG)
+                    utils.log(f"Item reselected. Index={index}, ID={list_item_id}, Label={list_item.getLabel()}", "DEBUG")
                     break
             else:
-                xbmc.log(f"ListGenius: Could not find item to reselect with ID {focus_id} and IsFolder={focus_is_folder}", xbmc.LOGDEBUG)
+                utils.log(f"Could not find item to reselect with ID {focus_id} and IsFolder={focus_is_folder}", "DEBUG")
 
     def on_list_item_click(self):
         selected_item = self.list_control.getSelectedItem()
@@ -299,13 +300,13 @@ class MainWindow(pyxbmct.AddonDialogWindow):
 
             self.selected_item_id = selected_item_id
             self.selected_is_folder = is_folder  # Track if the selected item is a folder
-            xbmc.log(f"ListGenius: Item clicked. Label={selected_item_label}, ID={selected_item_id}, IsFolder={is_folder}", xbmc.LOGDEBUG)
+            utils.log(f"Item clicked. Label={selected_item_label}, ID={selected_item_id}, IsFolder={is_folder}", "DEBUG")
 
             if selected_item_id is not None:
                 self.display_item_options(selected_item_label, selected_item_id, is_folder)
 
     def handle_action(self, action, parent_id):
-        xbmc.log(f"ListGenius: Handling action. Action={action}, ParentID={parent_id}", xbmc.LOGDEBUG)
+        utils.log(f"Handling action. Action={action}, ParentID={parent_id}", "DEBUG")
         if action == 'new_folder':
             self.create_new_folder(parent_id)
         elif action == 'new_list':
@@ -323,7 +324,7 @@ class MainWindow(pyxbmct.AddonDialogWindow):
     def show_folder_options(self, folder_data):
         options = ["Rename Folder", "Move Folder", "Delete Folder", "Settings"]
         selected_option = xbmcgui.Dialog().select("Choose an action", options)
-        xbmc.log(f"ListGenius: Folder options selected. FolderID={folder_data['id']}, Option={options[selected_option] if selected_option != -1 else 'None'}", xbmc.LOGDEBUG)
+        utils.log(f"Folder options selected. FolderID={folder_data['id']}, Option={options[selected_option] if selected_option != -1 else 'None'}", "DEBUG")
         if selected_option == -1:
             return
 
@@ -354,7 +355,7 @@ class MainWindow(pyxbmct.AddonDialogWindow):
         ])
 
         selected_option = xbmcgui.Dialog().select("Choose an action", options)
-        xbmc.log(f"ListGenius: List options selected. ListID={list_data['id']}, Option={options[selected_option] if selected_option != -1 else 'None'}", xbmc.LOGDEBUG)
+        utils.log(f"List options selected. ListID={list_data['id']}, Option={options[selected_option] if selected_option != -1 else 'None'}", "DEBUG")
         if selected_option == -1:
             return
 
@@ -374,7 +375,7 @@ class MainWindow(pyxbmct.AddonDialogWindow):
             self.open_settings()
 
     def handle_paste_action(self, action, target_id):
-        xbmc.log(f"ListGenius: Handling paste action. Action={action}, TargetID={target_id}", xbmc.LOGDEBUG)
+        utils.log(f"Handling paste action. Action={action}, TargetID={target_id}", "DEBUG")
         if "paste_list_here" in action:
             list_id = int(action.split(':')[1])
             self.paste_list_here(list_id, target_id)
@@ -385,7 +386,7 @@ class MainWindow(pyxbmct.AddonDialogWindow):
     def rename_list(self, list_id, current_name):
         clean_name = re.sub(r'\[.*?\]', '', current_name)
         new_name = xbmcgui.Dialog().input("Enter new name for the list", defaultt=clean_name).strip()
-        xbmc.log(f"ListGenius: Renaming list. ListID={list_id}, CurrentName={current_name}, NewName={new_name}", xbmc.LOGDEBUG)
+        utils.log(f"Renaming list. ListID={list_id}, CurrentName={current_name}, NewName={new_name}", "DEBUG")
         if not new_name:
             xbmcgui.Dialog().notification("ListGenius", "Invalid name entered", xbmcgui.NOTIFICATION_WARNING, 5000)
             return
@@ -402,7 +403,7 @@ class MainWindow(pyxbmct.AddonDialogWindow):
     def create_new_folder(self, parent_id):
         try:
             new_folder_name = xbmcgui.Dialog().input("Enter new folder name").strip()
-            xbmc.log(f"ListGenius: Creating new folder. ParentID={parent_id}, NewFolderName={new_folder_name}", xbmc.LOGDEBUG)
+            utils.log(f"Creating new folder. ParentID={parent_id}, NewFolderName={new_folder_name}", "DEBUG")
             if not new_folder_name:
                 xbmcgui.Dialog().notification("ListGenius", "Invalid name entered", xbmcgui.NOTIFICATION_WARNING, 5000)
                 return
@@ -414,7 +415,7 @@ class MainWindow(pyxbmct.AddonDialogWindow):
             return
 
         parent_id = int(parent_id) if parent_id != 'None' else None
-        xbmc.log(f"ListGenius: Creating new folder '{new_folder_name}' under parent ID '{parent_id}'", xbmc.LOGDEBUG)
+        utils.log(f"Creating new folder '{new_folder_name}' under parent ID '{parent_id}'", "DEBUG")
         db_manager.insert_folder(new_folder_name, parent_id)
         xbmcgui.Dialog().notification("ListGenius", f"New folder '{new_folder_name}' created", xbmcgui.NOTIFICATION_INFO, 5000)
         self.populate_list()
@@ -424,7 +425,7 @@ class MainWindow(pyxbmct.AddonDialogWindow):
         clean_name = re.sub(r'\[.*?\]', '', clean_name)
 
         new_name = xbmcgui.Dialog().input("Enter new name for the folder", defaultt=clean_name).strip()
-        xbmc.log(f"ListGenius: Renaming folder. FolderID={folder_id}, CurrentName={current_name}, NewName={new_name}", xbmc.LOGDEBUG)
+        utils.log(f"Renaming folder. FolderID={folder_id}, CurrentName={current_name}, NewName={new_name}", "DEBUG")
         if not new_name:
             xbmcgui.Dialog().notification("ListGenius", "Invalid name entered", xbmcgui.NOTIFICATION_WARNING, 5000)
             return
@@ -442,7 +443,7 @@ class MainWindow(pyxbmct.AddonDialogWindow):
         self.moving_folder_id = folder_id
         self.moving_folder_name = folder_name
         xbmcgui.Dialog().notification("ListGenius", f"Select new location for folder: {folder_name}", xbmcgui.NOTIFICATION_INFO, 5000)
-        xbmc.log(f"ListGenius: Moving folder. FolderID={folder_id}, FolderName={folder_name}", xbmc.LOGDEBUG)
+        utils.log(f"Moving folder. FolderID={folder_id}, FolderName={folder_name}", "DEBUG")
         self.populate_list()
 
     def paste_folder_here(self, folder_id, target_folder_id):
@@ -451,12 +452,12 @@ class MainWindow(pyxbmct.AddonDialogWindow):
         xbmcgui.Dialog().notification("ListGenius", f"Folder moved to new location", xbmcgui.NOTIFICATION_INFO, 5000)
         self.moving_folder_id = None
         self.moving_folder_name = None
-        xbmc.log(f"ListGenius: Pasting folder. FolderID={folder_id}, TargetFolderID={target_folder_id}", xbmc.LOGDEBUG)
+        utils.log(f"Pasting folder. FolderID={folder_id}, TargetFolderID={target_folder_id}", "DEBUG")
         self.populate_list()
 
     def delete_folder(self, folder_id, folder_name):
         confirmed = xbmcgui.Dialog().yesno("Confirm Delete", f"Are you sure you want to delete the folder '{folder_name}'?")
-        xbmc.log(f"ListGenius: Deleting folder. FolderID={folder_id}, FolderName={folder_name}, Confirmed={confirmed}", xbmc.LOGDEBUG)
+        utils.log(f"Deleting folder. FolderID={folder_id}, FolderName={folder_name}, Confirmed={confirmed}", "DEBUG")
         if not confirmed:
             return
         db_manager = DatabaseManager(Config().db_path)
@@ -465,13 +466,13 @@ class MainWindow(pyxbmct.AddonDialogWindow):
         self.populate_list()
 
     def open_settings(self):
-        xbmc.log("ListGenius: Opening settings", xbmc.LOGDEBUG)
+        utils.log("Opening settings", "DEBUG")
         xbmc.executebuiltin("Addon.OpenSettings(plugin.video.listgenius)")
 
     def create_new_list(self, parent_id):
         try:
             new_list_name = xbmcgui.Dialog().input("Enter new list name").strip()
-            xbmc.log(f"ListGenius: Creating new list. ParentID={parent_id}, NewListName={new_list_name}", xbmc.LOGDEBUG)
+            utils.log(f"Creating new list. ParentID={parent_id}, NewListName={new_list_name}", "DEBUG")
             if not new_list_name:
                 xbmcgui.Dialog().notification("ListGenius", "Invalid name entered", xbmcgui.NOTIFICATION_WARNING, 5000)
                 return
@@ -483,7 +484,7 @@ class MainWindow(pyxbmct.AddonDialogWindow):
                 return
 
         parent_id = int(parent_id) if parent_id != 'None' else None
-        xbmc.log(f"ListGenius: Creating new list '{new_list_name}' under parent ID '{parent_id}'", xbmc.LOGDEBUG)
+        utils.log(f"Creating new list '{new_list_name}' under parent ID '{parent_id}'", "DEBUG")
         db_manager.insert_data('lists', {'name': new_list_name, 'folder_id': parent_id})
         xbmcgui.Dialog().notification("ListGenius", f"New list '{new_list_name}' created", xbmcgui.NOTIFICATION_INFO, 5000)
         self.populate_list()
@@ -492,7 +493,7 @@ class MainWindow(pyxbmct.AddonDialogWindow):
         self.moving_list_id = list_id
         self.moving_list_name = list_name
         xbmcgui.Dialog().notification("ListGenius", f"Select new location for list: {list_name}", xbmcgui.NOTIFICATION_INFO, 5000)
-        xbmc.log(f"ListGenius: Moving list. ListID={list_id}, ListName={list_name}", xbmc.LOGDEBUG)
+        utils.log(f"Moving list. ListID={list_id}, ListName={list_name}", "DEBUG")
         self.populate_list()
 
     def paste_list_here(self, list_id, target_folder_id):
@@ -501,18 +502,18 @@ class MainWindow(pyxbmct.AddonDialogWindow):
         xbmcgui.Dialog().notification("ListGenius", f"List moved to new location", xbmcgui.NOTIFICATION_INFO, 5000)
         self.moving_list_id = None
         self.moving_list_name = None
-        xbmc.log(f"ListGenius: Pasting list. ListID={list_id}, TargetFolderID={target_folder_id}", xbmc.LOGDEBUG)
+        utils.log(f"Pasting list. ListID={list_id}, TargetFolderID={target_folder_id}", "DEBUG")
         self.populate_list()
 
     def edit_list(self, list_id):
-        xbmc.log(f"ListGenius: Editing list, opening ListWindow. ListID={list_id}", xbmc.LOGDEBUG)
+        utils.log(f"Editing list, opening ListWindow. ListID={list_id}", "DEBUG")
         list_window = ListWindow(list_id)
         list_window.doModal()
         del list_window
 
     def delete_list(self, list_id, list_name):
         confirmed = xbmcgui.Dialog().yesno("Confirm Delete", f"Are you sure you want to delete the list '{list_name}'?")
-        xbmc.log(f"ListGenius: Deleting list. ListID={list_id}, ListName={list_name}, Confirmed={confirmed}", xbmc.LOGDEBUG)
+        utils.log(f"Deleting list. ListID={list_id}, ListName={list_name}, Confirmed={confirmed}", "DEBUG")
         if not confirmed:
             return
         db_manager = DatabaseManager(Config().db_path)
@@ -527,7 +528,7 @@ class MainWindow(pyxbmct.AddonDialogWindow):
         data['list_id'] = list_id
         if 'cast' in data and isinstance(data['cast'], list):
             data['cast'] = json.dumps(data['cast'])
-        xbmc.log(f"ListGenius: Adding media to list with data: {data}", xbmc.LOGDEBUG)
+        utils.log(f"Adding media to list with data: {data}", "DEBUG")
         db_manager.insert_data('list_items', data)
         xbmcgui.Dialog().notification("ListGenius", "Media added to list", xbmcgui.NOTIFICATION_INFO, 5000)
         self.populate_list()
@@ -535,7 +536,7 @@ class MainWindow(pyxbmct.AddonDialogWindow):
     def remove_media_from_list(self, list_id):
         db_manager = DatabaseManager(Config().db_path)
         item_id = db_manager.get_item_id_by_title_and_list(list_id, self.item_info['title'])
-        xbmc.log(f"ListGenius: Removing media from list. ListID={list_id}, ItemID={item_id}", xbmc.LOGDEBUG)
+        utils.log(f"Removing media from list. ListID={list_id}, ItemID={item_id}", "DEBUG")
         if item_id:
             db_manager.delete_data('list_items', f'id={item_id}')
             xbmcgui.Dialog().notification("ListGenius", "Media removed from list", xbmcgui.NOTIFICATION_INFO, 5000)
@@ -557,7 +558,7 @@ class MainWindow(pyxbmct.AddonDialogWindow):
     def get_parent_folder_id(self, folder_id):
         db_manager = DatabaseManager(Config().db_path)
         folder = db_manager.fetch_folder_by_id(folder_id)
-        xbmc.log(f"ListGenius: Fetching parent folder ID. FolderID={folder_id}, ParentID={folder['parent_id'] if folder else 'None'}", xbmc.LOGDEBUG)
+        utils.log(f"Fetching parent folder ID. FolderID={folder_id}, ParentID={folder['parent_id'] if folder else 'None'}", "DEBUG")
         return folder['parent_id'] if folder else None
 
     def get_breadcrumbs(self, item_id, is_folder):
@@ -583,13 +584,13 @@ class MainWindow(pyxbmct.AddonDialogWindow):
         if not breadcrumbs:
             breadcrumbs.append("Home")
 
-        xbmc.log(f"ListGenius: Breadcrumbs: {breadcrumbs}", xbmc.LOGDEBUG)
+        utils.log(f"Breadcrumbs: {breadcrumbs}", "DEBUG")
         return breadcrumbs
 
     def close(self):
-        xbmc.log("ListGenius: Closing CustomWindow...", xbmc.LOGDEBUG)
+        utils.log("Closing CustomWindow...", "DEBUG")
         pyxbmct.AddonDialogWindow.close(self)
         del self
 
     def __del__(self):
-        xbmc.log("ListGenius: Deleting CustomWindow instance...", xbmc.LOGDEBUG)
+        utils.log("Deleting CustomWindow instance...", "DEBUG")
