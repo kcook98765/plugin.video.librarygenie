@@ -49,6 +49,7 @@ class Config:
         self._base_url = self.settings.get_setting('base_url')
         self._api_temperature = float(self.settings.get_setting('api_temperature', '0.7'))
         self._api_max_tokens = int(self.settings.get_setting('api_max_tokens', '2048'))
+        self._max_folder_depth = int(self.settings.get_setting('max_folder_depth', '3'))
 
         utils.log(f"Addon path - {self.addonpath}", "DEBUG")
 
@@ -73,6 +74,10 @@ class Config:
     @property
     def api_max_tokens(self):
         return self._api_max_tokens
+
+    @property
+    def max_folder_depth(self):
+        return self._max_folder_depth
 
     def _load_hint_file(self, filename):
         filepath = os.path.join(self.addonpath, "resources", "lib", filename)

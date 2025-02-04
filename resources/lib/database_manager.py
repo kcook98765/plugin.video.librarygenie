@@ -154,7 +154,26 @@ class DatabaseManager:
         rows = self.cursor.fetchall()
         return [{'id': row[0], 'name': row[1], 'folder_id': row[2]} for row in rows]
 
+    def get_folder_depth(self, folder_id):
+        depth = 0
+        current_id = folder_id
+        while current_id is not None:
+            query = "SELECT parent_id FROM folders WHERE id = ?"
+            self._execute_with_retry(self.cursor.execute, query, (current_id,))
+            result = self.cursor.fetchone()
+            if result is None:
+                break
+            current_id = result[0]
+            depth += 1
+        return depth
+
     def insert_folder(self, name, parent_id=None):
+        if parent_id is not None:
+            current_depth = self.get_folder_depth(parent_id)
+            max_depth = self.config.max_folder_depth - 1  # -1 because we're adding a new level
+            if current_depth >= max_depth:
+                raise ValueError(f"Maximum folder depth of {self.config.max_folder_depth} exceeded")
+        
         query = """
             INSERT INTO folders (name, parent_id)
             VALUES (?, ?)
@@ -420,6 +439,22 @@ class DatabaseManager:
         self.connection.commit()
 
     def update_folder_parent(self, folder_id, new_parent_id):
+        if new_parent_id is not None:
+            # Check if move would exceed max depth
+            current_depth = self.get_folder_depth(new_parent_id)
+            if current_depth >= self.config.max_folder_depth - 1:
+                raise ValueError(f"Moving folder would exceed maximum depth of {self.config.max_folder_depth}")
+            
+            # Check if move would create a cycle
+            temp_parent = new_parent_id
+            while temp_parent is not None:
+                if temp_parent == folder_id:
+                    raise ValueError("Cannot move folder: would create a cycle")
+                query = "SELECT parent_id FROM folders WHERE id = ?"
+                self._execute_with_retry(self.cursor.execute, query, (temp_parent,))
+                result = self.cursor.fetchone()
+                temp_parent = result[0] if result else None
+
         query = "UPDATE folders SET parent_id = ? WHERE id = ?"
         utils.log(f"Executing SQL: {query} with folder_id={folder_id}, new_parent_id={new_parent_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (new_parent_id, folder_id))
