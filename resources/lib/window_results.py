@@ -9,7 +9,7 @@ from resources.lib.config_manager import Config
 from resources.lib.jsonrpc_manager import JSONRPC
 from resources.lib.llm_api_manager import LLMApiManager
 
-# Initialize logging
+# Initialize logging with utils.log
 utils.log("Results Window module initialized", "INFO")
 
 class ResultsWindow(pyxbmct.AddonDialogWindow):

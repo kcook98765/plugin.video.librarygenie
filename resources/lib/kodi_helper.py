@@ -154,7 +154,7 @@ class KodiHelper:
             details['file'] = xbmc.getInfoLabel('ListItem.FileNameAndPath')
             details['kodi_id'] = int(db_id)  # Ensure dbid is included
             details['play'] = details['file']  # Set the play field to a valid value
-            utils.log(f"Final gathered item details: {details}")
+            utils.log(f"Final gathered item details: {details}", "DEBUG")
             return details
 
         # Fallback: Gather details directly from ListItem labels
