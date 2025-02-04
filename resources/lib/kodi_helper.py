@@ -18,16 +18,18 @@ class KodiHelper:
         self.jsonrpc = JSONRPC()
 
     def list_items(self, items, content_type='video'):
-        list_item = xbmcgui.ListItem()
-        # Create an InfoTagVideo object
-        info_tag = xbmc.InfoTagVideo()
-
-        $ TODO, use jsonrpc data as-is to set listitems below
-        media_info = xxxxxxxxxxxxxxxxx
-
-        # Set the media info using the set_info function
-        set_info(info_tag, media_info, 'movie')
-        utils.log(f"Setting media info for {media_info.get('title', 'Unknown')}", "DEBUG")
+        from resources.lib.listitem_builder import ListItemBuilder
+        
+        for item in items:
+            list_item = ListItemBuilder.build_video_item(item)
+            url = f'{self.addon_url}?action=play_item&id={item.get("id")}'
+            
+            xbmcplugin.addDirectoryItem(
+                handle=self.addon_handle,
+                url=url,
+                listitem=list_item,
+                isFolder=False
+            )
 
         xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url="", listitem=list_item, isFolder=False)
         xbmcplugin.endOfDirectory(self.addon_handle)

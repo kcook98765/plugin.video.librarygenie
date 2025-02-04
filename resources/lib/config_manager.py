@@ -41,13 +41,14 @@ class Config:
         """
         Initializes the Config with addon settings and paths.
         """
-        self.addon = xbmcaddon.Addon(id='plugin.video.listgenius')
-        self.addondir = xbmcvfs.translatePath(self.addon.getAddonInfo('profile'))
-        self.addonpath = xbmcvfs.translatePath(self.addon.getAddonInfo('path'))
-        self._openai_api_key = self.addon.getSetting('openai_api_key')
-        self._base_url = self.addon.getSetting('base_url')
-        self._api_temperature = float(self.addon.getSetting('api_temperature'))
-        self._api_max_tokens = int(self.addon.getSetting('api_max_tokens'))
+        from resources.lib.settings_manager import SettingsManager
+        self.settings = SettingsManager()
+        self.addondir = self.settings.addon_data_path
+        self.addonpath = self.settings.addon_path
+        self._openai_api_key = self.settings.get_setting('openai_api_key')
+        self._base_url = self.settings.get_setting('base_url')
+        self._api_temperature = float(self.settings.get_setting('api_temperature', '0.7'))
+        self._api_max_tokens = int(self.settings.get_setting('api_max_tokens', '2048'))
 
         utils.log(f"Addon path - {self.addonpath}", "DEBUG")
 
