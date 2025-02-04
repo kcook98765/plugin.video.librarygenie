@@ -7,22 +7,31 @@ class ResultsManager:
         self.jsonrpc = JSONRPC()
 
     def search_movie_by_criteria(self, title, year=None, director=None):
-        filter_conditions = {"field": "title", "operator": "contains", "value": title}
+        # Case-insensitive title search with partial matching
+        title_conditions = [
+            {"field": "title", "operator": "contains", "value": title.lower()},
+            {"field": "title", "operator": "contains", "value": title.upper()},
+            {"field": "title", "operator": "contains", "value": title.title()}
+        ]
         
+        filter_conditions = {"or": title_conditions}
+        
+        and_conditions = []
         if year:
-            filter_conditions = {
-                "and": [
-                    filter_conditions,
-                    {"field": "year", "operator": "is", "value": str(year)}
-                ]
-            }
+            and_conditions.append({"field": "year", "operator": "is", "value": str(year)})
             
         if director:
+            director_parts = director.split()
+            director_conditions = []
+            for part in director_parts:
+                director_conditions.append(
+                    {"field": "director", "operator": "contains", "value": part}
+                )
+            and_conditions.append({"or": director_conditions})
+            
+        if and_conditions:
             filter_conditions = {
-                "and": [
-                    filter_conditions,
-                    {"field": "director", "operator": "contains", "value": director}
-                ]
+                "and": [filter_conditions] + and_conditions
             }
 
         params = {

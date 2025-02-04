@@ -570,6 +570,21 @@ class MainWindow(BaseWindow):
 
     def paste_folder_here(self, folder_id, target_folder_id):
         db_manager = DatabaseManager(Config().db_path)
+        
+        # Check for circular reference
+        current_parent = target_folder_id
+        while current_parent is not None:
+            if current_parent == folder_id:
+                xbmcgui.Dialog().notification(
+                    "ListGenius",
+                    "Cannot move folder: Would create circular reference",
+                    xbmcgui.NOTIFICATION_ERROR,
+                    5000
+                )
+                return
+            folder = db_manager.fetch_folder_by_id(current_parent)
+            current_parent = folder['parent_id'] if folder else None
+            
         db_manager.update_folder_parent(folder_id, target_folder_id)
         xbmcgui.Dialog().notification("ListGenius", f"Folder moved to new location", xbmcgui.NOTIFICATION_INFO, 5000)
         self.moving_folder_id = None

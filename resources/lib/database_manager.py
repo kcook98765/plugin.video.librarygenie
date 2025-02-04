@@ -11,7 +11,8 @@ class DatabaseManager:
         self._connect()
 
     def _connect(self):
-        self.connection = sqlite3.connect(self.db_path)
+        self.connection = sqlite3.connect(self.db_path, timeout=30.0)
+        self.connection.execute("PRAGMA busy_timeout = 30000")
         self.cursor = self.connection.cursor()
 
     def _execute_with_retry(self, func, *args, **kwargs):
