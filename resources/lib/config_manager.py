@@ -1,8 +1,8 @@
 """ /resources/lib/config_manager.py """
 import os
-import xbmc
 import xbmcaddon
 import xbmcvfs
+from resources.lib import utils
 
 class Config:
     """ FIELDS should align with table list_items fields AND for use in listitem building """
@@ -49,7 +49,7 @@ class Config:
         self._api_temperature = float(self.addon.getSetting('api_temperature'))
         self._api_max_tokens = int(self.addon.getSetting('api_max_tokens'))
 
-        xbmc.log(f"ListGenius: Addon path - {self.addonpath}", xbmc.LOGDEBUG)
+        utils.log(f"Addon path - {self.addonpath}", "DEBUG")
 
     @property
     def openai_api_key(self):
@@ -62,7 +62,7 @@ class Config:
     @property
     def db_path(self):
         db_path = os.path.join(self.addondir, "listgenius.db")
-        xbmc.log(f"ListGenius: Database path: {db_path}", xbmc.LOGDEBUG)
+        utils.log(f"Database path: {db_path}", "DEBUG")
         return db_path
 
     @property
@@ -75,7 +75,7 @@ class Config:
 
     def _load_hint_file(self, filename):
         filepath = os.path.join(self.addonpath, "resources", "lib", filename)
-        xbmc.log(f"ListGenius: Loading hint file from: {filepath}", xbmc.LOGDEBUG)
+        utils.log(f"Loading hint file from: {filepath}", "DEBUG")
         with open(filepath, 'r', encoding='utf-8') as file:
             return file.read()
 
