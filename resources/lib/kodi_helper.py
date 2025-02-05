@@ -118,6 +118,7 @@ class KodiHelper:
         utils.log(f"Showing list with ID: {list_id}", "DEBUG")
         from resources.lib.database_manager import DatabaseManager
         from resources.lib.config_manager import Config
+        from resources.lib.listitem_builder import ListItemBuilder
         db_manager = DatabaseManager(Config().db_path)
         items = db_manager.fetch_list_items(list_id)
         
