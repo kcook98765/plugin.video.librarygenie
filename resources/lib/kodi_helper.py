@@ -8,7 +8,7 @@ import xbmcaddon
 from resources.lib.jsonrpc_manager import JSONRPC
 from resources.lib.utils import get_addon_handle
 from resources.lib import utils
-from resources.lib.listitem_infotagvideo import set_info, set_art
+from resources.lib.listitem_infotagvideo import set_info_tag, set_art
 
 class KodiHelper:
 
@@ -87,7 +87,7 @@ class KodiHelper:
 
             utils.log(f"Playing item: {item.get('title', 'Unknown')}", "INFO")
             list_item = xbmcgui.ListItem(label=item['title'])
-            list_item.setInfo(content_type, item.get('info', {}))
+            set_info_tag(list_item, item.get('info', {}), content_type)
 
             file_path = item.get('file', '')
             if not file_path:
