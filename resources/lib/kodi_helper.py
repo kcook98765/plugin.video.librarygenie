@@ -81,6 +81,8 @@ class KodiHelper:
 
     def play_item(self, item_id, content_type='video'):
         try:
+            utils.log(f"Play item called with item_id: {item_id} (type: {type(item_id)})", "DEBUG")
+            
             # Query the database for item
             query = """SELECT media_items.* FROM media_items 
                       JOIN list_items ON list_items.media_item_id = media_items.id 
@@ -92,19 +94,27 @@ class KodiHelper:
             db = DatabaseManager(config.db_path)
             
             # Handle item_id from various input types and ensure valid integer
+            utils.log(f"Original item_id: {item_id}", "DEBUG")
+            # Extract first item if list/tuple
             if isinstance(item_id, (list, tuple)):
-                item_id = item_id[0]
+                utils.log(f"Converting from list/tuple: {item_id}", "DEBUG")
+                item_id = item_id[0] if item_id else None
+            # Extract id if dict
             elif isinstance(item_id, dict):
+                utils.log(f"Converting from dict: {item_id}", "DEBUG")
                 item_id = item_id.get('id')
             
+            utils.log(f"After type conversion: {item_id}", "DEBUG")
+            
             if not item_id:
-                utils.log("Invalid item_id received", "ERROR")
+                utils.log("Invalid item_id received (empty/None)", "ERROR")
                 return False
                 
             try:
-                item_id = int(item_id)
-            except (ValueError, TypeError):
-                utils.log(f"Could not convert item_id to integer: {item_id}", "ERROR")
+                item_id = int(str(item_id).strip())
+                utils.log(f"Converted to integer: {item_id}", "DEBUG")
+            except (ValueError, TypeError) as e:
+                utils.log(f"Could not convert item_id to integer: {item_id}, Error: {str(e)}", "ERROR")
                 return False
                 
             db.cursor.execute(query, (item_id,))
