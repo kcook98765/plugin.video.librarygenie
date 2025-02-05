@@ -155,8 +155,17 @@ class KodiHelper:
         xbmcplugin.setProperty(self.addon_handle, 'ForcedView', 'true')
         xbmc.executebuiltin('Container.SetForceViewMode(true)')
         
-        # Add items
-        self.list_items(items)
+        # Add items and end directory
+        for item in items:
+            list_item = ListItemBuilder.build_video_item(item)
+            url = f'{self.addon_url}?action=play_item&id={item.get("id")}'
+            xbmcplugin.addDirectoryItem(
+                handle=self.addon_handle,
+                url=url,
+                listitem=list_item,
+                isFolder=False
+            )
+        xbmcplugin.endOfDirectory(self.addon_handle)
 
     def play_item(self, item_id, content_type='video'):
         try:
