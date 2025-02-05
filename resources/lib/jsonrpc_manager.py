@@ -87,6 +87,11 @@ class JSONRPC:
         details['kodi_id'] = int(movie_id)  # Ensure movie ID is included
         details['play'] = details['file']  # Set the play field to a valid value
 
+        # Add resume data
+        if 'resume' in details:
+            details['resumetime'] = details['resume'].get('position', 0)
+            details['totaltime'] = details['resume'].get('total', 0)
+
         return details
 
     def log_request(self, request):
