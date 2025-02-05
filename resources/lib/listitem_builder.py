@@ -27,8 +27,9 @@ class ListItemBuilder:
             media_info.get('art', {}).get('poster'),
             media_info.get('art', {}).get('Art(poster)'),
             media_info.get('info', {}).get('Art(poster)'),
-            media_info.get('thumbnail'),
-            media_info.get('info', {}).get('thumbnail')
+            # Only use thumbnail if it's not a video path
+            media_info.get('thumbnail') if not str(media_info.get('thumbnail', '')).startswith('video@') else None,
+            media_info.get('info', {}).get('thumbnail') if not str(media_info.get('info', {}).get('thumbnail', '')).startswith('video@') else None
         ]
         
         for path in possible_paths:
