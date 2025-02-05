@@ -85,13 +85,13 @@ class KodiHelper:
             params = {'list_id': item_id}
             query = """SELECT media_items.* FROM media_items 
                       JOIN list_items ON list_items.media_item_id = media_items.id 
-                      WHERE list_items.list_id = :list_id"""
+                      WHERE list_items.list_id = ?"""
             
             from resources.lib.database_manager import DatabaseManager
             from resources.lib.config_manager import Config
             config = Config()
             db = DatabaseManager(config.db_path)
-            db.cursor.execute(query, (item_id,))
+            db.cursor.execute(query, (int(item_id),))
             result = db.cursor.fetchone()
             
             if not result:
