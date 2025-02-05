@@ -21,23 +21,17 @@ class ListItemBuilder:
         
         # Set artwork
         art_dict = {}
-        # Handle artwork paths
-        art_dict = {}
         
-        # Try getting poster from art dictionary first
-        if 'Art(poster)' in media_info.get('art', {}):
+        # Get poster image - try art dictionary first, then fallback to thumbnails
+        poster = None
+        if media_info.get('art', {}).get('Art(poster)'):
             poster = media_info['art']['Art(poster)']
-        else:
-            # Try thumbnail from root and info
-            poster = None
-            if 'thumbnail' in media_info:
-                poster = media_info['thumbnail']
-            elif 'thumbnail' in media_info.get('info', {}):
-                poster = media_info['info']['thumbnail']
-                
-        # Skip only video file URLs
-        if poster and ('video@' in poster and 'image://' not in poster):
-            poster = None
+        elif media_info.get('info', {}).get('Art(poster)'):
+            poster = media_info['info']['Art(poster)']
+        elif media_info.get('thumbnail') and 'video@' not in media_info['thumbnail']:
+            poster = media_info['thumbnail']
+        elif media_info.get('info', {}).get('thumbnail') and 'video@' not in media_info['info']['thumbnail']:
+            poster = media_info['info']['thumbnail']
             
         if poster:
             art_dict['thumb'] = poster
