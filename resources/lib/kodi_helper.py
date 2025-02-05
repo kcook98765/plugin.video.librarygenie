@@ -82,10 +82,9 @@ class KodiHelper:
     def play_item(self, item_id, content_type='video'):
         try:
             # Query the database for item
-            params = {'list_id': item_id}
             query = """SELECT media_items.* FROM media_items 
                       JOIN list_items ON list_items.media_item_id = media_items.id 
-                      WHERE list_items.list_id = ?"""
+                      WHERE list_items.media_item_id = ?"""
             
             from resources.lib.database_manager import DatabaseManager
             from resources.lib.config_manager import Config
