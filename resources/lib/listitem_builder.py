@@ -1,45 +1,20 @@
 
+"""Helper class for building ListItems with proper metadata"""
 import json
 import xbmcgui
-from resources.lib.listitem_infotagvideo import set_info, set_art
 from resources.lib import utils
+from resources.lib.listitem_infotagvideo import set_info_tag
 
 class ListItemBuilder:
     @staticmethod
     def build_video_item(media_info):
         """Build a complete video ListItem with all available metadata"""
-        # Ensure media_info is a dict
         if not isinstance(media_info, dict):
             media_info = {}
             
         # Create ListItem with proper string title
         title = str(media_info.get('title', ''))
         list_item = xbmcgui.ListItem(label=title)
-        info_tag = list_item.getVideoInfoTag()
-        
-        # Ensure proper media type string and set it first
-        media_type = str(media_info.get('media_type', 'movie')).lower()
-        if media_type not in ['movie', 'tvshow', 'season', 'episode']:
-            media_type = 'movie'
-        info_tag.setMediaType(media_type)
-
-        # Map all available metadata fields
-        info_dict = {
-            'plot': media_info.get('plot', ''),
-            'tagline': media_info.get('tagline', ''),
-            'cast': json.loads(media_info.get('cast', '[]')),
-            'country': media_info.get('country', ''),
-            'director': media_info.get('director', ''),
-            'genre': media_info.get('genre', ''),
-            'mpaa': media_info.get('mpaa', ''),
-            'premiered': media_info.get('premiered', ''),
-            'rating': media_info.get('rating', 0.0),
-            'studio': media_info.get('studio', ''),
-            'trailer': media_info.get('trailer', ''),
-            'votes': media_info.get('votes', ''),
-            'writer': media_info.get('writer', ''),
-            'year': media_info.get('year', '')
-        }
         
         # Set artwork
         art_dict = {
@@ -48,18 +23,35 @@ class ListItemBuilder:
             'fanart': media_info.get('fanart', ''),
             'icon': media_info.get('thumbnail', '')
         }
-        utils.log(f"Setting art for ListItem: {art_dict}", "DEBUG")
-        set_art(list_item, art_dict)
+        list_item.setArt(art_dict)
 
-        # Set all video info
-        utils.log(f"Setting video info for ListItem: {info_dict}", "DEBUG")
-        set_info(info_tag, info_dict, media_type)
+        # Prepare info dictionary
+        info_dict = {
+            'title': title,
+            'plot': media_info.get('plot', ''),
+            'tagline': media_info.get('tagline', ''),
+            'cast': json.loads(media_info.get('cast', '[]')),
+            'country': media_info.get('country', ''),
+            'director': media_info.get('director', ''),
+            'genre': media_info.get('genre', ''),
+            'mpaa': media_info.get('mpaa', ''),
+            'premiered': media_info.get('premiered', ''),
+            'rating': float(media_info.get('rating', 0.0)),
+            'studio': media_info.get('studio', ''),
+            'trailer': media_info.get('trailer', ''),
+            'votes': media_info.get('votes', '0'),
+            'writer': media_info.get('writer', ''),
+            'year': media_info.get('year', ''),
+            'mediatype': media_info.get('media_type', 'movie').lower()
+        }
+
+        # Set video info using the compatibility helper
+        set_info_tag(list_item, info_dict, 'video')
         
         # Set content properties
         list_item.setProperty('IsPlayable', 'true')
         if media_info.get('file'):
             list_item.setPath(media_info['file'])
-            utils.log(f"Setting path for item: {media_info['file']}", "DEBUG")
             
         return list_item
 
