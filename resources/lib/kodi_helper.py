@@ -124,15 +124,15 @@ class KodiHelper:
                 utils.log(f"Item not found for id: {item_id_value}", "ERROR")
                 return False
 
-            # Convert result to dict 
+            # Convert result tuple to dict
             field_names = [field.split()[0] for field in db.config.FIELDS]
             item_data = dict(zip(['id'] + field_names, result))
 
             # Create list item with title and setup basic properties
-            list_item = xbmcgui.ListItem(label=result.get('title', ''))
+            list_item = xbmcgui.ListItem(label=item_data.get('title', ''))
 
             # Get play URL and check validity
-            play_url = result.get('play') or result.get('file', '')
+            play_url = item_data.get('play') or item_data.get('file', '')
             if not play_url:
                 utils.log("No play URL found", "ERROR") 
                 return False
