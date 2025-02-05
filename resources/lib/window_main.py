@@ -626,7 +626,21 @@ class MainWindow(BaseWindow):
         parent_id = int(parent_id) if parent_id != 'None' else None
         utils.log(f"Creating new list '{new_list_name}' under parent ID '{parent_id}'", "DEBUG")
         db_manager.insert_data('lists', {'name': new_list_name, 'folder_id': parent_id})
-        xbmcgui.Dialog().notification("LibraryGenie", f"New list '{new_list_name}' created", xbmcgui.NOTIFICATION_INFO, 5000)
+        list_id = db_manager.cursor.lastrowid
+        
+        # Add current movie to the new list
+        if self.item_info and 'kodi_id' in self.item_info:
+            fields_keys = [field.split()[0] for field in Config.FIELDS]
+            data = {field: self.item_info.get(field) for field in fields_keys}
+            data['list_id'] = list_id
+            if 'cast' in data and isinstance(data['cast'], list):
+                data['cast'] = json.dumps(data['cast'])
+            db_manager.insert_data('list_items', data)
+            notification_text = f"Added '{self.item_info.get('title', '')}' to new list '{new_list_name}'"
+        else:
+            notification_text = f"New list '{new_list_name}' created"
+            
+        xbmcgui.Dialog().notification("LibraryGenie", notification_text, xbmcgui.NOTIFICATION_INFO, 5000)
         self.populate_list()
 
     def move_list(self, list_id, list_name):
