@@ -26,14 +26,17 @@ class ListItemBuilder:
         possible_paths = [
             media_info.get('art', {}).get('poster'),
             media_info.get('art', {}).get('Art(poster)'),
-            media_info.get('info', {}).get('Art(poster)'),
-            # Only use thumbnail if it's not a video path
-            media_info.get('thumbnail') if not str(media_info.get('thumbnail', '')).startswith('video@') else None,
-            media_info.get('info', {}).get('thumbnail') if not str(media_info.get('info', {}).get('thumbnail', '')).startswith('video@') else None
+            media_info.get('info', {}).get('Art(poster)')
         ]
         
+        # If no poster found in art, try to get from fanart
+        if not any(possible_paths):
+            fanart = media_info.get('fanart')
+            if fanart and fanart.startswith('image://'):
+                possible_paths.append(fanart)
+        
         for path in possible_paths:
-            if path and 'video@' not in str(path):
+            if path:
                 # Strip 'image://' prefix and trailing slash if present
                 if path.startswith('image://'):
                     path = path[8:]
