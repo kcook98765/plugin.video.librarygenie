@@ -52,7 +52,8 @@ def run_addon():
                 return
         elif action == 'show_list':
             # Handle specific list display
-            list_id = args.get('list_id')
+            params = urllib.parse.parse_qs(args)
+            list_id = params.get('list_id', [None])[0]
             if list_id:
                 kodi_helper.show_list(int(list_id))
             return
