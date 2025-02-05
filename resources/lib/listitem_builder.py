@@ -20,12 +20,13 @@ class ListItemBuilder:
         utils.log(f"Created ListItem with title: {title}", "DEBUG")
         
         # Set artwork
-        art_dict = {
-            'thumb': media_info.get('thumbnail', ''),
-            'poster': media_info.get('thumbnail', ''),
-            'fanart': media_info.get('fanart', ''),
-            'icon': media_info.get('thumbnail', '')
-        }
+        art_dict = {}
+        if 'thumbnail' in media_info.get('info', {}):
+            art_dict['thumb'] = media_info['info']['thumbnail']
+            art_dict['poster'] = media_info['info']['thumbnail']
+            art_dict['icon'] = media_info['info']['thumbnail']
+        if 'fanart' in media_info.get('info', {}):
+            art_dict['fanart'] = media_info['info']['fanart']
         list_item.setArt(art_dict)
 
         # Prepare info dictionary from nested info structure
