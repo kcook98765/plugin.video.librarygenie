@@ -64,7 +64,6 @@ class MainWindow(BaseWindow):
             thumbnail = art.get('thumb') or art.get('poster') or art.get('banner') or art.get('fanart')
             if thumbnail:
                 image_control = pyxbmct.Image(thumbnail)
-                self.placeControl(image_control, 0, 0, rowspan=1, columnspan=1, pad_x=10, pad_y=10)
                 image_control.setHeight(int(image_control.getHeight() * 0.25))
                 image_control.setWidth(int(image_control.getWidth() * 0.25))
                 self.placeControl(image_control, 0, 0, rowspan=1, columnspan=1, pad_x=10, pad_y=10)
