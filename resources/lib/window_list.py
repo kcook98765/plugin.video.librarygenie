@@ -50,17 +50,23 @@ class ListWindow(BaseWindow):
 
         for item in media_items:
             try:
-                list_item = xbmcgui.ListItem(item['title'])
-                list_item.setProperty('media_item_id', str(item['id']))
-                list_item.setProperty('title', item['title'])
+                title = item.get('title', 'Unknown')
+                list_item = xbmcgui.ListItem(title)
+                list_item.setProperty('media_item_id', str(item.get('id', 0)))
+                list_item.setProperty('title', title)
                 
-                if item['info']:
+                if isinstance(item.get('info'), dict):
                     for key, value in item['info'].items():
-                        if isinstance(value, (str, int, float)) and value:
-                            list_item.setProperty(key, str(value))
+                        if value is not None:
+                            try:
+                                if isinstance(value, (dict, list)):
+                                    value = json.dumps(value)
+                                list_item.setProperty(key, str(value))
+                            except Exception as e:
+                                utils.log(f"Error setting property {key}: {str(e)}", "DEBUG")
                 
                 self.media_list_control.addItem(list_item)
-                utils.log(f"Added item with title: {item['title']}", "DEBUG")
+                utils.log(f"Added item with title: {title}", "DEBUG")
             except Exception as e:
                 utils.log(f"Error adding list item: {str(e)}", "ERROR")
 
