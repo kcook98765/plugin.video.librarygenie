@@ -25,11 +25,19 @@ class ListWindow(BaseWindow):
 
     def setup_ui(self):
         try:
+            xbmcplugin.setContent(self.handle, 'movies')
+            # Set default view mode to poster
+            xbmc.executebuiltin('Container.SetViewMode(51)')
+            
             self.placeControl(self.media_list_control, 1, 0, rowspan=9, columnspan=10, pad_x=10, pad_y=10)
             self.connect(self.media_list_control, self.on_media_item_click)
             if self.media_list_control and hasattr(self.media_list_control, 'getId'):
                 self.media_list_control.setEnabled(True)
             self.set_navigation()
+
+            # Enable view mode selection
+            xbmcplugin.addSortMethod(self.handle, xbmcplugin.SORT_METHOD_LABEL)
+            xbmcplugin.setProperty(self.handle, 'ForcedView', 'true')
         except Exception as e:
             utils.log(f"Error in setup_ui: {str(e)}", "ERROR")
 
