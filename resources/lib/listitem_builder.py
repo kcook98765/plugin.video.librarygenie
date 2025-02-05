@@ -51,7 +51,7 @@ class ListItemBuilder:
                 fanart = f'image://{quote(fanart)}/'
             art_dict['fanart'] = fanart
 
-        # Handle art dictionary
+        # Set initial art values if available
         if poster:
             art_dict['poster'] = poster
             art_dict['thumb'] = poster
@@ -59,10 +59,6 @@ class ListItemBuilder:
 
         if fanart:
             art_dict['fanart'] = fanart
-            if not path or path == 'None':
-                utils.log(f"Skipping invalid poster path: {path}", "DEBUG")
-                continue
-            utils.log(f"Processing poster path: {path}", "DEBUG")
 
             # Skip video thumbnails except valid poster art paths
             if 'video@' in str(path):
