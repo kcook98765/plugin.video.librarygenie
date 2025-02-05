@@ -15,9 +15,13 @@ def run_addon():
     utils.log("Running addon...", "DEBUG")
 
     try:
-        args = sys.argv[2][1:] if len(sys.argv) > 2 else ""
-        params = urllib.parse.parse_qs(args)
-        action = params.get('action', [None])[0]
+        # Handle direct action from context menu
+        if len(sys.argv) > 1 and sys.argv[1] == 'show_main_window':
+            action = 'show_main_window'
+        else:
+            args = sys.argv[2][1:] if len(sys.argv) > 2 else ""
+            params = urllib.parse.parse_qs(args)
+            action = params.get('action', [None])[0]
 
         # Check if launched from context menu or directly
         listitem_context = (len(sys.argv) > 1 and sys.argv[1] == '-1') or action == 'show_main_window'
