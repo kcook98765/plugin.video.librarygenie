@@ -25,35 +25,38 @@ class ListItemBuilder:
         poster = None
         possible_paths = [
             media_info.get('art', {}).get('poster'),
-            media_info.get('art', {}).get('Art(poster)'),
+            media_info.get('art', {}).get('Art(poster)'), 
             media_info.get('info', {}).get('Art(poster)'),
             media_info.get('thumbnail'),
             media_info.get('fanart')
         ]
-        
-        # Filter invalid paths and decode valid ones
+
+        # Filter out invalid paths
         for path in possible_paths:
-            if not path or str(path).startswith('image://video@'):
+            if not path:
                 continue
-                
+
+            # Skip video thumbnails
+            if 'video@' in str(path):
+                continue
+
             try:
-                # Skip video thumbnails and empty paths
-                if not path or 'video@' in path:
-                    continue
-                    
-                # Keep image:// protocol intact for Kodi
+                # Handle image:// protocol
                 if path.startswith('image://'):
                     poster = path
                     break
-                    
-                # Handle direct URLs by adding image:// protocol
+
+                # Handle http URLs
                 if path.startswith('http'):
                     from urllib.parse import quote
                     poster = f'image://{quote(path)}/'
                     break
-                    
-                poster = path
-                break
+
+                # Handle local paths
+                if path.startswith('/') or path.startswith('special://'):
+                    poster = path
+                    break
+
             except Exception as e:
                 utils.log(f"Error processing thumbnail path: {e}", "WARNING")
                 continue

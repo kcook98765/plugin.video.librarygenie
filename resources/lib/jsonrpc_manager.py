@@ -57,7 +57,7 @@ class JSONRPC:
             'movieid': movie_id,
             'properties': [
                 'title', 'genre', 'year', 'director', 'cast', 'plot', 'rating',
-                'file', 'thumbnail', 'fanart', 'runtime', 'tagline',
+                'file', 'thumbnail', 'fanart', 'runtime', 'tagline', 'art',
                 'writer', 'imdbnumber', 'premiered', 'mpaa', 'trailer', "votes",
                 "country", "dateadded", "studio"
             ]
