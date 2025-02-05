@@ -21,6 +21,7 @@ def run_addon():
 
         # Check if launched from context menu or directly
         listitem_context = (len(sys.argv) > 1 and sys.argv[1] == '-1') or action == 'show_main_window'
+        utils.log(f"Context menu check - Args: {sys.argv}, Action: {action}, Is Context: {listitem_context}", "DEBUG")
 
         # Initialize helpers
         config = Config()
@@ -28,15 +29,17 @@ def run_addon():
         kodi_helper = KodiHelper()
 
         # Handle context menu vs direct launch
-        if listitem_context and not action:
+        if listitem_context:
+            utils.log("Processing context menu click", "DEBUG")
             # Context menu on media item - show options window
             kodi_helper = KodiHelper()
             item_info = kodi_helper.get_focused_item_details()
             if item_info:
                 utils.log(f"Opening window with item info: {item_info}", "DEBUG")
-                window = MainWindow()
-                window.set_item_info(item_info)
+                window = MainWindow(item_info)
+                utils.log("MainWindow instance created", "DEBUG")
                 window.doModal()
+                utils.log("MainWindow closed", "DEBUG")
                 del window
                 return
             else:
