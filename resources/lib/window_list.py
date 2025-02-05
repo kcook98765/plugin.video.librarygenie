@@ -50,23 +50,36 @@ class ListWindow(BaseWindow):
 
         for item in media_items:
             try:
+                utils.log(f"Processing media item: {item}", "DEBUG")
                 title = str(item.get('title', 'Unknown'))
                 list_item = xbmcgui.ListItem(title)
                 list_item.setProperty('media_item_id', str(item.get('id', 0)))
                 list_item.setProperty('title', title)
-                
-                if isinstance(item.get('info'), dict):
-                    for key, value in item['info'].items():
-                        if value is not None:
-                            try:
-                                if isinstance(value, (dict, list)):
-                                    value = json.dumps(value)
-                                elif not isinstance(value, str):
-                                    value = str(value)
-                                if value and value.lower() != 'none':
-                                    list_item.setProperty(key, value)
-                            except Exception as e:
-                                utils.log(f"Error setting property {key}: {str(e)}", "DEBUG")
+
+                # Process cast separately if it exists
+                cast = item.get('cast')
+                if cast:
+                    try:
+                        if isinstance(cast, str):
+                            cast = json.loads(cast)
+                        if isinstance(cast, list):
+                            list_item.setProperty('cast', json.dumps(cast))
+                    except Exception as e:
+                        utils.log(f"Error processing cast: {str(e)}", "ERROR")
+
+                # Process other properties
+                for key, value in item.items():
+                    if key != 'cast' and value is not None:
+                        try:
+                            if isinstance(value, (dict, list)):
+                                value = json.dumps(value)
+                            elif not isinstance(value, str):
+                                value = str(value)
+                            if value and value.lower() != 'none':
+                                utils.log(f"Setting property {key}: {value}", "DEBUG")
+                                list_item.setProperty(key, value)
+                        except Exception as e:
+                            utils.log(f"Error setting property {key}: {str(e)}", "ERROR")
                 
                 self.media_list_control.addItem(list_item)
                 utils.log(f"Added item with title: {title}", "DEBUG")
