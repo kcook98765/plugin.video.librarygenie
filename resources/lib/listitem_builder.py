@@ -31,24 +31,29 @@ class ListItemBuilder:
             media_info.get('fanart')
         ]
         
-        # Filter out video paths and None values
-        possible_paths = [p for p in possible_paths if p and not str(p).startswith('image://video@')]
-        
+        # Filter invalid paths and decode valid ones
         for path in possible_paths:
-            if path:
-                # Strip 'image://' prefix and trailing slash if present
+            if not path or str(path).startswith('image://video@'):
+                continue
+                
+            try:
+                # Handle image:// protocol
                 if path.startswith('image://'):
                     path = path[8:]
-                if path.endswith('/'):
-                    path = path[:-1]
-                # URL decode the path
-                try:
+                    if path.endswith('/'):
+                        path = path[:-1]
                     from urllib.parse import unquote
                     path = unquote(path)
-                except:
-                    pass
+                    
+                # Skip if path still looks invalid
+                if not path or path.startswith('video@'):
+                    continue
+                    
                 poster = path
                 break
+            except Exception as e:
+                utils.log(f"Error processing thumbnail path: {e}", "WARNING")
+                continue
 
         if poster:
             art_dict['thumb'] = poster
