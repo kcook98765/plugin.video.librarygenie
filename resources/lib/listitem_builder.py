@@ -30,9 +30,22 @@ class ListItemBuilder:
         art_dict = {}
         utils.log(f"Setting artwork for item: {media_info.get('title', 'Unknown')}", "DEBUG")
 
-        # Set up initial art dictionary
-        art_dict = {}
-        poster = media_info.get('info', {}).get('thumbnail') or media_info.get('thumbnail')
+        # Get art from various possible sources in priority order
+        art_sources = [
+            ('art', 'poster'),
+            ('art', 'thumb'), 
+            ('info', 'thumbnail'),
+            ('thumbnail', None)
+        ]
+        
+        poster = None
+        for source_dict, key in art_sources:
+            if key:
+                poster = media_info.get(source_dict, {}).get(key)
+            else:
+                poster = media_info.get(source_dict)
+            if poster and not poster.startswith('video@'):
+                break
         fanart = media_info.get('info', {}).get('fanart') or media_info.get('fanart')
 
         # Handle poster image
