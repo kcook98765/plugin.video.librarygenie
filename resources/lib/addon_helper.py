@@ -30,21 +30,19 @@ def run_addon():
         # Handle context menu vs direct launch
         if listitem_context and not action:
             # Context menu on media item - show options window
-            item_info = {
-                'title': xbmc.getInfoLabel('ListItem.Title'),
-                'kodi_id': xbmc.getInfoLabel('ListItem.DBID'),
-                'is_playable': xbmc.getCondVisibility('ListItem.IsPlayable') == 1,
-                'art': {
-                    'thumb': xbmc.getInfoLabel('ListItem.Art(thumb)'),
-                    'poster': xbmc.getInfoLabel('ListItem.Art(poster)'),
-                    'banner': xbmc.getInfoLabel('ListItem.Art(banner)'),
-                    'fanart': xbmc.getInfoLabel('ListItem.Art(fanart)')
-                }
-            }
-            window = MainWindow(item_info)
-            window.doModal()
-            del window
-            return
+            kodi_helper = KodiHelper()
+            item_info = kodi_helper.get_focused_item_details()
+            if item_info:
+                utils.log(f"Opening window with item info: {item_info}", "DEBUG")
+                window = MainWindow()
+                window.set_item_info(item_info)
+                window.doModal()
+                del window
+                return
+            else:
+                utils.log("No item info found for context menu", "WARNING")
+                xbmcgui.Dialog().notification("LibraryGenie", "Could not get item details", xbmcgui.NOTIFICATION_WARNING, 3000)
+                return
         elif not action:
             # Direct addon launch - show root directory
             root_folders = db_manager.fetch_folders(None)  # Get root folders
