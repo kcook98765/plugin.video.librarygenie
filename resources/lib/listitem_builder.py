@@ -14,8 +14,8 @@ class ListItemBuilder:
         if not isinstance(media_info, dict):
             media_info = {}
 
-        # Generate cache key from media info
-        cache_key = str(hash(frozenset(media_info.items())))
+        # Generate cache key from stable fields
+        cache_key = str(media_info.get('title', '')) + str(media_info.get('year', '')) + str(media_info.get('kodi_id', ''))
         if cache_key in ListItemBuilder._item_cache:
             return ListItemBuilder._item_cache[cache_key]
 
