@@ -21,17 +21,18 @@
     </extension>
     <extension point="kodi.context.item">
       <menu id="kodi.core.main">
-        <context>
+        <menu>
             <item>
                 <label>30000</label>
                 <visible>true</visible>
+                <onclick>RunPlugin(plugin://plugin.video.librarygenie?action=show_main_window)</onclick>
             </item>
             <item>
-                <label>Debug Inspect</label>
+                <label>Debug Inspect Data</label>
                 <visible>true</visible>
                 <onclick>RunPlugin(plugin://plugin.video.librarygenie?action=debug_inspect)</onclick>
             </item>
-        </context>
+        </menu>
       </menu>
     </extension>
 </addon>
