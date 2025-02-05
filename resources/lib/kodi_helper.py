@@ -82,17 +82,17 @@ class KodiHelper:
     def play_item(self, item_id, content_type='video'):
         try:
             utils.log(f"Play item called with item_id: {item_id} (type: {type(item_id)})", "DEBUG")
-            
+
             # Query the database for item
             query = """SELECT media_items.* FROM media_items 
                       JOIN list_items ON list_items.media_item_id = media_items.id 
                       WHERE list_items.media_item_id = ?"""
-            
+
             from resources.lib.database_manager import DatabaseManager
             from resources.lib.config_manager import Config
             config = Config()
             db = DatabaseManager(config.db_path)
-            
+
             # Handle item_id from various input types and ensure valid integer
             utils.log(f"Original item_id: {item_id}", "DEBUG")
             # Extract first item if list/tuple
@@ -103,23 +103,23 @@ class KodiHelper:
             elif isinstance(item_id, dict):
                 utils.log(f"Converting from dict: {item_id}", "DEBUG")
                 item_id = item_id.get('id')
-            
+
             utils.log(f"After type conversion: {item_id}", "DEBUG")
-            
+
             if not item_id:
                 utils.log("Invalid item_id received (empty/None)", "ERROR")
                 return False
-                
+
             try:
                 item_id = int(str(item_id).strip())
                 utils.log(f"Converted to integer: {item_id}", "DEBUG")
             except (ValueError, TypeError) as e:
                 utils.log(f"Could not convert item_id to integer: {item_id}, Error: {str(e)}", "ERROR")
                 return False
-                
+
             db.cursor.execute(query, (item_id,))
             result = db.cursor.fetchone()
-            
+
             if not result:
                 utils.log(f"Item not found for id: {item_id_value}", "ERROR")
                 return False
@@ -127,36 +127,48 @@ class KodiHelper:
             # Convert result to dict 
             field_names = [field.split()[0] for field in db.config.FIELDS]
             item_data = dict(zip(['id'] + field_names, result))
-                
+
             # Create list item with title and setup basic properties
             list_item = xbmcgui.ListItem(label=result.get('title', ''))
-            
+
             # Get play URL and check validity
             play_url = result.get('play') or result.get('file', '')
             if not play_url:
                 utils.log("No play URL found", "ERROR") 
                 return False
-            
+
             # Handle path and playback setup
             folder_path = result.get('path', '')
             play_url = result.get('play') or result.get('file', '') or folder_path
-            
+
             utils.log(f"Setting play URL: {play_url}", "DEBUG")
             list_item.setPath(play_url)
-            
+
             # Determine content type and playback method
             if folder_path and xbmc.getCondVisibility('Window.IsVisible(MyVideoNav.xml)'):
                 # Handle as video library navigation
                 xbmc.executebuiltin(f'Container.Update({folder_path})')
                 return True
-                
+
             # Setup direct playback
             mime_type = self._get_mime_type(play_url)
             xbmcplugin.setContent(self.addon_handle, content_type)
             list_item.setProperty('IsPlayable', 'true')
             list_item.setMimeType(mime_type)
             list_item.setProperty('inputstream', 'inputstream.adaptive')
-            
+
+            # Set additional properties if available
+            if result.get('duration'):
+                list_item.addStreamInfo('video', {'duration': int(result['duration'])})
+
+            # Resolve URL for playback
+            xbmcplugin.setResolvedUrl(self.addon_handle, True, list_item)
+            return True
+
+        except Exception as e:
+            utils.log(f"Error playing item: {str(e)}", "ERROR")
+            return False
+
     def _get_mime_type(self, url):
         """Helper method to determine mime type from URL"""
         if url.endswith('.mp4'):
@@ -166,18 +178,6 @@ class KodiHelper:
         elif url.endswith('.m3u8'):
             return 'application/x-mpegURL'
         return 'video/mp4'  # Default fallback
-            
-            # Set additional properties if available
-            if result.get('duration'):
-                list_item.addStreamInfo('video', {'duration': int(result['duration'])})
-            
-            # Resolve URL for playback
-            xbmcplugin.setResolvedUrl(self.addon_handle, True, list_item)
-            return True
-            
-        except Exception as e:
-            utils.log(f"Error playing item: {str(e)}", "ERROR")
-            return False
 
     def get_focused_item_basic_info(self):
         from resources.lib.media_manager import MediaManager
