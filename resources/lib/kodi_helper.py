@@ -47,12 +47,32 @@ class KodiHelper:
         utils.log(f"Setting content type to: {content_type}", "DEBUG")
         xbmcplugin.setContent(self.addon_handle, content_type)
         
-        # Set view mode to poster view (51)
-        xbmc.executebuiltin('Container.SetViewMode(51)')
-        xbmc.sleep(100)  # Give the UI time to update
-        xbmc.executebuiltin('Container.SetForceViewMode(true)')
+        # Try different view modes
+        view_modes = {
+            'list': 50,
+            'poster': 51,
+            'icon': 52,
+            'wide': 55,
+            'wall': 500,
+            'fanart': 502,
+            'media': 504  
+        }
+        
+        # Set default view mode to poster
+        default_mode = view_modes['poster']
+        utils.log(f"Setting default view mode: {default_mode}", "DEBUG")
+        
+        # Set skin view modes
+        for mode_name, mode_id in view_modes.items():
+            xbmc.executebuiltin(f'Container.SetViewMode({mode_id})')
+        
+        # Force views mode
+        xbmc.executebuiltin('SetProperty(ForcedViews,1,Home)')
         xbmcplugin.setProperty(self.addon_handle, 'ForcedView', 'true')
+        
+        # Enable skin forced views
         xbmc.executebuiltin('Skin.SetBool(ForcedViews)')
+        xbmc.executebuiltin('Container.SetForceViewMode(true)')
         
         xbmcplugin.endOfDirectory(self.addon_handle)
 
