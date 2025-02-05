@@ -21,16 +21,20 @@ class ListItemBuilder:
         # Set artwork
         art_dict = {}
 
-        # Get poster image - try art dictionary first, then fallback to thumbnails
+        # Get poster image - try all possible poster paths
         poster = None
-        if media_info.get('art', {}).get('Art(poster)'):
-            poster = media_info['art']['Art(poster)']
-        elif media_info.get('info', {}).get('Art(poster)'):
-            poster = media_info['info']['Art(poster)']
-        elif media_info.get('thumbnail') and 'video@' not in media_info['thumbnail']:
-            poster = media_info['thumbnail']
-        elif media_info.get('info', {}).get('thumbnail') and 'video@' not in media_info['info']['thumbnail']:
-            poster = media_info['info']['thumbnail']
+        possible_paths = [
+            media_info.get('art', {}).get('poster'),
+            media_info.get('art', {}).get('Art(poster)'),
+            media_info.get('info', {}).get('Art(poster)'),
+            media_info.get('thumbnail'),
+            media_info.get('info', {}).get('thumbnail')
+        ]
+        
+        for path in possible_paths:
+            if path and 'video@' not in str(path):
+                poster = path
+                break
 
         if poster:
             art_dict['thumb'] = poster
