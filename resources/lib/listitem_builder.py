@@ -37,21 +37,20 @@ class ListItemBuilder:
                 continue
                 
             try:
-                # Handle image:// protocol
-                if path.startswith('image://'):
-                    path = path[8:]
-                    if path.endswith('/'):
-                        path = path[:-1]
-                    from urllib.parse import unquote
-                    path = unquote(path)
-                    
-                # Skip if path still looks invalid or is not an image URL
-                if not path or path.startswith('video@') or not (
-                    path.startswith('http') and 
-                    any(path.lower().endswith(ext) for ext in ('.jpg','.jpeg','.png','.gif')) or
-                    path.startswith('image://')
-                ):
+                # Skip video thumbnails and empty paths
+                if not path or 'video@' in path:
                     continue
+                    
+                # Keep image:// protocol intact for Kodi
+                if path.startswith('image://'):
+                    poster = path
+                    break
+                    
+                # Handle direct URLs by adding image:// protocol
+                if path.startswith('http'):
+                    from urllib.parse import quote
+                    poster = f'image://{quote(path)}/'
+                    break
                     
                 poster = path
                 break
