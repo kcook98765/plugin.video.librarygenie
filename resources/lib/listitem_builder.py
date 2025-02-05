@@ -1,6 +1,7 @@
 """Helper class for building ListItems with proper metadata"""
 import json
 import xbmcgui
+import xbmc
 from resources.lib import utils
 from resources.lib.listitem_infotagvideo import set_info_tag
 
@@ -131,10 +132,18 @@ class ListItemBuilder:
         cast = info.get('cast')
         if cast:
             try:
-                if isinstance(cast, str):
-                    cast = json.loads(cast)
-                if isinstance(cast, list):
-                    list_item.setCast(cast)
+                cast_list = json.loads(cast)
+                if isinstance(cast_list, list):
+                    actors = []
+                    for cast_member in cast_list:
+                        actor = xbmc.Actor(
+                            name=str(cast_member.get('name', '')),
+                            role=str(cast_member.get('role', '')),
+                            order=int(cast_member.get('order', 0)),
+                            thumbnail=str(cast_member.get('thumbnail', ''))
+                        )
+                        actors.append(actor)
+                    list_item.setCast(actors)
             except Exception as e:
                 utils.log(f"Error processing cast: {str(e)}", "ERROR")
                 list_item.setCast([])

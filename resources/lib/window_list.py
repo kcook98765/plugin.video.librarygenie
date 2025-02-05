@@ -47,6 +47,7 @@ class ListWindow(BaseWindow):
         db_manager = DatabaseManager(Config().db_path)
         media_items = db_manager.fetch_list_items(self.list_id)
         self.media_list_control.reset()
+        try:
 
         for item in media_items:
             try:
