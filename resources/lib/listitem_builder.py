@@ -21,16 +21,26 @@ class ListItemBuilder:
         
         # Set artwork
         art_dict = {}
-        # Check both direct and nested thumbnail paths
-        thumbnail = media_info.get('thumbnail') or media_info.get('info', {}).get('thumbnail')
-        if thumbnail:
-            art_dict['thumb'] = thumbnail
-            art_dict['poster'] = thumbnail
-            art_dict['icon'] = thumbnail
+        # Check for poster image first
+        if 'Art(poster)' in media_info.get('art', {}):
+            poster = media_info['art']['Art(poster)']
+        else:
+            # Fallback to thumbnail paths
+            poster = media_info.get('thumbnail') or media_info.get('info', {}).get('thumbnail')
+            # Skip video file thumbnails
+            if poster and 'video@' in poster:
+                poster = None
+                
+        if poster:
+            art_dict['thumb'] = poster
+            art_dict['poster'] = poster
+            art_dict['icon'] = poster
+            
         # Check both direct and nested fanart paths    
         fanart = media_info.get('fanart') or media_info.get('info', {}).get('fanart')
         if fanart:
             art_dict['fanart'] = fanart
+            
         list_item.setArt(art_dict)
 
         # Prepare info dictionary from nested info structure
