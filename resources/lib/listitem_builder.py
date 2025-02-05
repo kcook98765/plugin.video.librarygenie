@@ -33,6 +33,17 @@ class ListItemBuilder:
         
         for path in possible_paths:
             if path and 'video@' not in str(path):
+                # Strip 'image://' prefix and trailing slash if present
+                if path.startswith('image://'):
+                    path = path[8:]
+                if path.endswith('/'):
+                    path = path[:-1]
+                # URL decode the path
+                try:
+                    from urllib.parse import unquote
+                    path = unquote(path)
+                except:
+                    pass
                 poster = path
                 break
 
