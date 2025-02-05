@@ -1,92 +1,131 @@
+
 """ /resources/lib/addon_helper.py """
 import sys
 import urllib.parse
 import xbmc
+import xbmcgui
 from resources.lib.config_manager import Config
 from resources.lib.database_manager import DatabaseManager
 from resources.lib.kodi_helper import KodiHelper
-from resources.lib.llm_api_manager import LLMApiManager
-from resources.lib.user_interaction_manager import UserInteractionManager
 from resources.lib.window_main import MainWindow
-from resources.lib.utils import get_addon_handle, log # Added import for utils.log
-
 from resources.lib import utils
 
-class AddonContext:
-    def __init__(self):
-        self.ADDON_HANDLE = get_addon_handle()
-        self.CONFIG = Config()
-        self.db_manager = DatabaseManager(self.CONFIG.db_path)
-        self.ui_manager = UserInteractionManager(self.ADDON_HANDLE)
-        self.llm_api_manager = LLMApiManager()
-        self.kodihelper = KodiHelper(self.ADDON_HANDLE)
-        self.base_path = self.CONFIG.addon.getAddonInfo('path')
-        self.db_manager.setup_database()
-
-    def log_arguments(self):
-        for i, arg in enumerate(sys.argv):
-            utils.log(f"sys.argv[{i}] = {arg}", "DEBUG")
-
-    def parse_args(self):
-        return urllib.parse.parse_qs(sys.argv[2][1:]) if len(sys.argv) > 2 else {}
-
 def run_addon():
-    log("Running addon...", "DEBUG")
-    context = AddonContext()
-    context.log_arguments()
-    args = context.parse_args()
-    log(f"Args - {args}", "DEBUG")
-    action = args.get('action', [None])[0] or sys.argv[1] if len(sys.argv) > 1 else None
-    log(f"Action - {action}", "DEBUG")
-    action_handlers = {
-        "show_folder": lambda: show_folder(context.db_manager, context.kodihelper, args),
-        "show_list": lambda: show_list(context.db_manager, context.kodihelper, args),
-        "show_main_window": lambda: show_main_window(context.kodihelper),
-        "show_info": lambda: show_info(context.kodihelper),
-        "context_action": lambda: context.ui_manager.context_menu_action(args.get("context_action", [None])[0]) if args.get("context_action") else utils.show_notification("Error", "No context action specified"),
-        "play_item": lambda: context.kodihelper.play_item({'title': xbmc.getLocalizedString(30011)}),
-        "save_item": lambda: context.ui_manager.save_list_item(int(args.get('list_id', [0])[0]), context.kodihelper.get_focused_item_details()),
-        "flag_item": lambda: context.ui_manager.flag_list_item(int(args.get('item_id', [0])[0])),
-        "default": lambda: list_root_folders_and_lists(context.db_manager, context.kodihelper)
-    }
+    """Main entry point for the addon"""
+    utils.log("Running addon...", "DEBUG")
+
     try:
-        action_handlers.get(action, action_handlers["default"])()
+        # Handle direct action from context menu
+        if len(sys.argv) > 1 and sys.argv[1] == 'show_main_window':
+            action = 'show_main_window'
+        else:
+            args = sys.argv[2][1:] if len(sys.argv) > 2 else ""
+            params = urllib.parse.parse_qs(args)
+            action = params.get('action', [None])[0]
+
+        # Check if launched from context menu or directly
+        listitem_context = (len(sys.argv) > 1 and sys.argv[1] == '-1') or action == 'show_main_window'
+        utils.log(f"Context menu check - Args: {sys.argv}, Action: {action}, Is Context: {listitem_context}", "DEBUG")
+
+        # Initialize helpers
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+        kodi_helper = KodiHelper()
+
+        # Handle context menu vs direct launch
+        if listitem_context:
+            utils.log("Processing context menu click", "DEBUG")
+            # Context menu on media item - show options window
+            kodi_helper = KodiHelper()
+            item_info = kodi_helper.get_focused_item_details()
+            if item_info:
+                utils.log(f"Opening window with item info: {item_info}", "DEBUG")
+                window = MainWindow(item_info)
+                utils.log("MainWindow instance created", "DEBUG")
+                window.doModal()
+                utils.log("MainWindow closed", "DEBUG")
+                del window
+                return
+            else:
+                utils.log("No item info found for context menu", "WARNING")
+                xbmcgui.Dialog().notification("LibraryGenie", "Could not get item details", xbmcgui.NOTIFICATION_WARNING, 3000)
+                return
+        elif action == 'show_list':
+            # Handle specific list display
+            params = urllib.parse.parse_qs(args)
+            list_id = params.get('list_id', [None])[0]
+            if list_id:
+                kodi_helper.show_list(int(list_id))
+            return
+        else:
+            # Always show root directory for direct launch or unknown action
+            root_folders = db_manager.fetch_folders(None)  # Get root folders
+            root_lists = db_manager.fetch_lists(None)  # Get root lists 
+            kodi_helper.list_folders_and_lists(root_folders, root_lists)
+            return
+
+        # Handle context menu or other actions
+        if action == "debug_inspect":
+            db_manager = DatabaseManager(Config().db_path)
+            query = """
+                SELECT *
+                FROM media_items
+                LIMIT 1
+            """
+            db_manager.cursor.execute(query)
+            row = db_manager.cursor.fetchone()
+            
+            if row:
+                field_names = [field.split()[0] for field in Config.FIELDS]
+                data = dict(zip(['id'] + field_names, row))
+                
+                # Build formatted display text
+                display_text = "First Movie Data:\n\n"
+                for field, value in data.items():
+                    if field in ['thumbnail', 'fanart'] and value:
+                        display_text += f"{field}: [Image URL Present]\n"
+                    elif field == 'cast' and value:
+                        try:
+                            cast_data = json.loads(value)
+                            display_text += f"{field}: {len(cast_data)} cast members\n"
+                        except:
+                            display_text += f"{field}: [Invalid Cast Data]\n"
+                    else:
+                        display_text += f"{field}: {value}\n"
+                
+                dialog = xbmcgui.Dialog()
+                dialog.textviewer("Debug Data Inspection", display_text)
+            else:
+                xbmcgui.Dialog().notification("Debug", "No movie data found", xbmcgui.NOTIFICATION_INFO)
+
+        elif action == "show_main_window":
+            utils.log("Context menu 'LibraryGenie' clicked - showing main window", "DEBUG")
+            # Get basic info about currently selected item
+            item_info = {
+                'title': xbmc.getInfoLabel('ListItem.Title'),
+                'kodi_id': xbmc.getInfoLabel('ListItem.DBID'),
+                'is_playable': xbmc.getCondVisibility('ListItem.IsPlayable') == 1,
+                'art': {
+                    'thumb': xbmc.getInfoLabel('ListItem.Art(thumb)'),
+                    'poster': xbmc.getInfoLabel('ListItem.Art(poster)'),
+                    'banner': xbmc.getInfoLabel('ListItem.Art(banner)'),
+                    'fanart': xbmc.getInfoLabel('ListItem.Art(fanart)')
+                }
+            }
+            utils.log(f"Retrieved item info for context menu: {item_info}", "DEBUG")
+            window = MainWindow(item_info)
+            window.doModal()
+            del window
+        elif action == "show_folder":
+            folder_id = int(params.get('folder_id', [0])[0])
+            folders = db_manager.fetch_folders(folder_id)
+            lists = db_manager.fetch_lists(folder_id)
+            kodi_helper.list_folders_and_lists(folders, lists)
+        elif action == "show_list":
+            list_id = int(params.get('list_id', [0])[0])
+            items = db_manager.fetch_list_items(list_id)
+            kodi_helper.list_items(items)
+
     except Exception as e:
-        log(f"Error running addon: {str(e)}", "ERROR") # Updated error logging
-        import xbmcgui #Import here to avoid circular dependency
+        utils.log(f"Error running addon: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification("LibraryGenie", "Error running addon", xbmcgui.NOTIFICATION_ERROR, 5000)
-
-def show_folder(db_manager, kodihelper, args):
-    folder_id = int(args.get('folder_id', [None])[0])
-    utils.log(f"Showing folder ID {folder_id}...", "DEBUG")
-    folders = db_manager.fetch_folders(folder_id)
-    lists = db_manager.fetch_lists(folder_id)
-    kodihelper.list_folders_and_lists(folders, lists)
-
-def show_list(db_manager, kodihelper, args):
-    utils.log("Showing list...", "DEBUG")
-    list_id = int(args.get('list_id', [0])[0])
-    items = db_manager.fetch_list_items(list_id)
-    kodihelper.list_items(items)
-
-def show_main_window(kodihelper):
-    utils.log("Showing Main window...", "DEBUG")
-    db_id = xbmc.getInfoLabel('ListItem.DBID')
-    item_info = kodihelper.get_focused_item_details() if db_id.isdigit() and int(db_id) > 0 else kodihelper.get_focused_item_basic_info()
-    window = MainWindow(item_info)
-    window.doModal()
-
-def show_info(kodihelper):
-    utils.log("Showing info...", "DEBUG")
-    kodihelper.show_information()
-
-def list_root_folders_and_lists(db_manager, kodihelper):
-    utils.log("Default action - listing root folders and lists", "DEBUG")
-    root_folders = db_manager.fetch_folders(None)
-    root_lists = db_manager.fetch_lists(None)
-    kodihelper.list_folders_and_lists(root_folders, root_lists)
-
-def show_window(window_class):
-    window = window_class()
-    window.doModal()
-    del window

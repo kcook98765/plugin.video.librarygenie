@@ -8,7 +8,7 @@ import xbmcaddon
 from resources.lib.jsonrpc_manager import JSONRPC
 from resources.lib.utils import get_addon_handle
 from resources.lib import utils
-from resources.lib.listitem_infotagvideo import set_info, set_art
+from resources.lib.listitem_infotagvideo import set_info_tag, set_art
 
 class KodiHelper:
 
@@ -35,11 +35,45 @@ class KodiHelper:
                 isFolder=False
             )
 
-        # Enable media flags and sorting
-        xbmcplugin.setContent(self.addon_handle, content_type)
+        # Enable all relevant sort methods for better view options
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_LABEL)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_TITLE)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_GENRE)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_DATEADDED)
 
+        # Force content type and views with debugging
+        utils.log(f"Setting content type to: {content_type}", "DEBUG")
+        xbmcplugin.setContent(self.addon_handle, content_type)
+        
+        # Try different view modes
+        view_modes = {
+            'list': 50,
+            'poster': 51,
+            'icon': 52,
+            'wide': 55,
+            'wall': 500,
+            'fanart': 502,
+            'media': 504  
+        }
+        
+        # Set default view mode to poster
+        default_mode = view_modes['poster']
+        utils.log(f"Setting default view mode: {default_mode}", "DEBUG")
+        
+        # Set skin view modes
+        for mode_name, mode_id in view_modes.items():
+            xbmc.executebuiltin(f'Container.SetViewMode({mode_id})')
+        
+        # Force views mode
+        xbmc.executebuiltin('SetProperty(ForcedViews,1,Home)')
+        xbmcplugin.setProperty(self.addon_handle, 'ForcedView', 'true')
+        
+        # Enable skin forced views
+        xbmc.executebuiltin('Skin.SetBool(ForcedViews)')
+        xbmc.executebuiltin('Container.SetForceViewMode(true)')
+        
         xbmcplugin.endOfDirectory(self.addon_handle)
 
     def list_folders(self, folders):
@@ -79,29 +113,170 @@ class KodiHelper:
             )
         xbmcplugin.endOfDirectory(self.addon_handle)
 
-    def play_item(self, item, content_type='video'):
+    def show_list(self, list_id):
+        """Display items in a list"""
+        utils.log(f"Showing list with ID: {list_id}", "DEBUG")
+        from resources.lib.database_manager import DatabaseManager
+        from resources.lib.config_manager import Config
+        from resources.lib.listitem_builder import ListItemBuilder
+        db_manager = DatabaseManager(Config().db_path)
+        items = db_manager.fetch_list_items(list_id)
+        
+        # Set content type and force views
+        xbmcplugin.setContent(self.addon_handle, 'movies')
+        
+        # Enable all sort methods
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_LABEL)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_TITLE)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_GENRE)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_DATEADDED)
+        
+        # Set view modes
+        view_modes = {
+            'list': 50,
+            'poster': 51,
+            'icon': 52,
+            'wide': 55,
+            'wall': 500,
+            'fanart': 502,
+            'media': 504  
+        }
+        
+        # Set default view mode to poster
+        default_mode = view_modes['poster']
+        utils.log(f"Setting default view mode: {default_mode}", "DEBUG")
+        
+        # Set skin view modes
+        for mode_name, mode_id in view_modes.items():
+            xbmc.executebuiltin(f'Container.SetViewMode({mode_id})')
+        
+        # Force views mode
+        xbmcplugin.setProperty(self.addon_handle, 'ForcedView', 'true')
+        xbmc.executebuiltin('Container.SetForceViewMode(true)')
+        
+        # Add items and end directory
+        for item in items:
+            list_item = ListItemBuilder.build_video_item(item)
+            url = f'{self.addon_url}?action=play_item&id={item.get("id")}'
+            xbmcplugin.addDirectoryItem(
+                handle=self.addon_handle,
+                url=url,
+                listitem=list_item,
+                isFolder=False
+            )
+        xbmcplugin.endOfDirectory(self.addon_handle)
+
+    def play_item(self, item_id, content_type='video'):
         try:
-            if not item or not item.get('title'):
-                utils.log("Invalid item data", "ERROR")
+            utils.log(f"Play item called with item_id: {item_id} (type: {type(item_id)})", "DEBUG")
+
+            # Query the database for item
+            query = """SELECT media_items.* FROM media_items 
+                      JOIN list_items ON list_items.media_item_id = media_items.id 
+                      WHERE list_items.media_item_id = ?"""
+
+            from resources.lib.database_manager import DatabaseManager
+            from resources.lib.config_manager import Config
+            config = Config()
+            db = DatabaseManager(config.db_path)
+
+            # Handle item_id from various input types and ensure valid integer
+            utils.log(f"Original item_id: {item_id}", "DEBUG")
+            # Extract first item if list/tuple
+            if isinstance(item_id, (list, tuple)):
+                utils.log(f"Converting from list/tuple: {item_id}", "DEBUG")
+                item_id = item_id[0] if item_id else None
+            # Extract id if dict
+            elif isinstance(item_id, dict):
+                utils.log(f"Converting from dict: {item_id}", "DEBUG")
+                item_id = item_id.get('id')
+
+            utils.log(f"After type conversion: {item_id}", "DEBUG")
+
+            if not item_id:
+                utils.log("Invalid item_id received (empty/None)", "ERROR")
                 return False
 
-            utils.log(f"Playing item: {item.get('title', 'Unknown')}", "INFO")
-            list_item = xbmcgui.ListItem(label=item['title'])
-            list_item.setInfo(content_type, item.get('info', {}))
-
-            file_path = item.get('file', '')
-            if not file_path:
-                utils.log("No file path provided", "ERROR")
+            try:
+                item_id = int(str(item_id).strip())
+                utils.log(f"Converted to integer: {item_id}", "DEBUG")
+            except (ValueError, TypeError) as e:
+                utils.log(f"Could not convert item_id to integer: {item_id}, Error: {str(e)}", "ERROR")
                 return False
 
-            list_item.setPath(file_path)
-            utils.log(f"Setting path: {file_path}", "DEBUG")
+            db.cursor.execute(query, (item_id,))
+            result = db.cursor.fetchone()
 
-            xbmcplugin.setResolvedUrl(self.addon_handle, True, listitem=list_item)
+            if not result:
+                utils.log(f"Item not found for id: {item_id_value}", "ERROR")
+                return False
+
+            # Convert result tuple to dict
+            field_names = [field.split()[0] for field in db.config.FIELDS]
+            item_data = dict(zip(['id'] + field_names, result))
+
+            # Create list item with title and setup basic properties
+            list_item = xbmcgui.ListItem(label=item_data.get('title', ''))
+
+            # Get play URL and check validity
+            folder_path = item_data.get('path', '')
+            play_url = None
+
+            # Try to get play URL from different fields
+            if 'play' in item_data and item_data['play']:
+                play_url = item_data['play']
+            elif 'file' in item_data and item_data['file']:
+                play_url = item_data['file']
+            elif folder_path:
+                play_url = folder_path
+
+            if not play_url:
+                utils.log("No play URL found", "ERROR")
+                return False
+
+            utils.log(f"Using play URL: {play_url}", "DEBUG")
+            list_item.setPath(play_url)
+
+            # Determine content type and playback method
+            if folder_path and xbmc.getCondVisibility('Window.IsVisible(MyVideoNav.xml)'):
+                # Handle as video library navigation
+                xbmc.executebuiltin(f'Container.Update({folder_path})')
+                return True
+
+            # Setup direct playback
+            mime_type = self._get_mime_type(play_url)
+            xbmcplugin.setContent(self.addon_handle, content_type)
+            list_item.setProperty('IsPlayable', 'true')
+            list_item.setMimeType(mime_type)
+            list_item.setProperty('inputstream', 'inputstream.adaptive')
+
+            # Set additional properties if available
+            if 'duration' in item_data and item_data['duration']:
+                try:
+                    duration = int(item_data['duration'])
+                    list_item.addStreamInfo('video', {'duration': duration})
+                except (ValueError, TypeError):
+                    pass
+
+            # Resolve URL for playback
+            xbmcplugin.setResolvedUrl(self.addon_handle, True, list_item)
             return True
+
         except Exception as e:
             utils.log(f"Error playing item: {str(e)}", "ERROR")
             return False
+
+    def _get_mime_type(self, url):
+        """Helper method to determine mime type from URL"""
+        if url.endswith('.mp4'):
+            return 'video/mp4'
+        elif url.endswith(('.mkv', '.avi')):
+            return 'video/x-matroska'
+        elif url.endswith('.m3u8'):
+            return 'application/x-mpegURL'
+        return 'video/mp4'  # Default fallback
 
     def get_focused_item_basic_info(self):
         from resources.lib.media_manager import MediaManager

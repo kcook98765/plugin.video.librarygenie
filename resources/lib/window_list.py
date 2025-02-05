@@ -25,11 +25,19 @@ class ListWindow(BaseWindow):
 
     def setup_ui(self):
         try:
+            xbmcplugin.setContent(self.handle, 'movies')
+            # Set default view mode to poster
+            xbmc.executebuiltin('Container.SetViewMode(51)')
+            
             self.placeControl(self.media_list_control, 1, 0, rowspan=9, columnspan=10, pad_x=10, pad_y=10)
             self.connect(self.media_list_control, self.on_media_item_click)
             if self.media_list_control and hasattr(self.media_list_control, 'getId'):
                 self.media_list_control.setEnabled(True)
             self.set_navigation()
+
+            # Enable view mode selection
+            xbmcplugin.addSortMethod(self.handle, xbmcplugin.SORT_METHOD_LABEL)
+            xbmcplugin.setProperty(self.handle, 'ForcedView', 'true')
         except Exception as e:
             utils.log(f"Error in setup_ui: {str(e)}", "ERROR")
 
@@ -48,43 +56,58 @@ class ListWindow(BaseWindow):
         media_items = db_manager.fetch_list_items(self.list_id)
         self.media_list_control.reset()
 
-        for item in media_items:
-            label = f"{item['title']}"
-            media_info = {}
-            # Map database columns to media info
-            try:
-                media_info = {
-                    'title': str(item[23]) if item[23] else '',  # title
-                    'thumbnail': str(item[22]) if item[22] else '',  # thumbnail
-                    'fanart': str(item[6]) if item[6] else '',  # fanart
-                    'file': str(item[12]) if item[12] else '',  # path
-                    'plot': str(item[14]) if item[14] else '',  # plot
-                    'tagline': str(item[21]) if item[21] else '',  # tagline
-                    'cast': item[1] if item[1] else '[]',  # cast (JSON string)
-                    'country': str(item[2]) if item[2] else '',  # country
-                    'director': str(item[4]) if item[4] else '',  # director  
-                    'genre': str(item[7]) if item[7] else '',  # genre
-                    'mpaa': str(item[11]) if item[11] else '',  # mpaa
-                    'premiered': str(item[15]) if item[15] else '',  # premiered
-                    'rating': float(item[16]) if item[16] else 0.0,  # rating
-                    'studio': str(item[20]) if item[20] else '',  # studio
-                    'trailer': str(item[24]) if item[24] else '',  # trailer
-                    'votes': str(item[26]) if item[26] else '0',  # votes
-                    'writer': str(item[27]) if item[27] else '',  # writer
-                    'year': str(item[28]) if item[28] else '',  # year
-                    'media_type': 'movie'
-                }
-                utils.log(f"Built media info: {media_info}", "DEBUG")
-            except Exception as e:
-                utils.log(f"Error building media info: {str(e)}", "ERROR")
-                media_info = {'title': str(item[23]) if item[23] else 'Unknown', 'media_type': 'movie'}
-            utils.log(f"Building ListItem with media info: {media_info}", "DEBUG")
-            list_item = ListItemBuilder.build_video_item(media_info)
-            list_item.setProperty('media_item_id', str(item['id']))
-            self.media_list_control.addItem(list_item)
-            utils.log(f"Added item with metadata - Title: {item['title']}, Info: {item['info']}", "DEBUG")
+        try:
+            for item in media_items:
+                try:
+                    utils.log(f"Processing media item: {item}", "DEBUG")
+                    title = str(item.get('title', 'Unknown'))
+                    list_item = xbmcgui.ListItem(title)
+                    list_item.setProperty('media_item_id', str(item.get('id', 0)))
+                    list_item.setProperty('title', title)
+                    
+                    # Set art dictionary for proper poster display
+                    thumbnail = item.get('info', {}).get('thumbnail', '')
+                    if thumbnail:
+                        list_item.setArt({
+                            'poster': thumbnail,
+                            'thumb': thumbnail,
+                            'icon': thumbnail
+                        })
+
+                    # Process cast separately if it exists
+                    cast = item.get('cast')
+                    if cast:
+                        try:
+                            if isinstance(cast, str):
+                                cast = json.loads(cast)
+                            if isinstance(cast, list):
+                                list_item.setProperty('cast', json.dumps(cast))
+                        except Exception as e:
+                            utils.log(f"Error processing cast: {str(e)}", "ERROR")
+
+                    # Process other properties
+                    for key, value in item.items():
+                        if key != 'cast' and value is not None:
+                            try:
+                                if isinstance(value, (dict, list)):
+                                    value = json.dumps(value)
+                                elif not isinstance(value, str):
+                                    value = str(value)
+                                if value and value.lower() != 'none':
+                                    utils.log(f"Setting property {key}: {value}", "DEBUG")
+                                    list_item.setProperty(key, value)
+                            except Exception as e:
+                                utils.log(f"Error setting property {key}: {str(e)}", "ERROR")
+
+                    self.media_list_control.addItem(list_item)
+                    utils.log(f"Added item with title: {title}", "DEBUG")
+                except Exception as e:
+                    utils.log(f"Error adding list item: {str(e)}", "ERROR")
+        except Exception as e:
+            utils.log(f"Error populating list: {str(e)}", "ERROR")
 
         self.add_genie_list_option()
+
 
     def add_genie_list_option(self):
         db_manager = DatabaseManager(Config().db_path)

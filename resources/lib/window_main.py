@@ -64,7 +64,6 @@ class MainWindow(BaseWindow):
             thumbnail = art.get('thumb') or art.get('poster') or art.get('banner') or art.get('fanart')
             if thumbnail:
                 image_control = pyxbmct.Image(thumbnail)
-                self.placeControl(image_control, 0, 0, rowspan=1, columnspan=1, pad_x=10, pad_y=10)
                 image_control.setHeight(int(image_control.getHeight() * 0.25))
                 image_control.setWidth(int(image_control.getWidth() * 0.25))
                 self.placeControl(image_control, 0, 0, rowspan=1, columnspan=1, pad_x=10, pad_y=10)
@@ -627,7 +626,21 @@ class MainWindow(BaseWindow):
         parent_id = int(parent_id) if parent_id != 'None' else None
         utils.log(f"Creating new list '{new_list_name}' under parent ID '{parent_id}'", "DEBUG")
         db_manager.insert_data('lists', {'name': new_list_name, 'folder_id': parent_id})
-        xbmcgui.Dialog().notification("LibraryGenie", f"New list '{new_list_name}' created", xbmcgui.NOTIFICATION_INFO, 5000)
+        list_id = db_manager.cursor.lastrowid
+        
+        # Add current movie to the new list
+        if self.item_info and 'kodi_id' in self.item_info:
+            fields_keys = [field.split()[0] for field in Config.FIELDS]
+            data = {field: self.item_info.get(field) for field in fields_keys}
+            data['list_id'] = list_id
+            if 'cast' in data and isinstance(data['cast'], list):
+                data['cast'] = json.dumps(data['cast'])
+            db_manager.insert_data('list_items', data)
+            notification_text = f"Added '{self.item_info.get('title', '')}' to new list '{new_list_name}'"
+        else:
+            notification_text = f"New list '{new_list_name}' created"
+            
+        xbmcgui.Dialog().notification("LibraryGenie", notification_text, xbmcgui.NOTIFICATION_INFO, 5000)
         self.populate_list()
 
     def move_list(self, list_id, list_name):
@@ -658,7 +671,7 @@ class MainWindow(BaseWindow):
         if not confirmed:
             return
         db_manager = DatabaseManager(Config().db_path)
-        db_manager.delete_data('lists', f'id={list_id}')
+        db_manager.delete_list(list_id)
         xbmcgui.Dialog().notification("LibraryGenie", f"List '{list_name}' deleted", xbmcgui.NOTIFICATION_INFO, 5000)
         self.populate_list()
 

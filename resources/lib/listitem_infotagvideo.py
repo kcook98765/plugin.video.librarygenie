@@ -4,13 +4,14 @@ Classes and functions that process data from JSON-RPC API and assign them to Lis
 
 from typing import Dict, Any, List, Tuple, Type, Iterable, Union
 from urllib.parse import quote
+import json
 
 import xbmc
 from xbmc import InfoTagVideo, Actor
 from xbmcgui import ListItem
 from resources.lib import utils
 
-__all__ = ['set_info', 'set_art']
+__all__ = ['set_info_tag', 'set_art']
 
 # Initialize logging
 utils.log("ListItem InfoTagVideo module initialized", "INFO")
@@ -24,208 +25,82 @@ def get_kodi_version() -> int:
     version_info = xbmc.getInfoLabel("System.BuildVersion")
     return int(version_info.split('.')[0])
 
-class SimpleMediaPropertySetter:
-    """
-    Sets a media property from a dictionary returned by JSON-RPC API to
-    xbmc.InfoTagVideo class instance
-    """
 
-    def __init__(self, media_property: str, media_info: Dict[str, Any], info_tag_method: str):
-        self._property_value = media_info.get(media_property)
-        self._info_tag_method = info_tag_method
+"""InfoTag compatibility helper for Kodi 19+"""
 
-    def should_set(self) -> bool:
-        return bool(self._property_value)
-
-    def _convert_to_float(self, value: Any) -> float:
-        try:
-            return float(value)
-        except (ValueError, TypeError):
-            return 0.0
-
-    def _convert_to_int(self, value: Any) -> int:
-        try:
-            return int(value)
-        except (ValueError, TypeError):
-            return 0
-            
-    def get_method_args(self) -> Iterable[Any]:
-        return (self._property_value,)
-
-    def set_info_tag_property(self, info_tag: InfoTagVideo) -> None:
-        if self.should_set():
-            method = getattr(info_tag, self._info_tag_method)
-            args = self.get_method_args()
-            utils.log(f"Setting InfoTagVideo property: method={self._info_tag_method}, args={args}", "DEBUG")
-            method(*args)
-
-class NotNoneValueSetter(SimpleMediaPropertySetter):
-
-    def should_set(self) -> bool:
-        return self._property_value is not None
-
-
-class CastSetter(SimpleMediaPropertySetter):
-
-    def get_method_args(self) -> Iterable[Any]:
-        actors = []
-        for actor_info in self._property_value:
-            actor_thumbnail = actor_info.get('thumbnail', '')
-            actors.append(Actor(
-                name=actor_info.get('name', ''),
-                role=actor_info.get('role', ''),
-                order=actor_info.get('order') or -1,
-                thumbnail=actor_thumbnail
-            ))
-        return (actors,)
-
-
-class ResumePointSetter(SimpleMediaPropertySetter):
-
-    def get_method_args(self) -> Iterable[Any]:
-        try:
-            time = float(self._property_value.get('position', 0.0))
-            totaltime = float(self._property_value.get('total', 0.0))
-            if time < 0:
-                time = 0.0
-            if totaltime < 0:
-                totaltime = 0.0
-            if time > totaltime:
-                time = totaltime
-            return time, totaltime
-        except (ValueError, TypeError):
-            return 0.0, 0.0
-
-
-class VideoStreamSetter(SimpleMediaPropertySetter):
-    stream_type = 'video'
-    stream_type_class = xbmc.VideoStreamDetail
-
-    def should_set(self) -> bool:
-        return bool(self._property_value and self._property_value.get(self.stream_type))
-
-    @staticmethod
-    def get_stream_type_args(stream_dict: Dict[str, Any]) -> Iterable[Any,]:
-        return (
-            stream_dict['width'],
-            stream_dict['height'],
-            stream_dict['aspect'],
-            stream_dict['duration'],
-            stream_dict['codec'],
-            stream_dict['stereomode'],
-            stream_dict['language'],
-            stream_dict['hdrtype'],
-        )
-
-    def _get_stream_type_object(self, stream_dict) -> StreamDetailsType:
-        args = self.get_stream_type_args(stream_dict)
-        return self.stream_type_class(*args)
-
-    def get_method_args(self) -> Iterable[Any]:
-        args_list = []
-        for stream_dict in self._property_value[self.stream_type]:
-            stream_type_obj = self._get_stream_type_object(stream_dict)
-            args_list.append(stream_type_obj)
-        return args_list
-
-    def set_info_tag_property(self, info_tag: InfoTagVideo) -> None:
-        method = getattr(info_tag, self._info_tag_method)
-        args_list = self.get_method_args()
-        for arg in args_list:
-            method(arg)
-
-
-class AudioStreamSetter(VideoStreamSetter):
-    stream_type = 'audio'
-    stream_type_class = xbmc.AudioStreamDetail
-
-    @staticmethod
-    def get_stream_type_args(stream_dict: Dict[str, Any]) -> Iterable[Any]:
-        return (
-            stream_dict['channels'],
-            stream_dict['codec'],
-            stream_dict['language'],
-        )
-
-
-class SubtitleStreamSetter(VideoStreamSetter):
-    stream_type = 'subtitle'
-    stream_type_class = xbmc.SubtitleStreamDetail
-
-    @staticmethod
-    def get_stream_type_args(stream_dict: Dict[str, Any]) -> Iterable[Any]:
-        return (stream_dict['language'],)
-
-
-class NonNegativeValueSetter(SimpleMediaPropertySetter):
-
-    def should_set(self) -> bool:
-        return self._property_value is not None and self._property_value >= 0
-
-
-class IntAsStringValueSetter(SimpleMediaPropertySetter):
-
-    def should_set(self) -> bool:
-        return bool(self._property_value
-                    and self._property_value.isdigit()
-                    and int(self._property_value))
-
-    def get_method_args(self) -> Iterable[Any]:
-        return (int(self._property_value),)
-
-
-MEDIA_PROPERTIES: List[Tuple[str, str, Type[SimpleMediaPropertySetter]]] = [
-    ('title', 'setTitle', SimpleMediaPropertySetter),
-    ('genre', 'setGenres', SimpleMediaPropertySetter),
-    ('year', 'setYear', SimpleMediaPropertySetter),
-    ('rating', 'setRating', SimpleMediaPropertySetter),
-    ('director', 'setDirectors', SimpleMediaPropertySetter),
-    ('trailer', 'setTrailer', SimpleMediaPropertySetter),
-    ('tagline', 'setTagLine', SimpleMediaPropertySetter),
-    ('plot', 'setPlot', SimpleMediaPropertySetter),
-    ('plotoutline', 'setPlotOutline', SimpleMediaPropertySetter),
-    ('playcount', 'setPlaycount', NotNoneValueSetter),
-    ('writer', 'setWriters', SimpleMediaPropertySetter),
-    ('studio', 'setStudios', SimpleMediaPropertySetter),
-    ('mpaa', 'setMpaa', SimpleMediaPropertySetter),
-    ('cast', 'setCast', CastSetter),
-    ('country', 'setCountries', SimpleMediaPropertySetter),
-    ('streamdetails', 'addVideoStream', VideoStreamSetter),
-    ('streamdetails', 'addAudioStream', AudioStreamSetter),
-    ('streamdetails', 'addSubtitleStream', SubtitleStreamSetter),
-    ('top250', 'setTop250', SimpleMediaPropertySetter),
-    ('votes', 'setVotes', IntAsStringValueSetter),
-    ('sorttitle', 'setSortTitle', SimpleMediaPropertySetter),
-    ('resume', 'setResumePoint', ResumePointSetter),
-    ('dateadded', 'setDateAdded', SimpleMediaPropertySetter),
-    ('premiered', 'setPremiered', SimpleMediaPropertySetter),
-    ('season', 'setSeason', SimpleMediaPropertySetter),
-    ('episode', 'setEpisode', SimpleMediaPropertySetter),
-    ('showtitle', 'setTvShowTitle', SimpleMediaPropertySetter),
-    ('productioncode', 'setProductionCode', SimpleMediaPropertySetter),
-    ('specialsortseason', 'setSortSeason', NonNegativeValueSetter),
-    ('specialsortepisode', 'setSortEpisode', NonNegativeValueSetter),
-    ('album', 'setAlbum', SimpleMediaPropertySetter),
-    ('artist', 'setArtists', SimpleMediaPropertySetter),
-    ('track', 'setTrack', NonNegativeValueSetter),
-]
-
-
-def set_info(info_tag: InfoTagVideo, media_info: dict, mediatype: str) -> None:
-    utils.log(f"Setting info for mediatype: {mediatype}", "DEBUG")
+def set_info_tag(listitem, infolabels, tag_type='video'):
+    """Universal setter for InfoTag that works across Kodi versions"""
+    utils.log(f"Setting info tag for type {tag_type} with labels: {infolabels}", "DEBUG")
+    
     kodi_version = get_kodi_version()
+    utils.log(f"Detected Kodi version: {kodi_version}", "DEBUG")
 
+    if tag_type != 'video' or kodi_version < 19:
+        listitem.setInfo(tag_type, infolabels)
+        return
+
+    # Get video tag for Kodi 19+
+    info_tag = listitem.getVideoInfoTag()
+
+    # Set mediatype first
+    mediatype = str(infolabels.get('mediatype', 'movie')).lower()
+    if mediatype not in ['movie', 'tvshow', 'season', 'episode']:
+        mediatype = 'movie'
     info_tag.setMediaType(mediatype)
-    for media_property, info_tag_method, setter_class in MEDIA_PROPERTIES:
-        setter = setter_class(media_property, media_info, info_tag_method)
-        if setter.should_set():
-            utils.log(f"Setting {media_property} using {info_tag_method}", "DEBUG")
-            # For Kodi 19, use setInfo, for Kodi 20+, use explicit setters
-            if kodi_version >= 20:
-                setter.set_info_tag_property(info_tag)
-            else:
-                info_tag.setInfo(mediatype, {media_property: setter._property_value})
 
+    # Map values to their setter methods
+    if infolabels.get('title'): 
+        info_tag.setTitle(str(infolabels['title']))
+    if infolabels.get('plot'):
+        info_tag.setPlot(str(infolabels['plot']))
+    if infolabels.get('tagline'):
+        info_tag.setTagLine(str(infolabels['tagline']))
+    if infolabels.get('genre'):
+        info_tag.setGenres([str(infolabels['genre'])])
+    if infolabels.get('country'):
+        info_tag.setCountries([str(infolabels['country'])])
+    if infolabels.get('director'):
+        info_tag.setDirectors([str(infolabels['director'])])
+    if infolabels.get('mpaa'):
+        info_tag.setMpaa(str(infolabels['mpaa']))
+    if infolabels.get('premiered'):
+        info_tag.setPremiered(str(infolabels['premiered']))
+    if infolabels.get('year'):
+        try:
+            info_tag.setYear(int(infolabels['year']))
+        except (ValueError, TypeError):
+            pass
+    if infolabels.get('rating'):
+        try:
+            info_tag.setRating(float(infolabels['rating']))
+        except (ValueError, TypeError):
+            pass
+    if infolabels.get('votes'):
+        try:
+            info_tag.setVotes(int(infolabels['votes']))
+        except (ValueError, TypeError):
+            pass
+    if infolabels.get('studio'):
+        info_tag.setStudios([str(infolabels['studio'])])
+    if infolabels.get('writer'):
+        info_tag.setWriters([str(infolabels['writer'])])
+    if infolabels.get('cast'):
+        cast = infolabels['cast']
+        if isinstance(cast, str):
+            try:
+                cast = json.loads(cast)
+            except:
+                cast = []
+        actors = []
+        for item in cast:
+            actor = xbmc.Actor(
+                name=str(item.get('name', '')),
+                role=str(item.get('role', '')),
+                order=int(item.get('order', 0)),
+                thumbnail=str(item.get('thumbnail', ''))
+            )
+            actors.append(actor)
+        info_tag.setCast(actors)
 
 
 def set_art(list_item: ListItem, raw_art: Dict[str, str]) -> None:

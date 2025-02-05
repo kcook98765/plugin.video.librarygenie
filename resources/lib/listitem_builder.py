@@ -1,66 +1,175 @@
-
+"""Helper class for building ListItems with proper metadata"""
 import json
 import xbmcgui
-from resources.lib.listitem_infotagvideo import set_info, set_art
+import xbmc
 from resources.lib import utils
+from resources.lib.listitem_infotagvideo import set_info_tag
 
 class ListItemBuilder:
+    _item_cache = {}
+
     @staticmethod
     def build_video_item(media_info):
         """Build a complete video ListItem with all available metadata"""
-        # Ensure media_info is a dict
         if not isinstance(media_info, dict):
             media_info = {}
-            
+
+        # Generate cache key from stable fields
+        cache_key = str(media_info.get('title', '')) + str(media_info.get('year', '')) + str(media_info.get('kodi_id', ''))
+        if cache_key in ListItemBuilder._item_cache:
+            return ListItemBuilder._item_cache[cache_key]
+
+        utils.log(f"Building video item with media info: {media_info}", "DEBUG")
+
         # Create ListItem with proper string title
         title = str(media_info.get('title', ''))
         list_item = xbmcgui.ListItem(label=title)
-        info_tag = list_item.getVideoInfoTag()
-        
-        # Ensure proper media type string and set it first
-        media_type = str(media_info.get('media_type', 'movie')).lower()
-        if media_type not in ['movie', 'tvshow', 'season', 'episode']:
-            media_type = 'movie'
-        info_tag.setMediaType(media_type)
+        utils.log(f"Created ListItem with title: {title}", "DEBUG")
 
-        # Map all available metadata fields
-        info_dict = {
-            'plot': media_info.get('plot', ''),
-            'tagline': media_info.get('tagline', ''),
-            'cast': json.loads(media_info.get('cast', '[]')),
-            'country': media_info.get('country', ''),
-            'director': media_info.get('director', ''),
-            'genre': media_info.get('genre', ''),
-            'mpaa': media_info.get('mpaa', ''),
-            'premiered': media_info.get('premiered', ''),
-            'rating': media_info.get('rating', 0.0),
-            'studio': media_info.get('studio', ''),
-            'trailer': media_info.get('trailer', ''),
-            'votes': media_info.get('votes', ''),
-            'writer': media_info.get('writer', ''),
-            'year': media_info.get('year', '')
-        }
-        
         # Set artwork
-        art_dict = {
-            'thumb': media_info.get('thumbnail', ''),
-            'poster': media_info.get('thumbnail', ''),
-            'fanart': media_info.get('fanart', ''),
-            'icon': media_info.get('thumbnail', '')
-        }
-        utils.log(f"Setting art for ListItem: {art_dict}", "DEBUG")
-        set_art(list_item, art_dict)
+        art_dict = {}
+        utils.log(f"Setting artwork for item: {media_info.get('title', 'Unknown')}", "DEBUG")
 
-        # Set all video info
-        utils.log(f"Setting video info for ListItem: {info_dict}", "DEBUG")
-        set_info(info_tag, info_dict, media_type)
+        # Get art from various possible sources in priority order
+        art_sources = [
+            ('art', 'poster'),
+            ('art', 'thumb'), 
+            ('info', 'thumbnail'),
+            ('thumbnail', None)
+        ]
         
+        poster = None
+        for source_dict, key in art_sources:
+            if key:
+                poster = media_info.get(source_dict, {}).get(key)
+            else:
+                poster = media_info.get(source_dict)
+            if poster and not poster.startswith('video@'):
+                break
+        fanart = media_info.get('info', {}).get('fanart') or media_info.get('fanart')
+
+        # Handle poster image
+        if poster:
+            if not poster.startswith('image://'):
+                from urllib.parse import quote
+                poster = f'image://{quote(poster)}/'
+            art_dict['poster'] = poster
+            art_dict['thumb'] = poster
+            art_dict['icon'] = poster
+
+        # Handle fanart
+        if fanart:
+            if not fanart.startswith('image://'):
+                from urllib.parse import quote
+                fanart = f'image://{quote(fanart)}/'
+            art_dict['fanart'] = fanart
+
+        # Set initial art values if available
+        if poster:
+            art_dict['poster'] = poster
+            art_dict['thumb'] = poster
+            art_dict['icon'] = poster
+
+        if fanart:
+            art_dict['fanart'] = fanart
+
+        # Handle art dictionary with proper path validation
+        if poster and str(poster) != 'None':
+            art_dict['poster'] = poster
+            art_dict['thumb'] = poster
+            art_dict['icon'] = poster
+            utils.log(f"Setting poster paths: {poster}", "DEBUG")
+
+        if fanart and str(fanart) != 'None':
+            art_dict['fanart'] = fanart
+            utils.log(f"Setting fanart path: {fanart}", "DEBUG")
+
+        # Handle video thumbnails
+        if poster and 'video@' in str(poster):
+            pass
+
+
+        if poster:
+            art_dict['thumb'] = poster
+            art_dict['poster'] = poster
+            art_dict['icon'] = poster
+
+        # Check both direct and nested fanart paths    
+        fanart = media_info.get('fanart') or media_info.get('info', {}).get('fanart')
+        if fanart:
+            art_dict['fanart'] = fanart
+
+        list_item.setArt(art_dict)
+
+        # Prepare info dictionary from nested info structure
+        info = media_info.get('info', {})
+        info_dict = {
+            'title': title,
+            'plot': info.get('plot', ''),
+            'tagline': info.get('tagline', ''),
+            'cast': json.loads(info.get('cast', '[]')) if isinstance(info.get('cast'), str) else info.get('cast', []),
+            'country': info.get('country', ''),
+            'director': info.get('director', ''),
+            'genre': info.get('genre', ''),
+            'mpaa': info.get('mpaa', ''),
+            'premiered': info.get('premiered', ''),
+            'rating': float(info.get('rating', 0.0)),
+            'studio': info.get('studio', ''),
+            'trailer': info.get('trailer', ''),
+            'votes': info.get('votes', '0'),
+            'writer': info.get('writer', ''),
+            'year': info.get('year', ''),
+            'mediatype': (info.get('media_type') or 'movie').lower()
+        }
+
+        utils.log(f"Prepared info dictionary: {info_dict}", "DEBUG")
+
+        # Set video info using the compatibility helper
+        set_info_tag(list_item, info_dict, 'video')
+        utils.log("Set info tag completed", "DEBUG")
+
+        # Set resume point if available
+        if 'resumetime' in info and 'totaltime' in info:
+            list_item.setProperty('ResumeTime', str(info['resumetime']))
+            list_item.setProperty('TotalTime', str(info['totaltime']))
+
         # Set content properties
         list_item.setProperty('IsPlayable', 'true')
-        if media_info.get('file'):
-            list_item.setPath(media_info['file'])
-            utils.log(f"Setting path for item: {media_info['file']}", "DEBUG")
-            
+
+        # Process cast separately if it exists
+        cast = info.get('cast')
+        if cast:
+            try:
+                if isinstance(cast, str):
+                    cast = json.loads(cast)
+                if isinstance(cast, list):
+                    actors = []
+                    for cast_member in cast:
+                        if cast_member.get('thumbnail') and not cast_member['thumbnail'].startswith('image://'):
+                            from urllib.parse import quote
+                            cast_member['thumbnail'] = f'image://{quote(cast_member["thumbnail"])}/'
+                        actor = xbmc.Actor(
+                            name=str(cast_member.get('name', '')),
+                            role=str(cast_member.get('role', '')),
+                            order=int(cast_member.get('order', 0)),
+                            thumbnail=str(cast_member.get('thumbnail', ''))
+                        )
+                        actors.append(actor)
+                    list_item.setCast(actors)
+            except Exception as e:
+                utils.log(f"Error processing cast: {str(e)}", "ERROR")
+                list_item.setCast([])
+
+
+        # Try to get play URL from different possible locations
+        play_url = media_info.get('info', {}).get('play') or media_info.get('play') or media_info.get('file')
+        if play_url:
+            list_item.setPath(play_url)
+            utils.log(f"Setting play URL: {play_url}", "DEBUG")
+        else:
+            utils.log("No valid play URL found", "WARNING")
+
+        ListItemBuilder._item_cache[cache_key] = list_item
         return list_item
 
     @staticmethod
