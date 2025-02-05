@@ -68,13 +68,27 @@ class JSONRPC:
         
         # Get proper poster from art dictionary
         art = details.get('art', {})
+        utils.log(f"Available art types for movie {movie_id}: {art.keys()}", "DEBUG")
+        
         # Try all possible poster sources in priority order
-        poster = (art.get('poster') or 
-                 art.get('thumb') or 
-                 art.get('landscape') or 
-                 details.get('thumbnail'))
+        poster = None
+        poster_sources = [
+            ('art.poster', art.get('poster')),
+            ('art.thumb', art.get('thumb')),
+            ('art.landscape', art.get('landscape')),
+            ('details.thumbnail', details.get('thumbnail'))
+        ]
+        
+        for source_name, source_value in poster_sources:
+            if source_value:
+                utils.log(f"Found poster from {source_name}: {source_value}", "DEBUG")
+                poster = source_value
+                break
+            else:
+                utils.log(f"No poster found in {source_name}", "DEBUG")
         
         if poster:
+            utils.log(f"Using poster from source: {poster}", "DEBUG")
             # Handle image protocol conversion
             if poster.startswith('image://'):
                 details['thumbnail'] = poster

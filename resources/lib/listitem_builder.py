@@ -20,10 +20,12 @@ class ListItemBuilder:
 
         # Set artwork
         art_dict = {}
+        utils.log(f"Setting artwork for item: {media_info.get('title', 'Unknown')}", "DEBUG")
 
         # Get poster image - try all possible poster paths in priority order
         poster = None
         art_dict = media_info.get('art', {})
+        utils.log(f"Available art types: {art_dict.keys()}", "DEBUG")
         
         possible_paths = [
             art_dict.get('poster'),
@@ -41,7 +43,9 @@ class ListItemBuilder:
         # Filter out invalid paths
         for path in possible_paths:
             if not path or path == 'None':
+                utils.log(f"Skipping invalid poster path: {path}", "DEBUG")
                 continue
+            utils.log(f"Processing poster path: {path}", "DEBUG")
 
             # Skip video thumbnails except valid poster art paths
             if 'video@' in str(path):
