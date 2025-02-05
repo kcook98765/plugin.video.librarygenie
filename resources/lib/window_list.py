@@ -50,7 +50,7 @@ class ListWindow(BaseWindow):
 
         for item in media_items:
             try:
-                title = item.get('title', 'Unknown')
+                title = str(item.get('title', 'Unknown'))
                 list_item = xbmcgui.ListItem(title)
                 list_item.setProperty('media_item_id', str(item.get('id', 0)))
                 list_item.setProperty('title', title)
@@ -61,7 +61,10 @@ class ListWindow(BaseWindow):
                             try:
                                 if isinstance(value, (dict, list)):
                                     value = json.dumps(value)
-                                list_item.setProperty(key, str(value))
+                                elif not isinstance(value, str):
+                                    value = str(value)
+                                if value and value.lower() != 'none':
+                                    list_item.setProperty(key, value)
                             except Exception as e:
                                 utils.log(f"Error setting property {key}: {str(e)}", "DEBUG")
                 
