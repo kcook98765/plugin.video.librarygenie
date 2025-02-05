@@ -113,6 +113,15 @@ class KodiHelper:
             )
         xbmcplugin.endOfDirectory(self.addon_handle)
 
+    def show_list(self, list_id):
+        """Display items in a list"""
+        utils.log(f"Showing list with ID: {list_id}", "DEBUG")
+        from resources.lib.database_manager import DatabaseManager
+        from resources.lib.config_manager import Config
+        db_manager = DatabaseManager(Config().db_path)
+        items = db_manager.fetch_list_items(list_id)
+        self.list_items(items)
+
     def play_item(self, item_id, content_type='video'):
         try:
             utils.log(f"Play item called with item_id: {item_id} (type: {type(item_id)})", "DEBUG")
