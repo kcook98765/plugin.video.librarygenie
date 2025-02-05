@@ -5,11 +5,18 @@ from resources.lib import utils
 from resources.lib.listitem_infotagvideo import set_info_tag
 
 class ListItemBuilder:
+    _item_cache = {}
+
     @staticmethod
     def build_video_item(media_info):
         """Build a complete video ListItem with all available metadata"""
         if not isinstance(media_info, dict):
             media_info = {}
+
+        # Generate cache key from media info
+        cache_key = str(hash(frozenset(media_info.items())))
+        if cache_key in ListItemBuilder._item_cache:
+            return ListItemBuilder._item_cache[cache_key]
 
         utils.log(f"Building video item with media info: {media_info}", "DEBUG")
 
@@ -26,7 +33,7 @@ class ListItemBuilder:
         poster = None
         art_dict = media_info.get('art', {})
         utils.log(f"Available art types: {art_dict.keys()}", "DEBUG")
-        
+
         possible_paths = [
             art_dict.get('poster'),
             art_dict.get('Art(poster)'),
@@ -36,7 +43,7 @@ class ListItemBuilder:
             art_dict.get('icon'),
             art_dict.get('fanart')
         ]
-        
+
         # Filter invalid paths and normalize format
         possible_paths = [p for p in possible_paths if p and str(p).lower() != 'none']
 
@@ -128,6 +135,7 @@ class ListItemBuilder:
         else:
             utils.log("No valid play URL found", "WARNING")
 
+        ListItemBuilder._item_cache[cache_key] = list_item
         return list_item
 
     @staticmethod

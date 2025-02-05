@@ -7,6 +7,18 @@ from resources.lib import utils
 utils.log("JSONRPC Manager module initialized", "INFO")
 
 class JSONRPC:
+    _instance = None
+    _initialized = False
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(JSONRPC, cls).__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        if not self._initialized:
+            utils.log("JSONRPC Manager module initialized", "INFO")
+            self._initialized = True
 
     def execute(self, method, params):
         query = {
@@ -65,11 +77,11 @@ class JSONRPC:
 
         response = self.execute(method, params)
         details = response.get('result', {}).get('moviedetails', {})
-        
+
         # Get proper poster from art dictionary
         art = details.get('art', {})
         utils.log(f"Available art types for movie {movie_id}: {art.keys()}", "DEBUG")
-        
+
         # Try all possible poster sources in priority order
         poster = None
         poster_sources = [
@@ -78,7 +90,7 @@ class JSONRPC:
             ('art.landscape', art.get('landscape')),
             ('details.thumbnail', details.get('thumbnail'))
         ]
-        
+
         for source_name, source_value in poster_sources:
             if source_value:
                 utils.log(f"Found poster from {source_name}: {source_value}", "DEBUG")
@@ -86,7 +98,7 @@ class JSONRPC:
                 break
             else:
                 utils.log(f"No poster found in {source_name}", "DEBUG")
-        
+
         if poster:
             utils.log(f"Using poster from source: {poster}", "DEBUG")
             # Handle image protocol conversion
@@ -99,7 +111,7 @@ class JSONRPC:
                 details['thumbnail'] = f"image://{quote(poster)}/"
             else:
                 details['thumbnail'] = f"image://{poster}/"
-        
+
         # Ensure we have art dictionary with all image types
         details['art'] = {
             'poster': details['thumbnail'],
@@ -143,9 +155,6 @@ class JSONRPC:
 
     def log_response(self, response):
         utils.log(f"Response: {response}", "INFO")
-
-    def __init__(self):
-        utils.log("JSONRPC Manager module initialized", "INFO")
 
     def get_movies_for_export(self, start=0, limit=50):
         """Get a batch of movies for IMDB export"""
