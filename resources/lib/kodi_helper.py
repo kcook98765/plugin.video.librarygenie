@@ -89,13 +89,14 @@ class KodiHelper:
             list_item = xbmcgui.ListItem(label=item['title'])
             set_info_tag(list_item, item.get('info', {}), content_type)
 
-            file_path = item.get('file', '')
-            if not file_path:
-                utils.log("No file path provided", "ERROR")
+            # Try to get play URL from info dictionary first, then fall back to file
+            play_url = item.get('info', {}).get('play') or item.get('file', '')
+            if not play_url:
+                utils.log("No play URL or file path provided", "ERROR")
                 return False
 
-            list_item.setPath(file_path)
-            utils.log(f"Setting path: {file_path}", "DEBUG")
+            list_item.setPath(play_url)
+            utils.log(f"Setting play URL: {play_url}", "DEBUG")
 
             xbmcplugin.setResolvedUrl(self.addon_handle, True, listitem=list_item)
             return True
