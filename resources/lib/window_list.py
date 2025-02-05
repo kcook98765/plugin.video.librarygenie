@@ -49,9 +49,9 @@ class ListWindow(BaseWindow):
         self.media_list_control.reset()
         try:
             for item in media_items:
-            try:
-                utils.log(f"Processing media item: {item}", "DEBUG")
-                title = str(item.get('title', 'Unknown'))
+                try:
+                    utils.log(f"Processing media item: {item}", "DEBUG")
+                    title = str(item.get('title', 'Unknown'))
                 list_item = xbmcgui.ListItem(title)
                 list_item.setProperty('media_item_id', str(item.get('id', 0)))
                 list_item.setProperty('title', title)
