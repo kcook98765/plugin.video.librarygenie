@@ -51,8 +51,14 @@ class ListItemBuilder:
                 fanart = f'image://{quote(fanart)}/'
             art_dict['fanart'] = fanart
 
-        # Filter out invalid paths
-        for path in possible_paths:
+        # Handle art dictionary
+        if poster:
+            art_dict['poster'] = poster
+            art_dict['thumb'] = poster
+            art_dict['icon'] = poster
+
+        if fanart:
+            art_dict['fanart'] = fanart
             if not path or path == 'None':
                 utils.log(f"Skipping invalid poster path: {path}", "DEBUG")
                 continue
