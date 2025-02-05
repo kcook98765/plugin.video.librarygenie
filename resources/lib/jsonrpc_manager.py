@@ -58,13 +58,18 @@ class JSONRPC:
             'properties': [
                 'title', 'genre', 'year', 'director', 'cast', 'plot', 'rating',
                 'file', 'thumbnail', 'fanart', 'runtime', 'tagline', 'art',
-                'writer', 'imdbnumber', 'premiered', 'mpaa', 'trailer', "votes",
-                "country", "dateadded", "studio"
+                'writer', 'imdbnumber', 'premiered', 'mpaa', 'trailer', 'votes',
+                'country', 'dateadded', 'studio', 'art'
             ]
         }
 
         response = self.execute(method, params)
         details = response.get('result', {}).get('moviedetails', {})
+        
+        # Get proper poster from art dictionary
+        art = details.get('art', {})
+        if art.get('poster'):
+            details['thumbnail'] = art['poster']
 
         # Parse cast details
         cast_list = details.get('cast', [])

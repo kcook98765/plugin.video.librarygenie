@@ -36,8 +36,8 @@ class ListItemBuilder:
             if not path:
                 continue
 
-            # Skip video thumbnails
-            if 'video@' in str(path):
+            # Skip video thumbnails but keep poster art
+            if 'video@' in str(path) and 'art/poster' not in str(path):
                 continue
 
             try:
