@@ -120,6 +120,13 @@ class KodiHelper:
         from resources.lib.config_manager import Config
         db_manager = DatabaseManager(Config().db_path)
         items = db_manager.fetch_list_items(list_id)
+        
+        # Set content type and force views
+        xbmcplugin.setContent(self.addon_handle, 'movies')
+        xbmcplugin.setProperty(self.addon_handle, 'ForcedView', 'true')
+        xbmc.executebuiltin('Container.SetForceViewMode(true)')
+        
+        # Add items and enable view selection
         self.list_items(items)
 
     def play_item(self, item_id, content_type='video'):
