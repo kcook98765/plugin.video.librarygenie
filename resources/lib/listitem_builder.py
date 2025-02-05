@@ -1,4 +1,3 @@
-
 """Helper class for building ListItems with proper metadata"""
 import json
 import xbmcgui
@@ -11,17 +10,17 @@ class ListItemBuilder:
         """Build a complete video ListItem with all available metadata"""
         if not isinstance(media_info, dict):
             media_info = {}
-        
+
         utils.log(f"Building video item with media info: {media_info}", "DEBUG")
-            
+
         # Create ListItem with proper string title
         title = str(media_info.get('title', ''))
         list_item = xbmcgui.ListItem(label=title)
         utils.log(f"Created ListItem with title: {title}", "DEBUG")
-        
+
         # Set artwork
         art_dict = {}
-        
+
         # Get poster image - try art dictionary first, then fallback to thumbnails
         poster = None
         if media_info.get('art', {}).get('Art(poster)'):
@@ -32,17 +31,17 @@ class ListItemBuilder:
             poster = media_info['thumbnail']
         elif media_info.get('info', {}).get('thumbnail') and 'video@' not in media_info['info']['thumbnail']:
             poster = media_info['info']['thumbnail']
-            
+
         if poster:
             art_dict['thumb'] = poster
             art_dict['poster'] = poster
             art_dict['icon'] = poster
-            
+
         # Check both direct and nested fanart paths    
         fanart = media_info.get('fanart') or media_info.get('info', {}).get('fanart')
         if fanart:
             art_dict['fanart'] = fanart
-            
+
         list_item.setArt(art_dict)
 
         # Prepare info dictionary from nested info structure
@@ -65,7 +64,7 @@ class ListItemBuilder:
             'year': info.get('year', ''),
             'mediatype': (info.get('media_type') or 'movie').lower()
         }
-        
+
         utils.log(f"Prepared info dictionary: {info_dict}", "DEBUG")
 
         # Set video info using the compatibility helper
@@ -79,7 +78,7 @@ class ListItemBuilder:
 
         # Set content properties
         list_item.setProperty('IsPlayable', 'true')
-        
+
         # Try to get play URL from different possible locations
         play_url = media_info.get('info', {}).get('play') or media_info.get('play') or media_info.get('file')
         if play_url:
@@ -87,7 +86,7 @@ class ListItemBuilder:
             utils.log(f"Setting play URL: {play_url}", "DEBUG")
         else:
             utils.log("No valid play URL found", "WARNING")
-            
+
         return list_item
 
     @staticmethod
