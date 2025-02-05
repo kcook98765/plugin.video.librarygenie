@@ -138,8 +138,8 @@ class KodiHelper:
                 return False
 
             # Handle path and playback setup
-            folder_path = result.get('path', '')
-            play_url = result.get('play') or result.get('file', '') or folder_path
+            folder_path = item_data.get('path', '')
+            play_url = item_data.get('play') or item_data.get('file', '') or folder_path
 
             utils.log(f"Setting play URL: {play_url}", "DEBUG")
             list_item.setPath(play_url)
