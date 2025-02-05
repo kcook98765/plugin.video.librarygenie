@@ -18,16 +18,35 @@ def run_addon():
         args = sys.argv[2][1:] if len(sys.argv) > 2 else ""
         params = urllib.parse.parse_qs(args)
         action = params.get('action', [None])[0]
+        listitem_context = xbmc.getCondVisibility('Container.Content(movies)') or xbmc.getCondVisibility('Container.Content(episodes)')
 
         # Initialize helpers
         config = Config()
         db_manager = DatabaseManager(config.db_path)
         kodi_helper = KodiHelper()
 
-        if not action:
-            # No action specified - show root directory
+        # Handle context menu vs direct launch
+        if listitem_context and not action:
+            # Context menu on media item - show options window
+            item_info = {
+                'title': xbmc.getInfoLabel('ListItem.Title'),
+                'kodi_id': xbmc.getInfoLabel('ListItem.DBID'),
+                'is_playable': xbmc.getCondVisibility('ListItem.IsPlayable') == 1,
+                'art': {
+                    'thumb': xbmc.getInfoLabel('ListItem.Art(thumb)'),
+                    'poster': xbmc.getInfoLabel('ListItem.Art(poster)'),
+                    'banner': xbmc.getInfoLabel('ListItem.Art(banner)'),
+                    'fanart': xbmc.getInfoLabel('ListItem.Art(fanart)')
+                }
+            }
+            window = MainWindow(item_info)
+            window.doModal()
+            del window
+            return
+        elif not action:
+            # Direct addon launch - show root directory
             root_folders = db_manager.fetch_folders(None)  # Get root folders
-            root_lists = db_manager.fetch_lists(None)  # Get root lists
+            root_lists = db_manager.fetch_lists(None)  # Get root lists 
             kodi_helper.list_folders_and_lists(root_folders, root_lists)
             return
 
