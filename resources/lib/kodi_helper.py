@@ -91,11 +91,23 @@ class KodiHelper:
             config = Config()
             db = DatabaseManager(config.db_path)
             
-            # Handle item_id from various input types
-            if isinstance(item_id, (list, dict)):
-                item_id = item_id[0] if isinstance(item_id, list) else item_id.get('id')
+            # Handle item_id from various input types and ensure valid integer
+            if isinstance(item_id, (list, tuple)):
+                item_id = item_id[0]
+            elif isinstance(item_id, dict):
+                item_id = item_id.get('id')
             
-            db.cursor.execute(query, (int(item_id),))
+            if not item_id:
+                utils.log("Invalid item_id received", "ERROR")
+                return False
+                
+            try:
+                item_id = int(item_id)
+            except (ValueError, TypeError):
+                utils.log(f"Could not convert item_id to integer: {item_id}", "ERROR")
+                return False
+                
+            db.cursor.execute(query, (item_id,))
             result = db.cursor.fetchone()
             
             if not result:
@@ -106,7 +118,7 @@ class KodiHelper:
             field_names = [field.split()[0] for field in db.config.FIELDS]
             item_data = dict(zip(['id'] + field_names, result))
                 
-            # Create list item with title
+            # Create list item with title and setup basic properties
             list_item = xbmcgui.ListItem(label=result.get('title', ''))
             
             # Get play URL and check validity
@@ -114,15 +126,26 @@ class KodiHelper:
             if not play_url:
                 utils.log("No play URL found", "ERROR") 
                 return False
-                
-            # Set path and info
+            
+            # Set path and mime type based on URL
             list_item.setPath(play_url)
             utils.log(f"Setting play URL: {play_url}", "DEBUG")
             
+            # Determine mime type from URL
+            if play_url.endswith('.mp4'):
+                mime_type = 'video/mp4'
+            elif play_url.endswith(('.mkv', '.avi')):
+                mime_type = 'video/x-matroska'
+            elif play_url.endswith('.m3u8'):
+                mime_type = 'application/x-mpegURL'
+            else:
+                mime_type = 'video/mp4'  # Default fallback
+                
             # Set content and properties
             xbmcplugin.setContent(self.addon_handle, content_type)
             list_item.setProperty('IsPlayable', 'true')
-            list_item.setMimeType('video/mp4')
+            list_item.setMimeType(mime_type)
+            list_item.setProperty('inputstream', 'inputstream.adaptive')
             
             # Set additional properties if available
             if result.get('duration'):
