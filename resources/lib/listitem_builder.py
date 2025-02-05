@@ -127,6 +127,19 @@ class ListItemBuilder:
         # Set content properties
         list_item.setProperty('IsPlayable', 'true')
 
+        # Process cast separately if it exists
+        cast = info.get('cast')
+        if cast:
+            try:
+                if isinstance(cast, str):
+                    cast = json.loads(cast)
+                if isinstance(cast, list):
+                    list_item.setCast(cast)
+            except Exception as e:
+                utils.log(f"Error processing cast: {str(e)}", "ERROR")
+                list_item.setCast([])
+
+
         # Try to get play URL from different possible locations
         play_url = media_info.get('info', {}).get('play') or media_info.get('play') or media_info.get('file')
         if play_url:
