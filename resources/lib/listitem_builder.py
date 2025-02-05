@@ -46,7 +46,7 @@ class ListItemBuilder:
             'votes': info.get('votes', '0'),
             'writer': info.get('writer', ''),
             'year': info.get('year', ''),
-            'mediatype': info.get('media_type', 'movie').lower()
+            'mediatype': (info.get('media_type') or 'movie').lower()
         }
         
         utils.log(f"Prepared info dictionary: {info_dict}", "DEBUG")
