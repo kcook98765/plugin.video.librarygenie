@@ -88,7 +88,9 @@ class KodiHelper:
                       WHERE list_items.list_id = :list_id"""
             
             from resources.lib.database_manager import DatabaseManager
-            db = DatabaseManager()
+            from resources.lib.config_manager import Config
+            config = Config()
+            db = DatabaseManager(config.db_path)
             result = db.fetch_one(query, params)
             
             if not result:
