@@ -11,6 +11,10 @@ dist/
 build/
 *.egg-info/
 
+# Attached assets
+attached_assets/
+attached_assets/*
+
 # Replit specific
 .upm/
 .config/

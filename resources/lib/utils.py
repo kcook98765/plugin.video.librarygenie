@@ -17,16 +17,9 @@ def log(message, level=None):
     """
     if level is None:
         level = 'DEBUG'
-        
-    level_map = {
-        'DEBUG': xbmc.LOGDEBUG,
-        'INFO': xbmc.LOGINFO, 
-        'WARNING': xbmc.LOGWARNING,
-        'ERROR': xbmc.LOGERROR,
-        'FATAL': xbmc.LOGFATAL
-    }
-    xbmc_level = level_map.get(level.upper(), xbmc.LOGDEBUG)
-    xbmc.log(f"LibraryGenie: {message}", xbmc_level)
+    
+    # Always use INFO level but include original level in message
+    xbmc.log(f"LibraryGenie [{level}]: {message}", xbmc.LOGINFO)
 import xbmcgui
 
 def show_notification(heading, message, icon=xbmcgui.NOTIFICATION_INFO, time=5000):

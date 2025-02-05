@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import json
 import time
@@ -11,9 +12,18 @@ class DatabaseManager:
         self._connect()
 
     def _connect(self):
-        self.connection = sqlite3.connect(self.db_path, timeout=30.0)
-        self.connection.execute("PRAGMA busy_timeout = 30000")
-        self.cursor = self.connection.cursor()
+        try:
+            # Ensure the directory exists
+            db_dir = os.path.dirname(self.db_path)
+            if not os.path.exists(db_dir):
+                os.makedirs(db_dir)
+
+            self.connection = sqlite3.connect(self.db_path, timeout=30.0)
+            self.cursor = self.connection.cursor()
+            self.cursor.execute('PRAGMA foreign_keys = ON')
+        except Exception as e:
+            utils.log(f"Database connection error: {str(e)}", "ERROR")
+            raise
 
     def _execute_with_retry(self, func, *args, **kwargs):
         retries = 5
@@ -173,7 +183,7 @@ class DatabaseManager:
             max_depth = self.config.max_folder_depth - 1  # -1 because we're adding a new level
             if current_depth >= max_depth:
                 raise ValueError(f"Maximum folder depth of {self.config.max_folder_depth} exceeded")
-        
+
         query = """
             INSERT INTO folders (name, parent_id)
             VALUES (?, ?)
@@ -442,16 +452,16 @@ class DatabaseManager:
         if new_parent_id is not None:
             # Get the depth of the subtree being moved
             subtree_depth = self._get_subtree_depth(folder_id)
-            
+
             # Get the depth at the new location
             target_depth = self.get_folder_depth(new_parent_id)
-            
+
             # Calculate total depth after move
             total_depth = target_depth + subtree_depth + 1
-            
+
             if total_depth > self.config.max_folder_depth:
                 raise ValueError(f"Moving folder would exceed maximum depth of {self.config.max_folder_depth}")
-            
+
             # Check if move would create a cycle
             temp_parent = new_parent_id
             while temp_parent is not None:
@@ -461,7 +471,7 @@ class DatabaseManager:
                 self._execute_with_retry(self.cursor.execute, query, (temp_parent,))
                 result = self.cursor.fetchone()
                 temp_parent = result[0] if result else None
-                
+
     def _get_subtree_depth(self, folder_id):
         """Calculate the maximum depth of a folder's subtree"""
         query = """
@@ -499,18 +509,18 @@ class DatabaseManager:
                 SELECT id FROM nested_folders
             """, (folder_id,))
             folder_ids = [row[0] for row in self.cursor.fetchall()]
-            
+
             # Delete lists in all nested folders
             placeholders = ','.join('?' * len(folder_ids))
             self._execute_with_retry(self.cursor.execute, 
                 f"DELETE FROM lists WHERE folder_id IN ({placeholders})", 
                 folder_ids)
-            
+
             # Delete all nested folders
             self._execute_with_retry(self.cursor.execute, 
                 f"DELETE FROM folders WHERE id IN ({placeholders})", 
                 folder_ids)
-                
+
             self.connection.commit()
         except Exception as e:
             self.connection.rollback()
@@ -709,13 +719,12 @@ class DatabaseManager:
         query = """
             INSERT INTO imdb_exports 
             (kodi_id, imdb_id, title, year, filename, path)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """
+            VALUES (?, ?, ?, ?, ?, ?)        """
         for movie in movies:
             file_path = movie.get('file', '')
             filename = file_path.split('/')[-1] if file_path else ''
             path = '/'.join(file_path.split('/')[:-1]) if file_path else ''
-            
+
             self._execute_with_retry(
                 self.cursor.execute, 
                 query,
