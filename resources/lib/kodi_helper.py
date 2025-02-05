@@ -91,14 +91,17 @@ class KodiHelper:
             from resources.lib.config_manager import Config
             config = Config()
             db = DatabaseManager(config.db_path)
-            db.cursor.execute(query, (int(item_id),))
+            # Extract item_id if it's in a list
+            item_id_value = item_id[0] if isinstance(item_id, list) else item_id
+            
+            db.cursor.execute(query, (int(item_id_value),))
             result = db.cursor.fetchone()
             
             if not result:
-                utils.log("Item not found", "ERROR")
+                utils.log(f"Item not found for id: {item_id_value}", "ERROR")
                 return False
 
-            # Convert result to dict
+            # Convert result to dict 
             field_names = [field.split()[0] for field in db.config.FIELDS]
             item_data = dict(zip(['id'] + field_names, result))
                 
