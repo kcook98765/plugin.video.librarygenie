@@ -28,24 +28,25 @@ class ListItemBuilder:
         }
         list_item.setArt(art_dict)
 
-        # Prepare info dictionary
+        # Prepare info dictionary from nested info structure
+        info = media_info.get('info', {})
         info_dict = {
             'title': title,
-            'plot': media_info.get('plot', ''),
-            'tagline': media_info.get('tagline', ''),
-            'cast': json.loads(media_info.get('cast', '[]')),
-            'country': media_info.get('country', ''),
-            'director': media_info.get('director', ''),
-            'genre': media_info.get('genre', ''),
-            'mpaa': media_info.get('mpaa', ''),
-            'premiered': media_info.get('premiered', ''),
-            'rating': float(media_info.get('rating', 0.0)),
-            'studio': media_info.get('studio', ''),
-            'trailer': media_info.get('trailer', ''),
-            'votes': media_info.get('votes', '0'),
-            'writer': media_info.get('writer', ''),
-            'year': media_info.get('year', ''),
-            'mediatype': media_info.get('media_type', 'movie').lower()
+            'plot': info.get('plot', ''),
+            'tagline': info.get('tagline', ''),
+            'cast': json.loads(info.get('cast', '[]')) if isinstance(info.get('cast'), str) else info.get('cast', []),
+            'country': info.get('country', ''),
+            'director': info.get('director', ''),
+            'genre': info.get('genre', ''),
+            'mpaa': info.get('mpaa', ''),
+            'premiered': info.get('premiered', ''),
+            'rating': float(info.get('rating', 0.0)),
+            'studio': info.get('studio', ''),
+            'trailer': info.get('trailer', ''),
+            'votes': info.get('votes', '0'),
+            'writer': info.get('writer', ''),
+            'year': info.get('year', ''),
+            'mediatype': info.get('media_type', 'movie').lower()
         }
         
         utils.log(f"Prepared info dictionary: {info_dict}", "DEBUG")
