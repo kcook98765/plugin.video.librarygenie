@@ -60,31 +60,21 @@ class ListItemBuilder:
         if fanart:
             art_dict['fanart'] = fanart
 
-            # Skip video thumbnails except valid poster art paths
-            if 'video@' in str(path):
-                if not any(x in str(path).lower() for x in ['/art/poster', '/poster/', 'thumb']):
-                    continue
+        # Handle art dictionary with proper path validation
+        if poster and str(poster) != 'None':
+            art_dict['poster'] = poster
+            art_dict['thumb'] = poster
+            art_dict['icon'] = poster
+            utils.log(f"Setting poster paths: {poster}", "DEBUG")
 
-            try:
-                # Handle image:// protocol
-                if path.startswith('image://'):
-                    poster = path
-                    break
+        if fanart and str(fanart) != 'None':
+            art_dict['fanart'] = fanart
+            utils.log(f"Setting fanart path: {fanart}", "DEBUG")
 
-                # Handle http URLs
-                if path.startswith('http'):
-                    from urllib.parse import quote
-                    poster = f'image://{quote(path)}/'
-                    break
+        # Handle video thumbnails
+        if poster and 'video@' in str(poster):
+            pass
 
-                # Handle local paths
-                if path.startswith('/') or path.startswith('special://'):
-                    poster = path
-                    break
-
-            except Exception as e:
-                utils.log(f"Error processing thumbnail path: {e}", "WARNING")
-                continue
 
         if poster:
             art_dict['thumb'] = poster
