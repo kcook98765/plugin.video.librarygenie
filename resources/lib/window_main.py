@@ -657,7 +657,7 @@ class MainWindow(BaseWindow):
         if not confirmed:
             return
         db_manager = DatabaseManager(Config().db_path)
-        db_manager.delete_data('lists', f'id={list_id}')
+        db_manager.delete_list(list_id)
         xbmcgui.Dialog().notification("LibraryGenie", f"List '{list_name}' deleted", xbmcgui.NOTIFICATION_INFO, 5000)
         self.populate_list()
 

@@ -369,6 +369,30 @@ class DatabaseManager:
         self._execute_with_retry(self.cursor.execute, query, tuple(data.values()))
         self.connection.commit()
 
+    def delete_list(self, list_id):
+        """Delete a list and all its related records"""
+        try:
+            self.connection.execute("BEGIN")
+            # Delete from genie_lists first
+            self._execute_with_retry(self.cursor.execute, 
+                "DELETE FROM genie_lists WHERE list_id = ?", 
+                (list_id,))
+            
+            # Delete from list_items
+            self._execute_with_retry(self.cursor.execute,
+                "DELETE FROM list_items WHERE list_id = ?",
+                (list_id,))
+            
+            # Finally delete the list itself
+            self._execute_with_retry(self.cursor.execute,
+                "DELETE FROM lists WHERE id = ?",
+                (list_id,))
+            
+            self.connection.commit()
+        except Exception as e:
+            self.connection.rollback()
+            raise e
+
     def delete_data(self, table, condition):
         query = f'DELETE FROM {table} WHERE {condition}'
         utils.log(f"Executing SQL: {query}", "DEBUG")
