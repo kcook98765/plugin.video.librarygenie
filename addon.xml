@@ -19,4 +19,19 @@
         </item>
       </menu>
     </extension>
+    <extension point="kodi.context.item">
+      <menu id="kodi.core.main">
+        <context>
+            <item>
+                <label>30000</label>
+                <visible>true</visible>
+            </item>
+            <item>
+                <label>Debug Inspect</label>
+                <visible>true</visible>
+                <onclick>RunPlugin(plugin://plugin.video.librarygenie?action=debug_inspect)</onclick>
+            </item>
+        </context>
+      </menu>
+    </extension>
 </addon>
