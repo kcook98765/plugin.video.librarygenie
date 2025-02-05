@@ -35,11 +35,20 @@ class KodiHelper:
                 isFolder=False
             )
 
-        # Enable media flags and sorting
-        xbmcplugin.setContent(self.addon_handle, content_type)
+        # Enable all relevant sort methods for better view options
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_LABEL)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_TITLE)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_GENRE)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_DATEADDED)
 
+        # Set content type again to ensure proper view modes
+        xbmcplugin.setContent(self.addon_handle, content_type)
+        
+        # Enable view modes
+        xbmcplugin.setProperty(self.addon_handle, 'force_views', 'true')
+        
         xbmcplugin.endOfDirectory(self.addon_handle)
 
     def list_folders(self, folders):
