@@ -43,12 +43,27 @@ class KodiHelper:
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_DATEADDED)
 
-        # Force content type and views
+        # Force content type and views with debugging
+        utils.log(f"Setting content type to: {content_type}", "DEBUG")
         xbmcplugin.setContent(self.addon_handle, content_type)
-        xbmc.executebuiltin('Container.SetViewMode(500)')  # Default to thumbnails view
+        
+        # Get current view mode
+        current_view = xbmc.getInfoLabel('Container.Viewmode')
+        utils.log(f"Current view mode before setting: {current_view}", "DEBUG")
+        
+        # Try setting view mode with additional logging
+        viewmode = 500  # Thumbnails view
+        utils.log(f"Attempting to set view mode to: {viewmode}", "DEBUG")
+        xbmc.executebuiltin(f'Container.SetViewMode({viewmode})')
+        xbmcplugin.setProperty(self.addon_handle, "ForcedView", "true")
         
         # Enable force views mode
+        utils.log("Enabling forced view mode", "DEBUG")
         xbmc.executebuiltin('Container.SetForceViewMode(true)')
+        
+        # Check if view mode changed
+        new_view = xbmc.getInfoLabel('Container.Viewmode') 
+        utils.log(f"View mode after setting: {new_view}", "DEBUG")
         
         xbmcplugin.endOfDirectory(self.addon_handle)
 
