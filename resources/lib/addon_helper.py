@@ -50,8 +50,14 @@ def run_addon():
                 utils.log("No item info found for context menu", "WARNING")
                 xbmcgui.Dialog().notification("LibraryGenie", "Could not get item details", xbmcgui.NOTIFICATION_WARNING, 3000)
                 return
-        elif not action:
-            # Direct addon launch - show root directory
+        elif action == 'show_list':
+            # Handle specific list display
+            list_id = args.get('list_id')
+            if list_id:
+                kodi_helper.show_list(int(list_id))
+            return
+        else:
+            # Always show root directory for direct launch or unknown action
             root_folders = db_manager.fetch_folders(None)  # Get root folders
             root_lists = db_manager.fetch_lists(None)  # Get root lists 
             kodi_helper.list_folders_and_lists(root_folders, root_lists)
