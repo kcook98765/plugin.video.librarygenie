@@ -52,6 +52,7 @@ def run_addon():
 
         # Handle context menu or other actions
         if action == "show_main_window":
+            utils.log("Context menu 'LibraryGenie' clicked - showing main window", "DEBUG")
             # Get basic info about currently selected item
             item_info = {
                 'title': xbmc.getInfoLabel('ListItem.Title'),
@@ -64,6 +65,7 @@ def run_addon():
                     'fanart': xbmc.getInfoLabel('ListItem.Art(fanart)')
                 }
             }
+            utils.log(f"Retrieved item info for context menu: {item_info}", "DEBUG")
             window = MainWindow(item_info)
             window.doModal()
             del window
