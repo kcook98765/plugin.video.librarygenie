@@ -132,16 +132,22 @@ class KodiHelper:
             list_item = xbmcgui.ListItem(label=item_data.get('title', ''))
 
             # Get play URL and check validity
-            play_url = item_data.get('play') or item_data.get('file', '')
+            folder_path = item_data.get('path', '')
+            play_url = None
+
+            # Try to get play URL from different fields
+            if 'play' in item_data and item_data['play']:
+                play_url = item_data['play']
+            elif 'file' in item_data and item_data['file']:
+                play_url = item_data['file']
+            elif folder_path:
+                play_url = folder_path
+
             if not play_url:
-                utils.log("No play URL found", "ERROR") 
+                utils.log("No play URL found", "ERROR")
                 return False
 
-            # Handle path and playback setup
-            folder_path = item_data.get('path', '')
-            play_url = item_data.get('play') or item_data.get('file', '') or folder_path
-
-            utils.log(f"Setting play URL: {play_url}", "DEBUG")
+            utils.log(f"Using play URL: {play_url}", "DEBUG")
             list_item.setPath(play_url)
 
             # Determine content type and playback method
