@@ -123,10 +123,39 @@ class KodiHelper:
         
         # Set content type and force views
         xbmcplugin.setContent(self.addon_handle, 'movies')
+        
+        # Enable all sort methods
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_LABEL)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_TITLE)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_GENRE)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_DATEADDED)
+        
+        # Set view modes
+        view_modes = {
+            'list': 50,
+            'poster': 51,
+            'icon': 52,
+            'wide': 55,
+            'wall': 500,
+            'fanart': 502,
+            'media': 504  
+        }
+        
+        # Set default view mode to poster
+        default_mode = view_modes['poster']
+        utils.log(f"Setting default view mode: {default_mode}", "DEBUG")
+        
+        # Set skin view modes
+        for mode_name, mode_id in view_modes.items():
+            xbmc.executebuiltin(f'Container.SetViewMode({mode_id})')
+        
+        # Force views mode
         xbmcplugin.setProperty(self.addon_handle, 'ForcedView', 'true')
         xbmc.executebuiltin('Container.SetForceViewMode(true)')
         
-        # Add items and enable view selection
+        # Add items
         self.list_items(items)
 
     def play_item(self, item_id, content_type='video'):
