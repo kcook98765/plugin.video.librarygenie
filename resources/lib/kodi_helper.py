@@ -164,8 +164,12 @@ class KodiHelper:
             list_item.setProperty('inputstream', 'inputstream.adaptive')
 
             # Set additional properties if available
-            if result.get('duration'):
-                list_item.addStreamInfo('video', {'duration': int(result['duration'])})
+            if 'duration' in item_data and item_data['duration']:
+                try:
+                    duration = int(item_data['duration'])
+                    list_item.addStreamInfo('video', {'duration': duration})
+                except (ValueError, TypeError):
+                    pass
 
             # Resolve URL for playback
             xbmcplugin.setResolvedUrl(self.addon_handle, True, list_item)
