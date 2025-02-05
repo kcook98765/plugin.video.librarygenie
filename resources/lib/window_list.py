@@ -64,6 +64,15 @@ class ListWindow(BaseWindow):
                     list_item = xbmcgui.ListItem(title)
                     list_item.setProperty('media_item_id', str(item.get('id', 0)))
                     list_item.setProperty('title', title)
+                    
+                    # Set art dictionary for proper poster display
+                    thumbnail = item.get('info', {}).get('thumbnail', '')
+                    if thumbnail:
+                        list_item.setArt({
+                            'poster': thumbnail,
+                            'thumb': thumbnail,
+                            'icon': thumbnail
+                        })
 
                     # Process cast separately if it exists
                     cast = item.get('cast')
