@@ -44,7 +44,7 @@ def run_addon():
         "show_main_window": lambda: show_main_window(context.kodihelper),
         "show_info": lambda: show_info(context.kodihelper),
         "context_action": lambda: context.ui_manager.context_menu_action(args.get("context_action", [None])[0]) if args.get("context_action") else utils.show_notification("Error", "No context action specified"),
-        "play_item": lambda: context.kodihelper.play_item({'title': xbmc.getLocalizedString(30011)}),
+        "play_item": lambda: context.kodihelper.play_item(args.get('id', [None])[0]),
         "save_item": lambda: context.ui_manager.save_list_item(int(args.get('list_id', [0])[0]), context.kodihelper.get_focused_item_details()),
         "flag_item": lambda: context.ui_manager.flag_list_item(int(args.get('item_id', [0])[0])),
         "default": lambda: list_root_folders_and_lists(context.db_manager, context.kodihelper)
