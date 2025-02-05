@@ -56,8 +56,8 @@ class ListWindow(BaseWindow):
                     list_item.setProperty('media_item_id', str(item.get('id', 0)))
                     list_item.setProperty('title', title)
 
-                # Process cast separately if it exists
-                cast = item.get('cast')
+                    # Process cast separately if it exists
+                    cast = item.get('cast')
                 if cast:
                     try:
                         if isinstance(cast, str):
