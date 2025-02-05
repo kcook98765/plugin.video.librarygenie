@@ -137,25 +137,35 @@ class KodiHelper:
                 utils.log("No play URL found", "ERROR") 
                 return False
             
-            # Set path and mime type based on URL
-            list_item.setPath(play_url)
-            utils.log(f"Setting play URL: {play_url}", "DEBUG")
+            # Handle path and playback setup
+            folder_path = result.get('path', '')
+            play_url = result.get('play') or result.get('file', '') or folder_path
             
-            # Determine mime type from URL
-            if play_url.endswith('.mp4'):
-                mime_type = 'video/mp4'
-            elif play_url.endswith(('.mkv', '.avi')):
-                mime_type = 'video/x-matroska'
-            elif play_url.endswith('.m3u8'):
-                mime_type = 'application/x-mpegURL'
-            else:
-                mime_type = 'video/mp4'  # Default fallback
+            utils.log(f"Setting play URL: {play_url}", "DEBUG")
+            list_item.setPath(play_url)
+            
+            # Determine content type and playback method
+            if folder_path and xbmc.getCondVisibility('Window.IsVisible(MyVideoNav.xml)'):
+                # Handle as video library navigation
+                xbmc.executebuiltin(f'Container.Update({folder_path})')
+                return True
                 
-            # Set content and properties
+            # Setup direct playback
+            mime_type = self._get_mime_type(play_url)
             xbmcplugin.setContent(self.addon_handle, content_type)
             list_item.setProperty('IsPlayable', 'true')
             list_item.setMimeType(mime_type)
             list_item.setProperty('inputstream', 'inputstream.adaptive')
+            
+    def _get_mime_type(self, url):
+        """Helper method to determine mime type from URL"""
+        if url.endswith('.mp4'):
+            return 'video/mp4'
+        elif url.endswith(('.mkv', '.avi')):
+            return 'video/x-matroska'
+        elif url.endswith('.m3u8'):
+            return 'application/x-mpegURL'
+        return 'video/mp4'  # Default fallback
             
             # Set additional properties if available
             if result.get('duration'):
