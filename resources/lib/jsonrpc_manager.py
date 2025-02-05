@@ -68,12 +68,31 @@ class JSONRPC:
         
         # Get proper poster from art dictionary
         art = details.get('art', {})
-        poster = art.get('poster') or art.get('thumb') or art.get('landscape')
+        # Try all possible poster sources in priority order
+        poster = (art.get('poster') or 
+                 art.get('thumb') or 
+                 art.get('landscape') or 
+                 details.get('thumbnail'))
+        
         if poster:
-            details['thumbnail'] = poster
-        elif 'thumbnail' in details and 'video@' in details['thumbnail']:
-            # Convert video path to image path if needed
-            details['thumbnail'] = details['thumbnail'].replace('video@', 'image@')
+            # Handle image protocol conversion
+            if poster.startswith('image://'):
+                details['thumbnail'] = poster
+            elif poster.startswith('video@'):
+                details['thumbnail'] = f"image://{poster.replace('video@', '')}"
+            elif poster.startswith('http'):
+                from urllib.parse import quote
+                details['thumbnail'] = f"image://{quote(poster)}/"
+            else:
+                details['thumbnail'] = f"image://{poster}/"
+        
+        # Ensure we have art dictionary with all image types
+        details['art'] = {
+            'poster': details['thumbnail'],
+            'thumb': details['thumbnail'],
+            'icon': details.get('art', {}).get('icon', details['thumbnail']),
+            'fanart': details.get('art', {}).get('fanart', '')
+        }
 
         # Parse cast details
         cast_list = details.get('cast', [])

@@ -21,17 +21,22 @@ class ListItemBuilder:
         # Set artwork
         art_dict = {}
 
-        # Get poster image - try all possible poster paths
+        # Get poster image - try all possible poster paths in priority order
         poster = None
+        art_dict = media_info.get('art', {})
+        
         possible_paths = [
-            media_info.get('art', {}).get('poster'),
-            media_info.get('art', {}).get('Art(poster)'),
-            media_info.get('info', {}).get('Art(poster)'),
+            art_dict.get('poster'),
+            art_dict.get('Art(poster)'),
+            art_dict.get('thumb'),
+            art_dict.get('landscape'),
             media_info.get('thumbnail'),
-            media_info.get('art', {}).get('thumb'),
-            media_info.get('art', {}).get('landscape'),
-            media_info.get('fanart')
+            art_dict.get('icon'),
+            art_dict.get('fanart')
         ]
+        
+        # Filter invalid paths and normalize format
+        possible_paths = [p for p in possible_paths if p and str(p).lower() != 'none']
 
         # Filter out invalid paths
         for path in possible_paths:
