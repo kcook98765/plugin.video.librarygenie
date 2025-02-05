@@ -259,13 +259,33 @@ class DatabaseManager:
 
             items = []
             for row in rows:
-                item = {
-                    'id': row[0],
-                    'title': row[self.config.FIELDS.index('title TEXT') + 1],
-                    'info': {field.split()[0]: (json.loads(row[idx + 1]) if field.split()[0] == 'cast' and row[idx + 1] else row[idx + 1]) for idx, field in enumerate(self.config.FIELDS) if field.split()[0] != 'title'}
-                }
-                utils.log(f"Collected path: {item['info'].get('path')}", "DEBUG")  # Log the path here
-                items.append(item)
+                try:
+                    utils.log(f"Processing row ID: {row[0]}", "DEBUG")
+                    info_dict = {}
+                    
+                    for idx, field in enumerate(self.config.FIELDS):
+                        field_name = field.split()[0]
+                        if field_name != 'title':
+                            value = row[idx + 1]
+                            if field_name == 'cast' and value:
+                                try:
+                                    value = json.loads(value)
+                                    utils.log(f"Parsed cast data for {row[0]}", "DEBUG")
+                                except json.JSONDecodeError as e:
+                                    utils.log(f"Failed to parse cast data: {e}", "ERROR")
+                                    value = []
+                            info_dict[field_name] = value
+                            
+                    item = {
+                        'id': row[0],
+                        'title': row[self.config.FIELDS.index('title TEXT') + 1],
+                        'info': info_dict
+                    }
+                    utils.log(f"Processed item {item['id']}: {item['title']}", "DEBUG")
+                    items.append(item)
+                except Exception as e:
+                    utils.log(f"Error processing row: {str(e)}", "ERROR")
+                    continue
             return items
         except sqlite3.OperationalError as e:
             utils.log(f"SQL error: {e}", "ERROR")
