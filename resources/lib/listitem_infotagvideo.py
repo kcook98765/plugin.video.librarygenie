@@ -31,11 +31,15 @@ def get_kodi_version() -> int:
 def set_info_tag(listitem, infolabels, tag_type='video'):
     """Universal setter for InfoTag that works across Kodi versions"""
     utils.log(f"Setting info tag for type {tag_type} with labels: {infolabels}", "DEBUG")
-    if tag_type != 'video':
+    
+    kodi_version = get_kodi_version()
+    utils.log(f"Detected Kodi version: {kodi_version}", "DEBUG")
+
+    if tag_type != 'video' or kodi_version < 19:
         listitem.setInfo(tag_type, infolabels)
         return
 
-    # Get video tag
+    # Get video tag for Kodi 19+
     info_tag = listitem.getVideoInfoTag()
 
     # Set mediatype first
