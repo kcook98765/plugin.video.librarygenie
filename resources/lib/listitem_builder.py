@@ -25,20 +25,23 @@ class ListItemBuilder:
         poster = None
         possible_paths = [
             media_info.get('art', {}).get('poster'),
-            media_info.get('art', {}).get('Art(poster)'), 
+            media_info.get('art', {}).get('Art(poster)'),
             media_info.get('info', {}).get('Art(poster)'),
             media_info.get('thumbnail'),
+            media_info.get('art', {}).get('thumb'),
+            media_info.get('art', {}).get('landscape'),
             media_info.get('fanart')
         ]
 
         # Filter out invalid paths
         for path in possible_paths:
-            if not path:
+            if not path or path == 'None':
                 continue
 
-            # Skip video thumbnails but keep poster art
-            if 'video@' in str(path) and 'art/poster' not in str(path):
-                continue
+            # Skip video thumbnails except valid poster art paths
+            if 'video@' in str(path):
+                if not any(x in str(path).lower() for x in ['/art/poster', '/poster/', 'thumb']):
+                    continue
 
             try:
                 # Handle image:// protocol

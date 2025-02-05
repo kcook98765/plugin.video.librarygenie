@@ -68,8 +68,12 @@ class JSONRPC:
         
         # Get proper poster from art dictionary
         art = details.get('art', {})
-        if art.get('poster'):
-            details['thumbnail'] = art['poster']
+        poster = art.get('poster') or art.get('thumb') or art.get('landscape')
+        if poster:
+            details['thumbnail'] = poster
+        elif 'thumbnail' in details and 'video@' in details['thumbnail']:
+            # Convert video path to image path if needed
+            details['thumbnail'] = details['thumbnail'].replace('video@', 'image@')
 
         # Parse cast details
         cast_list = details.get('cast', [])
