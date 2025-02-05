@@ -11,10 +11,13 @@ class ListItemBuilder:
         """Build a complete video ListItem with all available metadata"""
         if not isinstance(media_info, dict):
             media_info = {}
+        
+        utils.log(f"Building video item with media info: {media_info}", "DEBUG")
             
         # Create ListItem with proper string title
         title = str(media_info.get('title', ''))
         list_item = xbmcgui.ListItem(label=title)
+        utils.log(f"Created ListItem with title: {title}", "DEBUG")
         
         # Set artwork
         art_dict = {
@@ -44,9 +47,12 @@ class ListItemBuilder:
             'year': media_info.get('year', ''),
             'mediatype': media_info.get('media_type', 'movie').lower()
         }
+        
+        utils.log(f"Prepared info dictionary: {info_dict}", "DEBUG")
 
         # Set video info using the compatibility helper
         set_info_tag(list_item, info_dict, 'video')
+        utils.log("Set info tag completed", "DEBUG")
         
         # Set content properties
         list_item.setProperty('IsPlayable', 'true')
