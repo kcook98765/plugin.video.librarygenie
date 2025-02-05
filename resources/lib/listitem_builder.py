@@ -63,10 +63,14 @@ class ListItemBuilder:
 
         # Set content properties
         list_item.setProperty('IsPlayable', 'true')
-        if info.get('play'):  # Use the 'play' field from database
-            list_item.setPath(info['play'])
-        elif media_info.get('file'):  # Fallback to 'file' field
-            list_item.setPath(media_info['file'])
+        
+        # Try to get play URL from different possible locations
+        play_url = media_info.get('info', {}).get('play') or media_info.get('play') or media_info.get('file')
+        if play_url:
+            list_item.setPath(play_url)
+            utils.log(f"Setting play URL: {play_url}", "DEBUG")
+        else:
+            utils.log("No valid play URL found", "WARNING")
             
         return list_item
 
