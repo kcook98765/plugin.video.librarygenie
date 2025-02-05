@@ -55,10 +55,17 @@ class ListItemBuilder:
         # Set video info using the compatibility helper
         set_info_tag(list_item, info_dict, 'video')
         utils.log("Set info tag completed", "DEBUG")
-        
+
+        # Set resume point if available
+        if 'resumetime' in info and 'totaltime' in info:
+            list_item.setProperty('ResumeTime', str(info['resumetime']))
+            list_item.setProperty('TotalTime', str(info['totaltime']))
+
         # Set content properties
         list_item.setProperty('IsPlayable', 'true')
-        if media_info.get('file'):
+        if info.get('play'):  # Use the 'play' field from database
+            list_item.setPath(info['play'])
+        elif media_info.get('file'):  # Fallback to 'file' field
             list_item.setPath(media_info['file'])
             
         return list_item
