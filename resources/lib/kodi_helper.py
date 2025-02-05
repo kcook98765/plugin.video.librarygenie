@@ -90,10 +90,12 @@ class KodiHelper:
             from resources.lib.config_manager import Config
             config = Config()
             db = DatabaseManager(config.db_path)
-            # Extract item_id if it's in a list
-            item_id_value = item_id[0] if isinstance(item_id, list) else item_id
             
-            db.cursor.execute(query, (int(item_id_value),))
+            # Handle item_id from various input types
+            if isinstance(item_id, (list, dict)):
+                item_id = item_id[0] if isinstance(item_id, list) else item_id.get('id')
+            
+            db.cursor.execute(query, (int(item_id),))
             result = db.cursor.fetchone()
             
             if not result:
@@ -104,10 +106,10 @@ class KodiHelper:
             field_names = [field.split()[0] for field in db.config.FIELDS]
             item_data = dict(zip(['id'] + field_names, result))
                 
-            # Create list item
-            list_item = xbmcgui.ListItem()
+            # Create list item with title
+            list_item = xbmcgui.ListItem(label=result.get('title', ''))
             
-            # Get play URL
+            # Get play URL and check validity
             play_url = result.get('play') or result.get('file', '')
             if not play_url:
                 utils.log("No play URL found", "ERROR") 
@@ -117,8 +119,14 @@ class KodiHelper:
             list_item.setPath(play_url)
             utils.log(f"Setting play URL: {play_url}", "DEBUG")
             
-            # Set content
+            # Set content and properties
             xbmcplugin.setContent(self.addon_handle, content_type)
+            list_item.setProperty('IsPlayable', 'true')
+            list_item.setMimeType('video/mp4')
+            
+            # Set additional properties if available
+            if result.get('duration'):
+                list_item.addStreamInfo('video', {'duration': int(result['duration'])})
             
             # Resolve URL for playback
             xbmcplugin.setResolvedUrl(self.addon_handle, True, list_item)
