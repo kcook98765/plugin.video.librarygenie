@@ -30,23 +30,26 @@ class ListItemBuilder:
         art_dict = {}
         utils.log(f"Setting artwork for item: {media_info.get('title', 'Unknown')}", "DEBUG")
 
-        # Get poster image - try all possible poster paths in priority order
-        poster = None
-        art_dict = media_info.get('art', {})
-        utils.log(f"Available art types: {art_dict.keys()}", "DEBUG")
+        # Set up initial art dictionary
+        art_dict = {}
+        poster = media_info.get('info', {}).get('thumbnail') or media_info.get('thumbnail')
+        fanart = media_info.get('info', {}).get('fanart') or media_info.get('fanart')
 
-        possible_paths = [
-            art_dict.get('poster'),
-            art_dict.get('Art(poster)'),
-            art_dict.get('thumb'),
-            art_dict.get('landscape'),
-            media_info.get('thumbnail'),
-            art_dict.get('icon'),
-            art_dict.get('fanart')
-        ]
+        # Handle poster image
+        if poster:
+            if not poster.startswith('image://'):
+                from urllib.parse import quote
+                poster = f'image://{quote(poster)}/'
+            art_dict['poster'] = poster
+            art_dict['thumb'] = poster
+            art_dict['icon'] = poster
 
-        # Filter invalid paths and normalize format
-        possible_paths = [p for p in possible_paths if p and str(p).lower() != 'none']
+        # Handle fanart
+        if fanart:
+            if not fanart.startswith('image://'):
+                from urllib.parse import quote
+                fanart = f'image://{quote(fanart)}/'
+            art_dict['fanart'] = fanart
 
         # Filter out invalid paths
         for path in possible_paths:
@@ -132,10 +135,14 @@ class ListItemBuilder:
         cast = info.get('cast')
         if cast:
             try:
-                cast_list = json.loads(cast)
-                if isinstance(cast_list, list):
+                if isinstance(cast, str):
+                    cast = json.loads(cast)
+                if isinstance(cast, list):
                     actors = []
-                    for cast_member in cast_list:
+                    for cast_member in cast:
+                        if cast_member.get('thumbnail') and not cast_member['thumbnail'].startswith('image://'):
+                            from urllib.parse import quote
+                            cast_member['thumbnail'] = f'image://{quote(cast_member["thumbnail"])}/'
                         actor = xbmc.Actor(
                             name=str(cast_member.get('name', '')),
                             role=str(cast_member.get('role', '')),
