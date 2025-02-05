@@ -533,7 +533,9 @@ class DatabaseManager:
         self._execute_with_retry(self.cursor.execute, query, (folder_id,))
         result = self.cursor.fetchone()
         return result[0] if result[0] is not None else 0
-        # what is this code for, it seems unreachable
+
+    def update_folder_parent(self, folder_id, new_parent_id):
+        """Update a folder's parent ID"""
         query = "UPDATE folders SET parent_id = ? WHERE id = ?"
         utils.log(f"Executing SQL: {query} with folder_id={folder_id}, new_parent_id={new_parent_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (new_parent_id, folder_id))
