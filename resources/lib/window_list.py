@@ -48,8 +48,7 @@ class ListWindow(BaseWindow):
         media_items = db_manager.fetch_list_items(self.list_id)
         self.media_list_control.reset()
         try:
-
-        for item in media_items:
+            for item in media_items:
             try:
                 utils.log(f"Processing media item: {item}", "DEBUG")
                 title = str(item.get('title', 'Unknown'))
