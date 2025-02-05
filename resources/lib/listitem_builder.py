@@ -45,8 +45,12 @@ class ListItemBuilder:
                     from urllib.parse import unquote
                     path = unquote(path)
                     
-                # Skip if path still looks invalid
-                if not path or path.startswith('video@'):
+                # Skip if path still looks invalid or is not an image URL
+                if not path or path.startswith('video@') or not (
+                    path.startswith('http') and 
+                    any(path.lower().endswith(ext) for ext in ('.jpg','.jpeg','.png','.gif')) or
+                    path.startswith('image://')
+                ):
                     continue
                     
                 poster = path
