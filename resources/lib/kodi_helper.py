@@ -79,27 +79,42 @@ class KodiHelper:
             )
         xbmcplugin.endOfDirectory(self.addon_handle)
 
-    def play_item(self, item, content_type='video'):
+    def play_item(self, item_id, content_type='video'):
         try:
-            if not item or not item.get('title'):
-                utils.log("Invalid item data", "ERROR")
+            # Query the database for item
+            params = {'list_id': item_id}
+            query = """SELECT media_items.* FROM media_items 
+                      JOIN list_items ON list_items.media_item_id = media_items.id 
+                      WHERE list_items.list_id = :list_id"""
+            
+            from resources.lib.database_manager import DatabaseManager
+            db = DatabaseManager()
+            result = db.fetch_one(query, params)
+            
+            if not result:
+                utils.log("Item not found", "ERROR")
                 return False
-
-            utils.log(f"Playing item: {item.get('title', 'Unknown')}", "INFO")
-            list_item = xbmcgui.ListItem(label=item['title'])
-            set_info_tag(list_item, item.get('info', {}), content_type)
-
-            # Try all possible locations for play URL
-            play_url = item.get('play') or item.get('info', {}).get('play') or item.get('file', '')
+                
+            # Create list item
+            list_item = xbmcgui.ListItem()
+            
+            # Get play URL
+            play_url = result.get('play') or result.get('file', '')
             if not play_url:
-                utils.log("No play URL or file path provided", "ERROR")
+                utils.log("No play URL found", "ERROR") 
                 return False
-
+                
+            # Set path and info
             list_item.setPath(play_url)
             utils.log(f"Setting play URL: {play_url}", "DEBUG")
-
-            xbmcplugin.setResolvedUrl(self.addon_handle, True, listitem=list_item)
+            
+            # Set content
+            xbmcplugin.setContent(self.addon_handle, content_type)
+            
+            # Resolve URL for playback
+            xbmcplugin.setResolvedUrl(self.addon_handle, True, list_item)
             return True
+            
         except Exception as e:
             utils.log(f"Error playing item: {str(e)}", "ERROR")
             return False
