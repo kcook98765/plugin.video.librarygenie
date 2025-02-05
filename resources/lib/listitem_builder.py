@@ -17,10 +17,11 @@ class ListItemBuilder:
         list_item = xbmcgui.ListItem(label=title)
         info_tag = list_item.getVideoInfoTag()
         
-        # Ensure proper media type string
+        # Ensure proper media type string and set it first
         media_type = str(media_info.get('media_type', 'movie')).lower()
         if media_type not in ['movie', 'tvshow', 'season', 'episode']:
             media_type = 'movie'
+        info_tag.setMediaType(media_type)
 
         # Map all available metadata fields
         info_dict = {

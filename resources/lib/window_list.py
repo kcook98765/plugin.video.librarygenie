@@ -50,27 +50,34 @@ class ListWindow(BaseWindow):
 
         for item in media_items:
             label = f"{item['title']}"
-            media_info = {
-                'title': item[23],  # title
-                'thumbnail': item[22],  # thumbnail
-                'fanart': item[6],  # fanart
-                'file': item[12],  # path
-                'plot': item[14],  # plot
-                'tagline': item[21],  # tagline
-                'cast': item[1],  # cast
-                'country': item[2],  # country
-                'director': item[4],  # director
-                'genre': item[7],  # genre
-                'mpaa': item[11],  # mpaa
-                'premiered': item[15],  # premiered
-                'rating': item[16],  # rating
-                'studio': item[20],  # studio
-                'trailer': item[24],  # trailer
-                'votes': item[26],  # votes
-                'writer': item[27],  # writer
-                'year': item[28],  # year
-                'media_type': 'movie'
-            }
+            media_info = {}
+            # Map database columns to media info
+            try:
+                media_info = {
+                    'title': str(item[23]) if item[23] else '',  # title
+                    'thumbnail': str(item[22]) if item[22] else '',  # thumbnail
+                    'fanart': str(item[6]) if item[6] else '',  # fanart
+                    'file': str(item[12]) if item[12] else '',  # path
+                    'plot': str(item[14]) if item[14] else '',  # plot
+                    'tagline': str(item[21]) if item[21] else '',  # tagline
+                    'cast': item[1] if item[1] else '[]',  # cast (JSON string)
+                    'country': str(item[2]) if item[2] else '',  # country
+                    'director': str(item[4]) if item[4] else '',  # director  
+                    'genre': str(item[7]) if item[7] else '',  # genre
+                    'mpaa': str(item[11]) if item[11] else '',  # mpaa
+                    'premiered': str(item[15]) if item[15] else '',  # premiered
+                    'rating': float(item[16]) if item[16] else 0.0,  # rating
+                    'studio': str(item[20]) if item[20] else '',  # studio
+                    'trailer': str(item[24]) if item[24] else '',  # trailer
+                    'votes': str(item[26]) if item[26] else '0',  # votes
+                    'writer': str(item[27]) if item[27] else '',  # writer
+                    'year': str(item[28]) if item[28] else '',  # year
+                    'media_type': 'movie'
+                }
+                utils.log(f"Built media info: {media_info}", "DEBUG")
+            except Exception as e:
+                utils.log(f"Error building media info: {str(e)}", "ERROR")
+                media_info = {'title': str(item[23]) if item[23] else 'Unknown', 'media_type': 'movie'}
             utils.log(f"Building ListItem with media info: {media_info}", "DEBUG")
             list_item = ListItemBuilder.build_video_item(media_info)
             list_item.setProperty('media_item_id', str(item['id']))
