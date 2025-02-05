@@ -91,11 +91,16 @@ class KodiHelper:
             from resources.lib.config_manager import Config
             config = Config()
             db = DatabaseManager(config.db_path)
-            result = db.fetch_one(query, params)
+            db.cursor.execute(query, (item_id,))
+            result = db.cursor.fetchone()
             
             if not result:
                 utils.log("Item not found", "ERROR")
                 return False
+
+            # Convert result to dict
+            field_names = [field.split()[0] for field in db.config.FIELDS]
+            item_data = dict(zip(['id'] + field_names, result))
                 
             # Create list item
             list_item = xbmcgui.ListItem()
