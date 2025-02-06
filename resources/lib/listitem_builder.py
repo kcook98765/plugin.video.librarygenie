@@ -30,11 +30,19 @@ class ListItemBuilder:
         art_dict = {}
         utils.log(f"Setting artwork for item: {media_info.get('title', 'Unknown')}", "DEBUG")
         
-        # Use poster URL if available, fallback to thumbnail
-        poster_url = media_info.get('info', {}).get('poster') or media_info.get('info', {}).get('thumbnail')
+        # Get poster URL from multiple possible locations
+        poster_url = (
+            media_info.get('poster') or  # Direct poster field
+            media_info.get('art', {}).get('poster') or  # Art dictionary
+            media_info.get('info', {}).get('poster') or  # Info dictionary
+            media_info.get('thumbnail')  # Fallback to thumbnail
+        )
+        
         if poster_url:
+            utils.log(f"Using poster URL: {poster_url}", "DEBUG")
             art_dict['poster'] = poster_url
             art_dict['thumb'] = poster_url
+            art_dict['icon'] = poster_url
 
         # Set up initial art dictionary
         art_dict = {}
