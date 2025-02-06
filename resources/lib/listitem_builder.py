@@ -143,7 +143,7 @@ class ListItemBuilder:
             'votes': info.get('votes', '0'),
             'writer': info.get('writer', ''),
             'year': info.get('year', ''),
-            'mediatype': (info.get('media_type') or 'movie').lower()
+            'mediatype': 'movie'  # Always default to movie
         }
         set_info_tag(list_item, info_dict, 'video')
         utils.log("Info tag set.", "DEBUG")
