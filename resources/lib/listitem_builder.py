@@ -2,107 +2,58 @@
 import json
 import xbmcgui
 import xbmc
+from urllib.parse import quote
 from resources.lib import utils
 from resources.lib.listitem_infotagvideo import set_info_tag
 
-class ListItemBuilder:
-    _item_cache = {}
 
+def format_art(url):
+    """
+    Ensures that a given URL is properly wrapped for Kodi if needed.
+    If the URL is empty or already starts with "image://", it is returned unchanged.
+    Otherwise, it is wrapped with "image://" and a trailing slash.
+    """
+    if not url:
+        return ''
+    if not url.startswith('image://'):
+        return f'image://{quote(url)}/'
+    return url
+
+
+class ListItemBuilder:
     @staticmethod
     def build_video_item(media_info):
-        """Build a complete video ListItem with all available metadata"""
-        if not isinstance(media_info, dict):
-            media_info = {}
+        """Build a complete video ListItem with all available metadata."""
+        # Ensure media_info is a dict
+        media_info = media_info if isinstance(media_info, dict) else {}
 
-        # Generate cache key from stable fields
-        cache_key = str(media_info.get('title', '')) + str(media_info.get('year', '')) + str(media_info.get('kodi_id', ''))
-        if cache_key in ListItemBuilder._item_cache:
-            return ListItemBuilder._item_cache[cache_key]
-
-        utils.log(f"Building video item with media info: {media_info}", "DEBUG")
-
-        # Create ListItem with proper string title
         title = str(media_info.get('title', ''))
         list_item = xbmcgui.ListItem(label=title)
-        utils.log(f"Created ListItem with title: {title}", "DEBUG")
+        utils.log(f"Building video item for: {title}", "DEBUG")
 
-        # Set artwork
-        art_dict = {}
-        utils.log(f"Setting artwork for item: {media_info.get('title', 'Unknown')}", "DEBUG")
-
-        # Get art from media info with proper priority
-        art_dict = {}
+        # --- Artwork Handling ---
+        art = {}
         media_art = media_info.get('art', {})
-        
-        # Set poster/thumb in priority order
-        poster = (media_art.get('poster') or 
-                 media_art.get('thumb') or 
-                 media_info.get('thumbnail') or 
-                 '')
-        
-        if poster:
-            if not poster.startswith('image://'):
-                from urllib.parse import quote
-                poster = f'image://{quote(poster)}/'
-            art_dict['poster'] = poster
-            art_dict['thumb'] = poster
-            art_dict['icon'] = poster
-        fanart = media_info.get('info', {}).get('fanart') or media_info.get('fanart')
 
-        # Handle poster image
-        if poster:
-            if not poster.startswith('image://'):
-                from urllib.parse import quote
-                poster = f'image://{quote(poster)}/'
-            art_dict['poster'] = poster
-            art_dict['thumb'] = poster
-            art_dict['icon'] = poster
+        # For poster, try in this order: media_art['poster'] → media_art['thumb'] → media_info['thumbnail']
+        poster_url = media_art.get('poster') or media_art.get('thumb') or media_info.get('thumbnail', '')
+        poster_url = format_art(poster_url)
+        if poster_url:
+            art['poster'] = poster_url
+            art['thumb'] = poster_url
+            art['icon'] = poster_url
+            utils.log(f"Set poster URL: {poster_url}", "DEBUG")
 
-        # Handle fanart
-        if fanart:
-            if not fanart.startswith('image://'):
-                from urllib.parse import quote
-                fanart = f'image://{quote(fanart)}/'
-            art_dict['fanart'] = fanart
+        # For fanart, check both nested info and top-level
+        fanart_url = media_info.get('info', {}).get('fanart') or media_info.get('fanart')
+        fanart_url = format_art(fanart_url)
+        if fanart_url:
+            art['fanart'] = fanart_url
+            utils.log(f"Set fanart URL: {fanart_url}", "DEBUG")
 
-        # Set initial art values if available
-        if poster:
-            art_dict['poster'] = poster
-            art_dict['thumb'] = poster
-            art_dict['icon'] = poster
+        list_item.setArt(art)
 
-        if fanart:
-            art_dict['fanart'] = fanart
-
-        # Handle art dictionary with proper path validation
-        if poster and str(poster) != 'None':
-            art_dict['poster'] = poster
-            art_dict['thumb'] = poster
-            art_dict['icon'] = poster
-            utils.log(f"Setting poster paths: {poster}", "DEBUG")
-
-        if fanart and str(fanart) != 'None':
-            art_dict['fanart'] = fanart
-            utils.log(f"Setting fanart path: {fanart}", "DEBUG")
-
-        # Handle video thumbnails
-        if poster and 'video@' in str(poster):
-            pass
-
-
-        if poster:
-            art_dict['thumb'] = poster
-            art_dict['poster'] = poster
-            art_dict['icon'] = poster
-
-        # Check both direct and nested fanart paths    
-        fanart = media_info.get('fanart') or media_info.get('info', {}).get('fanart')
-        if fanart:
-            art_dict['fanart'] = fanart
-
-        list_item.setArt(art_dict)
-
-        # Prepare info dictionary from nested info structure
+        # --- Info Tag Setup ---
         info = media_info.get('info', {})
         info_dict = {
             'title': title,
@@ -122,22 +73,18 @@ class ListItemBuilder:
             'year': info.get('year', ''),
             'mediatype': (info.get('media_type') or 'movie').lower()
         }
-
-        utils.log(f"Prepared info dictionary: {info_dict}", "DEBUG")
-
-        # Set video info using the compatibility helper
+        utils.log(f"Info dictionary: {info_dict}", "DEBUG")
         set_info_tag(list_item, info_dict, 'video')
-        utils.log("Set info tag completed", "DEBUG")
+        utils.log("Info tag set.", "DEBUG")
 
-        # Set resume point if available
+        # Set resume properties if available
         if 'resumetime' in info and 'totaltime' in info:
             list_item.setProperty('ResumeTime', str(info['resumetime']))
             list_item.setProperty('TotalTime', str(info['totaltime']))
 
-        # Set content properties
         list_item.setProperty('IsPlayable', 'true')
 
-        # Process cast separately if it exists
+        # --- Cast Processing ---
         cast = info.get('cast')
         if cast:
             try:
@@ -145,42 +92,38 @@ class ListItemBuilder:
                     cast = json.loads(cast)
                 if isinstance(cast, list):
                     actors = []
-                    for cast_member in cast:
-                        if cast_member.get('thumbnail') and not cast_member['thumbnail'].startswith('image://'):
-                            from urllib.parse import quote
-                            cast_member['thumbnail'] = f'image://{quote(cast_member["thumbnail"])}/'
+                    for member in cast:
+                        thumb = format_art(member.get('thumbnail', ''))
                         actor = xbmc.Actor(
-                            name=str(cast_member.get('name', '')),
-                            role=str(cast_member.get('role', '')),
-                            order=int(cast_member.get('order', 0)),
-                            thumbnail=str(cast_member.get('thumbnail', ''))
+                            name=str(member.get('name', '')),
+                            role=str(member.get('role', '')),
+                            order=int(member.get('order', 0)),
+                            thumbnail=thumb
                         )
                         actors.append(actor)
                     list_item.setCast(actors)
             except Exception as e:
-                utils.log(f"Error processing cast: {str(e)}", "ERROR")
+                utils.log(f"Error processing cast: {e}", "ERROR")
                 list_item.setCast([])
 
-
-        # Try to get play URL from different possible locations
+        # --- Play URL Handling ---
         play_url = media_info.get('info', {}).get('play') or media_info.get('play') or media_info.get('file')
         if play_url:
             list_item.setPath(play_url)
-            utils.log(f"Setting play URL: {play_url}", "DEBUG")
+            utils.log(f"Set play URL: {play_url}", "DEBUG")
         else:
             utils.log("No valid play URL found", "WARNING")
 
-        ListItemBuilder._item_cache[cache_key] = list_item
         return list_item
 
     @staticmethod
     def build_folder_item(name, is_folder=True):
-        """Build a folder ListItem"""
+        """Build a folder ListItem."""
         list_item = xbmcgui.ListItem(label=name)
         list_item.setIsFolder(is_folder)
         return list_item
 
-    @staticmethod 
+    @staticmethod
     def add_context_menu(list_item, menu_items):
-        """Add context menu items to ListItem"""
+        """Add context menu items to ListItem."""
         list_item.addContextMenuItems(menu_items, replaceItems=True)
