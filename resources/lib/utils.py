@@ -20,7 +20,7 @@ def log(message, level=None):
         
     # Truncate long messages
     if isinstance(message, str):
-        if 'JSONRPC response:' in message:
+        if 'RPC response:' in message:
             message = message[:100] + '...' if len(message) > 100 else message
         elif 'SQL:' in message:
             # Keep SQL queries on one line
