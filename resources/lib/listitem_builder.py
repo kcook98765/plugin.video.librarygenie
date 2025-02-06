@@ -22,7 +22,7 @@ def format_art(url):
 
 class ListItemBuilder:
     KODI_VERSION = None
-    
+
     @staticmethod
     def get_kodi_version():
         if ListItemBuilder.KODI_VERSION is None:
@@ -62,10 +62,10 @@ class ListItemBuilder:
                     art[art_type] = format_art(url)
                     utils.log(f"Set {art_type} URL: {art[art_type]}", "DEBUG")
                     break
-            
+
         # Ensure thumbnail is properly formatted if different from poster
         thumbnail = media_info.get('thumbnail', '')
-        if thumbnail and thumbnail != poster_url:
+        if thumbnail and thumbnail != art.get('poster', ''): #Corrected comparison
             thumbnail = format_art(thumbnail)
             art['thumb'] = thumbnail
             utils.log(f"Set additional thumbnail URL: {thumbnail}", "DEBUG")
