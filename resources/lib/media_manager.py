@@ -64,6 +64,7 @@ class MediaManager:
                     'title': details.get('title', ''),
                     'art': json.dumps(art_dict),  # Store art as JSON string
                     'thumbnail': poster_url,  # Keep thumbnail for compatibility
+                    'poster': poster_url,  # Explicitly store poster URL
                     'year': details.get('year', ''),
                     'plot': details.get('plot', ''),
                     'genre': ' / '.join(details.get('genre', [])),

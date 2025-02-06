@@ -336,7 +336,14 @@ class DatabaseManager:
             utils.log(f"Keys in data dictionary: {list(data.keys())}", "DEBUG")  # Log keys in data
 
             # Insert or ignore into media_items
-            media_data = {key: data[key] for key in data if key in field_names}
+            media_data = {key: data[key] for key in field_names if key in data}
+            if 'art' in data:
+                try:
+                    art_dict = json.loads(data['art']) if isinstance(data['art'], str) else data['art']
+                    if 'poster' not in media_data or not media_data['poster']:
+                        media_data['poster'] = art_dict.get('poster', '')
+                except json.JSONDecodeError:
+                    utils.log("Failed to parse art JSON", "ERROR")
 
             truncated_data = self.truncate_data(media_data)
             utils.log(f"Media data for insertion after comprehension: {truncated_data}", "DEBUG")  # Log media_data
