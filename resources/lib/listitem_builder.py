@@ -53,6 +53,13 @@ class ListItemBuilder:
             art['thumb'] = poster_url
             art['icon'] = poster_url
             utils.log(f"Set poster URL: {poster_url}", "DEBUG")
+            
+        # Ensure thumbnail is properly formatted if different from poster
+        thumbnail = media_info.get('thumbnail', '')
+        if thumbnail and thumbnail != poster_url:
+            thumbnail = format_art(thumbnail)
+            art['thumb'] = thumbnail
+            utils.log(f"Set additional thumbnail URL: {thumbnail}", "DEBUG")
 
         # For fanart, check both nested info and top-level
         fanart_url = media_info.get('info', {}).get('fanart') or media_info.get('fanart')
@@ -102,7 +109,11 @@ class ListItemBuilder:
                 if isinstance(cast, list):
                     actors = []
                     for member in cast:
-                        thumb = format_art(member.get('thumbnail', ''))
+                        thumb = member.get('thumbnail', '')
+                        # Ensure thumbnail is properly formatted
+                        if thumb and not thumb.startswith('image://'):
+                            thumb = format_art(thumb)
+                        utils.log(f"Processing cast member thumbnail: {thumb}", "DEBUG")
                         actor = xbmc.Actor(
                             name=str(member.get('name', '')),
                             role=str(member.get('role', '')),
@@ -111,6 +122,7 @@ class ListItemBuilder:
                         )
                         actors.append(actor)
                     list_item.setCast(actors)
+                    utils.log(f"Set cast with {len(actors)} members", "DEBUG")
             except Exception as e:
                 utils.log(f"Error processing cast: {e}", "ERROR")
                 list_item.setCast([])
