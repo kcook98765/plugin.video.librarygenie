@@ -48,7 +48,9 @@ class ListItemBuilder:
         # Handle poster image protocol
         if poster:
             if 'video@' in str(poster):
-                poster = f"image://{poster.replace('video@', '')}"
+                from urllib.parse import quote
+                clean_path = poster.replace('video@', '')
+                poster = f"image://{quote(clean_path)}/"
             elif not poster.startswith('image://'):
                 from urllib.parse import quote
                 poster = f'image://{quote(poster)}/'
