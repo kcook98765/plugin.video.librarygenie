@@ -43,6 +43,15 @@ class ListItemBuilder:
         art = {}
         media_art = media_info.get('art', {})
         
+        # Handle thumbnail first as it's critical for display
+        thumbnail = media_info.get('thumbnail', '')
+        if thumbnail:
+            thumbnail = format_art(thumbnail)
+            art['thumb'] = thumbnail
+            art['poster'] = thumbnail
+            art['icon'] = thumbnail
+            utils.log(f"Set primary thumbnail/poster: {thumbnail}", "DEBUG")
+            
         # Process all possible artwork locations
         for art_type in ['poster', 'thumb', 'thumbnail', 'fanart', 'banner', 'clearart', 'clearlogo', 'landscape', 'icon']:
             # Check all possible sources for this art type
@@ -123,7 +132,22 @@ class ListItemBuilder:
             art['fanart'] = fanart_url
             utils.log(f"Set fanart URL: {fanart_url}", "DEBUG")
 
+        # Force poster display
+        if 'poster' not in art and 'thumb' in art:
+            art['poster'] = art['thumb']
+        if 'thumb' not in art and 'poster' in art:
+            art['thumb'] = art['poster']
+            
+        # Ensure all required art types have values
+        for required_type in ['poster', 'thumb', 'icon']:
+            if required_type not in art or not art[required_type]:
+                if 'poster' in art:
+                    art[required_type] = art['poster']
+                elif 'thumb' in art:
+                    art[required_type] = art['thumb']
+
         list_item.setArt(art)
+        utils.log(f"Final art dictionary: {art}", "DEBUG")
 
         # --- Info Tag Setup ---
         info = media_info.get('info', {})
