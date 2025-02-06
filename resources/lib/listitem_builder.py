@@ -57,16 +57,28 @@ class ListItemBuilder:
             # Check all possible sources for this art type
             art_url = None
             
+            # Log all available sources
+            sources = {
+                'media_art': media_art.get(art_type, ''),
+                'media_info': media_info.get(art_type, ''),
+                'top_level_thumbnail': media_info.get('thumbnail', '') if art_type in ['thumb', 'poster'] else '',
+                'nested_info_art': media_info.get('info', {}).get('art', {}).get(art_type, '')
+            }
+            utils.log(f"Available {art_type} sources: {sources}", "DEBUG")
+            
             # Try media_art first
             if art_type in media_art and media_art[art_type]:
                 art_url = media_art[art_type]
+                utils.log(f"Using {art_type} from media_art", "DEBUG")
             # Then try top-level media_info
             elif art_type in media_info and media_info[art_type]:
                 art_url = media_info[art_type]
+                utils.log(f"Using {art_type} from media_info", "DEBUG")
                 
             if art_url:
                 formatted_url = format_art(art_url)
                 art[art_type] = formatted_url
+                utils.log(f"Final {art_type} URL used: {formatted_url}", "DEBUG")
                 # Set thumb and poster to be the same if either is found
                 if art_type in ['poster', 'thumb', 'thumbnail']:
                     art['thumb'] = formatted_url
