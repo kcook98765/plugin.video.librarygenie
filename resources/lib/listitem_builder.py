@@ -29,6 +29,12 @@ class ListItemBuilder:
         # Set artwork
         art_dict = {}
         utils.log(f"Setting artwork for item: {media_info.get('title', 'Unknown')}", "DEBUG")
+        
+        # Use poster URL if available, fallback to thumbnail
+        poster_url = media_info.get('info', {}).get('poster') or media_info.get('info', {}).get('thumbnail')
+        if poster_url:
+            art_dict['poster'] = poster_url
+            art_dict['thumb'] = poster_url
 
         # Set up initial art dictionary
         art_dict = {}

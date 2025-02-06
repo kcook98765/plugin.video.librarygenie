@@ -1,4 +1,3 @@
-
 import xbmc
 import json
 from resources.lib import utils
@@ -11,7 +10,7 @@ class MediaManager:
     def get_media_info(self, media_type='movie'):
         """Get media info from Kodi"""
         kodi_id = xbmc.getInfoLabel('ListItem.DBID')
-        
+
         # If we have a valid database ID, use JSONRPC
         if kodi_id and kodi_id.isdigit() and int(kodi_id) > 0:
             utils.log(f"Getting library item details via JSONRPC for ID: {kodi_id}", "DEBUG")
@@ -25,17 +24,17 @@ class MediaManager:
                     'country', 'dateadded', 'studio', 'art'
                 ]
             }
-            
+
             response = self.jsonrpc.execute(method, params)
             details = response.get('result', {}).get('moviedetails', {})
-            
+
             if details:
                 # Convert cast to expected format and JSON string
                 cast_list = details.get('cast', [])
                 cast = [{'name': actor.get('name'), 'role': actor.get('role'), 
                         'order': actor.get('order'), 'thumbnail': actor.get('thumbnail')} 
                        for actor in cast_list]
-                
+
                 return {
                     'kodi_id': kodi_id,
                     'title': details.get('title', ''),
@@ -51,7 +50,7 @@ class MediaManager:
                     'duration': details.get('runtime', ''),
                     'type': media_type
                 }
-        
+
         # Fallback to current method for non-library items
         utils.log("Using fallback method for non-library item", "DEBUG")
         info = {
@@ -66,6 +65,7 @@ class MediaManager:
             'file': xbmc.getInfoLabel('ListItem.FileNameAndPath'),
             'thumbnail': xbmc.getInfoLabel('ListItem.Art(poster)'),
             'fanart': xbmc.getInfoLabel('ListItem.Art(fanart)'),
+            'poster': xbmc.getInfoLabel('ListItem.Art(poster)'),  # Store poster URL explicitly
             'duration': xbmc.getInfoLabel('ListItem.Duration'),
             'type': media_type
         }
