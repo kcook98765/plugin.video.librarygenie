@@ -20,8 +20,8 @@ def log(message, level=None):
         
     # Truncate long messages
     if isinstance(message, str):
-        if len(message) > 200:
-            message = message[:100] + '...' if len(message) > 
+        if len(message) > 500:
+            message = message[:500] + '...' if len(message) > 
     message = ' '.join(message.split())
     
     # Always use INFO level but include original level in message  
