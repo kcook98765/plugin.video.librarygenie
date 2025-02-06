@@ -42,28 +42,49 @@ class ListItemBuilder:
         # --- Artwork Handling ---
         art = {}
         media_art = media_info.get('art', {})
-
-        # Handle all art types
+        
+        # Get primary thumbnail/poster
+        thumbnail = media_info.get('thumbnail')
+        if thumbnail:
+            thumbnail = format_art(thumbnail)
+            art['thumb'] = thumbnail
+            art['poster'] = thumbnail
+        
+        # Get fanart
+        fanart = media_info.get('fanart')
+        if fanart:
+            fanart = format_art(fanart)
+            art['fanart'] = fanart
+            
+        # Map all other art types
         art_mapping = {
             'poster': ['poster', 'thumb', 'thumbnail'],
-            'thumb': ['thumb', 'poster', 'thumbnail'],
+            'thumb': ['thumb', 'poster', 'thumbnail'], 
             'banner': ['banner'],
             'icon': ['icon', 'poster', 'thumb'],
             'clearart': ['clearart'],
             'clearlogo': ['clearlogo'],
-            'landscape': ['landscape', 'fanart']
+            'landscape': ['landscape']
         }
 
+        # Ensure URLs are properly formatted for Kodi 21
         for art_type, sources in art_mapping.items():
-            for source in sources:
-                url = (media_art.get(source) or 
-                      media_info.get('art', {}).get(source) or 
-                      media_info.get(source))
-                if url:
-                    formatted_url = format_art(url)
-                    art[art_type] = formatted_url
-                    utils.log(f"Set {art_type} URL: {formatted_url}", "DEBUG")
-                    break
+            if art_type not in art:  # Don't override if already set
+                for source in sources:
+                    url = None
+                    # Check media_art first
+                    if source in media_art:
+                        url = media_art[source]
+                    # Then check top-level media_info
+                    elif source in media_info:
+                        url = media_info[source]
+                    
+                    if url:
+                        formatted_url = format_art(url)
+                        art[art_type] = formatted_url
+                        utils.log(f"Set {art_type} URL: {formatted_url}", "DEBUG")
+                        break
+                
             if art_type not in art:
                 art[art_type] = ''
 
