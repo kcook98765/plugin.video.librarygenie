@@ -79,9 +79,17 @@ class ListItemBuilder:
             art_dict['thumb'] = poster_url
             art_dict['icon'] = poster_url
 
-        # Set up initial art dictionary
-        art_dict = {}
-        poster = media_info.get('poster') or media_info.get('thumbnail')
+        # Get poster URL with priority order
+        poster = media_info.get('poster')
+        if not poster and media_info.get('art'):
+            try:
+                art_data = json.loads(media_info['art']) if isinstance(media_info['art'], str) else media_info['art']
+                poster = art_data.get('poster', '')
+            except (json.JSONDecodeError, AttributeError):
+                pass
+        if not poster:
+            poster = media_info.get('thumbnail')
+            
         fanart = media_info.get('fanart')
 
         if poster and str(poster) != 'None':

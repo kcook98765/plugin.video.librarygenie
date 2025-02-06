@@ -340,8 +340,10 @@ class DatabaseManager:
             if 'art' in data:
                 try:
                     art_dict = json.loads(data['art']) if isinstance(data['art'], str) else data['art']
+                    media_data['art'] = json.dumps(art_dict)
                     if 'poster' not in media_data or not media_data['poster']:
                         media_data['poster'] = art_dict.get('poster', '')
+                    media_data['thumbnail'] = art_dict.get('thumb', art_dict.get('poster', ''))
                 except json.JSONDecodeError:
                     utils.log("Failed to parse art JSON", "ERROR")
 
