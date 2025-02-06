@@ -43,9 +43,7 @@ class MediaManager:
                     'kodi_id': kodi_id,
                     'title': details.get('title', ''),
                     'poster': poster_url,  # Store poster URL directly
-                    'art': json.dumps(art_dict),  # Store full art dictionary as JSON
-                    'poster': poster_url,
-                    'art': art_dict.copy(),  # Make a copy to prevent reference issues
+                    'art': art_dict.copy(),  # Store art dictionary as a copy
                     'thumbnail': art_dict.get('thumb', poster_url),
                     'year': details.get('year', ''),
                     'plot': details.get('plot', ''),
