@@ -56,11 +56,14 @@ class ListItemBuilder:
             for source in sources:
                 url = (media_art.get(source) or 
                       media_info.get('art', {}).get(source) or 
-                      (media_info.get(source) if source == 'thumbnail' else None))
-                art[art_type] = format_art(url) if url else ''
+                      media_info.get(source))
                 if url:
-                    utils.log(f"Set {art_type} URL: {art[art_type]}", "DEBUG")
-                break
+                    formatted_url = format_art(url)
+                    art[art_type] = formatted_url
+                    utils.log(f"Set {art_type} URL: {formatted_url}", "DEBUG")
+                    break
+            if art_type not in art:
+                art[art_type] = ''
 
         # Ensure thumbnail is properly formatted if different from poster
         thumbnail = media_info.get('thumbnail', '')
