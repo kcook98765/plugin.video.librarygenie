@@ -9,14 +9,8 @@ from resources.lib.listitem_infotagvideo import set_info_tag
 
 def format_art(url):
     """
-    Ensures that a given URL is properly wrapped for Kodi if needed.
-    If the URL is empty or already starts with "image://", it is returned unchanged.
-    Otherwise, it is wrapped with "image://" and a trailing slash.
+    Temporarily modified to return URL unchanged for testing
     """
-    if not url:
-        return ''
-    if not url.startswith('image://'):
-        return f'image://{quote(url)}/'
     return url
 
 
