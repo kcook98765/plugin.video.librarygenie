@@ -683,7 +683,7 @@ class DatabaseManager:
             data['writer'] = ','.join(data['writer']) if isinstance(data['writer'], list) else data['writer']
 
             if 'cast' in data and isinstance(data['cast'], list):
-                data['cast'] = json.dumps(data['cast'])
+                data['cast'] = json.dumps(data['cast'][:10])  # Limit to first 10 cast members
 
             self.insert_data('media_items', data)
             media_item_id = self.cursor.lastrowid

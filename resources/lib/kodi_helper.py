@@ -393,7 +393,7 @@ class KodiHelper:
         try:
             utils.log("Gathering cast information", "DEBUG")
             cast = []
-            for i in range(1, 21):  # Assuming a maximum of 20 cast members
+            for i in range(1, 11):  # Limit to 10 cast members
                 name = xbmc.getInfoLabel(f'ListItem.CastAndRole.{i}.Name')
                 if not name:
                     continue
