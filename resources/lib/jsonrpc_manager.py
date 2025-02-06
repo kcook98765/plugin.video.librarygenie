@@ -43,9 +43,14 @@ class JSONRPC:
                 rpc['properties'] = []
             if 'art' not in rpc['properties']:
                 rpc['properties'].append('art')
-            
+
             result = self.execute("VideoLibrary.GetMovies", rpc)
-            utils.log(f"Fetch result: {json.dumps(result, indent=2)}", "DEBUG")
+            response_data = json.loads(result)
+            movies = response_data.get('result', {}).get('movies', [])
+            response_preview = str(result)[:100] + '...' if len(str(result)) > 100 else str(result)
+            utils.log(f"RPC Response: {response_preview}", "DEBUG")
+            utils.log(f"Movies found: {len(movies)}", "INFO")
+
 
             if 'error' in result:
                 error_msg = result['error'].get('message', 'Unknown error')
