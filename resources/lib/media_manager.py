@@ -2,12 +2,60 @@
 import xbmc
 import json
 from resources.lib import utils
+from resources.lib.jsonrpc_manager import JSONRPC
 
 class MediaManager:
+    def __init__(self):
+        self.jsonrpc = JSONRPC()
+
     def get_media_info(self, media_type='movie'):
         """Get media info from Kodi"""
+        kodi_id = xbmc.getInfoLabel('ListItem.DBID')
+        
+        # If we have a valid database ID, use JSONRPC
+        if kodi_id and kodi_id.isdigit() and int(kodi_id) > 0:
+            utils.log(f"Getting library item details via JSONRPC for ID: {kodi_id}", "DEBUG")
+            method = 'VideoLibrary.GetMovieDetails'
+            params = {
+                'movieid': int(kodi_id),
+                'properties': [
+                    'title', 'genre', 'year', 'director', 'cast', 'plot', 'rating',
+                    'file', 'thumbnail', 'fanart', 'runtime', 'tagline',
+                    'writer', 'imdbnumber', 'premiered', 'mpaa', 'trailer', 'votes',
+                    'country', 'dateadded', 'studio', 'art'
+                ]
+            }
+            
+            response = self.jsonrpc.execute(method, params)
+            details = response.get('result', {}).get('moviedetails', {})
+            
+            if details:
+                # Convert cast to expected format and JSON string
+                cast_list = details.get('cast', [])
+                cast = [{'name': actor.get('name'), 'role': actor.get('role'), 
+                        'order': actor.get('order'), 'thumbnail': actor.get('thumbnail')} 
+                       for actor in cast_list]
+                
+                return {
+                    'kodi_id': kodi_id,
+                    'title': details.get('title', ''),
+                    'year': details.get('year', ''),
+                    'plot': details.get('plot', ''),
+                    'genre': ' / '.join(details.get('genre', [])),
+                    'director': ' / '.join(details.get('director', [])),
+                    'cast': json.dumps(cast),
+                    'rating': details.get('rating', ''),
+                    'file': details.get('file', ''),
+                    'thumbnail': details.get('art', {}).get('poster', ''),
+                    'fanart': details.get('art', {}).get('fanart', ''),
+                    'duration': details.get('runtime', ''),
+                    'type': media_type
+                }
+        
+        # Fallback to current method for non-library items
+        utils.log("Using fallback method for non-library item", "DEBUG")
         info = {
-            'kodi_id': xbmc.getInfoLabel('ListItem.DBID'),
+            'kodi_id': kodi_id,
             'title': xbmc.getInfoLabel('ListItem.Title'),
             'year': xbmc.getInfoLabel('ListItem.Year'),
             'plot': xbmc.getInfoLabel('ListItem.Plot'),
