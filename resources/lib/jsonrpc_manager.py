@@ -38,12 +38,6 @@ class JSONRPC:
 
     def fetch_movies_from_rpc(self, rpc):
         try:
-            # Ensure art properties are requested
-            if 'properties' not in rpc:
-                rpc['properties'] = []
-            if 'art' not in rpc['properties']:
-                rpc['properties'].append('art')
-            
             result = self.execute("VideoLibrary.GetMovies", rpc)
             utils.log(f"Fetch result: {json.dumps(result, indent=2)}", "DEBUG")
 

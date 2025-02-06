@@ -30,23 +30,9 @@ class ListItemBuilder:
         art_dict = {}
         utils.log(f"Setting artwork for item: {media_info.get('title', 'Unknown')}", "DEBUG")
 
-        # Get art from media info with proper priority
+        # Set up initial art dictionary
         art_dict = {}
-        media_art = media_info.get('art', {})
-        
-        # Set poster/thumb in priority order
-        poster = (media_art.get('poster') or 
-                 media_art.get('thumb') or 
-                 media_info.get('thumbnail') or 
-                 '')
-        
-        if poster:
-            if not poster.startswith('image://'):
-                from urllib.parse import quote
-                poster = f'image://{quote(poster)}/'
-            art_dict['poster'] = poster
-            art_dict['thumb'] = poster
-            art_dict['icon'] = poster
+        poster = media_info.get('info', {}).get('thumbnail') or media_info.get('thumbnail')
         fanart = media_info.get('info', {}).get('fanart') or media_info.get('fanart')
 
         # Handle poster image
