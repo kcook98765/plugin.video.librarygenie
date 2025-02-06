@@ -58,17 +58,20 @@ class ListItemBuilder:
                 url = (media_art.get(source) or 
                       media_info.get('art', {}).get(source) or 
                       (media_info.get(source) if source == 'thumbnail' else None))
+                art[art_type] = format_art(url) if url else ''
                 if url:
-                    art[art_type] = format_art(url)
                     utils.log(f"Set {art_type} URL: {art[art_type]}", "DEBUG")
-                    break
+                break
 
         # Ensure thumbnail is properly formatted if different from poster
         thumbnail = media_info.get('thumbnail', '')
-        if thumbnail and thumbnail != art.get('poster', ''): #Corrected comparison
+        if thumbnail:
             thumbnail = format_art(thumbnail)
-            art['thumb'] = thumbnail
-            utils.log(f"Set additional thumbnail URL: {thumbnail}", "DEBUG")
+            if not art.get('thumb'):
+                art['thumb'] = thumbnail
+            if not art.get('poster'):
+                art['poster'] = thumbnail
+            utils.log(f"Set thumbnail URL: {thumbnail}", "DEBUG")
 
         # For fanart, check both nested info and top-level
         # Handle fanart from multiple possible locations
