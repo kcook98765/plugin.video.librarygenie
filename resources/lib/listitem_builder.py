@@ -163,8 +163,22 @@ class ListItemBuilder:
                     utils.log(f"Error creating actor object: {str(e)}", "ERROR")
                     continue
                     
-            list_item.setCast(actors)
-            utils.log(f"Set cast with {len(actors)} actors", "DEBUG")
+            # Handle cast setting based on Kodi version
+            kodi_version = xbmc.getInfoLabel("System.BuildVersion").split('.')[0]
+            try:
+                kodi_version = int(kodi_version)
+            except (ValueError, TypeError):
+                kodi_version = 0
+                
+            if kodi_version >= 20:
+                # Use InfoTagVideo for Kodi 20+
+                video_tag = list_item.getVideoInfoTag()
+                video_tag.setCast(actors)
+            else:
+                # Use legacy method for older versions
+                list_item.setCast(actors)
+                
+            utils.log(f"Set cast with {len(actors)} actors for Kodi version {kodi_version}", "DEBUG")
             
         except Exception as e:
             utils.log(f"Error processing cast: {str(e)}", "ERROR")
