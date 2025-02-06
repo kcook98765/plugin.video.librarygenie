@@ -37,20 +37,13 @@ class MediaManager:
 
                 # Get art dictionary once
                 art_dict = details.get('art', {})
-                utils.log(f"STEP 1 - Raw art_dict: {art_dict}", "DEBUG")
-                utils.log(f"STEP 1a - Raw details: {details}", "DEBUG")
-                utils.log(f"STEP 2 - Art keys: {list(art_dict.keys())}", "DEBUG") 
-                utils.log(f"STEP 3 - Direct poster: {art_dict.get('poster')}", "DEBUG")
-                utils.log(f"STEP 4 - Thumbnail from details: {details.get('thumbnail')}", "DEBUG")
-                utils.log(f"STEP 5 - Raw thumb from art: {art_dict.get('thumb')}", "DEBUG")
-                utils.log(f"STEP 6 - Raw icon from art: {art_dict.get('icon')}", "DEBUG")
                 poster_url = art_dict.get('poster', '')
-                utils.log(f"Extracted poster URL: {poster_url}", "DEBUG")
-                utils.log(f"Full art keys available: {list(art_dict.keys())}", "DEBUG")
-
+                
                 media_info = {
                     'kodi_id': kodi_id,
                     'title': details.get('title', ''),
+                    'poster': poster_url,  # Store poster URL directly
+                    'art': json.dumps(art_dict),  # Store full art dictionary as JSON
                     'poster': poster_url,
                     'art': art_dict.copy(),  # Make a copy to prevent reference issues
                     'thumbnail': art_dict.get('thumb', poster_url),
