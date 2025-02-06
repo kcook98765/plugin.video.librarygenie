@@ -1,4 +1,3 @@
-
 """ /resources/lib/addon_helper.py """
 import sys
 import urllib.parse
@@ -65,38 +64,28 @@ def run_addon():
             return
 
         # Handle context menu or other actions
-        if action == "debug_inspect":
+        elif action == "debug_inspect":
+            import json
             db_manager = DatabaseManager(Config().db_path)
-            query = """
-                SELECT *
-                FROM media_items
-                LIMIT 1
-            """
-            db_manager.cursor.execute(query)
-            row = db_manager.cursor.fetchone()
-            
-            if row:
-                field_names = [field.split()[0] for field in Config.FIELDS]
-                data = dict(zip(['id'] + field_names, row))
-                
-                # Build formatted display text
-                display_text = "First Movie Data:\n\n"
-                for field, value in data.items():
-                    if field in ['thumbnail', 'fanart'] and value:
+            kodi_helper = KodiHelper()
+
+            # Get currently selected item details
+            item_info = kodi_helper.get_focused_item_details()
+
+            # Build formatted display text
+            display_text = "Selected Item Data:\n\n"
+            if item_info:
+                for field, value in item_info.items():
+                    if field in ['thumbnail', 'fanart', 'art'] and value:
                         display_text += f"{field}: [Image URL Present]\n"
-                    elif field == 'cast' and value:
-                        try:
-                            cast_data = json.loads(value)
-                            display_text += f"{field}: {len(cast_data)} cast members\n"
-                        except:
-                            display_text += f"{field}: [Invalid Cast Data]\n"
                     else:
                         display_text += f"{field}: {value}\n"
-                
-                dialog = xbmcgui.Dialog()
-                dialog.textviewer("Debug Data Inspection", display_text)
             else:
-                xbmcgui.Dialog().notification("Debug", "No movie data found", xbmcgui.NOTIFICATION_INFO)
+                display_text = "No item selected or no data available"
+
+            # Show text viewer dialog
+            dialog = xbmcgui.Dialog()
+            dialog.textviewer("Debug Data Inspection", display_text)
 
         elif action == "show_main_window":
             utils.log("Context menu 'LibraryGenie' clicked - showing main window", "DEBUG")
