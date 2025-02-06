@@ -66,12 +66,13 @@ class ListWindow(BaseWindow):
                     list_item.setProperty('title', title)
                     
                     # Set art dictionary for proper poster display
-                    poster = item.get('poster', '') or item.get('info', {}).get('poster', '')
+                    poster = item.get('poster', '') or item.get('thumbnail', '')
                     if poster:
                         list_item.setArt({
                             'poster': poster,
                             'thumb': poster,
-                            'icon': poster
+                            'icon': poster,
+                            'fanart': item.get('fanart', '')
                         })
 
                     # Process cast separately if it exists
