@@ -44,7 +44,7 @@ class ListItemBuilder:
         media_art = media_info.get('art', {})
         
         # Handle thumbnail first as it's critical for display
-        thumbnail = media_info.get('thumbnail', '')
+        thumbnail = media_info.get('thumbnail', '') or media_info.get('thumb', '') or media_art.get('thumb', '')
         if thumbnail:
             thumbnail = format_art(thumbnail)
             art['thumb'] = thumbnail
