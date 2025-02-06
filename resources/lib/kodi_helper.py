@@ -18,7 +18,7 @@ class KodiHelper:
         self.addon_url = sys.argv[0] if len(sys.argv) > 0 else ""
         self.jsonrpc = JSONRPC()
 
-    def list_items(self, items, content_type='video'):
+    def list_items(self, items, content_type='movies'):
         from resources.lib.listitem_builder import ListItemBuilder
 
         # Set content type for proper display
