@@ -30,44 +30,61 @@ class ListItemBuilder:
         art_dict = {}
         utils.log(f"Setting artwork for item: {media_info.get('title', 'Unknown')}", "DEBUG")
 
-        # Get poster from various possible locations
-        poster = None
-        poster_sources = [
-            media_info.get('info', {}).get('art', {}).get('poster'),
-            media_info.get('info', {}).get('thumbnail'),
-            media_info.get('thumbnail'),
-            media_info.get('info', {}).get('art', {}).get('thumb')
-        ]
-        
-        for source in poster_sources:
-            if source and str(source) != 'None':
-                poster = source
-                utils.log(f"Found valid poster: {poster}", "DEBUG")
-                break
+        # Set up initial art dictionary
+        art_dict = {}
+        poster = media_info.get('info', {}).get('thumbnail') or media_info.get('thumbnail')
+        fanart = media_info.get('info', {}).get('fanart') or media_info.get('fanart')
 
-        # Handle poster image protocol
+        # Handle poster image
         if poster:
-            if 'video@' in str(poster):
-                from urllib.parse import quote
-                clean_path = poster.replace('video@', '')
-                poster = f"image://{quote(clean_path)}/"
-            elif not poster.startswith('image://'):
+            if not poster.startswith('image://'):
                 from urllib.parse import quote
                 poster = f'image://{quote(poster)}/'
-            
+            art_dict['poster'] = poster
+            art_dict['thumb'] = poster
+            art_dict['icon'] = poster
+
+        # Handle fanart
+        if fanart:
+            if not fanart.startswith('image://'):
+                from urllib.parse import quote
+                fanart = f'image://{quote(fanart)}/'
+            art_dict['fanart'] = fanart
+
+        # Set initial art values if available
+        if poster:
+            art_dict['poster'] = poster
+            art_dict['thumb'] = poster
+            art_dict['icon'] = poster
+
+        if fanart:
+            art_dict['fanart'] = fanart
+
+        # Handle art dictionary with proper path validation
+        if poster and str(poster) != 'None':
             art_dict['poster'] = poster
             art_dict['thumb'] = poster
             art_dict['icon'] = poster
             utils.log(f"Setting poster paths: {poster}", "DEBUG")
 
-        # Handle fanart
-        fanart = media_info.get('info', {}).get('art', {}).get('fanart') or media_info.get('info', {}).get('fanart') or media_info.get('fanart')
         if fanart and str(fanart) != 'None':
-            if not fanart.startswith('image://'):
-                from urllib.parse import quote
-                fanart = f'image://{quote(fanart)}/'
             art_dict['fanart'] = fanart
             utils.log(f"Setting fanart path: {fanart}", "DEBUG")
+
+        # Handle video thumbnails
+        if poster and 'video@' in str(poster):
+            pass
+
+
+        if poster:
+            art_dict['thumb'] = poster
+            art_dict['poster'] = poster
+            art_dict['icon'] = poster
+
+        # Check both direct and nested fanart paths    
+        fanart = media_info.get('fanart') or media_info.get('info', {}).get('fanart')
+        if fanart:
+            art_dict['fanart'] = fanart
 
         list_item.setArt(art_dict)
 
@@ -89,15 +106,8 @@ class ListItemBuilder:
             'votes': info.get('votes', '0'),
             'writer': info.get('writer', ''),
             'year': info.get('year', ''),
-            'mediatype': 'movie'  # Force movie type
+            'mediatype': (info.get('media_type') or 'movie').lower()
         }
-        
-        # Set content type properties
-        list_item.setProperties({
-            'IsPlayable': 'true',
-            'IsMovie': 'true',
-            'DbType': 'movie'
-        })
 
         utils.log(f"Prepared info dictionary: {info_dict}", "DEBUG")
 
