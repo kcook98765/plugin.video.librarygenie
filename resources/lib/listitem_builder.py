@@ -45,14 +45,23 @@ class ListItemBuilder:
         art = {}
         media_art = media_info.get('art', {})
 
-        # For poster, try in this order: media_art['poster'] → media_art['thumb'] → media_info['thumbnail']
-        poster_url = media_art.get('poster') or media_art.get('thumb') or media_info.get('thumbnail', '')
-        poster_url = format_art(poster_url)
-        if poster_url:
-            art['poster'] = poster_url
-            art['thumb'] = poster_url
-            art['icon'] = poster_url
-            utils.log(f"Set poster URL: {poster_url}", "DEBUG")
+        # Handle all art types
+        art_mapping = {
+            'poster': ['poster', 'thumb', 'thumbnail'],
+            'thumb': ['thumb', 'poster', 'thumbnail'],
+            'banner': ['banner'],
+            'icon': ['icon', 'poster', 'thumb']
+        }
+
+        for art_type, sources in art_mapping.items():
+            for source in sources:
+                url = (media_art.get(source) or 
+                      media_info.get('art', {}).get(source) or 
+                      (media_info.get(source) if source == 'thumbnail' else None))
+                if url:
+                    art[art_type] = format_art(url)
+                    utils.log(f"Set {art_type} URL: {art[art_type]}", "DEBUG")
+                    break
             
         # Ensure thumbnail is properly formatted if different from poster
         thumbnail = media_info.get('thumbnail', '')
@@ -62,9 +71,12 @@ class ListItemBuilder:
             utils.log(f"Set additional thumbnail URL: {thumbnail}", "DEBUG")
 
         # For fanart, check both nested info and top-level
-        fanart_url = media_info.get('info', {}).get('fanart') or media_info.get('fanart')
-        fanart_url = format_art(fanart_url)
+        # Handle fanart from multiple possible locations
+        fanart_url = (media_info.get('info', {}).get('fanart') or 
+                     media_info.get('art', {}).get('fanart') or 
+                     media_info.get('fanart'))
         if fanart_url:
+            fanart_url = format_art(fanart_url)
             art['fanart'] = fanart_url
             utils.log(f"Set fanart URL: {fanart_url}", "DEBUG")
 
