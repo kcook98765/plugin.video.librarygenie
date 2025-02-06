@@ -82,6 +82,7 @@ class JSONRPC:
         art = details.get('art', {})
         poster = art.get('poster', '')
         utils.log(f"Using poster from art.poster: {poster}", "DEBUG")
+        details['poster'] = poster
         details['thumbnail'] = poster
 
         # Ensure we have art dictionary with all image types
