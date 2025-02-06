@@ -63,8 +63,7 @@ def run_addon():
             kodi_helper.list_folders_and_lists(root_folders, root_lists)
             return
 
-        # Handle context menu or other actions
-        elif action == "debug_inspect":
+        if action == "debug_inspect":
             import json
             db_manager = DatabaseManager(Config().db_path)
             kodi_helper = KodiHelper()
