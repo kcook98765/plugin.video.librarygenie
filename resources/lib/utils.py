@@ -19,9 +19,20 @@ def log(message, level=None):
         level = 'DEBUG'
     
     # Truncate cast information in logs
+    import re, json
     if isinstance(message, str):
-        import re
         message = re.sub(r'"cast":\s*\[[^\]]+\]', '"cast": "[TRUNCATED]"', message)
+    elif isinstance(message, dict) and 'cast' in message:
+        message = message.copy()
+        message['cast'] = '[TRUNCATED]'
+    try:
+        if isinstance(message, str):
+            data = json.loads(message)
+            if isinstance(data, dict) and 'cast' in data:
+                data['cast'] = '[TRUNCATED]'
+                message = json.dumps(data)
+    except:
+        pass
     
     # Always use INFO level but include original level in message
     xbmc.log(f"LibraryGenie [{level}]: {message}", xbmc.LOGINFO)
