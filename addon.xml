@@ -13,26 +13,16 @@
     </extension>
     <extension point="kodi.context.item">
       <menu id="kodi.core.main">
-        <item library="main.py" args="show_main_window">
-            <label>LibraryGenie</label>
+        <item>
+            <label>30000</label>
             <visible>true</visible>
+            <onclick>RunPlugin(plugin://plugin.video.librarygenie?action=show_main_window)</onclick>
         </item>
-      </menu>
-    </extension>
-    <extension point="kodi.context.item">
-      <menu id="kodi.core.main">
-        <menu>
-            <item>
-                <label>30000</label>
-                <visible>true</visible>
-                <onclick>RunPlugin(plugin://plugin.video.librarygenie?action=show_main_window)</onclick>
-            </item>
-            <item>
-                <label>Debug Inspect Data</label>
-                <visible>true</visible>
-                <onclick>RunPlugin(plugin://plugin.video.librarygenie?action=debug_inspect)</onclick>
-            </item>
-        </menu>
+        <item>
+            <label>Debug Inspect Data</label>
+            <visible>true</visible>
+            <onclick>RunPlugin(plugin://plugin.video.librarygenie?action=debug_inspect)</onclick>
+        </item>
       </menu>
     </extension>
 </addon>
