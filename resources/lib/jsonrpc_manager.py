@@ -82,9 +82,7 @@ class JSONRPC:
         art = details.get('art', {})
         poster = art.get('poster', '')
         utils.log(f"Using poster from art.poster: {poster}", "DEBUG")
-        # Store original poster URL without double encoding
         details['poster'] = poster
-        details['thumbnail'] = poster
         details['art'] = {
             'poster': poster,
             'thumb': poster,

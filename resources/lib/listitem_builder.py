@@ -32,28 +32,18 @@ class ListItemBuilder:
 
         # Set up initial art dictionary
         art_dict = {}
-        poster = media_info.get('poster') or media_info.get('art', {}).get('poster')
-        fanart = media_info.get('fanart') or media_info.get('art', {}).get('fanart')
+        poster = media_info.get('poster')
+        fanart = media_info.get('fanart')
 
-        # Handle poster image
-        if poster:
-            art_dict['poster'] = poster
-            art_dict['thumb'] = poster
-            art_dict['icon'] = poster
-
-        # Handle fanart
-        if fanart:
-            art_dict['fanart'] = fanart
-
-        if fanart:
-            art_dict['fanart'] = fanart
-
-        # Handle art dictionary with proper path validation
         if poster and str(poster) != 'None':
             art_dict['poster'] = poster
             art_dict['thumb'] = poster
             art_dict['icon'] = poster
             utils.log(f"Setting poster paths: {poster}", "DEBUG")
+
+        if fanart and str(fanart) != 'None':
+            art_dict['fanart'] = fanart
+            utils.log(f"Setting fanart path: {fanart}", "DEBUG")
 
         if fanart and str(fanart) != 'None':
             art_dict['fanart'] = fanart
