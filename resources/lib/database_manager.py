@@ -144,8 +144,7 @@ class DatabaseManager:
             WHERE parent_id IS ?
             ORDER BY name COLLATE NOCASE
         """
-        sql_oneline = ' '.join(query.split())
-        utils.log(f"SQL: {sql_oneline}", "DEBUG")
+        utils.log(f"Executing SQL: {query}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (parent_id,))
         rows = self.cursor.fetchall()
         return [{'id': row[0], 'name': row[1], 'parent_id': row[2]} for row in rows]
@@ -160,8 +159,7 @@ class DatabaseManager:
             WHERE folder_id IS ?
             ORDER BY name COLLATE NOCASE
         """
-        sql_oneline = ' '.join(query.split())
-        utils.log(f"SQL: {sql_oneline}", "DEBUG")
+        utils.log(f"Executing SQL: {query}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (folder_id,))
         rows = self.cursor.fetchall()
         return [{'id': row[0], 'name': row[1], 'folder_id': row[2]} for row in rows]
@@ -190,8 +188,7 @@ class DatabaseManager:
             INSERT INTO folders (name, parent_id)
             VALUES (?, ?)
         """
-        sql_oneline = ' '.join(query.split())
-        utils.log(f"SQL: {sql_oneline} with name={name}, parent_id={parent_id}", "DEBUG")
+        utils.log(f"Executing SQL: {query} with name={name}, parent_id={parent_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (name, parent_id))
         self.connection.commit()
 
@@ -201,8 +198,7 @@ class DatabaseManager:
             SET folder_id = ?
             WHERE id = ?
         """
-        sql_oneline = ' '.join(query.split())
-        utils.log(f"SQL: {sql_oneline} with list_id={list_id}, folder_id={folder_id}", "DEBUG")
+        utils.log(f"Executing SQL: {query} with list_id={list_id}, folder_id={folder_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (folder_id, list_id))
         self.connection.commit()
 
@@ -221,8 +217,7 @@ class DatabaseManager:
             )
             ORDER BY lists.name COLLATE NOCASE
         """
-        sql_oneline = ' '.join(query.split())
-        utils.log(f"SQL: {sql_oneline} with item_id={item_id}", "DEBUG")
+        utils.log(f"Executing SQL: {query} with item_id={item_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (item_id,))
         rows = self.cursor.fetchall()
         return [{'id': row[0], 'name': row[1], 'is_member': row[2]} for row in rows]
@@ -243,8 +238,7 @@ class DatabaseManager:
             )
             ORDER BY lists.folder_id, lists.name COLLATE NOCASE
         """
-        sql_oneline = ' '.join(query.split())
-        utils.log(f"SQL: {sql_oneline} with item_id={item_id}", "DEBUG")
+        utils.log(f"Executing SQL: {query} with item_id={item_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (item_id,))
         rows = self.cursor.fetchall()
         return [{'id': row[0], 'name': row[1], 'folder_id': row[2], 'is_member': row[3]} for row in rows]
@@ -257,17 +251,18 @@ class DatabaseManager:
             JOIN media_items ON list_items.media_item_id = media_items.id
             WHERE list_items.list_id = ?
         """
-        sql_oneline = ' '.join(query.split())
-        utils.log(f"SQL: {sql_oneline} with list_id={list_id}", "DEBUG")
+        utils.log(f"Executing SQL: {query} with list_id={list_id}", "DEBUG")
         try:
             self._execute_with_retry(self.cursor.execute, query, (list_id,))
             rows = self.cursor.fetchall()
+            utils.log(f"Fetched rows: {rows}", "DEBUG")  # Log the fetched rows
+
             items = []
             for row in rows:
                 try:
                     utils.log(f"Processing row ID: {row[0]}", "DEBUG")
                     info_dict = {}
-
+                    
                     for idx, field in enumerate(self.config.FIELDS):
                         field_name = field.split()[0]
                         if field_name != 'title':
@@ -280,7 +275,7 @@ class DatabaseManager:
                                     utils.log(f"Failed to parse cast data: {e}", "ERROR")
                                     value = []
                             info_dict[field_name] = value
-
+                            
                     item = {
                         'id': row[0],
                         'title': row[self.config.FIELDS.index('title TEXT') + 1],
@@ -309,14 +304,7 @@ class DatabaseManager:
     def insert_data(self, table, data):
         # Convert the cast list to a JSON string if it exists
         if 'cast' in data and isinstance(data['cast'], list):
-            data['cast'] = json.dumps(data['cast'][:10])
-        elif 'cast' in data and isinstance(data['cast'], str):
-            try:
-                cast_list = json.loads(data['cast'])
-                if isinstance(cast_list, list):
-                    data['cast'] = json.dumps(cast_list[:10])
-            except:
-                data['cast'] = '[]'
+            data['cast'] = json.dumps(data['cast'])
 
         truncated_data = self.truncate_data(data)
         utils.log(f"Final data for insertion: {truncated_data}", "DEBUG")  # Additional logging
@@ -338,9 +326,7 @@ class DatabaseManager:
             columns = ', '.join(media_data.keys())
             placeholders = ', '.join('?' for _ in media_data)
             query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
-            sql_oneline = ' '.join(query.split())
-            truncated_media_data = {k: str(v)[:50] + '...' if isinstance(v, str) and len(str(v)) > 50 else v for k, v in media_data.items()}
-            utils.log(f"SQL: {sql_oneline} data={truncated_media_data}", "DEBUG")
+            utils.log(f"Executing SQL: {query} with data={media_data}", "DEBUG")
             self._execute_with_retry(self.cursor.execute, query, tuple(media_data.values()))
             self.connection.commit()
 
@@ -350,8 +336,7 @@ class DatabaseManager:
                 FROM media_items
                 WHERE kodi_id = ? AND play = ?
             """
-            sql_oneline = ' '.join(query.split())
-            utils.log(f"SQL: {sql_oneline} with kodi_id={media_data.get('kodi_id')} and play={media_data.get('play')}", "DEBUG")
+            utils.log(f"Executing SQL: {query} with kodi_id={media_data.get('kodi_id')} and play={media_data.get('play')}", "DEBUG")
             self._execute_with_retry(self.cursor.execute, query, (media_data['kodi_id'], media_data['play']))
             media_item_id = self.cursor.fetchone()
             utils.log(f"Fetched media_item_id: {media_item_id}", "DEBUG")
@@ -366,8 +351,7 @@ class DatabaseManager:
                 columns = ', '.join(list_data.keys())
                 placeholders = ', '.join('?' for _ in list_data)
                 query = f'INSERT INTO {table} ({columns}) VALUES ({placeholders})'
-                sql_oneline = ' '.join(query.split())
-                utils.log(f"SQL: {sql_oneline} with data={list_data}", "DEBUG")
+                utils.log(f"Executing SQL: {query} with data={list_data}", "DEBUG")
                 self._execute_with_retry(self.cursor.execute, query, tuple(list_data.values()))
             else:
                 utils.log("No media_item_id found, insertion skipped", "ERROR")
@@ -375,9 +359,7 @@ class DatabaseManager:
             columns = ', '.join(data.keys())
             placeholders = ', '.join('?' for _ in data)
             query = f'INSERT INTO {table} ({columns}) VALUES ({placeholders})'
-            sql_oneline = ' '.join(query.split())
-            truncated_data = {k: str(v)[:50] + '...' if isinstance(v, str) and len(str(v)) > 50 else v for k, v in data.items()}
-            utils.log(f"SQL: {sql_oneline} data={truncated_data}", "DEBUG")
+            utils.log(f"Executing SQL: {query} with data={data}", "DEBUG")
             self._execute_with_retry(self.cursor.execute, query, tuple(data.values()))
 
         self.connection.commit()
@@ -397,17 +379,13 @@ class DatabaseManager:
         query = f"INSERT OR IGNORE INTO {table_name} ({columns}) VALUES ({placeholders})"
 
         # Execute the query with the data values
-        sql_oneline = ' '.join(query.split())
-        truncated_data = {k: str(v)[:50] + '...' if isinstance(v, str) and len(str(v)) > 50 else v for k, v in data.items()}
-        utils.log(f"SQL: {sql_oneline} data={truncated_data}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, tuple(data.values()))
         self.connection.commit()
 
     def update_data(self, table, data, condition):
         columns = ', '.join(f'{col} = ?' for col in data)
         query = f'UPDATE {table} SET {columns} WHERE {condition}'
-        sql_oneline = ' '.join(query.split())
-        utils.log(f"SQL: {sql_oneline} with data={data}", "DEBUG")
+        utils.log(f"Executing SQL: {query} with data={data}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, tuple(data.values()))
         self.connection.commit()
 
@@ -419,17 +397,17 @@ class DatabaseManager:
             self._execute_with_retry(self.cursor.execute, 
                 "DELETE FROM genie_lists WHERE list_id = ?", 
                 (list_id,))
-
+            
             # Delete from list_items
             self._execute_with_retry(self.cursor.execute,
                 "DELETE FROM list_items WHERE list_id = ?",
                 (list_id,))
-
+            
             # Finally delete the list itself
             self._execute_with_retry(self.cursor.execute,
                 "DELETE FROM lists WHERE id = ?",
                 (list_id,))
-
+            
             self.connection.commit()
         except Exception as e:
             self.connection.rollback()
@@ -437,15 +415,13 @@ class DatabaseManager:
 
     def delete_data(self, table, condition):
         query = f'DELETE FROM {table} WHERE {condition}'
-        sql_oneline = ' '.join(query.split())
-        utils.log(f"SQL: {sql_oneline}", "DEBUG")
+        utils.log(f"Executing SQL: {query}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query)
         self.connection.commit()
 
     def get_list_id_by_name(self, list_name):
         query = "SELECT id FROM lists WHERE name = ?"
-        sql_oneline = ' '.join(query.split())
-        utils.log(f"SQL: {sql_oneline} with list_name={list_name}", "DEBUG")
+        utils.log(f"Executing SQL: {query} with list_name={list_name}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (list_name,))
         row = self.cursor.fetchone()
         return row[0] if row else None
@@ -458,8 +434,7 @@ class DatabaseManager:
             JOIN media_items ON list_items.media_item_id = media_items.id
             WHERE media_items.kodi_id = ?
         """
-        sql_oneline = ' '.join(query.split())
-        utils.log(f"SQL: {sql_oneline} with item_id={item_id}", "DEBUG")
+        utils.log(f"Executing SQL: {query} with item_id={item_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (item_id,))
         rows = self.cursor.fetchall()
         return [row[0] for row in rows]
@@ -473,8 +448,7 @@ class DatabaseManager:
             FROM folders
             ORDER BY parent_id, name COLLATE NOCASE
         """
-        sql_oneline = ' '.join(query.split())
-        utils.log(f"SQL: {sql_oneline}", "DEBUG")
+        utils.log(f"Executing SQL: {query}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query)
         rows = self.cursor.fetchall()
         return [{'id': row[0], 'name': row[1], 'parent_id': row[2]} for row in rows]
@@ -488,8 +462,7 @@ class DatabaseManager:
             FROM lists
             ORDER BY folder_id, name COLLATE NOCASE
         """
-        sql_oneline = ' '.join(query.split())
-        utils.log(f"SQL: {sql_oneline}", "DEBUG")
+        utils.log(f"Executing SQL: {query}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query)
         rows = self.cursor.fetchall()
         return [{'id': row[0], 'name': row[1], 'folder_id': row[2]} for row in rows]
@@ -501,24 +474,21 @@ class DatabaseManager:
             JOIN media_items ON list_items.media_item_id = media_items.id
             WHERE list_items.list_id = ? AND media_items.title = ?
         """
-        sql_oneline = ' '.join(query.split())
-        utils.log(f"SQL: {sql_oneline} with list_id={list_id}, title={title}", "DEBUG")
+        utils.log(f"Executing SQL: {query} with list_id={list_id}, title={title}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (list_id, title))
         row = self.cursor.fetchone()
         return row[0] if row else None
 
     def get_folder_id_by_name(self, folder_name):
         query = "SELECT id FROM folders WHERE name = ?"
-        sql_oneline = ' '.join(query.split())
-        utils.log(f"SQL: {sql_oneline} with folder_name={folder_name}", "DEBUG")
+        utils.log(f"Executing SQL: {query} with folder_name={folder_name}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (folder_name,))
         row = self.cursor.fetchone()
         return row[0] if row else None
 
     def update_folder_name(self, folder_id, new_name):
         query = "UPDATE folders SET name = ? WHERE id = ?"
-        sql_oneline = ' '.join(query.split())
-        utils.log(f"SQL: {sql_oneline} with folder_id={folder_id}, new_name={new_name}", "DEBUG")
+        utils.log(f"Executing SQL: {query} with folder_id={folder_id}, new_name={new_name}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (new_name, folder_id))
         self.connection.commit()
 
@@ -564,11 +534,8 @@ class DatabaseManager:
         result = self.cursor.fetchone()
         return result[0] if result[0] is not None else 0
 
-    def update_folder_parent(self, folder_id, new_parent_id):
-        """Update a folder's parent ID"""
         query = "UPDATE folders SET parent_id = ? WHERE id = ?"
-        sql_oneline = ' '.join(query.split())
-        utils.log(f"SQL: {sql_oneline} with folder_id={folder_id}, new_parent_id={new_parent_id}", "DEBUG")
+        utils.log(f"Executing SQL: {query} with folder_id={folder_id}, new_parent_id={new_parent_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (new_parent_id, folder_id))
         self.connection.commit()
 
@@ -636,8 +603,7 @@ class DatabaseManager:
             )
             ORDER BY folders.name COLLATE NOCASE
         """
-        sql_oneline = ' '.join(query.split())
-        utils.log(f"SQL: {sql_oneline} with item_id={item_id}", "DEBUG")
+        utils.log(f"Executing SQL: {query} with item_id={item_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (item_id,))
         rows = self.cursor.fetchall()
         return [{'id': row[0], 'name': row[1], 'parent_id': row[2], 'is_member': row[3]} for row in rows]
@@ -647,8 +613,7 @@ class DatabaseManager:
             DELETE FROM list_items
             WHERE list_id = ? AND media_item_id = ?
         """
-        sql_oneline = ' '.join(query.split())
-        utils.log(f"SQL: {sql_oneline} with list_id={list_id}, media_item_id={media_item_id}", "DEBUG")
+        utils.log(f"Executing SQL: {query} with list_id={list_id}, media_item_id={media_item_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (list_id, media_item_id))
         self.connection.commit()
         utils.log(f"Media item ID {media_item_id} removed from list ID {list_id}", "DEBUG")
@@ -693,8 +658,7 @@ class DatabaseManager:
                 SELECT id FROM media_items WHERE source = 'genielist'
             )
         """
-        sql_oneline = ' '.join(query.split())
-        utils.log(f"SQL: {sql_oneline} with list_id={list_id}", "DEBUG")
+        utils.log(f"Removing GenieList entries for list_id={list_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (list_id,))
         self.connection.commit()
 
@@ -717,7 +681,7 @@ class DatabaseManager:
             data['writer'] = ','.join(data['writer']) if isinstance(data['writer'], list) else data['writer']
 
             if 'cast' in data and isinstance(data['cast'], list):
-                data['cast'] = json.dumps(data['cast'][:10])  # Limit to first 10 cast members
+                data['cast'] = json.dumps(data['cast'])
 
             self.insert_data('media_items', data)
             media_item_id = self.cursor.lastrowid
@@ -766,8 +730,6 @@ class DatabaseManager:
             INSERT INTO original_requests (description, response_json)
             VALUES (?, ?)
         """
-        sql_oneline = ' '.join(query.split())
-        utils.log(f"SQL: {sql_oneline} with description={description}, response_json={response_json}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (description, response_json))
         self.connection.commit()
         return self.cursor.lastrowid
@@ -777,8 +739,6 @@ class DatabaseManager:
             INSERT INTO parsed_movies (request_id, title, year, director)
             VALUES (?, ?, ?, ?)
         """
-        sql_oneline = ' '.join(query.split())
-        utils.log(f"SQL: {sql_oneline} with request_id={request_id}, title={title}, year={year}, director={director}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (request_id, title, year, director))
         self.connection.commit()
 

@@ -30,8 +30,8 @@ def get_kodi_version() -> int:
 
 def set_info_tag(listitem, infolabels, tag_type='video'):
     """Universal setter for InfoTag that works across Kodi versions"""
-    utils.log(f"Setting info tag for type {tag_type}", "DEBUG")
-
+    utils.log(f"Setting info tag for type {tag_type} with labels: {infolabels}", "DEBUG")
+    
     kodi_version = get_kodi_version()
     utils.log(f"Detected Kodi version: {kodi_version}", "DEBUG")
 
@@ -92,20 +92,12 @@ def set_info_tag(listitem, infolabels, tag_type='video'):
             except:
                 cast = []
         actors = []
-        idx = 0
-        for member in cast:
-            idx +=1
-            thumb = member.get('thumbnail', '')
-            # Ensure thumbnail is properly formatted
-            if thumb and not thumb.startswith('image://'):
-                thumb = format_art(thumb)
-            if idx < 3:  # Only log first 3 cast members
-                utils.log(f"Processing cast member thumbnail: {thumb}", "DEBUG")
+        for item in cast:
             actor = xbmc.Actor(
-                name=str(member.get('name', '')),
-                role=str(member.get('role', '')),
-                order=int(member.get('order', 0)),
-                thumbnail=str(thumb)
+                name=str(item.get('name', '')),
+                role=str(item.get('role', '')),
+                order=int(item.get('order', 0)),
+                thumbnail=str(item.get('thumbnail', ''))
             )
             actors.append(actor)
         info_tag.setCast(actors)

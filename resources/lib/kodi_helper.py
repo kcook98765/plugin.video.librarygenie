@@ -310,7 +310,7 @@ class KodiHelper:
             utils.log(f"Extracted details for media type: {media_type}", "INFO")
 
             # Parse cast details
-            cast_list = details.get('cast', [])[:10]  # Limit to first 10
+            cast_list = details.get('cast', [])
             cast = [{'name': actor.get('name'), 'role': actor.get('role'), 'order': actor.get('order'), 'thumbnail': actor.get('thumbnail')} for actor in cast_list]
             details['cast'] = cast
 
@@ -393,7 +393,7 @@ class KodiHelper:
         try:
             utils.log("Gathering cast information", "DEBUG")
             cast = []
-            for i in range(1, 11):  # Limit to 10 cast members
+            for i in range(1, 21):  # Assuming a maximum of 20 cast members
                 name = xbmc.getInfoLabel(f'ListItem.CastAndRole.{i}.Name')
                 if not name:
                     continue

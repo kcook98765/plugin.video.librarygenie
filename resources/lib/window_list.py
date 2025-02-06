@@ -65,15 +65,14 @@ class ListWindow(BaseWindow):
                     list_item.setProperty('media_item_id', str(item.get('id', 0)))
                     list_item.setProperty('title', title)
                     
-                    # Set art dictionary for proper image display
-                    art = {}
-                    if item.get('thumbnail'):
-                        art['poster'] = format_art(item['thumbnail'])
-                        art['thumb'] = format_art(item['thumbnail'])
-                        art['icon'] = format_art(item['thumbnail'])
-                    if item.get('fanart'):
-                        art['fanart'] = format_art(item['fanart'])
-                    list_item.setArt(art)
+                    # Set art dictionary for proper poster display
+                    thumbnail = item.get('info', {}).get('thumbnail', '')
+                    if thumbnail:
+                        list_item.setArt({
+                            'poster': thumbnail,
+                            'thumb': thumbnail,
+                            'icon': thumbnail
+                        })
 
                     # Process cast separately if it exists
                     cast = item.get('cast')

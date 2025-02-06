@@ -38,19 +38,8 @@ class JSONRPC:
 
     def fetch_movies_from_rpc(self, rpc):
         try:
-            # Ensure art properties are requested
-            if 'properties' not in rpc:
-                rpc['properties'] = []
-            if 'art' not in rpc['properties']:
-                rpc['properties'].append('art')
-
             result = self.execute("VideoLibrary.GetMovies", rpc)
-            response_data = json.loads(result)
-            movies = response_data.get('result', {}).get('movies', [])
-            response_preview = str(result)[:100] + '...' if len(str(result)) > 100 else str(result)
-            utils.log(f"RPC Response: {response_preview}", "DEBUG")
-            utils.log(f"Movies found: {len(movies)}", "INFO")
-
+            utils.log(f"Fetch result: {json.dumps(result, indent=2)}", "DEBUG")
 
             if 'error' in result:
                 error_msg = result['error'].get('message', 'Unknown error')
@@ -132,7 +121,7 @@ class JSONRPC:
         }
 
         # Parse cast details
-        cast_list = details.get('cast', [])[:10]  # Limit to first 10
+        cast_list = details.get('cast', [])
         cast = [{'name': actor.get('name'), 'role': actor.get('role'), 'order': actor.get('order'), 'thumbnail': actor.get('thumbnail')} for actor in cast_list]
         details['cast'] = cast
 
