@@ -30,7 +30,7 @@ def get_kodi_version() -> int:
 
 def set_info_tag(listitem, infolabels, tag_type='video'):
     """Universal setter for InfoTag that works across Kodi versions"""
-    utils.log(f"Setting info tag for type {tag_type} with labels: {infolabels}", "DEBUG")
+    utils.log(f"Setting info tag for type {tag_type}", "DEBUG")
     
     kodi_version = get_kodi_version()
     utils.log(f"Detected Kodi version: {kodi_version}", "DEBUG")

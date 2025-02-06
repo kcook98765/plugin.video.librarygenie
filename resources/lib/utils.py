@@ -17,8 +17,16 @@ def log(message, level=None):
     """
     if level is None:
         level = 'DEBUG'
+        
+    # Truncate long messages
+    if isinstance(message, str):
+        if 'RPC response:' in message:
+            message = message[:100] + '...' if len(message) > 100 else message
+        elif 'SQL:' in message:
+            # Keep SQL queries on one line
+            message = ' '.join(message.split())
     
-    # Always use INFO level but include original level in message
+    # Always use INFO level but include original level in message  
     xbmc.log(f"LibraryGenie [{level}]: {message}", xbmc.LOGINFO)
 import xbmcgui
 
