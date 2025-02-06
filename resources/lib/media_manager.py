@@ -42,12 +42,16 @@ class MediaManager:
                 utils.log(f"Full art dictionary contents: {art_dict}", "DEBUG")
                 utils.log(f"Raw art data before extraction: {details.get('art')}", "DEBUG")
 
+                # Ensure we have the poster URL from art dictionary
+                art_dict = details.get('art', {})
+                poster_url = art_dict.get('poster', '')
+                
                 media_info = {
                     'kodi_id': kodi_id,
                     'title': details.get('title', ''),
-                    'poster': details.get('art', {}).get('poster', ''),
-                    'art': details.get('art', {}),  # Store complete art dictionary
-                    'thumbnail': details.get('art', {}).get('poster', ''),
+                    'poster': poster_url,  # Set poster directly from art dictionary
+                    'art': art_dict,  # Store complete art dictionary
+                    'thumbnail': poster_url,  # Use same poster URL
                     'year': details.get('year', ''),
                     'plot': details.get('plot', ''),
                     'genre': ' / '.join(details.get('genre', [])),
@@ -55,8 +59,7 @@ class MediaManager:
                     'cast': json.dumps(cast),
                     'rating': details.get('rating', ''),
                     'file': details.get('file', ''),
-                    'thumbnail': poster_url,  # Use same poster URL 
-                    'fanart': details.get('art', {}).get('fanart', ''),
+                    'fanart': art_dict.get('fanart', ''),
                     'duration': details.get('runtime', ''),
                     'type': media_type
                 }
