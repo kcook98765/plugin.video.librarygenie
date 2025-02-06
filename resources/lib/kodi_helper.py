@@ -295,7 +295,7 @@ class KodiHelper:
                     'title', 'genre', 'year', 'director', 'cast', 'plot', 'rating',
                     'file', 'thumbnail', 'fanart', 'runtime', 'tagline',
                     'writer', 'imdbnumber', 'premiered', 'mpaa', 'trailer', "votes",
-                    "country", "dateadded", "studio"
+                    "country", "dateadded", "studio", "art"
                 ]
             }
             if method == 'VideoLibrary.GetMovieDetails':
