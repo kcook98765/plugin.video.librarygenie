@@ -82,6 +82,9 @@ class JSONRPC:
         art = details.get('art', {})
         poster = art.get('poster', '')
         utils.log(f"Using poster from art.poster: {poster}", "DEBUG")
+        if not poster.startswith('image://'):
+            from urllib.parse import quote
+            poster = f'image://{quote(poster)}/'
         # Ensure poster is saved in all needed locations
         details['poster'] = poster
         details['thumbnail'] = poster
