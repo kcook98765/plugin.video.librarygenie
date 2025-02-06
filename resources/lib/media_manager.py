@@ -37,14 +37,17 @@ class MediaManager:
 
                 # Get art dictionary once
                 art_dict = details.get('art', {})
+                poster_url = art_dict.get('poster', '')
                 utils.log(f"Got art dictionary: {art_dict}", "DEBUG")
+                utils.log(f"Extracted poster URL: {poster_url}", "DEBUG")
+                utils.log(f"Full art keys available: {list(art_dict.keys())}", "DEBUG")
                 
                 media_info = {
                     'kodi_id': kodi_id,
                     'title': details.get('title', ''),
-                    'poster': art_dict.get('poster', ''),
-                    'art': art_dict,
-                    'thumbnail': art_dict.get('thumb', art_dict.get('poster', '')),
+                    'poster': poster_url,
+                    'art': art_dict.copy(),  # Make a copy to prevent reference issues
+                    'thumbnail': art_dict.get('thumb', poster_url),
                     'year': details.get('year', ''),
                     'plot': details.get('plot', ''),
                     'genre': ' / '.join(details.get('genre', [])),

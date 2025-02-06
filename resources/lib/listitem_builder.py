@@ -29,7 +29,9 @@ class ListItemBuilder:
         # Set artwork
         art_dict = media_info.get('art', {}).copy()  # Start with stored art dictionary
         utils.log(f"Setting artwork for item: {media_info.get('title', 'Unknown')}", "DEBUG")
+        utils.log(f"Initial art dictionary type: {type(art_dict)}", "DEBUG")
         utils.log(f"Initial art dictionary: {art_dict}", "DEBUG")
+        utils.log(f"Available art keys: {list(art_dict.keys()) if isinstance(art_dict, dict) else 'Not a dictionary'}", "DEBUG")
         
         # Get poster URL from multiple possible locations with detailed logging
         utils.log(f"Attempting to get poster URL - Direct poster: {media_info.get('poster')}", "DEBUG")
