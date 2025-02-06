@@ -46,13 +46,14 @@ class ListItemBuilder:
 
         # Set up initial art dictionary
         art_dict = {}
-        poster = media_info.get('poster')
+        poster = media_info.get('poster') or media_info.get('thumbnail')
         fanart = media_info.get('fanart')
 
         if poster and str(poster) != 'None':
             art_dict['poster'] = poster
             art_dict['thumb'] = poster
             art_dict['icon'] = poster
+            utils.log(f"Setting art with poster: {poster}", "DEBUG")
             utils.log(f"Setting poster paths: {poster}", "DEBUG")
 
         if fanart and str(fanart) != 'None':
