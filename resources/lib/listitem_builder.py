@@ -35,23 +35,14 @@ class ListItemBuilder:
         poster = media_info.get('info', {}).get('thumbnail') or media_info.get('thumbnail')
         fanart = media_info.get('info', {}).get('fanart') or media_info.get('fanart')
 
-        # Handle poster and banner images separately
-        poster = media_info.get('info', {}).get('poster') or media_info.get('poster')
-        banner = media_info.get('info', {}).get('banner') or media_info.get('banner')
-        thumbnail = media_info.get('info', {}).get('thumbnail') or media_info.get('thumbnail')
-
+        # Handle poster image
         if poster:
             if not poster.startswith('image://'):
                 from urllib.parse import quote
                 poster = f'image://{quote(poster)}/'
             art_dict['poster'] = poster
-            art_dict['thumb'] = thumbnail or poster
-
-        if banner:
-            if not banner.startswith('image://'):
-                from urllib.parse import quote
-                banner = f'image://{quote(banner)}/'
-            art_dict['banner'] = banner
+            art_dict['thumb'] = poster
+            art_dict['icon'] = poster
 
         # Handle fanart
         if fanart:
