@@ -13,15 +13,13 @@
     </extension>
     <extension point="kodi.context.item">
       <menu id="kodi.core.main">
-        <item>
-            <label>30000</label>
+        <item library="main.py" args="show_main_window">
+            <label>LibraryGenie</label>
             <visible>true</visible>
-            <onclick>RunPlugin(plugin://plugin.video.librarygenie?action=show_main_window)</onclick>
         </item>
-        <item>
+            <item library="main.py" args="debug_inspect">
             <label>Debug Inspect Data</label>
             <visible>true</visible>
-            <onclick>RunPlugin(plugin://plugin.video.librarygenie?action=debug_inspect)</onclick>
         </item>
       </menu>
     </extension>
