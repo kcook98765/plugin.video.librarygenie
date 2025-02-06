@@ -32,9 +32,9 @@ class ListItemBuilder:
 
         # Set up initial art dictionary
         art_dict = {}
-        poster = media_info.get('info', {}).get('poster') or media_info.get('poster')
-        thumbnail = media_info.get('info', {}).get('thumbnail') or media_info.get('thumbnail')
-        fanart = media_info.get('info', {}).get('fanart') or media_info.get('fanart')
+        poster = media_info.get('poster') or media_info.get('art', {}).get('poster') or media_info.get('thumbnail')
+        thumbnail = media_info.get('thumbnail') or poster
+        fanart = media_info.get('fanart') or media_info.get('art', {}).get('fanart')
 
         # Handle poster image
         if poster:
