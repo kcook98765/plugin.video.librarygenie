@@ -35,23 +35,16 @@ class MediaManager:
                         'order': actor.get('order'), 'thumbnail': actor.get('thumbnail')} 
                        for actor in cast_list]
 
-                # Get poster URL from art dictionary
+                # Get art dictionary once
                 art_dict = details.get('art', {})
-                poster_url = art_dict.get('poster', '')
-                utils.log(f"Got poster URL from art dictionary: {poster_url}", "DEBUG")
-                utils.log(f"Full art dictionary contents: {art_dict}", "DEBUG")
-                utils.log(f"Raw art data before extraction: {details.get('art')}", "DEBUG")
-
-                # Ensure we have the poster URL from art dictionary
-                art_dict = details.get('art', {})
-                poster_url = art_dict.get('poster', '')
+                utils.log(f"Got art dictionary: {art_dict}", "DEBUG")
                 
                 media_info = {
                     'kodi_id': kodi_id,
                     'title': details.get('title', ''),
-                    'poster': poster_url,  # Set poster directly from art dictionary
-                    'art': art_dict,  # Store complete art dictionary
-                    'thumbnail': poster_url,  # Use same poster URL
+                    'poster': art_dict.get('poster', ''),
+                    'art': art_dict,
+                    'thumbnail': art_dict.get('thumb', art_dict.get('poster', '')),
                     'year': details.get('year', ''),
                     'plot': details.get('plot', ''),
                     'genre': ' / '.join(details.get('genre', [])),
