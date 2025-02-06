@@ -16,8 +16,14 @@ class MediaManager:
             'cast': self.get_cast_info(),
             'rating': xbmc.getInfoLabel('ListItem.Rating'),
             'file': xbmc.getInfoLabel('ListItem.FileNameAndPath'),
-            'thumbnail': xbmc.getInfoLabel('ListItem.Art(poster)'),
+            'thumbnail': xbmc.getInfoLabel('ListItem.Art(thumb)') or xbmc.getInfoLabel('ListItem.Art(poster)'),
             'fanart': xbmc.getInfoLabel('ListItem.Art(fanart)'),
+            'art': {
+                'poster': xbmc.getInfoLabel('ListItem.Art(poster)'),
+                'thumb': xbmc.getInfoLabel('ListItem.Art(thumb)'),
+                'fanart': xbmc.getInfoLabel('ListItem.Art(fanart)'),
+                'banner': xbmc.getInfoLabel('ListItem.Art(banner)')
+            },
             'duration': xbmc.getInfoLabel('ListItem.Duration'),
             'type': media_type
         }

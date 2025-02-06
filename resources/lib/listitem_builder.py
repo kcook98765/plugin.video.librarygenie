@@ -8,21 +8,19 @@ from resources.lib.listitem_infotagvideo import set_info_tag
 
 
 def format_art(url):
-    """
-    Ensures that a given URL is properly wrapped for Kodi if needed.
-    If the URL is empty or already starts with "image://", it is returned unchanged.
-    Otherwise, it is wrapped with "image://" and a trailing slash.
-    """
+    """Format art URLs for Kodi display"""
     if not url:
         return ''
-    if not url.startswith('image://'):
-        return f'image://{quote(url)}/'
-    return url
+    if url.startswith('image://'):
+        return url
+    if url.startswith('smb://'):
+        return f'image://video@{quote(url)}/'
+    return f'image://{quote(url)}/'
 
 
 class ListItemBuilder:
     KODI_VERSION = None
-    
+
     @staticmethod
     def get_kodi_version():
         if ListItemBuilder.KODI_VERSION is None:
@@ -44,27 +42,69 @@ class ListItemBuilder:
         # --- Artwork Handling ---
         art = {}
         media_art = media_info.get('art', {})
-
-        # For poster, try in this order: media_art['poster'] → media_art['thumb'] → media_info['thumbnail']
-        poster_url = media_art.get('poster') or media_art.get('thumb') or media_info.get('thumbnail', '')
-        poster_url = format_art(poster_url)
-        if poster_url:
-            art['poster'] = poster_url
-            art['thumb'] = poster_url
-            art['icon'] = poster_url
-            utils.log(f"Set poster URL: {poster_url}", "DEBUG")
-            
-        # Ensure thumbnail is properly formatted if different from poster
-        thumbnail = media_info.get('thumbnail', '')
-        if thumbnail and thumbnail != poster_url:
+        
+        # Get primary thumbnail/poster
+        thumbnail = media_info.get('thumbnail')
+        if thumbnail:
             thumbnail = format_art(thumbnail)
             art['thumb'] = thumbnail
-            utils.log(f"Set additional thumbnail URL: {thumbnail}", "DEBUG")
+            art['poster'] = thumbnail
+        
+        # Get fanart
+        fanart = media_info.get('fanart')
+        if fanart:
+            fanart = format_art(fanart)
+            art['fanart'] = fanart
+            
+        # Map all other art types
+        art_mapping = {
+            'poster': ['poster', 'thumb', 'thumbnail'],
+            'thumb': ['thumb', 'poster', 'thumbnail'], 
+            'banner': ['banner'],
+            'icon': ['icon', 'poster', 'thumb'],
+            'clearart': ['clearart'],
+            'clearlogo': ['clearlogo'],
+            'landscape': ['landscape']
+        }
+
+        # Ensure URLs are properly formatted for Kodi 21
+        for art_type, sources in art_mapping.items():
+            if art_type not in art:  # Don't override if already set
+                for source in sources:
+                    url = None
+                    # Check media_art first
+                    if source in media_art:
+                        url = media_art[source]
+                    # Then check top-level media_info
+                    elif source in media_info:
+                        url = media_info[source]
+                    
+                    if url:
+                        formatted_url = format_art(url)
+                        art[art_type] = formatted_url
+                        utils.log(f"Set {art_type} URL: {formatted_url}", "DEBUG")
+                        break
+                
+            if art_type not in art:
+                art[art_type] = ''
+
+        # Ensure thumbnail is properly formatted if different from poster
+        thumbnail = media_info.get('thumbnail', '')
+        if thumbnail:
+            thumbnail = format_art(thumbnail)
+            if not art.get('thumb'):
+                art['thumb'] = thumbnail
+            if not art.get('poster'):
+                art['poster'] = thumbnail
+            utils.log(f"Set thumbnail URL: {thumbnail}", "DEBUG")
 
         # For fanart, check both nested info and top-level
-        fanart_url = media_info.get('info', {}).get('fanart') or media_info.get('fanart')
-        fanart_url = format_art(fanart_url)
+        # Handle fanart from multiple possible locations
+        fanart_url = (media_info.get('info', {}).get('fanart') or 
+                     media_info.get('art', {}).get('fanart') or 
+                     media_info.get('fanart'))
         if fanart_url:
+            fanart_url = format_art(fanart_url)
             art['fanart'] = fanart_url
             utils.log(f"Set fanart URL: {fanart_url}", "DEBUG")
 
