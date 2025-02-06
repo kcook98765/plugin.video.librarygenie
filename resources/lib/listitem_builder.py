@@ -38,17 +38,12 @@ class ListItemBuilder:
 
         # Handle poster image
         if poster:
+            if not poster.startswith('image://'):
+                from urllib.parse import quote
+                poster = f'image://{quote(poster)}/'
             art_dict['poster'] = poster
             art_dict['thumb'] = poster
             art_dict['icon'] = poster
-        
-        # Handle thumbnail
-        if thumbnail:
-            if not thumbnail.startswith('image://'):
-                from urllib.parse import quote
-                thumbnail = f'image://{quote(thumbnail)}/'
-            art_dict['thumb'] = thumbnail
-            art_dict['icon'] = thumbnail
 
         # Handle fanart
         if fanart:
