@@ -267,13 +267,13 @@ class DatabaseManager:
                         field_name = field.split()[0]
                         if field_name != 'title':
                             value = row[idx + 1]
-                            if field_name == 'cast' and value:
+                            if field_name in ['cast', 'art'] and value:
                                 try:
                                     value = json.loads(value)
-                                    utils.log(f"Parsed cast data for {row[0]}", "DEBUG")
+                                    utils.log(f"Parsed {field_name} data for {row[0]}", "DEBUG")
                                 except json.JSONDecodeError as e:
-                                    utils.log(f"Failed to parse cast data: {e}", "ERROR")
-                                    value = []
+                                    utils.log(f"Failed to parse {field_name} data: {e}", "ERROR")
+                                    value = {} if field_name == 'art' else []
                             info_dict[field_name] = value
                             
                     item = {

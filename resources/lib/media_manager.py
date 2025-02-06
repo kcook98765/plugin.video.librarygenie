@@ -39,12 +39,19 @@ class MediaManager:
                 art_dict = details.get('art', {})
                 poster_url = art_dict.get('poster', '')
                 
+                # Ensure art dictionary has all required fields
+                art_dict = {
+                    'poster': poster_url,
+                    'thumb': poster_url,
+                    'icon': poster_url,
+                    'fanart': art_dict.get('fanart', '')
+                }
+                
                 media_info = {
                     'kodi_id': kodi_id,
                     'title': details.get('title', ''),
-                    'poster': poster_url,  # Store poster URL directly
-                    'art': art_dict.copy(),  # Store art dictionary as a copy
-                    'thumbnail': art_dict.get('thumb', poster_url),
+                    'art': json.dumps(art_dict),  # Store art as JSON string
+                    'thumbnail': poster_url,  # Keep thumbnail for compatibility
                     'year': details.get('year', ''),
                     'plot': details.get('plot', ''),
                     'genre': ' / '.join(details.get('genre', [])),
