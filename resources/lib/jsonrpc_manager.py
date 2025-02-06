@@ -78,39 +78,11 @@ class JSONRPC:
         response = self.execute(method, params)
         details = response.get('result', {}).get('moviedetails', {})
 
-        # Get proper poster from art dictionary
+        # Get poster from art dictionary
         art = details.get('art', {})
-        utils.log(f"Available art types for movie {movie_id}: {art.keys()}", "DEBUG")
-
-        # Try all possible poster sources in priority order
-        poster = None
-        poster_sources = [
-            ('art.poster', art.get('poster')),
-            ('art.thumb', art.get('thumb')),
-            ('art.landscape', art.get('landscape')),
-            ('details.thumbnail', details.get('thumbnail'))
-        ]
-
-        for source_name, source_value in poster_sources:
-            if source_value:
-                utils.log(f"Found poster from {source_name}: {source_value}", "DEBUG")
-                poster = source_value
-                break
-            else:
-                utils.log(f"No poster found in {source_name}", "DEBUG")
-
-        if poster:
-            utils.log(f"Using poster from source: {poster}", "DEBUG")
-            # Handle image protocol conversion
-            if poster.startswith('image://'):
-                details['thumbnail'] = poster
-            elif poster.startswith('video@'):
-                details['thumbnail'] = f"image://{poster.replace('video@', '')}"
-            elif poster.startswith('http'):
-                from urllib.parse import quote
-                details['thumbnail'] = f"image://{quote(poster)}/"
-            else:
-                details['thumbnail'] = f"image://{poster}/"
+        poster = art.get('poster', '')
+        utils.log(f"Using poster from art.poster: {poster}", "DEBUG")
+        details['thumbnail'] = poster
 
         # Ensure we have art dictionary with all image types
         details['art'] = {
