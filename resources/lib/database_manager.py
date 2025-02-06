@@ -707,7 +707,7 @@ class DatabaseManager:
             list_item_data = {'list_id': list_id, 'media_item_id': media_item_id}
             self.insert_data('list_items', list_item_data)
 
-    def get_list_media_count(self, listid):
+    def get_list_media_count(self, list_id):
         query = """
             SELECT COUNT(*)
             FROM list_items
