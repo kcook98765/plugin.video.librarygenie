@@ -80,7 +80,7 @@ class ListItemBuilder:
 
         # Handle video thumbnails
         if poster and 'video@' in str(poster):
-            pass
+            art_dict['poster'] = art_dict.get('art', {}).get('poster', '')
 
 
         if poster:
