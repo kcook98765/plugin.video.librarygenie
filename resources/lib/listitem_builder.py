@@ -8,10 +8,12 @@ from resources.lib.listitem_infotagvideo import set_info_tag
 
 
 def format_art(url):
-    """
-    Temporarily modified to return URL unchanged for testing
-    """
-    return url
+    """Format art URLs for Kodi display"""
+    if not url:
+        return ''
+    if url.startswith('image://'):
+        return url
+    return f'image://{quote(url)}/'
 
 
 class ListItemBuilder:
@@ -44,7 +46,10 @@ class ListItemBuilder:
             'poster': ['poster', 'thumb', 'thumbnail'],
             'thumb': ['thumb', 'poster', 'thumbnail'],
             'banner': ['banner'],
-            'icon': ['icon', 'poster', 'thumb']
+            'icon': ['icon', 'poster', 'thumb'],
+            'clearart': ['clearart'],
+            'clearlogo': ['clearlogo'],
+            'landscape': ['landscape', 'fanart']
         }
 
         for art_type, sources in art_mapping.items():
