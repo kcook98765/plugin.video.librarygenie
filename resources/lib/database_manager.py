@@ -308,9 +308,18 @@ class DatabaseManager:
 
         truncated_data = self.truncate_data(data)
         utils.log(f"Final data for insertion: {truncated_data}", "DEBUG")
-        utils.log(f"POSTER DEBUG - Raw art before insert: {data.get('art', {})}", "DEBUG")
-        utils.log(f"POSTER DEBUG - Raw poster before insert: {data.get('poster')}", "DEBUG")
-        utils.log(f"POSTER DEBUG - Raw thumbnail before insert: {data.get('thumbnail')}", "DEBUG")
+        utils.log(f"POSTER TRACE - DB insert raw art: {data.get('art', {})}", "DEBUG")
+        utils.log(f"POSTER TRACE - DB insert raw poster: {data.get('poster')}", "DEBUG")
+        utils.log(f"POSTER TRACE - DB insert raw thumbnail: {data.get('thumbnail')}", "DEBUG")
+        
+        # Additional poster tracing
+        if isinstance(data.get('art'), str):
+            try:
+                art_dict = json.loads(data['art'])
+                utils.log(f"POSTER TRACE - DB insert parsed art dict: {art_dict}", "DEBUG")
+                utils.log(f"POSTER TRACE - DB insert art poster: {art_dict.get('poster')}", "DEBUG")
+            except json.JSONDecodeError as e:
+                utils.log(f"POSTER TRACE - DB insert art parse error: {str(e)}", "DEBUG")
 
         if table == 'list_items':
             # Extract field names from self.config.FIELDS

@@ -35,9 +35,16 @@ class MediaManager:
                         'order': actor.get('order'), 'thumbnail': actor.get('thumbnail')} 
                        for actor in cast_list]
 
-                # Get art dictionary once
+                # Get art dictionary with detailed logging
                 art_dict = details.get('art', {})
+                utils.log(f"POSTER TRACE - MediaManager initial art dict: {art_dict}", "DEBUG")
+                
                 poster_url = art_dict.get('poster', '')
+                utils.log(f"POSTER TRACE - MediaManager initial poster URL: {poster_url}", "DEBUG")
+                
+                if not poster_url:
+                    poster_url = details.get('thumbnail', '')
+                    utils.log(f"POSTER TRACE - MediaManager fallback to thumbnail: {poster_url}", "DEBUG")
                 
                 # Ensure art dictionary has all required fields
                 art_dict = {
@@ -46,6 +53,7 @@ class MediaManager:
                     'icon': poster_url,
                     'fanart': art_dict.get('fanart', '')
                 }
+                utils.log(f"POSTER TRACE - MediaManager final art dict: {art_dict}", "DEBUG")
                 
                 media_info = {
                     'kodi_id': kodi_id,

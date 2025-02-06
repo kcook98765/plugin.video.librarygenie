@@ -80,11 +80,19 @@ class JSONRPC:
 
         # Get poster from art dictionary with detailed logging
         art = details.get('art', {})
+        utils.log(f"POSTER TRACE - JSONRPC raw response art dict: {art}", "DEBUG")
+        utils.log(f"POSTER TRACE - JSONRPC raw response details: {details}", "DEBUG")
+        
         poster = art.get('poster', '')
-        utils.log(f"Raw art dictionary from RPC: {art}", "DEBUG")
-        utils.log(f"Available art types: {list(art.keys())}", "DEBUG") 
-        utils.log(f"Selected poster URL: {poster}", "DEBUG")
-        utils.log(f"Thumbnail from details: {details.get('thumbnail')}", "DEBUG")
+        utils.log(f"POSTER TRACE - JSONRPC initial poster from art: {poster}", "DEBUG")
+        
+        if not poster:
+            poster = details.get('thumbnail', '')
+            utils.log(f"POSTER TRACE - JSONRPC fallback to thumbnail: {poster}", "DEBUG")
+            
+        utils.log(f"POSTER TRACE - JSONRPC available art types: {list(art.keys())}", "DEBUG")
+        utils.log(f"POSTER TRACE - JSONRPC final selected poster: {poster}", "DEBUG")
+        utils.log(f"POSTER TRACE - JSONRPC thumbnail path: {details.get('thumbnail')}", "DEBUG")
         details['poster'] = poster
         details['art'] = {
             'poster': poster,
