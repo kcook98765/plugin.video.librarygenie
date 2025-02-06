@@ -56,7 +56,10 @@ class ListItemBuilder:
                 utils.log(f"Error getting poster URL: {str(e)}", "ERROR")
                 continue
 
-        utils.log(f"Selected poster URL: {poster_url}", "DEBUG")
+        utils.log(f"LISTITEM POSTER 1 - Found URL: {poster_url}", "DEBUG")
+        utils.log(f"LISTITEM POSTER 2 - Full media info: {media_info}", "DEBUG")
+        utils.log(f"LISTITEM POSTER 3 - Art dict content: {art_dict}", "DEBUG")
+        utils.log(f"LISTITEM POSTER 4 - Info dict art: {media_info.get('info', {}).get('art')}", "DEBUG")
         
         if poster_url:
             utils.log(f"Final selected poster URL: {poster_url}", "DEBUG")

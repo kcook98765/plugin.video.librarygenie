@@ -307,7 +307,10 @@ class DatabaseManager:
             data['cast'] = json.dumps(data['cast'])
 
         truncated_data = self.truncate_data(data)
-        utils.log(f"Final data for insertion: {truncated_data}", "DEBUG")  # Additional logging
+        utils.log(f"Final data for insertion: {truncated_data}", "DEBUG")
+        utils.log(f"POSTER DEBUG - Raw art before insert: {data.get('art', {})}", "DEBUG")
+        utils.log(f"POSTER DEBUG - Raw poster before insert: {data.get('poster')}", "DEBUG")
+        utils.log(f"POSTER DEBUG - Raw thumbnail before insert: {data.get('thumbnail')}", "DEBUG")
 
         if table == 'list_items':
             # Extract field names from self.config.FIELDS
