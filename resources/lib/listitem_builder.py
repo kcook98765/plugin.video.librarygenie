@@ -30,7 +30,12 @@ class ListItemBuilder:
         art_dict = {}
         utils.log(f"Setting artwork for item: {media_info.get('title', 'Unknown')}", "DEBUG")
         
-        # Get poster URL from multiple possible locations
+        # Get poster URL from multiple possible locations with detailed logging
+        utils.log(f"Attempting to get poster URL - Direct poster: {media_info.get('poster')}", "DEBUG")
+        utils.log(f"Art dictionary: {media_info.get('art', {})}", "DEBUG")
+        utils.log(f"Info dictionary poster: {media_info.get('info', {}).get('poster')}", "DEBUG")
+        utils.log(f"Thumbnail: {media_info.get('thumbnail')}", "DEBUG")
+        
         poster_url = (
             media_info.get('poster') or  # Direct poster field
             media_info.get('art', {}).get('poster') or  # Art dictionary
@@ -39,7 +44,9 @@ class ListItemBuilder:
         )
         
         if poster_url:
-            utils.log(f"Using poster URL: {poster_url}", "DEBUG")
+            utils.log(f"Final selected poster URL: {poster_url}", "DEBUG")
+        else:
+            utils.log("WARNING: No poster URL found from any source", "WARNING")
             art_dict['poster'] = poster_url
             art_dict['thumb'] = poster_url
             art_dict['icon'] = poster_url

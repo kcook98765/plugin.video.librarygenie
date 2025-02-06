@@ -78,10 +78,13 @@ class JSONRPC:
         response = self.execute(method, params)
         details = response.get('result', {}).get('moviedetails', {})
 
-        # Get poster from art dictionary
+        # Get poster from art dictionary with detailed logging
         art = details.get('art', {})
         poster = art.get('poster', '')
-        utils.log(f"Using poster from art.poster: {poster}", "DEBUG")
+        utils.log(f"Raw art dictionary from RPC: {art}", "DEBUG")
+        utils.log(f"Available art types: {list(art.keys())}", "DEBUG") 
+        utils.log(f"Selected poster URL: {poster}", "DEBUG")
+        utils.log(f"Thumbnail from details: {details.get('thumbnail')}", "DEBUG")
         details['poster'] = poster
         details['art'] = {
             'poster': poster,

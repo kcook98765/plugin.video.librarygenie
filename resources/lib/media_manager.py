@@ -38,7 +38,9 @@ class MediaManager:
                 # Get poster URL from art dictionary
                 art_dict = details.get('art', {})
                 poster_url = art_dict.get('poster', '')
-                utils.log(f"Got poster URL from art: {poster_url}", "DEBUG")
+                utils.log(f"Got poster URL from art dictionary: {poster_url}", "DEBUG")
+                utils.log(f"Full art dictionary contents: {art_dict}", "DEBUG")
+                utils.log(f"Raw art data before extraction: {details.get('art')}", "DEBUG")
 
                 media_info = {
                     'kodi_id': kodi_id,
