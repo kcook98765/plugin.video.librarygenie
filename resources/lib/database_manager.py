@@ -262,8 +262,6 @@ class DatabaseManager:
         try:
             self._execute_with_retry(self.cursor.execute, query, (list_id,))
             rows = self.cursor.fetchall()
-            utils.log(f"Fetched rows: {rows}", "DEBUG")  # Log the fetched rows
-
             items = []
             for row in rows:
                 try:
