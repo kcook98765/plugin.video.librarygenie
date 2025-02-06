@@ -35,9 +35,14 @@ class MediaManager:
                         'order': actor.get('order'), 'thumbnail': actor.get('thumbnail')} 
                        for actor in cast_list]
 
+                # Get poster URL from art dictionary
+                art_dict = details.get('art', {})
+                poster_url = art_dict.get('poster', '')
+
                 return {
                     'kodi_id': kodi_id,
                     'title': details.get('title', ''),
+                    'poster': poster_url,  # Store poster URL explicitly
                     'year': details.get('year', ''),
                     'plot': details.get('plot', ''),
                     'genre': ' / '.join(details.get('genre', [])),
@@ -45,7 +50,7 @@ class MediaManager:
                     'cast': json.dumps(cast),
                     'rating': details.get('rating', ''),
                     'file': details.get('file', ''),
-                    'thumbnail': details.get('art', {}).get('poster', ''),
+                    'thumbnail': poster_url,  # Use same poster URL 
                     'fanart': details.get('art', {}).get('fanart', ''),
                     'duration': details.get('runtime', ''),
                     'type': media_type
