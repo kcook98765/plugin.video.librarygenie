@@ -36,12 +36,24 @@ class ListItemBuilder:
         utils.log(f"Info dictionary poster: {media_info.get('info', {}).get('poster')}", "DEBUG")
         utils.log(f"Thumbnail: {media_info.get('thumbnail')}", "DEBUG")
         
-        poster_url = (
-            media_info.get('poster') or  # Direct poster field
-            media_info.get('art', {}).get('poster') or  # Art dictionary
-            media_info.get('info', {}).get('poster') or  # Info dictionary
-            media_info.get('thumbnail')  # Fallback to thumbnail
-        )
+        # Get poster URL with priority order
+        poster_url = None
+        for source in [
+            lambda: media_info.get('poster'),
+            lambda: media_info.get('art', {}).get('poster'),
+            lambda: media_info.get('info', {}).get('poster'),
+            lambda: media_info.get('thumbnail')
+        ]:
+            try:
+                url = source()
+                if url and str(url) != 'None':
+                    poster_url = url
+                    break
+            except Exception as e:
+                utils.log(f"Error getting poster URL: {str(e)}", "ERROR")
+                continue
+
+        utils.log(f"Selected poster URL: {poster_url}", "DEBUG")
         
         if poster_url:
             utils.log(f"Final selected poster URL: {poster_url}", "DEBUG")
