@@ -34,8 +34,11 @@ class ListItemBuilder:
         utils.log(f"Available art keys: {list(art_dict.keys()) if isinstance(art_dict, dict) else 'Not a dictionary'}", "DEBUG")
         
         # Get poster URL from multiple possible locations with detailed logging
-        utils.log(f"Attempting to get poster URL - Direct poster: {media_info.get('poster')}", "DEBUG")
-        utils.log(f"Art dictionary poster: {art_dict.get('poster')}", "DEBUG")
+        utils.log(f"POSTER TRACE - ListItemBuilder 1 - Direct poster: {media_info.get('poster')}", "DEBUG")
+        utils.log(f"POSTER TRACE - ListItemBuilder 2 - Art dict poster: {art_dict.get('poster')}", "DEBUG")
+        utils.log(f"POSTER TRACE - ListItemBuilder 3 - Raw media info: {media_info}", "DEBUG")
+        utils.log(f"POSTER TRACE - ListItemBuilder 4 - Art dict type: {type(art_dict)}", "DEBUG")
+        utils.log(f"POSTER TRACE - ListItemBuilder 5 - Art dict content: {art_dict}", "DEBUG")
         utils.log(f"Info dictionary poster: {media_info.get('info', {}).get('poster')}", "DEBUG")
         utils.log(f"Thumbnail: {media_info.get('thumbnail')}", "DEBUG")
         
