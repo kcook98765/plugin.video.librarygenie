@@ -1,10 +1,11 @@
 """Helper class for building ListItems with proper metadata"""
 import json
-import xbmc
 import xbmcgui
+import xbmc
 from urllib.parse import quote
 from resources.lib import utils
 from resources.lib.listitem_infotagvideo import set_info_tag
+
 
 def format_art(url):
     """Format art URLs for Kodi display"""
@@ -18,91 +19,176 @@ def format_art(url):
 
 
 class ListItemBuilder:
+    KODI_VERSION = None
+
+    @staticmethod
+    def get_kodi_version():
+        if ListItemBuilder.KODI_VERSION is None:
+            version_info = xbmc.getInfoLabel("System.BuildVersion")
+            ListItemBuilder.KODI_VERSION = int(version_info.split('.')[0])
+        return ListItemBuilder.KODI_VERSION
+
     @staticmethod
     def build_video_item(media_info):
-        title = media_info.get('title', '')
-        list_item = xbmcgui.ListItem(label=title)
+        kodi_version = ListItemBuilder.get_kodi_version()
+        """Build a complete video ListItem with all available metadata."""
+        # Ensure media_info is a dict
+        media_info = media_info if isinstance(media_info, dict) else {}
 
-        # Handle artwork with proper formatting and validation
+        title = str(media_info.get('title', ''))
+        list_item = xbmcgui.ListItem(label=title)
+        utils.log(f"Building video item for: {title}", "DEBUG")
+
+        # --- Artwork Handling ---
         art = {}
         media_art = media_info.get('art', {})
+        
+        # Process all possible artwork locations
+        for art_type in ['poster', 'thumb', 'thumbnail', 'fanart', 'banner', 'clearart', 'clearlogo', 'landscape', 'icon']:
+            # Check all possible sources for this art type
+            art_url = None
+            
+            # Try media_art first
+            if art_type in media_art and media_art[art_type]:
+                art_url = media_art[art_type]
+            # Then try top-level media_info
+            elif art_type in media_info and media_info[art_type]:
+                art_url = media_info[art_type]
+                
+            if art_url:
+                formatted_url = format_art(art_url)
+                art[art_type] = formatted_url
+                # Set thumb and poster to be the same if either is found
+                if art_type in ['poster', 'thumb', 'thumbnail']:
+                    art['thumb'] = formatted_url
+                    art['poster'] = formatted_url
+                    art['icon'] = formatted_url
+                utils.log(f"Set {art_type} URL: {formatted_url}", "DEBUG")
 
-        def format_art_url(url):
-            if not url:
-                return ''
-            if url.startswith('image://'):
-                return url
-            elif url.startswith('http'):
-                return f"image://{quote(url)}/"
-            return f"image://{url}/"
-
-        # Process artwork with proper fallbacks
-        art_types = {
+        # Ensure defaults for required types
+        required_types = ['poster', 'thumb', 'icon', 'fanart']
+        for req_type in required_types:
+            if req_type not in art:
+                art[req_type] = ''
+                
+        # Map all other art types
+        art_mapping = {
             'poster': ['poster', 'thumb', 'thumbnail'],
-            'thumb': ['thumb', 'poster', 'thumbnail'],
-            'fanart': ['fanart', 'landscape'],
+            'thumb': ['thumb', 'poster', 'thumbnail'], 
             'banner': ['banner'],
-            'clearlogo': ['clearlogo', 'logo'],
+            'icon': ['icon', 'poster', 'thumb'],
             'clearart': ['clearart'],
-            'landscape': ['landscape'],
-            'icon': ['icon', 'poster', 'thumb']
+            'clearlogo': ['clearlogo'],
+            'landscape': ['landscape']
         }
 
-        # Log available art for debugging
-        utils.log(f"Available art from media_info: {media_art}", "DEBUG")
-
-        # Process each art type with fallbacks
-        for art_type, fallbacks in art_types.items():
-            art_url = None
-            # Check media_art dictionary first
-            for fallback in fallbacks:
-                if fallback in media_art and media_art[fallback]:
-                    art_url = media_art[fallback]
-                    break
-            # Then check top-level media_info
-            if not art_url:
-                for fallback in fallbacks:
-                    if fallback in media_info and media_info[fallback]:
-                        art_url = media_info[fallback]
+        # Ensure URLs are properly formatted for Kodi 21
+        for art_type, sources in art_mapping.items():
+            if art_type not in art:  # Don't override if already set
+                for source in sources:
+                    url = None
+                    # Check media_art first
+                    if source in media_art:
+                        url = media_art[source]
+                    # Then check top-level media_info
+                    elif source in media_info:
+                        url = media_info[source]
+                    
+                    if url:
+                        formatted_url = format_art(url)
+                        art[art_type] = formatted_url
+                        utils.log(f"Set {art_type} URL: {formatted_url}", "DEBUG")
                         break
+                
+            if art_type not in art:
+                art[art_type] = ''
 
-            if art_url:
-                formatted_url = format_art_url(art_url)
-                art[art_type] = formatted_url
-                utils.log(f"Set {art_type} art: {formatted_url}", "DEBUG")
+        # Ensure thumbnail is properly formatted if different from poster
+        thumbnail = media_info.get('thumbnail', '')
+        if thumbnail:
+            thumbnail = format_art(thumbnail)
+            if not art.get('thumb'):
+                art['thumb'] = thumbnail
+            if not art.get('poster'):
+                art['poster'] = thumbnail
+            utils.log(f"Set thumbnail URL: {thumbnail}", "DEBUG")
 
-        # Ensure at least empty strings for required art types
-        for required in ['poster', 'thumb', 'fanart', 'icon']:
-            if required not in art:
-                art[required] = ''
+        # For fanart, check both nested info and top-level
+        # Handle fanart from multiple possible locations
+        fanart_url = (media_info.get('info', {}).get('fanart') or 
+                     media_info.get('art', {}).get('fanart') or 
+                     media_info.get('fanart'))
+        if fanart_url:
+            fanart_url = format_art(fanart_url)
+            art['fanart'] = fanart_url
+            utils.log(f"Set fanart URL: {fanart_url}", "DEBUG")
 
-        # Set artwork after preparing complete dictionary
-        try:
-            list_item.setArt(art)
-            utils.log(f"Set final art dictionary: {art}", "DEBUG")
-        except Exception as e:
-            utils.log(f"Error setting art: {str(e)}", "ERROR")
+        list_item.setArt(art)
 
-        # Set video info tag
-        set_info_tag(list_item, media_info)
+        # --- Info Tag Setup ---
+        info = media_info.get('info', {})
+        info_dict = {
+            'title': title,
+            'plot': info.get('plot', ''),
+            'tagline': info.get('tagline', ''),
+            'cast': json.loads(info.get('cast', '[]')) if isinstance(info.get('cast'), str) else info.get('cast', []),
+            'country': info.get('country', ''),
+            'director': info.get('director', ''),
+            'genre': info.get('genre', ''),
+            'mpaa': info.get('mpaa', ''),
+            'premiered': info.get('premiered', ''),
+            'rating': float(info.get('rating', 0.0)),
+            'studio': info.get('studio', ''),
+            'trailer': info.get('trailer', ''),
+            'votes': info.get('votes', '0'),
+            'writer': info.get('writer', ''),
+            'year': info.get('year', ''),
+            'mediatype': (info.get('media_type') or 'movie').lower()
+        }
+        set_info_tag(list_item, info_dict, 'video')
+        utils.log("Info tag set.", "DEBUG")
 
-        # Handle cast with images if present
-        if 'cast' in media_info:
+        # Set resume properties if available
+        if 'resumetime' in info and 'totaltime' in info:
+            list_item.setProperty('ResumeTime', str(info['resumetime']))
+            list_item.setProperty('TotalTime', str(info['totaltime']))
+
+        list_item.setProperty('IsPlayable', 'true')
+
+        # --- Cast Processing ---
+        cast = info.get('cast')
+        if cast:
             try:
-                cast_list = []
-                for actor in media_info['cast']:
-                    if isinstance(actor, dict):
-                        name = actor.get('name', '')
-                        role = actor.get('role', '')
-                        order = actor.get('order', 0)
-                        thumb = format_art_url(actor.get('thumbnail', ''))
-                        cast_member = {'name': name, 'role': role, 'order': order, 'thumbnail': thumb}
-                        cast_list.append(cast_member)
-                if cast_list:
-                    info_tag = list_item.getVideoInfoTag()
-                    info_tag.setCast(cast_list)
+                if isinstance(cast, str):
+                    cast = json.loads(cast)
+                if isinstance(cast, list):
+                    actors = []
+                    for member in cast:
+                        thumb = member.get('thumbnail', '')
+                        # Ensure thumbnail is properly formatted
+                        if thumb and not thumb.startswith('image://'):
+                            thumb = format_art(thumb)
+                        utils.log(f"Processing cast member thumbnail: {thumb}", "DEBUG")
+                        actor = xbmc.Actor(
+                            name=str(member.get('name', '')),
+                            role=str(member.get('role', '')),
+                            order=int(member.get('order', 0)),
+                            thumbnail=thumb
+                        )
+                        actors.append(actor)
+                    list_item.setCast(actors)
+                    utils.log(f"Set cast with {len(actors)} members", "DEBUG")
             except Exception as e:
-                utils.log(f"Error setting cast: {str(e)}", "ERROR")
+                utils.log(f"Error processing cast: {e}", "ERROR")
+                list_item.setCast([])
+
+        # --- Play URL Handling ---
+        play_url = media_info.get('info', {}).get('play') or media_info.get('play') or media_info.get('file')
+        if play_url:
+            list_item.setPath(play_url)
+            utils.log(f"Set play URL: {play_url}", "DEBUG")
+        else:
+            utils.log("No valid play URL found", "WARNING")
 
         return list_item
 
