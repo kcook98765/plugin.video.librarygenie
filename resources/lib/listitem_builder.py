@@ -27,12 +27,13 @@ class ListItemBuilder:
         utils.log(f"Created ListItem with title: {title}", "DEBUG")
 
         # Set artwork
-        art_dict = {}
+        art_dict = media_info.get('art', {}).copy()  # Start with stored art dictionary
         utils.log(f"Setting artwork for item: {media_info.get('title', 'Unknown')}", "DEBUG")
+        utils.log(f"Initial art dictionary: {art_dict}", "DEBUG")
         
         # Get poster URL from multiple possible locations with detailed logging
         utils.log(f"Attempting to get poster URL - Direct poster: {media_info.get('poster')}", "DEBUG")
-        utils.log(f"Art dictionary: {media_info.get('art', {})}", "DEBUG")
+        utils.log(f"Art dictionary poster: {art_dict.get('poster')}", "DEBUG")
         utils.log(f"Info dictionary poster: {media_info.get('info', {}).get('poster')}", "DEBUG")
         utils.log(f"Thumbnail: {media_info.get('thumbnail')}", "DEBUG")
         
