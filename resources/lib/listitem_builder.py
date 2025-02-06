@@ -21,8 +21,18 @@ def format_art(url):
 
 
 class ListItemBuilder:
+    KODI_VERSION = None
+    
+    @staticmethod
+    def get_kodi_version():
+        if ListItemBuilder.KODI_VERSION is None:
+            version_info = xbmc.getInfoLabel("System.BuildVersion")
+            ListItemBuilder.KODI_VERSION = int(version_info.split('.')[0])
+        return ListItemBuilder.KODI_VERSION
+
     @staticmethod
     def build_video_item(media_info):
+        kodi_version = ListItemBuilder.get_kodi_version()
         """Build a complete video ListItem with all available metadata."""
         # Ensure media_info is a dict
         media_info = media_info if isinstance(media_info, dict) else {}
