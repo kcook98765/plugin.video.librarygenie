@@ -43,19 +43,34 @@ class ListItemBuilder:
         art = {}
         media_art = media_info.get('art', {})
         
-        # Get primary thumbnail/poster
-        thumbnail = media_info.get('thumbnail')
-        if thumbnail:
-            thumbnail = format_art(thumbnail)
-            art['thumb'] = thumbnail
-            art['poster'] = thumbnail
-        
-        # Get fanart
-        fanart = media_info.get('fanart')
-        if fanart:
-            fanart = format_art(fanart)
-            art['fanart'] = fanart
+        # Process all possible artwork locations
+        for art_type in ['poster', 'thumb', 'thumbnail', 'fanart', 'banner', 'clearart', 'clearlogo', 'landscape', 'icon']:
+            # Check all possible sources for this art type
+            art_url = None
             
+            # Try media_art first
+            if art_type in media_art and media_art[art_type]:
+                art_url = media_art[art_type]
+            # Then try top-level media_info
+            elif art_type in media_info and media_info[art_type]:
+                art_url = media_info[art_type]
+                
+            if art_url:
+                formatted_url = format_art(art_url)
+                art[art_type] = formatted_url
+                # Set thumb and poster to be the same if either is found
+                if art_type in ['poster', 'thumb', 'thumbnail']:
+                    art['thumb'] = formatted_url
+                    art['poster'] = formatted_url
+                    art['icon'] = formatted_url
+                utils.log(f"Set {art_type} URL: {formatted_url}", "DEBUG")
+
+        # Ensure defaults for required types
+        required_types = ['poster', 'thumb', 'icon', 'fanart']
+        for req_type in required_types:
+            if req_type not in art:
+                art[req_type] = ''
+                
         # Map all other art types
         art_mapping = {
             'poster': ['poster', 'thumb', 'thumbnail'],
