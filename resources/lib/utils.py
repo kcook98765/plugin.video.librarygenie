@@ -18,6 +18,11 @@ def log(message, level=None):
     if level is None:
         level = 'DEBUG'
     
+    # Truncate cast information in logs
+    if isinstance(message, str):
+        import re
+        message = re.sub(r'"cast":\s*\[[^\]]+\]', '"cast": "[TRUNCATED]"', message)
+    
     # Always use INFO level but include original level in message
     xbmc.log(f"LibraryGenie [{level}]: {message}", xbmc.LOGINFO)
 import xbmcgui
