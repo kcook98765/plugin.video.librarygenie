@@ -89,8 +89,15 @@ class ListItemBuilder:
             'votes': info.get('votes', '0'),
             'writer': info.get('writer', ''),
             'year': info.get('year', ''),
-            'mediatype': (info.get('media_type') or 'movie').lower()
+            'mediatype': 'movie'  # Force movie type
         }
+        
+        # Set content type properties
+        list_item.setProperties({
+            'IsPlayable': 'true',
+            'IsMovie': 'true',
+            'DbType': 'movie'
+        })
 
         utils.log(f"Prepared info dictionary: {info_dict}", "DEBUG")
 
