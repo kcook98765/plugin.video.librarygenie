@@ -13,6 +13,8 @@ def format_art(url):
         return ''
     if url.startswith('image://'):
         return url
+    if url.startswith('smb://'):
+        return f'image://video@{quote(url)}/'
     return f'image://{quote(url)}/'
 
 
