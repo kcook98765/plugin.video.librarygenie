@@ -32,7 +32,8 @@ class ListItemBuilder:
 
         # Set up initial art dictionary
         art_dict = {}
-        poster = media_info.get('info', {}).get('thumbnail') or media_info.get('thumbnail')
+        poster = media_info.get('info', {}).get('poster') or media_info.get('poster')
+        thumbnail = media_info.get('info', {}).get('thumbnail') or media_info.get('thumbnail')
         fanart = media_info.get('info', {}).get('fanart') or media_info.get('fanart')
 
         # Handle poster image
@@ -41,8 +42,14 @@ class ListItemBuilder:
                 from urllib.parse import quote
                 poster = f'image://{quote(poster)}/'
             art_dict['poster'] = poster
-            art_dict['thumb'] = poster
-            art_dict['icon'] = poster
+        
+        # Handle thumbnail
+        if thumbnail:
+            if not thumbnail.startswith('image://'):
+                from urllib.parse import quote
+                thumbnail = f'image://{quote(thumbnail)}/'
+            art_dict['thumb'] = thumbnail
+            art_dict['icon'] = thumbnail
 
         # Handle fanart
         if fanart:
