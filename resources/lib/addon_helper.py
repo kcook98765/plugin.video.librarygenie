@@ -30,6 +30,10 @@ def run_addon():
         # Initialize helpers
         config = Config()
         db_manager = DatabaseManager(config.db_path)
+        
+        # Ensure database is setup
+        db_manager.setup_database()
+        
         kodi_helper = KodiHelper()
 
         # Handle context menu vs direct launch
