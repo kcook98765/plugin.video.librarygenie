@@ -337,18 +337,36 @@ class DatabaseManager:
 
             # Insert or ignore into media_items
             media_data = {key: data[key] for key in field_names if key in data}
+            utils.log(f"POSTER TRACE - DB insert_data 1 - Initial art data: {data.get('art')}", "DEBUG")
+            utils.log(f"POSTER TRACE - DB insert_data 2 - Initial media_data: {media_data}", "DEBUG")
+            
             if 'art' in data:
                 try:
                     art_dict = json.loads(data['art']) if isinstance(data['art'], str) else data['art']
+                    utils.log(f"POSTER TRACE - DB insert_data 3 - Parsed art_dict: {art_dict}", "DEBUG")
+                    
+                    # Store full art dictionary
                     media_data['art'] = json.dumps(art_dict)
+                    utils.log(f"POSTER TRACE - DB insert_data 4 - Stored art JSON: {media_data['art']}", "DEBUG")
+                    
+                    # Handle poster
                     if 'poster' not in media_data or not media_data['poster']:
                         media_data['poster'] = art_dict.get('poster', '')
+                        utils.log(f"POSTER TRACE - DB insert_data 5 - Set poster from art: {media_data['poster']}", "DEBUG")
+                    
+                    # Handle thumbnail
                     media_data['thumbnail'] = art_dict.get('thumb', art_dict.get('poster', ''))
-                except json.JSONDecodeError:
-                    utils.log("Failed to parse art JSON", "ERROR")
+                    utils.log(f"POSTER TRACE - DB insert_data 6 - Set thumbnail: {media_data['thumbnail']}", "DEBUG")
+                    
+                except json.JSONDecodeError as e:
+                    utils.log(f"POSTER TRACE - DB insert_data ERROR - Failed to parse art JSON: {str(e)}", "ERROR")
+
+            utils.log(f"POSTER TRACE - DB insert_data 7 - Final media_data art: {media_data.get('art')}", "DEBUG")
+            utils.log(f"POSTER TRACE - DB insert_data 8 - Final media_data poster: {media_data.get('poster')}", "DEBUG")
+            utils.log(f"POSTER TRACE - DB insert_data 9 - Final media_data thumbnail: {media_data.get('thumbnail')}", "DEBUG")
 
             truncated_data = self.truncate_data(media_data)
-            utils.log(f"Media data for insertion after comprehension: {truncated_data}", "DEBUG")  # Log media_data
+            utils.log(f"Media data for insertion after comprehension: {truncated_data}", "DEBUG")
 
             # Insert or ignore into media_items
             columns = ', '.join(media_data.keys())
