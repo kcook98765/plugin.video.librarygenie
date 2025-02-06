@@ -17,14 +17,8 @@ def log(message, level=None):
     """
     if level is None:
         level = 'DEBUG'
-        
-    # Truncate long messages
-    if isinstance(message, str):
-        if len(message) > 500:
-            message = message[:500] + '...'
-    message = ' '.join(message.split())
     
-    # Always use INFO level but include original level in message  
+    # Always use INFO level but include original level in message
     xbmc.log(f"LibraryGenie [{level}]: {message}", xbmc.LOGINFO)
 import xbmcgui
 

@@ -150,5 +150,4 @@ class LLMApiManager:
 
 
     def log_response(self, response):
-        response_str = str(response)[:100] + '...' if len(str(response)) > 100 else str(response)
-        utils.log(f"Response: {response_str}", "DEBUG")
+        utils.log(f"Response: {response}", "DEBUG")

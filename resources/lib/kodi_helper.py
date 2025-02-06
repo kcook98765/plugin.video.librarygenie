@@ -18,7 +18,7 @@ class KodiHelper:
         self.addon_url = sys.argv[0] if len(sys.argv) > 0 else ""
         self.jsonrpc = JSONRPC()
 
-    def list_items(self, items, content_type='movies'):
+    def list_items(self, items, content_type='video'):
         from resources.lib.listitem_builder import ListItemBuilder
 
         # Set content type for proper display
@@ -46,7 +46,7 @@ class KodiHelper:
         # Force content type and views with debugging
         utils.log(f"Setting content type to: {content_type}", "DEBUG")
         xbmcplugin.setContent(self.addon_handle, content_type)
-
+        
         # Try different view modes
         view_modes = {
             'list': 50,
@@ -57,23 +57,23 @@ class KodiHelper:
             'fanart': 502,
             'media': 504  
         }
-
+        
         # Set default view mode to poster
         default_mode = view_modes['poster']
         utils.log(f"Setting default view mode: {default_mode}", "DEBUG")
-
+        
         # Set skin view modes
         for mode_name, mode_id in view_modes.items():
             xbmc.executebuiltin(f'Container.SetViewMode({mode_id})')
-
+        
         # Force views mode
         xbmc.executebuiltin('SetProperty(ForcedViews,1,Home)')
         xbmcplugin.setProperty(self.addon_handle, 'ForcedView', 'true')
-
+        
         # Enable skin forced views
         xbmc.executebuiltin('Skin.SetBool(ForcedViews)')
         xbmc.executebuiltin('Container.SetForceViewMode(true)')
-
+        
         xbmcplugin.endOfDirectory(self.addon_handle)
 
     def list_folders(self, folders):
@@ -121,10 +121,10 @@ class KodiHelper:
         from resources.lib.listitem_builder import ListItemBuilder
         db_manager = DatabaseManager(Config().db_path)
         items = db_manager.fetch_list_items(list_id)
-
+        
         # Set content type and force views
         xbmcplugin.setContent(self.addon_handle, 'movies')
-
+        
         # Enable all sort methods
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_LABEL)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_TITLE)
@@ -132,7 +132,7 @@ class KodiHelper:
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_GENRE)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_DATEADDED)
-
+        
         # Set view modes
         view_modes = {
             'list': 50,
@@ -143,19 +143,19 @@ class KodiHelper:
             'fanart': 502,
             'media': 504  
         }
-
+        
         # Set default view mode to poster
         default_mode = view_modes['poster']
         utils.log(f"Setting default view mode: {default_mode}", "DEBUG")
-
+        
         # Set skin view modes
         for mode_name, mode_id in view_modes.items():
             xbmc.executebuiltin(f'Container.SetViewMode({mode_id})')
-
+        
         # Force views mode
         xbmcplugin.setProperty(self.addon_handle, 'ForcedView', 'true')
         xbmc.executebuiltin('Container.SetForceViewMode(true)')
-
+        
         # Add items and end directory
         for item in items:
             list_item = ListItemBuilder.build_video_item(item)
@@ -293,9 +293,9 @@ class KodiHelper:
             params = {
                 'properties': [
                     'title', 'genre', 'year', 'director', 'cast', 'plot', 'rating',
-                    'file', 'thumbnail', 'fanart', 'runtime', 'tagline', 'art',
+                    'file', 'thumbnail', 'fanart', 'runtime', 'tagline',
                     'writer', 'imdbnumber', 'premiered', 'mpaa', 'trailer', "votes",
-                    "country", "dateadded", "studio", "thumb"
+                    "country", "dateadded", "studio"
                 ]
             }
             if method == 'VideoLibrary.GetMovieDetails':
@@ -310,7 +310,7 @@ class KodiHelper:
             utils.log(f"Extracted details for media type: {media_type}", "INFO")
 
             # Parse cast details
-            cast_list = details.get('cast', [])[:10]  # Limit to first 10
+            cast_list = details.get('cast', [])
             cast = [{'name': actor.get('name'), 'role': actor.get('role'), 'order': actor.get('order'), 'thumbnail': actor.get('thumbnail')} for actor in cast_list]
             details['cast'] = cast
 
@@ -393,7 +393,7 @@ class KodiHelper:
         try:
             utils.log("Gathering cast information", "DEBUG")
             cast = []
-            for i in range(1, 11):  # Limit to 10 cast members
+            for i in range(1, 21):  # Assuming a maximum of 20 cast members
                 name = xbmc.getInfoLabel(f'ListItem.CastAndRole.{i}.Name')
                 if not name:
                     continue
