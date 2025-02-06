@@ -66,8 +66,15 @@ class ListItemBuilder:
         
         if poster_url:
             utils.log(f"Final selected poster URL: {poster_url}", "DEBUG")
+            utils.log(f"POSTER TRACE - ListItemBuilder art sources:", "DEBUG")
+            utils.log(f"POSTER TRACE - ListItemBuilder final url: {poster_url}", "DEBUG") 
+            utils.log(f"POSTER TRACE - ListItemBuilder media info art: {media_info.get('art')}", "DEBUG")
+            utils.log(f"POSTER TRACE - ListItemBuilder info dict art: {media_info.get('info', {}).get('art')}", "DEBUG")
+            utils.log(f"POSTER TRACE - ListItemBuilder art dict before set: {art_dict}", "DEBUG")
         else:
             utils.log("WARNING: No poster URL found from any source", "WARNING")
+            utils.log(f"POSTER TRACE - ListItemBuilder missing poster debug:", "DEBUG")
+            utils.log(f"POSTER TRACE - ListItemBuilder media info dump: {media_info}", "DEBUG")
             art_dict['poster'] = poster_url
             art_dict['thumb'] = poster_url
             art_dict['icon'] = poster_url

@@ -262,7 +262,8 @@ class DatabaseManager:
                 try:
                     utils.log(f"Processing row ID: {row[0]}", "DEBUG")
                     info_dict = {}
-                    
+                    utils.log(f"POSTER TRACE - DB fetch_list_items raw art: {row[1]}", "DEBUG") #Added logging
+
                     for idx, field in enumerate(self.config.FIELDS):
                         field_name = field.split()[0]
                         if field_name != 'title':
@@ -275,7 +276,13 @@ class DatabaseManager:
                                     utils.log(f"Failed to parse {field_name} data: {e}", "ERROR")
                                     value = {} if field_name == 'art' else []
                             info_dict[field_name] = value
-                            
+
+                    utils.log(f"POSTER TRACE - DB fetch_list_items raw thumbnail: {info_dict.get('thumbnail')}", "DEBUG") #Added logging
+                    if 'art' in info_dict and isinstance(info_dict['art'], dict):
+                        art_dict = info_dict['art']
+                        utils.log(f"POSTER TRACE - DB fetch_list_items processed art: {art_dict}", "DEBUG") #Added logging
+                    else:
+                        art_dict = {} #Handle cases where art is missing or not a dict
                     item = {
                         'id': row[0],
                         'title': row[self.config.FIELDS.index('title TEXT') + 1],
@@ -311,7 +318,7 @@ class DatabaseManager:
         utils.log(f"POSTER TRACE - DB insert raw art: {data.get('art', {})}", "DEBUG")
         utils.log(f"POSTER TRACE - DB insert raw poster: {data.get('poster')}", "DEBUG")
         utils.log(f"POSTER TRACE - DB insert raw thumbnail: {data.get('thumbnail')}", "DEBUG")
-        
+
         # Additional poster tracing
         if isinstance(data.get('art'), str):
             try:
@@ -409,17 +416,17 @@ class DatabaseManager:
             self._execute_with_retry(self.cursor.execute, 
                 "DELETE FROM genie_lists WHERE list_id = ?", 
                 (list_id,))
-            
+
             # Delete from list_items
             self._execute_with_retry(self.cursor.execute,
                 "DELETE FROM list_items WHERE list_id = ?",
                 (list_id,))
-            
+
             # Finally delete the list itself
             self._execute_with_retry(self.cursor.execute,
                 "DELETE FROM lists WHERE id = ?",
                 (list_id,))
-            
+
             self.connection.commit()
         except Exception as e:
             self.connection.rollback()
@@ -700,7 +707,7 @@ class DatabaseManager:
             list_item_data = {'list_id': list_id, 'media_item_id': media_item_id}
             self.insert_data('list_items', list_item_data)
 
-    def get_list_media_count(self, list_id):
+    def get_list_media_count(self, listid):
         query = """
             SELECT COUNT(*)
             FROM list_items
