@@ -262,7 +262,7 @@ class DatabaseManager:
                 try:
                     utils.log(f"Processing row ID: {row[0]}", "DEBUG")
                     info_dict = {}
-                    
+
                     for idx, field in enumerate(self.config.FIELDS):
                         field_name = field.split()[0]
                         if field_name != 'title':
@@ -275,7 +275,7 @@ class DatabaseManager:
                                     utils.log(f"Failed to parse cast data: {e}", "ERROR")
                                     value = []
                             info_dict[field_name] = value
-                            
+
                     item = {
                         'id': row[0],
                         'title': row[self.config.FIELDS.index('title TEXT') + 1],
@@ -304,7 +304,14 @@ class DatabaseManager:
     def insert_data(self, table, data):
         # Convert the cast list to a JSON string if it exists
         if 'cast' in data and isinstance(data['cast'], list):
-            data['cast'] = json.dumps(data['cast'])
+            data['cast'] = json.dumps(data['cast'][:10])
+        elif 'cast' in data and isinstance(data['cast'], str):
+            try:
+                cast_list = json.loads(data['cast'])
+                if isinstance(cast_list, list):
+                    data['cast'] = json.dumps(cast_list[:10])
+            except:
+                data['cast'] = '[]'
 
         truncated_data = self.truncate_data(data)
         utils.log(f"Final data for insertion: {truncated_data}", "DEBUG")  # Additional logging
@@ -397,17 +404,17 @@ class DatabaseManager:
             self._execute_with_retry(self.cursor.execute, 
                 "DELETE FROM genie_lists WHERE list_id = ?", 
                 (list_id,))
-            
+
             # Delete from list_items
             self._execute_with_retry(self.cursor.execute,
                 "DELETE FROM list_items WHERE list_id = ?",
                 (list_id,))
-            
+
             # Finally delete the list itself
             self._execute_with_retry(self.cursor.execute,
                 "DELETE FROM lists WHERE id = ?",
                 (list_id,))
-            
+
             self.connection.commit()
         except Exception as e:
             self.connection.rollback()

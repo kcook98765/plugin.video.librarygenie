@@ -310,7 +310,7 @@ class KodiHelper:
             utils.log(f"Extracted details for media type: {media_type}", "INFO")
 
             # Parse cast details
-            cast_list = details.get('cast', [])
+            cast_list = details.get('cast', [])[:10]  # Limit to first 10
             cast = [{'name': actor.get('name'), 'role': actor.get('role'), 'order': actor.get('order'), 'thumbnail': actor.get('thumbnail')} for actor in cast_list]
             details['cast'] = cast
 
