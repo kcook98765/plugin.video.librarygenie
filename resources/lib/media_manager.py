@@ -53,11 +53,6 @@ class MediaManager:
                     'icon': poster_url,
                     'fanart': art_dict.get('fanart', '')
                 }
-                utils.log(f"POSTER TRACE - MediaManager final art dict: {art_dict}", "DEBUG")
-                utils.log(f"POSTER TRACE - MediaManager pre-jsonencode art: {art_dict}", "DEBUG")
-                utils.log(f"POSTER TRACE - MediaManager pre-jsonencode poster: {poster_url}", "DEBUG")
-                utils.log(f"POSTER TRACE - MediaManager post-info-build art: {info.get('art')}", "DEBUG")
-                utils.log(f"POSTER TRACE - MediaManager post-info-build poster: {info.get('poster')}", "DEBUG")
                 
                 media_info = {
                     'kodi_id': kodi_id,

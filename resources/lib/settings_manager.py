@@ -1,4 +1,3 @@
-
 import xbmcaddon
 import xbmcvfs
 
