@@ -248,17 +248,9 @@ class DatabaseManager(Singleton):
         return [{'id': row[0], 'name': row[1], 'folder_id': row[2], 'is_member': row[3]} for row in rows]
 
     def fetch_list_items(self, list_id):
-        fields_str = ', '.join([f'"{field.split()[0]}"' for field in self.config.FIELDS])
-        query = f"""
-            SELECT media_items.id, {fields_str}
-            FROM list_items
-            JOIN media_items ON list_items.media_item_id = media_items.id
-            WHERE list_items.list_id = ?
-        """
-        utils.log(f"Executing SQL: {query} with list_id={list_id}", "DEBUG")
-        try:
-            self._execute_with_retry(self.cursor.execute, query, (list_id,))
-            rows = self.cursor.fetchall()
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        return query_manager.fetch_list_items_with_details(list_id)
             items = []
             for row in rows:
                 try:

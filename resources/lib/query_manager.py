@@ -125,6 +125,50 @@ class QueryManager(Singleton):
         """
         self.execute_query(query, (description, json.dumps(rpc), list_id))
 
+    def get_list_media_count(self, list_id: int) -> int:
+        query = """
+            SELECT COUNT(*)
+            FROM list_items
+            WHERE list_id = ?
+        """
+        result = self.execute_query(query, (list_id,), fetch_all=False)
+        return result['COUNT(*)'] if result else 0
+
+    def fetch_list_items_with_details(self, list_id: int) -> List[Dict[str, Any]]:
+        query = """
+            SELECT m.*, li.id as list_item_id, li.flagged
+            FROM list_items li
+            JOIN media_items m ON li.media_item_id = m.id
+            WHERE li.list_id = ?
+            ORDER BY m.title COLLATE NOCASE
+        """
+        return self.execute_query(query, (list_id,))
+
+    def fetch_lists_with_item_status(self, item_id: int) -> List[Dict[str, Any]]:
+        query = """
+            SELECT 
+                lists.id, 
+                lists.name,
+                lists.folder_id,
+                CASE 
+                    WHEN list_items.media_item_id IS NOT NULL THEN 1
+                    ELSE 0
+                END AS is_member
+            FROM lists
+            LEFT JOIN list_items ON lists.id = list_items.list_id AND list_items.media_item_id IN (
+                SELECT id FROM media_items WHERE kodi_id = ?
+            )
+            ORDER BY lists.folder_id, lists.name COLLATE NOCASE
+        """
+        return self.execute_query(query, (item_id,))
+
+    def remove_media_item_from_list(self, list_id: int, media_item_id: int) -> None:
+        query = """
+            DELETE FROM list_items
+            WHERE list_id = ? AND media_item_id = ?
+        """
+        self.execute_query(query, (list_id, media_item_id))
+
     def __del__(self):
         """Clean up connections when the instance is destroyed"""
         for conn_info in self._connection_pool:
