@@ -115,15 +115,15 @@ class ListItemBuilder:
         utils.log("Set info tag completed", "DEBUG")
 
         # Set resume point if available
-        if 'resumetime' in info and 'totaltime' in info:
-            list_item.setProperty('ResumeTime', str(info['resumetime']))
-            list_item.setProperty('TotalTime', str(info['totaltime']))
+        if 'resumetime' in media_info and 'totaltime' in media_info:
+            list_item.setProperty('ResumeTime', str(media_info['resumetime']))
+            list_item.setProperty('TotalTime', str(media_info['totaltime']))
 
         # Set content properties
         list_item.setProperty('IsPlayable', 'true')
 
         # Process cast separately if it exists
-        cast = info.get('cast', [])
+        cast = media_info.get('cast', [])
         try:
             # Handle string-encoded cast data
             if isinstance(cast, str):
