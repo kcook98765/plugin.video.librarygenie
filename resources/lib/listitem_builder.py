@@ -27,7 +27,8 @@ class ListItemBuilder:
         utils.log(f"Created ListItem with title: {title}", "DEBUG")
 
         # Set artwork
-        art_dict = media_info.get('art', {}).copy()  # Start with stored art dictionary
+        # Get art dictionary from info if available
+        art_dict = media_info.get('info', {}).get('art', {}).copy() if isinstance(media_info.get('info', {}).get('art'), dict) else {}
         utils.log(f"Setting artwork for item: {media_info.get('title', 'Unknown')}", "DEBUG")
         utils.log(f"Initial art dictionary type: {type(art_dict)}", "DEBUG")
         utils.log(f"Initial art dictionary: {art_dict}", "DEBUG")

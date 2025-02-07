@@ -16,9 +16,9 @@ class JSONRPC:
         return cls._instance
 
     def __init__(self):
-        if not JSONRPC._initialized:
+        if not hasattr(JSONRPC, '_log_initialized'):
             utils.log("JSONRPC Manager module initialized", "INFO")
-            JSONRPC._initialized = True
+            JSONRPC._log_initialized = True
 
     def execute(self, method, params):
         query = {
