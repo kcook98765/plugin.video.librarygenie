@@ -160,13 +160,9 @@ class DatabaseManager(Singleton):
             if current_depth >= max_depth:
                 raise ValueError(f"Maximum folder depth of {self.config.max_folder_depth} exceeded")
 
-        query = """
-            INSERT INTO folders (name, parent_id)
-            VALUES (?, ?)
-        """
-        utils.log(f"Executing SQL: {query} with name={name}, parent_id={parent_id}", "DEBUG")
-        self._execute_with_retry(self.cursor.execute, query, (name, parent_id))
-        self.connection.commit()
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        query_manager.insert_folder_direct(name, parent_id)
 
     def update_list_folder(self, list_id, folder_id):
         from resources.lib.query_manager import QueryManager
@@ -420,12 +416,15 @@ class DatabaseManager(Singleton):
         query_manager.update_folder_name(folder_id, new_name)
 
     def update_folder_parent(self, folder_id, new_parent_id):
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        
         if new_parent_id is not None:
             # Get the depth of the subtree being moved
-            subtree_depth = self._get_subtree_depth(folder_id)
+            subtree_depth = query_manager.get_subtree_depth(folder_id)
 
             # Get the depth at the new location
-            target_depth = self.get_folder_depth(new_parent_id)
+            target_depth = query_manager.get_folder_depth(new_parent_id)
 
             # Calculate total depth after move
             total_depth = target_depth + subtree_depth + 1
@@ -438,16 +437,10 @@ class DatabaseManager(Singleton):
             while temp_parent is not None:
                 if temp_parent == folder_id:
                     raise ValueError("Cannot move folder: would create a cycle")
-                query = "SELECT parent_id FROM folders WHERE id = ?"
-                self._execute_with_retry(self.cursor.execute, query, (temp_parent,))
-                result = self.cursor.fetchone()
-                temp_parent = result[0] if result else None
+                folder = query_manager.fetch_folder_by_id(temp_parent)
+                temp_parent = folder['parent_id'] if folder else None
 
-        # Update the folder's parent
-        query = "UPDATE folders SET parent_id = ? WHERE id = ?"
-        utils.log(f"Executing SQL: {query} with folder_id={folder_id}, new_parent_id={new_parent_id}", "DEBUG")
-        self._execute_with_retry(self.cursor.execute, query, (new_parent_id, folder_id))
-        self.connection.commit()
+        query_manager.update_folder_parent(folder_id, new_parent_id)
 
     def _get_subtree_depth(self, folder_id):
         """Calculate the maximum depth of a folder's subtree"""
@@ -541,15 +534,10 @@ class DatabaseManager(Singleton):
         query_manager.delete_genie_list_direct(list_id)
 
     def remove_genielist_entries(self, list_id):
-        query = """
-            DELETE FROM list_items
-            WHERE list_id = ? AND media_item_id IN (
-                SELECT id FROM media_items WHERE source = 'genielist'
-            )
-        """
-        utils.log(f"Removing GenieList entries for list_id={list_id}", "DEBUG")
-        self._execute_with_retry(self.cursor.execute, query, (list_id,))
-        self.connection.commit()
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        query_manager.remove_genielist_entries_direct(list_id)
+        utils.log(f"Removed GenieList entries for list_id={list_id}", "DEBUG")
 
     def insert_genielist_entries(self, list_id, media_items):
         for item in media_items:
