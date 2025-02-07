@@ -653,6 +653,12 @@ class DatabaseManager:
                 result = self.cursor.fetchone()
                 temp_parent = result[0] if result else None
 
+        # Update the folder's parent
+        query = "UPDATE folders SET parent_id = ? WHERE id = ?"
+        utils.log(f"Executing SQL: {query} with folder_id={folder_id}, new_parent_id={new_parent_id}", "DEBUG")
+        self._execute_with_retry(self.cursor.execute, query, (new_parent_id, folder_id))
+        self.connection.commit()
+
     def _get_subtree_depth(self, folder_id):
         """Calculate the maximum depth of a folder's subtree"""
         query = """
