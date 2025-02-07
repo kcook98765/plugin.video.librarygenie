@@ -169,17 +169,9 @@ class DatabaseManager(Singleton):
         return [{'id': row[0], 'name': row[1], 'folder_id': row[2]} for row in rows]
 
     def get_folder_depth(self, folder_id):
-        depth = 0
-        current_id = folder_id
-        while current_id is not None:
-            query = "SELECT parent_id FROM folders WHERE id = ?"
-            self._execute_with_retry(self.cursor.execute, query, (current_id,))
-            result = self.cursor.fetchone()
-            if result is None:
-                break
-            current_id = result[0]
-            depth += 1
-        return depth
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        return query_manager.get_folder_depth(folder_id)
 
     def insert_folder(self, name, parent_id=None):
         if parent_id is not None:
@@ -251,52 +243,6 @@ class DatabaseManager(Singleton):
         from resources.lib.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         return query_manager.fetch_list_items_with_details(list_id)
-            items = []
-            for row in rows:
-                try:
-                    utils.log(f"Processing row ID: {row[0]}", "DEBUG")
-                    info_dict = {}
-
-                    for idx, field in enumerate(self.config.FIELDS):
-                        field_name = field.split()[0]
-                        if field_name != 'title':
-                            value = row[idx + 1]
-                            if field_name == 'art':
-                                if value:
-                                    try:
-                                        if isinstance(value, str):
-                                            value = json.loads(value)
-                                        elif isinstance(value, dict):
-                                            value = json.dumps(value)
-                                    except json.JSONDecodeError as e:
-                                        utils.log(f"Failed to parse art data: {e}", "ERROR")
-                                        value = "{}"
-                            elif field_name == 'cast' and value:
-                                try:
-                                    value = json.loads(value) if isinstance(value, str) else value
-                                except json.JSONDecodeError as e:
-                                    utils.log(f"Failed to parse cast data: {e}", "ERROR")
-                                    value = []
-                            info_dict[field_name] = value
-
-                    if 'art' in info_dict and isinstance(info_dict['art'], dict):
-                        art_dict = info_dict['art']
-                    else:
-                        art_dict = {} #Handle cases where art is missing or not a dict
-                    item = {
-                        'id': row[0],
-                        'title': row[self.config.FIELDS.index('title TEXT') + 1],
-                        'info': info_dict
-                    }
-                    utils.log(f"Processed item {item['id']}: {item['title']}", "DEBUG")
-                    items.append(item)
-                except Exception as e:
-                    utils.log(f"Error processing row: {str(e)}", "ERROR")
-                    continue
-            return items
-        except sqlite3.OperationalError as e:
-            utils.log(f"SQL error: {e}", "ERROR")
-            return []
 
     def truncate_data(self, data, max_length=10):
         truncated_data = {}
@@ -554,11 +500,10 @@ class DatabaseManager(Singleton):
         return row[0] if row else None
 
     def get_folder_id_by_name(self, folder_name):
-        query = "SELECT id FROM folders WHERE name = ?"
-        utils.log(f"Executing SQL: {query} with folder_name={folder_name}", "DEBUG")
-        self._execute_with_retry(self.cursor.execute, query, (folder_name,))
-        row = self.cursor.fetchone()
-        return row[0] if row else None
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        result = query_manager.get_folder_by_name(folder_name)
+        return result['id'] if result else None
 
     def update_folder_name(self, folder_id, new_name):
         query = "UPDATE folders SET name = ? WHERE id = ?"
@@ -613,11 +558,6 @@ class DatabaseManager(Singleton):
         self._execute_with_retry(self.cursor.execute, query, (folder_id,))
         result = self.cursor.fetchone()
         return result[0] if result[0] is not None else 0
-
-        query = "UPDATE folders SET parent_id = ? WHERE id = ?"
-        utils.log(f"Executing SQL: {query} with folder_id={folder_id}, new_parent_id={new_parent_id}", "DEBUG")
-        self._execute_with_retry(self.cursor.execute, query, (new_parent_id, folder_id))
-        self.connection.commit()
 
     def delete_folder_and_contents(self, folder_id):
         try:

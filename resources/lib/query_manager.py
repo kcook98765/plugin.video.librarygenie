@@ -169,6 +169,88 @@ class QueryManager(Singleton):
         """
         self.execute_query(query, (list_id, media_item_id))
 
+    def get_folder_depth(self, folder_id: int) -> int:
+        query = """
+            WITH RECURSIVE folder_tree AS (
+                SELECT id, parent_id, 0 as depth
+                FROM folders 
+                WHERE id = ?
+                UNION ALL
+                SELECT f.id, f.parent_id, ft.depth + 1
+                FROM folders f
+                JOIN folder_tree ft ON f.parent_id = ft.id
+            )
+            SELECT MAX(depth) FROM folder_tree
+        """
+        result = self.execute_query(query, (folder_id,), fetch_all=False)
+        return result['MAX(depth)'] if result['MAX(depth)'] is not None else 0
+
+    def get_folder_by_name(self, folder_name: str) -> Optional[Dict[str, Any]]:
+        query = """
+            SELECT id, name, parent_id
+            FROM folders
+            WHERE name = ?
+        """
+        return self.execute_query(query, (folder_name,), fetch_all=False)
+
+    def insert_folder(self, name: str, parent_id: Optional[int] = None) -> int:
+        query = """
+            INSERT INTO folders (name, parent_id)
+            VALUES (?, ?)
+        """
+        return self.execute_query(query, (name, parent_id))
+
+    def update_folder_name(self, folder_id: int, new_name: str) -> None:
+        query = """
+            UPDATE folders 
+            SET name = ? 
+            WHERE id = ?
+        """
+        self.execute_query(query, (new_name, folder_id))
+
+    def get_folder_media_count(self, folder_id: int) -> int:
+        query = """
+            WITH RECURSIVE folder_tree AS (
+                SELECT id FROM folders WHERE id = ?
+                UNION ALL
+                SELECT f.id FROM folders f
+                JOIN folder_tree ft ON f.parent_id = ft.id
+            )
+            SELECT COUNT(*)
+            FROM list_items li
+            JOIN lists l ON li.list_id = l.id
+            WHERE l.folder_id IN (SELECT id FROM folder_tree)
+        """
+        result = self.execute_query(query, (folder_id,), fetch_all=False)
+        return result['COUNT(*)'] if result else 0
+
+    def fetch_all_lists_with_item_status(self, item_id: int) -> List[Dict[str, Any]]:
+        query = """
+            SELECT 
+                lists.id, 
+                lists.name,
+                lists.folder_id,
+                CASE 
+                    WHEN list_items.media_item_id IS NOT NULL THEN 1
+                    ELSE 0
+                END AS is_member
+            FROM lists
+            LEFT JOIN list_items ON lists.id = list_items.list_id 
+            AND list_items.media_item_id IN (
+                SELECT id FROM media_items WHERE kodi_id = ?
+            )
+            ORDER BY lists.folder_id, lists.name COLLATE NOCASE
+        """
+        return self.execute_query(query, (item_id,))
+
+    def fetch_folder_by_id(self, folder_id: int) -> Optional[Dict[str, Any]]:
+        query = """
+            SELECT id, name, parent_id 
+            FROM folders 
+            WHERE id = ?
+        """
+        return self.execute_query(query, (folder_id,), fetch_all=False)
+
     def __del__(self):
         """Clean up connections when the instance is destroyed"""
         for conn_info in self._connection_pool:
