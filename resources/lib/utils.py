@@ -18,9 +18,14 @@ def log(message, level=None):
         level = 'DEBUG'
 
     # Truncate cast data in JSON responses
-    if isinstance(message, str) and '"cast":[' in message:
+    if isinstance(message, str):
         import re
-        message = re.sub(r'("cast":\[)[^\]]*(\])', r'\1...\2', message)
+        # Handle standard JSON cast array
+        message = re.sub(r'("cast":\s*\[)[^\]]*(\])', r'\1...\2', message)
+        # Handle Python dict representation of cast
+        message = re.sub(r"('cast':\s*\[)[^\]]*(\])", r'\1...\2', message)
+        # Handle nested cast arrays
+        message = re.sub(r'("cast":\s*\[[^\[\]]*\[)[^\]]*(\][^\[\]]*\])', r'\1...\2', message)
 
     # Always use INFO level but include original level in message
     xbmc.log(f"LibraryGenie [{level}]: {message}", xbmc.LOGINFO)
