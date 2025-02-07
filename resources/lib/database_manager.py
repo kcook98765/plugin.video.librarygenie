@@ -205,6 +205,7 @@ class DatabaseManager(Singleton):
         if table == 'lists':
             query_manager.insert_generic(table, data)
             utils.log(f"Data inserted into {table} successfully", "DEBUG")
+            return self.cursor.lastrowid
         elif table == 'list_items':
             media_item_id = query_manager.insert_media_item(data)
             if media_item_id:
