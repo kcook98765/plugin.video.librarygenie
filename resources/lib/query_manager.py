@@ -348,7 +348,14 @@ class QueryManager(Singleton):
             INSERT INTO folders (name, parent_id)
             VALUES (?, ?)
         """
-        return self.execute_query(query, (name, parent_id))
+        conn_info = self._get_connection()
+        try:
+            cursor = conn_info['connection'].cursor()
+            cursor.execute(query, (name, parent_id))
+            conn_info['connection'].commit()
+            return cursor.lastrowid
+        finally:
+            self._release_connection(conn_info)
 
     def update_folder_name(self, folder_id: int, new_name: str) -> None:
         query = """
