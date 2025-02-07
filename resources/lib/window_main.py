@@ -626,9 +626,13 @@ class MainWindow(BaseWindow):
         list_id = db_manager.insert_data('lists', {'name': new_list_name, 'folder_id': parent_id})
         if list_id:
             # Add current movie to the new list
-            if self.item_info and 'kodi_id' in self.item_info:
+            if self.item_info and ('kodi_id' in self.item_info or 'title' in self.item_info):
+                utils.log(f"Adding media to new list: {self.item_info}", "DEBUG")
+                data = {}
                 fields_keys = [field.split()[0] for field in Config.FIELDS]
-                data = {field: self.item_info.get(field) for field in fields_keys}
+                for field in fields_keys:
+                    if field in self.item_info:
+                        data[field] = self.item_info[field]
                 data['list_id'] = list_id
                 if 'cast' in data and isinstance(data['cast'], list):
                     data['cast'] = json.dumps(data['cast'])
