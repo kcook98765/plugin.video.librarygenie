@@ -43,6 +43,39 @@ class QueryManager(Singleton):
         """Release a connection back to the pool"""
         conn_info['in_use'] = False
 
+    def execute_rpc_query(self, rpc):
+        """Execute RPC query and return results"""
+        conn_info = self._get_connection()
+        try:
+            query = """
+                SELECT *
+                FROM media_items
+                WHERE id IN (
+                    SELECT media_item_id 
+                    FROM list_items 
+                    WHERE list_id = ?
+                )
+            """
+            cursor = conn_info['connection'].execute(query, (rpc.get('list_id'),))
+            results = cursor.fetchall()
+            return [dict(row) for row in results]
+        finally:
+            self._release_connection(conn_info)
+
+    def save_llm_response(self, description, response_data):
+        """Save LLM API response"""
+        conn_info = self._get_connection()
+        try:
+            query = """
+                INSERT INTO original_requests (description, response_json)
+                VALUES (?, ?)
+            """
+            cursor = conn_info['connection'].execute(query, (description, json.dumps(response_data)))
+            conn_info['connection'].commit()
+            return cursor.lastrowid
+        finally:
+            self._release_connection(conn_info)
+
     def get_media_by_dbid(self, db_id: int, media_type: str = 'movie') -> Dict[str, Any]:
         """Get media details by database ID"""
         query = """

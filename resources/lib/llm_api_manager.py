@@ -92,26 +92,14 @@ class LLMApiManager:
 
     def execute_rpc_query(self, rpc):
         try:
-            query = {
-                "jsonrpc": "2.0",
-                "method": "VideoLibrary.GetMovies",
-                "params": {
-                    "properties": [
-                        "title", "genre", "year", "director", "cast", "plot", "rating",
-                        "thumbnail", "fanart", "runtime", "tagline",
-                        "writer", "imdbnumber", "premiered", "mpaa", "trailer", "votes",
-                        "country", "dateadded", "studio"
-                    ],
-                    "filter": 
-                    rpc['filter']
-                },
-                "id": 1
-            }
-            utils.log(f"Executing RPC query: {json.dumps(query)}", "DEBUG")
-            response = xbmc.executeJSONRPC(json.dumps(query))
-            utils.log(f"RPC response length: {len(response)}", "DEBUG")
-
-            data_length = len(response)
+            from resources.lib.query_manager import QueryManager
+            from resources.lib.config import Config
+            
+            query_manager = QueryManager(Config().db_path)
+            results = query_manager.execute_rpc_query(rpc)
+            
+            utils.log(f"Query results length: {len(results)}", "DEBUG")
+            return results
 
             utils.log(f"Raw response data length: {data_length}", "DEBUG")
             response_data = json.loads(response)
