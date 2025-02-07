@@ -640,12 +640,38 @@ class MainWindow(BaseWindow):
                         data[field] = self.item_info[field]
                 
                 if data:
+                    utils.log("Processing data before insert...", "DEBUG")
                     data['list_id'] = list_id
+                    utils.log(f"Added list_id: {list_id} to data", "DEBUG")
+                    
                     if 'cast' in data and isinstance(data['cast'], list):
+                        utils.log("Converting cast to JSON string", "DEBUG")
                         data['cast'] = json.dumps(data['cast'])
-                    utils.log(f"Inserting media data: {data}", "DEBUG")
-                    result = db_manager.insert_data('list_items', data)
-                    utils.log(f"Insert result: {result}", "DEBUG")
+                    
+                    # Ensure numeric fields are properly typed
+                    for field in ['kodi_id', 'year', 'duration', 'votes']:
+                        if field in data:
+                            try:
+                                data[field] = int(data[field]) if data[field] else 0
+                                utils.log(f"Converted {field} to int: {data[field]}", "DEBUG")
+                            except (ValueError, TypeError) as e:
+                                utils.log(f"Error converting {field}: {str(e)}", "ERROR")
+                                data[field] = 0
+                    
+                    if 'rating' in data:
+                        try:
+                            data['rating'] = float(data['rating']) if data['rating'] else 0.0
+                            utils.log(f"Converted rating to float: {data['rating']}", "DEBUG")
+                        except (ValueError, TypeError) as e:
+                            utils.log(f"Error converting rating: {str(e)}", "ERROR")
+                            data['rating'] = 0.0
+                    
+                    utils.log(f"Final data for insertion: {data}", "DEBUG")
+                    try:
+                        result = db_manager.insert_data('list_items', data)
+                        utils.log(f"Insert result: {result}", "DEBUG")
+                    except Exception as e:
+                        utils.log(f"Error during insert: {str(e)}", "ERROR")
                 else:
                     utils.log("No media data to insert", "WARNING")
                 notification_text = f"Added '{self.item_info.get('title', '')}' to new list '{new_list_name}'"
