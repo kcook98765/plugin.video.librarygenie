@@ -772,18 +772,4 @@ class QueryManager(Singleton):
         finally:
             self._release_connection(conn_info)
 
-    def insert_media_item(self, media_data: dict) -> int:
-        """Insert media item and return its ID"""
-        columns = ', '.join(media_data.keys())
-        placeholders = ', '.join('?' for _ in media_data)
-        query = f"""
-            INSERT OR REPLACE INTO media_items ({columns})
-            VALUES ({placeholders})
-        """
-        conn_info = self._get_connection()
-        try:
-            cursor = conn_info['connection'].execute(query, tuple(media_data.values()))
-            conn_info['connection'].commit()
-            return cursor.lastrowid
-        finally:
-            self._release_connection(conn_info)
+    
