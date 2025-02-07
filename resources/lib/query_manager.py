@@ -485,3 +485,41 @@ class QueryManager(Singleton):
                 conn_info['connection'].close()
             except:
                 pass
+
+    def insert_original_request(self, description: str, response_json: str) -> int:
+        """Insert an original request and return its ID"""
+        query = """
+            INSERT INTO original_requests (description, response_json)
+            VALUES (?, ?)
+        """
+        self.execute_query(query, (description, response_json))
+        return self.cursor.lastrowid
+
+    def insert_parsed_movie(self, request_id: int, title: str, year: Optional[int], director: Optional[str]) -> None:
+        """Insert a parsed movie record"""
+        query = """
+            INSERT INTO parsed_movies (request_id, title, year, director)
+            VALUES (?, ?, ?, ?)
+        """
+        self.execute_query(query, (request_id, title, year, director))
+
+    def get_matched_movies(self, title: str, year: Optional[int] = None, director: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get movies matching certain criteria"""
+        conditions = ["title LIKE ?"]
+        params = [f"%{title}%"]
+        
+        if year:
+            conditions.append("year = ?")
+            params.append(year)
+        if director:
+            conditions.append("director LIKE ?")
+            params.append(f"%{director}%")
+            
+        where_clause = " AND ".join(conditions)
+        query = f"""
+            SELECT DISTINCT *
+            FROM media_items
+            WHERE {where_clause}
+            ORDER BY title COLLATE NOCASE
+        """
+        return self.execute_query(query, tuple(params))
