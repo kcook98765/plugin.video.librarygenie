@@ -108,10 +108,17 @@ class JSONRPC:
         }
 
         # Ensure we have art dictionary with all image types
+        # Get best available poster URL
+        poster_url = details.get('art', {}).get('poster', '')
+        if not poster_url:
+            poster_url = details.get('thumbnail', '')
+
+        details['poster'] = poster_url
+        details['thumbnail'] = poster_url
         details['art'] = {
-            'poster': details['thumbnail'],
-            'thumb': details['thumbnail'],
-            'icon': details.get('art', {}).get('icon', details['thumbnail']),
+            'poster': poster_url,
+            'thumb': poster_url,
+            'icon': poster_url,
             'fanart': details.get('art', {}).get('fanart', '')
         }
 
