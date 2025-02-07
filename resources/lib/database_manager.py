@@ -272,7 +272,6 @@ class DatabaseManager:
                 try:
                     utils.log(f"Processing row ID: {row[0]}", "DEBUG")
                     info_dict = {}
-                    utils.log(f"POSTER TRACE - DB fetch_list_items raw art: {row[1]}", "DEBUG") #Added logging
 
                     for idx, field in enumerate(self.config.FIELDS):
                         field_name = field.split()[0]
@@ -296,10 +295,8 @@ class DatabaseManager:
                                     value = []
                             info_dict[field_name] = value
 
-                    utils.log(f"POSTER TRACE - DB fetch_list_items raw thumbnail: {info_dict.get('thumbnail')}", "DEBUG") #Added logging
                     if 'art' in info_dict and isinstance(info_dict['art'], dict):
                         art_dict = info_dict['art']
-                        utils.log(f"POSTER TRACE - DB fetch_list_items processed art: {art_dict}", "DEBUG") #Added logging
                     else:
                         art_dict = {} #Handle cases where art is missing or not a dict
                     item = {
@@ -335,33 +332,6 @@ class DatabaseManager:
         truncated_data = self.truncate_data(data)
         utils.log(f"Final data for insertion: {truncated_data}", "DEBUG")
 
-        # Detailed poster tracing
-        utils.log(f"POSTER TRACE - DB insert 1 - Raw incoming art: {data.get('art', {})}", "DEBUG")
-        utils.log(f"POSTER TRACE - DB insert 2 - Raw incoming poster: {data.get('poster')}", "DEBUG")
-        utils.log(f"POSTER TRACE - DB insert 3 - Raw incoming thumbnail: {data.get('thumbnail')}", "DEBUG")
-
-        # Check art dictionary contents
-        if 'art' in data:
-            try:
-                art_dict = json.loads(data['art']) if isinstance(data['art'], str) else data['art']
-                utils.log(f"POSTER TRACE - DB insert 4 - Parsed art dict: {art_dict}", "DEBUG")
-                utils.log(f"POSTER TRACE - DB insert 5 - Art dict poster: {art_dict.get('poster')}", "DEBUG")
-            except Exception as e:
-                utils.log(f"POSTER TRACE - DB insert ERROR - Art parse failed: {str(e)}", "ERROR")
-
-        # Log data structure
-        utils.log(f"POSTER TRACE - DB insert 6 - Data keys: {list(data.keys())}", "DEBUG")
-        utils.log(f"POSTER TRACE - DB insert 7 - Is table 'list_items': {table == 'list_items'}", "DEBUG")
-
-        # Additional poster tracing
-        if isinstance(data.get('art'), str):
-            try:
-                art_dict = json.loads(data['art'])
-                utils.log(f"POSTER TRACE - DB insert parsed art dict: {art_dict}", "DEBUG")
-                utils.log(f"POSTER TRACE - DB insert art poster: {art_dict.get('poster')}", "DEBUG")
-            except json.JSONDecodeError as e:
-                utils.log(f"POSTER TRACE - DB insert art parse error: {str(e)}", "DEBUG")
-
         if table == 'list_items':
             # Extract field names from self.config.FIELDS
             field_names = [field.split()[0] for field in self.config.FIELDS]
@@ -371,12 +341,6 @@ class DatabaseManager:
 
             # Insert or ignore into media_items
             media_data = {key: data[key] for key in field_names if key in data}
-            utils.log(f"POSTER TRACE - DB insert_data 1 - Initial art data: {data.get('art')}", "DEBUG")
-            utils.log(f"POSTER TRACE - DB insert_data 2 - Initial media_data: {media_data}", "DEBUG")
-            utils.log(f"POSTER TRACE - DB insert_data 2a - Available fields: {field_names}", "DEBUG")
-            utils.log(f"POSTER TRACE - DB insert_data 2b - Source data keys: {list(data.keys())}", "DEBUG")
-            utils.log(f"POSTER TRACE - DB insert_data 2c - Source poster value: {data.get('poster')}", "DEBUG")
-
             if 'art' in data:
                 try:
                     art_dict = data['art']
@@ -411,11 +375,7 @@ class DatabaseManager:
 
 
                 except json.JSONDecodeError as e:
-                    utils.log(f"POSTER TRACE - DB insert_data ERROR - Failed to parse art JSON: {str(e)}", "ERROR")
-
-            utils.log(f"POSTER TRACE - DB insert_data 7 - Final media_data art: {media_data.get('art')}", "DEBUG")
-            utils.log(f"POSTER TRACE - DB insert_data 8 - Final media_data poster: {media_data.get('poster')}", "DEBUG")
-            utils.log(f"POSTER TRACE - DB insert_data 9 - Final media_data thumbnail: {media_data.get('thumbnail')}", "DEBUG")
+                    utils.log(f"DB insert_data ERROR - Failed to parse art JSON: {str(e)}", "ERROR")
 
             truncated_data = self.truncate_data(media_data)
             utils.log(f"Media data for insertion after comprehension: {truncated_data}", "DEBUG")
@@ -469,9 +429,6 @@ class DatabaseManager:
                     'list_id': data['list_id'],
                     'media_item_id': media_item_id
                 }
-                # Log the poster data being carried through
-                utils.log(f"POSTER TRACE - DB insert_list_item - Original art: {data.get('art')}", "DEBUG")
-                utils.log(f"POSTER TRACE - DB insert_list_item - Media item ID: {media_item_id}", "DEBUG")
 
                 columns = ', '.join(list_data.keys())
                 placeholders = ', '.join('?' for _ in list_data)
@@ -488,8 +445,7 @@ class DatabaseManager:
                 self._execute_with_retry(self.cursor.execute, verify_query, (media_item_id,))
                 verify_result = self.cursor.fetchone()
                 if verify_result:
-                    utils.log(f"POSTER TRACE - DB verify_insert - Stored poster: {verify_result[0]}", "DEBUG")
-                    utils.log(f"POSTER TRACE - DB verify_insert - Stored thumbnail: {verify_result[1]}", "DEBUG")
+                    pass
             else:
                 utils.log("No media_item_id found, insertion skipped", "ERROR")
         else:
