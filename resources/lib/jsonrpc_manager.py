@@ -160,21 +160,16 @@ class JSONRPC:
 
     def get_movies_for_export(self, start=0, limit=50):
         """Get a batch of movies for IMDB export"""
-        query = {
-            "jsonrpc": "2.0",
-            "method": "VideoLibrary.GetMovies",
-            "params": {
-                "properties": [
-                    "imdbnumber", "title", "year", "file"
-                ],
-                "limits": {
-                    "start": start,
-                    "end": start + limit
-                }
-            },
-            "id": 1
+        params = {
+            "properties": [
+                "imdbnumber", "title", "year", "file"
+            ],
+            "limits": {
+                "start": start,
+                "end": start + limit
+            }
         }
-        response = self.execute(query)
+        response = self.execute("VideoLibrary.GetMovies", params)
         if 'result' in response and 'movies' in response['result']:
             return response['result']['movies'], response['result'].get('limits', {}).get('total', 0)
         return [], 0
