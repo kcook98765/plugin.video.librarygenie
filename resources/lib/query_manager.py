@@ -43,6 +43,34 @@ class QueryManager(Singleton):
         """Release a connection back to the pool"""
         conn_info['in_use'] = False
 
+    def get_search_results(self, title: str, year: Optional[int] = None, director: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get search results from media_items table"""
+        conditions = ["title LIKE ?"]
+        params = [f"%{title}%"]
+        
+        if year:
+            conditions.append("year = ?")
+            params.append(year)
+        if director:
+            conditions.append("director LIKE ?")
+            params.append(f"%{director}%")
+            
+        where_clause = " AND ".join(conditions)
+        query = f"""
+            SELECT DISTINCT *
+            FROM media_items 
+            WHERE {where_clause}
+            ORDER BY title COLLATE NOCASE
+        """
+        
+        conn_info = self._get_connection()
+        try:
+            cursor = conn_info['connection'].execute(query, tuple(params))
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        finally:
+            self._release_connection(conn_info)
+
     def execute_query(self, query: str, params: tuple = (), fetch_all: bool = True) -> List[Dict[str, Any]]:
         """Execute a query and return results"""
         conn_info = self._get_connection()
