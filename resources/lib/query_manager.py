@@ -282,7 +282,7 @@ class QueryManager(Singleton):
             WHERE list_id = ?
         """
         result = self.execute_query(query, (list_id,), fetch_all=False)
-        return result['COUNT(*)'] if result else 0
+        return result[0]['COUNT(*)'] if result else 0
 
     def fetch_list_items_with_details(self, list_id: int) -> List[Dict[str, Any]]:
         query = """
