@@ -43,6 +43,36 @@ class QueryManager(Singleton):
         """Release a connection back to the pool"""
         conn_info['in_use'] = False
 
+    def get_media_by_dbid(self, db_id: int, media_type: str = 'movie') -> Dict[str, Any]:
+        """Get media details by database ID"""
+        query = """
+            SELECT *
+            FROM media_items
+            WHERE kodi_id = ? AND type = ?
+        """
+        conn_info = self._get_connection()
+        try:
+            cursor = conn_info['connection'].execute(query, (db_id, media_type))
+            result = cursor.fetchone()
+            return dict(result) if result else {}
+        finally:
+            self._release_connection(conn_info)
+
+    def get_show_episode_details(self, show_id: int, season: int, episode: int) -> Dict[str, Any]:
+        """Get TV show episode details"""
+        query = """
+            SELECT *
+            FROM media_items
+            WHERE show_id = ? AND season = ? AND episode = ?
+        """
+        conn_info = self._get_connection()
+        try:
+            cursor = conn_info['connection'].execute(query, (show_id, season, episode))
+            result = cursor.fetchone()
+            return dict(result) if result else {}
+        finally:
+            self._release_connection(conn_info)
+
     def get_search_results(self, title: str, year: Optional[int] = None, director: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get search results from media_items table"""
         conditions = ["title LIKE ?"]
