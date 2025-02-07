@@ -340,8 +340,9 @@ class QueryManager(Singleton):
             FROM folders
             WHERE name = ?
         """
-        return self.execute_query(query, (folder_name,), fetch_all=False)
-
+        result = self.execute_query(query, (folder_name,), fetch_all=False)
+        return result[0] if result else None
+        
     def insert_folder(self, name: str, parent_id: Optional[int] = None) -> int:
         query = """
             INSERT INTO folders (name, parent_id)
