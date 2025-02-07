@@ -2,19 +2,13 @@
 from resources.lib.jsonrpc_manager import JSONRPC
 from resources.lib import utils
 
-class ResultsManager:
-    _instance = None
-    _initialized = False
+from resources.lib.singleton_base import Singleton
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(ResultsManager, cls).__new__(cls)
-        return cls._instance
-
+class ResultsManager(Singleton):
     def __init__(self):
-        if not ResultsManager._initialized:
+        if not hasattr(self, '_initialized'):
             self.jsonrpc = JSONRPC()
-            ResultsManager._initialized = True
+            self._initialized = True
 
     def search_movie_by_criteria(self, title, year=None, director=None):
         # Case-insensitive title search with partial matching

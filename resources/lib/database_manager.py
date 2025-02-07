@@ -5,21 +5,15 @@ import time
 from resources.lib import utils
 from resources.lib.config_manager import Config
 
-class DatabaseManager:
-    _instance = None
-    _initialized = False
-    
-    def __new__(cls, db_path):
-        if cls._instance is None:
-            cls._instance = super(DatabaseManager, cls).__new__(cls)
-        return cls._instance
+from resources.lib.singleton_base import Singleton
 
+class DatabaseManager(Singleton):
     def __init__(self, db_path):
-        if not DatabaseManager._initialized:
+        if not hasattr(self, '_initialized'):
             self.db_path = db_path
             self.config = Config()  # Instantiate Config to access FIELDS
             self._connect()
-            DatabaseManager._initialized = True
+            self._initialized = True
 
     def _connect(self):
         try:
