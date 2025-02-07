@@ -377,11 +377,11 @@ class DatabaseManager:
 
                     # Handle poster URL consistently
                     poster_url = None
-                    if 'poster' in data:
-                        poster_url = data['poster']
-                    elif isinstance(art_dict, dict):
+                    if isinstance(art_dict, dict):
                         poster_url = art_dict.get('poster')
-                    elif 'thumbnail' in data:
+                    if not poster_url and 'poster' in data:
+                        poster_url = data['poster']
+                    if not poster_url and 'thumbnail' in data:
                         poster_url = data['thumbnail']
 
                     if poster_url:
