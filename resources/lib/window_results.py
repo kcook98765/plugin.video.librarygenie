@@ -15,7 +15,7 @@ class ResultsWindow(BaseWindow):
     _instance = None
     _initialized = False
 
-    def __new__(cls):
+    def __new__(cls, rpc=None, name='', list_id=None, movies=None):
         if cls._instance is None:
             cls._instance = super(ResultsWindow, cls).__new__(cls)
             if not ResultsWindow._initialized:
