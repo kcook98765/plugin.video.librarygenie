@@ -1,4 +1,3 @@
-""" /resources/lib/addon_helper.py """
 import sys
 import urllib.parse
 import xbmc
@@ -70,35 +69,6 @@ def run_addon():
             root_lists = db_manager.fetch_lists(None)  # Get root lists 
             kodi_helper.list_folders_and_lists(root_folders, root_lists)
             return
-
-        # Handle context menu or other actions
-        if action == "show_main_window":
-            utils.log("Context menu 'LibraryGenie' clicked - showing main window", "DEBUG")
-            # Get basic info about currently selected item
-            item_info = {
-                'title': xbmc.getInfoLabel('ListItem.Title'),
-                'kodi_id': xbmc.getInfoLabel('ListItem.DBID'),
-                'is_playable': xbmc.getCondVisibility('ListItem.IsPlayable') == 1,
-                'art': {
-                    'thumb': xbmc.getInfoLabel('ListItem.Art(thumb)'),
-                    'poster': xbmc.getInfoLabel('ListItem.Art(poster)'),
-                    'banner': xbmc.getInfoLabel('ListItem.Art(banner)'),
-                    'fanart': xbmc.getInfoLabel('ListItem.Art(fanart)')
-                }
-            }
-            utils.log(f"Retrieved item info for context menu: {item_info}", "DEBUG")
-            window = MainWindow(item_info)
-            window.doModal()
-            del window
-        elif action == "show_folder":
-            folder_id = int(params.get('folder_id', [0])[0])
-            folders = db_manager.fetch_folders(folder_id)
-            lists = db_manager.fetch_lists(folder_id)
-            kodi_helper.list_folders_and_lists(folders, lists)
-        elif action == "show_list":
-            list_id = int(params.get('list_id', [0])[0])
-            items = db_manager.fetch_list_items(list_id)
-            kodi_helper.list_items(items)
 
     except Exception as e:
         utils.log(f"Error running addon: {str(e)}", "ERROR")
