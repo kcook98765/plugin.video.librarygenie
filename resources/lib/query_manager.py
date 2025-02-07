@@ -253,10 +253,10 @@ class QueryManager(Singleton):
             WHERE list_id = ?
         """
         result = self.execute_query(query, (list_id,), fetch_all=False)
-        if result:
+        if result and result[0]:
             return {
-                'description': result['description'],
-                'rpc': json.loads(result['rpc']) if result['rpc'] else None
+                'description': result[0]['description'],
+                'rpc': json.loads(result[0]['rpc']) if result[0]['rpc'] else None
             }
         return None
 
