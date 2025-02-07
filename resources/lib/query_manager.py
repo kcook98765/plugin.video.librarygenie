@@ -210,7 +210,7 @@ class QueryManager(Singleton):
                 if fetch_all:
                     return [dict(row) for row in results]
                 else:
-                    return dict(results)
+                    return [dict(results)]
             return []
         except Exception as e:
             utils.log(f"Query execution error: {str(e)}", "ERROR")
