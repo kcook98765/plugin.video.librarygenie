@@ -360,8 +360,8 @@ class DatabaseManager:
 
             if 'art' in data:
                 try:
-                    utils.log(f"POSTER TRACE - DB insert_data 5a - Art before processing: {data['art']}", "DEBUG")
-                    art_dict = data['art']
+                    utils.log(f"POSTER TRACE - DB insert_data 5a - Art before processing: {data.get('art')}", "DEBUG")
+                    art_dict = data.get('art', {})
 
                     # Handle string JSON
                     if isinstance(art_dict, str):
@@ -373,7 +373,10 @@ class DatabaseManager:
                         utils.log(f"POSTER TRACE - DB insert_data 5c - Converting art to dict: {art_dict}", "DEBUG")
                         art_dict = {'poster': str(art_dict)}
 
-                    utils.log(f"POSTER TRACE - DB insert_data 5d - Art dict after processing: {art_dict}", "DEBUG")
+                    # Ensure poster is set from art dictionary
+                    if 'poster' in art_dict and not media_data.get('poster'):
+                        media_data['poster'] = art_dict['poster']
+                        utils.log(f"POSTER TRACE - DB insert_data 5d - Setting poster from art: {media_data['poster']}", "DEBUG")
 
                     # Store processed art
                     media_data['art'] = json.dumps(art_dict)
