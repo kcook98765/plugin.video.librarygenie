@@ -43,6 +43,64 @@ class QueryManager(Singleton):
         """Release a connection back to the pool"""
         conn_info['in_use'] = False
 
+    def fetch_folders_direct(self, parent_id=None):
+        """Direct folder fetch without going through DatabaseManager"""
+        query = """
+            SELECT 
+                id,
+                name,
+                parent_id
+            FROM folders
+            WHERE parent_id IS ?
+            ORDER BY name COLLATE NOCASE
+        """
+        return self.execute_query(query, (parent_id,))
+
+    def fetch_lists_direct(self, folder_id=None):
+        """Direct lists fetch without going through DatabaseManager"""
+        query = """
+            SELECT 
+                id,
+                name,
+                folder_id
+            FROM lists
+            WHERE folder_id IS ?
+            ORDER BY name COLLATE NOCASE
+        """
+        return self.execute_query(query, (folder_id,))
+
+    def insert_folder_direct(self, name, parent_id=None):
+        """Direct folder insertion"""
+        query = """
+            INSERT INTO folders (name, parent_id)
+            VALUES (?, ?)
+        """
+        return self.execute_query(query, (name, parent_id))
+
+    def update_folder_name_direct(self, folder_id, new_name):
+        """Direct folder name update"""
+        query = """
+            UPDATE folders 
+            SET name = ? 
+            WHERE id = ?
+        """
+        self.execute_query(query, (new_name, folder_id))
+
+    def delete_genie_list_direct(self, list_id):
+        """Direct genie list deletion"""
+        query = "DELETE FROM genie_lists WHERE list_id = ?"
+        self.execute_query(query, (list_id,))
+
+    def remove_genielist_entries_direct(self, list_id):
+        """Direct removal of genie list entries"""
+        query = """
+            DELETE FROM list_items
+            WHERE list_id = ? AND media_item_id IN (
+                SELECT id FROM media_items WHERE source = 'genielist'
+            )
+        """
+        self.execute_query(query, (list_id,))
+
     def execute_rpc_query(self, rpc):
         """Execute RPC query and return results"""
         conn_info = self._get_connection()

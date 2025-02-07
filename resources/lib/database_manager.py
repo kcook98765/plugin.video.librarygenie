@@ -139,34 +139,14 @@ class DatabaseManager(Singleton):
         self.connection.commit()
 
     def fetch_folders(self, parent_id=None):
-        query = """
-            SELECT 
-                id,
-                name,
-                parent_id
-            FROM folders
-            WHERE parent_id IS ?
-            ORDER BY name COLLATE NOCASE
-        """
-        utils.log(f"Executing SQL: {query}", "DEBUG")
-        self._execute_with_retry(self.cursor.execute, query, (parent_id,))
-        rows = self.cursor.fetchall()
-        return [{'id': row[0], 'name': row[1], 'parent_id': row[2]} for row in rows]
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        return query_manager.fetch_folders_direct(parent_id)
 
     def fetch_lists(self, folder_id=None):
-        query = """
-            SELECT 
-                id,
-                name,
-                folder_id
-            FROM lists
-            WHERE folder_id IS ?
-            ORDER BY name COLLATE NOCASE
-        """
-        utils.log(f"Executing SQL: {query}", "DEBUG")
-        self._execute_with_retry(self.cursor.execute, query, (folder_id,))
-        rows = self.cursor.fetchall()
-        return [{'id': row[0], 'name': row[1], 'folder_id': row[2]} for row in rows]
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        return query_manager.fetch_lists_direct(folder_id)
 
     def get_folder_depth(self, folder_id):
         from resources.lib.query_manager import QueryManager
