@@ -293,6 +293,10 @@ class DatabaseManager:
                                     value = []
                             info_dict[field_name] = value
 
+                    if 'art' in info_dict and isinstance(info_dict['art'], dict):
+                        art_dict = info_dict['art']
+                    else:
+                        art_dict = {} #Handle cases where art is missing or not a dict
                     item = {
                         'id': row[0],
                         'title': row[self.config.FIELDS.index('title TEXT') + 1],
@@ -623,6 +627,11 @@ class DatabaseManager:
         self._execute_with_retry(self.cursor.execute, query, (folder_id,))
         result = self.cursor.fetchone()
         return result[0] if result[0] is not None else 0
+
+        query = "UPDATE folders SET parent_id = ? WHERE id = ?"
+        utils.log(f"Executing SQL: {query} with folder_id={folder_id}, new_parent_id={new_parent_id}", "DEBUG")
+        self._execute_with_retry(self.cursor.execute, query, (new_parent_id, folder_id))
+        self.connection.commit()
 
     def delete_folder_and_contents(self, folder_id):
         try:

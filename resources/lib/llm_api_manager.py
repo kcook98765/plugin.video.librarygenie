@@ -4,7 +4,6 @@ import urllib.parse
 import json
 import re
 import xbmcgui
-import xbmc
 from resources.lib import utils
 from resources.lib.config_manager import Config
 

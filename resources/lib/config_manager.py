@@ -55,9 +55,9 @@ class Config:
         self.addondir = self.settings.addon_data_path
         self._openai_api_key = self.settings.get_setting('openai_api_key')
         self._base_url = self.settings.get_setting('base_url')
-        self._api_temperature = float(self.settings.get_setting('api_temperature') or '0.7')
-        self._api_max_tokens = int(self.settings.get_setting('api_max_tokens') or '2048')
-        self._max_folder_depth = int(self.settings.get_setting('max_folder_depth') or '3')
+        self._api_temperature = float(self.settings.get_setting('api_temperature', '0.7'))
+        self._api_max_tokens = int(self.settings.get_setting('api_max_tokens', '2048'))
+        self._max_folder_depth = int(self.settings.get_setting('max_folder_depth', '3'))
 
         utils.log(f"Addon path - {self.addonpath}", "DEBUG")
 
