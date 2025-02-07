@@ -19,8 +19,6 @@ class ListItemBuilder:
         if cache_key in ListItemBuilder._item_cache:
             return ListItemBuilder._item_cache[cache_key]
 
-        utils.log(f"Building video item with media info: {media_info}", "DEBUG")
-
         # Create ListItem with proper string title
         title = str(media_info.get('title', ''))
         list_item = xbmcgui.ListItem(label=title)
@@ -32,16 +30,6 @@ class ListItemBuilder:
         utils.log(f"Setting artwork for item: {media_info.get('title', 'Unknown')}", "DEBUG")
         utils.log(f"Initial art dictionary type: {type(art_dict)}", "DEBUG")
         utils.log(f"Initial art dictionary: {art_dict}", "DEBUG")
-        utils.log(f"Available art keys: {list(art_dict.keys()) if isinstance(art_dict, dict) else 'Not a dictionary'}", "DEBUG")
-        
-        # Get poster URL from multiple possible locations with detailed logging
-        utils.log(f"POSTER TRACE - ListItemBuilder 1 - Direct poster: {media_info.get('poster')}", "DEBUG")
-        utils.log(f"POSTER TRACE - ListItemBuilder 2 - Art dict poster: {art_dict.get('poster')}", "DEBUG")
-        utils.log(f"POSTER TRACE - ListItemBuilder 3 - Raw media info: {media_info}", "DEBUG")
-        utils.log(f"POSTER TRACE - ListItemBuilder 4 - Art dict type: {type(art_dict)}", "DEBUG")
-        utils.log(f"POSTER TRACE - ListItemBuilder 5 - Art dict content: {art_dict}", "DEBUG")
-        utils.log(f"Info dictionary poster: {media_info.get('info', {}).get('poster')}", "DEBUG")
-        utils.log(f"Thumbnail: {media_info.get('thumbnail')}", "DEBUG")
         
         # Get poster URL with priority order
         poster_url = None
@@ -63,8 +51,6 @@ class ListItemBuilder:
         if poster_url:
             utils.log(f"Final selected poster URL: {poster_url}", "DEBUG")
         else:
-            utils.log("WARNING: No poster URL found from any source", "WARNING")
-            utils.log(f"POSTER TRACE - ListItemBuilder media info dump: {media_info}", "DEBUG")
             art_dict['poster'] = poster_url
             art_dict['thumb'] = poster_url
             art_dict['icon'] = poster_url
