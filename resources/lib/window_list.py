@@ -1,4 +1,3 @@
-""" /resources/lib/window_list.py """
 import pyxbmct
 import xbmc
 import xbmcgui
@@ -8,11 +7,10 @@ from resources.lib import utils
 from resources.lib.database_manager import DatabaseManager
 from resources.lib.config_manager import Config
 from resources.lib.window_genie import GenieWindow
+from resources.lib.window_base import BaseWindow
 
 # Initialize logging
 utils.log("List Window module initialized", "INFO")
-
-from resources.lib.window_base import BaseWindow
 
 class ListWindow(BaseWindow):
     def __init__(self, list_id, title="Media List"):
@@ -123,7 +121,7 @@ class ListWindow(BaseWindow):
             genie_list_item.setProperty('is_genie_list', 'true')
             self.media_list_control.addItem(genie_list_item)
         finally:
-            db_manager.close()
+            db_manager.__del__()
 
     def on_media_item_click(self):
         selected_item = self.media_list_control.getSelectedItem()
