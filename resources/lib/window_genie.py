@@ -11,7 +11,7 @@ class GenieWindow(pyxbmct.AddonDialogWindow):
     _instance = None
     _initialized = False
 
-    def __new__(cls):
+    def __new__(cls, list_id, title="Genie List Setup"):
         if cls._instance is None:
             cls._instance = super(GenieWindow, cls).__new__(cls)
             if not GenieWindow._initialized:
