@@ -1,4 +1,3 @@
-""" /resources/lib/jsonrpc_manager.py """
 import json
 import xbmc
 from resources.lib import utils
@@ -29,7 +28,6 @@ class JSONRPC:
 
         response = xbmc.executeJSONRPC(query_json)
         response_json = json.loads(response)
-        utils.log(f"JSONRPC response: {response}", "DEBUG")
 
         return response_json
 
@@ -75,11 +73,13 @@ class JSONRPC:
         response = self.execute(method, params)
         details = response.get('result', {}).get('moviedetails', {})
 
-        # Get poster from art dictionary with detailed logging
+        # Get poster from art dictionary
         art = details.get('art', {})
         poster = art.get('poster', '')
+
         if not poster:
             poster = details.get('thumbnail', '')
+            utils.log(f"JSONRPC poster fallback to thumbnail: {poster}", "DEBUG")
 
         details['poster'] = poster
         details['art'] = {

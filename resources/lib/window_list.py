@@ -5,12 +5,10 @@ import xbmcplugin
 import json
 from resources.lib import utils
 from resources.lib.database_manager import DatabaseManager
+from resources.lib.query_manager import QueryManager
 from resources.lib.config_manager import Config
 from resources.lib.window_genie import GenieWindow
 from resources.lib.window_base import BaseWindow
-
-# Initialize logging
-utils.log("List Window module initialized", "INFO")
 
 class ListWindow(BaseWindow):
     def __init__(self, list_id, title="Media List"):
@@ -18,23 +16,21 @@ class ListWindow(BaseWindow):
         self.setGeometry(800, 600, 10, 10)
         self.list_id = list_id
         self.media_list_control = pyxbmct.List()
+        self.config = Config()
+        self.query_manager = QueryManager(self.config.db_path)
         self.setup_ui()
         self.populate_list()
-        self.setFocus(self.media_list_control)  # Set focus to media list control after populating it
+        self.setFocus(self.media_list_control)
 
     def setup_ui(self):
         try:
             xbmcplugin.setContent(self.handle, 'movies')
-            # Set default view mode to poster
             xbmc.executebuiltin('Container.SetViewMode(51)')
-            
             self.placeControl(self.media_list_control, 1, 0, rowspan=9, columnspan=10, pad_x=10, pad_y=10)
             self.connect(self.media_list_control, self.on_media_item_click)
             if self.media_list_control and hasattr(self.media_list_control, 'getId'):
                 self.media_list_control.setEnabled(True)
             self.set_navigation()
-
-            # Enable view mode selection
             xbmcplugin.addSortMethod(self.handle, xbmcplugin.SORT_METHOD_LABEL)
             xbmcplugin.setProperty(self.handle, 'ForcedView', 'true')
         except Exception as e:
@@ -42,19 +38,16 @@ class ListWindow(BaseWindow):
 
     def set_navigation(self):
         utils.log("Setting up window navigation controls", "DEBUG")
-        # Set navigation controls for the media list
         self.media_list_control.controlUp(self.media_list_control)
         self.media_list_control.controlDown(self.media_list_control)
         self.media_list_control.controlLeft(self.media_list_control)
         self.media_list_control.controlRight(self.media_list_control)
-        self.setFocus(self.media_list_control)  # Ensure focus is set to the media list
+        self.setFocus(self.media_list_control)
 
     def populate_list(self):
         utils.log(f"Populating list for list ID {self.list_id}")
-        db_manager = DatabaseManager(Config().db_path)
-        media_items = db_manager.fetch_list_items(self.list_id)
+        media_items = self.query_manager.fetch_list_items_with_details(self.list_id)
         self.media_list_control.reset()
-
         try:
             for item in media_items:
                 try:
@@ -63,8 +56,6 @@ class ListWindow(BaseWindow):
                     list_item = xbmcgui.ListItem(title)
                     list_item.setProperty('media_item_id', str(item.get('id', 0)))
                     list_item.setProperty('title', title)
-                    
-                    # Set art dictionary for proper poster display
                     poster = item.get('poster', '') or item.get('thumbnail', '')
                     if poster:
                         list_item.setArt({
@@ -73,8 +64,6 @@ class ListWindow(BaseWindow):
                             'icon': poster,
                             'fanart': item.get('fanart', '')
                         })
-
-                    # Process cast separately if it exists
                     cast = item.get('cast')
                     if cast:
                         try:
@@ -84,8 +73,6 @@ class ListWindow(BaseWindow):
                                 list_item.setProperty('cast', json.dumps(cast))
                         except Exception as e:
                             utils.log(f"Error processing cast: {str(e)}", "ERROR")
-
-                    # Process other properties
                     for key, value in item.items():
                         if key != 'cast' and value is not None:
                             try:
@@ -98,36 +85,28 @@ class ListWindow(BaseWindow):
                                     list_item.setProperty(key, value)
                             except Exception as e:
                                 utils.log(f"Error setting property {key}: {str(e)}", "ERROR")
-
                     self.media_list_control.addItem(list_item)
                     utils.log(f"Added item with title: {title}", "DEBUG")
                 except Exception as e:
                     utils.log(f"Error adding list item: {str(e)}", "ERROR")
         except Exception as e:
             utils.log(f"Error populating list: {str(e)}", "ERROR")
-
         self.add_genie_list_option()
 
-
     def add_genie_list_option(self):
-        db_manager = DatabaseManager(Config().db_path)
         try:
-            genie_list = db_manager.get_genie_list(self.list_id)
-            if genie_list:
-                label = "<Edit GenieList>"
-            else:
-                label = "<Add GenieList>"
+            genie_list = self.query_manager.get_genie_list(self.list_id)
+            label = "<Edit GenieList>" if genie_list else "<Add GenieList>"
             genie_list_item = xbmcgui.ListItem(label)
             genie_list_item.setProperty('is_genie_list', 'true')
             self.media_list_control.addItem(genie_list_item)
-        finally:
-            db_manager.__del__()
+        except Exception as e:
+            utils.log(f"Error adding genie list option: {e}", "ERROR")
 
     def on_media_item_click(self):
         selected_item = self.media_list_control.getSelectedItem()
         if not selected_item:
             return
-
         if selected_item.getProperty('is_genie_list') == 'true':
             self.open_genie_window()
         else:
@@ -142,8 +121,7 @@ class ListWindow(BaseWindow):
 
     def remove_media_item(self, media_item_id):
         utils.log(f"Removing media item ID {media_item_id} from list ID {self.list_id}")
-        db_manager = DatabaseManager(Config().db_path)
-        db_manager.remove_media_item_from_list(self.list_id, media_item_id)
+        self.query_manager.remove_media_item_from_list(self.list_id, media_item_id)
         xbmcgui.Dialog().notification("Media List", "Media item removed from the list", xbmcgui.NOTIFICATION_INFO, 5000)
         self.populate_list()
 
@@ -167,4 +145,3 @@ class ListWindow(BaseWindow):
         utils.log("Deleting ListWindow instance")
         if hasattr(self, 'media_list_control'):
             del self.media_list_control
-

@@ -23,7 +23,7 @@ class KodiHelper:
 
         # Set content type for proper display
         xbmcplugin.setContent(self.addon_handle, content_type)
-        
+
         for item in items:
             list_item = ListItemBuilder.build_video_item(item)
             url = f'{self.addon_url}?action=play_item&id={item.get("id")}'
@@ -46,7 +46,7 @@ class KodiHelper:
         # Force content type and views with debugging
         utils.log(f"Setting content type to: {content_type}", "DEBUG")
         xbmcplugin.setContent(self.addon_handle, content_type)
-        
+
         # Try different view modes
         view_modes = {
             'list': 50,
@@ -57,23 +57,23 @@ class KodiHelper:
             'fanart': 502,
             'media': 504  
         }
-        
+
         # Set default view mode to poster
         default_mode = view_modes['poster']
         utils.log(f"Setting default view mode: {default_mode}", "DEBUG")
-        
+
         # Set skin view modes
         for mode_name, mode_id in view_modes.items():
             xbmc.executebuiltin(f'Container.SetViewMode({mode_id})')
-        
+
         # Force views mode
         xbmc.executebuiltin('SetProperty(ForcedViews,1,Home)')
         xbmcplugin.setProperty(self.addon_handle, 'ForcedView', 'true')
-        
+
         # Enable skin forced views
         xbmc.executebuiltin('Skin.SetBool(ForcedViews)')
         xbmc.executebuiltin('Container.SetForceViewMode(true)')
-        
+
         xbmcplugin.endOfDirectory(self.addon_handle)
 
     def list_folders(self, folders):
@@ -121,10 +121,10 @@ class KodiHelper:
         from resources.lib.listitem_builder import ListItemBuilder
         db_manager = DatabaseManager(Config().db_path)
         items = db_manager.fetch_list_items(list_id)
-        
+
         # Set content type and force views
         xbmcplugin.setContent(self.addon_handle, 'movies')
-        
+
         # Enable all sort methods
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_LABEL)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_TITLE)
@@ -132,7 +132,7 @@ class KodiHelper:
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_GENRE)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_DATEADDED)
-        
+
         # Set view modes
         view_modes = {
             'list': 50,
@@ -143,19 +143,19 @@ class KodiHelper:
             'fanart': 502,
             'media': 504  
         }
-        
+
         # Set default view mode to poster
         default_mode = view_modes['poster']
         utils.log(f"Setting default view mode: {default_mode}", "DEBUG")
-        
+
         # Set skin view modes
         for mode_name, mode_id in view_modes.items():
             xbmc.executebuiltin(f'Container.SetViewMode({mode_id})')
-        
+
         # Force views mode
         xbmcplugin.setProperty(self.addon_handle, 'ForcedView', 'true')
         xbmc.executebuiltin('Container.SetForceViewMode(true)')
-        
+
         # Add items and end directory
         for item in items:
             list_item = ListItemBuilder.build_video_item(item)
@@ -329,7 +329,7 @@ class KodiHelper:
             details['file'] = xbmc.getInfoLabel('ListItem.FileNameAndPath')
             details['kodi_id'] = int(db_id)  # Ensure dbid is included
             details['play'] = details['file']  # Set the play field to a valid value
-            utils.log(f"Final gathered item details: {details}", "DEBUG")
+
             return details
 
         # Fallback: Gather details directly from ListItem labels
@@ -369,10 +369,14 @@ class KodiHelper:
         return details
 
     def show_information(self):
+        from resources.lib.query_manager import QueryManager
+        from resources.lib.config_manager import Config
+
         db_id = xbmc.getInfoLabel('ListItem.DBID')
-        media_type = xbmc.getInfoLabel('ListItem.DBTYPE')
-        media_type = 'movie'
+        media_type = xbmc.getInfoLabel('ListItem.DBTYPE') or 'movie'
         utils.log(f"Retrieved DBID: {db_id}, Media type: {media_type}", "INFO")
+
+        self.query_manager = QueryManager(Config().db_path)
 
         if db_id:
             if media_type == 'movie':

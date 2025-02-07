@@ -17,6 +17,10 @@ def log(message, level=None):
     if level is None:
         level = 'DEBUG'
 
+    # Skip SQL execution logs
+    if isinstance(message, str) and message.startswith("Executing SQL:"):
+        return
+
     # Truncate cast data in JSON responses
     if isinstance(message, str):
         import re

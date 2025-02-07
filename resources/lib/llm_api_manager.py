@@ -92,37 +92,15 @@ class LLMApiManager:
 
     def execute_rpc_query(self, rpc):
         try:
-            query = {
-                "jsonrpc": "2.0",
-                "method": "VideoLibrary.GetMovies",
-                "params": {
-                    "properties": [
-                        "title", "genre", "year", "director", "cast", "plot", "rating",
-                        "thumbnail", "fanart", "runtime", "tagline",
-                        "writer", "imdbnumber", "premiered", "mpaa", "trailer", "votes",
-                        "country", "dateadded", "studio"
-                    ],
-                    "filter": 
-                    rpc['filter']
-                },
-                "id": 1
-            }
-            utils.log(f"Executing RPC query: {json.dumps(query)}", "DEBUG")
-            response = xbmc.executeJSONRPC(json.dumps(query))
-            utils.log(f"RPC response length: {len(response)}", "DEBUG")
+            from resources.lib.query_manager import QueryManager
+            from resources.lib.config import Config
+            
+            query_manager = QueryManager(Config().db_path)
+            results = query_manager.execute_rpc_query(rpc)
+            
+            utils.log(f"Query results length: {len(results)}", "DEBUG")
+            return results
 
-            data_length = len(response)
-
-            utils.log(f"Raw response data length: {data_length}", "DEBUG")
-            response_data = json.loads(response)
-            movies = response_data.get('result', {}).get('movies', [])
-            if data_length > 1024:
-                utils.log(f"Large response received - {data_length} bytes", "WARNING")
-            if movies:
-                utils.log(f"Found {len(movies)} movies", "INFO")
-            else:
-                utils.log("No movies found in response", "WARNING")
-            return movies
         except KeyError as e:
             utils.log(f"Key error in RPC query: {e}", "ERROR")
             return []

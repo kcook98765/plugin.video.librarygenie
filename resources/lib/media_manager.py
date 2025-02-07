@@ -9,6 +9,8 @@ class MediaManager:
 
     def get_media_info(self, media_type='movie'):
         """Get media info from Kodi"""
+        from resources.lib.query_manager import QueryManager
+        self.query_manager = QueryManager(Config().db_path)
         kodi_id = xbmc.getInfoLabel('ListItem.DBID')
 
         # If we have a valid database ID, use JSONRPC
@@ -35,9 +37,10 @@ class MediaManager:
                         'order': actor.get('order'), 'thumbnail': actor.get('thumbnail')} 
                        for actor in cast_list]
 
+                # Get art dictionary with detailed logging
                 art_dict = details.get('art', {})
                 poster_url = art_dict.get('poster', '')
-                
+
                 if not poster_url:
                     poster_url = details.get('thumbnail', '')
                     utils.log(f"Poster fallback to thumbnail: {poster_url}", "DEBUG")
