@@ -1,4 +1,3 @@
-
 import sqlite3
 import time
 import json
@@ -27,16 +26,16 @@ class QueryManager(Singleton):
         """Get an available connection from the pool"""
         max_retries = 10
         retry_count = 0
-        
+
         while retry_count < max_retries:
             for conn_info in self._connection_pool:
                 if not conn_info['in_use']:
                     conn_info['in_use'] = True
                     return conn_info
-            
+
             time.sleep(0.1)
             retry_count += 1
-        
+
         raise Exception("No available connections in the pool")
 
     def _release_connection(self, conn_info):
@@ -168,14 +167,14 @@ class QueryManager(Singleton):
         """Get search results from media_items table"""
         conditions = ["title LIKE ?"]
         params = [f"%{title}%"]
-        
+
         if year:
             conditions.append("year = ?")
             params.append(str(year))
         if director:
             conditions.append("director LIKE ?")
             params.append(f"%{director}%")
-            
+
         where_clause = " AND ".join(conditions)
         query = f"""
             SELECT DISTINCT *
@@ -183,7 +182,7 @@ class QueryManager(Singleton):
             WHERE {where_clause}
             ORDER BY title COLLATE NOCASE
         """
-        
+
         conn_info = self._get_connection()
         try:
             cursor = conn_info['connection'].execute(query, tuple(params))
@@ -198,19 +197,19 @@ class QueryManager(Singleton):
         try:
             cursor = conn_info['connection'].cursor()
             cursor.execute(query, params)
-            
+
             if fetch_all:
                 results = cursor.fetchall()
             else:
                 results = cursor.fetchone()
-            
+
             conn_info['connection'].commit()
-            
+
             if results:
                 if fetch_all:
                     return [dict(row) for row in results]
                 else:
-                    return dict(results)
+                    return [dict(results)]
             return []
         except Exception as e:
             utils.log(f"Query execution error: {str(e)}", "ERROR")
@@ -253,10 +252,10 @@ class QueryManager(Singleton):
             WHERE list_id = ?
         """
         result = self.execute_query(query, (list_id,), fetch_all=False)
-        if result:
+        if result and result[0]:
             return {
-                'description': result['description'],
-                'rpc': json.loads(result['rpc']) if result['rpc'] else None
+                'description': result[0]['description'],
+                'rpc': json.loads(result[0]['rpc']) if result[0]['rpc'] else None
             }
         return None
 
@@ -282,7 +281,7 @@ class QueryManager(Singleton):
             WHERE list_id = ?
         """
         result = self.execute_query(query, (list_id,), fetch_all=False)
-        return result['COUNT(*)'] if result else 0
+        return result[0]['COUNT(*)'] if result else 0
 
     def fetch_list_items_with_details(self, list_id: int) -> List[Dict[str, Any]]:
         query = """
@@ -333,7 +332,7 @@ class QueryManager(Singleton):
             SELECT MAX(depth) FROM folder_tree
         """
         result = self.execute_query(query, (folder_id,), fetch_all=False)
-        return result['MAX(depth)'] if result['MAX(depth)'] is not None else 0
+        return result[0]['MAX(depth)'] if result and result[0]['MAX(depth)'] is not None else 0
 
     def get_folder_by_name(self, folder_name: str) -> Optional[Dict[str, Any]]:
         query = """
@@ -341,8 +340,9 @@ class QueryManager(Singleton):
             FROM folders
             WHERE name = ?
         """
-        return self.execute_query(query, (folder_name,), fetch_all=False)
-
+        result = self.execute_query(query, (folder_name,), fetch_all=False)
+        return result[0] if result else None
+        
     def insert_folder(self, name: str, parent_id: Optional[int] = None) -> int:
         query = """
             INSERT INTO folders (name, parent_id)
@@ -372,7 +372,7 @@ class QueryManager(Singleton):
             WHERE l.folder_id IN (SELECT id FROM folder_tree)
         """
         result = self.execute_query(query, (folder_id,), fetch_all=False)
-        return result['COUNT(*)'] if result else 0
+        return result[0]['COUNT(*)'] if result else 0
 
     def fetch_all_lists_with_item_status(self, item_id: int) -> List[Dict[str, Any]]:
         query = """
@@ -416,7 +416,7 @@ class QueryManager(Singleton):
             WHERE name = ?
         """
         result = self.execute_query(query, (list_name,), fetch_all=False)
-        return result['id'] if result else None
+        return result[0]['id'] if result else None
 
     def get_lists_for_item(self, item_id: int) -> List[str]:
         query = """
@@ -492,7 +492,7 @@ class QueryManager(Singleton):
             SELECT MAX(depth) FROM folder_tree
         """
         result = self.execute_query(query, (folder_id,), fetch_all=False)
-        return result['MAX(depth)'] if result['MAX(depth)'] is not None else 0
+        return result[0]['MAX(depth)'] if result and result[0]['MAX(depth)'] is not None else 0
 
     def delete_folder_and_contents(self, folder_id: int) -> None:
         queries = [
@@ -542,8 +542,8 @@ class QueryManager(Singleton):
             FROM imdb_exports
         """
         result = self.execute_query(query, fetch_all=False)
-        total = result['total'] if result else 0
-        valid_imdb = result['valid_imdb'] if result else 0
+        total = result[0]['total'] if result else 0
+        valid_imdb = result[0]['valid_imdb'] if result else 0
         return {
             'total': total,
             'valid_imdb': valid_imdb,
@@ -590,7 +590,7 @@ class QueryManager(Singleton):
         """Sync movies with the database"""
         # First, clear existing entries
         self.execute_query("DELETE FROM media_items WHERE source = 'lib'")
-        
+
         # Insert new entries
         for movie in movies:
             # Prepare movie data
@@ -613,7 +613,7 @@ class QueryManager(Singleton):
                 'country': ','.join(movie.get('country', [])),
                 'writer': ','.join(movie.get('writer', []))
             }
-            
+
             # Handle cast data
             if 'cast' in movie:
                 movie_data['cast'] = json.dumps(movie['cast'])
@@ -691,7 +691,7 @@ class QueryManager(Singleton):
         columns = ', '.join(media_data.keys())
         placeholders = ', '.join('?' for _ in media_data)
         query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
-        
+
         conn_info = self._get_connection()
         try:
             cursor = conn_info['connection'].cursor()
@@ -726,14 +726,14 @@ class QueryManager(Singleton):
         """Get movies matching certain criteria"""
         conditions = ["title LIKE ?"]
         params = [f"%{title}%"]
-        
+
         if year:
             conditions.append("year = ?")
             params.append(year)
         if director:
             conditions.append("director LIKE ?")
             params.append(f"%{director}%")
-            
+
         where_clause = " AND ".join(conditions)
         query = f"""
             SELECT DISTINCT *
@@ -742,7 +742,8 @@ class QueryManager(Singleton):
             ORDER BY title COLLATE NOCASE
         """
         return self.execute_query(query, tuple(params))
-def get_media_details(self, media_id: int, media_type: str = 'movie') -> dict:
+
+    def get_media_details(self, media_id: int, media_type: str = 'movie') -> dict:
         """Get media details from database"""
         query = """
             SELECT *
