@@ -3,9 +3,6 @@ import json
 import xbmc
 from resources.lib import utils
 
-# Initialize logging
-utils.log("JSONRPC Manager module initialized", "INFO")
-
 class JSONRPC:
     _instance = None
     _initialized = False
@@ -29,13 +26,6 @@ class JSONRPC:
         }
         query_json = json.dumps(query)
         utils.log(f"Executing JSONRPC method: {method} with params: {query_json}", "DEBUG")
-
-        # Log poster-related parameters for video library calls
-        if method.startswith('VideoLibrary.'):
-            utils.log(f"POSTER TRACE - JSONRPC request method: {method}", "DEBUG")
-            utils.log(f"POSTER TRACE - JSONRPC request params: {params}", "DEBUG")
-            if 'properties' in params:
-                utils.log(f"POSTER TRACE - JSONRPC requested properties: {params['properties']}", "DEBUG")
 
         response = xbmc.executeJSONRPC(query_json)
         response_json = json.loads(response)
@@ -87,19 +77,10 @@ class JSONRPC:
 
         # Get poster from art dictionary with detailed logging
         art = details.get('art', {})
-        utils.log(f"POSTER TRACE - JSONRPC raw response art dict: {art}", "DEBUG")
-        utils.log(f"POSTER TRACE - JSONRPC raw response details: {details}", "DEBUG")
-
         poster = art.get('poster', '')
-        utils.log(f"POSTER TRACE - JSONRPC initial poster from art: {poster}", "DEBUG")
-
         if not poster:
             poster = details.get('thumbnail', '')
-            utils.log(f"POSTER TRACE - JSONRPC fallback to thumbnail: {poster}", "DEBUG")
 
-        utils.log(f"POSTER TRACE - JSONRPC available art types: {list(art.keys())}", "DEBUG")
-        utils.log(f"POSTER TRACE - JSONRPC final selected poster: {poster}", "DEBUG")
-        utils.log(f"POSTER TRACE - JSONRPC thumbnail path: {details.get('thumbnail')}", "DEBUG")
         details['poster'] = poster
         details['art'] = {
             'poster': poster,
