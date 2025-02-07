@@ -171,7 +171,7 @@ class QueryManager(Singleton):
         
         if year:
             conditions.append("year = ?")
-            params.append(year)
+            params.append(str(year))
         if director:
             conditions.append("director LIKE ?")
             params.append(f"%{director}%")
@@ -209,7 +209,8 @@ class QueryManager(Singleton):
             if results:
                 if fetch_all:
                     return [dict(row) for row in results]
-                return dict(results)
+                else:
+                    return dict(results)
             return []
         except Exception as e:
             utils.log(f"Query execution error: {str(e)}", "ERROR")
