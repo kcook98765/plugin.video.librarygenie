@@ -1,5 +1,3 @@
-""" /resources/lib/window_main.py """
-# Import necessary modules and classes
 import re
 import json
 import pyxbmct
