@@ -650,8 +650,14 @@ class QueryManager(Singleton):
             INSERT INTO original_requests (description, response_json)
             VALUES (?, ?)
         """
-        self.execute_query(query, (description, response_json))
-        return self.cursor.lastrowid
+        conn_info = self._get_connection()
+        try:
+            cursor = conn_info['connection'].cursor()
+            cursor.execute(query, (description, response_json))
+            conn_info['connection'].commit()
+            return cursor.lastrowid
+        finally:
+            self._release_connection(conn_info)
 
     def insert_parsed_movie(self, request_id: int, title: str, year: Optional[int], director: Optional[str]) -> None:
         """Insert a parsed movie record"""
