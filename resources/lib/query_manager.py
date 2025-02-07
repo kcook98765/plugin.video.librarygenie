@@ -445,7 +445,7 @@ class QueryManager(Singleton):
             WHERE list_items.list_id = ? AND media_items.title = ?
         """
         result = self.execute_query(query, (list_id, title), fetch_all=False)
-        return result['id'] if result else None
+        return result[0]['id'] if result else None
 
     def delete_list_and_contents(self, list_id: int) -> None:
         queries = [
