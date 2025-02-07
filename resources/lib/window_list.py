@@ -1,9 +1,10 @@
 """ /resources/lib/window_list.py """
 import pyxbmct
 import xbmc
-from resources.lib import utils
 import xbmcgui
+import xbmcplugin
 import json
+from resources.lib import utils
 from resources.lib.database_manager import DatabaseManager
 from resources.lib.config_manager import Config
 from resources.lib.window_genie import GenieWindow

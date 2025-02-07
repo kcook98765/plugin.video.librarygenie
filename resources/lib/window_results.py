@@ -9,6 +9,8 @@ from resources.lib.config_manager import Config
 from resources.lib.jsonrpc_manager import JSONRPC
 from resources.lib.llm_api_manager import LLMApiManager
 
+from resources.lib.window_base import BaseWindow
+
 class ResultsWindow(BaseWindow):
     _instance = None
     _initialized = False

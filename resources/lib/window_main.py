@@ -5,6 +5,8 @@ import json
 import pyxbmct
 import xbmc
 import xbmcgui
+import xbmcaddon
+import xbmcplugin
 from resources.lib.database_manager import DatabaseManager
 from resources.lib.config_manager import Config
 from resources.lib.window_list import ListWindow
@@ -271,7 +273,7 @@ class MainWindow(BaseWindow):
         if focus_id is not None:
             db_manager = DatabaseManager(Config().db_path)
             item_exists = False
-            
+
             if focus_is_folder:
                 item_exists = db_manager.fetch_folder_by_id(focus_id) is not None
             else:
@@ -402,21 +404,21 @@ class MainWindow(BaseWindow):
             self.upload_imdb_list()
         elif options[selected_option] == "Settings":
             self.open_settings()
-            
+
     def upload_imdb_list(self):
         """Upload IMDB numbers to configured API endpoint"""
         import requests
-        
+
         upload_url = xbmcaddon.Addon().getSetting('imdb_upload_url')
         api_key = xbmcaddon.Addon().getSetting('imdb_upload_key')
-        
+
         if not upload_url or not api_key:
             xbmcgui.Dialog().ok("Error", "Please configure IMDB Upload API URL and Key in settings")
             return
-            
+
         db = DatabaseManager(Config().db_path)
         imdb_numbers = db.get_valid_imdb_numbers()
-        
+
         if not imdb_numbers:
             xbmcgui.Dialog().notification(
                 "LibraryGenie",
@@ -425,10 +427,10 @@ class MainWindow(BaseWindow):
                 5000
             )
             return
-            
+
         progress = xbmcgui.DialogProgress()
         progress.create("Uploading IMDB List")
-        
+
         try:
             response = requests.post(
                 upload_url,
@@ -437,14 +439,14 @@ class MainWindow(BaseWindow):
                 timeout=30
             )
             response.raise_for_status()
-            
+
             xbmcgui.Dialog().notification(
                 "LibraryGenie",
                 f"Successfully uploaded {len(imdb_numbers)} IMDB numbers",
                 xbmcgui.NOTIFICATION_INFO,
                 5000
             )
-            
+
         except Exception as e:
             utils.log(f"Error uploading IMDB list: {str(e)}", "ERROR")
             xbmcgui.Dialog().ok("Error", f"Failed to upload IMDB list: {str(e)}")
@@ -455,32 +457,32 @@ class MainWindow(BaseWindow):
         """Export list items to IMDB format"""
         progress = xbmcgui.DialogProgress()
         progress.create("Exporting IMDB List")
-        
+
         jsonrpc = JSONRPC()
         db = DatabaseManager(Config().db_path)
-        
+
         start = 0
         limit = 50
         total_processed = 0
-        
+
         while True:
             movies, total = jsonrpc.get_movies_for_export(start, limit)
             if not movies:
                 break
-                
+
             db.insert_imdb_export(movies)
             total_processed += len(movies)
-            
+
             percent = (total_processed * 100) // total if total > 0 else 100
             progress.update(percent, f"Processed {total_processed} of {total} movies...")
-            
+
             if total_processed >= total:
                 break
-                
+
             start += limit
-            
+
         progress.close()
-        
+
         # Get IMDB stats
         stats = db.get_imdb_export_stats()
         stats_message = (
@@ -489,7 +491,7 @@ class MainWindow(BaseWindow):
             f"Valid IMDB Numbers: {stats['valid_imdb']}\n"
             f"Percentage: {stats['percentage']:.1f}%"
         )
-        
+
         xbmcgui.Dialog().ok("IMDB Export Statistics", stats_message)
 
     def handle_paste_action(self, action, target_id):
@@ -569,7 +571,7 @@ class MainWindow(BaseWindow):
 
     def paste_folder_here(self, folder_id, target_folder_id):
         db_manager = DatabaseManager(Config().db_path)
-        
+
         # Check for circular reference
         current_parent = target_folder_id
         while current_parent is not None:
@@ -583,7 +585,7 @@ class MainWindow(BaseWindow):
                 return
             folder = db_manager.fetch_folder_by_id(current_parent)
             current_parent = folder['parent_id'] if folder else None
-            
+
         db_manager.update_folder_parent(folder_id, target_folder_id)
         xbmcgui.Dialog().notification("LibraryGenie", f"Folder moved to new location", xbmcgui.NOTIFICATION_INFO, 5000)
         self.moving_folder_id = None
@@ -627,7 +629,7 @@ class MainWindow(BaseWindow):
         utils.log(f"Creating new list '{new_list_name}' under parent ID '{parent_id}'", "DEBUG")
         db_manager.insert_data('lists', {'name': new_list_name, 'folder_id': parent_id})
         list_id = db_manager.cursor.lastrowid
-        
+
         # Add current movie to the new list
         if self.item_info and 'kodi_id' in self.item_info:
             fields_keys = [field.split()[0] for field in Config.FIELDS]
@@ -639,7 +641,7 @@ class MainWindow(BaseWindow):
             notification_text = f"Added '{self.item_info.get('title', '')}' to new list '{new_list_name}'"
         else:
             notification_text = f"New list '{new_list_name}' created"
-            
+
         xbmcgui.Dialog().notification("LibraryGenie", notification_text, xbmcgui.NOTIFICATION_INFO, 5000)
         self.populate_list()
 
