@@ -194,24 +194,9 @@ class DatabaseManager(Singleton):
         query_manager.update_list_folder(list_id, folder_id)
 
     def fetch_lists_with_item_status(self, item_id):
-        query = """
-            SELECT 
-                lists.id, 
-                lists.name,
-                CASE 
-                    WHEN list_items.media_item_id IS NOT NULL THEN 1
-                    ELSE 0
-                END AS is_member
-            FROM lists
-            LEFT JOIN list_items ON lists.id = list_items.list_id AND list_items.media_item_id IN (
-                SELECT id FROM media_items WHERE kodi_id = ?
-            )
-            ORDER BY lists.name COLLATE NOCASE
-        """
-        utils.log(f"Executing SQL: {query} with item_id={item_id}", "DEBUG")
-        self._execute_with_retry(self.cursor.execute, query, (item_id,))
-        rows = self.cursor.fetchall()
-        return [{'id': row[0], 'name': row[1], 'is_member': row[2]} for row in rows]
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        return query_manager.fetch_lists_with_item_status(item_id)
 
     def fetch_all_lists_with_item_status(self, item_id):
         query = """
