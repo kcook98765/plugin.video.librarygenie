@@ -1,6 +1,6 @@
+
 from resources.lib.jsonrpc_manager import JSONRPC
 from resources.lib import utils
-
 from resources.lib.singleton_base import Singleton
 
 class ResultsManager(Singleton):
@@ -8,7 +8,7 @@ class ResultsManager(Singleton):
         if not hasattr(self, '_initialized'):
             self.jsonrpc = JSONRPC()
             from resources.lib.query_manager import QueryManager
-            from resources.lib.config import Config # Added import for Config
+            from resources.lib.config import Config
             self.query_manager = QueryManager(Config().db_path)
             self._initialized = True
 
