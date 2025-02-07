@@ -216,7 +216,7 @@ class KodiHelper:
             result = db.cursor.fetchone()
 
             if not result:
-                utils.log(f"Item not found for id: {item_id_value}", "ERROR")
+                utils.log(f"Item not found for id: {item_id}", "ERROR")
                 return False
 
             # Convert result tuple to dict
