@@ -751,12 +751,32 @@ class QueryManager(Singleton):
 
         where_clause = " AND ".join(conditions)
         query = f"""
-            SELECT DISTINCT *
+            SELECT DISTINCT 
+                id, kodi_id, title, year, plot, genre, director, cast,
+                rating, file, thumbnail, fanart, duration, tagline,
+                writer, imdbnumber, premiered, mpaa, trailer, votes,
+                country, dateadded, studio, art, play, poster,
+                media_type, source, path
             FROM media_items
             WHERE {where_clause}
             ORDER BY title COLLATE NOCASE
         """
-        return self.execute_query(query, tuple(params))
+        results = self.execute_query(query, tuple(params))
+        
+        # Process results to ensure all metadata is properly formatted
+        for item in results:
+            if 'art' in item and isinstance(item['art'], str):
+                try:
+                    item['art'] = json.loads(item['art'])
+                except json.JSONDecodeError:
+                    item['art'] = {}
+            if 'cast' in item and isinstance(item['cast'], str):
+                try:
+                    item['cast'] = json.loads(item['cast'])
+                except json.JSONDecodeError:
+                    item['cast'] = []
+                    
+        return results
 
     def get_media_details(self, media_id: int, media_type: str = 'movie') -> dict:
         """Get media details from database"""
