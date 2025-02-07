@@ -31,6 +31,7 @@ class Config:
         "tagline TEXT",
         "thumbnail TEXT",
         "poster TEXT",
+        "art TEXT",
         "title TEXT", 
         "trailer TEXT",
         "uniqueid TEXT",
