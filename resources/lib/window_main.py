@@ -142,9 +142,8 @@ class MainWindow(BaseWindow):
 
         self.list_data = []
 
-        root_folders = [f for f in all_folders if f['parent_id'] is None]
-        root_lists = [l for l in all_lists if l['folder_id'] is None]
-
+        root_folders = [folder for folder in all_folders if folder['parent_id'] is None]
+        root_lists = [list_item for list_item in all_lists if list_item['folder_id'] is None]
         combined_root = root_folders + root_lists
         combined_root.sort(key=lambda x: self.clean_name(x['name']).lower())
         utils.log(f"Sorted combined root items: {[(self.clean_name(i['name']), i['name']) for i in combined_root]}", "DEBUG")
@@ -456,7 +455,7 @@ class MainWindow(BaseWindow):
         progress = xbmcgui.DialogProgress()
         progress.create("Exporting IMDB List")
 
-        jsonrpc = JSONRPC()
+        jsonrpc = xbmc.JSONRPC()
         db = DatabaseManager(Config().db_path)
 
         start = 0
@@ -528,7 +527,7 @@ class MainWindow(BaseWindow):
 
             db_manager = DatabaseManager(Config().db_path)
             existing_folder_id = db_manager.get_folder_id_by_name(new_folder_name)
-        except:
+        except Exception:
             utils.log(f"Error creating new folder. ParentID={parent_id}, NewFolderName={new_folder_name}", "ERROR")
             return
         if existing_folder_id:
@@ -619,7 +618,7 @@ class MainWindow(BaseWindow):
                 xbmcgui.Dialog().notification("LibraryGenie", f"The list name '{new_list_name}' already exists", xbmcgui.NOTIFICATION_WARNING, 5000)
                 return
 
-        except:
+        except Exception:
             utils.log(f"Error creating new list. ParentID={parent_id}, NewListName={new_list_name}", "ERROR")
             return
 
