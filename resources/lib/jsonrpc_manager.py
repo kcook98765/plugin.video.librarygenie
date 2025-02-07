@@ -28,7 +28,6 @@ class JSONRPC:
 
         response = xbmc.executeJSONRPC(query_json)
         response_json = json.loads(response)
-        utils.log(f"JSONRPC response: {response}", "DEBUG")
 
         return response_json
 

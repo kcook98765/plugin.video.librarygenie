@@ -27,10 +27,7 @@ class ListItemBuilder:
         # Set artwork
         # Get art dictionary from info if available
         art_dict = media_info.get('info', {}).get('art', {}).copy() if isinstance(media_info.get('info', {}).get('art'), dict) else {}
-        utils.log(f"Setting artwork for item: {media_info.get('title', 'Unknown')}", "DEBUG")
-        utils.log(f"Initial art dictionary type: {type(art_dict)}", "DEBUG")
-        utils.log(f"Initial art dictionary: {art_dict}", "DEBUG")
-        
+
         # Get poster URL with priority order
         poster_url = None
         for source in [
@@ -47,13 +44,6 @@ class ListItemBuilder:
             except Exception as e:
                 utils.log(f"Error getting poster URL: {str(e)}", "ERROR")
                 continue
-
-        if poster_url:
-            utils.log(f"Final selected poster URL: {poster_url}", "DEBUG")
-        else:
-            art_dict['poster'] = poster_url
-            art_dict['thumb'] = poster_url
-            art_dict['icon'] = poster_url
 
         # Get poster URL with priority order
         poster = media_info.get('poster')
@@ -120,8 +110,6 @@ class ListItemBuilder:
             'year': info.get('year', ''),
             'mediatype': (info.get('media_type') or 'movie').lower()
         }
-
-        utils.log(f"Prepared info dictionary: {info_dict}", "DEBUG")
 
         # Set video info using the compatibility helper
         set_info_tag(list_item, info_dict, 'video')

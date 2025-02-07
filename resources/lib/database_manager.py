@@ -265,8 +265,6 @@ class DatabaseManager:
         try:
             self._execute_with_retry(self.cursor.execute, query, (list_id,))
             rows = self.cursor.fetchall()
-            utils.log(f"Fetched rows: {rows}", "DEBUG")  # Log the fetched rows
-
             items = []
             for row in rows:
                 try:
@@ -328,9 +326,6 @@ class DatabaseManager:
         # Convert the cast list to a JSON string if it exists
         if 'cast' in data and isinstance(data['cast'], list):
             data['cast'] = json.dumps(data['cast'])
-
-        truncated_data = self.truncate_data(data)
-        utils.log(f"Final data for insertion: {truncated_data}", "DEBUG")
 
         if table == 'list_items':
             # Extract field names from self.config.FIELDS
