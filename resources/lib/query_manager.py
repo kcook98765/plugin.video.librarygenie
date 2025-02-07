@@ -383,6 +383,59 @@ class QueryManager(Singleton):
         """
         return self.execute_query(query, (item_id,))
 
+    def get_imdb_export_stats(self) -> Dict[str, Any]:
+        """Get statistics about IMDB numbers in exports"""
+        query = """
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN imdb_id IS NOT NULL AND imdb_id != '' AND imdb_id LIKE 'tt%' THEN 1 ELSE 0 END) as valid_imdb
+            FROM imdb_exports
+        """
+        result = self.execute_query(query, fetch_all=False)
+        total = result['total'] if result else 0
+        valid_imdb = result['valid_imdb'] if result else 0
+        return {
+            'total': total,
+            'valid_imdb': valid_imdb,
+            'percentage': (valid_imdb / total * 100) if total > 0 else 0
+        }
+
+    def insert_imdb_export(self, movies: List[Dict[str, Any]]) -> None:
+        """Insert multiple movies into imdb_exports table"""
+        query = """
+            INSERT INTO imdb_exports 
+            (kodi_id, imdb_id, title, year, filename, path)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """
+        for movie in movies:
+            file_path = movie.get('file', '')
+            filename = file_path.split('/')[-1] if file_path else ''
+            path = '/'.join(file_path.split('/')[:-1]) if file_path else ''
+            self.execute_query(
+                query,
+                (
+                    movie.get('movieid'), 
+                    movie.get('imdbnumber'),
+                    movie.get('title'),
+                    movie.get('year'),
+                    filename,
+                    path
+                )
+            )
+
+    def get_valid_imdb_numbers(self) -> List[str]:
+        """Get all valid IMDB numbers from exports table"""
+        query = """
+            SELECT imdb_id
+            FROM imdb_exports
+            WHERE imdb_id IS NOT NULL 
+            AND imdb_id != '' 
+            AND imdb_id LIKE 'tt%'
+            ORDER BY imdb_id
+        """
+        results = self.execute_query(query)
+        return [result['imdb_id'] for result in results]
+
     def __del__(self):
         """Clean up connections when the instance is destroyed"""
         for conn_info in self._connection_pool:
