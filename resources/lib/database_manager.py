@@ -315,9 +315,24 @@ class DatabaseManager:
 
         truncated_data = self.truncate_data(data)
         utils.log(f"Final data for insertion: {truncated_data}", "DEBUG")
-        utils.log(f"POSTER TRACE - DB insert raw art: {data.get('art', {})}", "DEBUG")
-        utils.log(f"POSTER TRACE - DB insert raw poster: {data.get('poster')}", "DEBUG")
-        utils.log(f"POSTER TRACE - DB insert raw thumbnail: {data.get('thumbnail')}", "DEBUG")
+        
+        # Detailed poster tracing
+        utils.log(f"POSTER TRACE - DB insert 1 - Raw incoming art: {data.get('art', {})}", "DEBUG")
+        utils.log(f"POSTER TRACE - DB insert 2 - Raw incoming poster: {data.get('poster')}", "DEBUG")
+        utils.log(f"POSTER TRACE - DB insert 3 - Raw incoming thumbnail: {data.get('thumbnail')}", "DEBUG")
+        
+        # Check art dictionary contents
+        if 'art' in data:
+            try:
+                art_dict = json.loads(data['art']) if isinstance(data['art'], str) else data['art']
+                utils.log(f"POSTER TRACE - DB insert 4 - Parsed art dict: {art_dict}", "DEBUG")
+                utils.log(f"POSTER TRACE - DB insert 5 - Art dict poster: {art_dict.get('poster')}", "DEBUG")
+            except Exception as e:
+                utils.log(f"POSTER TRACE - DB insert ERROR - Art parse failed: {str(e)}", "ERROR")
+        
+        # Log data structure
+        utils.log(f"POSTER TRACE - DB insert 6 - Data keys: {list(data.keys())}", "DEBUG")
+        utils.log(f"POSTER TRACE - DB insert 7 - Is table 'list_items': {table == 'list_items'}", "DEBUG")
 
         # Additional poster tracing
         if isinstance(data.get('art'), str):
@@ -339,6 +354,9 @@ class DatabaseManager:
             media_data = {key: data[key] for key in field_names if key in data}
             utils.log(f"POSTER TRACE - DB insert_data 1 - Initial art data: {data.get('art')}", "DEBUG")
             utils.log(f"POSTER TRACE - DB insert_data 2 - Initial media_data: {media_data}", "DEBUG")
+            utils.log(f"POSTER TRACE - DB insert_data 2a - Available fields: {field_names}", "DEBUG")
+            utils.log(f"POSTER TRACE - DB insert_data 2b - Source data keys: {list(data.keys())}", "DEBUG")
+            utils.log(f"POSTER TRACE - DB insert_data 2c - Source poster value: {data.get('poster')}", "DEBUG")
             
             if 'art' in data:
                 try:
