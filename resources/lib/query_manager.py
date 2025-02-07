@@ -641,8 +641,8 @@ class QueryManager(Singleton):
         for conn_info in self._connection_pool:
             try:
                 conn_info['connection'].close()
-            except:
-                pass
+            except sqlite3.Error:
+                pass  # Ignore errors during cleanup
 
     def insert_original_request(self, description: str, response_json: str) -> int:
         """Insert an original request and return its ID"""
