@@ -416,7 +416,7 @@ class DatabaseManager:
                         art_dict = json.loads(art_dict)
                     if not isinstance(art_dict, dict):
                         art_dict = {'poster': str(art_dict)}
-                    
+
                     # Ensure consistent poster across all fields
                     poster_url = art_dict.get('poster', '') or media_data.get('thumbnail', '')
                     if poster_url:
@@ -461,15 +461,15 @@ class DatabaseManager:
 
                 # Verify poster data after insertion
                 verify_query = """
-                    SELECT art, poster, thumbnail 
+                    SELECT poster, thumbnail 
                     FROM media_items 
                     WHERE id = ?
                 """
                 self._execute_with_retry(self.cursor.execute, verify_query, (media_item_id,))
                 verify_result = self.cursor.fetchone()
                 if verify_result:
-                    utils.log(f"POSTER TRACE - DB verify_insert - Stored art: {verify_result[0]}", "DEBUG")
-                    utils.log(f"POSTER TRACE - DB verify_insert - Stored poster: {verify_result[1]}", "DEBUG")
+                    utils.log(f"POSTER TRACE - DB verify_insert - Stored poster: {verify_result[0]}", "DEBUG")
+                    utils.log(f"POSTER TRACE - DB verify_insert - Stored thumbnail: {verify_result[1]}", "DEBUG")
             else:
                 utils.log("No media_item_id found, insertion skipped", "ERROR")
         else:
