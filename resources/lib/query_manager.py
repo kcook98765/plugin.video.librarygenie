@@ -652,6 +652,75 @@ class QueryManager(Singleton):
         """
         self.execute_query(query, (request_id, title, year, director))
 
+    def insert_media_item(self, data: Dict[str, Any]) -> Optional[int]:
+        """Insert a media item and return its ID"""
+        # Extract field names from config
+        field_names = [field.split()[0] for field in Config.FIELDS]
+        media_data = {key: data[key] for key in field_names if key in data}
+
+        # Process art data
+        if 'art' in data:
+            try:
+                art_dict = data['art']
+                if isinstance(art_dict, str):
+                    art_dict = json.loads(art_dict)
+                elif not isinstance(art_dict, dict):
+                    art_dict = {}
+
+                poster_url = (art_dict.get('poster') if isinstance(art_dict, dict) else None)
+                if not poster_url:
+                    poster_url = data.get('poster') or data.get('thumbnail')
+
+                if poster_url:
+                    art_dict = {
+                        'poster': poster_url,
+                        'thumb': poster_url,
+                        'icon': poster_url,
+                        'fanart': data.get('fanart', '')
+                    }
+                    media_data.update({
+                        'art': json.dumps(art_dict),
+                        'poster': poster_url,
+                        'thumbnail': poster_url
+                    })
+            except Exception as e:
+                utils.log(f"Error processing art data: {str(e)}", "ERROR")
+
+        # Insert media item
+        columns = ', '.join(media_data.keys())
+        placeholders = ', '.join('?' for _ in media_data)
+        query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
+        
+        conn_info = self._get_connection()
+        try:
+            cursor = conn_info['connection'].cursor()
+            cursor.execute(query, tuple(media_data.values()))
+            conn_info['connection'].commit()
+
+            # Get the media item ID
+            cursor.execute(
+                "SELECT id FROM media_items WHERE kodi_id = ? AND play = ?",
+                (media_data['kodi_id'], media_data['play'])
+            )
+            result = cursor.fetchone()
+            return result[0] if result else None
+        finally:
+            self._release_connection(conn_info)
+
+    def insert_list_item(self, data: Dict[str, Any]) -> None:
+        """Insert a list item"""
+        columns = ', '.join(data.keys())
+        placeholders = ', '.join('?' for _ in data)
+        query = f'INSERT INTO list_items ({columns}) VALUES ({placeholders})'
+        self.execute_query(query, tuple(data.values()))
+
+    def insert_generic(self, table: str, data: Dict[str, Any]) -> None:
+        """Generic table insert"""
+        columns = ', '.join(data.keys())
+        placeholders = ', '.join('?' for _ in data)
+        query = f'INSERT INTO {table} ({columns}) VALUES ({placeholders})'
+        self.execute_query(query, tuple(data.values()))
+
     def get_matched_movies(self, title: str, year: Optional[int] = None, director: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get movies matching certain criteria"""
         conditions = ["title LIKE ?"]

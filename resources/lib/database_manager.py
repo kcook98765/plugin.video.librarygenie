@@ -195,135 +195,29 @@ class DatabaseManager(Singleton):
         return truncated_data
 
     def insert_data(self, table, data):
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+
         # Convert the cast list to a JSON string if it exists
         if 'cast' in data and isinstance(data['cast'], list):
             data['cast'] = json.dumps(data['cast'])
 
         if table == 'list_items':
-            # Extract field names from self.config.FIELDS
-            field_names = [field.split()[0] for field in self.config.FIELDS]
-            utils.log(f"Field names for media data: {field_names}", "DEBUG")  # Log field names
-
-            utils.log(f"Keys in data dictionary: {list(data.keys())}", "DEBUG")  # Log keys in data
-
-            # Insert or ignore into media_items
-            media_data = {key: data[key] for key in field_names if key in data}
-            if 'art' in data:
-                try:
-                    art_dict = data['art']
-                    if isinstance(art_dict, str):
-                        art_dict = json.loads(art_dict)
-                    elif not isinstance(art_dict, dict):
-                        art_dict = {}
-
-                    # Handle poster URL consistently
-                    poster_url = None
-                    if isinstance(art_dict, dict):
-                        poster_url = art_dict.get('poster')
-                    if not poster_url and 'poster' in data:
-                        poster_url = data['poster']
-                    if not poster_url and 'thumbnail' in data:
-                        poster_url = data['thumbnail']
-
-                    if poster_url:
-                        # Update art dictionary
-                        art_dict = {
-                            'poster': poster_url,
-                            'thumb': poster_url,
-                            'icon': poster_url,
-                            'fanart': data.get('fanart', '')
-                        }
-
-                    # Always store art as JSON string
-                    media_data['art'] = json.dumps(art_dict)
-                    if poster_url:
-                        media_data['poster'] = poster_url
-                        media_data['thumbnail'] = poster_url
-
-
-                except json.JSONDecodeError as e:
-                    utils.log(f"DB insert_data ERROR - Failed to parse art JSON: {str(e)}", "ERROR")
-
-            truncated_data = self.truncate_data(media_data)
-            utils.log(f"Media data for insertion after comprehension: {truncated_data}", "DEBUG")
-
-            # Insert or ignore into media_items
-            columns = ', '.join(media_data.keys())
-            placeholders = ', '.join('?' for _ in media_data)
-            query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
-            utils.log(f"Executing SQL: {query} with data={media_data}", "DEBUG")
-            self._execute_with_retry(self.cursor.execute, query, tuple(media_data.values()))
-            self.connection.commit()
-
-            # Ensure art data is properly formatted
-            if 'art' in media_data:
-                try:
-                    art_dict = media_data['art']
-                    if isinstance(art_dict, str):
-                        art_dict = json.loads(art_dict)
-                    if not isinstance(art_dict, dict):
-                        art_dict = {'poster': str(art_dict)}
-
-                    # Ensure consistent poster across all fields
-                    poster_url = art_dict.get('poster', '') or media_data.get('thumbnail', '')
-                    if poster_url:
-                        art_dict.update({
-                            'poster': poster_url,
-                            'thumb': poster_url,
-                            'icon': poster_url
-                        })
-                        media_data['art'] = json.dumps(art_dict)
-                        media_data['poster'] = poster_url
-                        media_data['thumbnail'] = poster_url
-                except Exception as e:
-                    utils.log(f"Error processing art data: {str(e)}", "ERROR")
-
-            # Get the media_item_id
-            query = """
-                SELECT id
-                FROM media_items
-                WHERE kodi_id = ? AND play = ?
-            """
-            utils.log(f"Executing SQL: {query} with kodi_id={media_data.get('kodi_id')} and play={media_data.get('play')}", "DEBUG")
-            self._execute_with_retry(self.cursor.execute, query, (media_data['kodi_id'], media_data['play']))
-            media_item_id = self.cursor.fetchone()
-            utils.log(f"Fetched media_item_id: {media_item_id}", "DEBUG")
-
+            media_item_id = query_manager.insert_media_item(data)
             if media_item_id:
-                media_item_id = media_item_id[0]
-                # Insert into list_items
                 list_data = {
                     'list_id': data['list_id'],
                     'media_item_id': media_item_id
                 }
-
-                columns = ', '.join(list_data.keys())
-                placeholders = ', '.join('?' for _ in list_data)
-                query = f'INSERT INTO {table} ({columns}) VALUES ({placeholders})'
-                utils.log(f"Executing SQL: {query} with data={list_data}", "DEBUG")
-                self._execute_with_retry(self.cursor.execute, query, tuple(list_data.values()))
-
-                # Verify poster data after insertion
-                verify_query = """
-                    SELECT poster, thumbnail 
-                    FROM media_items 
-                    WHERE id = ?
-                """
-                self._execute_with_retry(self.cursor.execute, verify_query, (media_item_id,))
-                verify_result = self.cursor.fetchone()
-                if verify_result:
-                    pass
+                query_manager.insert_list_item(list_data)
+                utils.log(f"Inserted list item with media_item_id: {media_item_id}", "DEBUG")
             else:
                 utils.log("No media_item_id found, insertion skipped", "ERROR")
         else:
-            columns = ', '.join(data.keys())
-            placeholders = ', '.join('?' for _ in data)
-            query = f'INSERT INTO {table} ({columns}) VALUES ({placeholders})'
-            utils.log(f"Executing SQL: {query} with data={data}", "DEBUG")
-            self._execute_with_retry(self.cursor.execute, query, tuple(data.values()))
+            # For other tables, use generic insert
+            query_manager.insert_generic(table, data)
 
-        self.connection.commit()
-        utils.log(f"Data inserted into {table} successfully", "DEBUG")  # Log after insertion
+        utils.log(f"Data inserted into {table} successfully", "DEBUG")
 
     def _insert_or_ignore(self, table_name, data):
         # Check if data is not empty
