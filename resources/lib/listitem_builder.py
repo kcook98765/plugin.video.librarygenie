@@ -27,45 +27,71 @@ class ListItemBuilder:
         utils.log(f"Created ListItem with title: {title}", "DEBUG")
 
         # Set artwork
-        art_dict = {}
+        # Get art dictionary from info if available
+        art_dict = media_info.get('info', {}).get('art', {}).copy() if isinstance(media_info.get('info', {}).get('art'), dict) else {}
         utils.log(f"Setting artwork for item: {media_info.get('title', 'Unknown')}", "DEBUG")
+        utils.log(f"Initial art dictionary type: {type(art_dict)}", "DEBUG")
+        utils.log(f"Initial art dictionary: {art_dict}", "DEBUG")
+        utils.log(f"Available art keys: {list(art_dict.keys()) if isinstance(art_dict, dict) else 'Not a dictionary'}", "DEBUG")
+        
+        # Get poster URL from multiple possible locations with detailed logging
+        utils.log(f"POSTER TRACE - ListItemBuilder 1 - Direct poster: {media_info.get('poster')}", "DEBUG")
+        utils.log(f"POSTER TRACE - ListItemBuilder 2 - Art dict poster: {art_dict.get('poster')}", "DEBUG")
+        utils.log(f"POSTER TRACE - ListItemBuilder 3 - Raw media info: {media_info}", "DEBUG")
+        utils.log(f"POSTER TRACE - ListItemBuilder 4 - Art dict type: {type(art_dict)}", "DEBUG")
+        utils.log(f"POSTER TRACE - ListItemBuilder 5 - Art dict content: {art_dict}", "DEBUG")
+        utils.log(f"Info dictionary poster: {media_info.get('info', {}).get('poster')}", "DEBUG")
+        utils.log(f"Thumbnail: {media_info.get('thumbnail')}", "DEBUG")
+        
+        # Get poster URL with priority order
+        poster_url = None
+        for source in [
+            lambda: media_info.get('poster'),
+            lambda: media_info.get('art', {}).get('poster'),
+            lambda: media_info.get('info', {}).get('poster'),
+            lambda: media_info.get('thumbnail')
+        ]:
+            try:
+                url = source()
+                if url and str(url) != 'None':
+                    poster_url = url
+                    break
+            except Exception as e:
+                utils.log(f"Error getting poster URL: {str(e)}", "ERROR")
+                continue
 
-        # Set up initial art dictionary
-        art_dict = {}
-        poster = media_info.get('info', {}).get('thumbnail') or media_info.get('thumbnail')
-        fanart = media_info.get('info', {}).get('fanart') or media_info.get('fanart')
+        if poster_url:
+            utils.log(f"Final selected poster URL: {poster_url}", "DEBUG")
+        else:
+            utils.log("WARNING: No poster URL found from any source", "WARNING")
+            utils.log(f"POSTER TRACE - ListItemBuilder media info dump: {media_info}", "DEBUG")
+            art_dict['poster'] = poster_url
+            art_dict['thumb'] = poster_url
+            art_dict['icon'] = poster_url
 
-        # Handle poster image
-        if poster:
-            if not poster.startswith('image://'):
-                from urllib.parse import quote
-                poster = f'image://{quote(poster)}/'
-            art_dict['poster'] = poster
-            art_dict['thumb'] = poster
-            art_dict['icon'] = poster
+        # Get poster URL with priority order
+        poster = media_info.get('poster')
+        if not poster and media_info.get('art'):
+            try:
+                art_data = json.loads(media_info['art']) if isinstance(media_info['art'], str) else media_info['art']
+                poster = art_data.get('poster', '')
+            except (json.JSONDecodeError, AttributeError):
+                pass
+        if not poster:
+            poster = media_info.get('thumbnail')
+            
+        fanart = media_info.get('fanart')
 
-        # Handle fanart
-        if fanart:
-            if not fanart.startswith('image://'):
-                from urllib.parse import quote
-                fanart = f'image://{quote(fanart)}/'
-            art_dict['fanart'] = fanart
-
-        # Set initial art values if available
-        if poster:
-            art_dict['poster'] = poster
-            art_dict['thumb'] = poster
-            art_dict['icon'] = poster
-
-        if fanart:
-            art_dict['fanart'] = fanart
-
-        # Handle art dictionary with proper path validation
         if poster and str(poster) != 'None':
             art_dict['poster'] = poster
             art_dict['thumb'] = poster
             art_dict['icon'] = poster
+            utils.log(f"Setting art with poster: {poster}", "DEBUG")
             utils.log(f"Setting poster paths: {poster}", "DEBUG")
+
+        if fanart and str(fanart) != 'None':
+            art_dict['fanart'] = fanart
+            utils.log(f"Setting fanart path: {fanart}", "DEBUG")
 
         if fanart and str(fanart) != 'None':
             art_dict['fanart'] = fanart

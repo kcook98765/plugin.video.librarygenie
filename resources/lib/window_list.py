@@ -1,9 +1,10 @@
 """ /resources/lib/window_list.py """
 import pyxbmct
 import xbmc
-from resources.lib import utils
 import xbmcgui
+import xbmcplugin
 import json
+from resources.lib import utils
 from resources.lib.database_manager import DatabaseManager
 from resources.lib.config_manager import Config
 from resources.lib.window_genie import GenieWindow
@@ -66,12 +67,13 @@ class ListWindow(BaseWindow):
                     list_item.setProperty('title', title)
                     
                     # Set art dictionary for proper poster display
-                    thumbnail = item.get('info', {}).get('thumbnail', '')
-                    if thumbnail:
+                    poster = item.get('poster', '') or item.get('thumbnail', '')
+                    if poster:
                         list_item.setArt({
-                            'poster': thumbnail,
-                            'thumb': thumbnail,
-                            'icon': thumbnail
+                            'poster': poster,
+                            'thumb': poster,
+                            'icon': poster,
+                            'fanart': item.get('fanart', '')
                         })
 
                     # Process cast separately if it exists

@@ -23,6 +23,12 @@ class KodiHelper:
 
         # Set content type for proper display
         xbmcplugin.setContent(self.addon_handle, content_type)
+        
+        # Log poster data for each item being processed
+        for idx, item in enumerate(items):
+            utils.log(f"POSTER TRACE - KodiHelper item {idx} raw art: {item.get('art')}", "DEBUG")
+            utils.log(f"POSTER TRACE - KodiHelper item {idx} poster: {item.get('poster')}", "DEBUG")
+            utils.log(f"POSTER TRACE - KodiHelper item {idx} thumbnail: {item.get('thumbnail')}", "DEBUG")
 
         for item in items:
             list_item = ListItemBuilder.build_video_item(item)
@@ -210,7 +216,7 @@ class KodiHelper:
             result = db.cursor.fetchone()
 
             if not result:
-                utils.log(f"Item not found for id: {item_id_value}", "ERROR")
+                utils.log(f"Item not found for id: {item_id}", "ERROR")
                 return False
 
             # Convert result tuple to dict
@@ -295,7 +301,7 @@ class KodiHelper:
                     'title', 'genre', 'year', 'director', 'cast', 'plot', 'rating',
                     'file', 'thumbnail', 'fanart', 'runtime', 'tagline',
                     'writer', 'imdbnumber', 'premiered', 'mpaa', 'trailer', "votes",
-                    "country", "dateadded", "studio"
+                    "country", "dateadded", "studio", "art"
                 ]
             }
             if method == 'VideoLibrary.GetMovieDetails':

@@ -1,13 +1,86 @@
-
 import xbmc
 import json
 from resources.lib import utils
+from resources.lib.jsonrpc_manager import JSONRPC
 
 class MediaManager:
+    def __init__(self):
+        self.jsonrpc = JSONRPC()
+
     def get_media_info(self, media_type='movie'):
         """Get media info from Kodi"""
+        kodi_id = xbmc.getInfoLabel('ListItem.DBID')
+
+        # If we have a valid database ID, use JSONRPC
+        if kodi_id and kodi_id.isdigit() and int(kodi_id) > 0:
+            utils.log(f"Getting library item details via JSONRPC for ID: {kodi_id}", "DEBUG")
+            method = 'VideoLibrary.GetMovieDetails'
+            params = {
+                'movieid': int(kodi_id),
+                'properties': [
+                    'title', 'genre', 'year', 'director', 'cast', 'plot', 'rating',
+                    'file', 'thumbnail', 'fanart', 'runtime', 'tagline',
+                    'writer', 'imdbnumber', 'premiered', 'mpaa', 'trailer', 'votes',
+                    'country', 'dateadded', 'studio', 'art'
+                ]
+            }
+
+            response = self.jsonrpc.execute(method, params)
+            details = response.get('result', {}).get('moviedetails', {})
+
+            if details:
+                # Convert cast to expected format and JSON string
+                cast_list = details.get('cast', [])
+                cast = [{'name': actor.get('name'), 'role': actor.get('role'), 
+                        'order': actor.get('order'), 'thumbnail': actor.get('thumbnail')} 
+                       for actor in cast_list]
+
+                # Get art dictionary with detailed logging
+                art_dict = details.get('art', {})
+                utils.log(f"POSTER TRACE - MediaManager initial art dict: {art_dict}", "DEBUG")
+                
+                poster_url = art_dict.get('poster', '')
+                utils.log(f"POSTER TRACE - MediaManager initial poster URL: {poster_url}", "DEBUG")
+                
+                if not poster_url:
+                    poster_url = details.get('thumbnail', '')
+                    utils.log(f"POSTER TRACE - MediaManager fallback to thumbnail: {poster_url}", "DEBUG")
+                
+                # Ensure art dictionary has all required fields
+                art_dict = {
+                    'poster': poster_url,
+                    'thumb': poster_url,
+                    'icon': poster_url,
+                    'fanart': art_dict.get('fanart', '')
+                }
+                utils.log(f"POSTER TRACE - MediaManager final art dict: {art_dict}", "DEBUG")
+                utils.log(f"POSTER TRACE - MediaManager pre-jsonencode art: {art_dict}", "DEBUG")
+                utils.log(f"POSTER TRACE - MediaManager pre-jsonencode poster: {poster_url}", "DEBUG")
+                utils.log(f"POSTER TRACE - MediaManager post-info-build art: {info.get('art')}", "DEBUG")
+                utils.log(f"POSTER TRACE - MediaManager post-info-build poster: {info.get('poster')}", "DEBUG")
+                
+                media_info = {
+                    'kodi_id': kodi_id,
+                    'title': details.get('title', ''),
+                    'art': json.dumps(art_dict),  # Store art as JSON string
+                    'thumbnail': poster_url,  # Keep thumbnail for compatibility
+                    'poster': poster_url,  # Explicitly store poster URL
+                    'year': details.get('year', ''),
+                    'plot': details.get('plot', ''),
+                    'genre': ' / '.join(details.get('genre', [])),
+                    'director': ' / '.join(details.get('director', [])),
+                    'cast': json.dumps(cast),
+                    'rating': details.get('rating', ''),
+                    'file': details.get('file', ''),
+                    'fanart': art_dict.get('fanart', ''),
+                    'duration': details.get('runtime', ''),
+                    'type': media_type
+                }
+
+        # Fallback to current method for non-library items
+        utils.log("Using fallback method for non-library item", "DEBUG")
         info = {
-            'kodi_id': xbmc.getInfoLabel('ListItem.DBID'),
+            'kodi_id': kodi_id,
             'title': xbmc.getInfoLabel('ListItem.Title'),
             'year': xbmc.getInfoLabel('ListItem.Year'),
             'plot': xbmc.getInfoLabel('ListItem.Plot'),
@@ -18,6 +91,7 @@ class MediaManager:
             'file': xbmc.getInfoLabel('ListItem.FileNameAndPath'),
             'thumbnail': xbmc.getInfoLabel('ListItem.Art(poster)'),
             'fanart': xbmc.getInfoLabel('ListItem.Art(fanart)'),
+            'poster': xbmc.getInfoLabel('ListItem.Art(poster)'),  # Store poster URL explicitly
             'duration': xbmc.getInfoLabel('ListItem.Duration'),
             'type': media_type
         }

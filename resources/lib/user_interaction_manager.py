@@ -5,10 +5,20 @@ import xbmcgui
 from resources.lib.database_manager import DatabaseManager
 from resources.lib.config_manager import Config
 from resources.lib import utils
-from resources.lib import utils
 
-# Initialize logging
-utils.log("User Interaction Manager initialized", "INFO")
+class UserInteractionManager:
+    _instance = None
+    _initialized = False
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(UserInteractionManager, cls).__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        if not UserInteractionManager._initialized:
+            utils.log("User Interaction Manager initialized", "INFO")
+            UserInteractionManager._initialized = True
 
 class UserInteractionManager:
 

@@ -16,9 +16,9 @@ class JSONRPC:
         return cls._instance
 
     def __init__(self):
-        if not self._initialized:
+        if not hasattr(JSONRPC, '_log_initialized'):
             utils.log("JSONRPC Manager module initialized", "INFO")
-            self._initialized = True
+            JSONRPC._log_initialized = True
 
     def execute(self, method, params):
         query = {
@@ -29,6 +29,13 @@ class JSONRPC:
         }
         query_json = json.dumps(query)
         utils.log(f"Executing JSONRPC method: {method} with params: {query_json}", "DEBUG")
+
+        # Log poster-related parameters for video library calls
+        if method.startswith('VideoLibrary.'):
+            utils.log(f"POSTER TRACE - JSONRPC request method: {method}", "DEBUG")
+            utils.log(f"POSTER TRACE - JSONRPC request params: {params}", "DEBUG")
+            if 'properties' in params:
+                utils.log(f"POSTER TRACE - JSONRPC requested properties: {params['properties']}", "DEBUG")
 
         response = xbmc.executeJSONRPC(query_json)
         response_json = json.loads(response)
@@ -78,45 +85,40 @@ class JSONRPC:
         response = self.execute(method, params)
         details = response.get('result', {}).get('moviedetails', {})
 
-        # Get proper poster from art dictionary
+        # Get poster from art dictionary with detailed logging
         art = details.get('art', {})
-        utils.log(f"Available art types for movie {movie_id}: {art.keys()}", "DEBUG")
+        utils.log(f"POSTER TRACE - JSONRPC raw response art dict: {art}", "DEBUG")
+        utils.log(f"POSTER TRACE - JSONRPC raw response details: {details}", "DEBUG")
 
-        # Try all possible poster sources in priority order
-        poster = None
-        poster_sources = [
-            ('art.poster', art.get('poster')),
-            ('art.thumb', art.get('thumb')),
-            ('art.landscape', art.get('landscape')),
-            ('details.thumbnail', details.get('thumbnail'))
-        ]
+        poster = art.get('poster', '')
+        utils.log(f"POSTER TRACE - JSONRPC initial poster from art: {poster}", "DEBUG")
 
-        for source_name, source_value in poster_sources:
-            if source_value:
-                utils.log(f"Found poster from {source_name}: {source_value}", "DEBUG")
-                poster = source_value
-                break
-            else:
-                utils.log(f"No poster found in {source_name}", "DEBUG")
+        if not poster:
+            poster = details.get('thumbnail', '')
+            utils.log(f"POSTER TRACE - JSONRPC fallback to thumbnail: {poster}", "DEBUG")
 
-        if poster:
-            utils.log(f"Using poster from source: {poster}", "DEBUG")
-            # Handle image protocol conversion
-            if poster.startswith('image://'):
-                details['thumbnail'] = poster
-            elif poster.startswith('video@'):
-                details['thumbnail'] = f"image://{poster.replace('video@', '')}"
-            elif poster.startswith('http'):
-                from urllib.parse import quote
-                details['thumbnail'] = f"image://{quote(poster)}/"
-            else:
-                details['thumbnail'] = f"image://{poster}/"
+        utils.log(f"POSTER TRACE - JSONRPC available art types: {list(art.keys())}", "DEBUG")
+        utils.log(f"POSTER TRACE - JSONRPC final selected poster: {poster}", "DEBUG")
+        utils.log(f"POSTER TRACE - JSONRPC thumbnail path: {details.get('thumbnail')}", "DEBUG")
+        details['poster'] = poster
+        details['art'] = {
+            'poster': poster,
+            'thumb': poster,
+            'icon': poster
+        }
 
         # Ensure we have art dictionary with all image types
+        # Get best available poster URL
+        poster_url = details.get('art', {}).get('poster', '')
+        if not poster_url:
+            poster_url = details.get('thumbnail', '')
+
+        details['poster'] = poster_url
+        details['thumbnail'] = poster_url
         details['art'] = {
-            'poster': details['thumbnail'],
-            'thumb': details['thumbnail'],
-            'icon': details.get('art', {}).get('icon', details['thumbnail']),
+            'poster': poster_url,
+            'thumb': poster_url,
+            'icon': poster_url,
             'fanart': details.get('art', {}).get('fanart', '')
         }
 
@@ -158,21 +160,16 @@ class JSONRPC:
 
     def get_movies_for_export(self, start=0, limit=50):
         """Get a batch of movies for IMDB export"""
-        query = {
-            "jsonrpc": "2.0",
-            "method": "VideoLibrary.GetMovies",
-            "params": {
-                "properties": [
-                    "imdbnumber", "title", "year", "file"
-                ],
-                "limits": {
-                    "start": start,
-                    "end": start + limit
-                }
-            },
-            "id": 1
+        params = {
+            "properties": [
+                "imdbnumber", "title", "year", "file"
+            ],
+            "limits": {
+                "start": start,
+                "end": start + limit
+            }
         }
-        response = self.execute(query)
+        response = self.execute("VideoLibrary.GetMovies", params)
         if 'result' in response and 'movies' in response['result']:
             return response['result']['movies'], response['result'].get('limits', {}).get('total', 0)
         return [], 0

@@ -1,4 +1,3 @@
-
 """ /resources/lib/addon_helper.py """
 import sys
 import urllib.parse
@@ -10,10 +9,15 @@ from resources.lib.kodi_helper import KodiHelper
 from resources.lib.window_main import MainWindow
 from resources.lib import utils
 
-def run_addon():
-    """Main entry point for the addon"""
-    utils.log("Running addon...", "DEBUG")
+_initialized = False
 
+def run_addon():
+    global _initialized
+    if _initialized:
+        return
+
+    utils.log("Running addon...", "DEBUG")
+    _initialized = True
     try:
         # Handle direct action from context menu
         if len(sys.argv) > 1 and sys.argv[1] == 'show_main_window':
@@ -30,6 +34,10 @@ def run_addon():
         # Initialize helpers
         config = Config()
         db_manager = DatabaseManager(config.db_path)
+
+        # Ensure database is setup
+        db_manager.setup_database()
+
         kodi_helper = KodiHelper()
 
         # Handle context menu vs direct launch

@@ -6,10 +6,20 @@ from resources.lib import utils
 from resources.lib.config_manager import Config
 
 class DatabaseManager:
+    _instance = None
+    _initialized = False
+    
+    def __new__(cls, db_path):
+        if cls._instance is None:
+            cls._instance = super(DatabaseManager, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self, db_path):
-        self.db_path = db_path
-        self.config = Config()  # Instantiate Config to access FIELDS
-        self._connect()
+        if not DatabaseManager._initialized:
+            self.db_path = db_path
+            self.config = Config()  # Instantiate Config to access FIELDS
+            self._connect()
+            DatabaseManager._initialized = True
 
     def _connect(self):
         try:
@@ -262,20 +272,36 @@ class DatabaseManager:
                 try:
                     utils.log(f"Processing row ID: {row[0]}", "DEBUG")
                     info_dict = {}
-                    
+                    utils.log(f"POSTER TRACE - DB fetch_list_items raw art: {row[1]}", "DEBUG") #Added logging
+
                     for idx, field in enumerate(self.config.FIELDS):
                         field_name = field.split()[0]
                         if field_name != 'title':
                             value = row[idx + 1]
-                            if field_name == 'cast' and value:
+                            if field_name == 'art':
+                                if value:
+                                    try:
+                                        if isinstance(value, str):
+                                            value = json.loads(value)
+                                        elif isinstance(value, dict):
+                                            value = json.dumps(value)
+                                    except json.JSONDecodeError as e:
+                                        utils.log(f"Failed to parse art data: {e}", "ERROR")
+                                        value = "{}"
+                            elif field_name == 'cast' and value:
                                 try:
-                                    value = json.loads(value)
-                                    utils.log(f"Parsed cast data for {row[0]}", "DEBUG")
+                                    value = json.loads(value) if isinstance(value, str) else value
                                 except json.JSONDecodeError as e:
                                     utils.log(f"Failed to parse cast data: {e}", "ERROR")
                                     value = []
                             info_dict[field_name] = value
-                            
+
+                    utils.log(f"POSTER TRACE - DB fetch_list_items raw thumbnail: {info_dict.get('thumbnail')}", "DEBUG") #Added logging
+                    if 'art' in info_dict and isinstance(info_dict['art'], dict):
+                        art_dict = info_dict['art']
+                        utils.log(f"POSTER TRACE - DB fetch_list_items processed art: {art_dict}", "DEBUG") #Added logging
+                    else:
+                        art_dict = {} #Handle cases where art is missing or not a dict
                     item = {
                         'id': row[0],
                         'title': row[self.config.FIELDS.index('title TEXT') + 1],
@@ -307,7 +333,34 @@ class DatabaseManager:
             data['cast'] = json.dumps(data['cast'])
 
         truncated_data = self.truncate_data(data)
-        utils.log(f"Final data for insertion: {truncated_data}", "DEBUG")  # Additional logging
+        utils.log(f"Final data for insertion: {truncated_data}", "DEBUG")
+
+        # Detailed poster tracing
+        utils.log(f"POSTER TRACE - DB insert 1 - Raw incoming art: {data.get('art', {})}", "DEBUG")
+        utils.log(f"POSTER TRACE - DB insert 2 - Raw incoming poster: {data.get('poster')}", "DEBUG")
+        utils.log(f"POSTER TRACE - DB insert 3 - Raw incoming thumbnail: {data.get('thumbnail')}", "DEBUG")
+
+        # Check art dictionary contents
+        if 'art' in data:
+            try:
+                art_dict = json.loads(data['art']) if isinstance(data['art'], str) else data['art']
+                utils.log(f"POSTER TRACE - DB insert 4 - Parsed art dict: {art_dict}", "DEBUG")
+                utils.log(f"POSTER TRACE - DB insert 5 - Art dict poster: {art_dict.get('poster')}", "DEBUG")
+            except Exception as e:
+                utils.log(f"POSTER TRACE - DB insert ERROR - Art parse failed: {str(e)}", "ERROR")
+
+        # Log data structure
+        utils.log(f"POSTER TRACE - DB insert 6 - Data keys: {list(data.keys())}", "DEBUG")
+        utils.log(f"POSTER TRACE - DB insert 7 - Is table 'list_items': {table == 'list_items'}", "DEBUG")
+
+        # Additional poster tracing
+        if isinstance(data.get('art'), str):
+            try:
+                art_dict = json.loads(data['art'])
+                utils.log(f"POSTER TRACE - DB insert parsed art dict: {art_dict}", "DEBUG")
+                utils.log(f"POSTER TRACE - DB insert art poster: {art_dict.get('poster')}", "DEBUG")
+            except json.JSONDecodeError as e:
+                utils.log(f"POSTER TRACE - DB insert art parse error: {str(e)}", "DEBUG")
 
         if table == 'list_items':
             # Extract field names from self.config.FIELDS
@@ -317,10 +370,55 @@ class DatabaseManager:
             utils.log(f"Keys in data dictionary: {list(data.keys())}", "DEBUG")  # Log keys in data
 
             # Insert or ignore into media_items
-            media_data = {key: data[key] for key in data if key in field_names}
+            media_data = {key: data[key] for key in field_names if key in data}
+            utils.log(f"POSTER TRACE - DB insert_data 1 - Initial art data: {data.get('art')}", "DEBUG")
+            utils.log(f"POSTER TRACE - DB insert_data 2 - Initial media_data: {media_data}", "DEBUG")
+            utils.log(f"POSTER TRACE - DB insert_data 2a - Available fields: {field_names}", "DEBUG")
+            utils.log(f"POSTER TRACE - DB insert_data 2b - Source data keys: {list(data.keys())}", "DEBUG")
+            utils.log(f"POSTER TRACE - DB insert_data 2c - Source poster value: {data.get('poster')}", "DEBUG")
+
+            if 'art' in data:
+                try:
+                    art_dict = data['art']
+                    if isinstance(art_dict, str):
+                        art_dict = json.loads(art_dict)
+                    elif not isinstance(art_dict, dict):
+                        art_dict = {}
+
+                    # Handle poster URL consistently
+                    poster_url = None
+                    if isinstance(art_dict, dict):
+                        poster_url = art_dict.get('poster')
+                    if not poster_url and 'poster' in data:
+                        poster_url = data['poster']
+                    if not poster_url and 'thumbnail' in data:
+                        poster_url = data['thumbnail']
+
+                    if poster_url:
+                        # Update art dictionary
+                        art_dict = {
+                            'poster': poster_url,
+                            'thumb': poster_url,
+                            'icon': poster_url,
+                            'fanart': data.get('fanart', '')
+                        }
+
+                    # Always store art as JSON string
+                    media_data['art'] = json.dumps(art_dict)
+                    if poster_url:
+                        media_data['poster'] = poster_url
+                        media_data['thumbnail'] = poster_url
+
+
+                except json.JSONDecodeError as e:
+                    utils.log(f"POSTER TRACE - DB insert_data ERROR - Failed to parse art JSON: {str(e)}", "ERROR")
+
+            utils.log(f"POSTER TRACE - DB insert_data 7 - Final media_data art: {media_data.get('art')}", "DEBUG")
+            utils.log(f"POSTER TRACE - DB insert_data 8 - Final media_data poster: {media_data.get('poster')}", "DEBUG")
+            utils.log(f"POSTER TRACE - DB insert_data 9 - Final media_data thumbnail: {media_data.get('thumbnail')}", "DEBUG")
 
             truncated_data = self.truncate_data(media_data)
-            utils.log(f"Media data for insertion after comprehension: {truncated_data}", "DEBUG")  # Log media_data
+            utils.log(f"Media data for insertion after comprehension: {truncated_data}", "DEBUG")
 
             # Insert or ignore into media_items
             columns = ', '.join(media_data.keys())
@@ -329,6 +427,29 @@ class DatabaseManager:
             utils.log(f"Executing SQL: {query} with data={media_data}", "DEBUG")
             self._execute_with_retry(self.cursor.execute, query, tuple(media_data.values()))
             self.connection.commit()
+
+            # Ensure art data is properly formatted
+            if 'art' in media_data:
+                try:
+                    art_dict = media_data['art']
+                    if isinstance(art_dict, str):
+                        art_dict = json.loads(art_dict)
+                    if not isinstance(art_dict, dict):
+                        art_dict = {'poster': str(art_dict)}
+
+                    # Ensure consistent poster across all fields
+                    poster_url = art_dict.get('poster', '') or media_data.get('thumbnail', '')
+                    if poster_url:
+                        art_dict.update({
+                            'poster': poster_url,
+                            'thumb': poster_url,
+                            'icon': poster_url
+                        })
+                        media_data['art'] = json.dumps(art_dict)
+                        media_data['poster'] = poster_url
+                        media_data['thumbnail'] = poster_url
+                except Exception as e:
+                    utils.log(f"Error processing art data: {str(e)}", "ERROR")
 
             # Get the media_item_id
             query = """
@@ -348,11 +469,27 @@ class DatabaseManager:
                     'list_id': data['list_id'],
                     'media_item_id': media_item_id
                 }
+                # Log the poster data being carried through
+                utils.log(f"POSTER TRACE - DB insert_list_item - Original art: {data.get('art')}", "DEBUG")
+                utils.log(f"POSTER TRACE - DB insert_list_item - Media item ID: {media_item_id}", "DEBUG")
+
                 columns = ', '.join(list_data.keys())
                 placeholders = ', '.join('?' for _ in list_data)
                 query = f'INSERT INTO {table} ({columns}) VALUES ({placeholders})'
                 utils.log(f"Executing SQL: {query} with data={list_data}", "DEBUG")
                 self._execute_with_retry(self.cursor.execute, query, tuple(list_data.values()))
+
+                # Verify poster data after insertion
+                verify_query = """
+                    SELECT poster, thumbnail 
+                    FROM media_items 
+                    WHERE id = ?
+                """
+                self._execute_with_retry(self.cursor.execute, verify_query, (media_item_id,))
+                verify_result = self.cursor.fetchone()
+                if verify_result:
+                    utils.log(f"POSTER TRACE - DB verify_insert - Stored poster: {verify_result[0]}", "DEBUG")
+                    utils.log(f"POSTER TRACE - DB verify_insert - Stored thumbnail: {verify_result[1]}", "DEBUG")
             else:
                 utils.log("No media_item_id found, insertion skipped", "ERROR")
         else:
@@ -397,17 +534,17 @@ class DatabaseManager:
             self._execute_with_retry(self.cursor.execute, 
                 "DELETE FROM genie_lists WHERE list_id = ?", 
                 (list_id,))
-            
+
             # Delete from list_items
             self._execute_with_retry(self.cursor.execute,
                 "DELETE FROM list_items WHERE list_id = ?",
                 (list_id,))
-            
+
             # Finally delete the list itself
             self._execute_with_retry(self.cursor.execute,
                 "DELETE FROM lists WHERE id = ?",
                 (list_id,))
-            
+
             self.connection.commit()
         except Exception as e:
             self.connection.rollback()
@@ -516,6 +653,12 @@ class DatabaseManager:
                 result = self.cursor.fetchone()
                 temp_parent = result[0] if result else None
 
+        # Update the folder's parent
+        query = "UPDATE folders SET parent_id = ? WHERE id = ?"
+        utils.log(f"Executing SQL: {query} with folder_id={folder_id}, new_parent_id={new_parent_id}", "DEBUG")
+        self._execute_with_retry(self.cursor.execute, query, (new_parent_id, folder_id))
+        self.connection.commit()
+
     def _get_subtree_depth(self, folder_id):
         """Calculate the maximum depth of a folder's subtree"""
         query = """
@@ -616,7 +759,7 @@ class DatabaseManager:
         utils.log(f"Executing SQL: {query} with list_id={list_id}, media_item_id={media_item_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (list_id, media_item_id))
         self.connection.commit()
-        utils.log(f"Media item ID {media_item_id} removed from list ID {list_id}", "DEBUG")
+        utils.log(f"Media item ID {media_item_id} removed fromlist ID {list_id}", "DEBUG")
 
     def get_genie_list(self, list_id):
         query = "SELECT description, rpc FROM genie_lists WHERE list_id = ?"
