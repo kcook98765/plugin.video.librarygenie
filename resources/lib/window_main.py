@@ -455,7 +455,7 @@ class MainWindow(BaseWindow):
         progress = xbmcgui.DialogProgress()
         progress.create("Exporting IMDB List")
 
-        jsonrpc = JSONRPC()
+        jsonrpc = xbmc.JSONRPC()
         db = DatabaseManager(Config().db_path)
 
         start = 0
@@ -527,7 +527,7 @@ class MainWindow(BaseWindow):
 
             db_manager = DatabaseManager(Config().db_path)
             existing_folder_id = db_manager.get_folder_id_by_name(new_folder_name)
-        except:
+        except Exception:
             utils.log(f"Error creating new folder. ParentID={parent_id}, NewFolderName={new_folder_name}", "ERROR")
             return
         if existing_folder_id:
@@ -618,7 +618,7 @@ class MainWindow(BaseWindow):
                 xbmcgui.Dialog().notification("LibraryGenie", f"The list name '{new_list_name}' already exists", xbmcgui.NOTIFICATION_WARNING, 5000)
                 return
 
-        except:
+        except Exception:
             utils.log(f"Error creating new list. ParentID={parent_id}, NewListName={new_list_name}", "ERROR")
             return
 
