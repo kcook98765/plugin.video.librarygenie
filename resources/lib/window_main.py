@@ -624,21 +624,30 @@ class MainWindow(BaseWindow):
         parent_id = int(parent_id) if parent_id != 'None' else None
         utils.log(f"Creating new list '{new_list_name}' under parent ID '{parent_id}'", "DEBUG")
         list_id = db_manager.insert_data('lists', {'name': new_list_name, 'folder_id': parent_id})
+        utils.log(f"Created new list with ID: {list_id}", "DEBUG")
         if list_id:
             # Add current movie to the new list
             if self.item_info:
                 utils.log(f"Adding media to new list: {self.item_info}", "DEBUG")
                 data = {}
                 fields_keys = [field.split()[0] for field in Config.FIELDS]
+                utils.log(f"Field keys: {fields_keys}", "DEBUG")
+                
                 for field in fields_keys:
+                    value = self.item_info.get(field)
+                    utils.log(f"Processing field {field}: {value}", "DEBUG")
                     if field in self.item_info and self.item_info[field]:
                         data[field] = self.item_info[field]
+                
                 if data:
                     data['list_id'] = list_id
                     if 'cast' in data and isinstance(data['cast'], list):
                         data['cast'] = json.dumps(data['cast'])
                     utils.log(f"Inserting media data: {data}", "DEBUG")
-                db_manager.insert_data('list_items', data)
+                    result = db_manager.insert_data('list_items', data)
+                    utils.log(f"Insert result: {result}", "DEBUG")
+                else:
+                    utils.log("No media data to insert", "WARNING")
                 notification_text = f"Added '{self.item_info.get('title', '')}' to new list '{new_list_name}'"
             else:
                 notification_text = f"New list '{new_list_name}' created"
