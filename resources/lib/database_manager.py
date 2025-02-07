@@ -707,32 +707,21 @@ class DatabaseManager(Singleton):
         utils.log(f"Media item ID {media_item_id} removed fromlist ID {list_id}", "DEBUG")
 
     def get_genie_list(self, list_id):
-        query = "SELECT description, rpc FROM genie_lists WHERE list_id = ?"
-        self._execute_with_retry(self.cursor.execute, query, (list_id,))
-        row = self.cursor.fetchone()
-        if row:
-            return {'description': row[0], 'rpc': row[1]}
-        return None
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        return query_manager.get_genie_list(list_id)
 
     def update_genie_list(self, list_id, description, rpc):
-        query = "UPDATE genie_lists SET description = ?, rpc = ? WHERE list_id = ?"
-        try:
-            self._execute_with_retry(self.cursor.execute, query, (description, json.dumps(rpc), list_id))
-            self.connection.commit()
-            utils.log(f"Updated genie_list for list_id={list_id}", "DEBUG")
-        except sqlite3.OperationalError as e:
-            utils.log(f"SQL error in update_genie_list: {e}", "ERROR")
-            # Optional: Retry logic or additional error handling here
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        query_manager.update_genie_list(list_id, description, rpc)
+        utils.log(f"Updated genie_list for list_id={list_id}", "DEBUG")
 
     def insert_genie_list(self, list_id, description, rpc):
-        query = "INSERT INTO genie_lists (list_id, description, rpc) VALUES (?, ?, ?)"
-        try:
-            self._execute_with_retry(self.cursor.execute, query, (list_id, description, json.dumps(rpc)))
-            self.connection.commit()
-            utils.log(f"Inserted genie_list for list_id={list_id}", "DEBUG")
-        except sqlite3.OperationalError as e:
-            utils.log(f"SQL error in insert_genie_list: {e}", "ERROR")
-            # Optional: Retry logic or additional error handling here
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        query_manager.insert_genie_list(list_id, description, rpc)
+        utils.log(f"Inserted genie_list for list_id={list_id}", "DEBUG")
 
     def delete_genie_list(self, list_id):
         query = "DELETE FROM genie_lists WHERE list_id = ?"
