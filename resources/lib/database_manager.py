@@ -268,13 +268,22 @@ class DatabaseManager:
                         field_name = field.split()[0]
                         if field_name != 'title':
                             value = row[idx + 1]
-                            if field_name in ['cast', 'art'] and value:
+                            if field_name == 'art':
+                                if value:
+                                    try:
+                                        if isinstance(value, str):
+                                            value = json.loads(value)
+                                        elif isinstance(value, dict):
+                                            value = json.dumps(value)
+                                    except json.JSONDecodeError as e:
+                                        utils.log(f"Failed to parse art data: {e}", "ERROR")
+                                        value = "{}"
+                            elif field_name == 'cast' and value:
                                 try:
-                                    value = json.loads(value)
-                                    utils.log(f"Parsed {field_name} data for {row[0]}", "DEBUG")
+                                    value = json.loads(value) if isinstance(value, str) else value
                                 except json.JSONDecodeError as e:
-                                    utils.log(f"Failed to parse {field_name} data: {e}", "ERROR")
-                                    value = {} if field_name == 'art' else []
+                                    utils.log(f"Failed to parse cast data: {e}", "ERROR")
+                                    value = []
                             info_dict[field_name] = value
 
                     utils.log(f"POSTER TRACE - DB fetch_list_items raw thumbnail: {info_dict.get('thumbnail')}", "DEBUG") #Added logging
@@ -360,15 +369,18 @@ class DatabaseManager:
 
             if 'art' in data:
                 try:
-                    utils.log(f"POSTER TRACE - DB insert_data 5a - Art before processing: {data.get('art')}", "DEBUG")
-                    art_dict = data.get('art', {})
+                    art_dict = data['art']
+                    if isinstance(art_dict, str):
+                        art_dict = json.loads(art_dict)
+                    elif not isinstance(art_dict, dict):
+                        art_dict = {}
 
                     # Handle poster URL consistently
                     poster_url = None
                     if 'poster' in data:
                         poster_url = data['poster']
-                    elif 'art' in data and isinstance(data['art'], dict):
-                        poster_url = data['art'].get('poster')
+                    elif isinstance(art_dict, dict):
+                        poster_url = art_dict.get('poster')
                     elif 'thumbnail' in data:
                         poster_url = data['thumbnail']
 
@@ -381,8 +393,9 @@ class DatabaseManager:
                             'fanart': data.get('fanart', '')
                         }
 
-                        # Store consistently across all fields
-                        media_data['art'] = json.dumps(art_dict)
+                    # Always store art as JSON string
+                    media_data['art'] = json.dumps(art_dict)
+                    if poster_url:
                         media_data['poster'] = poster_url
                         media_data['thumbnail'] = poster_url
 
@@ -717,7 +730,7 @@ class DatabaseManager:
             )
             ORDER BY folders.name COLLATE NOCASE
         """
-        utils.log(f"Executing SQL: {query} with item_id={item_id}", "DEBUG")
+                utils.log(f"Executing SQL: {query} with item_id={item_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (item_id,))
         rows = self.cursor.fetchall()
         return [{'id': row[0], 'name': row[1], 'parent_id': row[2], 'is_member': row[3]} for row in rows]
