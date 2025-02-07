@@ -179,25 +179,9 @@ class DatabaseManager(Singleton):
         return query_manager.fetch_lists_with_item_status(item_id)
 
     def fetch_all_lists_with_item_status(self, item_id):
-        query = """
-            SELECT 
-                lists.id, 
-                lists.name,
-                lists.folder_id,
-                CASE 
-                    WHEN list_items.media_item_id IS NOT NULL THEN 1
-                    ELSE 0
-                END AS is_member
-            FROM lists
-            LEFT JOIN list_items ON lists.id = list_items.list_id AND list_items.media_item_id IN (
-                SELECT id FROM media_items WHERE kodi_id = ?
-            )
-            ORDER BY lists.folder_id, lists.name COLLATE NOCASE
-        """
-        utils.log(f"Executing SQL: {query} with item_id={item_id}", "DEBUG")
-        self._execute_with_retry(self.cursor.execute, query, (item_id,))
-        rows = self.cursor.fetchall()
-        return [{'id': row[0], 'name': row[1], 'folder_id': row[2], 'is_member': row[3]} for row in rows]
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        return query_manager.fetch_all_lists_with_item_status(item_id)
 
     def fetch_list_items(self, list_id):
         from resources.lib.query_manager import QueryManager
@@ -431,10 +415,9 @@ class DatabaseManager(Singleton):
         return result['id'] if result else None
 
     def update_folder_name(self, folder_id, new_name):
-        query = "UPDATE folders SET name = ? WHERE id = ?"
-        utils.log(f"Executing SQL: {query} with folder_id={folder_id}, new_name={new_name}", "DEBUG")
-        self._execute_with_retry(self.cursor.execute, query, (new_name, folder_id))
-        self.connection.commit()
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        query_manager.update_folder_name(folder_id, new_name)
 
     def update_folder_parent(self, folder_id, new_parent_id):
         if new_parent_id is not None:
@@ -516,20 +499,14 @@ class DatabaseManager(Singleton):
             raise e
 
     def fetch_folder_by_id(self, folder_id):
-        query = "SELECT id, name, parent_id FROM folders WHERE id = ?"
-        self._execute_with_retry(self.cursor.execute, query, (folder_id,))
-        row = self.cursor.fetchone()
-        if row:
-            return {'id': row[0], 'name': row[1], 'parent_id': row[2]}
-        return None
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        return query_manager.fetch_folder_by_id(folder_id)
 
     def fetch_list_by_id(self, list_id):
-        query = "SELECT id, name, folder_id FROM lists WHERE id = ?"
-        self._execute_with_retry(self.cursor.execute, query, (list_id,))
-        row = self.cursor.fetchone()
-        if row:
-            return {'id': row[0], 'name': row[1], 'folder_id': row[2]}
-        return None
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        return query_manager.fetch_list_by_id(list_id)
 
     def fetch_folders_with_item_status(self, item_id):
         query = """
