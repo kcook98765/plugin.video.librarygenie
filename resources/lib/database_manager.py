@@ -8,7 +8,7 @@ from resources.lib.config_manager import Config
 class DatabaseManager:
     _instance = None
     _initialized = False
-
+    
     def __new__(cls, db_path):
         if cls._instance is None:
             cls._instance = super(DatabaseManager, cls).__new__(cls)
@@ -265,13 +265,15 @@ class DatabaseManager:
         try:
             self._execute_with_retry(self.cursor.execute, query, (list_id,))
             rows = self.cursor.fetchall()
-            utils.log(f"Fetched rows: {rows}", "DEBUG")
+            utils.log(f"Fetched rows: {rows}", "DEBUG")  # Log the fetched rows
 
             items = []
             for row in rows:
                 try:
                     utils.log(f"Processing row ID: {row[0]}", "DEBUG")
                     info_dict = {}
+                    utils.log(f"POSTER TRACE - DB fetch_list_items raw art: {row[1]}", "DEBUG") #Added logging
+
                     for idx, field in enumerate(self.config.FIELDS):
                         field_name = field.split()[0]
                         if field_name != 'title':
@@ -294,10 +296,12 @@ class DatabaseManager:
                                     value = []
                             info_dict[field_name] = value
 
+                    utils.log(f"POSTER TRACE - DB fetch_list_items raw thumbnail: {info_dict.get('thumbnail')}", "DEBUG") #Added logging
                     if 'art' in info_dict and isinstance(info_dict['art'], dict):
                         art_dict = info_dict['art']
+                        utils.log(f"POSTER TRACE - DB fetch_list_items processed art: {art_dict}", "DEBUG") #Added logging
                     else:
-                        art_dict = {}
+                        art_dict = {} #Handle cases where art is missing or not a dict
                     item = {
                         'id': row[0],
                         'title': row[self.config.FIELDS.index('title TEXT') + 1],
@@ -331,11 +335,47 @@ class DatabaseManager:
         truncated_data = self.truncate_data(data)
         utils.log(f"Final data for insertion: {truncated_data}", "DEBUG")
 
+        # Detailed poster tracing
+        utils.log(f"POSTER TRACE - DB insert 1 - Raw incoming art: {data.get('art', {})}", "DEBUG")
+        utils.log(f"POSTER TRACE - DB insert 2 - Raw incoming poster: {data.get('poster')}", "DEBUG")
+        utils.log(f"POSTER TRACE - DB insert 3 - Raw incoming thumbnail: {data.get('thumbnail')}", "DEBUG")
+
+        # Check art dictionary contents
+        if 'art' in data:
+            try:
+                art_dict = json.loads(data['art']) if isinstance(data['art'], str) else data['art']
+                utils.log(f"POSTER TRACE - DB insert 4 - Parsed art dict: {art_dict}", "DEBUG")
+                utils.log(f"POSTER TRACE - DB insert 5 - Art dict poster: {art_dict.get('poster')}", "DEBUG")
+            except Exception as e:
+                utils.log(f"POSTER TRACE - DB insert ERROR - Art parse failed: {str(e)}", "ERROR")
+
+        # Log data structure
+        utils.log(f"POSTER TRACE - DB insert 6 - Data keys: {list(data.keys())}", "DEBUG")
+        utils.log(f"POSTER TRACE - DB insert 7 - Is table 'list_items': {table == 'list_items'}", "DEBUG")
+
+        # Additional poster tracing
+        if isinstance(data.get('art'), str):
+            try:
+                art_dict = json.loads(data['art'])
+                utils.log(f"POSTER TRACE - DB insert parsed art dict: {art_dict}", "DEBUG")
+                utils.log(f"POSTER TRACE - DB insert art poster: {art_dict.get('poster')}", "DEBUG")
+            except json.JSONDecodeError as e:
+                utils.log(f"POSTER TRACE - DB insert art parse error: {str(e)}", "DEBUG")
+
         if table == 'list_items':
+            # Extract field names from self.config.FIELDS
             field_names = [field.split()[0] for field in self.config.FIELDS]
-            utils.log(f"Field names for media data: {field_names}", "DEBUG")
-            utils.log(f"Keys in data dictionary: {list(data.keys())}", "DEBUG")
+            utils.log(f"Field names for media data: {field_names}", "DEBUG")  # Log field names
+
+            utils.log(f"Keys in data dictionary: {list(data.keys())}", "DEBUG")  # Log keys in data
+
+            # Insert or ignore into media_items
             media_data = {key: data[key] for key in field_names if key in data}
+            utils.log(f"POSTER TRACE - DB insert_data 1 - Initial art data: {data.get('art')}", "DEBUG")
+            utils.log(f"POSTER TRACE - DB insert_data 2 - Initial media_data: {media_data}", "DEBUG")
+            utils.log(f"POSTER TRACE - DB insert_data 2a - Available fields: {field_names}", "DEBUG")
+            utils.log(f"POSTER TRACE - DB insert_data 2b - Source data keys: {list(data.keys())}", "DEBUG")
+            utils.log(f"POSTER TRACE - DB insert_data 2c - Source poster value: {data.get('poster')}", "DEBUG")
 
             if 'art' in data:
                 try:
@@ -345,6 +385,7 @@ class DatabaseManager:
                     elif not isinstance(art_dict, dict):
                         art_dict = {}
 
+                    # Handle poster URL consistently
                     poster_url = None
                     if isinstance(art_dict, dict):
                         poster_url = art_dict.get('poster')
@@ -354,6 +395,7 @@ class DatabaseManager:
                         poster_url = data['thumbnail']
 
                     if poster_url:
+                        # Update art dictionary
                         art_dict = {
                             'poster': poster_url,
                             'thumb': poster_url,
@@ -361,16 +403,24 @@ class DatabaseManager:
                             'fanart': data.get('fanart', '')
                         }
 
+                    # Always store art as JSON string
                     media_data['art'] = json.dumps(art_dict)
                     if poster_url:
                         media_data['poster'] = poster_url
                         media_data['thumbnail'] = poster_url
 
-                except json.JSONDecodeError:
-                    pass
 
-            utils.log(f"Media data for insertion after comprehension: {self.truncate_data(media_data)}", "DEBUG")
+                except json.JSONDecodeError as e:
+                    utils.log(f"POSTER TRACE - DB insert_data ERROR - Failed to parse art JSON: {str(e)}", "ERROR")
 
+            utils.log(f"POSTER TRACE - DB insert_data 7 - Final media_data art: {media_data.get('art')}", "DEBUG")
+            utils.log(f"POSTER TRACE - DB insert_data 8 - Final media_data poster: {media_data.get('poster')}", "DEBUG")
+            utils.log(f"POSTER TRACE - DB insert_data 9 - Final media_data thumbnail: {media_data.get('thumbnail')}", "DEBUG")
+
+            truncated_data = self.truncate_data(media_data)
+            utils.log(f"Media data for insertion after comprehension: {truncated_data}", "DEBUG")
+
+            # Insert or ignore into media_items
             columns = ', '.join(media_data.keys())
             placeholders = ', '.join('?' for _ in media_data)
             query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
@@ -378,6 +428,7 @@ class DatabaseManager:
             self._execute_with_retry(self.cursor.execute, query, tuple(media_data.values()))
             self.connection.commit()
 
+            # Ensure art data is properly formatted
             if 'art' in media_data:
                 try:
                     art_dict = media_data['art']
@@ -386,6 +437,7 @@ class DatabaseManager:
                     if not isinstance(art_dict, dict):
                         art_dict = {'poster': str(art_dict)}
 
+                    # Ensure consistent poster across all fields
                     poster_url = art_dict.get('poster', '') or media_data.get('thumbnail', '')
                     if poster_url:
                         art_dict.update({
@@ -399,6 +451,7 @@ class DatabaseManager:
                 except Exception as e:
                     utils.log(f"Error processing art data: {str(e)}", "ERROR")
 
+            # Get the media_item_id
             query = """
                 SELECT id
                 FROM media_items
@@ -411,16 +464,22 @@ class DatabaseManager:
 
             if media_item_id:
                 media_item_id = media_item_id[0]
+                # Insert into list_items
                 list_data = {
                     'list_id': data['list_id'],
                     'media_item_id': media_item_id
                 }
+                # Log the poster data being carried through
+                utils.log(f"POSTER TRACE - DB insert_list_item - Original art: {data.get('art')}", "DEBUG")
+                utils.log(f"POSTER TRACE - DB insert_list_item - Media item ID: {media_item_id}", "DEBUG")
+
                 columns = ', '.join(list_data.keys())
                 placeholders = ', '.join('?' for _ in list_data)
                 query = f'INSERT INTO {table} ({columns}) VALUES ({placeholders})'
                 utils.log(f"Executing SQL: {query} with data={list_data}", "DEBUG")
                 self._execute_with_retry(self.cursor.execute, query, tuple(list_data.values()))
 
+                # Verify poster data after insertion
                 verify_query = """
                     SELECT poster, thumbnail 
                     FROM media_items 
@@ -429,8 +488,8 @@ class DatabaseManager:
                 self._execute_with_retry(self.cursor.execute, verify_query, (media_item_id,))
                 verify_result = self.cursor.fetchone()
                 if verify_result:
-                    utils.log(f"Stored poster: {verify_result[0]}", "DEBUG")
-                    utils.log(f"Stored thumbnail: {verify_result[1]}", "DEBUG")
+                    utils.log(f"POSTER TRACE - DB verify_insert - Stored poster: {verify_result[0]}", "DEBUG")
+                    utils.log(f"POSTER TRACE - DB verify_insert - Stored thumbnail: {verify_result[1]}", "DEBUG")
             else:
                 utils.log("No media_item_id found, insertion skipped", "ERROR")
         else:
@@ -441,16 +500,22 @@ class DatabaseManager:
             self._execute_with_retry(self.cursor.execute, query, tuple(data.values()))
 
         self.connection.commit()
-        utils.log(f"Data inserted into {table} successfully", "DEBUG")
+        utils.log(f"Data inserted into {table} successfully", "DEBUG")  # Log after insertion
 
     def _insert_or_ignore(self, table_name, data):
+        # Check if data is not empty
         if not data:
             utils.log(f"_insert_or_ignore data is empty: {data}", "DEBUG")
             return
 
+        # Prepare column names and placeholders for values
         columns = ', '.join(data.keys())
         placeholders = ', '.join(['?'] * len(data))
+
+        # Construct the SQL query
         query = f"INSERT OR IGNORE INTO {table_name} ({columns}) VALUES ({placeholders})"
+
+        # Execute the query with the data values
         self._execute_with_retry(self.cursor.execute, query, tuple(data.values()))
         self.connection.commit()
 
@@ -462,16 +527,20 @@ class DatabaseManager:
         self.connection.commit()
 
     def delete_list(self, list_id):
+        """Delete a list and all its related records"""
         try:
             self.connection.execute("BEGIN")
+            # Delete from genie_lists first
             self._execute_with_retry(self.cursor.execute, 
                 "DELETE FROM genie_lists WHERE list_id = ?", 
                 (list_id,))
 
+            # Delete from list_items
             self._execute_with_retry(self.cursor.execute,
                 "DELETE FROM list_items WHERE list_id = ?",
                 (list_id,))
 
+            # Finally delete the list itself
             self._execute_with_retry(self.cursor.execute,
                 "DELETE FROM lists WHERE id = ?",
                 (list_id,))
@@ -562,13 +631,19 @@ class DatabaseManager:
 
     def update_folder_parent(self, folder_id, new_parent_id):
         if new_parent_id is not None:
+            # Get the depth of the subtree being moved
             subtree_depth = self._get_subtree_depth(folder_id)
+
+            # Get the depth at the new location
             target_depth = self.get_folder_depth(new_parent_id)
+
+            # Calculate total depth after move
             total_depth = target_depth + subtree_depth + 1
 
             if total_depth > self.config.max_folder_depth:
                 raise ValueError(f"Moving folder would exceed maximum depth of {self.config.max_folder_depth}")
 
+            # Check if move would create a cycle
             temp_parent = new_parent_id
             while temp_parent is not None:
                 if temp_parent == folder_id:
@@ -578,12 +653,14 @@ class DatabaseManager:
                 result = self.cursor.fetchone()
                 temp_parent = result[0] if result else None
 
+        # Update the folder's parent
         query = "UPDATE folders SET parent_id = ? WHERE id = ?"
         utils.log(f"Executing SQL: {query} with folder_id={folder_id}, new_parent_id={new_parent_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (new_parent_id, folder_id))
         self.connection.commit()
 
     def _get_subtree_depth(self, folder_id):
+        """Calculate the maximum depth of a folder's subtree"""
         query = """
             WITH RECURSIVE folder_tree AS (
                 SELECT id, parent_id, 0 as depth
@@ -608,6 +685,7 @@ class DatabaseManager:
     def delete_folder_and_contents(self, folder_id):
         try:
             self.connection.execute("BEGIN")
+            # Get all nested folder IDs
             self._execute_with_retry(self.cursor.execute, """
                 WITH RECURSIVE nested_folders AS (
                     SELECT id FROM folders WHERE id = ?
@@ -619,11 +697,13 @@ class DatabaseManager:
             """, (folder_id,))
             folder_ids = [row[0] for row in self.cursor.fetchall()]
 
+            # Delete lists in all nested folders
             placeholders = ','.join('?' * len(folder_ids))
             self._execute_with_retry(self.cursor.execute, 
                 f"DELETE FROM lists WHERE folder_id IN ({placeholders})", 
                 folder_ids)
 
+            # Delete all nested folders
             self._execute_with_retry(self.cursor.execute, 
                 f"DELETE FROM folders WHERE id IN ({placeholders})", 
                 folder_ids)
@@ -697,6 +777,7 @@ class DatabaseManager:
             utils.log(f"Updated genie_list for list_id={list_id}", "DEBUG")
         except sqlite3.OperationalError as e:
             utils.log(f"SQL error in update_genie_list: {e}", "ERROR")
+            # Optional: Retry logic or additional error handling here
 
     def insert_genie_list(self, list_id, description, rpc):
         query = "INSERT INTO genie_lists (list_id, description, rpc) VALUES (?, ?, ?)"
@@ -706,6 +787,7 @@ class DatabaseManager:
             utils.log(f"Inserted genie_list for list_id={list_id}", "DEBUG")
         except sqlite3.OperationalError as e:
             utils.log(f"SQL error in insert_genie_list: {e}", "ERROR")
+            # Optional: Retry logic or additional error handling here
 
     def delete_genie_list(self, list_id):
         query = "DELETE FROM genie_lists WHERE list_id = ?"
@@ -728,6 +810,7 @@ class DatabaseManager:
             fields_keys = [field.split()[0] for field in Config.FIELDS]
             data = {field: item.get(field) for field in fields_keys}
 
+            # Ensure data types are correct
             data['kodi_id'] = int(data['kodi_id']) if data['kodi_id'] and data['kodi_id'].isdigit() else 0
             data['duration'] = int(data['duration']) if data['duration'] and data['duration'].isdigit() else 0
             data['rating'] = float(data['rating']) if data['rating'] else 0.0
@@ -803,6 +886,7 @@ class DatabaseManager:
         self.connection.commit()
 
     def get_imdb_export_stats(self):
+        """Get statistics about IMDB numbers in exports"""
         query = """
             SELECT 
                 COUNT(*) as total,
@@ -818,11 +902,11 @@ class DatabaseManager:
         }
 
     def insert_imdb_export(self, movies):
+        """Insert multiple movies into imdb_exports table"""
         query = """
             INSERT INTO imdb_exports 
             (kodi_id, imdb_id, title, year, filename, path)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """
+            VALUES (?, ?, ?, ?, ?, ?)        """
         for movie in movies:
             file_path = movie.get('file', '')
             filename = file_path.split('/')[-1] if file_path else ''
@@ -842,7 +926,9 @@ class DatabaseManager:
             )
         self.connection.commit()
 
+
     def get_valid_imdb_numbers(self):
+        """Get all valid IMDB numbers from exports table"""
         query = """
             SELECT imdb_id
             FROM imdb_exports
