@@ -509,36 +509,14 @@ class DatabaseManager(Singleton):
         return query_manager.fetch_list_by_id(list_id)
 
     def fetch_folders_with_item_status(self, item_id):
-        query = """
-            SELECT 
-                folders.id,
-                folders.name,
-                folders.parent_id,
-                CASE 
-                    WHEN list_items.media_item_id IS NOT NULL THEN 1
-                    ELSE 0
-                END AS is_member
-            FROM folders
-            LEFT JOIN lists ON folders.id = lists.folder_id
-            LEFT JOIN list_items ON lists.id = list_items.list_id AND list_items.media_item_id IN (
-                SELECT id FROM media_items WHERE kodi_id = ?
-            )
-            ORDER BY folders.name COLLATE NOCASE
-        """
-        utils.log(f"Executing SQL: {query} with item_id={item_id}", "DEBUG")
-        self._execute_with_retry(self.cursor.execute, query, (item_id,))
-        rows = self.cursor.fetchall()
-        return [{'id': row[0], 'name': row[1], 'parent_id': row[2], 'is_member': row[3]} for row in rows]
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        return query_manager.fetch_folders_with_item_status(item_id)
 
     def remove_media_item_from_list(self, list_id, media_item_id):
-        query = """
-            DELETE FROM list_items
-            WHERE list_id = ? AND media_item_id = ?
-        """
-        utils.log(f"Executing SQL: {query} with list_id={list_id}, media_item_id={media_item_id}", "DEBUG")
-        self._execute_with_retry(self.cursor.execute, query, (list_id, media_item_id))
-        self.connection.commit()
-        utils.log(f"Media item ID {media_item_id} removed fromlist ID {list_id}", "DEBUG")
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        query_manager.remove_media_item_from_list(list_id, media_item_id)
 
     def get_genie_list(self, list_id):
         from resources.lib.query_manager import QueryManager
@@ -558,9 +536,9 @@ class DatabaseManager(Singleton):
         utils.log(f"Inserted genie_list for list_id={list_id}", "DEBUG")
 
     def delete_genie_list(self, list_id):
-        query = "DELETE FROM genie_lists WHERE list_id = ?"
-        self._execute_with_retry(self.cursor.execute, query, (list_id,))
-        self.connection.commit()
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        query_manager.delete_genie_list_direct(list_id)
 
     def remove_genielist_entries(self, list_id):
         query = """
