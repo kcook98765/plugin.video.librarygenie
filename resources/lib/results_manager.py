@@ -8,7 +8,7 @@ class ResultsManager(Singleton):
         if not hasattr(self, '_initialized'):
             self.jsonrpc = JSONRPC()
             from resources.lib.query_manager import QueryManager
-            from resources.lib.config import Config
+            from resources.lib.config_manager import Config
             self.query_manager = QueryManager(Config().db_path)
             self._initialized = True
 

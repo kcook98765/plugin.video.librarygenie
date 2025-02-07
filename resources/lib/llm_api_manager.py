@@ -101,16 +101,6 @@ class LLMApiManager:
             utils.log(f"Query results length: {len(results)}", "DEBUG")
             return results
 
-            utils.log(f"Raw response data length: {data_length}", "DEBUG")
-            response_data = json.loads(response)
-            movies = response_data.get('result', {}).get('movies', [])
-            if data_length > 1024:
-                utils.log(f"Large response received - {data_length} bytes", "WARNING")
-            if movies:
-                utils.log(f"Found {len(movies)} movies", "INFO")
-            else:
-                utils.log("No movies found in response", "WARNING")
-            return movies
         except KeyError as e:
             utils.log(f"Key error in RPC query: {e}", "ERROR")
             return []

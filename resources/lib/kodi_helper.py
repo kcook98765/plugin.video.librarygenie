@@ -370,7 +370,7 @@ class KodiHelper:
 
     def show_information(self):
         from resources.lib.query_manager import QueryManager
-        from resources.lib.config import Config
+        from resources.lib.config_manager import Config
 
         db_id = xbmc.getInfoLabel('ListItem.DBID')
         media_type = xbmc.getInfoLabel('ListItem.DBTYPE') or 'movie'
