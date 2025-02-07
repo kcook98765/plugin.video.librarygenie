@@ -9,6 +9,8 @@ class MediaManager:
 
     def get_media_info(self, media_type='movie'):
         """Get media info from Kodi"""
+        from resources.lib.query_manager import QueryManager
+        self.query_manager = QueryManager(Config().db_path)
         kodi_id = xbmc.getInfoLabel('ListItem.DBID')
 
         # If we have a valid database ID, use JSONRPC
