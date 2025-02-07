@@ -730,7 +730,7 @@ class DatabaseManager:
             )
             ORDER BY folders.name COLLATE NOCASE
         """
-                utils.log(f"Executing SQL: {query} with item_id={item_id}", "DEBUG")
+        utils.log(f"Executing SQL: {query} with item_id={item_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (item_id,))
         rows = self.cursor.fetchall()
         return [{'id': row[0], 'name': row[1], 'parent_id': row[2], 'is_member': row[3]} for row in rows]
