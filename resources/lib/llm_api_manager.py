@@ -75,10 +75,8 @@ class LLMApiManager:
                     movies = self.execute_rpc_query(rpc)
                     return rpc, name, movies
                 return rpc, name, []
-        except urllib.error.HTTPError as e:
+        except urllib.request.HTTPError as e:
             utils.log(f"HTTP error: {e.code} {e.reason}", "ERROR")
-        except urllib.error.URLError as e:
-            utils.log(f"URL error: {e.reason}", "ERROR")
         except json.JSONDecodeError as e:
             utils.log(f"JSON decode error: {e.msg}", "ERROR")
         except TypeError as e:

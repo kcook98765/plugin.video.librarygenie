@@ -1,4 +1,3 @@
-""" /resources/lib/window_genie.py """
 import json
 import pyxbmct
 import xbmcgui

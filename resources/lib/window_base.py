@@ -1,4 +1,3 @@
-
 import pyxbmct
 import xbmcgui
 from resources.lib import utils
@@ -13,7 +12,7 @@ class BaseWindow(pyxbmct.AddonDialogWindow):
     def handle_name_input(self, current_name="", entity_type="item"):
         new_name = utils.show_dialog_input(f"Enter new {entity_type} name", current_name)
         if not new_name:
-            self.show_notification(f"Invalid name entered", xbmcgui.NOTIFICATION_WARNING)
+            self.show_notification("Invalid name entered", xbmcgui.NOTIFICATION_WARNING)
             return None
         return new_name
         

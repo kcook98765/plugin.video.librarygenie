@@ -103,7 +103,7 @@ def set_info_tag(listitem, infolabels, tag_type='video'):
         if isinstance(cast, str):
             try:
                 cast = json.loads(cast)
-            except:
+            except json.JSONDecodeError:
                 cast = []
         actors = []
         for item in cast:

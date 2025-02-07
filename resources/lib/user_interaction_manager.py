@@ -1,4 +1,4 @@
-""" /resources/lib/user_interaction_manager.py """
+
 import json
 import xbmc
 import xbmcgui
@@ -10,22 +10,17 @@ class UserInteractionManager:
     _instance = None
     _initialized = False
 
-    def __new__(cls):
+    def __new__(cls, addon_handle):
         if cls._instance is None:
             cls._instance = super(UserInteractionManager, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self):
-        if not UserInteractionManager._initialized:
-            utils.log("User Interaction Manager initialized", "INFO")
-            UserInteractionManager._initialized = True
-
-class UserInteractionManager:
-
     def __init__(self, addon_handle):
-        utils.log("User Interaction Manager initialized", "INFO")
-        self.addon_handle = addon_handle
-        self.db_manager = DatabaseManager(Config().db_path)
+        if not self.__class__._initialized:
+            utils.log("User Interaction Manager initialized", "INFO")
+            self.addon_handle = addon_handle
+            self.db_manager = DatabaseManager(Config().db_path)
+            self.__class__._initialized = True
 
     def context_menu_action(self, action):
         """Handle context menu actions"""
