@@ -142,9 +142,8 @@ class MainWindow(BaseWindow):
 
         self.list_data = []
 
-        root_folders = [f for f in all_folders if f['parent_id'] is None]
-        root_lists = [l for l in all_lists if l['folder_id'] is None]
-
+        root_folders = [folder for folder in all_folders if folder['parent_id'] is None]
+        root_lists = [list_item for list_item in all_lists if list_item['folder_id'] is None]
         combined_root = root_folders + root_lists
         combined_root.sort(key=lambda x: self.clean_name(x['name']).lower())
         utils.log(f"Sorted combined root items: {[(self.clean_name(i['name']), i['name']) for i in combined_root]}", "DEBUG")
