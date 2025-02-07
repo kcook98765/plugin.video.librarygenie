@@ -406,7 +406,8 @@ class QueryManager(Singleton):
             FROM folders 
             WHERE id = ?
         """
-        return self.execute_query(query, (folder_id,), fetch_all=False)
+        result = self.execute_query(query, (folder_id,), fetch_all=False)
+        return result[0] if result else None
 
     def update_list_folder(self, list_id: int, folder_id: Optional[int]) -> None:
         query = """
