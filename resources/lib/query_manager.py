@@ -298,6 +298,91 @@ class QueryManager(Singleton):
         for query in queries:
             self.execute_query(query, (list_id,))
 
+    def fetch_all_folders(self) -> List[Dict[str, Any]]:
+        query = """
+            SELECT 
+                id,
+                name,
+                parent_id
+            FROM folders
+            ORDER BY parent_id, name COLLATE NOCASE
+        """
+        return self.execute_query(query)
+
+    def fetch_all_lists(self) -> List[Dict[str, Any]]:
+        query = """
+            SELECT 
+                id,
+                name,
+                folder_id
+            FROM lists
+            ORDER BY folder_id, name COLLATE NOCASE
+        """
+        return self.execute_query(query)
+
+    def update_folder_parent(self, folder_id: int, new_parent_id: Optional[int]) -> None:
+        query = """
+            UPDATE folders 
+            SET parent_id = ? 
+            WHERE id = ?
+        """
+        self.execute_query(query, (new_parent_id, folder_id))
+
+    def get_subtree_depth(self, folder_id: int) -> int:
+        query = """
+            WITH RECURSIVE folder_tree AS (
+                SELECT id, parent_id, 0 as depth
+                FROM folders 
+                WHERE id = ?
+                UNION ALL
+                SELECT f.id, f.parent_id, ft.depth + 1
+                FROM folders f
+                JOIN folder_tree ft ON f.parent_id = ft.id
+            )
+            SELECT MAX(depth) FROM folder_tree
+        """
+        result = self.execute_query(query, (folder_id,), fetch_all=False)
+        return result['MAX(depth)'] if result['MAX(depth)'] is not None else 0
+
+    def delete_folder_and_contents(self, folder_id: int) -> None:
+        queries = [
+            """WITH RECURSIVE nested_folders AS (
+                SELECT id FROM folders WHERE id = ?
+                UNION ALL
+                SELECT f.id FROM folders f
+                JOIN nested_folders nf ON f.parent_id = nf.id
+            )
+            DELETE FROM lists WHERE folder_id IN (SELECT id FROM nested_folders)""",
+            """WITH RECURSIVE nested_folders AS (
+                SELECT id FROM folders WHERE id = ?
+                UNION ALL
+                SELECT f.id FROM folders f
+                JOIN nested_folders nf ON f.parent_id = nf.id
+            )
+            DELETE FROM folders WHERE id IN (SELECT id FROM nested_folders)"""
+        ]
+        for query in queries:
+            self.execute_query(query, (folder_id,))
+
+    def fetch_folders_with_item_status(self, item_id: int) -> List[Dict[str, Any]]:
+        query = """
+            SELECT 
+                folders.id,
+                folders.name,
+                folders.parent_id,
+                CASE 
+                    WHEN list_items.media_item_id IS NOT NULL THEN 1
+                    ELSE 0
+                END AS is_member
+            FROM folders
+            LEFT JOIN lists ON folders.id = lists.folder_id
+            LEFT JOIN list_items ON lists.id = list_items.list_id AND list_items.media_item_id IN (
+                SELECT id FROM media_items WHERE kodi_id = ?
+            )
+            ORDER BY folders.name COLLATE NOCASE
+        """
+        return self.execute_query(query, (item_id,))
+
     def __del__(self):
         """Clean up connections when the instance is destroyed"""
         for conn_info in self._connection_pool:

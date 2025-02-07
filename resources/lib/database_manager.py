@@ -445,32 +445,14 @@ class DatabaseManager(Singleton):
         return query_manager.get_lists_for_item(item_id)
 
     def fetch_all_folders(self):
-        query = """
-            SELECT 
-                id,
-                name,
-                parent_id
-            FROM folders
-            ORDER BY parent_id, name COLLATE NOCASE
-        """
-        utils.log(f"Executing SQL: {query}", "DEBUG")
-        self._execute_with_retry(self.cursor.execute, query)
-        rows = self.cursor.fetchall()
-        return [{'id': row[0], 'name': row[1], 'parent_id': row[2]} for row in rows]
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        return query_manager.fetch_all_folders()
 
     def fetch_all_lists(self):
-        query = """
-            SELECT 
-                id,
-                name,
-                folder_id
-            FROM lists
-            ORDER BY folder_id, name COLLATE NOCASE
-        """
-        utils.log(f"Executing SQL: {query}", "DEBUG")
-        self._execute_with_retry(self.cursor.execute, query)
-        rows = self.cursor.fetchall()
-        return [{'id': row[0], 'name': row[1], 'folder_id': row[2]} for row in rows]
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        return query_manager.fetch_all_lists()
 
     def get_item_id_by_title_and_list(self, list_id, title):
         from resources.lib.query_manager import QueryManager
