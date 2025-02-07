@@ -436,6 +436,48 @@ class QueryManager(Singleton):
         results = self.execute_query(query)
         return [result['imdb_id'] for result in results]
 
+    def sync_movies(self, movies: List[Dict[str, Any]]) -> None:
+        """Sync movies with the database"""
+        # First, clear existing entries
+        self.execute_query("DELETE FROM media_items WHERE source = 'lib'")
+        
+        # Insert new entries
+        for movie in movies:
+            # Prepare movie data
+            movie_data = {
+                'kodi_id': movie.get('movieid', 0),
+                'title': movie.get('title', ''),
+                'year': movie.get('year', 0),
+                'source': 'lib',
+                'play': movie.get('file', ''),
+                'poster': movie.get('art', {}).get('poster', ''),
+                'fanart': movie.get('art', {}).get('fanart', ''),
+                'plot': movie.get('plot', ''),
+                'rating': float(movie.get('rating', 0)),
+                'votes': int(movie.get('votes', 0)),
+                'duration': int(movie.get('runtime', 0)),
+                'mpaa': movie.get('mpaa', ''),
+                'genre': ','.join(movie.get('genre', [])),
+                'director': ','.join(movie.get('director', [])),
+                'studio': ','.join(movie.get('studio', [])),
+                'country': ','.join(movie.get('country', [])),
+                'writer': ','.join(movie.get('writer', []))
+            }
+            
+            # Handle cast data
+            if 'cast' in movie:
+                movie_data['cast'] = json.dumps(movie['cast'])
+
+            # Handle art data
+            if 'art' in movie:
+                movie_data['art'] = json.dumps(movie['art'])
+
+            # Execute insert
+            columns = ', '.join(movie_data.keys())
+            placeholders = ', '.join(['?' for _ in movie_data])
+            query = f"INSERT INTO media_items ({columns}) VALUES ({placeholders})"
+            self.execute_query(query, tuple(movie_data.values()))
+
     def __del__(self):
         """Clean up connections when the instance is destroyed"""
         for conn_info in self._connection_pool:

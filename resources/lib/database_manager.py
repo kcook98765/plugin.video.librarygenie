@@ -729,6 +729,12 @@ class DatabaseManager(Singleton):
         query_manager = QueryManager(self.db_path)
         return query_manager.get_valid_imdb_numbers()
 
+    def sync_movies(self, movies):
+        """Sync movies with the database"""
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        query_manager.sync_movies(movies)
+
     def __del__(self):
         if getattr(self, 'connection', None):
             self.connection.close()
