@@ -426,11 +426,27 @@ class DatabaseManager:
                     'list_id': data['list_id'],
                     'media_item_id': media_item_id
                 }
+                # Log the poster data being carried through
+                utils.log(f"POSTER TRACE - DB insert_list_item - Original art: {data.get('art')}", "DEBUG")
+                utils.log(f"POSTER TRACE - DB insert_list_item - Media item ID: {media_item_id}", "DEBUG")
+
                 columns = ', '.join(list_data.keys())
                 placeholders = ', '.join('?' for _ in list_data)
                 query = f'INSERT INTO {table} ({columns}) VALUES ({placeholders})'
                 utils.log(f"Executing SQL: {query} with data={list_data}", "DEBUG")
                 self._execute_with_retry(self.cursor.execute, query, tuple(list_data.values()))
+
+                # Verify poster data after insertion
+                verify_query = """
+                    SELECT m.art, m.poster, m.thumbnail 
+                    FROM media_items m 
+                    WHERE m.id = ?
+                """
+                self._execute_with_retry(self.cursor.execute, verify_query, (media_item_id,))
+                verify_result = self.cursor.fetchone()
+                if verify_result:
+                    utils.log(f"POSTER TRACE - DB verify_insert - Stored art: {verify_result[0]}", "DEBUG")
+                    utils.log(f"POSTER TRACE - DB verify_insert - Stored poster: {verify_result[1]}", "DEBUG")
             else:
                 utils.log("No media_item_id found, insertion skipped", "ERROR")
         else:
@@ -694,7 +710,7 @@ class DatabaseManager:
         utils.log(f"Executing SQL: {query} with list_id={list_id}, media_item_id={media_item_id}", "DEBUG")
         self._execute_with_retry(self.cursor.execute, query, (list_id, media_item_id))
         self.connection.commit()
-        utils.log(f"Media item ID {media_item_id} removed from list ID {list_id}", "DEBUG")
+        utils.log(f"Media item ID {media_item_id} removed fromlist ID {list_id}", "DEBUG")
 
     def get_genie_list(self, list_id):
         query = "SELECT description, rpc FROM genie_lists WHERE list_id = ?"
