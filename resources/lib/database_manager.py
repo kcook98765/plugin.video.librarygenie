@@ -408,6 +408,29 @@ class DatabaseManager:
             self._execute_with_retry(self.cursor.execute, query, tuple(media_data.values()))
             self.connection.commit()
 
+            # Ensure art data is properly formatted
+            if 'art' in media_data:
+                try:
+                    art_dict = media_data['art']
+                    if isinstance(art_dict, str):
+                        art_dict = json.loads(art_dict)
+                    if not isinstance(art_dict, dict):
+                        art_dict = {'poster': str(art_dict)}
+                    
+                    # Ensure consistent poster across all fields
+                    poster_url = art_dict.get('poster', '') or media_data.get('thumbnail', '')
+                    if poster_url:
+                        art_dict.update({
+                            'poster': poster_url,
+                            'thumb': poster_url,
+                            'icon': poster_url
+                        })
+                        media_data['art'] = json.dumps(art_dict)
+                        media_data['poster'] = poster_url
+                        media_data['thumbnail'] = poster_url
+                except Exception as e:
+                    utils.log(f"Error processing art data: {str(e)}", "ERROR")
+
             # Get the media_item_id
             query = """
                 SELECT id
@@ -438,9 +461,9 @@ class DatabaseManager:
 
                 # Verify poster data after insertion
                 verify_query = """
-                    SELECT m.art, m.poster, m.thumbnail 
-                    FROM media_items m 
-                    WHERE m.id = ?
+                    SELECT art, poster, thumbnail 
+                    FROM media_items 
+                    WHERE id = ?
                 """
                 self._execute_with_retry(self.cursor.execute, verify_query, (media_item_id,))
                 verify_result = self.cursor.fetchone()
