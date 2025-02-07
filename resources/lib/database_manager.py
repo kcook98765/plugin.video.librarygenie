@@ -315,12 +315,12 @@ class DatabaseManager:
 
         truncated_data = self.truncate_data(data)
         utils.log(f"Final data for insertion: {truncated_data}", "DEBUG")
-        
+
         # Detailed poster tracing
         utils.log(f"POSTER TRACE - DB insert 1 - Raw incoming art: {data.get('art', {})}", "DEBUG")
         utils.log(f"POSTER TRACE - DB insert 2 - Raw incoming poster: {data.get('poster')}", "DEBUG")
         utils.log(f"POSTER TRACE - DB insert 3 - Raw incoming thumbnail: {data.get('thumbnail')}", "DEBUG")
-        
+
         # Check art dictionary contents
         if 'art' in data:
             try:
@@ -329,7 +329,7 @@ class DatabaseManager:
                 utils.log(f"POSTER TRACE - DB insert 5 - Art dict poster: {art_dict.get('poster')}", "DEBUG")
             except Exception as e:
                 utils.log(f"POSTER TRACE - DB insert ERROR - Art parse failed: {str(e)}", "ERROR")
-        
+
         # Log data structure
         utils.log(f"POSTER TRACE - DB insert 6 - Data keys: {list(data.keys())}", "DEBUG")
         utils.log(f"POSTER TRACE - DB insert 7 - Is table 'list_items': {table == 'list_items'}", "DEBUG")
@@ -357,25 +357,28 @@ class DatabaseManager:
             utils.log(f"POSTER TRACE - DB insert_data 2a - Available fields: {field_names}", "DEBUG")
             utils.log(f"POSTER TRACE - DB insert_data 2b - Source data keys: {list(data.keys())}", "DEBUG")
             utils.log(f"POSTER TRACE - DB insert_data 2c - Source poster value: {data.get('poster')}", "DEBUG")
-            
+
             if 'art' in data:
                 try:
-                    art_dict = json.loads(data['art']) if isinstance(data['art'], str) else data['art']
-                    utils.log(f"POSTER TRACE - DB insert_data 3 - Parsed art_dict: {art_dict}", "DEBUG")
-                    
-                    # Store full art dictionary
+                    utils.log(f"POSTER TRACE - DB insert_data 5a - Art before processing: {data['art']}", "DEBUG")
+                    art_dict = data['art']
+
+                    # Handle string JSON
+                    if isinstance(art_dict, str):
+                        utils.log(f"POSTER TRACE - DB insert_data 5b - Parsing art JSON string", "DEBUG")
+                        art_dict = json.loads(art_dict)
+
+                    # Ensure we have a dictionary
+                    if not isinstance(art_dict, dict):
+                        utils.log(f"POSTER TRACE - DB insert_data 5c - Converting art to dict: {art_dict}", "DEBUG")
+                        art_dict = {'poster': str(art_dict)}
+
+                    utils.log(f"POSTER TRACE - DB insert_data 5d - Art dict after processing: {art_dict}", "DEBUG")
+
+                    # Store processed art
                     media_data['art'] = json.dumps(art_dict)
-                    utils.log(f"POSTER TRACE - DB insert_data 4 - Stored art JSON: {media_data['art']}", "DEBUG")
-                    
-                    # Handle poster
-                    if 'poster' not in media_data or not media_data['poster']:
-                        media_data['poster'] = art_dict.get('poster', '')
-                        utils.log(f"POSTER TRACE - DB insert_data 5 - Set poster from art: {media_data['poster']}", "DEBUG")
-                    
-                    # Handle thumbnail
-                    media_data['thumbnail'] = art_dict.get('thumb', art_dict.get('poster', ''))
-                    utils.log(f"POSTER TRACE - DB insert_data 6 - Set thumbnail: {media_data['thumbnail']}", "DEBUG")
-                    
+                    utils.log(f"POSTER TRACE - DB insert_data 5e - Final stored art JSON: {media_data['art']}", "DEBUG")
+
                 except json.JSONDecodeError as e:
                     utils.log(f"POSTER TRACE - DB insert_data ERROR - Failed to parse art JSON: {str(e)}", "ERROR")
 
