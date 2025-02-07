@@ -189,14 +189,9 @@ class DatabaseManager(Singleton):
         self.connection.commit()
 
     def update_list_folder(self, list_id, folder_id):
-        query = """
-            UPDATE lists
-            SET folder_id = ?
-            WHERE id = ?
-        """
-        utils.log(f"Executing SQL: {query} with list_id={list_id}, folder_id={folder_id}", "DEBUG")
-        self._execute_with_retry(self.cursor.execute, query, (folder_id, list_id))
-        self.connection.commit()
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        query_manager.update_list_folder(list_id, folder_id)
 
     def fetch_lists_with_item_status(self, item_id):
         query = """
@@ -440,24 +435,14 @@ class DatabaseManager(Singleton):
         self.connection.commit()
 
     def get_list_id_by_name(self, list_name):
-        query = "SELECT id FROM lists WHERE name = ?"
-        utils.log(f"Executing SQL: {query} with list_name={list_name}", "DEBUG")
-        self._execute_with_retry(self.cursor.execute, query, (list_name,))
-        row = self.cursor.fetchone()
-        return row[0] if row else None
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        return query_manager.get_list_id_by_name(list_name)
 
     def get_lists_for_item(self, item_id):
-        query = """
-            SELECT lists.name
-            FROM list_items
-            JOIN lists ON list_items.list_id = lists.id
-            JOIN media_items ON list_items.media_item_id = media_items.id
-            WHERE media_items.kodi_id = ?
-        """
-        utils.log(f"Executing SQL: {query} with item_id={item_id}", "DEBUG")
-        self._execute_with_retry(self.cursor.execute, query, (item_id,))
-        rows = self.cursor.fetchall()
-        return [row[0] for row in rows]
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        return query_manager.get_lists_for_item(item_id)
 
     def fetch_all_folders(self):
         query = """
@@ -488,16 +473,9 @@ class DatabaseManager(Singleton):
         return [{'id': row[0], 'name': row[1], 'folder_id': row[2]} for row in rows]
 
     def get_item_id_by_title_and_list(self, list_id, title):
-        query = """
-            SELECT list_items.id
-            FROM list_items
-            JOIN media_items ON list_items.media_item_id = media_items.id
-            WHERE list_items.list_id = ? AND media_items.title = ?
-        """
-        utils.log(f"Executing SQL: {query} with list_id={list_id}, title={title}", "DEBUG")
-        self._execute_with_retry(self.cursor.execute, query, (list_id, title))
-        row = self.cursor.fetchone()
-        return row[0] if row else None
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        return query_manager.get_item_id_by_title_and_list(list_id, title)
 
     def get_folder_id_by_name(self, folder_name):
         from resources.lib.query_manager import QueryManager

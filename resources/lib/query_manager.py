@@ -251,6 +251,53 @@ class QueryManager(Singleton):
         """
         return self.execute_query(query, (folder_id,), fetch_all=False)
 
+    def update_list_folder(self, list_id: int, folder_id: Optional[int]) -> None:
+        query = """
+            UPDATE lists
+            SET folder_id = ?
+            WHERE id = ?
+        """
+        self.execute_query(query, (folder_id, list_id))
+
+    def get_list_id_by_name(self, list_name: str) -> Optional[int]:
+        query = """
+            SELECT id 
+            FROM lists 
+            WHERE name = ?
+        """
+        result = self.execute_query(query, (list_name,), fetch_all=False)
+        return result['id'] if result else None
+
+    def get_lists_for_item(self, item_id: int) -> List[str]:
+        query = """
+            SELECT lists.name
+            FROM list_items
+            JOIN lists ON list_items.list_id = lists.id
+            JOIN media_items ON list_items.media_item_id = media_items.id
+            WHERE media_items.kodi_id = ?
+        """
+        results = self.execute_query(query, (item_id,))
+        return [result['name'] for result in results]
+
+    def get_item_id_by_title_and_list(self, list_id: int, title: str) -> Optional[int]:
+        query = """
+            SELECT list_items.id
+            FROM list_items
+            JOIN media_items ON list_items.media_item_id = media_items.id
+            WHERE list_items.list_id = ? AND media_items.title = ?
+        """
+        result = self.execute_query(query, (list_id, title), fetch_all=False)
+        return result['id'] if result else None
+
+    def delete_list_and_contents(self, list_id: int) -> None:
+        queries = [
+            "DELETE FROM genie_lists WHERE list_id = ?",
+            "DELETE FROM list_items WHERE list_id = ?",
+            "DELETE FROM lists WHERE id = ?"
+        ]
+        for query in queries:
+            self.execute_query(query, (list_id,))
+
     def __del__(self):
         """Clean up connections when the instance is destroyed"""
         for conn_info in self._connection_pool:
