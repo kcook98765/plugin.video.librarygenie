@@ -1,7 +1,3 @@
-"""
-Classes and functions that process data from JSON-RPC API and assign them to ListItem instances
-"""
-
 from typing import Dict, Any, List, Tuple, Type, Iterable, Union
 from urllib.parse import quote
 import json

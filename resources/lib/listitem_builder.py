@@ -39,7 +39,6 @@ class ListItemBuilder:
             try:
                 url = source()
                 if url and str(url) != 'None':
-                    poster_url = url
                     break
             except Exception as e:
                 utils.log(f"Error getting poster URL: {str(e)}", "ERROR")

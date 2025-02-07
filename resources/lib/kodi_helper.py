@@ -299,9 +299,9 @@ class KodiHelper:
                 ]
             }
             if method == 'VideoLibrary.GetMovieDetails':
-                params['movieid'] = int(db_id)
+                params['movieid'].append(str(db_id))
             else:
-                params['episodeid'] = int(db_id)
+                params['episodeid'].append(str(db_id))
 
             utils.log(f"Fetching details via RPC - Method: {method}, Params: {params}", "DEBUG")
             response = self.jsonrpc.execute(method, params)
