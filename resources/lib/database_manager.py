@@ -202,7 +202,10 @@ class DatabaseManager(Singleton):
         if 'cast' in data and isinstance(data['cast'], list):
             data['cast'] = json.dumps(data['cast'])
 
-        if table == 'list_items':
+        if table == 'lists':
+            query_manager.insert_generic(table, data)
+            utils.log(f"Data inserted into {table} successfully", "DEBUG")
+        elif table == 'list_items':
             media_item_id = query_manager.insert_media_item(data)
             if media_item_id:
                 list_data = {
