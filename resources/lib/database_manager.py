@@ -363,32 +363,29 @@ class DatabaseManager:
                     utils.log(f"POSTER TRACE - DB insert_data 5a - Art before processing: {data.get('art')}", "DEBUG")
                     art_dict = data.get('art', {})
 
-                    # Handle string JSON
-                    if isinstance(art_dict, str):
-                        utils.log(f"POSTER TRACE - DB insert_data 5b - Parsing art JSON string", "DEBUG")
-                        art_dict = json.loads(art_dict)
+                    # Handle poster URL consistently
+                    poster_url = None
+                    if 'poster' in data:
+                        poster_url = data['poster']
+                    elif 'art' in data and isinstance(data['art'], dict):
+                        poster_url = data['art'].get('poster')
+                    elif 'thumbnail' in data:
+                        poster_url = data['thumbnail']
 
-                    # Ensure we have a dictionary
-                    if not isinstance(art_dict, dict):
-                        utils.log(f"POSTER TRACE - DB insert_data 5c - Converting art to dict: {art_dict}", "DEBUG")
-                        art_dict = {'poster': str(art_dict)}
+                    if poster_url:
+                        # Update art dictionary
+                        art_dict = {
+                            'poster': poster_url,
+                            'thumb': poster_url,
+                            'icon': poster_url,
+                            'fanart': data.get('fanart', '')
+                        }
 
-                    # Get poster with fallbacks
-                    poster_url = art_dict.get('poster', '')
-                    if not poster_url:
-                        poster_url = data.get('thumbnail', '')
-                        art_dict['poster'] = poster_url
+                        # Store consistently across all fields
+                        media_data['art'] = json.dumps(art_dict)
+                        media_data['poster'] = poster_url
+                        media_data['thumbnail'] = poster_url
 
-                    # Ensure consistent art fields
-                    art_dict.update({
-                        'thumb': poster_url,
-                        'icon': poster_url
-                    })
-
-                    # Store both art JSON and direct poster URL
-                    media_data['art'] = json.dumps(art_dict)
-                    media_data['poster'] = poster_url
-                    media_data['thumbnail'] = poster_url
 
                 except json.JSONDecodeError as e:
                     utils.log(f"POSTER TRACE - DB insert_data ERROR - Failed to parse art JSON: {str(e)}", "ERROR")
