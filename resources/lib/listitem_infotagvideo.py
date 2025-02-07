@@ -14,7 +14,21 @@ from resources.lib import utils
 __all__ = ['set_info_tag', 'set_art']
 
 # Initialize logging
-utils.log("ListItem InfoTagVideo module initialized", "INFO")
+#utils.log("ListItem InfoTagVideo module initialized", "INFO")
+
+class ListItemInfoTagVideo:
+    _instance = None
+    _initialized = False
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(ListItemInfoTagVideo, cls).__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        if not ListItemInfoTagVideo._initialized:
+            utils.log("ListItem InfoTagVideo module initialized", "INFO")
+            ListItemInfoTagVideo._initialized = True
 
 StreamDetailsType = Union[xbmc.VideoStreamDetail, xbmc.AudioStreamDetail, xbmc.SubtitleStreamDetail]
 
@@ -31,7 +45,7 @@ def get_kodi_version() -> int:
 def set_info_tag(listitem, infolabels, tag_type='video'):
     """Universal setter for InfoTag that works across Kodi versions"""
     utils.log(f"Setting info tag for type {tag_type} with labels: {infolabels}", "DEBUG")
-    
+
     kodi_version = get_kodi_version()
     utils.log(f"Detected Kodi version: {kodi_version}", "DEBUG")
 

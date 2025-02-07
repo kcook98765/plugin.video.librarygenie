@@ -8,10 +8,18 @@ from resources.lib.llm_api_manager import LLMApiManager
 from resources.lib.window_results import ResultsWindow
 from resources.lib import utils
 
-# Initialize logging
-utils.log("Genie Window module initialized", "INFO")
-
 class GenieWindow(pyxbmct.AddonDialogWindow):
+    _instance = None
+    _initialized = False
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(GenieWindow, cls).__new__(cls)
+            if not GenieWindow._initialized:
+                utils.log("Genie Window module initialized", "INFO")
+                GenieWindow._initialized = True
+        return cls._instance
+
     def __init__(self, list_id, title="Genie List Setup"):
         super().__init__(title)
         self.setGeometry(800, 600, 10, 10)
