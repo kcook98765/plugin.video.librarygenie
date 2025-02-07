@@ -373,14 +373,22 @@ class DatabaseManager:
                         utils.log(f"POSTER TRACE - DB insert_data 5c - Converting art to dict: {art_dict}", "DEBUG")
                         art_dict = {'poster': str(art_dict)}
 
-                    # Ensure poster is set from art dictionary
-                    if 'poster' in art_dict and not media_data.get('poster'):
-                        media_data['poster'] = art_dict['poster']
-                        utils.log(f"POSTER TRACE - DB insert_data 5d - Setting poster from art: {media_data['poster']}", "DEBUG")
+                    # Get poster with fallbacks
+                    poster_url = art_dict.get('poster', '')
+                    if not poster_url:
+                        poster_url = data.get('thumbnail', '')
+                        art_dict['poster'] = poster_url
 
-                    # Store processed art
+                    # Ensure consistent art fields
+                    art_dict.update({
+                        'thumb': poster_url,
+                        'icon': poster_url
+                    })
+
+                    # Store both art JSON and direct poster URL
                     media_data['art'] = json.dumps(art_dict)
-                    utils.log(f"POSTER TRACE - DB insert_data 5e - Final stored art JSON: {media_data['art']}", "DEBUG")
+                    media_data['poster'] = poster_url
+                    media_data['thumbnail'] = poster_url
 
                 except json.JSONDecodeError as e:
                     utils.log(f"POSTER TRACE - DB insert_data ERROR - Failed to parse art JSON: {str(e)}", "ERROR")
