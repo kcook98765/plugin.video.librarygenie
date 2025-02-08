@@ -231,10 +231,12 @@ class MainWindow(BaseWindow):
         if any(self.folder_expanded_states.values()):
             # Add special root items
             add_folder_item = xbmcgui.ListItem("  <Add Folder>")
-        add_folder_item.setProperty('isFolder', 'true')
-        add_folder_item.setProperty('isSpecial', 'true')
-        add_folder_item.setProperty('action', 'new_folder')
-        add_folder_item.setProperty('parent_id', 'None')
+            add_folder_item.setProperty('isFolder', 'true')
+            add_folder_item.setProperty('isSpecial', 'true')
+            add_folder_item.setProperty('action', 'new_folder')
+            add_folder_item.setProperty('parent_id', 'None')
+            self.list_control.addItem(add_folder_item)
+            self.list_data.append({'name': '<Add Folder>', 'isFolder': True, 'isSpecial': True, 'id': None, 'indent': 0, 'action': 'new_folder'})
         self.list_control.addItem(add_folder_item)
         self.list_data.append({'name': '<Add Folder>', 'isFolder': True, 'isSpecial': True, 'id': None, 'indent': 0, 'action': 'new_folder'})
 
