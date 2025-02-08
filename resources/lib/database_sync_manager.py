@@ -3,39 +3,11 @@ from typing import List, Dict, Any, Optional
 import xbmc
 from resources.lib.jsonrpc_manager import JSONRPC
 from resources.lib.query_manager import QueryManager
-from resources.lib import utils
 
 class DatabaseSyncManager:
     def __init__(self, query_manager: QueryManager):
         self.query_manager = query_manager
         self.jsonrpc = JSONRPC()
-
-    def sync_library_movies(self) -> bool:
-        """Sync all movies from Kodi library"""
-        try:
-            start = 0
-            limit = 50
-            total_processed = 0
-            
-            while True:
-                movies, total = self.jsonrpc.get_movies_for_export(start, limit)
-                if not movies:
-                    break
-                    
-                self.query_manager.sync_movies(movies)
-                total_processed += len(movies)
-                
-                if total_processed >= total:
-                    break
-                    
-                start += limit
-                
-            utils.log(f"Successfully synced {total_processed} movies", "INFO")
-            return True
-            
-        except Exception as e:
-            utils.log(f"Error syncing library: {str(e)}", "ERROR")
-            return False
 
     def setup_tables(self):
         """Create necessary tables for movie reference and addon metadata"""
