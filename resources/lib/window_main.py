@@ -455,47 +455,32 @@ class MainWindow(BaseWindow):
         progress = xbmcgui.DialogProgress()
         progress.create("Exporting IMDB List")
 
-        from resources.lib.jsonrpc_manager import JSONRPC
+        from resources.lib.database_sync_manager import DatabaseSyncManager
+        from resources.lib.query_manager import QueryManager
+        
         db = DatabaseManager(Config().db_path)
-        jsonrpc = JSONRPC()
+        query_manager = QueryManager(Config().db_path)
+        sync_manager = DatabaseSyncManager(query_manager)
 
-        start = 0
-        limit = 50
-        total_processed = 0
-
-        while True:
-            response = jsonrpc.get_movies(start, limit)
-            if 'result' not in response or 'movies' not in response['result']:
-                break
-                
-            movies = response['result']['movies']
-            total = response['result'].get('limits', {}).get('total', 0)
-            if not movies:
-                break
-
-            db.insert_imdb_export(movies)
-            total_processed += len(movies)
-
-            percent = (total_processed * 100) // total if total > 0 else 100
-            progress.update(percent, f"Processed {total_processed} of {total} movies...")
-
-            if total_processed >= total:
-                break
-
-            start += limit
-
+        # Ensure tables exist
+        sync_manager.setup_tables()
+        
+        # Sync library movies
+        success = sync_manager.sync_library_movies()
         progress.close()
 
-        # Get IMDB stats
-        stats = db.get_imdb_export_stats()
-        stats_message = (
-            f"Export Complete\n\n"
-            f"Total Movies: {stats['total']}\n"
-            f"Valid IMDB Numbers: {stats['valid_imdb']}\n"
-            f"Percentage: {stats['percentage']:.1f}%"
-        )
-
-        xbmcgui.Dialog().ok("IMDB Export Statistics", stats_message)
+        if success:
+            # Get IMDB stats
+            stats = db.get_imdb_export_stats()
+            stats_message = (
+                f"Export Complete\n\n"
+                f"Total Movies: {stats['total']}\n"
+                f"Valid IMDB Numbers: {stats['valid_imdb']}\n"
+                f"Percentage: {stats['percentage']:.1f}%"
+            )
+            xbmcgui.Dialog().ok("IMDB Export Statistics", stats_message)
+        else:
+            xbmcgui.Dialog().ok("Error", "Failed to sync library movies")
 
     def handle_paste_action(self, action, target_id):
         utils.log(f"Handling paste action. Action={action}, TargetID={target_id}", "DEBUG")
