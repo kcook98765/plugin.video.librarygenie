@@ -42,7 +42,7 @@ class MainWindow(BaseWindow):
         # (No timer is used in this version.)
 
     def setup_ui(self):
-        self.setGeometry(800, 600, 12, 10)
+        self.setGeometry(800, 600, 13, 10)  # Added 1 row for exit button
         # Media info at top right
         title = self.item_info.get('title', 'Unknown')
         year = self.item_info.get('year', '')
@@ -79,6 +79,12 @@ class MainWindow(BaseWindow):
         self.status_label = pyxbmct.Label("")
         self.placeControl(self.status_label, 11, 0, columnspan=10, pad_x=5)
         # The legend will be updated by update_status_text()
+
+        # Exit button at bottom left
+        self.exit_button = pyxbmct.Button("Exit")
+        self.placeControl(self.exit_button, 12, 0, columnspan=2, pad_x=5, pad_y=5)
+        self.connect(self.exit_button, self.close)
+        self.connect(pyxbmct.ACTION_NAV_BACK, self.close)
 
         # Default folder icon path
         self.folder_icon = "DefaultFolder.png"
@@ -872,16 +878,32 @@ class MainWindow(BaseWindow):
     def set_navigation(self):
         try:
             if self.list_control and hasattr(self.list_control, 'getId'):
-                self.list_control.controlUp(self.list_control)
-                if hasattr(self, 'options_button'):
-                    self.list_control.controlDown(self.options_button)
-                    self.options_button.controlUp(self.list_control)
                 self.list_control.controlLeft(self.list_control)
                 self.list_control.controlRight(self.list_control)
                 self.list_control.setEnabled(True)
+                
+                # Connect list control with exit button only when at the last item
+                self.connect(self.list_control, lambda: self.handle_list_navigation())
+                
+                # Exit button navigation
+                self.exit_button.controlUp(self.list_control)
+                self.exit_button.controlDown(self.exit_button)
+                self.exit_button.controlLeft(self.exit_button)
+                self.exit_button.controlRight(self.exit_button)
+                
                 self.setFocus(self.list_control)
         except Exception as e:
             utils.log(f"Error setting navigation: {str(e)}", "ERROR")
+            
+    def handle_list_navigation(self):
+        try:
+            current_pos = self.list_control.getSelectedPosition()
+            if current_pos == self.list_control.size() - 1:  # If at last item
+                self.setFocus(self.exit_button)
+            else:
+                self.setFocus(self.list_control)
+        except Exception as e:
+            utils.log(f"Error handling list navigation: {str(e)}", "ERROR")
 
     def get_parent_folder_id(self, folder_id):
         db_manager = DatabaseManager(Config().db_path)
