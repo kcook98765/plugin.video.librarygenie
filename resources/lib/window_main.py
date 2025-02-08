@@ -360,13 +360,12 @@ class MainWindow(BaseWindow):
             self.open_settings()
 
     def show_list_options(self, list_data):
-        options = []
-
-        if self.is_playable:
-            if list_data.get('color') == 'red':
-                options.append("Add Media to List")
-            elif list_data.get('color') == 'green':
-                options.append("Remove Media from List")
+        # Create a new window to display lists hierarchically
+        list_browser = ListBrowserWindow(self.item_info)
+        list_browser.doModal()
+        del list_browser
+        # Refresh the main window's list after potential changes
+        self.populate_list()
 
         options.extend([
             "Rename This List",
