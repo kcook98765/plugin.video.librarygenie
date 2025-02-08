@@ -3,16 +3,14 @@ import json
 import pyxbmct
 import xbmc
 import xbmcgui
-import xbmcaddon
-import xbmcplugin
 from resources.lib.database_manager import DatabaseManager
 from resources.lib.config_manager import Config
 from resources.lib.window_list import ListWindow
 from resources.lib.window_list_browser import ListBrowserWindow
 from resources.lib import utils
+from resources.lib.window_base import BaseWindow
 
 utils.log("Initializing MainWindow module", "INFO")
-from resources.lib.window_base import BaseWindow
 
 class MainWindow(BaseWindow):
     INDENTATION_MULTIPLIER = 3  # Used for indenting sublevels
@@ -347,7 +345,7 @@ class MainWindow(BaseWindow):
                     folder_id = parent_id
             for folder_id in self.folder_color_status:
                 propagate_status(folder_id)
-            utils.log(f"Folder color statuses: {folder_color_status}", "DEBUG")
+            utils.log(f"Folder color statuses: {self.folder_color_status}", "DEBUG")
 
         self.list_data = []
 
@@ -411,7 +409,7 @@ class MainWindow(BaseWindow):
             for item in combined_root:
                 if 'parent_id' in item:
                     utils.log(f"Adding root folder item - ID: {item['id']}, Name: {item['name']}", "DEBUG")
-                    self.add_folder_items(item, 0, all_folders, all_lists, folder_color_status)
+                    self.add_folder_items(item, 0, all_folders, all_lists, self.folder_color_status)
                 else:
                     list_media_count = db_manager.get_list_media_count(item['id'])
                     list_label = f"  {item['name']} ({list_media_count})"
