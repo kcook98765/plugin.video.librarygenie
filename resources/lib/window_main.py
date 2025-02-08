@@ -23,6 +23,7 @@ class MainWindow(BaseWindow):
         self.setGeometry(800, 600, 10, 10)
         self.item_info = item_info
         self.list_data = []
+        # These will be used to reselect an item after repopulation.
         self.selected_item_id = None
         self.selected_is_folder = None
         self.is_playable = self.check_playable()
@@ -58,7 +59,7 @@ class MainWindow(BaseWindow):
         # Bottom status/legend bar with dynamic text
         self.status_label = pyxbmct.Label("")
         self.placeControl(self.status_label, 11, 0, columnspan=10, pad_x=5)
-        # Call update_status_text later after list is populated.
+        # The legend will be updated in populate_list() and onAction()
 
         # Default folder icon path
         self.folder_icon = "DefaultFolder.png"
@@ -79,19 +80,27 @@ class MainWindow(BaseWindow):
         pass
 
     def onAction(self, action):
-        """
-        Handle key actions. If a folder (or the Root) is selected, the right arrow expands
-        and the left arrow collapses it. The current selection is preserved after repopulating.
-        """
-        selected_item = self.list_control.getSelectedItem()
-        if not selected_item:
+        # **NEW CODE**: Capture the currently selected item’s ID and type before any changes.
+        current_item = self.list_control.getSelectedItem()
+        if current_item:
+            if current_item.getProperty('isRoot') == 'true':
+                self.selected_item_id = 0
+                self.selected_is_folder = True
+            elif current_item.getProperty('isFolder') == 'true':
+                self.selected_item_id = int(current_item.getProperty('folder_id'))
+                self.selected_is_folder = True
+            else:
+                self.selected_item_id = int(current_item.getProperty('list_id'))
+                self.selected_is_folder = False
+
+        if not current_item:
             return super().onAction(action)
 
         # Determine if the item is a folder (or Root)
-        is_folder = selected_item.getProperty('isFolder') == 'true'
-        is_root = selected_item.getProperty('isRoot') == 'true'
+        is_folder = current_item.getProperty('isFolder') == 'true'
+        is_root = current_item.getProperty('isRoot') == 'true'
         if is_folder or is_root:
-            folder_id = 0 if is_root else int(selected_item.getProperty('folder_id'))
+            folder_id = 0 if is_root else int(current_item.getProperty('folder_id'))
             current_pos = self.list_control.getSelectedPosition()
             if action == xbmcgui.ACTION_MOVE_RIGHT:
                 self.folder_expanded_states[folder_id] = True
@@ -108,8 +117,8 @@ class MainWindow(BaseWindow):
 
         # For list items, handle adding/removing media via left/right actions.
         try:
-            list_id = int(selected_item.getProperty('list_id'))
-            is_member = selected_item.getProperty('is_member') == '1'
+            list_id = int(current_item.getProperty('list_id'))
+            is_member = current_item.getProperty('is_member') == '1'
             if action == xbmcgui.ACTION_MOVE_LEFT and is_member:
                 db_manager = DatabaseManager(Config().db_path)
                 item_id = db_manager.get_item_id_by_title_and_list(list_id, self.item_info['title'])
@@ -171,7 +180,7 @@ class MainWindow(BaseWindow):
     def update_status_text(self):
         """
         Dynamically update the legend (status label) at the bottom of the window.
-        If no item is selected, select the first item.
+        If no item is selected, default to the first item.
         """
         selected_item = self.list_control.getSelectedItem()
         if not selected_item:
@@ -266,11 +275,11 @@ class MainWindow(BaseWindow):
                                            'indent': 0, 'color': color if self.is_playable else None})
             # Note: Special "Add" entries are omitted at root level.
 
-        # Ensure a default selection if none is set.
+        # If nothing is selected, default to the first item.
         if self.list_control.size() > 0 and self.list_control.getSelectedItem() is None:
             self.list_control.selectItem(0)
             self.setFocus(self.list_control)
-        self.update_status_text()  # update the legend now
+        self.update_status_text()  # update the legend
 
         self.list_control.setEnabled(True)
         self.reselect_previous_item(focus_folder_id)
@@ -327,7 +336,6 @@ class MainWindow(BaseWindow):
             self.add_new_items(folder, indent + 1)
 
     def add_new_items(self, parent_folder, indent):
-        # Check current depth against max depth before showing new folder option.
         current_depth = 0
         temp_parent_id = parent_folder['id']
         while temp_parent_id is not None:
@@ -587,9 +595,6 @@ class MainWindow(BaseWindow):
         self.populate_list()
 
     def paste_folder_here(self, folder_id, target_folder_id):
-        """
-        Move a folder to a new target location while preventing circular references.
-        """
         db_manager = DatabaseManager(Config().db_path)
         current_parent = target_folder_id
         while current_parent is not None:
