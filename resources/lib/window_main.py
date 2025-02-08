@@ -75,8 +75,8 @@ class MainWindow(BaseWindow):
         self.placeControl(self.list_control, 3, 0, rowspan=8, columnspan=10, pad_x=5, pad_y=5)
         self.connect(self.list_control, self.on_list_item_click)
 
-        # Create legend label (count will be updated later)
-        self.legend_label = pyxbmct.Label("")
+        # Create legend label with initial text
+        self.legend_label = pyxbmct.Label("[COLOR red]Not in list/folder[/COLOR], [COLOR green]In list/folder[/COLOR]")
         self.placeControl(self.legend_label, 11, 0, columnspan=10, pad_x=5)
 
         # Status/tips bar with dynamic text
@@ -254,6 +254,19 @@ class MainWindow(BaseWindow):
         else:
             self.selected_item_id = None
             self.selected_is_folder = None
+
+        # Update legend text with count
+        legend_text = "[COLOR red]Not in list/folder[/COLOR], [COLOR green]In list/folder[/COLOR]"
+        if self.is_playable and current_item and not current_item.getProperty('isSpecial') == 'true':
+            try:
+                label = current_item.getLabel()
+                if '(' in label and ')' in label:
+                    count = int(label.split('(')[-1].split(')')[0])
+                    legend_text += f", ({count}) = count of movies in list/folder"
+            except (IndexError, ValueError):
+                pass
+        if hasattr(self, 'legend_label'):
+            self.legend_label.setLabel(legend_text)
 
     def update_status_text(self):
         """
