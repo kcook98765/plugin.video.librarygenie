@@ -509,13 +509,13 @@ class QueryManager(Singleton):
             before_state = cursor.fetchone()
             utils.log(f"Folder before update - ID:{folder_id} Current state: {dict(before_state)}", "DEBUG")
 
-            # Use a single query with CASE to handle NULL
-            query = """
-                UPDATE folders 
-                SET parent_id = CASE WHEN ? = 0 THEN NULL ELSE ? END
-                WHERE id = ?
-            """
-            params = (1 if new_parent_id is not None else 0, new_parent_id, folder_id)
+            # Handle NULL for root level explicitly
+            if new_parent_id is None:
+                query = "UPDATE folders SET parent_id = NULL WHERE id = ?"
+                params = (folder_id,)
+            else:
+                query = "UPDATE folders SET parent_id = ? WHERE id = ?"
+                params = (new_parent_id, folder_id)
             utils.log(f"Executing SQL to set parent_id - Query: {query}, Params: {params}", "DEBUG")
             cursor.execute(query, params)
             
