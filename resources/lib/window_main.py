@@ -150,17 +150,24 @@ class MainWindow(BaseWindow):
             for folder in folder_status:
                 folder_color_status[folder['id']] = 'green' if folder['is_member'] else 'red'
 
-            # Propagate status upwards through the hierarchy
-            def propagate_status(folder_id, color):
-                while folder_id is not None:
-                    current_color = folder_color_status.get(folder_id, 'red')
-                    if color == 'green' and current_color == 'red':
-                        folder_color_status[folder_id] = 'green'
-                    folder_id = next((f['parent_id'] for f in all_folders if f['id'] == folder_id), None)
-
+            # First mark folders that directly contain the item
             for folder in folder_status:
-                if folder['is_member']:
-                    propagate_status(folder['parent_id'], 'green')
+                folder_color_status[folder['id']] = 'green' if folder['is_member'] else 'red'
+
+            # Then propagate status upwards through the hierarchy
+            def propagate_status(folder_id):
+                while folder_id is not None:
+                    parent_id = next((f['parent_id'] for f in all_folders if f['id'] == folder_id), None)
+                    if parent_id is not None:
+                        # If any child folder is green, parent should be green
+                        child_folders = [f['id'] for f in all_folders if f['parent_id'] == parent_id]
+                        if any(folder_color_status.get(cid, 'red') == 'green' for cid in child_folders):
+                            folder_color_status[parent_id] = 'green'
+                    folder_id = parent_id
+
+            # Propagate for all folders
+            for folder_id in folder_color_status:
+                propagate_status(folder_id)
 
             utils.log(f"Folder color statuses: {folder_color_status}", "DEBUG")
 
