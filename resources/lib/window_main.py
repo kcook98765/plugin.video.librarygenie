@@ -373,7 +373,6 @@ class MainWindow(BaseWindow):
         else:
             folder_label = f"{indent_str}{folder['name']} ({folder_media_count})"
         folder_item = xbmcgui.ListItem(folder_label)
-        folder_item.setArt({'icon': self.folder_icon, 'thumb': self.folder_icon})
         folder_item.setProperty('indent', indent_str)
         folder_item.setProperty('isFolder', 'true')
         folder_item.setProperty('folder_id', str(folder['id']))
