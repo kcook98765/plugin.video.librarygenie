@@ -277,7 +277,7 @@ class MainWindow(BaseWindow):
                     return
             self.status_label.setLabel("FOLDER: <Collapse/Expand> , Click = Options")
         else:
-            self.status_label.setLabel("LIST: <Collapse/Expand> , Click = Options")
+            self.status_label.setLabel("LIST: <Remove/Add> , Click = Options")
 
     def populate_list(self, focus_folder_id=None):
         utils.log("Populating list...", "DEBUG")
