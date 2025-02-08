@@ -111,7 +111,10 @@ class MainWindow(BaseWindow):
                     if item_id:
                         db_manager.delete_data('list_items', f'id={item_id}')
                         xbmcgui.Dialog().notification("LibraryGenie", "Media removed from list", xbmcgui.NOTIFICATION_INFO, 2000)
+                        current_position = self.list_control.getSelectedPosition()
                         self.populate_list()
+                        self.list_control.selectItem(current_position)
+                        self.setFocus(self.list_control)
                 elif action == xbmcgui.ACTION_MOVE_RIGHT and not is_member:
                     # Add to list
                     db_manager = DatabaseManager(Config().db_path)
@@ -122,7 +125,10 @@ class MainWindow(BaseWindow):
                         data['cast'] = json.dumps(data['cast'])
                     db_manager.insert_data('list_items', data)
                     xbmcgui.Dialog().notification("LibraryGenie", "Media added to list", xbmcgui.NOTIFICATION_INFO, 2000)
+                    current_position = self.list_control.getSelectedPosition()
                     self.populate_list()
+                    self.list_control.selectItem(current_position)
+                    self.setFocus(self.list_control)
             except (ValueError, TypeError):
                 pass
         
@@ -832,9 +838,10 @@ class MainWindow(BaseWindow):
         try:
             if self.list_control and hasattr(self.list_control, 'getId'):
                 self.list_control.controlUp(self.list_control)
-                self.list_control.controlDown(self.list_control)
-                self.list_control.controlRight(self.options_button)
-                self.options_button.controlLeft(self.list_control)
+                self.list_control.controlDown(self.options_button)
+                self.list_control.controlLeft(self.list_control)
+                self.list_control.controlRight(self.list_control)
+                self.options_button.controlUp(self.list_control)
                 self.list_control.setEnabled(True)
                 self.setFocus(self.list_control)
         except Exception as e:
