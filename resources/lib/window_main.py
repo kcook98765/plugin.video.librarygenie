@@ -280,7 +280,7 @@ class MainWindow(BaseWindow):
         root_item.setProperty('isRoot', 'true')
         root_item.setProperty('folder_id', '0')
         root_item.setProperty('expanded', str(root_expanded))
-        root_label = "[B]v Root[/B]" if root_expanded else "[B]> Root[/B]"
+        root_label = "[B]Root[/B]"
         root_item.setLabel(root_label)
         self.list_control.addItem(root_item)
         self.list_data.append({'name': 'Root', 'isFolder': True, 'isRoot': True, 'id': 0, 'expanded': root_expanded})
@@ -367,12 +367,11 @@ class MainWindow(BaseWindow):
         utils.log(f"Adding folder - Name: {folder['name']}, Expanded: {expanded}, Indent: {indent}, Color: {color}", "DEBUG")
         db_manager = DatabaseManager(Config().db_path)
         folder_media_count = db_manager.get_folder_media_count(folder['id'])
-        arrow = "v" if expanded else ">"
         indent_str = "  " * indent
         if color:
-            folder_label = f"{indent_str}  [B][COLOR {color}]{arrow} {folder['name']} ({folder_media_count})[/COLOR][/B]"
+            folder_label = f"{indent_str}[B][COLOR {color}]{folder['name']} ({folder_media_count})[/COLOR][/B]"
         else:
-            folder_label = f"{indent_str}  {arrow} {folder['name']} ({folder_media_count})"
+            folder_label = f"{indent_str}{folder['name']} ({folder_media_count})"
         folder_item = xbmcgui.ListItem(folder_label)
         folder_item.setArt({'icon': self.folder_icon, 'thumb': self.folder_icon})
         folder_item.setProperty('isFolder', 'true')
