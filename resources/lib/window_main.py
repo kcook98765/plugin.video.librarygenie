@@ -621,21 +621,27 @@ class MainWindow(BaseWindow):
 
     def paste_folder_here(self, folder_id, target_folder_id):
         db_manager = DatabaseManager(Config().db_path)
-        current_parent = target_folder_id
-        while current_parent is not None:
-            if current_parent == folder_id:
-                xbmcgui.Dialog().notification("LibraryGenie", "Cannot move folder: Would create circular reference", xbmcgui.NOTIFICATION_ERROR, 5000)
-                return
-            folder = db_manager.fetch_folder_by_id(current_parent)
-            if folder is None:
-                break
-            current_parent = folder.get('parent_id', None)
-        db_manager.update_folder_parent(folder_id, target_folder_id)
-        xbmcgui.Dialog().notification("LibraryGenie", "Folder moved to new location", xbmcgui.NOTIFICATION_INFO, 5000)
-        self.moving_folder_id = None
-        self.moving_folder_name = None
-        utils.log(f"Pasting folder. FolderID={folder_id}, TargetFolderID={target_folder_id}", "DEBUG")
-        self.populate_list()
+        try:
+            current_parent = target_folder_id
+            while current_parent is not None:
+                if current_parent == folder_id:
+                    xbmcgui.Dialog().notification("LibraryGenie", "Cannot move folder: Would create circular reference", xbmcgui.NOTIFICATION_ERROR, 5000)
+                    return
+                folder = db_manager.fetch_folder_by_id(current_parent)
+                if folder is None:
+                    break
+                current_parent = folder.get('parent_id', None)
+            db_manager.update_folder_parent(folder_id, target_folder_id)
+            xbmcgui.Dialog().notification("LibraryGenie", "Folder moved to new location", xbmcgui.NOTIFICATION_INFO, 5000)
+            self.moving_folder_id = None
+            self.moving_folder_name = None
+            utils.log(f"Pasting folder. FolderID={folder_id}, TargetFolderID={target_folder_id}", "DEBUG")
+            self.populate_list()
+        except ValueError as e:
+            xbmcgui.Dialog().notification("LibraryGenie", str(e), xbmcgui.NOTIFICATION_ERROR, 5000)
+            self.moving_folder_id = None
+            self.moving_folder_name = None
+            self.populate_list()
 
     def delete_folder(self, folder_id, folder_name):
         confirmed = xbmcgui.Dialog().yesno("Confirm Delete", f"Are you sure you want to delete the folder '{folder_name}'?")
