@@ -292,10 +292,10 @@ class MainWindow(BaseWindow):
             for item in combined_root:
                 if 'parent_id' in item:
                     utils.log(f"Adding root folder item - ID: {item['id']}, Name: {item['name']}", "DEBUG")
-                    self.add_folder_items(item, 0, all_folders, all_lists, folder_color_status)
+                    self.add_folder_items(item, 1, all_folders, all_lists, folder_color_status)
                 else:
                     list_media_count = db_manager.get_list_media_count(item['id'])
-                    list_label = f"  {item['name']} ({list_media_count})"
+                    list_label = f"    {item['name']} ({list_media_count})"  # Standard indentation
                     color = 'green' if item['is_member'] else 'red'
                     if self.is_playable:
                         list_label = f"[COLOR {color}]{list_label}[/COLOR]"
@@ -304,7 +304,7 @@ class MainWindow(BaseWindow):
                     list_item.setProperty('list_id', str(item['id']))
                     list_item.setProperty('is_member', str(item['is_member']))
                     self.list_control.addItem(list_item)
-                    self.list_data.append({'name': item['name'], 'isFolder': False, 'id': item['id'], 'indent': 0, 'color': color if self.is_playable else None})
+                    self.list_data.append({'name': item['name'], 'isFolder': False, 'id': item['id'], 'indent': 1, 'color': color if self.is_playable else None})
             # Note: Special "Add" entries are omitted at root level.
 
         if self.list_control.size() > 0 and self.list_control.getSelectedItem() is None:
