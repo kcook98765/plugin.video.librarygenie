@@ -245,8 +245,18 @@ class MainWindow(BaseWindow):
         Update the navigation legend based on our stored selection state.
         We use self.selected_item_id and self.selected_is_folder.
         """
-        if self.selected_item_id is None:
+        current_item = self.list_control.getSelectedItem()
+        if not current_item:
             self.status_label.setLabel("No items available")
+            return
+
+        # Handle special action items
+        action = current_item.getProperty('action')
+        if action == 'new_folder':
+            self.status_label.setLabel("Click = Make a folder here")
+            return
+        elif action == 'new_list':
+            self.status_label.setLabel("Click = Make a list here")
             return
 
         if self.selected_item_id == 0:
