@@ -177,6 +177,15 @@ class MainWindow(BaseWindow):
             self.on_options_click()
             return
 
+        # Handle list click - show options for the list
+        try:
+            list_id = int(selected_item.getProperty('list_id'))
+            list_name = self.strip_color_tags(selected_item.getLabel())
+            color = 'green' if selected_item.getProperty('is_member') == '1' else 'red'
+            self.show_list_options({'id': list_id, 'name': list_name, 'color': color})
+        except (ValueError, TypeError):
+            pass
+
         return
 
     def onFocus(self, controlId):
