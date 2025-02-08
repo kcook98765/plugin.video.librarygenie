@@ -53,8 +53,11 @@ class MainWindow(BaseWindow):
         poster_path = self.item_info.get('poster', self.item_info.get('art', {}).get('poster', ''))
         if poster_path:
             self.poster_image.setImage(poster_path)
-            # Place poster with increased padding for smaller size and no top space
-            self.placeControl(self.poster_image, 0, 0, rowspan=4, columnspan=2, pad_x=25, pad_y=25)
+            # Set explicit dimensions for the poster image (25% of default size)
+            self.poster_image.setWidth(200)  # Standard poster width is ~800
+            self.poster_image.setHeight(300)  # Standard poster height is ~1200
+            # Place poster with minimal padding
+            self.placeControl(self.poster_image, 0, 0, rowspan=4, columnspan=2, pad_x=5, pad_y=5)
         
         self.title_label = pyxbmct.Label(title_year, alignment=0)
         self.placeControl(self.title_label, 0, 2, columnspan=4, pad_x=5)
