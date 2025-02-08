@@ -52,12 +52,13 @@ class MainWindow(BaseWindow):
         self.poster_image = pyxbmct.Image('')
         poster_path = self.item_info.get('poster', self.item_info.get('art', {}).get('poster', ''))
         if poster_path:
+            # Movie posters typically have a 2:3 aspect ratio (e.g., 27x40 inches)
             self.poster_image.setImage(poster_path)
-            # Set explicit dimensions for the poster image (25% of default size)
-            self.poster_image.setWidth(200)  # Standard poster width is ~800
-            self.poster_image.setHeight(300)  # Standard poster height is ~1200
-            # Place poster with minimal padding
-            self.placeControl(self.poster_image, 0, 0, rowspan=4, columnspan=2, pad_x=5, pad_y=5)
+            # Set smaller dimensions while maintaining 2:3 aspect ratio
+            self.poster_image.setWidth(120)  # Standard movie poster scaled down
+            self.poster_image.setHeight(180)  # Maintains 2:3 ratio (120 * 1.5)
+            # Place poster in top-left with minimal padding
+            self.placeControl(self.poster_image, 0, 0, rowspan=3, columnspan=1, pad_x=5, pad_y=5)
         
         self.title_label = pyxbmct.Label(title_year, alignment=0)
         self.placeControl(self.title_label, 0, 2, columnspan=4, pad_x=5)
