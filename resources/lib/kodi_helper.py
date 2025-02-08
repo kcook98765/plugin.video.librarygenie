@@ -300,8 +300,10 @@ class KodiHelper:
             }
             if method == 'VideoLibrary.GetMovieDetails':
                 params['movieid'] = int(db_id)
+                params['properties'] = list(params['properties'])  # Ensure properties is a list
             else:
                 params['episodeid'] = int(db_id)
+                params['properties'] = list(params['properties'])  # Ensure properties is a list
 
             utils.log(f"Fetching details via RPC - Method: {method}, Params: {params}", "DEBUG")
             response = self.jsonrpc.execute(method, params)
