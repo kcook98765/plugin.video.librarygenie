@@ -263,18 +263,20 @@ class MainWindow(BaseWindow):
                 if is_folder:
                     folder_id = int(current_item.getProperty('folder_id'))
                     color = folder_color_status.get(folder_id, 'red')
-                    status = "In folder" if color == 'green' else "Not in folder"
+                    folder_name = self.strip_color_tags(current_item.getLabel())
+                    status = f"Folder '{folder_name}' is in folder" if color == 'green' else f"Folder '{folder_name}' is not in folder"
                     legend_text = f"[COLOR {color}]{status}[/COLOR]"
                     
                     # Always show count for folders
                     label = current_item.getLabel()
                     if '(' in label and ')' in label:
                         count = int(label.split('(')[-1].split(')')[0])
-                        legend_text += f", ({count}) = count of movies"
+                        legend_text += f", ({count}) = total movies in folder"
                 else:
                     is_member = current_item.getProperty('is_member') == '1'
                     color = 'green' if is_member else 'red'
-                    status = "In list" if is_member else "Not in list"
+                    list_name = self.strip_color_tags(current_item.getLabel())
+                    status = f"Movie is in list '{list_name}'" if is_member else f"Movie is not in list '{list_name}'"
                     legend_text = f"[COLOR {color}]{status}[/COLOR]"
                     
                     # Show count for lists
@@ -282,7 +284,7 @@ class MainWindow(BaseWindow):
                         label = current_item.getLabel()
                         if '(' in label and ')' in label:
                             count = int(label.split('(')[-1].split(')')[0])
-                            legend_text += f", ({count}) = count of movies"
+                            legend_text += f", ({count}) = total movies in list"
             except (IndexError, ValueError, TypeError):
                 pass
 
