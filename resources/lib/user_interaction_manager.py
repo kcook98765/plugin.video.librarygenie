@@ -58,5 +58,18 @@ class UserInteractionManager:
     def flag_list_item(self, item_id):
         self.db_manager.update_data('list_items', {'flagged': 1}, f'id={item_id}')
 
+    def is_member(self, list_id, item_id):
+        """Check if an item is a member of a list"""
+        try:
+            result = self.db_manager.execute_query(
+                "SELECT 1 FROM list_items WHERE list_id = ? AND media_item_id = ?",
+                (list_id, item_id)
+            )
+            return bool(result)
+        except Exception as e:
+            utils.log(f"Error checking list membership: {str(e)}", "ERROR")
+            return False
+
+
     def get_focused_item_id(self):
         return int(xbmc.getInfoLabel('ListItem.DBID'))
