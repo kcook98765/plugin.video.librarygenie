@@ -91,7 +91,6 @@ class MainWindow(BaseWindow):
         is_folder = selected_item.getProperty('isFolder') == 'true'
         is_root = selected_item.getProperty('isRoot') == 'true'
         if is_folder or is_root:
-            # Use folder id 0 for Root; otherwise use the folder_id property.
             folder_id = 0 if is_root else int(selected_item.getProperty('folder_id'))
             current_pos = self.list_control.getSelectedPosition()
             if action == xbmcgui.ACTION_MOVE_RIGHT:
@@ -150,7 +149,6 @@ class MainWindow(BaseWindow):
         if not selected_item:
             return
 
-        # Special behavior for Root: clicking opens settings.
         if selected_item.getProperty('isRoot') == 'true':
             self.open_settings()
             return
@@ -168,16 +166,19 @@ class MainWindow(BaseWindow):
 
     def update_status_text(self):
         """
-        Dynamically update the legend (status label) at the bottom of the window to explain
-        the actions for the currently highlighted item.
+        Dynamically update the legend (status label) at the bottom of the window.
+        If no item is currently selected, default to the first item.
         """
         selected_item = self.list_control.getSelectedItem()
         if not selected_item:
-            self.status_label.setLabel("No item selected")
-            return
+            if self.list_control.size() > 0:
+                selected_item = self.list_control.getListItem(0)
+                self.list_control.selectItem(0)
+            else:
+                self.status_label.setLabel("No items available")
+                return
 
         if selected_item.getProperty('isRoot') == 'true':
-            # For the Root item, click brings up settings.
             self.status_label.setLabel("ROOT: Left = Collapse, Right = Expand, Click = Open Settings")
         elif selected_item.getProperty('isFolder') == 'true':
             expanded = selected_item.getProperty('expanded') == 'true'
@@ -234,12 +235,11 @@ class MainWindow(BaseWindow):
         self.list_control.addItem(root_item)
         self.list_data.append({'name': 'Root', 'isFolder': True, 'isRoot': True, 'id': 0, 'expanded': root_expanded})
 
-        # If Root is expanded, add its children—i.e. the top-level folders and lists.
+        # If Root is expanded, add its children (top-level folders and lists).
         if root_expanded:
-            # Get all top-level folders and lists (those with no parent)
             root_folders = [folder for folder in all_folders if folder['parent_id'] is None]
             root_lists = [list_item for list_item in all_lists if list_item['folder_id'] is None]
-            # Sort so that folders (with key 0) come first, then lists (with key 1), both alphabetically.
+            # Sort so that folders come first (key 0) then lists (key 1), both alphabetically.
             combined_root = root_folders + root_lists
             combined_root.sort(key=lambda x: (0, self.clean_name(x['name']).lower()) if 'parent_id' in x
                                               else (1, self.clean_name(x['name']).lower()))
@@ -295,7 +295,6 @@ class MainWindow(BaseWindow):
         if expanded:
             subfolders = [f for f in all_folders if f['parent_id'] == folder['id']]
             folder_lists = [list_item for list_item in all_lists if list_item['folder_id'] == folder['id']]
-            # Sort with folders first then lists.
             combined = subfolders + folder_lists
             combined.sort(key=lambda x: (0, self.clean_name(x['name']).lower()) if 'parent_id' in x
                                          else (1, self.clean_name(x['name']).lower()))
@@ -316,7 +315,6 @@ class MainWindow(BaseWindow):
                     self.list_control.addItem(list_item)
                     self.list_data.append({'name': item['name'], 'isFolder': False, 'id': item['id'],
                                            'indent': indent + 1, 'color': color if self.is_playable else None})
-            # For subfolders, add the <New Folder>/<New List> entries.
             self.add_new_items(folder, indent + 1)
 
     def add_new_items(self, parent_folder, indent):
@@ -742,7 +740,6 @@ class MainWindow(BaseWindow):
         try:
             if self.list_control and hasattr(self.list_control, 'getId'):
                 self.list_control.controlUp(self.list_control)
-                # Adjust navigation as needed.
                 if hasattr(self, 'options_button'):
                     self.list_control.controlDown(self.options_button)
                     self.options_button.controlUp(self.list_control)
