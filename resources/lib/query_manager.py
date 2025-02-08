@@ -479,6 +479,16 @@ class QueryManager(Singleton):
         """
         return self.execute_query(query)
 
+    def fetch_list_by_id(self, list_id: int) -> Optional[Dict[str, Any]]:
+        """Fetch a single list by its ID"""
+        query = """
+            SELECT id, name, folder_id
+            FROM lists
+            WHERE id = ?
+        """
+        result = self.execute_query(query, (list_id,), fetch_all=False)
+        return result[0] if result else None
+
     def update_folder_parent(self, folder_id: int, new_parent_id: Optional[int]) -> None:
         query = """
             UPDATE folders 
