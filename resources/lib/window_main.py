@@ -257,26 +257,34 @@ class MainWindow(BaseWindow):
 
         # Update legend text with count
         legend_text = ""
-        if current_item and not current_item.getProperty('isSpecial') == 'true':
+        if current_item and not current_item.getProperty('isSpecial') == 'true' and current_item.getProperty('isRoot') != 'true':
             is_folder = current_item.getProperty('isFolder') == 'true'
-            if is_folder:
-                color = folder_color_status.get(int(current_item.getProperty('folder_id')), 'red')
-                status = "In folder" if color == 'green' else "Not in folder"
-                legend_text = f"[COLOR {color}]{status}[/COLOR]"
-            else:
-                is_member = current_item.getProperty('is_member') == '1'
-                color = 'green' if is_member else 'red'
-                status = "In list" if is_member else "Not in list"
-                legend_text = f"[COLOR {color}]{status}[/COLOR]"
-
-            if self.is_playable:
-                try:
+            try:
+                if is_folder:
+                    folder_id = int(current_item.getProperty('folder_id'))
+                    color = folder_color_status.get(folder_id, 'red')
+                    status = "In folder" if color == 'green' else "Not in folder"
+                    legend_text = f"[COLOR {color}]{status}[/COLOR]"
+                    
+                    # Always show count for folders
                     label = current_item.getLabel()
                     if '(' in label and ')' in label:
                         count = int(label.split('(')[-1].split(')')[0])
                         legend_text += f", ({count}) = count of movies"
-                except (IndexError, ValueError):
-                    pass
+                else:
+                    is_member = current_item.getProperty('is_member') == '1'
+                    color = 'green' if is_member else 'red'
+                    status = "In list" if is_member else "Not in list"
+                    legend_text = f"[COLOR {color}]{status}[/COLOR]"
+                    
+                    # Show count for lists
+                    if self.is_playable:
+                        label = current_item.getLabel()
+                        if '(' in label and ')' in label:
+                            count = int(label.split('(')[-1].split(')')[0])
+                            legend_text += f", ({count}) = count of movies"
+            except (IndexError, ValueError, TypeError):
+                pass
 
         if hasattr(self, 'legend_label'):
             self.legend_label.setLabel(legend_text)
