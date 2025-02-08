@@ -176,23 +176,42 @@ class MainWindow(BaseWindow):
             return
 
         return
-    
+
+    def update_selection_state(self):
+        """Update our stored selection state based on the currently focused item."""
+        current_item = self.list_control.getSelectedItem()
+        if current_item:
+            if current_item.getProperty('isRoot') == 'true':
+                self.selected_item_id = 0
+                self.selected_is_folder = True
+            elif current_item.getProperty('isFolder') == 'true':
+                try:
+                    self.selected_item_id = int(current_item.getProperty('folder_id'))
+                except Exception:
+                    self.selected_item_id = None
+                self.selected_is_folder = True
+            else:
+                try:
+                    self.selected_item_id = int(current_item.getProperty('list_id'))
+                except Exception:
+                    self.selected_item_id = None
+                self.selected_is_folder = False
+        else:
+            self.selected_item_id = None
+            self.selected_is_folder = None
+
     def update_status_text(self):
         """
         Update the navigation legend based on our stored selection state.
-        We use self.selected_item_id and self.selected_is_folder rather than the list control’s
-        getSelectedItem(), which seems to always return the first item.
+        We use self.selected_item_id and self.selected_is_folder.
         """
         if self.selected_item_id is None:
             self.status_label.setLabel("No items available")
             return
 
-        # If the stored selection is root
         if self.selected_item_id == 0:
             self.status_label.setLabel("ROOT: Left = Collapse, Right = Expand, Click = Open Settings")
-        # If it is a folder (other than root)
         elif self.selected_is_folder:
-            # Look up the folder in our list_data to check its 'expanded' status.
             for item in self.list_data:
                 if item.get('isFolder') and item.get('id') == self.selected_item_id:
                     if item.get('expanded'):
@@ -200,7 +219,6 @@ class MainWindow(BaseWindow):
                     else:
                         self.status_label.setLabel("FOLDER (Collapsed): Left = Collapse, Right = Expand, Click = Options")
                     return
-            # Fallback in case not found:
             self.status_label.setLabel("FOLDER: Left = Collapse, Right = Expand, Click = Options")
         else:
             self.status_label.setLabel("LIST: Left = Remove, Right = Add, Click = Options")
@@ -208,7 +226,9 @@ class MainWindow(BaseWindow):
     def onFocus(self, controlId):
         super().onFocus(controlId)
         if controlId == self.list_control.getId():
-            self.update_status_text()
+            self.update_selection_state()   # update state on focus change
+            self.update_status_text()         # update the legend based on the current state
+
 
     def populate_list(self, focus_folder_id=None):
         utils.log("Populating list...", "DEBUG")
