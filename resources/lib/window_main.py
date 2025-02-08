@@ -5,7 +5,6 @@ import xbmc
 import xbmcgui
 import xbmcaddon
 import xbmcplugin
-import threading
 from resources.lib.database_manager import DatabaseManager
 from resources.lib.config_manager import Config
 from resources.lib.window_list import ListWindow
@@ -13,7 +12,6 @@ from resources.lib.window_list_browser import ListBrowserWindow
 from resources.lib import utils
 
 utils.log("Initializing MainWindow module", "INFO")
-
 from resources.lib.window_base import BaseWindow
 
 class MainWindow(BaseWindow):
@@ -41,45 +39,7 @@ class MainWindow(BaseWindow):
         self.setup_ui()
         self.populate_list()
         self.set_navigation()
-        # NEW: Start a timer to update our selection state and legend periodically.
-        self.start_status_timer()
-
-    def start_status_timer(self):
-        """Start a background thread to update the status legend periodically."""
-        def timer_loop():
-            # Loop while the window is visible.
-            while self.isVisible():
-                # Only update if the list control is focused.
-                if self.getFocus() == self.list_control:
-                    self.update_selection_state()  # refresh stored state
-                    self.update_status_text()        # update the legend accordingly
-                xbmc.sleep(500)  # Check every 500 ms
-        thread = threading.Thread(target=timer_loop)
-        thread.setDaemon(True)
-        thread.start()
-
-    def update_selection_state(self):
-        """Update our stored selection state based on the currently focused item."""
-        current_item = self.list_control.getSelectedItem()
-        if current_item:
-            if current_item.getProperty('isRoot') == 'true':
-                self.selected_item_id = 0
-                self.selected_is_folder = True
-            elif current_item.getProperty('isFolder') == 'true':
-                try:
-                    self.selected_item_id = int(current_item.getProperty('folder_id'))
-                except Exception:
-                    self.selected_item_id = None
-                self.selected_is_folder = True
-            else:
-                try:
-                    self.selected_item_id = int(current_item.getProperty('list_id'))
-                except Exception:
-                    self.selected_item_id = None
-                self.selected_is_folder = False
-        else:
-            self.selected_item_id = None
-            self.selected_is_folder = None
+        # (No timer is used in this version.)
 
     def setup_ui(self):
         self.setGeometry(800, 600, 12, 10)
@@ -99,6 +59,7 @@ class MainWindow(BaseWindow):
         # Bottom status/legend bar with dynamic text
         self.status_label = pyxbmct.Label("")
         self.placeControl(self.status_label, 11, 0, columnspan=10, pad_x=5)
+        # The legend will be updated by update_status_text()
 
         # Default folder icon path
         self.folder_icon = "DefaultFolder.png"
@@ -119,7 +80,11 @@ class MainWindow(BaseWindow):
         pass
 
     def onAction(self, action):
-        # When an action occurs, update our selection state
+        # If the action is up or down, update our stored selection state and legend
+        if action in (xbmcgui.ACTION_MOVE_UP, xbmcgui.ACTION_MOVE_DOWN):
+            self.update_selection_state()
+            self.update_status_text()
+        # (Now update our state as before for left/right actions)
         current_item = self.list_control.getSelectedItem()
         if current_item:
             if current_item.getProperty('isRoot') == 'true':
@@ -217,8 +182,32 @@ class MainWindow(BaseWindow):
     def onFocus(self, controlId):
         super().onFocus(controlId)
         if controlId == self.list_control.getId():
-            self.update_selection_state()   # update state on focus change
-            self.update_status_text()         # update the legend
+            # When the control receives focus, update our stored state and legend.
+            self.update_selection_state()
+            self.update_status_text()
+
+    def update_selection_state(self):
+        """Update our stored selection state based on the currently focused item."""
+        current_item = self.list_control.getSelectedItem()
+        if current_item:
+            if current_item.getProperty('isRoot') == 'true':
+                self.selected_item_id = 0
+                self.selected_is_folder = True
+            elif current_item.getProperty('isFolder') == 'true':
+                try:
+                    self.selected_item_id = int(current_item.getProperty('folder_id'))
+                except Exception:
+                    self.selected_item_id = None
+                self.selected_is_folder = True
+            else:
+                try:
+                    self.selected_item_id = int(current_item.getProperty('list_id'))
+                except Exception:
+                    self.selected_item_id = None
+                self.selected_is_folder = False
+        else:
+            self.selected_item_id = None
+            self.selected_is_folder = None
 
     def update_status_text(self):
         """
@@ -309,7 +298,6 @@ class MainWindow(BaseWindow):
                     self.list_data.append({'name': item['name'], 'isFolder': False, 'id': item['id'], 'indent': 0, 'color': color if self.is_playable else None})
             # Note: Special "Add" entries are omitted at root level.
 
-        # If nothing is selected, default to the first item.
         if self.list_control.size() > 0 and self.list_control.getSelectedItem() is None:
             self.list_control.selectItem(0)
             self.setFocus(self.list_control)
