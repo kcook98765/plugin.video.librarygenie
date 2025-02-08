@@ -661,16 +661,22 @@ class MainWindow(BaseWindow):
     def paste_folder_here(self, folder_id, target_folder_id):
         db_manager = DatabaseManager(Config().db_path)
         try:
-            # Check for circular reference
-            current_parent = target_folder_id
-            while current_parent is not None:
-                if current_parent == folder_id:
-                    xbmcgui.Dialog().notification("LibraryGenie", "Cannot move folder: Would create circular reference", xbmcgui.NOTIFICATION_ERROR, 5000)
-                    return
-                folder = db_manager.fetch_folder_by_id(current_parent)
-                if folder is None:
-                    break
-                current_parent = folder.get('parent_id', None)
+            # For root level moves, only need to check depth
+            if target_folder_id is None:
+                subtree_depth = db_manager._get_subtree_depth(folder_id)
+                if subtree_depth >= Config().max_folder_depth:
+                    raise ValueError(f"Moving folder would exceed maximum depth of {Config().max_folder_depth}")
+            else:
+                # Check for circular reference
+                current_parent = target_folder_id
+                while current_parent is not None:
+                    if current_parent == folder_id:
+                        xbmcgui.Dialog().notification("LibraryGenie", "Cannot move folder: Would create circular reference", xbmcgui.NOTIFICATION_ERROR, 5000)
+                        return
+                    folder = db_manager.fetch_folder_by_id(current_parent)
+                    if folder is None:
+                        break
+                    current_parent = folder.get('parent_id', None)
 
             # Get depth of the moving subtree
             subtree_depth = db_manager._get_subtree_depth(folder_id)
