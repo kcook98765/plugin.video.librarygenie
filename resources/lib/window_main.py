@@ -109,7 +109,10 @@ class MainWindow(BaseWindow):
         is_folder = current_item.getProperty('isFolder') == 'true'
         is_root = current_item.getProperty('isRoot') == 'true'
         if is_folder or is_root:
-            folder_id = 0 if is_root else int(current_item.getProperty('folder_id'))
+            folder_id_prop = current_item.getProperty('folder_id')
+            folder_id = 0 if is_root else (int(folder_id_prop) if folder_id_prop else None)
+            if folder_id is None:
+                return
             current_pos = self.list_control.getSelectedPosition()
             if action == xbmcgui.ACTION_MOVE_RIGHT:
                 self.folder_expanded_states[folder_id] = True
