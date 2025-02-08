@@ -263,8 +263,7 @@ class MainWindow(BaseWindow):
                 if is_folder:
                     folder_id = int(current_item.getProperty('folder_id'))
                     color = folder_color_status.get(folder_id, 'red')
-                    folder_name = self.strip_color_tags(current_item.getLabel())
-                    status = f"Folder '{folder_name}' is in folder" if color == 'green' else f"Folder '{folder_name}' is not in folder"
+                    status = "In folder" if color == 'green' else "Not in folder"
                     legend_text = f"[COLOR {color}]{status}[/COLOR]"
                     
                     # Always show count for folders
@@ -275,11 +274,10 @@ class MainWindow(BaseWindow):
                 else:
                     is_member = current_item.getProperty('is_member') == '1'
                     color = 'green' if is_member else 'red'
-                    list_name = self.strip_color_tags(current_item.getLabel())
-                    status = f"Movie is in list '{list_name}'" if is_member else f"Movie is not in list '{list_name}'"
+                    status = "In list" if is_member else "Not in list"
                     legend_text = f"[COLOR {color}]{status}[/COLOR]"
                     
-                    # Show count for lists
+                    # Show count for lists when playable
                     if self.is_playable:
                         label = current_item.getLabel()
                         if '(' in label and ')' in label:
