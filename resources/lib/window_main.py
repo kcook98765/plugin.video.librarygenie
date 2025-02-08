@@ -80,8 +80,8 @@ class MainWindow(BaseWindow):
 
     def onAction(self, action):
         """
-        Handle key actions. If a folder (or the Root) is selected, the left/right arrow keys
-        collapse/expand it. The current selection is preserved after repopulating the list.
+        Handle key actions. If a folder (or the Root) is selected, the right arrow expands
+        and the left arrow collapses it. The current selection is preserved after repopulating.
         """
         selected_item = self.list_control.getSelectedItem()
         if not selected_item:
@@ -141,8 +141,7 @@ class MainWindow(BaseWindow):
         """
         When an item is clicked:
           - If it has an explicit action property, handle that action.
-          - For folder items, do not toggle expansion on click (toggling is handled via the left/right keys).
-            Instead, display an options dialog.
+          - For folder items, display an options dialog.
           - For list items, no click action is performed.
         """
         selected_item = self.list_control.getSelectedItem()
@@ -189,7 +188,7 @@ class MainWindow(BaseWindow):
         all_folders = db_manager.fetch_all_folders()
         all_lists = db_manager.fetch_all_lists_with_item_status(self.item_info.get('kodi_id', 0))
 
-        # For playable media, fetch folder status (to color-code them) and propagate status upward.
+        # If media is playable, fetch folder status for color coding and propagate status upward.
         folder_color_status = {}
         if self.is_playable:
             folder_status = db_manager.fetch_folders_with_item_status(self.item_info.get('kodi_id', 0))
@@ -209,7 +208,7 @@ class MainWindow(BaseWindow):
 
         self.list_data = []
 
-        # Add Root as the only top-level item.
+        # Add the Root item as the sole top-level entry.
         root_expanded = self.folder_expanded_states.get(0, False)
         root_item = xbmcgui.ListItem("Root")
         root_item.setArt({'icon': self.folder_icon, 'thumb': self.folder_icon})
@@ -217,14 +216,38 @@ class MainWindow(BaseWindow):
         root_item.setProperty('isRoot', 'true')
         root_item.setProperty('folder_id', '0')
         root_item.setProperty('expanded', str(root_expanded))
-        # Visual cue: "v" for expanded; ">" for collapsed.
         root_label = "[B]v Root[/B]" if root_expanded else "[B]> Root[/B]"
         root_item.setLabel(root_label)
         self.list_control.addItem(root_item)
         self.list_data.append({'name': 'Root', 'isFolder': True, 'isRoot': True, 'id': 0, 'expanded': root_expanded})
 
-        # When Root is expanded, show special items.
+        # If Root is expanded, add its children—i.e. the top-level folders and lists.
         if root_expanded:
+            # Get all top-level folders and lists (i.e. those with no parent)
+            root_folders = [folder for folder in all_folders if folder['parent_id'] is None]
+            root_lists = [list_item for list_item in all_lists if list_item['folder_id'] is None]
+            combined_root = root_folders + root_lists
+            combined_root.sort(key=lambda x: self.clean_name(x['name']).lower())
+            utils.log(f"Sorted combined root items: {[(self.clean_name(i['name']), i['name']) for i in combined_root]}", "DEBUG")
+            for item in combined_root:
+                # Items with a 'parent_id' key are folders.
+                if 'parent_id' in item:
+                    utils.log(f"Adding root folder item - ID: {item['id']}, Name: {item['name']}", "DEBUG")
+                    self.add_folder_items(item, 0, all_folders, all_lists, folder_color_status)
+                else:
+                    list_media_count = db_manager.get_list_media_count(item['id'])
+                    list_label = f"  {item['name']} ({list_media_count})"
+                    color = 'green' if item['is_member'] else 'red'
+                    if self.is_playable:
+                        list_label = f"[COLOR {color}]{list_label}[/COLOR]"
+                    list_item = xbmcgui.ListItem(list_label)
+                    list_item.setProperty('isFolder', 'false')
+                    list_item.setProperty('list_id', str(item['id']))
+                    list_item.setProperty('is_member', str(item['is_member']))
+                    self.list_control.addItem(list_item)
+                    self.list_data.append({'name': item['name'], 'isFolder': False, 'id': item['id'], 'indent': 0, 'color': color if self.is_playable else None})
+
+            # Append the special "Add" items at the bottom of the expanded root.
             add_folder_item = xbmcgui.ListItem("  <Add Folder>")
             add_folder_item.setProperty('isFolder', 'true')
             add_folder_item.setProperty('isSpecial', 'true')
@@ -233,38 +256,13 @@ class MainWindow(BaseWindow):
             self.list_control.addItem(add_folder_item)
             self.list_data.append({'name': '<Add Folder>', 'isFolder': True, 'isSpecial': True, 'id': None, 'indent': 0, 'action': 'new_folder'})
 
-            add_list_item = xbmcgui.ListItem("<Add List>")
+            add_list_item = xbmcgui.ListItem("  <Add List>")
             add_list_item.setProperty('isFolder', 'false')
             add_list_item.setProperty('isSpecial', 'true')
             add_list_item.setProperty('action', 'new_list')
             add_list_item.setProperty('parent_id', 'None')
             self.list_control.addItem(add_list_item)
             self.list_data.append({'name': '<Add List>', 'isFolder': False, 'isSpecial': True, 'id': None, 'indent': 0, 'action': 'new_list'})
-
-        # Combine top-level folders and lists (those with no parent)
-        root_folders = [folder for folder in all_folders if folder['parent_id'] is None]
-        root_lists = [list_item for list_item in all_lists if list_item['folder_id'] is None]
-        combined_root = root_folders + root_lists
-        combined_root.sort(key=lambda x: self.clean_name(x['name']).lower())
-        utils.log(f"Sorted combined root items: {[(self.clean_name(i['name']), i['name']) for i in combined_root]}", "DEBUG")
-
-        for item in combined_root:
-            if 'parent_id' in item:
-                folder_media_count = db_manager.get_folder_media_count(item['id'])
-                utils.log(f"Adding root folder item - ID: {item['id']}, Name: {item['name']} ({folder_media_count})", "DEBUG")
-                self.add_folder_items(item, 0, all_folders, all_lists, folder_color_status)
-            else:
-                list_media_count = db_manager.get_list_media_count(item['id'])
-                list_label = f"  {item['name']} ({list_media_count})"
-                color = 'green' if item['is_member'] else 'red'
-                if self.is_playable:
-                    list_label = f"[COLOR {color}]{list_label}[/COLOR]"
-                list_item = xbmcgui.ListItem(list_label)
-                list_item.setProperty('isFolder', 'false')
-                list_item.setProperty('list_id', str(item['id']))
-                list_item.setProperty('is_member', str(item['is_member']))
-                self.list_control.addItem(list_item)
-                self.list_data.append({'name': item['name'], 'isFolder': False, 'id': item['id'], 'indent': 0, 'color': color if self.is_playable else None})
 
         self.list_control.setEnabled(True)
         self.reselect_previous_item(focus_folder_id)
@@ -318,7 +316,7 @@ class MainWindow(BaseWindow):
             self.add_new_items(folder, indent + 1)
 
     def add_new_items(self, parent_folder, indent):
-        # Only show the new folder option if the maximum folder depth is not reached.
+        # Check current depth against max depth before showing new folder option.
         current_depth = 0
         temp_parent_id = parent_folder['id']
         while temp_parent_id is not None:
