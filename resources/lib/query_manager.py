@@ -503,13 +503,22 @@ class QueryManager(Singleton):
     def update_folder_parent(self, folder_id: int, new_parent_id: Optional[int]) -> None:
         conn_info = self._get_connection()
         try:
-            query = """
-                UPDATE folders 
-                SET parent_id = ? 
-                WHERE id = ?
-            """
-            cursor = conn_info['connection'].cursor()
-            cursor.execute(query, (new_parent_id, folder_id))  # SQLite will handle None as NULL properly
+            if new_parent_id is None:
+                query = """
+                    UPDATE folders 
+                    SET parent_id = NULL 
+                    WHERE id = ?
+                """
+                cursor = conn_info['connection'].cursor()
+                cursor.execute(query, (folder_id,))
+            else:
+                query = """
+                    UPDATE folders 
+                    SET parent_id = ? 
+                    WHERE id = ?
+                """
+                cursor = conn_info['connection'].cursor()
+                cursor.execute(query, (new_parent_id, folder_id))
             conn_info['connection'].commit()
         finally:
             self._release_connection(conn_info)
