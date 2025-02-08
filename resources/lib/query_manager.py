@@ -320,20 +320,22 @@ class QueryManager(Singleton):
         self.execute_query(query, (list_id, media_item_id))
 
     def get_folder_depth(self, folder_id: int) -> int:
+        if folder_id is None:
+            return -1  # Root level is -1 so first level will be 0
+            
         query = """
-            WITH RECURSIVE folder_tree AS (
+            WITH RECURSIVE parent_chain AS (
                 SELECT id, parent_id, 0 as depth
-                FROM folders 
-                WHERE id = ?
+                FROM folders WHERE id = ?
                 UNION ALL
-                SELECT f.id, f.parent_id, ft.depth + 1
+                SELECT f.id, f.parent_id, pc.depth + 1
                 FROM folders f
-                JOIN folder_tree ft ON f.parent_id = ft.id
+                JOIN parent_chain pc ON f.id = pc.parent_id
             )
-            SELECT MAX(depth) FROM folder_tree
+            SELECT MAX(depth) as max_depth FROM parent_chain
         """
         result = self.execute_query(query, (folder_id,), fetch_all=False)
-        return result[0]['MAX(depth)'] if result and result[0]['MAX(depth)'] is not None else 0
+        return result[0]['max_depth'] if result and result[0]['max_depth'] is not None else 0
 
     def get_folder_by_name(self, folder_name: str) -> Optional[Dict[str, Any]]:
         query = """
