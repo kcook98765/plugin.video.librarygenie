@@ -501,14 +501,18 @@ class QueryManager(Singleton):
         return result[0] if result else None
 
     def update_folder_parent(self, folder_id: int, new_parent_id: Optional[int]) -> None:
-        # Special handling for root level moves
-        query = """
-            UPDATE folders 
-            SET parent_id = ? 
-            WHERE id = ?
-        """
-        # Use SQL NULL for root level
-        self.execute_query(query, (None if new_parent_id is None else new_parent_id, folder_id))
+        conn_info = self._get_connection()
+        try:
+            query = """
+                UPDATE folders 
+                SET parent_id = ? 
+                WHERE id = ?
+            """
+            cursor = conn_info['connection'].cursor()
+            cursor.execute(query, (new_parent_id, folder_id))  # SQLite will handle None as NULL properly
+            conn_info['connection'].commit()
+        finally:
+            self._release_connection(conn_info)
 
     def get_subtree_depth(self, folder_id: int) -> int:
         query = """
