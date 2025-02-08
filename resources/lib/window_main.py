@@ -42,33 +42,35 @@ class MainWindow(BaseWindow):
         self.set_navigation()
 
     def setup_ui(self):
-        # Create image control
-        art = self.item_info.get('art', {})
-        thumbnail = art.get('thumb') or art.get('poster') or art.get('banner') or art.get('fanart')
-        if thumbnail:
-            self.image_control = pyxbmct.Image(thumbnail)
-            self.placeControl(self.image_control, 0, 0, rowspan=3, columnspan=3, pad_x=10, pad_y=10)
+        self.setGeometry(800, 600, 12, 10)
         
-        # Title and year
+        # Top breadcrumb/path display
+        self.path_label = pyxbmct.Label("[B]Root[/B]")
+        self.placeControl(self.path_label, 0, 0, columnspan=10, pad_x=5, pad_y=5)
+        
+        # Media info in top right
         title = self.item_info.get('title', 'Unknown')
         year = self.item_info.get('year', '')
         title_year = f"{title} ({year})" if year else title
-        self.title_label = pyxbmct.Label(title_year, alignment=2)  # Alignment 2 = center
-        self.placeControl(self.title_label, 0, 3, columnspan=7, pad_x=10, pad_y=10)
+        self.title_label = pyxbmct.Label(title_year, alignment=1)
+        self.placeControl(self.title_label, 1, 7, columnspan=3, pad_x=5)
 
-        # Instructions
-        self.instruction_label = pyxbmct.Label("Click list to toggle membership - Green = In List, Red = Not in List")
-        self.placeControl(self.instruction_label, 1, 3, columnspan=7, pad_x=10, pad_y=5)
-
-        # Lists container and options button
-        self.list_control = pyxbmct.List()
-        self.placeControl(self.list_control, 3, 0, rowspan=7, columnspan=8, pad_x=10, pad_y=10)
+        # File browser list
+        self.list_control = pyxbmct.List(_imageWidth=32, _imageHeight=32, _itemTextXOffset=1, _itemHeight=36)
+        self.placeControl(self.list_control, 2, 0, rowspan=9, columnspan=10, pad_x=5, pad_y=5)
         self.connect(self.list_control, self.on_list_item_click)
+        
+        # Bottom status bar
+        self.status_label = pyxbmct.Label("Click to toggle - Green = In List, Red = Not in List")
+        self.placeControl(self.status_label, 11, 0, columnspan=8, pad_x=5)
         
         # Options button
         self.options_button = pyxbmct.Button("Options")
-        self.placeControl(self.options_button, 3, 8, rowspan=2, columnspan=2, pad_x=5, pad_y=10)
+        self.placeControl(self.options_button, 11, 8, columnspan=2, pad_x=5)
         self.connect(self.options_button, self.on_options_click)
+        
+        # Get default folder icon from Kodi
+        self.folder_icon = "special://skin/DefaultFolder.png"
 
     def check_playable(self):
         is_playable = self.item_info.get('is_playable', False)
@@ -220,9 +222,10 @@ class MainWindow(BaseWindow):
         db_manager = DatabaseManager(Config().db_path)
         folder_media_count = db_manager.get_folder_media_count(folder['id'])
 
-        folder_label = f"{' ' * (indent * self.INDENTATION_MULTIPLIER)}{prefix}{' ' * (indent * self.INDENTATION_MULTIPLIER)}[B][COLOR {color}]{folder['name']} ({folder_media_count})[/COLOR][/B]" if color else f"{' ' * (indent * self.INDENTATION_MULTIPLIER)}{prefix}{' ' * (indent * self.INDENTATION_MULTIPLIER)}{folder['name']} ({folder_media_count})"
-
+        folder_label = f"{'  ' * indent}[B][COLOR {color}]{folder['name']} ({folder_media_count})[/COLOR][/B]" if color else f"{'  ' * indent}{folder['name']} ({folder_media_count})"
+        
         folder_item = xbmcgui.ListItem(folder_label)
+        folder_item.setArt({'icon': self.folder_icon, 'thumb': self.folder_icon})
         folder_item.setProperty('isFolder', 'true')
         folder_item.setProperty('folder_id', str(folder['id']))
         folder_item.setProperty('expanded', str(expanded))
