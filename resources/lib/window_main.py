@@ -264,7 +264,7 @@ class MainWindow(BaseWindow):
             add_list_item.setProperty('isFolder', 'false')
             add_list_item.setProperty('isSpecial', 'true')
             add_list_item.setProperty('action', 'new_list')
-        add_list_item.setProperty('parent_id', 'None')
+            add_list_item.setProperty('parent_id', 'None')
         self.list_control.addItem(add_list_item)
         self.list_data.append({'name': '<Add List>', 'isFolder': False, 'isSpecial': True, 'id': None, 'indent': 0, 'action': 'new_list'})
 
@@ -590,7 +590,7 @@ class MainWindow(BaseWindow):
             self.rename_list(list_data['id'], list_data['name'])
         elif options[selected_option] == "Move This List":
             self.move_list(list_data['id'], list_data['name'])
-        elif options[selectedoption] == "Edit This List":
+        elif options[selected_option] == "Edit This List":
             self.edit_list(list_data['id'])
         elif options[selected_option] == "Delete This List":
             self.delete_list(list_data['id'], list_data['name'])
@@ -739,9 +739,17 @@ class MainWindow(BaseWindow):
         self.populate_list()
 
     def paste_folder_here(self, folder_id, target_folder_id):
+        """
+        Move a folder to a new target location, ensuring that no circular reference is created.
+
+        Args:
+            folder_id (int): The ID of the folder to move.
+            target_folder_id (int): The ID of the target folder where the folder will be moved.
+        """
         db_manager = DatabaseManager(Config().db_path)
 
-        # Check for circular reference        current_parent = target_folder_id
+        # Check for circular reference by walking up the parent chain.
+        current_parent = target_folder_id
         while current_parent is not None:
             if current_parent == folder_id:
                 xbmcgui.Dialog().notification(
@@ -752,10 +760,20 @@ class MainWindow(BaseWindow):
                 )
                 return
             folder = db_manager.fetch_folder_by_id(current_parent)
-            current_parent = folder['parent_id'] if folder else None
+            if folder is None:
+                # No further parent info available; exit the loop.
+                break
+            # Use get() to safely access 'parent_id'
+            current_parent = folder.get('parent_id', None)
 
+        # Update the folder's parent in the database
         db_manager.update_folder_parent(folder_id, target_folder_id)
-        xbmcgui.Dialog().notification("LibraryGenie", f"Folder moved to new location", xbmcgui.NOTIFICATION_INFO, 5000)
+        xbmcgui.Dialog().notification(
+            "LibraryGenie",
+            "Folder moved to new location",
+            xbmcgui.NOTIFICATION_INFO,
+            5000
+        )
         self.moving_folder_id = None
         self.moving_folder_name = None
         utils.log(f"Pasting folder. FolderID={folder_id}, TargetFolderID={target_folder_id}", "DEBUG")
@@ -806,8 +824,6 @@ class MainWindow(BaseWindow):
                 utils.log(f"Field keys: {fields_keys}", "DEBUG")
 
                 for field in fields_keys:
-                    value = self.item_info.get(field)
-
                     if field in self.item_info and self.item_info[field]:
                         data[field] = self.item_info[field]
 
@@ -862,7 +878,7 @@ class MainWindow(BaseWindow):
     def paste_list_here(self, list_id, target_folder_id):
         db_manager = DatabaseManager(Config().db_path)
         db_manager.update_list_folder(list_id, target_folder_id)
-        xbmcgui.Dialog().notification("LibraryGenie", f"List moved to new location", xbmcgui.NOTIFICATION_INFO, 5000)
+        xbmcgui.Dialog().notification("LibraryGenie", "List moved to new location", xbmcgui.NOTIFICATION_INFO, 5000)
         self.moving_list_id = None
         self.moving_list_name = None
         utils.log(f"Pasting list. ListID={list_id}, TargetFolderID={target_folder_id}", "DEBUG")
