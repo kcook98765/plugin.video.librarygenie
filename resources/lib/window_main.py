@@ -60,10 +60,15 @@ class MainWindow(BaseWindow):
         self.instruction_label = pyxbmct.Label("Click list to toggle membership - Green = In List, Red = Not in List")
         self.placeControl(self.instruction_label, 1, 3, columnspan=7, pad_x=10, pad_y=5)
 
-        # Lists container
+        # Lists container and options button
         self.list_control = pyxbmct.List()
-        self.placeControl(self.list_control, 3, 0, rowspan=7, columnspan=10, pad_x=10, pad_y=10)
+        self.placeControl(self.list_control, 3, 0, rowspan=7, columnspan=8, pad_x=10, pad_y=10)
         self.connect(self.list_control, self.on_list_item_click)
+        
+        # Options button
+        self.options_button = pyxbmct.Button("Options")
+        self.placeControl(self.options_button, 3, 8, rowspan=2, columnspan=2, pad_x=5, pad_y=10)
+        self.connect(self.options_button, self.on_options_click)
 
     def check_playable(self):
         is_playable = self.item_info.get('is_playable', False)
@@ -317,26 +322,52 @@ class MainWindow(BaseWindow):
         if not selected_item:
             return
 
+        action = selected_item.getProperty('action')
+        if action:
+            self.handle_action(action, selected_item.getProperty('parent_id'))
+            return
+
+        is_folder = selected_item.getProperty('isFolder') == 'true'
+        if is_folder:
+            return
+
+        try:
+            list_id = int(selected_item.getProperty('list_id'))
+            is_member = selected_item.getProperty('is_member') == '1'
+            
+            # Just toggle membership
+            db_manager = DatabaseManager(Config().db_path)
+            if is_member:
+                item_id = db_manager.get_item_id_by_title_and_list(list_id, self.item_info['title'])
+                if item_id:
+                    db_manager.delete_data('list_items', f'id={item_id}')
+                    xbmcgui.Dialog().notification("LibraryGenie", "Media removed from list", xbmcgui.NOTIFICATION_INFO, 2000)
+            else:
+                fields_keys = [field.split()[0] for field in Config.FIELDS]
+                data = {field: self.item_info.get(field) for field in fields_keys}
+                data['list_id'] = list_id
+                if 'cast' in data and isinstance(data['cast'], list):
+                    data['cast'] = json.dumps(data['cast'])
+                db_manager.insert_data('list_items', data)
+                xbmcgui.Dialog().notification("LibraryGenie", "Media added to list", xbmcgui.NOTIFICATION_INFO, 2000)
+            
+            self.populate_list()
+        except ValueError:
+            pass
+
+    def on_options_click(self):
+        selected_item = self.list_control.getSelectedItem()
+        if not selected_item:
+            return
+
         selected_item_label = self.strip_color_tags(selected_item.getLabel())
         is_folder = selected_item.getProperty('isFolder') == 'true'
-        action = selected_item.getProperty('action')
-        parent_id = selected_item.getProperty('parent_id')
-
-        # Check if the selected item is a special action item
-        if action:
-            self.handle_action(action, parent_id)
-        else:
-            try:
-                selected_item_id = int(selected_item.getProperty('folder_id') if is_folder else selected_item.getProperty('list_id'))
-            except ValueError:
-                selected_item_id = None
-
-            self.selected_item_id = selected_item_id
-            self.selected_is_folder = is_folder  # Track if the selected item is a folder
-            utils.log(f"Item clicked. Label={selected_item_label}, ID={selected_item_id}, IsFolder={is_folder}", "DEBUG")
-
-            if selected_item_id is not None:
-                self.display_item_options(selected_item_label, selected_item_id, is_folder)
+        
+        try:
+            selected_item_id = int(selected_item.getProperty('folder_id') if is_folder else selected_item.getProperty('list_id'))
+            self.display_item_options(selected_item_label, selected_item_id, is_folder)
+        except ValueError:
+            pass
 
     def handle_action(self, action, parent_id):
         utils.log(f"Handling action. Action={action}, ParentID={parent_id}", "DEBUG")
@@ -750,6 +781,8 @@ class MainWindow(BaseWindow):
             if self.list_control and hasattr(self.list_control, 'getId'):
                 self.list_control.controlUp(self.list_control)
                 self.list_control.controlDown(self.list_control)
+                self.list_control.controlRight(self.options_button)
+                self.options_button.controlLeft(self.list_control)
                 self.list_control.setEnabled(True)
                 self.setFocus(self.list_control)
         except Exception as e:
