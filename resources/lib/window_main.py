@@ -458,7 +458,7 @@ class MainWindow(BaseWindow):
         folder_media_count = db_manager.get_folder_media_count(folder['id'])  # Keep for background use
         # Add extra indent for top-level folders (where indent is 0)
         folder_indent = indent + (2 if indent == 0 else 1)
-        indent_str = "  " * folder_indent
+        indent_str = " " * folder_indent
         if color:
             folder_label = f"{indent_str}[B][COLOR {color}]{folder['name']}[/COLOR][/B]"
         else:
