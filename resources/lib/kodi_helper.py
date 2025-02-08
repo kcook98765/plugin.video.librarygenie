@@ -299,8 +299,8 @@ class KodiHelper:
                 ]
             }
             if method == 'VideoLibrary.GetMovieDetails':
-                params['movieid'] = int(db_id)
-                params['properties'] = list(params['properties'])  # Ensure properties is a list
+                params['movieid'] = int(db_id) if db_id else 0
+                params['properties'] = list(params['properties']) if isinstance(params.get('properties'), (list, tuple)) else []
             else:
                 params['episodeid'] = int(db_id)
                 params['properties'] = list(params['properties'])  # Ensure properties is a list
