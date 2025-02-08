@@ -92,14 +92,14 @@ class LLMApiManager:
 
     def execute_rpc_query(self, rpc):
         try:
-            from resources.lib.query_manager import QueryManager
-            from resources.lib.config import Config
+            from resources.lib.jsonrpc_manager import JSONRPC
+            jsonrpc = JSONRPC()
             
-            query_manager = QueryManager(Config().db_path)
-            results = query_manager.execute_rpc_query(rpc)
-            
-            utils.log(f"Query results length: {len(results)}", "DEBUG")
-            return results
+            if isinstance(rpc, dict):
+                results = jsonrpc.execute(rpc.get('method', ''), rpc.get('params', {}))
+                utils.log(f"Query results length: {len(results.get('result', {}).get('movies', []))}", "DEBUG")
+                return results.get('result', {}).get('movies', [])
+            return []
 
         except KeyError as e:
             utils.log(f"Key error in RPC query: {e}", "ERROR")
