@@ -301,6 +301,25 @@ class MainWindow(BaseWindow):
             self.list_control.addItem(new_folder_item)
             self.list_data.append({'name': '<New Folder>', 'isFolder': True, 'isSpecial': True, 'id': None, 'indent': 0, 'action': 'new_folder'})
 
+            # Add any paste/move actions if active
+            if self.moving_list_id:
+                paste_list_item = xbmcgui.ListItem(f"  <Paste List Here : {self.moving_list_name}>")
+                paste_list_item.setProperty('isFolder', 'false')
+                paste_list_item.setProperty('isSpecial', 'true')
+                paste_list_item.setProperty('action', f"paste_list_here:{self.moving_list_id}")
+                paste_list_item.setProperty('parent_id', 'None')
+                self.list_control.addItem(paste_list_item)
+                self.list_data.append({'name': f'<Paste List Here : {self.moving_list_name}>', 'isFolder': False, 'isSpecial': True, 'id': None, 'indent': 0, 'action': f"paste_list_here:{self.moving_list_id}"})
+
+            if self.moving_folder_id:
+                paste_folder_item = xbmcgui.ListItem(f"  <Paste Folder Here : {self.moving_folder_name}>")
+                paste_folder_item.setProperty('isFolder', 'true')
+                paste_folder_item.setProperty('isSpecial', 'true')
+                paste_folder_item.setProperty('action', f"paste_folder_here:{self.moving_folder_id}")
+                paste_folder_item.setProperty('parent_id', 'None')
+                self.list_control.addItem(paste_folder_item)
+                self.list_data.append({'name': f'<Paste Folder Here : {self.moving_folder_name}>', 'isFolder': True, 'isSpecial': True, 'id': None, 'indent': 0, 'action': f"paste_folder_here:{self.moving_folder_id}"})
+
             # Then add regular items
             root_lists = [list_item for list_item in all_lists if list_item['folder_id'] is None]
             root_folders = [folder for folder in all_folders if folder['parent_id'] is None]
