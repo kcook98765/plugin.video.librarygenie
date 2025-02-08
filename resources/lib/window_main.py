@@ -269,7 +269,7 @@ class MainWindow(BaseWindow):
                     label = current_item.getLabel()
                     if '(' in label and ')' in label:
                         count = int(label.split('(')[-1].split(')')[0])
-                        legend_text += f", ({count}) = total movies in folder"
+                        legend_text += f", {count} total movies in folder"
                 else:
                     is_member = current_item.getProperty('is_member') == '1'
                     color = 'green' if is_member else 'red'
@@ -281,7 +281,7 @@ class MainWindow(BaseWindow):
                         label = current_item.getLabel()
                         if '(' in label and ')' in label:
                             count = int(label.split('(')[-1].split(')')[0])
-                            legend_text += f", ({count}) = total movies in list"
+                            legend_text += f", {count} total movies in list"
             except (IndexError, ValueError, TypeError):
                 pass
 
