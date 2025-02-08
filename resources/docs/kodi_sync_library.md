@@ -1,9 +1,6 @@
-### IGNORE THIS FILE FOR NOW ###
-
-
 Would need these sqlite tables setup:
 
-CREATE TABLE movies (
+CREATE TABLE movies_reference (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     file_path   TEXT,   -- e.g., "smb://192.168.2.102/plex/Movies/"
     file_name   TEXT,   -- e.g., "Freaks (2018).mp4"
@@ -17,17 +14,17 @@ CREATE TABLE movies (
 
 -- For library entries ("Lib"): combination of file_path and file_name must be unique.
 CREATE UNIQUE INDEX idx_movies_lib_unique
-    ON movies(file_path, file_name)
+    ON movies_reference(file_path, file_name)
     WHERE source = 'Lib';
 
 -- For non-library (addon) entries ("File"): addon_file must be unique.
 CREATE UNIQUE INDEX idx_movies_file_unique
-    ON movies(addon_file)
+    ON movies_reference(addon_file)
     WHERE source = 'File';
 
 
 CREATE TABLE addon_metadata (
-    movie_id    INTEGER PRIMARY KEY,  -- References movies(id)
+    movie_id    INTEGER PRIMARY KEY,  -- References movies_reference(id)
     filename    TEXT,    -- xbmc.getInfoLabel('ListItem.FilenameAndPath')
     title       TEXT,    -- sys.listitem.getLabel()
     duration    INTEGER, -- sys.listitem.getProperty('duration')
@@ -44,13 +41,13 @@ CREATE TABLE addon_metadata (
     clearlogo   TEXT,    -- sys.listitem.getArt('clearlogo')
     landscape   TEXT,    -- sys.listitem.getArt('landscape')
     icon        TEXT,    -- sys.listitem.getArt('icon')
-    FOREIGN KEY(movie_id) REFERENCES movies(id) ON DELETE CASCADE
+    FOREIGN KEY(movie_id) REFERENCES movies_reference(id) ON DELETE CASCADE
 );
 
 
 1) Need a process that can:
 1A) run jsonRpc :
-```http://192.168.2.7:8080/jsonrpc?request={
+```
   "jsonrpc": "2.0",
   "method": "VideoLibrary.GetMovies",
   "params": {
@@ -61,7 +58,8 @@ CREATE TABLE addon_metadata (
       "imdbnumber",
       "uniqueid"
     ]
-  },
-  "id": 1
-}``` (possibly "paginate, as could be very large 10k+ entries)
+  }``` (possibly "paginate, as could be very large 10k+ entries)
+  
 2) sync (store/update/remove) the data in "movies" table for all "source" = "Lib" so that it aligns with kodi library, but do not touch "source" "File" entries.
+
+3) this process to sync all the JsonRPC data to the table, should be configured to run on command by replacing "Export IMDB list" current function, so user can initiate this process

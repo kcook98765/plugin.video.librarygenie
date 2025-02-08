@@ -455,15 +455,21 @@ class MainWindow(BaseWindow):
         progress = xbmcgui.DialogProgress()
         progress.create("Exporting IMDB List")
 
-        jsonrpc = xbmc.JSONRPC()
+        from resources.lib.jsonrpc_helper import JsonRpcHelper
         db = DatabaseManager(Config().db_path)
+        jsonrpc = JsonRpcHelper()
 
         start = 0
         limit = 50
         total_processed = 0
 
         while True:
-            movies, total = jsonrpc.get_movies_for_export(start, limit)
+            response = jsonrpc.get_movies(start, limit)
+            if 'result' not in response or 'movies' not in response['result']:
+                break
+                
+            movies = response['result']['movies']
+            total = response['result'].get('limits', {}).get('total', 0)
             if not movies:
                 break
 
@@ -569,8 +575,7 @@ class MainWindow(BaseWindow):
     def paste_folder_here(self, folder_id, target_folder_id):
         db_manager = DatabaseManager(Config().db_path)
 
-        # Check for circular reference
-        current_parent = target_folder_id
+        # Check for circular reference        current_parent = target_folder_id
         while current_parent is not None:
             if current_parent == folder_id:
                 xbmcgui.Dialog().notification(
@@ -624,22 +629,61 @@ class MainWindow(BaseWindow):
 
         parent_id = int(parent_id) if parent_id != 'None' else None
         utils.log(f"Creating new list '{new_list_name}' under parent ID '{parent_id}'", "DEBUG")
-        db_manager.insert_data('lists', {'name': new_list_name, 'folder_id': parent_id})
-        list_id = db_manager.cursor.lastrowid
+        list_id = db_manager.insert_data('lists', {'name': new_list_name, 'folder_id': parent_id})
+        utils.log(f"Created new list with ID: {list_id}", "DEBUG")
+        if list_id:
+            # Add current movie to the new list
+            if self.item_info:
+                utils.log(f"Adding media to new list: {self.item_info}", "DEBUG")
+                data = {}
+                fields_keys = [field.split()[0] for field in Config.FIELDS]
+                utils.log(f"Field keys: {fields_keys}", "DEBUG")
+                
+                for field in fields_keys:
+                    value = self.item_info.get(field)
 
-        # Add current movie to the new list
-        if self.item_info and 'kodi_id' in self.item_info:
-            fields_keys = [field.split()[0] for field in Config.FIELDS]
-            data = {field: self.item_info.get(field) for field in fields_keys}
-            data['list_id'] = list_id
-            if 'cast' in data and isinstance(data['cast'], list):
-                data['cast'] = json.dumps(data['cast'])
-            db_manager.insert_data('list_items', data)
-            notification_text = f"Added '{self.item_info.get('title', '')}' to new list '{new_list_name}'"
-        else:
-            notification_text = f"New list '{new_list_name}' created"
+                    if field in self.item_info and self.item_info[field]:
+                        data[field] = self.item_info[field]
+                
+                if data:
+                    utils.log("Processing data before insert...", "DEBUG")
+                    data['list_id'] = list_id
+                    utils.log(f"Added list_id: {list_id} to data", "DEBUG")
+                    
+                    if 'cast' in data and isinstance(data['cast'], list):
+                        utils.log("Converting cast to JSON string", "DEBUG")
+                        data['cast'] = json.dumps(data['cast'])
+                    
+                    # Ensure numeric fields are properly typed
+                    for field in ['kodi_id', 'year', 'duration', 'votes']:
+                        if field in data:
+                            try:
+                                data[field] = int(data[field]) if data[field] else 0
+                                utils.log(f"Converted {field} to int: {data[field]}", "DEBUG")
+                            except (ValueError, TypeError) as e:
+                                utils.log(f"Error converting {field}: {str(e)}", "ERROR")
+                                data[field] = 0
+                    
+                    if 'rating' in data:
+                        try:
+                            data['rating'] = float(data['rating']) if data['rating'] else 0.0
+                            utils.log(f"Converted rating to float: {data['rating']}", "DEBUG")
+                        except (ValueError, TypeError) as e:
+                            utils.log(f"Error converting rating: {str(e)}", "ERROR")
+                            data['rating'] = 0.0
+                    
+                    try:
+                        result = db_manager.insert_data('list_items', data)
+                        utils.log(f"Insert result: {result}", "DEBUG")
+                    except Exception as e:
+                        utils.log(f"Error during insert: {str(e)}", "ERROR")
+                else:
+                    utils.log("No media data to insert", "WARNING")
+                notification_text = f"Added '{self.item_info.get('title', '')}' to new list '{new_list_name}'"
+            else:
+                notification_text = f"New list '{new_list_name}' created"
 
-        xbmcgui.Dialog().notification("LibraryGenie", notification_text, xbmcgui.NOTIFICATION_INFO, 5000)
+            xbmcgui.Dialog().notification("LibraryGenie", notification_text, xbmcgui.NOTIFICATION_INFO, 5000)
         self.populate_list()
 
     def move_list(self, list_id, list_name):

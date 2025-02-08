@@ -4,6 +4,7 @@ import json
 from typing import List, Dict, Any, Optional
 from resources.lib import utils
 from resources.lib.singleton_base import Singleton
+from resources.lib.config_manager import Config
 
 class QueryManager(Singleton):
     def __init__(self, db_path: str):
@@ -342,13 +343,20 @@ class QueryManager(Singleton):
         """
         result = self.execute_query(query, (folder_name,), fetch_all=False)
         return result[0] if result else None
-        
+
     def insert_folder(self, name: str, parent_id: Optional[int] = None) -> int:
         query = """
             INSERT INTO folders (name, parent_id)
             VALUES (?, ?)
         """
-        return self.execute_query(query, (name, parent_id))
+        conn_info = self._get_connection()
+        try:
+            cursor = conn_info['connection'].cursor()
+            cursor.execute(query, (name, parent_id))
+            conn_info['connection'].commit()
+            return cursor.lastrowid
+        finally:
+            self._release_connection(conn_info)
 
     def update_folder_name(self, folder_id: int, new_name: str) -> None:
         query = """
@@ -399,7 +407,8 @@ class QueryManager(Singleton):
             FROM folders 
             WHERE id = ?
         """
-        return self.execute_query(query, (folder_id,), fetch_all=False)
+        result = self.execute_query(query, (folder_id,), fetch_all=False)
+        return result[0] if result else None
 
     def update_list_folder(self, list_id: int, folder_id: Optional[int]) -> None:
         query = """
@@ -437,7 +446,7 @@ class QueryManager(Singleton):
             WHERE list_items.list_id = ? AND media_items.title = ?
         """
         result = self.execute_query(query, (list_id, title), fetch_all=False)
-        return result['id'] if result else None
+        return result[0]['id'] if result else None
 
     def delete_list_and_contents(self, list_id: int) -> None:
         queries = [
@@ -633,8 +642,8 @@ class QueryManager(Singleton):
         for conn_info in self._connection_pool:
             try:
                 conn_info['connection'].close()
-            except:
-                pass
+            except sqlite3.Error:
+                pass  # Ignore errors during cleanup
 
     def insert_original_request(self, description: str, response_json: str) -> int:
         """Insert an original request and return its ID"""
@@ -642,8 +651,14 @@ class QueryManager(Singleton):
             INSERT INTO original_requests (description, response_json)
             VALUES (?, ?)
         """
-        self.execute_query(query, (description, response_json))
-        return self.cursor.lastrowid
+        conn_info = self._get_connection()
+        try:
+            cursor = conn_info['connection'].cursor()
+            cursor.execute(query, (description, response_json))
+            conn_info['connection'].commit()
+            return cursor.lastrowid
+        finally:
+            self._release_connection(conn_info)
 
     def insert_parsed_movie(self, request_id: int, title: str, year: Optional[int], director: Optional[str]) -> None:
         """Insert a parsed movie record"""
@@ -729,19 +744,39 @@ class QueryManager(Singleton):
 
         if year:
             conditions.append("year = ?")
-            params.append(year)
+            params.append(str(year) if str(year).isdigit() else "0")
         if director:
             conditions.append("director LIKE ?")
             params.append(f"%{director}%")
 
         where_clause = " AND ".join(conditions)
         query = f"""
-            SELECT DISTINCT *
+            SELECT DISTINCT 
+                id, kodi_id, title, year, plot, genre, director, cast,
+                rating, file, thumbnail, fanart, duration, tagline,
+                writer, imdbnumber, premiered, mpaa, trailer, votes,
+                country, dateadded, studio, art, play, poster,
+                media_type, source, path
             FROM media_items
             WHERE {where_clause}
             ORDER BY title COLLATE NOCASE
         """
-        return self.execute_query(query, tuple(params))
+        results = self.execute_query(query, tuple(params))
+
+        # Process results to ensure all metadata is properly formatted
+        for item in results:
+            if 'art' in item and isinstance(item['art'], str):
+                try:
+                    item['art'] = json.loads(item['art'])
+                except json.JSONDecodeError:
+                    item['art'] = {}
+            if 'cast' in item and isinstance(item['cast'], str):
+                try:
+                    item['cast'] = json.loads(item['cast'])
+                except json.JSONDecodeError:
+                    item['cast'] = []
+
+        return results
 
     def get_media_details(self, media_id: int, media_type: str = 'movie') -> dict:
         """Get media details from database"""
@@ -755,21 +790,5 @@ class QueryManager(Singleton):
             cursor = conn_info['connection'].execute(query, (media_id, media_type))
             result = cursor.fetchone()
             return dict(result) if result else {}
-        finally:
-            self._release_connection(conn_info)
-
-    def insert_media_item(self, media_data: dict) -> int:
-        """Insert media item and return its ID"""
-        columns = ', '.join(media_data.keys())
-        placeholders = ', '.join('?' for _ in media_data)
-        query = f"""
-            INSERT OR REPLACE INTO media_items ({columns})
-            VALUES ({placeholders})
-        """
-        conn_info = self._get_connection()
-        try:
-            cursor = conn_info['connection'].execute(query, tuple(media_data.values()))
-            conn_info['connection'].commit()
-            return cursor.lastrowid
         finally:
             self._release_connection(conn_info)

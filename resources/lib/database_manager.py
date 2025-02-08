@@ -202,7 +202,18 @@ class DatabaseManager(Singleton):
         if 'cast' in data and isinstance(data['cast'], list):
             data['cast'] = json.dumps(data['cast'])
 
-        if table == 'list_items':
+        if table == 'lists':
+            utils.log(f"Inserting into lists table: {data}", "DEBUG")
+            columns = ', '.join(data.keys())
+            placeholders = ', '.join(['?' for _ in data])
+            query = f'INSERT INTO {table} ({columns}) VALUES ({placeholders})'
+            
+            self._execute_with_retry(self.cursor.execute, query, tuple(data.values()))
+            self.connection.commit()
+            last_id = self.cursor.lastrowid
+            utils.log(f"Inserted into {table}, got ID: {last_id}", "DEBUG")
+            return last_id
+        elif table == 'list_items':
             media_item_id = query_manager.insert_media_item(data)
             if media_item_id:
                 list_data = {

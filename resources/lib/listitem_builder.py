@@ -90,25 +90,24 @@ class ListItemBuilder:
 
         list_item.setArt(art_dict)
 
-        # Prepare info dictionary from nested info structure
-        info = media_info.get('info', {})
+        # Create info dictionary from direct media_info fields
         info_dict = {
             'title': title,
-            'plot': info.get('plot', ''),
-            'tagline': info.get('tagline', ''),
-            'cast': json.loads(info.get('cast', '[]')) if isinstance(info.get('cast'), str) else info.get('cast', []),
-            'country': info.get('country', ''),
-            'director': info.get('director', ''),
-            'genre': info.get('genre', ''),
-            'mpaa': info.get('mpaa', ''),
-            'premiered': info.get('premiered', ''),
-            'rating': float(info.get('rating', 0.0)),
-            'studio': info.get('studio', ''),
-            'trailer': info.get('trailer', ''),
-            'votes': info.get('votes', '0'),
-            'writer': info.get('writer', ''),
-            'year': info.get('year', ''),
-            'mediatype': (info.get('media_type') or 'movie').lower()
+            'plot': media_info.get('plot', ''),
+            'tagline': media_info.get('tagline', ''),
+            'cast': json.loads(media_info.get('cast', '[]')) if isinstance(media_info.get('cast'), str) else media_info.get('cast', []),
+            'country': media_info.get('country', ''),
+            'director': media_info.get('director', ''),
+            'genre': media_info.get('genre', ''),
+            'mpaa': media_info.get('mpaa', ''),
+            'premiered': media_info.get('premiered', ''),
+            'rating': float(media_info.get('rating', 0.0)) if media_info.get('rating') else 0.0,
+            'studio': media_info.get('studio', ''),
+            'trailer': media_info.get('trailer', ''),
+            'votes': media_info.get('votes', '0'),
+            'writer': media_info.get('writer', ''),
+            'year': media_info.get('year', ''),
+            'mediatype': (media_info.get('media_type') or 'movie').lower()
         }
 
         # Set video info using the compatibility helper
@@ -116,15 +115,15 @@ class ListItemBuilder:
         utils.log("Set info tag completed", "DEBUG")
 
         # Set resume point if available
-        if 'resumetime' in info and 'totaltime' in info:
-            list_item.setProperty('ResumeTime', str(info['resumetime']))
-            list_item.setProperty('TotalTime', str(info['totaltime']))
+        if 'resumetime' in media_info and 'totaltime' in media_info:
+            list_item.setProperty('ResumeTime', str(media_info['resumetime']))
+            list_item.setProperty('TotalTime', str(media_info['totaltime']))
 
         # Set content properties
         list_item.setProperty('IsPlayable', 'true')
 
         # Process cast separately if it exists
-        cast = info.get('cast', [])
+        cast = media_info.get('cast', [])
         try:
             # Handle string-encoded cast data
             if isinstance(cast, str):
