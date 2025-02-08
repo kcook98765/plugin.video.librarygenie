@@ -263,7 +263,7 @@ class MainWindow(BaseWindow):
             try:
                 if is_folder:
                     folder_id = int(current_item.getProperty('folder_id'))
-                    color = folder_color_status.get(folder_id, 'red')
+                    color = self.folder_color_status.get(folder_id, 'red')
                     status = "In folder" if color == 'green' else "Not in folder"
                     legend_text = f"[COLOR {color}]{status}[/COLOR]"
                     
