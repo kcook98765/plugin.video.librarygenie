@@ -345,7 +345,7 @@ class MainWindow(BaseWindow):
                         if any(self.folder_color_status.get(cid, 'red') == 'green' for cid in child_folders):
                             self.folder_color_status[parent_id] = 'green'
                     folder_id = parent_id
-            for folder_id in folder_color_status:
+            for folder_id in self.folder_color_status:
                 propagate_status(folder_id)
             utils.log(f"Folder color statuses: {folder_color_status}", "DEBUG")
 
