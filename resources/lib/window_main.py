@@ -66,6 +66,7 @@ class MainWindow(BaseWindow):
         plot = self.item_info.get('plot', '')
         self.plot_label = pyxbmct.TextBox()
         self.plot_label.setText(plot)
+        self.plot_label.autoScroll(1000, 1000, 1000)  # Delay, steps size, and time between scroll
         self.placeControl(self.plot_label, 1, 1, rowspan=2, columnspan=9, pad_x=5)
 
         # File browser list moved up to row 3
