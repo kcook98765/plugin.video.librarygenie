@@ -399,7 +399,7 @@ class MainWindow(BaseWindow):
         self.list_control.setEnabled(True)
         
         # Update legend text with count
-        legend_text = "Red = Not in list/folder, Green = In list/folder"
+        legend_text = "[COLOR red]Not in list/folder[/COLOR], [COLOR green]In list/folder[/COLOR]"
         if self.is_playable:
             selected_item = self.list_control.getSelectedItem()
             if selected_item and not selected_item.getProperty('isSpecial') == 'true':
