@@ -354,6 +354,15 @@ class MainWindow(BaseWindow):
 
         is_folder = selected_item.getProperty('isFolder') == 'true'
         if is_folder:
+            folder_id = int(selected_item.getProperty('folder_id'))
+            self.selected_item_id = folder_id
+            self.selected_is_folder = True
+            utils.log(f"Folder clicked with ID {folder_id}", "DEBUG")
+            
+            # Toggle expansion state
+            current_state = self.folder_expanded_states.get(folder_id, False)
+            self.update_folder_expanded_states(folder_id, not current_state)
+            self.populate_list(folder_id)
             return
 
         try:
