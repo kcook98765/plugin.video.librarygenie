@@ -806,25 +806,38 @@ class QueryManager(Singleton):
 
     def setup_movies_reference_table(self):
         """Create movies_reference table and indexes"""
-        queries = [
-            """CREATE TABLE IF NOT EXISTS movies_reference (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                file_path   TEXT,
-                file_name   TEXT,
-                movieid     INTEGER,
-                imdbnumber  TEXT,
-                tmdbnumber  TEXT,
-                tvdbnumber  TEXT,
-                addon_file  TEXT,
-                source      TEXT NOT NULL CHECK(source IN ('Lib','File'))
-            );""",
-            """CREATE UNIQUE INDEX IF NOT EXISTS idx_movies_lib_unique
+        conn_info = self._get_connection()
+        try:
+            cursor = conn_info['connection'].cursor()
+            
+            # Create table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS movies_reference (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    file_path   TEXT,
+                    file_name   TEXT,
+                    movieid     INTEGER,
+                    imdbnumber  TEXT,
+                    tmdbnumber  TEXT,
+                    tvdbnumber  TEXT,
+                    addon_file  TEXT,
+                    source      TEXT NOT NULL CHECK(source IN ('Lib','File'))
+                )
+            """)
+            
+            # Create indexes
+            cursor.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_movies_lib_unique
                 ON movies_reference(file_path, file_name)
-                WHERE source = 'Lib';""",
-            """CREATE UNIQUE INDEX IF NOT EXISTS idx_movies_file_unique
+                WHERE source = 'Lib'
+            """)
+            
+            cursor.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_movies_file_unique
                 ON movies_reference(addon_file)
-                WHERE source = 'File';"""
-        ]
-        
-        for query in queries:
-            self.execute_query(query)
+                WHERE source = 'File'
+            """)
+            
+            conn_info['connection'].commit()
+        finally:
+            self._release_connection(conn_info)
