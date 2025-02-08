@@ -503,32 +503,54 @@ class QueryManager(Singleton):
     def update_folder_parent(self, folder_id: int, new_parent_id: Optional[int]) -> None:
         conn_info = self._get_connection()
         try:
-            # Log current state
+            utils.log(f"Starting folder parent update. FolderID={folder_id}, NewParentID={new_parent_id}", "DEBUG")
+            
+            # Get current state
             cursor = conn_info['connection'].cursor()
             cursor.execute("SELECT * FROM folders WHERE id = ?", (folder_id,))
             before_state = cursor.fetchone()
-            utils.log(f"Folder before update - ID:{folder_id} Current state: {dict(before_state)}", "DEBUG")
+            utils.log(f"Current folder state - ID:{folder_id}, State:{dict(before_state)}", "DEBUG")
 
-            # Handle NULL for root level explicitly
+            # Verify input parameters
+            utils.log(f"Validating parameters - FolderID type:{type(folder_id)}, NewParentID type:{type(new_parent_id) if new_parent_id is not None else 'None'}", "DEBUG")
+            
+            # Construct query based on new parent
             if new_parent_id is None:
-                query = "UPDATE folders SET parent_id = NULL WHERE id = ?"
+                query = """
+                    UPDATE folders 
+                    SET parent_id = NULL 
+                    WHERE id = ?
+                """
                 params = (folder_id,)
+                utils.log("Using NULL parent query", "DEBUG")
             else:
-                query = "UPDATE folders SET parent_id = ? WHERE id = ?"
+                query = """
+                    UPDATE folders 
+                    SET parent_id = ? 
+                    WHERE id = ?
+                """
                 params = (new_parent_id, folder_id)
-            utils.log(f"Executing SQL to set parent_id - Query: {query}, Params: {params}", "DEBUG")
+                utils.log("Using specific parent query", "DEBUG")
+            
+            utils.log(f"Executing SQL - Query:{query.strip()}, Params:{params}", "DEBUG")
             cursor.execute(query, params)
             
+            # Commit the change
+            utils.log("Committing transaction", "DEBUG")
             conn_info['connection'].commit()
             
-            # Log after state
+            # Verify the update
             cursor.execute("SELECT * FROM folders WHERE id = ?", (folder_id,))
             after_state = cursor.fetchone()
-            utils.log(f"Folder after update - ID:{folder_id} New state: {dict(after_state)}", "DEBUG")
+            utils.log(f"Updated folder state - ID:{folder_id}, State:{dict(after_state)}", "DEBUG")
             
-            # Verify the change
-            if after_state['parent_id'] != (new_parent_id if new_parent_id is not None else None):
-                utils.log(f"WARNING: parent_id mismatch after update. Expected: {new_parent_id}, Got: {after_state['parent_id']}", "WARNING")
+            # Validate result
+            expected_parent = new_parent_id if new_parent_id is not None else None
+            actual_parent = after_state['parent_id']
+            utils.log(f"Validation - Expected parent:{expected_parent}, Actual parent:{actual_parent}", "DEBUG")
+            
+            if actual_parent != expected_parent:
+                utils.log(f"WARNING: Parent ID mismatch - Expected:{expected_parent}, Got:{actual_parent}", "WARNING")
         finally:
             self._release_connection(conn_info)
 
