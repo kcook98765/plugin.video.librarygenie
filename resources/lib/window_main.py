@@ -293,7 +293,7 @@ class MainWindow(BaseWindow):
                 if current_depth < Config().max_folder_depth:
                     combined_root.append({'name': '<New Folder>', 'id': None, 'parent_id': None, 'is_special': True, 'action': 'new_folder'})
                 combined_root.append({'name': '<New List>', 'id': None, 'folder_id': None, 'is_special': True, 'action': 'new_list'})
-                
+
                 # Then add folders and lists, sorted separately
                 root_folders.sort(key=lambda x: self.clean_name(x['name']).lower())
                 root_lists.sort(key=lambda x: self.clean_name(x['name']).lower())
@@ -301,7 +301,7 @@ class MainWindow(BaseWindow):
                 combined_root.extend(root_lists)
             else:
                 combined_root = []
-            
+
             for item in combined_root:
                 if 'parent_id' in item:
                     utils.log(f"Adding root folder item - ID: {item['id']}, Name: {item['name']}", "DEBUG")
@@ -315,7 +315,7 @@ class MainWindow(BaseWindow):
                     list_item = xbmcgui.ListItem(list_label)
                     list_item.setProperty('isFolder', 'false')
                     list_item.setProperty('list_id', str(item['id']))
-                    list_item.setProperty('is_member', str(item['is_member']))
+                    list_item.setProperty('is_member', '1' if item.get('is_member', False) else '0')
                     self.list_control.addItem(list_item)
                     self.list_data.append({'name': item['name'], 'isFolder': False, 'id': item['id'], 'indent': 1, 'color': color if self.is_playable else None})
             # Note: Special "Add" entries are omitted at root level.
@@ -360,7 +360,7 @@ class MainWindow(BaseWindow):
             if current_depth < Config().max_folder_depth - 1:  # -1 because we're already inside a folder
                 combined.append({'name': '<New Folder>', 'id': None, 'parent_id': folder['id'], 'is_special': True, 'action': 'new_folder'})
             combined.append({'name': '<New List>', 'id': None, 'folder_id': folder['id'], 'is_special': True, 'action': 'new_list'})
-            
+
             # Then add sorted folders and lists
             subfolders = [f for f in all_folders if f['parent_id'] == folder['id']]
             folder_lists = [list_item for list_item in all_lists if list_item['folder_id'] == folder['id']]
@@ -368,7 +368,7 @@ class MainWindow(BaseWindow):
             folder_lists.sort(key=lambda x: self.clean_name(x['name']).lower())
             combined.extend(subfolders)
             combined.extend(folder_lists)
-            
+
             for item in combined:
                 if 'parent_id' in item:
                     self.add_folder_items(item, indent + 1, all_folders, all_lists, folder_color_status)
@@ -381,7 +381,7 @@ class MainWindow(BaseWindow):
                     list_item = xbmcgui.ListItem(list_label)
                     list_item.setProperty('isFolder', 'false')
                     list_item.setProperty('list_id', str(item['id']))
-                    list_item.setProperty('is_member', str(item['is_member']))
+                    list_item.setProperty('is_member', '1' if item.get('is_member', False) else '0')
                     self.list_control.addItem(list_item)
                     self.list_data.append({'name': item['name'], 'isFolder': False, 'id': item['id'], 'indent': indent + 1, 'color': color if self.is_playable else None})
             self.add_new_items(folder, indent + 1)
