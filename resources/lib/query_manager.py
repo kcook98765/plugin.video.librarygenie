@@ -511,6 +511,10 @@ class QueryManager(Singleton):
             before_state = cursor.fetchone()
             utils.log(f"Current folder state - ID:{folder_id}, State:{dict(before_state)}", "DEBUG")
 
+            # Convert string 'None' to Python None
+            if isinstance(new_parent_id, str) and new_parent_id == 'None':
+                new_parent_id = None
+
             # Verify input parameters
             utils.log(f"Validating parameters - FolderID type:{type(folder_id)}, NewParentID type:{type(new_parent_id) if new_parent_id is not None else 'None'}", "DEBUG")
             
