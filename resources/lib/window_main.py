@@ -110,8 +110,8 @@ class MainWindow(BaseWindow):
         is_root = current_item.getProperty('isRoot') == 'true'
         if is_folder or is_root:
             folder_id_prop = current_item.getProperty('folder_id')
-            folder_id = 0 if is_root else int(folder_id_prop) if folder_id_prop else None
-            if self.moving_folder_id is None:
+            folder_id = 0 if is_root else (int(folder_id_prop) if folder_id_prop else None)
+            if folder_id is None:
                 return
             current_pos = self.list_control.getSelectedPosition()
             if action == xbmcgui.ACTION_MOVE_RIGHT:
@@ -383,7 +383,7 @@ class MainWindow(BaseWindow):
         if expanded:
             # First add the new items options
             self.add_new_items(folder, indent + 1)
-            
+
             # Then add subfolders and lists
             folder_lists = [list_item for list_item in all_lists if list_item['folder_id'] == folder['id']]
             subfolders = [f for f in all_folders if f['parent_id'] == folder['id']]
@@ -672,19 +672,19 @@ class MainWindow(BaseWindow):
                 if folder is None:
                     break
                 current_parent = folder.get('parent_id', None)
-            
+
             # Get depth of the moving subtree
             subtree_depth = db_manager._get_subtree_depth(folder_id)
-            
+
             # Get target location depth
             target_depth = 0 if target_folder_id is None else db_manager.get_folder_depth(target_folder_id)
-            
+
             # Calculate total depth after move
             total_depth = target_depth + subtree_depth + 1
-            
+
             if total_depth > Config().max_folder_depth:
                 raise ValueError(f"Moving folder would exceed maximum depth of {Config().max_folder_depth}")
-                
+
             db_manager.update_folder_parent(folder_id, target_folder_id)
             xbmcgui.Dialog().notification("LibraryGenie", "Folder moved to new location", xbmcgui.NOTIFICATION_INFO, 5000)
             self.moving_folder_id = None
