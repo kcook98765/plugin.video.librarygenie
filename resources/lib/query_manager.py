@@ -343,7 +343,7 @@ class QueryManager(Singleton):
         """
         result = self.execute_query(query, (folder_name,), fetch_all=False)
         return result[0] if result else None
-        
+
     def insert_folder(self, name: str, parent_id: Optional[int] = None) -> int:
         query = """
             INSERT INTO folders (name, parent_id)
@@ -762,7 +762,7 @@ class QueryManager(Singleton):
             ORDER BY title COLLATE NOCASE
         """
         results = self.execute_query(query, tuple(params))
-        
+
         # Process results to ensure all metadata is properly formatted
         for item in results:
             if 'art' in item and isinstance(item['art'], str):
@@ -775,7 +775,7 @@ class QueryManager(Singleton):
                     item['cast'] = json.loads(item['cast'])
                 except json.JSONDecodeError:
                     item['cast'] = []
-                    
+
         return results
 
     def get_media_details(self, media_id: int, media_type: str = 'movie') -> dict:
@@ -792,5 +792,3 @@ class QueryManager(Singleton):
             return dict(result) if result else {}
         finally:
             self._release_connection(conn_info)
-
-    
