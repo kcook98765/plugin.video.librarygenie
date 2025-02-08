@@ -455,9 +455,9 @@ class MainWindow(BaseWindow):
         progress = xbmcgui.DialogProgress()
         progress.create("Exporting IMDB List")
 
-        from resources.lib.jsonrpc_helper import JsonRpcHelper
+        from resources.lib.jsonrpc_manager import JSONRPC
         db = DatabaseManager(Config().db_path)
-        jsonrpc = JsonRpcHelper()
+        jsonrpc = JSONRPC()
 
         start = 0
         limit = 50
