@@ -50,25 +50,6 @@ class DatabaseManager(Singleton):
                     kodi_id INTEGER,
                     imdb_id TEXT,
                     title TEXT,
-
-                CREATE TABLE IF NOT EXISTS movies_reference (
-                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                    file_path   TEXT,
-                    file_name   TEXT,
-                    movieid     INTEGER,
-                    imdbnumber  TEXT,
-                    tmdbnumber  TEXT,
-                    tvdbnumber  TEXT,
-                    addon_file  TEXT,
-                    source      TEXT NOT NULL CHECK(source IN ('Lib','File'))
-                ),
-                CREATE UNIQUE INDEX IF NOT EXISTS idx_movies_lib_unique
-                    ON movies_reference(file_path, file_name)
-                    WHERE source = 'Lib',
-                CREATE UNIQUE INDEX IF NOT EXISTS idx_movies_file_unique
-                    ON movies_reference(addon_file)
-                    WHERE source = 'File',
-
                     year INTEGER,
                     filename TEXT,
                     path TEXT,
