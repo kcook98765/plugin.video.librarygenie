@@ -56,7 +56,7 @@ class MainWindow(BaseWindow):
         self.placeControl(self.title_label, 1, 7, columnspan=3, pad_x=5)
 
         # File browser list
-        self.list_control = pyxbmct.List(_imageWidth=32, _imageHeight=32, _itemTextXOffset=1, _itemHeight=36)
+        self.list_control = pyxbmct.List(_imageWidth=25, _imageHeight=25, _itemTextXOffset=5, _itemHeight=30, _space=2)
         self.placeControl(self.list_control, 2, 0, rowspan=9, columnspan=10, pad_x=5, pad_y=5)
         self.connect(self.list_control, self.on_list_item_click)
         
@@ -69,8 +69,8 @@ class MainWindow(BaseWindow):
         self.placeControl(self.options_button, 11, 8, columnspan=2, pad_x=5)
         self.connect(self.options_button, self.on_options_click)
         
-        # Get default folder icon from Kodi
-        self.folder_icon = "special://skin/DefaultFolder.png"
+        # Get default folder icon path
+        self.folder_icon = xbmcgui.DEFAULTFOLDER
 
     def check_playable(self):
         is_playable = self.item_info.get('is_playable', False)
