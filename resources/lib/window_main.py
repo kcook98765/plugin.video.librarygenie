@@ -461,9 +461,9 @@ class MainWindow(BaseWindow):
         folder_indent = indent + (2 if indent == 0 else 1)
         indent_str = " " * folder_indent
         if color:
-            folder_label = f"{indent_str}[I][COLOR {color}]>{folder['name']}[/COLOR][/I]"
+            folder_label = f"{indent_str}[I][COLOR {color}]{folder['name']}[/COLOR][/I]"
         else:
-            folder_label = f"{indent_str}>[U]{folder['name']}[U]"
+            folder_label = f"{indent_str}[I]{folder['name']}[I]"
         folder_item = xbmcgui.ListItem(folder_label)
         folder_item.setProperty('indent', indent_str)
         folder_item.setProperty('isFolder', 'true')
