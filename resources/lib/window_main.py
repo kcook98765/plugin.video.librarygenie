@@ -61,7 +61,7 @@ class MainWindow(BaseWindow):
         self.connect(self.list_control, self.on_list_item_click)
         
         # Bottom status bar
-        self.status_label = pyxbmct.Label("Click to toggle - Green = In List, Red = Not in List")
+        self.status_label = pyxbmct.Label("Left = Remove from list, Right = Add to list - Green = In List, Red = Not in List")
         self.placeControl(self.status_label, 11, 0, columnspan=8, pad_x=5)
         
         # Options button
@@ -88,12 +88,45 @@ class MainWindow(BaseWindow):
         pass
 
     def onAction(self, action):
-        if action == xbmcgui.ACTION_MOVE_RIGHT:
-            self.expand_selected_folder()
-        elif action == xbmcgui.ACTION_MOVE_LEFT:
-            self.collapse_selected_folder()
+        selected_item = self.list_control.getSelectedItem()
+        if not selected_item:
+            return super().onAction(action)
+
+        is_folder = selected_item.getProperty('isFolder') == 'true'
+        
+        if is_folder:
+            if action == xbmcgui.ACTION_MOVE_RIGHT:
+                self.expand_selected_folder()
+            elif action == xbmcgui.ACTION_MOVE_LEFT:
+                self.collapse_selected_folder()
         else:
-            super().onAction(action)
+            try:
+                list_id = int(selected_item.getProperty('list_id'))
+                is_member = selected_item.getProperty('is_member') == '1'
+                
+                if action == xbmcgui.ACTION_MOVE_LEFT and is_member:
+                    # Remove from list
+                    db_manager = DatabaseManager(Config().db_path)
+                    item_id = db_manager.get_item_id_by_title_and_list(list_id, self.item_info['title'])
+                    if item_id:
+                        db_manager.delete_data('list_items', f'id={item_id}')
+                        xbmcgui.Dialog().notification("LibraryGenie", "Media removed from list", xbmcgui.NOTIFICATION_INFO, 2000)
+                        self.populate_list()
+                elif action == xbmcgui.ACTION_MOVE_RIGHT and not is_member:
+                    # Add to list
+                    db_manager = DatabaseManager(Config().db_path)
+                    fields_keys = [field.split()[0] for field in Config.FIELDS]
+                    data = {field: self.item_info.get(field) for field in fields_keys}
+                    data['list_id'] = list_id
+                    if 'cast' in data and isinstance(data['cast'], list):
+                        data['cast'] = json.dumps(data['cast'])
+                    db_manager.insert_data('list_items', data)
+                    xbmcgui.Dialog().notification("LibraryGenie", "Media added to list", xbmcgui.NOTIFICATION_INFO, 2000)
+                    self.populate_list()
+            except (ValueError, TypeError):
+                pass
+        
+        super().onAction(action)
 
     def expand_selected_folder(self):
         selected_item = self.list_control.getSelectedItem()
@@ -369,26 +402,8 @@ class MainWindow(BaseWindow):
             return
 
         try:
-            list_id = int(selected_item.getProperty('list_id'))
-            is_member = selected_item.getProperty('is_member') == '1'
-            
-            # Just toggle membership
-            db_manager = DatabaseManager(Config().db_path)
-            if is_member:
-                item_id = db_manager.get_item_id_by_title_and_list(list_id, self.item_info['title'])
-                if item_id:
-                    db_manager.delete_data('list_items', f'id={item_id}')
-                    xbmcgui.Dialog().notification("LibraryGenie", "Media removed from list", xbmcgui.NOTIFICATION_INFO, 2000)
-            else:
-                fields_keys = [field.split()[0] for field in Config.FIELDS]
-                data = {field: self.item_info.get(field) for field in fields_keys}
-                data['list_id'] = list_id
-                if 'cast' in data and isinstance(data['cast'], list):
-                    data['cast'] = json.dumps(data['cast'])
-                db_manager.insert_data('list_items', data)
-                xbmcgui.Dialog().notification("LibraryGenie", "Media added to list", xbmcgui.NOTIFICATION_INFO, 2000)
-            
-            self.populate_list()
+            # List clicks no longer toggle membership - handled by left/right actions instead
+            return
         except ValueError:
             pass
 
