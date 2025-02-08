@@ -53,11 +53,11 @@ class MainWindow(BaseWindow):
         poster_path = self.item_info.get('poster', self.item_info.get('art', {}).get('poster', ''))
         if poster_path:
             self.poster_image.setImage(poster_path)
-            # Place poster with padding to maintain aspect ratio and reduce size
-            self.placeControl(self.poster_image, 1, 0, rowspan=4, columnspan=2, pad_x=15, pad_y=15)
+            # Place poster with increased padding for smaller size and no top space
+            self.placeControl(self.poster_image, 0, 0, rowspan=4, columnspan=2, pad_x=25, pad_y=25)
         
         self.title_label = pyxbmct.Label(title_year, alignment=0)
-        self.placeControl(self.title_label, 1, 2, columnspan=4, pad_x=5)
+        self.placeControl(self.title_label, 0, 2, columnspan=4, pad_x=5)
 
         # File browser list
         self.list_control = pyxbmct.List(_imageWidth=25, _imageHeight=25,
