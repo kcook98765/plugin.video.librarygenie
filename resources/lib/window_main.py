@@ -276,11 +276,11 @@ class MainWindow(BaseWindow):
                     status = "In list" if is_member else "Not in list"
                     legend_text = f"[COLOR {color}]{status}[/COLOR]"
 
-                    # Always show count for lists
-                    label = current_item.getLabel()
-                    if '(' in label and ')' in label:
-                        count = int(label.split('(')[-1].split(')')[0])
-                        legend_text += f", {count} total movies in list"
+                    # Get count from database
+                    db_manager = DatabaseManager(Config().db_path)
+                    list_id = int(current_item.getProperty('list_id'))
+                    count = db_manager.get_list_media_count(list_id)
+                    legend_text += f", {count} total movies in list"
             except (IndexError, ValueError, TypeError):
                 pass
 
