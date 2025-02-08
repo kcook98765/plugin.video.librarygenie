@@ -895,10 +895,10 @@ class MainWindow(BaseWindow):
                 self.collapse_all_button.controlRight(self.exit_button)
                 self.collapse_all_button.controlLeft(self.collapse_all_button)
                 self.exit_button.controlLeft(self.collapse_all_button)
-                self.exit_button.controlRight(self.exit_button)
-                
-                # Exit button up navigation
+                # Exit button navigation - only up and left
                 self.exit_button.controlUp(self.list_control)
+                self.exit_button.controlRight(self.exit_button)  # Stay on self when right is pressed
+                self.exit_button.controlDown(self.exit_button)  # Stay on self when down is pressed
                 
                 self.list_control.setEnabled(True)
                 self.setFocus(self.list_control)
@@ -906,8 +906,8 @@ class MainWindow(BaseWindow):
             utils.log(f"Error setting navigation: {str(e)}", "ERROR")
             
     def collapse_all_folders(self):
-        """Collapse all expanded folders"""
-        self.folder_expanded_states = {0: False}  # Reset all states, keep root collapsed
+        """Collapse all folders except root"""
+        self.folder_expanded_states = {0: True}  # Keep root expanded, collapse all others
         self.populate_list()
 
     def get_parent_folder_id(self, folder_id):
