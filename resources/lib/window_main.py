@@ -28,7 +28,8 @@ class MainWindow(BaseWindow):
         self.selected_is_folder = None  # Track if the selected item is a folder
 
         self.is_playable = self.check_playable()
-        self.folder_expanded_states = {}
+        # Initialize all folders as collapsed, including Root (id 0)
+        self.folder_expanded_states = {0: False}  # Root starts collapsed
         self.moving_list_id = None
         self.moving_list_name = None
         self.moving_folder_id = None
@@ -87,15 +88,21 @@ class MainWindow(BaseWindow):
         is_folder = selected_item.getProperty('isFolder') == 'true'
         is_special = selected_item.getProperty('isSpecial') == 'true'
         is_root = selected_item.getProperty('isRoot') == 'true'
-
-        if is_root:
+        
+        # Handle folder navigation (including Root)
+        if is_folder and not is_special:
+            folder_id = int(selected_item.getProperty('folder_id'))
+            current_pos = self.list_control.getSelectedPosition()
+            
             if action == xbmcgui.ACTION_MOVE_RIGHT:
-                self.folder_expanded_states[0] = True
+                self.folder_expanded_states[folder_id] = True
                 self.populate_list()
+                self.list_control.selectItem(current_pos)
                 return
             elif action == xbmcgui.ACTION_MOVE_LEFT:
-                self.folder_expanded_states[0] = False
+                self.folder_expanded_states[folder_id] = False
                 self.populate_list()
+                self.list_control.selectItem(current_pos)
                 return
 
         if is_folder and not is_special:
@@ -253,7 +260,7 @@ class MainWindow(BaseWindow):
             self.list_control.addItem(add_folder_item)
             self.list_data.append({'name': '<Add Folder>', 'isFolder': True, 'isSpecial': True, 'id': None, 'indent': 0, 'action': 'new_folder'})
 
-        add_list_item = xbmcgui.ListItem("<Add List>")
+            add_list_item = xbmcgui.ListItem("<Add List>")
         add_list_item.setProperty('isFolder', 'false')
         add_list_item.setProperty('isSpecial', 'true')
         add_list_item.setProperty('action', 'new_list')
