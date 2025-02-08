@@ -112,12 +112,14 @@ class MainWindow(BaseWindow):
                 self.folder_expanded_states[folder_id] = True
                 self.populate_list()
                 self.list_control.selectItem(current_pos)
+                self.update_selection_state()
                 self.update_status_text()
                 return
             elif action == xbmcgui.ACTION_MOVE_LEFT:
                 self.folder_expanded_states[folder_id] = False
                 self.populate_list()
                 self.list_control.selectItem(current_pos)
+                self.update_selection_state()
                 self.update_status_text()
                 return
 
@@ -136,6 +138,7 @@ class MainWindow(BaseWindow):
                     self.populate_list()
                     self.list_control.selectItem(current_position)
                     self.setFocus(self.list_control)
+                    self.update_selection_state()
                     self.update_status_text()
             elif action == xbmcgui.ACTION_MOVE_RIGHT and not is_member:
                 db_manager = DatabaseManager(Config().db_path)
@@ -151,6 +154,7 @@ class MainWindow(BaseWindow):
                 self.populate_list()
                 self.list_control.selectItem(current_position)
                 self.setFocus(self.list_control)
+                self.update_selection_state()
                 self.update_status_text()
         except (ValueError, TypeError):
             pass
@@ -302,6 +306,7 @@ class MainWindow(BaseWindow):
         if self.list_control.size() > 0 and self.list_control.getSelectedItem() is None:
             self.list_control.selectItem(0)
             self.setFocus(self.list_control)
+        self.update_selection_state()
         self.update_status_text()  # update the legend
 
         self.list_control.setEnabled(True)
