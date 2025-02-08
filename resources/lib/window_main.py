@@ -58,7 +58,7 @@ class MainWindow(BaseWindow):
         # Bottom status/legend bar with dynamic text
         self.status_label = pyxbmct.Label("")
         self.placeControl(self.status_label, 11, 0, columnspan=10, pad_x=5)
-        self.update_status_text()
+        # Call update_status_text later after list is populated.
 
         # Default folder icon path
         self.folder_icon = "DefaultFolder.png"
@@ -97,11 +97,13 @@ class MainWindow(BaseWindow):
                 self.folder_expanded_states[folder_id] = True
                 self.populate_list()
                 self.list_control.selectItem(current_pos)
+                self.update_status_text()  # update legend after action
                 return
             elif action == xbmcgui.ACTION_MOVE_LEFT:
                 self.folder_expanded_states[folder_id] = False
                 self.populate_list()
                 self.list_control.selectItem(current_pos)
+                self.update_status_text()
                 return
 
         # For list items, handle adding/removing media via left/right actions.
@@ -119,6 +121,7 @@ class MainWindow(BaseWindow):
                     self.populate_list()
                     self.list_control.selectItem(current_position)
                     self.setFocus(self.list_control)
+                    self.update_status_text()
             elif action == xbmcgui.ACTION_MOVE_RIGHT and not is_member:
                 db_manager = DatabaseManager(Config().db_path)
                 fields_keys = [field.split()[0] for field in Config.FIELDS]
@@ -133,6 +136,7 @@ class MainWindow(BaseWindow):
                 self.populate_list()
                 self.list_control.selectItem(current_position)
                 self.setFocus(self.list_control)
+                self.update_status_text()
         except (ValueError, TypeError):
             pass
 
@@ -167,13 +171,13 @@ class MainWindow(BaseWindow):
     def update_status_text(self):
         """
         Dynamically update the legend (status label) at the bottom of the window.
-        If no item is currently selected, default to the first item.
+        If no item is selected, select the first item.
         """
         selected_item = self.list_control.getSelectedItem()
         if not selected_item:
             if self.list_control.size() > 0:
-                selected_item = self.list_control.getListItem(0)
                 self.list_control.selectItem(0)
+                selected_item = self.list_control.getListItem(0)
             else:
                 self.status_label.setLabel("No items available")
                 return
@@ -239,7 +243,6 @@ class MainWindow(BaseWindow):
         if root_expanded:
             root_folders = [folder for folder in all_folders if folder['parent_id'] is None]
             root_lists = [list_item for list_item in all_lists if list_item['folder_id'] is None]
-            # Sort so that folders come first (key 0) then lists (key 1), both alphabetically.
             combined_root = root_folders + root_lists
             combined_root.sort(key=lambda x: (0, self.clean_name(x['name']).lower()) if 'parent_id' in x
                                               else (1, self.clean_name(x['name']).lower()))
@@ -262,6 +265,12 @@ class MainWindow(BaseWindow):
                     self.list_data.append({'name': item['name'], 'isFolder': False, 'id': item['id'],
                                            'indent': 0, 'color': color if self.is_playable else None})
             # Note: Special "Add" entries are omitted at root level.
+
+        # Ensure a default selection if none is set.
+        if self.list_control.size() > 0 and self.list_control.getSelectedItem() is None:
+            self.list_control.selectItem(0)
+            self.setFocus(self.list_control)
+        self.update_status_text()  # update the legend now
 
         self.list_control.setEnabled(True)
         self.reselect_previous_item(focus_folder_id)
