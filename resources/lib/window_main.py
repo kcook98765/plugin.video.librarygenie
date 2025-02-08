@@ -70,7 +70,7 @@ class MainWindow(BaseWindow):
         self.connect(self.options_button, self.on_options_click)
         
         # Get default folder icon path
-        self.folder_icon = xbmcgui.DEFAULTFOLDER
+        self.folder_icon = "DefaultFolder.png"
 
     def check_playable(self):
         is_playable = self.item_info.get('is_playable', False)
