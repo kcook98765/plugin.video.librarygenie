@@ -519,7 +519,7 @@ class MainWindow(BaseWindow):
             db_manager = DatabaseManager(Config().db_path)
             existing_folder_id = db_manager.get_folder_id_by_name(new_folder_name)
         except Exception:
-            utils.log(f"Error creating new folder. ParentID={parent_id}, NewFolderName={new_folder_name}", "ERROR")
+            utils.log(f"Error creating new folder. ParentID={parent_id}, NewFolderName not set", "ERROR")
             return
         if existing_folder_id:
             xbmcgui.Dialog().notification("LibraryGenie", f"The folder name '{new_folder_name}' already exists", xbmcgui.NOTIFICATION_WARNING, 5000)
@@ -609,7 +609,7 @@ class MainWindow(BaseWindow):
                 return
 
         except Exception:
-            utils.log(f"Error creating new list. ParentID={parent_id}, NewListName={new_list_name}", "ERROR")
+            utils.log(f"Error creating new list. ParentID={parent_id}, NewListName not set", "ERROR")
             return
 
         parent_id = int(parent_id) if parent_id != 'None' else None

@@ -289,6 +289,7 @@ class KodiHelper:
         if db_id:
             # Fetch details via JSON-RPC
             media_type = xbmc.getInfoLabel('ListItem.DBTYPE')
+            key = 'movieid' if media_type == 'movie' else 'episodeid'
             method = 'VideoLibrary.GetMovieDetails' if media_type == 'movie' else 'VideoLibrary.GetEpisodeDetails'
             params = {
                 'properties': [
@@ -296,14 +297,9 @@ class KodiHelper:
                     'file', 'thumbnail', 'fanart', 'runtime', 'tagline',
                     'writer', 'imdbnumber', 'premiered', 'mpaa', 'trailer', "votes",
                     "country", "dateadded", "studio", "art"
-                ]
+                ],
+                key: int(db_id)  # dynamically assign the correct key
             }
-            if method == 'VideoLibrary.GetMovieDetails':
-                params['movieid'] = int(db_id) if db_id else 0
-                params['properties'] = list(params['properties']) if isinstance(params.get('properties'), (list, tuple)) else []
-            else:
-                params['episodeid'] = int(db_id)
-                params['properties'] = list(params['properties'])  # Ensure properties is a list
 
             utils.log(f"Fetching details via RPC - Method: {method}, Params: {params}", "DEBUG")
             response = self.jsonrpc.execute(method, params)
