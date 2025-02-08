@@ -878,32 +878,23 @@ class MainWindow(BaseWindow):
     def set_navigation(self):
         try:
             if self.list_control and hasattr(self.list_control, 'getId'):
+                # Set lateral navigation within list
                 self.list_control.controlLeft(self.list_control)
                 self.list_control.controlRight(self.list_control)
-                self.list_control.setEnabled(True)
                 
-                # Connect list control with exit button only when at the last item
-                self.connect(self.list_control, lambda: self.handle_list_navigation())
+                # Connect list with exit button
+                self.list_control.controlDown(self.exit_button)
+                self.exit_button.controlUp(self.list_control)
                 
                 # Exit button navigation
-                self.exit_button.controlUp(self.list_control)
                 self.exit_button.controlDown(self.exit_button)
                 self.exit_button.controlLeft(self.exit_button)
                 self.exit_button.controlRight(self.exit_button)
                 
+                self.list_control.setEnabled(True)
                 self.setFocus(self.list_control)
         except Exception as e:
             utils.log(f"Error setting navigation: {str(e)}", "ERROR")
-            
-    def handle_list_navigation(self):
-        try:
-            current_pos = self.list_control.getSelectedPosition()
-            if current_pos == self.list_control.size() - 1:  # If at last item
-                self.setFocus(self.exit_button)
-            else:
-                self.setFocus(self.list_control)
-        except Exception as e:
-            utils.log(f"Error handling list navigation: {str(e)}", "ERROR")
 
     def get_parent_folder_id(self, folder_id):
         db_manager = DatabaseManager(Config().db_path)
