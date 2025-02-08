@@ -46,7 +46,7 @@ class MainWindow(BaseWindow):
         title = self.item_info.get('title', 'Unknown')
         year = self.item_info.get('year', '')
         title_year = f"{title} ({year})" if year else title
-        
+
         # Add poster image
         self.poster_image = pyxbmct.Image('')
         poster_path = self.item_info.get('poster', self.item_info.get('art', {}).get('poster', ''))
@@ -58,7 +58,7 @@ class MainWindow(BaseWindow):
             self.poster_image.setHeight(180)  # Maintains 2:3 ratio (120 * 1.5)
             # Place poster in top-left with minimal padding
             self.placeControl(self.poster_image, 0, 0, rowspan=3, columnspan=1, pad_x=5, pad_y=5)
-        
+
         self.title_label = pyxbmct.Label(title_year, alignment=0)
         self.placeControl(self.title_label, 0, 1, columnspan=9, pad_x=5)
 
@@ -264,7 +264,7 @@ class MainWindow(BaseWindow):
                     color = self.folder_color_status.get(folder_id, 'red')
                     status = "In folder" if color == 'green' else "Not in folder"
                     legend_text = f"[COLOR {color}]{status}[/COLOR]"
-                    
+
                     # Always show count for folders
                     label = current_item.getLabel()
                     if '(' in label and ')' in label:
@@ -275,7 +275,7 @@ class MainWindow(BaseWindow):
                     color = 'green' if is_member else 'red'
                     status = "In list" if is_member else "Not in list"
                     legend_text = f"[COLOR {color}]{status}[/COLOR]"
-                    
+
                     # Show count for lists when playable
                     if self.is_playable:
                         label = current_item.getLabel()
@@ -412,7 +412,7 @@ class MainWindow(BaseWindow):
                     self.add_folder_items(item, 0, all_folders, all_lists, self.folder_color_status)
                 else:
                     list_media_count = db_manager.get_list_media_count(item['id'])
-                    list_label = f"  {item['name']} ({list_media_count})"
+                    list_label = f"  {item['name']}" #Removed count
                     color = 'green' if item['is_member'] else 'red'
                     if self.is_playable:
                         list_label = f"[COLOR {color}]{list_label}[/COLOR]"
@@ -430,7 +430,7 @@ class MainWindow(BaseWindow):
         self.update_status_text()  # update the legend
 
         self.list_control.setEnabled(True)
-        
+
         # Update legend text with count
         legend_text = "[COLOR red]Not in list/folder[/COLOR], [COLOR green]In list/folder[/COLOR]"
         if self.is_playable:
@@ -442,7 +442,7 @@ class MainWindow(BaseWindow):
                 except (IndexError, ValueError):
                     pass
         self.legend_label.setLabel(legend_text)
-        
+
         self.reselect_previous_item(focus_folder_id)
 
     def clean_name(self, name):
@@ -456,12 +456,12 @@ class MainWindow(BaseWindow):
         color = folder_color_status.get(folder['id'], 'red') if self.is_playable else None
         utils.log(f"Adding folder - Name: {folder['name']}, Expanded: {expanded}, Indent: {indent}, Color: {color}", "DEBUG")
         db_manager = DatabaseManager(Config().db_path)
-        folder_media_count = db_manager.get_folder_media_count(folder['id'])
+        folder_media_count = db_manager.get_folder_media_count(folder['id'])  # Keep for background use
         indent_str = "  " * indent
         if color:
-            folder_label = f"{indent_str}[B][COLOR {color}]{folder['name']} ({folder_media_count})[/COLOR][/B]"
+            folder_label = f"{indent_str}[B][COLOR {color}]{folder['name']}[/COLOR][/B]"
         else:
-            folder_label = f"{indent_str}{folder['name']} ({folder_media_count})"
+            folder_label = f"{indent_str}{folder['name']}"
         folder_item = xbmcgui.ListItem(folder_label)
         folder_item.setProperty('indent', indent_str)
         folder_item.setProperty('isFolder', 'true')
@@ -484,7 +484,7 @@ class MainWindow(BaseWindow):
                     self.add_folder_items(item, indent + 1, all_folders, all_lists, folder_color_status)
                 else:
                     list_media_count = db_manager.get_list_media_count(item['id'])
-                    list_label = f"{' ' * ((indent + 1) * self.INDENTATION_MULTIPLIER)} {item['name']} ({list_media_count})"
+                    list_label = f"{' ' * ((indent + 1) * self.INDENTATION_MULTIPLIER)} {item['name']}" #Removed count
                     color = 'green' if item['is_member'] else 'red'
                     if self.is_playable:
                         list_label = f"[COLOR {color}]{list_label}[/COLOR]"
@@ -936,11 +936,11 @@ class MainWindow(BaseWindow):
                 # Set lateral navigation within list
                 self.list_control.controlLeft(self.list_control)
                 self.list_control.controlRight(self.list_control)
-                
+
                 # Connect list with collapse all button
                 self.list_control.controlDown(self.collapse_all_button)
                 self.collapse_all_button.controlUp(self.list_control)
-                
+
                 # Connect collapse all with exit button
                 self.collapse_all_button.controlRight(self.exit_button)
                 self.collapse_all_button.controlLeft(self.collapse_all_button)
@@ -949,12 +949,12 @@ class MainWindow(BaseWindow):
                 self.exit_button.controlUp(self.list_control)
                 self.exit_button.controlRight(self.exit_button)  # Stay on self when right is pressed
                 self.exit_button.controlDown(self.exit_button)  # Stay on self when down is pressed
-                
+
                 self.list_control.setEnabled(True)
                 self.setFocus(self.list_control)
         except Exception as e:
             utils.log(f"Error setting navigation: {str(e)}", "ERROR")
-            
+
     def collapse_all_folders(self):
         """Collapse all folders except root"""
         self.folder_expanded_states = {0: True}  # Keep root expanded, collapse all others
