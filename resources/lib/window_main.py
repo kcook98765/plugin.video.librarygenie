@@ -456,8 +456,8 @@ class MainWindow(BaseWindow):
         utils.log(f"Adding folder - Name: {folder['name']}, Expanded: {expanded}, Indent: {indent}, Color: {color}", "DEBUG")
         db_manager = DatabaseManager(Config().db_path)
         folder_media_count = db_manager.get_folder_media_count(folder['id'])  # Keep for background use
-        # Double the indentation for folders
-        folder_indent = indent * 2
+        # Extra indent only for first level folders
+        folder_indent = indent + (1 if indent == 1 else 0)
         indent_str = "  " * folder_indent
         if color:
             folder_label = f"{indent_str}[B][COLOR {color}]{folder['name']}[/COLOR][/B]"
