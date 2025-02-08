@@ -341,6 +341,10 @@ class MainWindow(BaseWindow):
         self.list_control.addItem(folder_item)
         self.list_data.append({'name': folder['name'], 'isFolder': True, 'id': folder['id'], 'indent': indent, 'expanded': expanded, 'color': color})
         if expanded:
+            # First add the new items options
+            self.add_new_items(folder, indent + 1)
+            
+            # Then add subfolders and lists
             subfolders = [f for f in all_folders if f['parent_id'] == folder['id']]
             folder_lists = [list_item for list_item in all_lists if list_item['folder_id'] == folder['id']]
             combined = subfolders + folder_lists
@@ -361,7 +365,6 @@ class MainWindow(BaseWindow):
                     list_item.setProperty('is_member', str(item['is_member']))
                     self.list_control.addItem(list_item)
                     self.list_data.append({'name': item['name'], 'isFolder': False, 'id': item['id'], 'indent': indent + 1, 'color': color if self.is_playable else None})
-            self.add_new_items(folder, indent + 1)
 
     def add_new_items(self, parent_folder, indent):
         current_depth = 0
