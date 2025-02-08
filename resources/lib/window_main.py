@@ -58,13 +58,8 @@ class MainWindow(BaseWindow):
         
         # Bottom status bar with dynamic text
         self.status_label = pyxbmct.Label("")
-        self.placeControl(self.status_label, 11, 0, columnspan=8, pad_x=5)
+        self.placeControl(self.status_label, 11, 0, columnspan=10, pad_x=5)
         self.update_status_text()
-        
-        # Options button
-        self.options_button = pyxbmct.Button("Options")
-        self.placeControl(self.options_button, 11, 8, columnspan=2, pad_x=5)
-        self.connect(self.options_button, self.on_options_click)
         
         # Get default folder icon path
         self.folder_icon = "DefaultFolder.png"
@@ -229,7 +224,7 @@ class MainWindow(BaseWindow):
 
         self.list_data = []
 
-        # Add Root as first item with folder behavior
+        # Add Root as only top-level item
         root_item = xbmcgui.ListItem("Root")
         root_item.setArt({'icon': self.folder_icon, 'thumb': self.folder_icon})
         root_item.setProperty('isFolder', 'true')
@@ -240,14 +235,14 @@ class MainWindow(BaseWindow):
         root_expanded = self.folder_expanded_states.get(0, False)
         root_item.setProperty('expanded', str(root_expanded))
         
-        # Add root item with proper formatting
-        root_label = "[B]Root[/B]" if root_expanded else "[B]Root[/B]"
+        # Add root item with formatting indicating expansion state
+        root_label = "[B]> Root[/B]" if not root_expanded else "[B]v Root[/B]"
         root_item.setLabel(root_label)
         
         self.list_control.addItem(root_item)
         self.list_data.append({'name': 'Root', 'isFolder': True, 'isRoot': True, 'id': 0, 'expanded': root_expanded})
 
-        if any(self.folder_expanded_states.values()):
+        if root_expanded:
             # Add special root items
             add_folder_item = xbmcgui.ListItem("  <Add Folder>")
             add_folder_item.setProperty('isFolder', 'true')
