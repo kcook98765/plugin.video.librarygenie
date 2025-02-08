@@ -21,6 +21,15 @@ class DatabaseSyncManager:
         progress.create("Syncing Library")
         
         try:
+            # First ensure table exists
+            self.query_manager.setup_movies_reference_table()
+            
+            # Get existing library entries
+            existing_entries = self.query_manager.execute_query(
+                "SELECT movieid FROM movies_reference WHERE source = 'Lib'"
+            )
+            existing_movie_ids = {entry['movieid'] for entry in existing_entries}
+            
             # Get all movies from Kodi
             response = self.jsonrpc.execute('VideoLibrary.GetMovies', {
                 'properties': [
@@ -32,31 +41,52 @@ class DatabaseSyncManager:
                 ]
             })
 
+            processed_movie_ids = set()
             if 'result' in response and 'movies' in response['result']:
                 movies = response['result']['movies']
-                
-                # First ensure table exists
-                self.query_manager.setup_movies_reference_table()
-                
-                # Clear existing library entries
-                self.query_manager.execute_query("DELETE FROM movies_reference WHERE source = 'Lib'")
+                total_movies = len(movies)
                 
                 # Process each movie
-                for movie in movies:
+                for index, movie in enumerate(movies):
+                    progress.update(int((index / total_movies) * 100), f"Processing movie {index + 1} of {total_movies}")
+                    
                     file_path = movie.get('file', '')
                     file_name = file_path.split('/')[-1] if file_path else ''
                     path = '/'.join(file_path.split('/')[:-1]) if file_path else ''
+                    movie_id = movie.get('movieid')
                     
                     # Get IMDB number either directly or from uniqueid
                     imdb_id = movie.get('imdbnumber') or movie.get('uniqueid', {}).get('imdb')
                     tmdb_id = movie.get('uniqueid', {}).get('tmdb')
                     tvdb_id = movie.get('uniqueid', {}).get('tvdb')
                     
+                    if movie_id in existing_movie_ids:
+                        # Update existing entry
+                        self.query_manager.execute_query(
+                            """UPDATE movies_reference 
+                               SET file_path = ?, file_name = ?, imdbnumber = ?, 
+                                   tmdbnumber = ?, tvdbnumber = ?
+                               WHERE movieid = ? AND source = 'Lib'""",
+                            (path, file_name, imdb_id, tmdb_id, tvdb_id, movie_id)
+                        )
+                    else:
+                        # Insert new entry
+                        self.query_manager.execute_query(
+                            """INSERT INTO movies_reference 
+                               (file_path, file_name, movieid, imdbnumber, tmdbnumber, tvdbnumber, source)
+                               VALUES (?, ?, ?, ?, ?, ?, 'Lib')""",
+                            (path, file_name, movie_id, imdb_id, tmdb_id, tvdb_id)
+                        )
+                    
+                    processed_movie_ids.add(movie_id)
+                
+                # Remove entries that no longer exist in library
+                to_remove = existing_movie_ids - processed_movie_ids
+                if to_remove:
+                    placeholders = ','.join('?' * len(to_remove))
                     self.query_manager.execute_query(
-                        """INSERT INTO movies_reference 
-                           (file_path, file_name, movieid, imdbnumber, tmdbnumber, tvdbnumber, source)
-                           VALUES (?, ?, ?, ?, ?, ?, 'Lib')""",
-                        (path, file_name, movie.get('movieid'), imdb_id, tmdb_id, tvdb_id)
+                        f"DELETE FROM movies_reference WHERE movieid IN ({placeholders}) AND source = 'Lib'",
+                        tuple(to_remove)
                     )
                 
                 progress.close()
