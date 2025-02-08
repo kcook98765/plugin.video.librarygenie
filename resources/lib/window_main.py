@@ -97,12 +97,20 @@ class MainWindow(BaseWindow):
         selected_item = self.list_control.getSelectedItem()
         if selected_item and selected_item.getProperty('isFolder') == 'true':
             folder_id = int(selected_item.getProperty('folder_id'))
-            self.selected_item_id = folder_id  # Set the selected item ID
-            self.selected_is_folder = True  # Indicate that the selected item is a folder
+            self.selected_item_id = folder_id
+            self.selected_is_folder = True
             utils.log(f"Expanding folder with ID {folder_id}", "DEBUG")
-            if not self.folder_expanded_states.get(folder_id, False):
+
+            # Toggle expansion state
+            current_state = self.folder_expanded_states.get(folder_id, False)
+            if current_state:
+                # If expanded, just collapse
+                self.update_folder_expanded_states(folder_id, False)
+            else:
+                # If collapsed, expand and show options
                 self.update_folder_expanded_states(folder_id, True)
-                self.populate_list(folder_id)  # Pass folder_id to reselect it
+            
+            self.populate_list(folder_id)
 
     def collapse_selected_folder(self):
         selected_item = self.list_control.getSelectedItem()
@@ -244,13 +252,23 @@ class MainWindow(BaseWindow):
                 self.add_new_items(folder, indent + 1)
 
     def add_new_items(self, parent_folder, indent):
-        new_folder_item = xbmcgui.ListItem(f"{' ' * (indent * self.INDENTATION_MULTIPLIER)}<New Folder>")
-        new_folder_item.setProperty('isFolder', 'true')
-        new_folder_item.setProperty('isSpecial', 'true')  # Add a flag for special items
-        new_folder_item.setProperty('action', 'new_folder')
-        new_folder_item.setProperty('parent_id', str(parent_folder['id']))
-        self.list_control.addItem(new_folder_item)
-        self.list_data.append({'name': '<New Folder>', 'isFolder': True, 'isSpecial': True, 'id': parent_folder['id'], 'indent': indent, 'action': 'new_folder'})
+        # Check current depth against max depth before showing new folder option
+        current_depth = 0
+        temp_parent_id = parent_folder['id']
+        while temp_parent_id is not None:
+            current_depth += 1
+            folder = self.db_manager.fetch_folder_by_id(temp_parent_id)
+            temp_parent_id = folder['parent_id'] if folder else None
+
+        # Only show new folder option if we haven't reached max depth
+        if current_depth < Config().max_folder_depth:
+            new_folder_item = xbmcgui.ListItem(f"{' ' * (indent * self.INDENTATION_MULTIPLIER)}<New Folder>")
+            new_folder_item.setProperty('isFolder', 'true')
+            new_folder_item.setProperty('isSpecial', 'true')
+            new_folder_item.setProperty('action', 'new_folder')
+            new_folder_item.setProperty('parent_id', str(parent_folder['id']))
+            self.list_control.addItem(new_folder_item)
+            self.list_data.append({'name': '<New Folder>', 'isFolder': True, 'isSpecial': True, 'id': parent_folder['id'], 'indent': indent, 'action': 'new_folder'})
 
         new_list_item = xbmcgui.ListItem(f"{' ' * (indent * self.INDENTATION_MULTIPLIER)}<New List>")
         new_list_item.setProperty('isFolder', 'false')
