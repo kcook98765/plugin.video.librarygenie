@@ -44,10 +44,6 @@ class MainWindow(BaseWindow):
     def setup_ui(self):
         self.setGeometry(800, 600, 12, 10)
         
-        # Top breadcrumb/path display
-        self.path_label = pyxbmct.Label("[B]Root[/B]")
-        self.placeControl(self.path_label, 0, 0, columnspan=10, pad_x=5, pad_y=5)
-        
         # Media info in top right
         title = self.item_info.get('title', 'Unknown')
         year = self.item_info.get('year', '')
@@ -60,9 +56,10 @@ class MainWindow(BaseWindow):
         self.placeControl(self.list_control, 2, 0, rowspan=9, columnspan=10, pad_x=5, pad_y=5)
         self.connect(self.list_control, self.on_list_item_click)
         
-        # Bottom status bar
-        self.status_label = pyxbmct.Label("Left = Remove from list, Right = Add to list - Green = In List, Red = Not in List")
+        # Bottom status bar with dynamic text
+        self.status_label = pyxbmct.Label("")
         self.placeControl(self.status_label, 11, 0, columnspan=8, pad_x=5)
+        self.update_status_text()
         
         # Options button
         self.options_button = pyxbmct.Button("Options")
@@ -221,8 +218,19 @@ class MainWindow(BaseWindow):
 
         self.list_data = []
 
-        # Add special root items first
-        add_folder_item = xbmcgui.ListItem("<Add Folder>")
+        # Add Root as first item
+        root_item = xbmcgui.ListItem("Root")
+        root_item.setArt({'icon': self.folder_icon, 'thumb': self.folder_icon})
+        root_item.setProperty('isFolder', 'true')
+        root_item.setProperty('isRoot', 'true')
+        root_item.setProperty('folder_id', '0')
+        root_item.setProperty('expanded', str(any(self.folder_expanded_states.values())))
+        self.list_control.addItem(root_item)
+        self.list_data.append({'name': 'Root', 'isFolder': True, 'isRoot': True, 'id': 0})
+
+        if any(self.folder_expanded_states.values()):
+            # Add special root items
+            add_folder_item = xbmcgui.ListItem("  <Add Folder>")
         add_folder_item.setProperty('isFolder', 'true')
         add_folder_item.setProperty('isSpecial', 'true')
         add_folder_item.setProperty('action', 'new_folder')
@@ -408,9 +416,34 @@ class MainWindow(BaseWindow):
                 self.list_control.selectItem(0)
                 self.setFocus(self.list_control)
 
+    def update_status_text(self):
+        selected_item = self.list_control.getSelectedItem()
+        if not selected_item:
+            return
+            
+        if selected_item.getProperty('isRoot') == 'true':
+            self.status_label.setLabel("Click to open Settings, Right to expand")
+        elif selected_item.getProperty('isFolder') == 'true':
+            expanded = selected_item.getProperty('expanded') == 'true'
+            if expanded:
+                self.status_label.setLabel("Left to collapse folder, Click for options")
+            else:
+                self.status_label.setLabel("Right to expand folder, Click for options")
+        else:
+            self.status_label.setLabel("Left = Remove from list, Right = Add to list - Click for options")
+
+    def onFocus(self, controlId):
+        super().onFocus(controlId)
+        if controlId == self.list_control.getId():
+            self.update_status_text()
+
     def on_list_item_click(self):
         selected_item = self.list_control.getSelectedItem()
         if not selected_item:
+            return
+            
+        if selected_item.getProperty('isRoot') == 'true':
+            self.open_settings()
             return
 
         action = selected_item.getProperty('action')
