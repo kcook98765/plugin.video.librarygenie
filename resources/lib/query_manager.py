@@ -502,20 +502,13 @@ class QueryManager(Singleton):
 
     def update_folder_parent(self, folder_id: int, new_parent_id: Optional[int]) -> None:
         # Special handling for root level moves
-        if new_parent_id is None:
-            query = """
-                UPDATE folders 
-                SET parent_id = NULL 
-                WHERE id = ?
-            """
-            self.execute_query(query, (folder_id,))
-        else:
-            query = """
-                UPDATE folders 
-                SET parent_id = ? 
-                WHERE id = ?
-            """
-            self.execute_query(query, (new_parent_id, folder_id))
+        query = """
+            UPDATE folders 
+            SET parent_id = ? 
+            WHERE id = ?
+        """
+        # Use SQL NULL for root level
+        self.execute_query(query, (None if new_parent_id is None else new_parent_id, folder_id))
 
     def get_subtree_depth(self, folder_id: int) -> int:
         query = """
