@@ -401,12 +401,13 @@ class MainWindow(BaseWindow):
         # Update legend text with count
         legend_text = "Red = Not in list/folder, Green = In list/folder"
         if self.is_playable:
-            total_count = sum(int(item.getLabel().split('(')[-1].split(')')[0]) 
-                            for i in range(self.list_control.size())
-                            for item in [self.list_control.getListItem(i)]
-                            if not item.getProperty('isSpecial') == 'true'
-                            and not item.getProperty('isFolder') == 'true')
-            legend_text += f", ({total_count}) = total count of movies"
+            selected_item = self.list_control.getSelectedItem()
+            if selected_item and not selected_item.getProperty('isSpecial') == 'true':
+                try:
+                    count = int(selected_item.getLabel().split('(')[-1].split(')')[0])
+                    legend_text += f", ({count}) = count of movies in list/folder"
+                except (IndexError, ValueError):
+                    pass
         self.legend_label.setLabel(legend_text)
         
         self.reselect_previous_item(focus_folder_id)
