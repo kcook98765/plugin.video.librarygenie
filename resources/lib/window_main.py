@@ -635,7 +635,7 @@ class MainWindow(BaseWindow):
                 
                 for field in fields_keys:
                     value = self.item_info.get(field)
-                    utils.log(f"Processing field {field}: {value}", "DEBUG")
+
                     if field in self.item_info and self.item_info[field]:
                         data[field] = self.item_info[field]
                 
@@ -666,7 +666,6 @@ class MainWindow(BaseWindow):
                             utils.log(f"Error converting rating: {str(e)}", "ERROR")
                             data['rating'] = 0.0
                     
-                    utils.log(f"Final data for insertion: {data}", "DEBUG")
                     try:
                         result = db_manager.insert_data('list_items', data)
                         utils.log(f"Insert result: {result}", "DEBUG")
