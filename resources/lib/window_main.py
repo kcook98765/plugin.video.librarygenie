@@ -91,6 +91,17 @@ class MainWindow(BaseWindow):
 
         is_folder = selected_item.getProperty('isFolder') == 'true'
         is_special = selected_item.getProperty('isSpecial') == 'true'
+        is_root = selected_item.getProperty('isRoot') == 'true'
+        
+        if is_root:
+            if action == xbmcgui.ACTION_MOVE_RIGHT:
+                self.folder_expanded_states[0] = True
+                self.populate_list()
+                return
+            elif action == xbmcgui.ACTION_MOVE_LEFT:
+                self.folder_expanded_states[0] = False
+                self.populate_list()
+                return
         
         if is_folder and not is_special:
             if action == xbmcgui.ACTION_MOVE_RIGHT:
@@ -218,15 +229,23 @@ class MainWindow(BaseWindow):
 
         self.list_data = []
 
-        # Add Root as first item
+        # Add Root as first item with folder behavior
         root_item = xbmcgui.ListItem("Root")
         root_item.setArt({'icon': self.folder_icon, 'thumb': self.folder_icon})
         root_item.setProperty('isFolder', 'true')
         root_item.setProperty('isRoot', 'true')
         root_item.setProperty('folder_id', '0')
-        root_item.setProperty('expanded', str(any(self.folder_expanded_states.values())))
+        
+        # Set expansion state for root
+        root_expanded = self.folder_expanded_states.get(0, False)
+        root_item.setProperty('expanded', str(root_expanded))
+        
+        # Add root item with proper formatting
+        root_label = "[B]Root[/B]" if root_expanded else "[B]Root[/B]"
+        root_item.setLabel(root_label)
+        
         self.list_control.addItem(root_item)
-        self.list_data.append({'name': 'Root', 'isFolder': True, 'isRoot': True, 'id': 0})
+        self.list_data.append({'name': 'Root', 'isFolder': True, 'isRoot': True, 'id': 0, 'expanded': root_expanded})
 
         if any(self.folder_expanded_states.values()):
             # Add special root items
