@@ -455,15 +455,21 @@ class MainWindow(BaseWindow):
         progress = xbmcgui.DialogProgress()
         progress.create("Exporting IMDB List")
 
-        jsonrpc = xbmc.JSONRPC()
+        from resources.lib.jsonrpc_helper import JsonRpcHelper
         db = DatabaseManager(Config().db_path)
+        jsonrpc = JsonRpcHelper()
 
         start = 0
         limit = 50
         total_processed = 0
 
         while True:
-            movies, total = jsonrpc.get_movies_for_export(start, limit)
+            response = jsonrpc.get_movies(start, limit)
+            if 'result' not in response or 'movies' not in response['result']:
+                break
+                
+            movies = response['result']['movies']
+            total = response['result'].get('limits', {}).get('total', 0)
             if not movies:
                 break
 
