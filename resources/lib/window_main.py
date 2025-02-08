@@ -286,9 +286,22 @@ class MainWindow(BaseWindow):
         if root_expanded:
             root_folders = [folder for folder in all_folders if folder['parent_id'] is None]
             root_lists = [list_item for list_item in all_lists if list_item['folder_id'] is None]
-            combined_root = root_folders + root_lists
-            combined_root.sort(key=lambda x: (0, self.clean_name(x['name']).lower()) if 'parent_id' in x else (1, self.clean_name(x['name']).lower()))
-            utils.log(f"Sorted combined root items: {[(self.clean_name(i['name']), i['name']) for i in combined_root]}", "DEBUG")
+            if root_expanded:
+                # Add new folder/list options first for root level
+                combined_root = []
+                current_depth = 0  # Root level
+                if current_depth < Config().max_folder_depth:
+                    combined_root.append({'name': '<New Folder>', 'id': None, 'parent_id': None, 'is_special': True, 'action': 'new_folder'})
+                combined_root.append({'name': '<New List>', 'id': None, 'folder_id': None, 'is_special': True, 'action': 'new_list'})
+                
+                # Then add folders and lists, sorted separately
+                root_folders.sort(key=lambda x: self.clean_name(x['name']).lower())
+                root_lists.sort(key=lambda x: self.clean_name(x['name']).lower())
+                combined_root.extend(root_folders)
+                combined_root.extend(root_lists)
+            else:
+                combined_root = []
+            
             for item in combined_root:
                 if 'parent_id' in item:
                     utils.log(f"Adding root folder item - ID: {item['id']}, Name: {item['name']}", "DEBUG")
@@ -341,11 +354,21 @@ class MainWindow(BaseWindow):
         self.list_control.addItem(folder_item)
         self.list_data.append({'name': folder['name'], 'isFolder': True, 'id': folder['id'], 'indent': indent, 'expanded': expanded, 'color': color})
         if expanded:
+            # First add special entries
+            combined = []
+            current_depth = self.get_folder_depth(folder['id'])
+            if current_depth < Config().max_folder_depth - 1:  # -1 because we're already inside a folder
+                combined.append({'name': '<New Folder>', 'id': None, 'parent_id': folder['id'], 'is_special': True, 'action': 'new_folder'})
+            combined.append({'name': '<New List>', 'id': None, 'folder_id': folder['id'], 'is_special': True, 'action': 'new_list'})
+            
+            # Then add sorted folders and lists
             subfolders = [f for f in all_folders if f['parent_id'] == folder['id']]
             folder_lists = [list_item for list_item in all_lists if list_item['folder_id'] == folder['id']]
-            combined = subfolders + folder_lists
-            combined.sort(key=lambda x: (0, self.clean_name(x['name']).lower()) if 'parent_id' in x else (1, self.clean_name(x['name']).lower()))
-            utils.log(f"Sorted combined items for {folder['name']}: {[(self.clean_name(i['name']), i['name']) for i in combined]}", "DEBUG")
+            subfolders.sort(key=lambda x: self.clean_name(x['name']).lower())
+            folder_lists.sort(key=lambda x: self.clean_name(x['name']).lower())
+            combined.extend(subfolders)
+            combined.extend(folder_lists)
+            
             for item in combined:
                 if 'parent_id' in item:
                     self.add_folder_items(item, indent + 1, all_folders, all_lists, folder_color_status)
