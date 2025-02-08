@@ -1,3 +1,4 @@
+
 import json
 import xbmc
 from resources.lib import utils
@@ -52,3 +53,23 @@ class JSONRPC:
         if 'result' in response and 'movies' in response['result']:
             return response['result']['movies'], response['result'].get('limits', {}).get('total', 0)
         return [], 0
+
+    def get_episode_details(self, episode_id, properties=None):
+        if properties is None:
+            properties = [
+                'title', 'plot', 'rating', 'writer', 'firstaired', 'playcount',
+                'runtime', 'director', 'season', 'episode', 'originaltitle',
+                'showtitle', 'cast', 'streamdetails', 'lastplayed', 'fanart',
+                'thumbnail', 'file', 'resume', 'tvshowid', 'dateadded', 'uniqueid', 'art'
+            ]
+
+        return self.execute("VideoLibrary.GetEpisodeDetails", {
+            'episodeid': episode_id,
+            'properties': properties
+        })
+
+    def search_movies(self, filter_params):
+        return self.execute("VideoLibrary.GetMovies", {
+            "filter": filter_params,
+            "properties": ["title", "year", "file", "imdbnumber", "uniqueid"]
+        })
