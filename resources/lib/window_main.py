@@ -157,6 +157,26 @@ class MainWindow(BaseWindow):
 
         super().onAction(action)
 
+    def on_list_item_click(self):
+        selected_item = self.list_control.getSelectedItem()
+        if not selected_item:
+            return
+
+        if selected_item.getProperty('isRoot') == 'true':
+            self.open_settings()
+            return
+
+        action = selected_item.getProperty('action')
+        if action:
+            self.handle_action(action, selected_item.getProperty('parent_id'))
+            return
+
+        if selected_item.getProperty('isFolder') == 'true':
+            self.on_options_click()
+            return
+
+        return
+    
     def update_status_text(self):
         """
         Update the navigation legend based on our stored selection state.
