@@ -93,12 +93,19 @@ class MainWindow(BaseWindow):
             return super().onAction(action)
 
         is_folder = selected_item.getProperty('isFolder') == 'true'
+        is_special = selected_item.getProperty('isSpecial') == 'true'
         
-        if is_folder:
+        if is_folder and not is_special:
             if action == xbmcgui.ACTION_MOVE_RIGHT:
+                current_pos = self.list_control.getSelectedPosition()
                 self.expand_selected_folder()
+                self.list_control.selectItem(current_pos)
+                return
             elif action == xbmcgui.ACTION_MOVE_LEFT:
+                current_pos = self.list_control.getSelectedPosition()
                 self.collapse_selected_folder()
+                self.list_control.selectItem(current_pos)
+                return
         else:
             try:
                 list_id = int(selected_item.getProperty('list_id'))
@@ -214,6 +221,23 @@ class MainWindow(BaseWindow):
 
         self.list_data = []
 
+        # Add special root items first
+        add_folder_item = xbmcgui.ListItem("<Add Folder>")
+        add_folder_item.setProperty('isFolder', 'true')
+        add_folder_item.setProperty('isSpecial', 'true')
+        add_folder_item.setProperty('action', 'new_folder')
+        add_folder_item.setProperty('parent_id', 'None')
+        self.list_control.addItem(add_folder_item)
+        self.list_data.append({'name': '<Add Folder>', 'isFolder': True, 'isSpecial': True, 'id': None, 'indent': 0, 'action': 'new_folder'})
+
+        add_list_item = xbmcgui.ListItem("<Add List>")
+        add_list_item.setProperty('isFolder', 'false')
+        add_list_item.setProperty('isSpecial', 'true')
+        add_list_item.setProperty('action', 'new_list')
+        add_list_item.setProperty('parent_id', 'None')
+        self.list_control.addItem(add_list_item)
+        self.list_data.append({'name': '<Add List>', 'isFolder': False, 'isSpecial': True, 'id': None, 'indent': 0, 'action': 'new_list'})
+        
         root_folders = [folder for folder in all_folders if folder['parent_id'] is None]
         root_lists = [list_item for list_item in all_lists if list_item['folder_id'] is None]
         combined_root = root_folders + root_lists
