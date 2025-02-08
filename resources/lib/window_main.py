@@ -284,9 +284,9 @@ class MainWindow(BaseWindow):
 
         # If Root is expanded, add its children (top-level folders and lists).
         if root_expanded:
-            root_folders = [folder for folder in all_folders if folder['parent_id'] is None]
             root_lists = [list_item for list_item in all_lists if list_item['folder_id'] is None]
-            combined_root = root_folders + root_lists
+            root_folders = [folder for folder in all_folders if folder['parent_id'] is None]
+            combined_root = root_lists + root_folders
             combined_root.sort(key=lambda x: (0, self.clean_name(x['name']).lower()) if 'parent_id' in x else (1, self.clean_name(x['name']).lower()))
             utils.log(f"Sorted combined root items: {[(self.clean_name(i['name']), i['name']) for i in combined_root]}", "DEBUG")
             for item in combined_root:
@@ -345,9 +345,9 @@ class MainWindow(BaseWindow):
             self.add_new_items(folder, indent + 1)
             
             # Then add subfolders and lists
-            subfolders = [f for f in all_folders if f['parent_id'] == folder['id']]
             folder_lists = [list_item for list_item in all_lists if list_item['folder_id'] == folder['id']]
-            combined = subfolders + folder_lists
+            subfolders = [f for f in all_folders if f['parent_id'] == folder['id']]
+            combined = folder_lists + subfolders
             combined.sort(key=lambda x: (0, self.clean_name(x['name']).lower()) if 'parent_id' in x else (1, self.clean_name(x['name']).lower()))
             utils.log(f"Sorted combined items for {folder['name']}: {[(self.clean_name(i['name']), i['name']) for i in combined]}", "DEBUG")
             for item in combined:
