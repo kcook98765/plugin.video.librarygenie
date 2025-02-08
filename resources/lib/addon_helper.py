@@ -18,6 +18,10 @@ def run_addon():
     utils.log("Running addon...", "DEBUG")
     _initialized = True
     try:
+        # Initialize args and action
+        args = ""
+        action = None
+        
         # Handle direct action from context menu
         if len(sys.argv) > 1 and sys.argv[1] == 'show_main_window':
             action = 'show_main_window'
