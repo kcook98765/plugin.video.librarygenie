@@ -41,7 +41,43 @@ class MainWindow(BaseWindow):
         self.populate_list()
         self.set_navigation()
 
-    # ... (other methods remain unchanged) ...
+    def setup_ui(self):
+        self.setGeometry(800, 600, 12, 10)
+        # Media info at top right
+        title = self.item_info.get('title', 'Unknown')
+        year = self.item_info.get('year', '')
+        title_year = f"{title} ({year})" if year else title
+        self.title_label = pyxbmct.Label(title_year, alignment=1)
+        self.placeControl(self.title_label, 1, 7, columnspan=3, pad_x=5)
+
+        # File browser list
+        self.list_control = pyxbmct.List(_imageWidth=25, _imageHeight=25,
+                                         _itemTextXOffset=5, _itemHeight=30, _space=2)
+        self.placeControl(self.list_control, 2, 0, rowspan=9, columnspan=10, pad_x=5, pad_y=5)
+        self.connect(self.list_control, self.on_list_item_click)
+
+        # Bottom status/legend bar with dynamic text
+        self.status_label = pyxbmct.Label("")
+        self.placeControl(self.status_label, 11, 0, columnspan=10, pad_x=5)
+        # The legend will be updated by update_status_text()
+
+        # Default folder icon path
+        self.folder_icon = "DefaultFolder.png"
+
+    def check_playable(self):
+        is_playable = self.item_info.get('is_playable', False)
+        if not is_playable:
+            try:
+                item_id = int(self.item_info.get('kodi_id', 0))
+                if item_id > 0:
+                    is_playable = True
+            except (ValueError, TypeError):
+                is_playable = False
+        return is_playable
+
+    def display_media_info(self):
+        # (Not used: Media info is handled in setup_ui)
+        pass
 
     def onAction(self, action):
         # When an action occurs, update our selection state
