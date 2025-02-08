@@ -330,9 +330,9 @@ class MainWindow(BaseWindow):
         arrow = "v" if expanded else ">"
         indent_str = "  " * indent
         if color:
-            folder_label = f"{indent_str}[B][COLOR {color}]{arrow} {folder['name']} ({folder_media_count})[/COLOR][/B]"
+            folder_label = f"{indent_str}  [B][COLOR {color}]{arrow} {folder['name']} ({folder_media_count})[/COLOR][/B]"
         else:
-            folder_label = f"{indent_str}{arrow} {folder['name']} ({folder_media_count})"
+            folder_label = f"{indent_str}  {arrow} {folder['name']} ({folder_media_count})"
         folder_item = xbmcgui.ListItem(folder_label)
         folder_item.setArt({'icon': self.folder_icon, 'thumb': self.folder_icon})
         folder_item.setProperty('isFolder', 'true')
