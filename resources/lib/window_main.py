@@ -87,7 +87,6 @@ class MainWindow(BaseWindow):
 
         is_folder = selected_item.getProperty('isFolder') == 'true'
         is_special = selected_item.getProperty('isSpecial') == 'true'
-        is_root = selected_item.getProperty('isRoot') == 'true'
         
         # Handle folder navigation (including Root)
         if is_folder and not is_special:
@@ -249,25 +248,26 @@ class MainWindow(BaseWindow):
         self.list_control.addItem(root_item)
         self.list_data.append({'name': 'Root', 'isFolder': True, 'isRoot': True, 'id': 0, 'expanded': root_expanded})
 
+        # Add special root items
+        add_folder_item = xbmcgui.ListItem("  <Add Folder>")
+        add_folder_item.setProperty('isFolder', 'true')
+        add_folder_item.setProperty('isSpecial', 'true')
+        add_folder_item.setProperty('action', 'new_folder')
+        add_folder_item.setProperty('parent_id', 'None')
+
+        add_list_item = xbmcgui.ListItem("<Add List>")
+        add_list_item.setProperty('isFolder', 'false')
+        add_list_item.setProperty('isSpecial', 'true')
+        add_list_item.setProperty('action', 'new_list')
+        add_list_item.setProperty('parent_id', 'None')
+
         # Only show contents if root is expanded
         if root_expanded:
-            # Add special root items
-            add_folder_item = xbmcgui.ListItem("  <Add Folder>")
-            add_folder_item.setProperty('isFolder', 'true')
-            add_folder_item.setProperty('isSpecial', 'true')
-            add_folder_item.setProperty('action', 'new_folder')
-            add_folder_item.setProperty('parent_id', 'None')
             self.list_control.addItem(add_folder_item)
             self.list_data.append({'name': '<Add Folder>', 'isFolder': True, 'isSpecial': True, 'id': None, 'indent': 0, 'action': 'new_folder'})
 
-            add_list_item = xbmcgui.ListItem("<Add List>")
-            add_list_item.setProperty('isFolder', 'false')
-            add_list_item.setProperty('isSpecial', 'true')
-            add_list_item.setProperty('action', 'new_list')
-            add_list_item.setProperty('parent_id', 'None')
-        self.list_control.addItem(add_list_item)
-        self.list_data.append({'name': '<Add List>', 'isFolder': False, 'isSpecial': True, 'id': None, 'indent': 0, 'action': 'new_list'})
-
+            self.list_control.addItem(add_list_item)
+            self.list_data.append({'name': '<Add List>', 'isFolder': False, 'isSpecial': True, 'id': None, 'indent': 0, 'action': 'new_list'})
         root_folders = [folder for folder in all_folders if folder['parent_id'] is None]
         root_lists = [list_item for list_item in all_lists if list_item['folder_id'] is None]
         combined_root = root_folders + root_lists
@@ -309,7 +309,6 @@ class MainWindow(BaseWindow):
     def add_folder_items(self, folder, indent, all_folders, all_lists, folder_color_status):
         expanded = self.folder_expanded_states.get(folder['id'], False)
         color = folder_color_status.get(folder['id'], 'red') if self.is_playable else None
-        prefix = "<" if expanded else ">"
         utils.log(f"Adding folder - Name: {folder['name']}, Expanded: {expanded}, Indent: {indent}, Color: {color}", "DEBUG")
 
         db_manager = DatabaseManager(Config().db_path)
@@ -327,8 +326,8 @@ class MainWindow(BaseWindow):
 
         if expanded:
             subfolders = [f for f in all_folders if f['parent_id'] == folder['id']]
-            lists = [l for l in all_lists if l['folder_id'] == folder['id']]
-            combined = subfolders + lists
+            folder_lists = [list_item for list_item in all_lists if list_item['folder_id'] == folder['id']]
+            combined = subfolders + folder_lists
             combined.sort(key=lambda x: self.clean_name(x['name']).lower())
             utils.log(f"Sorted combined items for {folder['name']}: {[(self.clean_name(i['name']), i['name']) for i in combined]}", "DEBUG")
 
