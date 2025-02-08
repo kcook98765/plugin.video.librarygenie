@@ -102,11 +102,8 @@ class DatabaseSyncManager:
 
                 stats_message = (
                     f"Sync Complete\n\n"
-                    f"Total Movies: {total_movies}\n"
-                    f"New Movies Added: {total_added}\n"
-                    f"Movies Updated: {total_updated}\n"
-                    f"Movies Removed: {total_removed}\n"
-                    f"Movies with IMDB IDs: {movies_with_imdb}\n"
+                    f"Movies Added/Removed: {total_added}/{total_removed}\n"
+                    f"Total Movies/With IMDB: {total_movies}/{movies_with_imdb}\n"
                     f"IMDB Coverage: {percentage:.1f}%"
                 )
                 xbmcgui.Dialog().ok("Library Sync Statistics", stats_message)
