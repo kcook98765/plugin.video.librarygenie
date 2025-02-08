@@ -452,13 +452,9 @@ class MainWindow(BaseWindow):
 
     def export_imdb_list(self, list_id):
         """Export list items to IMDB format"""
-        progress = xbmcgui.DialogProgress()
-        progress.create("Exporting IMDB List")
-
         from resources.lib.database_sync_manager import DatabaseSyncManager
         from resources.lib.query_manager import QueryManager
         
-        db = DatabaseManager(Config().db_path)
         query_manager = QueryManager(Config().db_path)
         sync_manager = DatabaseSyncManager(query_manager)
 
@@ -466,21 +462,7 @@ class MainWindow(BaseWindow):
         sync_manager.setup_tables()
         
         # Sync library movies
-        success = sync_manager.sync_library_movies()
-        progress.close()
-
-        if success:
-            # Get IMDB stats
-            stats = db.get_imdb_export_stats()
-            stats_message = (
-                f"Export Complete\n\n"
-                f"Total Movies: {stats['total']}\n"
-                f"Valid IMDB Numbers: {stats['valid_imdb']}\n"
-                f"Percentage: {stats['percentage']:.1f}%"
-            )
-            xbmcgui.Dialog().ok("IMDB Export Statistics", stats_message)
-        else:
-            xbmcgui.Dialog().ok("Error", "Failed to sync library movies")
+        sync_manager.sync_library_movies()
 
     def handle_paste_action(self, action, target_id):
         utils.log(f"Handling paste action. Action={action}, TargetID={target_id}", "DEBUG")
