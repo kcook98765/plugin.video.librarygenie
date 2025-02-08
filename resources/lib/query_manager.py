@@ -804,6 +804,94 @@ class QueryManager(Singleton):
             self._release_connection(conn_info)
 # Add this to the table_creations list in DatabaseManager.setup_database()
 
+    def setup_database(self):
+        """Setup all database tables"""
+        fields_str = ', '.join(Config.FIELDS)
+        
+        table_creations = [
+            """CREATE TABLE IF NOT EXISTS imdb_exports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                kodi_id INTEGER,
+                imdb_id TEXT,
+                title TEXT,
+                year INTEGER,
+                filename TEXT,
+                path TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )""",
+            """CREATE TABLE IF NOT EXISTS folders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE,
+                parent_id INTEGER,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )""",
+            """CREATE TABLE IF NOT EXISTS lists (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                folder_id INTEGER,
+                name TEXT UNIQUE,
+                query TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )""",
+            f"""CREATE TABLE IF NOT EXISTS media_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                {fields_str},
+                UNIQUE (kodi_id, play)
+            )""",
+            """CREATE TABLE IF NOT EXISTS list_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                list_id INTEGER,
+                media_item_id INTEGER,
+                flagged INTEGER DEFAULT 0,
+                FOREIGN KEY (list_id) REFERENCES lists (id),
+                FOREIGN KEY (media_item_id) REFERENCES media_items (id)
+            )""",
+            """CREATE TABLE IF NOT EXISTS whitelist (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                list_id INTEGER,
+                title TEXT,
+                FOREIGN KEY (list_id) REFERENCES lists (id)
+            )""",
+            """CREATE TABLE IF NOT EXISTS blacklist (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                list_id INTEGER,
+                title TEXT,
+                FOREIGN KEY (list_id) REFERENCES lists (id)
+            )""",
+            """CREATE TABLE IF NOT EXISTS genie_lists (
+                list_id INTEGER PRIMARY KEY,
+                description TEXT,
+                rpc TEXT,
+                FOREIGN KEY (list_id) REFERENCES lists (id)
+            )""",
+            """CREATE TABLE IF NOT EXISTS original_requests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                description TEXT,
+                response_json TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )""",
+            """CREATE TABLE IF NOT EXISTS parsed_movies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                request_id INTEGER,
+                title TEXT,
+                year INTEGER,
+                director TEXT,
+                FOREIGN KEY (request_id) REFERENCES original_requests (id)
+            )"""
+        ]
+
+        conn_info = self._get_connection()
+        try:
+            cursor = conn_info['connection'].cursor()
+            for create_sql in table_creations:
+                utils.log(f"Executing SQL: {create_sql}", "DEBUG")
+                cursor.execute(create_sql)
+            conn_info['connection'].commit()
+        finally:
+            self._release_connection(conn_info)
+        
+        # Setup movies reference table as well
+        self.setup_movies_reference_table()
+
     def setup_movies_reference_table(self):
         """Create movies_reference table and indexes"""
         conn_info = self._get_connection()
