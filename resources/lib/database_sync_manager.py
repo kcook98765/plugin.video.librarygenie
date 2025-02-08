@@ -18,7 +18,7 @@ class DatabaseSyncManager:
     def sync_library_movies(self) -> bool:
         """Sync movies from Kodi library to movies_reference table"""
         progress = xbmcgui.DialogProgress()
-        progress.create("Syncing Library")
+        progress.create("Syncing Library For Export")
 
         try:
             # Ensure table exists
@@ -48,7 +48,7 @@ class DatabaseSyncManager:
 
                 # Process each movie
                 for index, movie in enumerate(movies):
-                    progress.update(int((index / total_movies) * 100), f"Processing movie {index + 1} of {total_movies}")
+                    progress.update(int((index / total_movies) * 100), f"Reviewing Library Movies {index + 1} of {total_movies}")
 
                     file_path = movie.get('file', '')
                     file_name = file_path.split('/')[-1] if file_path else ''
