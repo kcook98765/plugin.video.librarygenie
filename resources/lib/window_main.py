@@ -8,6 +8,7 @@ import xbmcplugin
 from resources.lib.database_manager import DatabaseManager
 from resources.lib.config_manager import Config
 from resources.lib.window_list import ListWindow
+from resources.lib.window_list_browser import ListBrowserWindow
 from resources.lib import utils
 
 # Initialize window logging
