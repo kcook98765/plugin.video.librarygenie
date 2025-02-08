@@ -503,13 +503,19 @@ class QueryManager(Singleton):
     def update_folder_parent(self, folder_id: int, new_parent_id: Optional[int]) -> None:
         conn_info = self._get_connection()
         try:
+            # Log current state
+            cursor = conn_info['connection'].cursor()
+            cursor.execute("SELECT * FROM folders WHERE id = ?", (folder_id,))
+            before_state = cursor.fetchone()
+            utils.log(f"Folder before update - ID:{folder_id} Current state: {dict(before_state)}", "DEBUG")
+
             if new_parent_id is None:
                 query = """
                     UPDATE folders 
                     SET parent_id = NULL 
                     WHERE id = ?
                 """
-                cursor = conn_info['connection'].cursor()
+                utils.log(f"Executing SQL to set parent_id to NULL - Query: {query}, Params: ({folder_id},)", "DEBUG")
                 cursor.execute(query, (folder_id,))
             else:
                 query = """
@@ -517,9 +523,19 @@ class QueryManager(Singleton):
                     SET parent_id = ? 
                     WHERE id = ?
                 """
-                cursor = conn_info['connection'].cursor()
+                utils.log(f"Executing SQL to set parent_id - Query: {query}, Params: ({new_parent_id}, {folder_id})", "DEBUG")
                 cursor.execute(query, (new_parent_id, folder_id))
+            
             conn_info['connection'].commit()
+            
+            # Log after state
+            cursor.execute("SELECT * FROM folders WHERE id = ?", (folder_id,))
+            after_state = cursor.fetchone()
+            utils.log(f"Folder after update - ID:{folder_id} New state: {dict(after_state)}", "DEBUG")
+            
+            # Verify the change
+            if after_state['parent_id'] != (new_parent_id if new_parent_id is not None else None):
+                utils.log(f"WARNING: parent_id mismatch after update. Expected: {new_parent_id}, Got: {after_state['parent_id']}", "WARNING")
         finally:
             self._release_connection(conn_info)
 
