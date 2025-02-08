@@ -231,18 +231,18 @@ class MainWindow(BaseWindow):
             return
 
         if self.selected_item_id == 0:
-            self.status_label.setLabel("ROOT: Left = Collapse, Right = Expand, Click = Open Settings")
+            self.status_label.setLabel("ROOT: <Collapse/Expand> , Click = Open Settings")
         elif self.selected_is_folder:
             for item in self.list_data:
                 if item.get('isFolder') and item.get('id') == self.selected_item_id:
                     if item.get('expanded'):
-                        self.status_label.setLabel("FOLDER (Expanded): Left = Collapse, Right = Expand, Click = Options")
+                        self.status_label.setLabel("FOLDER: <Collapse/Expand> , Click = Options")
                     else:
-                        self.status_label.setLabel("FOLDER (Collapsed): Left = Collapse, Right = Expand, Click = Options")
+                        self.status_label.setLabel("FOLDER: <Collapse/Expand> , Click = Options")
                     return
-            self.status_label.setLabel("FOLDER: Left = Collapse, Right = Expand, Click = Options")
+            self.status_label.setLabel("FOLDER: <Collapse/Expand> , Click = Options")
         else:
-            self.status_label.setLabel("LIST: Left = Remove, Right = Add, Click = Options")
+            self.status_label.setLabel("LIST: <Collapse/Expand> , Click = Options")
 
     def populate_list(self, focus_folder_id=None):
         utils.log("Populating list...", "DEBUG")
