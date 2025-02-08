@@ -34,12 +34,36 @@ class DatabaseSyncManager:
 
             if 'result' in response and 'movies' in response['result']:
                 movies = response['result']['movies']
-                self.db_manager.sync_movies(movies)
+                
+                # First ensure table exists
+                self.query_manager.setup_movies_reference_table()
+                
+                # Clear existing library entries
+                self.query_manager.execute_query("DELETE FROM movies_reference WHERE source = 'Lib'")
+                
+                # Process each movie
+                for movie in movies:
+                    file_path = movie.get('file', '')
+                    file_name = file_path.split('/')[-1] if file_path else ''
+                    path = '/'.join(file_path.split('/')[:-1]) if file_path else ''
+                    
+                    # Get IMDB number either directly or from uniqueid
+                    imdb_id = movie.get('imdbnumber') or movie.get('uniqueid', {}).get('imdb')
+                    tmdb_id = movie.get('uniqueid', {}).get('tmdb')
+                    tvdb_id = movie.get('uniqueid', {}).get('tvdb')
+                    
+                    self.query_manager.execute_query(
+                        """INSERT INTO movies_reference 
+                           (file_path, file_name, movieid, imdbnumber, tmdbnumber, tvdbnumber, source)
+                           VALUES (?, ?, ?, ?, ?, ?, 'Lib')""",
+                        (path, file_name, movie.get('movieid'), imdb_id, tmdb_id, tvdb_id)
+                    )
+                
                 progress.close()
                 
                 # Calculate statistics
                 total_movies = len(movies)
-                movies_with_imdb = sum(1 for movie in movies if movie.get('imdbnumber'))
+                movies_with_imdb = sum(1 for movie in movies if movie.get('imdbnumber') or movie.get('uniqueid', {}).get('imdb'))
                 percentage = (movies_with_imdb / total_movies * 100) if total_movies > 0 else 0
                 
                 stats_message = (
