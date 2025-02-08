@@ -284,6 +284,24 @@ class MainWindow(BaseWindow):
 
         # If Root is expanded, add its children (top-level folders and lists).
         if root_expanded:
+            # First add the new items options at root level
+            new_list_item = xbmcgui.ListItem("  <New List>")
+            new_list_item.setProperty('isFolder', 'false')
+            new_list_item.setProperty('isSpecial', 'true')
+            new_list_item.setProperty('action', 'new_list')
+            new_list_item.setProperty('parent_id', 'None')
+            self.list_control.addItem(new_list_item)
+            self.list_data.append({'name': '<New List>', 'isFolder': False, 'isSpecial': True, 'id': None, 'indent': 0, 'action': 'new_list'})
+
+            new_folder_item = xbmcgui.ListItem("  <New Folder>")
+            new_folder_item.setProperty('isFolder', 'true')
+            new_folder_item.setProperty('isSpecial', 'true')
+            new_folder_item.setProperty('action', 'new_folder')
+            new_folder_item.setProperty('parent_id', 'None')
+            self.list_control.addItem(new_folder_item)
+            self.list_data.append({'name': '<New Folder>', 'isFolder': True, 'isSpecial': True, 'id': None, 'indent': 0, 'action': 'new_folder'})
+
+            # Then add regular items
             root_lists = [list_item for list_item in all_lists if list_item['folder_id'] is None]
             root_folders = [folder for folder in all_folders if folder['parent_id'] is None]
             combined_root = root_lists + root_folders
@@ -622,6 +640,7 @@ class MainWindow(BaseWindow):
     def paste_folder_here(self, folder_id, target_folder_id):
         db_manager = DatabaseManager(Config().db_path)
         try:
+            # Check for circular reference
             current_parent = target_folder_id
             while current_parent is not None:
                 if current_parent == folder_id:
@@ -631,6 +650,19 @@ class MainWindow(BaseWindow):
                 if folder is None:
                     break
                 current_parent = folder.get('parent_id', None)
+            
+            # Get depth of the moving subtree
+            subtree_depth = db_manager._get_subtree_depth(folder_id)
+            
+            # Get target location depth
+            target_depth = 0 if target_folder_id is None else db_manager.get_folder_depth(target_folder_id)
+            
+            # Calculate total depth after move
+            total_depth = target_depth + subtree_depth + 1
+            
+            if total_depth > Config().max_folder_depth:
+                raise ValueError(f"Moving folder would exceed maximum depth of {Config().max_folder_depth}")
+                
             db_manager.update_folder_parent(folder_id, target_folder_id)
             xbmcgui.Dialog().notification("LibraryGenie", "Folder moved to new location", xbmcgui.NOTIFICATION_INFO, 5000)
             self.moving_folder_id = None
