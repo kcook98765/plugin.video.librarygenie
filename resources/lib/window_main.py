@@ -59,7 +59,7 @@ class MainWindow(BaseWindow):
         # Bottom status/legend bar with dynamic text
         self.status_label = pyxbmct.Label("")
         self.placeControl(self.status_label, 11, 0, columnspan=10, pad_x=5)
-        # The legend will be updated in populate_list() and onAction()
+        # The legend will be updated by update_status_text()
 
         # Default folder icon path
         self.folder_icon = "DefaultFolder.png"
@@ -80,7 +80,7 @@ class MainWindow(BaseWindow):
         pass
 
     def onAction(self, action):
-        # **NEW CODE**: Capture the currently selected item’s ID and type before any changes.
+        # Capture the currently selected item’s ID and type before any changes.
         current_item = self.list_control.getSelectedItem()
         if current_item:
             if current_item.getProperty('isRoot') == 'true':
@@ -152,12 +152,6 @@ class MainWindow(BaseWindow):
         super().onAction(action)
 
     def on_list_item_click(self):
-        """
-        When an item is clicked:
-          - If the item is Root, open the add‑on settings.
-          - If it has an explicit action property (for subfolders or lists), handle that action.
-          - Otherwise, for folder items, display an options dialog.
-        """
         selected_item = self.list_control.getSelectedItem()
         if not selected_item:
             return
@@ -180,17 +174,15 @@ class MainWindow(BaseWindow):
     def update_status_text(self):
         """
         Dynamically update the legend (status label) at the bottom of the window.
-        If no item is selected, default to the first item.
+        Instead of relying on getSelectedItem(), we use getSelectedPosition() to fetch the currently focused item.
         """
-        selected_item = self.list_control.getSelectedItem()
-        if not selected_item:
-            if self.list_control.size() > 0:
-                self.list_control.selectItem(0)
-                selected_item = self.list_control.getListItem(0)
-            else:
-                self.status_label.setLabel("No items available")
-                return
-
+        pos = self.list_control.getSelectedPosition()
+        if pos is None or pos < 0 or pos >= self.list_control.size():
+            self.status_label.setLabel("No items available")
+            return
+        selected_item = self.list_control.getListItem(pos)
+        # Debug logging: Uncomment the next line to log the properties of the selected item.
+        # utils.log(f"update_status_text: pos={pos}, isRoot={selected_item.getProperty('isRoot')}, isFolder={selected_item.getProperty('isFolder')}", "DEBUG")
         if selected_item.getProperty('isRoot') == 'true':
             self.status_label.setLabel("ROOT: Left = Collapse, Right = Expand, Click = Open Settings")
         elif selected_item.getProperty('isFolder') == 'true':
