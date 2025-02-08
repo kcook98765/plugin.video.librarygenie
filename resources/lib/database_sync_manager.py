@@ -61,16 +61,22 @@ class DatabaseSyncManager:
                 
                 progress.close()
                 
-                # Calculate statistics
+                # Calculate detailed statistics
                 total_movies = len(movies)
+                total_added = len(processed_movie_ids - existing_movie_ids)
+                total_updated = len(processed_movie_ids & existing_movie_ids)
+                total_removed = len(existing_movie_ids - processed_movie_ids)
                 movies_with_imdb = sum(1 for movie in movies if movie.get('imdbnumber') or movie.get('uniqueid', {}).get('imdb'))
                 percentage = (movies_with_imdb / total_movies * 100) if total_movies > 0 else 0
                 
                 stats_message = (
                     f"Sync Complete\n\n"
                     f"Total Movies: {total_movies}\n"
+                    f"New Movies Added: {total_added}\n"
+                    f"Movies Updated: {total_updated}\n"
+                    f"Movies Removed: {total_removed}\n"
                     f"Movies with IMDB IDs: {movies_with_imdb}\n"
-                    f"Percentage: {percentage:.1f}%"
+                    f"IMDB Coverage: {percentage:.1f}%"
                 )
                 xbmcgui.Dialog().ok("Library Sync Statistics", stats_message)
                 return True
