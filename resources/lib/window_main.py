@@ -603,65 +603,15 @@ class MainWindow(BaseWindow):
 
     def upload_imdb_list(self):
         """Upload IMDB numbers to configured API endpoint"""
-        import requests
-
-        upload_url = xbmcaddon.Addon().getSetting('imdb_upload_url')
-        api_key = xbmcaddon.Addon().getSetting('imdb_upload_key')
-
-        if not upload_url or not api_key:
-            xbmcgui.Dialog().ok("Error", "Please configure IMDB Upload API URL and Key in settings")
-            return
-
-        db = DatabaseManager(Config().db_path)
-        imdb_numbers = db.get_valid_imdb_numbers()
-
-        if not imdb_numbers:
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "No valid IMDB numbers found to upload",
-                xbmcgui.NOTIFICATION_INFO,
-                5000
-            )
-            return
-
-        progress = xbmcgui.DialogProgress()
-        progress.create("Uploading IMDB List")
-
-        try:
-            response = requests.post(
-                upload_url,
-                json={'imdb_numbers': imdb_numbers},
-                headers={'Authorization': f'Bearer {api_key}'},
-                timeout=30
-            )
-            response.raise_for_status()
-
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                f"Successfully uploaded {len(imdb_numbers)} IMDB numbers",
-                xbmcgui.NOTIFICATION_INFO,
-                5000
-            )
-
-        except Exception as e:
-            utils.log(f"Error uploading IMDB list: {str(e)}", "ERROR")
-            xbmcgui.Dialog().ok("Error", f"Failed to upload IMDB list: {str(e)}")
-        finally:
-            progress.close()
+        from resources.lib.api_client import ApiClient
+        api_client = ApiClient()
+        api_client.upload_imdb_list()
 
     def export_imdb_list(self, list_id):
         """Export list items to IMDB format"""
-        from resources.lib.database_sync_manager import DatabaseSyncManager
-        from resources.lib.query_manager import QueryManager
-
-        query_manager = QueryManager(Config().db_path)
-        sync_manager = DatabaseSyncManager(query_manager)
-
-        # Ensure tables exist
-        sync_manager.setup_tables()
-
-        # Sync library movies
-        sync_manager.sync_library_movies()
+        from resources.lib.api_client import ApiClient
+        api_client = ApiClient()
+        api_client.export_imdb_list(list_id)
 
     def handle_paste_action(self, action, target_id):
         utils.log(f"Handling paste action. Action={action}, TargetID={target_id}", "DEBUG")
