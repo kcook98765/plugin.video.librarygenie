@@ -55,7 +55,7 @@ class MainWindow(BaseWindow):
             self.poster_image.setImage(poster_path)
             # Place poster on left side with proper aspect ratio
             self.placeControl(self.poster_image, 1, 0, rowspan=4, columnspan=2)
-            self.poster_image.setImage(poster_path, aspectRatio=2)  # 2 = keep aspect ratio
+            self.poster_image.setImage(poster_path, aspect_ratio=2)  # 2 = keep aspect ratio
         
         self.title_label = pyxbmct.Label(title_year, alignment=0)
         self.placeControl(self.title_label, 1, 2, columnspan=4, pad_x=5)
