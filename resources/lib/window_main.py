@@ -75,17 +75,8 @@ class MainWindow(BaseWindow):
         self.placeControl(self.list_control, 3, 0, rowspan=8, columnspan=10, pad_x=5, pad_y=5)
         self.connect(self.list_control, self.on_list_item_click)
 
-        # Legend text for colors and counts
-        legend_text = "Red = Not in list/folder, Green = In list/folder"
-        if self.is_playable:
-            # Calculate total from list_data instead
-            total_count = sum(int(item.getLabel().split('(')[-1].split(')')[0]) 
-                            for i in range(self.list_control.size())
-                            for item in [self.list_control.getListItem(i)]
-                            if not item.getProperty('isSpecial') 
-                            and not item.getProperty('isFolder') == 'true')
-            legend_text += f", ({total_count}) = count of movies in list/folder"
-        self.legend_label = pyxbmct.Label(legend_text)
+        # Create legend label (count will be updated later)
+        self.legend_label = pyxbmct.Label("")
         self.placeControl(self.legend_label, 11, 0, columnspan=10, pad_x=5)
 
         # Status/tips bar with dynamic text
@@ -406,6 +397,18 @@ class MainWindow(BaseWindow):
         self.update_status_text()  # update the legend
 
         self.list_control.setEnabled(True)
+        
+        # Update legend text with count
+        legend_text = "Red = Not in list/folder, Green = In list/folder"
+        if self.is_playable:
+            total_count = sum(int(item.getLabel().split('(')[-1].split(')')[0]) 
+                            for i in range(self.list_control.size())
+                            for item in [self.list_control.getListItem(i)]
+                            if not item.getProperty('isSpecial') == 'true'
+                            and not item.getProperty('isFolder') == 'true')
+            legend_text += f", ({total_count}) = total count of movies"
+        self.legend_label.setLabel(legend_text)
+        
         self.reselect_previous_item(focus_folder_id)
 
     def clean_name(self, name):
