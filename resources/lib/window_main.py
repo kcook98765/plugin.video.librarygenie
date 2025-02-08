@@ -80,6 +80,11 @@ class MainWindow(BaseWindow):
         self.placeControl(self.status_label, 11, 0, columnspan=10, pad_x=5)
         # The legend will be updated by update_status_text()
 
+        # Collapse All button at bottom
+        self.collapse_all_button = pyxbmct.Button("Collapse All")
+        self.placeControl(self.collapse_all_button, 12, 6, columnspan=2, pad_x=5, pad_y=5)
+        self.connect(self.collapse_all_button, self.collapse_all_folders)
+
         # Exit button at bottom right
         self.exit_button = pyxbmct.Button("Exit")
         self.placeControl(self.exit_button, 12, 8, columnspan=2, pad_x=5, pad_y=5)
@@ -882,19 +887,28 @@ class MainWindow(BaseWindow):
                 self.list_control.controlLeft(self.list_control)
                 self.list_control.controlRight(self.list_control)
                 
-                # Connect list with exit button
-                self.list_control.controlDown(self.exit_button)
-                self.exit_button.controlUp(self.list_control)
+                # Connect list with collapse all button
+                self.list_control.controlDown(self.collapse_all_button)
+                self.collapse_all_button.controlUp(self.list_control)
                 
-                # Exit button navigation
-                self.exit_button.controlDown(self.exit_button)
-                self.exit_button.controlLeft(self.exit_button)
+                # Connect collapse all with exit button
+                self.collapse_all_button.controlRight(self.exit_button)
+                self.collapse_all_button.controlLeft(self.collapse_all_button)
+                self.exit_button.controlLeft(self.collapse_all_button)
                 self.exit_button.controlRight(self.exit_button)
+                
+                # Exit button up navigation
+                self.exit_button.controlUp(self.list_control)
                 
                 self.list_control.setEnabled(True)
                 self.setFocus(self.list_control)
         except Exception as e:
             utils.log(f"Error setting navigation: {str(e)}", "ERROR")
+            
+    def collapse_all_folders(self):
+        """Collapse all expanded folders"""
+        self.folder_expanded_states = {0: False}  # Reset all states, keep root collapsed
+        self.populate_list()
 
     def get_parent_folder_id(self, folder_id):
         db_manager = DatabaseManager(Config().db_path)
