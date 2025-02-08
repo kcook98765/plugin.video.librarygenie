@@ -261,9 +261,9 @@ class MainWindow(BaseWindow):
             self.list_data.append({'name': '<Add Folder>', 'isFolder': True, 'isSpecial': True, 'id': None, 'indent': 0, 'action': 'new_folder'})
 
             add_list_item = xbmcgui.ListItem("<Add List>")
-        add_list_item.setProperty('isFolder', 'false')
-        add_list_item.setProperty('isSpecial', 'true')
-        add_list_item.setProperty('action', 'new_list')
+            add_list_item.setProperty('isFolder', 'false')
+            add_list_item.setProperty('isSpecial', 'true')
+            add_list_item.setProperty('action', 'new_list')
         add_list_item.setProperty('parent_id', 'None')
         self.list_control.addItem(add_list_item)
         self.list_data.append({'name': '<Add List>', 'isFolder': False, 'isSpecial': True, 'id': None, 'indent': 0, 'action': 'new_list'})
