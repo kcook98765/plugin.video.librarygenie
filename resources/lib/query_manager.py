@@ -811,7 +811,7 @@ class QueryManager(Singleton):
             cursor = conn_info['connection'].cursor()
             
             # Create table
-            cursor.execute("""
+            create_table_sql = """
                 CREATE TABLE IF NOT EXISTS movies_reference (
                     id          INTEGER PRIMARY KEY AUTOINCREMENT,
                     file_path   TEXT,
@@ -823,20 +823,26 @@ class QueryManager(Singleton):
                     addon_file  TEXT,
                     source      TEXT NOT NULL CHECK(source IN ('Lib','File'))
                 )
-            """)
+            """
+            utils.log(f"Executing SQL: {create_table_sql}", "DEBUG")
+            cursor.execute(create_table_sql)
             
             # Create indexes
-            cursor.execute("""
+            create_lib_index_sql = """
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_movies_lib_unique
                 ON movies_reference(file_path, file_name)
                 WHERE source = 'Lib'
-            """)
+            """
+            utils.log(f"Executing SQL: {create_lib_index_sql}", "DEBUG")
+            cursor.execute(create_lib_index_sql)
             
-            cursor.execute("""
+            create_file_index_sql = """
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_movies_file_unique
                 ON movies_reference(addon_file)
                 WHERE source = 'File'
-            """)
+            """
+            utils.log(f"Executing SQL: {create_file_index_sql}", "DEBUG")
+            cursor.execute(create_file_index_sql)
             
             conn_info['connection'].commit()
         finally:
