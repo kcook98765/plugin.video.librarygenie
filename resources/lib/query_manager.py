@@ -220,22 +220,14 @@ class QueryManager(Singleton):
 
     # Predefined queries
     def get_folders(self, parent_id: Optional[int] = None) -> List[Dict[str, Any]]:
-        if parent_id is None:
-            query = """
-                SELECT id, name, parent_id
-                FROM folders
-                WHERE parent_id IS NULL
-                ORDER BY name COLLATE NOCASE
-            """
-            return self.execute_query(query)
-        else:
-            query = """
-                SELECT id, name, parent_id
-                FROM folders
-                WHERE parent_id = ?
-                ORDER BY name COLLATE NOCASE
-            """
-            return self.execute_query(query, (parent_id,))
+        query = """
+            SELECT id, name, parent_id
+            FROM folders
+            WHERE parent_id IS {}
+            ORDER BY name COLLATE NOCASE
+        """.format('NULL' if parent_id is None else '?')
+        
+        return self.execute_query(query, (parent_id,) if parent_id is not None else ())
 
     def get_lists(self, folder_id: Optional[int] = None) -> List[Dict[str, Any]]:
         query = """
