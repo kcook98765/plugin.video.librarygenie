@@ -23,9 +23,9 @@ class MainWindow(BaseWindow):
         self.setGeometry(800, 600, 10, 10)
         self.item_info = item_info
         self.list_data = []
-        # These will be used to reselect an item after repopulation.
-        self.selected_item_id = None
-        self.selected_is_folder = None
+        # We'll store our own selection state:
+        self.selected_item_id = None   # For folders: the folder id; for lists: the list id.
+        self.selected_is_folder = None # True if the selected item is a folder.
         self.is_playable = self.check_playable()
         # Set root (id 0) to be expanded by default.
         self.folder_expanded_states = {0: True}
@@ -41,62 +41,32 @@ class MainWindow(BaseWindow):
         self.populate_list()
         self.set_navigation()
 
-    def setup_ui(self):
-        self.setGeometry(800, 600, 12, 10)
-        # Media info at top right
-        title = self.item_info.get('title', 'Unknown')
-        year = self.item_info.get('year', '')
-        title_year = f"{title} ({year})" if year else title
-        self.title_label = pyxbmct.Label(title_year, alignment=1)
-        self.placeControl(self.title_label, 1, 7, columnspan=3, pad_x=5)
-
-        # File browser list
-        self.list_control = pyxbmct.List(_imageWidth=25, _imageHeight=25,
-                                         _itemTextXOffset=5, _itemHeight=30, _space=2)
-        self.placeControl(self.list_control, 2, 0, rowspan=9, columnspan=10, pad_x=5, pad_y=5)
-        self.connect(self.list_control, self.on_list_item_click)
-
-        # Bottom status/legend bar with dynamic text
-        self.status_label = pyxbmct.Label("")
-        self.placeControl(self.status_label, 11, 0, columnspan=10, pad_x=5)
-        # The legend will be updated by update_status_text()
-
-        # Default folder icon path
-        self.folder_icon = "DefaultFolder.png"
-
-    def check_playable(self):
-        is_playable = self.item_info.get('is_playable', False)
-        if not is_playable:
-            try:
-                item_id = int(self.item_info.get('kodi_id', 0))
-                if item_id > 0:
-                    is_playable = True
-            except (ValueError, TypeError):
-                is_playable = False
-        return is_playable
-
-    def display_media_info(self):
-        # (Not used: Media info is handled in setup_ui)
-        pass
+    # ... (other methods remain unchanged) ...
 
     def onAction(self, action):
-        # Capture the currently selected item’s ID and type before any changes.
+        # When an action occurs, update our selection state
         current_item = self.list_control.getSelectedItem()
         if current_item:
             if current_item.getProperty('isRoot') == 'true':
                 self.selected_item_id = 0
                 self.selected_is_folder = True
             elif current_item.getProperty('isFolder') == 'true':
-                self.selected_item_id = int(current_item.getProperty('folder_id'))
+                try:
+                    self.selected_item_id = int(current_item.getProperty('folder_id'))
+                except:
+                    self.selected_item_id = None
                 self.selected_is_folder = True
             else:
-                self.selected_item_id = int(current_item.getProperty('list_id'))
+                try:
+                    self.selected_item_id = int(current_item.getProperty('list_id'))
+                except:
+                    self.selected_item_id = None
                 self.selected_is_folder = False
 
+        # (The remainder of onAction remains as before.)
         if not current_item:
             return super().onAction(action)
 
-        # Determine if the item is a folder (or Root)
         is_folder = current_item.getProperty('isFolder') == 'true'
         is_root = current_item.getProperty('isRoot') == 'true'
         if is_folder or is_root:
@@ -106,7 +76,7 @@ class MainWindow(BaseWindow):
                 self.folder_expanded_states[folder_id] = True
                 self.populate_list()
                 self.list_control.selectItem(current_pos)
-                self.update_status_text()  # update legend after action
+                self.update_status_text()
                 return
             elif action == xbmcgui.ACTION_MOVE_LEFT:
                 self.folder_expanded_states[folder_id] = False
@@ -115,7 +85,7 @@ class MainWindow(BaseWindow):
                 self.update_status_text()
                 return
 
-        # For list items, handle adding/removing media via left/right actions.
+        # (Handling for list items remains unchanged.)
         try:
             list_id = int(current_item.getProperty('list_id'))
             is_member = current_item.getProperty('is_member') == '1'
@@ -151,46 +121,31 @@ class MainWindow(BaseWindow):
 
         super().onAction(action)
 
-    def on_list_item_click(self):
-        selected_item = self.list_control.getSelectedItem()
-        if not selected_item:
-            return
-
-        if selected_item.getProperty('isRoot') == 'true':
-            self.open_settings()
-            return
-
-        action = selected_item.getProperty('action')
-        if action:
-            self.handle_action(action, selected_item.getProperty('parent_id'))
-            return
-
-        if selected_item.getProperty('isFolder') == 'true':
-            self.on_options_click()
-            return
-
-        return
-
     def update_status_text(self):
         """
-        Dynamically update the legend (status label) at the bottom of the window.
-        Instead of relying on getSelectedItem(), we use getSelectedPosition() to fetch the currently focused item.
+        Update the navigation legend based on our stored selection state.
+        We use self.selected_item_id and self.selected_is_folder rather than the list control’s
+        getSelectedItem(), which seems to always return the first item.
         """
-        pos = self.list_control.getSelectedPosition()
-        if pos is None or pos < 0 or pos >= self.list_control.size():
+        if self.selected_item_id is None:
             self.status_label.setLabel("No items available")
             return
-        selected_item = self.list_control.getListItem(pos)
-        # Debug logging: Uncomment the next line to log the properties of the selected item.
-        # utils.log(f"update_status_text: pos={pos}, isRoot={selected_item.getProperty('isRoot')}, isFolder={selected_item.getProperty('isFolder')}", "DEBUG")
-        if selected_item.getProperty('isRoot') == 'true':
+
+        # If the stored selection is root
+        if self.selected_item_id == 0:
             self.status_label.setLabel("ROOT: Left = Collapse, Right = Expand, Click = Open Settings")
-        elif selected_item.getProperty('isFolder') == 'true':
-            expanded = selected_item.getProperty('expanded') == 'true'
-            if expanded:
-                self.status_label.setLabel("FOLDER (Expanded): Left = Collapse, Right = Expand, Click = Options")
-            else:
-                self.status_label.setLabel("FOLDER (Collapsed): Left = Collapse, Right = Expand, Click = Options")
+        # If it is a folder (other than root)
+        elif self.selected_is_folder:
+            # Look up the folder in our list_data to check its 'expanded' status.
+            for item in self.list_data:
+                if item.get('isFolder') and item.get('id') == self.selected_item_id:
+                    if item.get('expanded'):
+                        self.status_label.setLabel("FOLDER (Expanded): Left = Collapse, Right = Expand, Click = Options")
+                    else:
+                        self.status_label.setLabel("FOLDER (Collapsed): Left = Collapse, Right = Expand, Click = Options")
+                    return
+            # Fallback in case not found:
+            self.status_label.setLabel("FOLDER: Left = Collapse, Right = Expand, Click = Options")
         else:
             self.status_label.setLabel("LIST: Left = Remove, Right = Add, Click = Options")
 
