@@ -47,8 +47,17 @@ class MainWindow(BaseWindow):
         title = self.item_info.get('title', 'Unknown')
         year = self.item_info.get('year', '')
         title_year = f"{title} ({year})" if year else title
+        
+        # Add poster image
+        self.poster_image = pyxbmct.Image('')
+        poster_path = self.item_info.get('poster', self.item_info.get('art', {}).get('poster', ''))
+        if poster_path:
+            self.poster_image.setImage(poster_path)
+            # Place poster with reduced size (25% of original dimensions)
+            self.placeControl(self.poster_image, 1, 7, rowspan=3, columnspan=3, pad_x=5, pad_y=5)
+        
         self.title_label = pyxbmct.Label(title_year, alignment=1)
-        self.placeControl(self.title_label, 1, 7, columnspan=3, pad_x=5)
+        self.placeControl(self.title_label, 4, 7, columnspan=3, pad_x=5)
 
         # File browser list
         self.list_control = pyxbmct.List(_imageWidth=25, _imageHeight=25,
