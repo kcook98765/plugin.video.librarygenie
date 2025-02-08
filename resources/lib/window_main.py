@@ -41,10 +41,28 @@ class MainWindow(BaseWindow):
         self.set_navigation()
 
     def setup_ui(self):
-        self.placeControl(self.media_label, 0, 0, columnspan=10, pad_x=10, pad_y=10)
-        self.placeControl(self.list_control, 1, 0, rowspan=9, columnspan=10, pad_x=10, pad_y=10)
+        # Create image control
+        art = self.item_info.get('art', {})
+        thumbnail = art.get('thumb') or art.get('poster') or art.get('banner') or art.get('fanart')
+        if thumbnail:
+            self.image_control = pyxbmct.Image(thumbnail)
+            self.placeControl(self.image_control, 0, 0, rowspan=3, columnspan=3, pad_x=10, pad_y=10)
+        
+        # Title and year
+        title = self.item_info.get('title', 'Unknown')
+        year = self.item_info.get('year', '')
+        title_year = f"{title} ({year})" if year else title
+        self.title_label = pyxbmct.Label(title_year, alignment=2)  # Alignment 2 = center
+        self.placeControl(self.title_label, 0, 3, columnspan=7, pad_x=10, pad_y=10)
+
+        # Instructions
+        self.instruction_label = pyxbmct.Label("Click list to toggle membership - Green = In List, Red = Not in List")
+        self.placeControl(self.instruction_label, 1, 3, columnspan=7, pad_x=10, pad_y=5)
+
+        # Lists container
+        self.list_control = pyxbmct.List()
+        self.placeControl(self.list_control, 3, 0, rowspan=7, columnspan=10, pad_x=10, pad_y=10)
         self.connect(self.list_control, self.on_list_item_click)
-        self.display_media_info()
 
     def check_playable(self):
         is_playable = self.item_info.get('is_playable', False)
@@ -58,16 +76,8 @@ class MainWindow(BaseWindow):
         return is_playable
 
     def display_media_info(self):
-        if self.is_playable:
-            title = self.item_info.get('title', 'Unknown')
-            art = self.item_info.get('art', {})
-            thumbnail = art.get('thumb') or art.get('poster') or art.get('banner') or art.get('fanart')
-            if thumbnail:
-                image_control = pyxbmct.Image(thumbnail)
-                image_control.setHeight(int(image_control.getHeight() * 0.25))
-                image_control.setWidth(int(image_control.getWidth() * 0.25))
-                self.placeControl(image_control, 0, 0, rowspan=1, columnspan=1, pad_x=10, pad_y=10)
-            self.media_label.setLabel(f"Media: {title}")
+        # Media info is now handled in setup_ui
+        pass
 
     def onAction(self, action):
         if action == xbmcgui.ACTION_MOVE_RIGHT:
