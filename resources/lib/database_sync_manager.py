@@ -48,7 +48,8 @@ class DatabaseSyncManager:
 
                 # Process each movie
                 for index, movie in enumerate(movies):
-                    progress.update(int((index / total_movies) * 100), f"Reviewing Library Movies {index + 1} of {total_movies}")
+                    if (index + 1) % 100 == 0 or index + 1 == total_movies:
+                        progress.update(int((index / total_movies) * 100), f"Reviewing Library Movies {index + 1} of {total_movies}")
 
                     file_path = movie.get('file', '')
                     file_name = file_path.split('/')[-1] if file_path else ''
