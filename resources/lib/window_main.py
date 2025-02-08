@@ -26,9 +26,8 @@ class MainWindow(BaseWindow):
         self.selected_item_id = None
         self.selected_is_folder = None
         self.is_playable = self.check_playable()
-        # The faux directory tree uses a folder_expanded_states dict.
-        # Root (id 0) starts out collapsed.
-        self.folder_expanded_states = {0: False}
+        # Set root (id 0) to be expanded by default.
+        self.folder_expanded_states = {0: True}
         self.moving_list_id = None
         self.moving_list_name = None
         self.moving_folder_id = None
@@ -51,11 +50,12 @@ class MainWindow(BaseWindow):
         self.placeControl(self.title_label, 1, 7, columnspan=3, pad_x=5)
 
         # File browser list
-        self.list_control = pyxbmct.List(_imageWidth=25, _imageHeight=25, _itemTextXOffset=5, _itemHeight=30, _space=2)
+        self.list_control = pyxbmct.List(_imageWidth=25, _imageHeight=25,
+                                         _itemTextXOffset=5, _itemHeight=30, _space=2)
         self.placeControl(self.list_control, 2, 0, rowspan=9, columnspan=10, pad_x=5, pad_y=5)
         self.connect(self.list_control, self.on_list_item_click)
 
-        # Bottom status bar with dynamic text
+        # Bottom status/legend bar with dynamic text
         self.status_label = pyxbmct.Label("")
         self.placeControl(self.status_label, 11, 0, columnspan=10, pad_x=5)
         self.update_status_text()
@@ -114,7 +114,8 @@ class MainWindow(BaseWindow):
                 item_id = db_manager.get_item_id_by_title_and_list(list_id, self.item_info['title'])
                 if item_id:
                     db_manager.delete_data('list_items', f'id={item_id}')
-                    xbmcgui.Dialog().notification("LibraryGenie", "Media removed from list", xbmcgui.NOTIFICATION_INFO, 2000)
+                    xbmcgui.Dialog().notification("LibraryGenie", "Media removed from list",
+                                                   xbmcgui.NOTIFICATION_INFO, 2000)
                     current_position = self.list_control.getSelectedPosition()
                     self.populate_list()
                     self.list_control.selectItem(current_position)
@@ -127,7 +128,8 @@ class MainWindow(BaseWindow):
                 if 'cast' in data and isinstance(data['cast'], list):
                     data['cast'] = json.dumps(data['cast'])
                 db_manager.insert_data('list_items', data)
-                xbmcgui.Dialog().notification("LibraryGenie", "Media added to list", xbmcgui.NOTIFICATION_INFO, 2000)
+                xbmcgui.Dialog().notification("LibraryGenie", "Media added to list",
+                                               xbmcgui.NOTIFICATION_INFO, 2000)
                 current_position = self.list_control.getSelectedPosition()
                 self.populate_list()
                 self.list_control.selectItem(current_position)
@@ -140,12 +142,17 @@ class MainWindow(BaseWindow):
     def on_list_item_click(self):
         """
         When an item is clicked:
-          - If it has an explicit action property, handle that action.
-          - For folder items, display an options dialog.
-          - For list items, no click action is performed.
+          - If the item is Root, open the add‑on settings.
+          - If it has an explicit action property (for subfolders or lists), handle that action.
+          - Otherwise, for folder items, display an options dialog.
         """
         selected_item = self.list_control.getSelectedItem()
         if not selected_item:
+            return
+
+        # Special behavior for Root: clicking opens settings.
+        if selected_item.getProperty('isRoot') == 'true':
+            self.open_settings()
             return
 
         action = selected_item.getProperty('action')
@@ -160,20 +167,26 @@ class MainWindow(BaseWindow):
         return
 
     def update_status_text(self):
+        """
+        Dynamically update the legend (status label) at the bottom of the window to explain
+        the actions for the currently highlighted item.
+        """
         selected_item = self.list_control.getSelectedItem()
         if not selected_item:
+            self.status_label.setLabel("No item selected")
             return
 
         if selected_item.getProperty('isRoot') == 'true':
-            self.status_label.setLabel("Press Right to expand Root")
+            # For the Root item, click brings up settings.
+            self.status_label.setLabel("ROOT: Left = Collapse, Right = Expand, Click = Open Settings")
         elif selected_item.getProperty('isFolder') == 'true':
             expanded = selected_item.getProperty('expanded') == 'true'
             if expanded:
-                self.status_label.setLabel("Press Left to collapse folder, or click for options")
+                self.status_label.setLabel("FOLDER (Expanded): Left = Collapse, Right = Expand, Click = Options")
             else:
-                self.status_label.setLabel("Press Right to expand folder, or click for options")
+                self.status_label.setLabel("FOLDER (Collapsed): Left = Collapse, Right = Expand, Click = Options")
         else:
-            self.status_label.setLabel("Left = Remove from list, Right = Add to list - Click for options")
+            self.status_label.setLabel("LIST: Left = Remove, Right = Add, Click = Options")
 
     def onFocus(self, controlId):
         super().onFocus(controlId)
@@ -188,7 +201,7 @@ class MainWindow(BaseWindow):
         all_folders = db_manager.fetch_all_folders()
         all_lists = db_manager.fetch_all_lists_with_item_status(self.item_info.get('kodi_id', 0))
 
-        # If media is playable, fetch folder status for color coding and propagate status upward.
+        # For playable media, fetch folder status for color coding and propagate status upward.
         folder_color_status = {}
         if self.is_playable:
             folder_status = db_manager.fetch_folders_with_item_status(self.item_info.get('kodi_id', 0))
@@ -223,14 +236,15 @@ class MainWindow(BaseWindow):
 
         # If Root is expanded, add its children—i.e. the top-level folders and lists.
         if root_expanded:
-            # Get all top-level folders and lists (i.e. those with no parent)
+            # Get all top-level folders and lists (those with no parent)
             root_folders = [folder for folder in all_folders if folder['parent_id'] is None]
             root_lists = [list_item for list_item in all_lists if list_item['folder_id'] is None]
+            # Sort so that folders (with key 0) come first, then lists (with key 1), both alphabetically.
             combined_root = root_folders + root_lists
-            combined_root.sort(key=lambda x: self.clean_name(x['name']).lower())
+            combined_root.sort(key=lambda x: (0, self.clean_name(x['name']).lower()) if 'parent_id' in x
+                                              else (1, self.clean_name(x['name']).lower()))
             utils.log(f"Sorted combined root items: {[(self.clean_name(i['name']), i['name']) for i in combined_root]}", "DEBUG")
             for item in combined_root:
-                # Items with a 'parent_id' key are folders.
                 if 'parent_id' in item:
                     utils.log(f"Adding root folder item - ID: {item['id']}, Name: {item['name']}", "DEBUG")
                     self.add_folder_items(item, 0, all_folders, all_lists, folder_color_status)
@@ -245,24 +259,9 @@ class MainWindow(BaseWindow):
                     list_item.setProperty('list_id', str(item['id']))
                     list_item.setProperty('is_member', str(item['is_member']))
                     self.list_control.addItem(list_item)
-                    self.list_data.append({'name': item['name'], 'isFolder': False, 'id': item['id'], 'indent': 0, 'color': color if self.is_playable else None})
-
-            # Append the special "Add" items at the bottom of the expanded root.
-            add_folder_item = xbmcgui.ListItem("  <Add Folder>")
-            add_folder_item.setProperty('isFolder', 'true')
-            add_folder_item.setProperty('isSpecial', 'true')
-            add_folder_item.setProperty('action', 'new_folder')
-            add_folder_item.setProperty('parent_id', 'None')
-            self.list_control.addItem(add_folder_item)
-            self.list_data.append({'name': '<Add Folder>', 'isFolder': True, 'isSpecial': True, 'id': None, 'indent': 0, 'action': 'new_folder'})
-
-            add_list_item = xbmcgui.ListItem("  <Add List>")
-            add_list_item.setProperty('isFolder', 'false')
-            add_list_item.setProperty('isSpecial', 'true')
-            add_list_item.setProperty('action', 'new_list')
-            add_list_item.setProperty('parent_id', 'None')
-            self.list_control.addItem(add_list_item)
-            self.list_data.append({'name': '<Add List>', 'isFolder': False, 'isSpecial': True, 'id': None, 'indent': 0, 'action': 'new_list'})
+                    self.list_data.append({'name': item['name'], 'isFolder': False, 'id': item['id'],
+                                           'indent': 0, 'color': color if self.is_playable else None})
+            # Note: Special "Add" entries are omitted at root level.
 
         self.list_control.setEnabled(True)
         self.reselect_previous_item(focus_folder_id)
@@ -291,12 +290,15 @@ class MainWindow(BaseWindow):
         folder_item.setProperty('folder_id', str(folder['id']))
         folder_item.setProperty('expanded', str(expanded))
         self.list_control.addItem(folder_item)
-        self.list_data.append({'name': folder['name'], 'isFolder': True, 'id': folder['id'], 'indent': indent, 'expanded': expanded, 'color': color})
+        self.list_data.append({'name': folder['name'], 'isFolder': True, 'id': folder['id'], 'indent': indent,
+                               'expanded': expanded, 'color': color})
         if expanded:
             subfolders = [f for f in all_folders if f['parent_id'] == folder['id']]
             folder_lists = [list_item for list_item in all_lists if list_item['folder_id'] == folder['id']]
+            # Sort with folders first then lists.
             combined = subfolders + folder_lists
-            combined.sort(key=lambda x: self.clean_name(x['name']).lower())
+            combined.sort(key=lambda x: (0, self.clean_name(x['name']).lower()) if 'parent_id' in x
+                                         else (1, self.clean_name(x['name']).lower()))
             utils.log(f"Sorted combined items for {folder['name']}: {[(self.clean_name(i['name']), i['name']) for i in combined]}", "DEBUG")
             for item in combined:
                 if 'parent_id' in item:
@@ -312,7 +314,9 @@ class MainWindow(BaseWindow):
                     list_item.setProperty('list_id', str(item['id']))
                     list_item.setProperty('is_member', str(item['is_member']))
                     self.list_control.addItem(list_item)
-                    self.list_data.append({'name': item['name'], 'isFolder': False, 'id': item['id'], 'indent': indent + 1, 'color': color if self.is_playable else None})
+                    self.list_data.append({'name': item['name'], 'isFolder': False, 'id': item['id'],
+                                           'indent': indent + 1, 'color': color if self.is_playable else None})
+            # For subfolders, add the <New Folder>/<New List> entries.
             self.add_new_items(folder, indent + 1)
 
     def add_new_items(self, parent_folder, indent):
@@ -330,14 +334,16 @@ class MainWindow(BaseWindow):
             new_folder_item.setProperty('action', 'new_folder')
             new_folder_item.setProperty('parent_id', str(parent_folder['id']))
             self.list_control.addItem(new_folder_item)
-            self.list_data.append({'name': '<New Folder>', 'isFolder': True, 'isSpecial': True, 'id': parent_folder['id'], 'indent': indent, 'action': 'new_folder'})
+            self.list_data.append({'name': '<New Folder>', 'isFolder': True, 'isSpecial': True,
+                                   'id': parent_folder['id'], 'indent': indent, 'action': 'new_folder'})
         new_list_item = xbmcgui.ListItem(f"{' ' * (indent * self.INDENTATION_MULTIPLIER)}<New List>")
         new_list_item.setProperty('isFolder', 'false')
         new_list_item.setProperty('isSpecial', 'true')
         new_list_item.setProperty('action', 'new_list')
         new_list_item.setProperty('parent_id', str(parent_folder['id']))
         self.list_control.addItem(new_list_item)
-        self.list_data.append({'name': '<New List>', 'isFolder': False, 'isSpecial': True, 'id': parent_folder['id'], 'indent': indent, 'action': 'new_list'})
+        self.list_data.append({'name': '<New List>', 'isFolder': False, 'isSpecial': True,
+                               'id': parent_folder['id'], 'indent': indent, 'action': 'new_list'})
         if self.moving_list_id:
             paste_list_item = xbmcgui.ListItem(f"{' ' * (indent * self.INDENTATION_MULTIPLIER)}<Paste List Here : {self.moving_list_name}>")
             paste_list_item.setProperty('isFolder', 'false')
@@ -345,7 +351,9 @@ class MainWindow(BaseWindow):
             paste_list_item.setProperty('action', f"paste_list_here:{self.moving_list_id}")
             paste_list_item.setProperty('parent_id', str(parent_folder['id']))
             self.list_control.addItem(paste_list_item)
-            self.list_data.append({'name': f'<Paste List Here : {self.moving_list_name}>', 'isFolder': False, 'isSpecial': True, 'id': parent_folder['id'], 'indent': indent, 'action': f"paste_list_here:{self.moving_list_id}"})
+            self.list_data.append({'name': f'<Paste List Here : {self.moving_list_name}>', 'isFolder': False,
+                                   'isSpecial': True, 'id': parent_folder['id'], 'indent': indent,
+                                   'action': f"paste_list_here:{self.moving_list_id}"})
         if self.moving_folder_id:
             paste_folder_item = xbmcgui.ListItem(f"{' ' * (indent * self.INDENTATION_MULTIPLIER)}<Paste Folder Here : {self.moving_folder_name}>")
             paste_folder_item.setProperty('isFolder', 'true')
@@ -353,7 +361,9 @@ class MainWindow(BaseWindow):
             paste_folder_item.setProperty('action', f"paste_folder_here:{self.moving_folder_id}")
             paste_folder_item.setProperty('parent_id', str(parent_folder['id']))
             self.list_control.addItem(paste_folder_item)
-            self.list_data.append({'name': f'<Paste Folder Here : {self.moving_folder_name}>', 'isFolder': True, 'isSpecial': True, 'id': parent_folder['id'], 'indent': indent, 'action': f"paste_folder_here:{self.moving_folder_id}"})
+            self.list_data.append({'name': f'<Paste Folder Here : {self.moving_folder_name}>', 'isFolder': True,
+                                   'isSpecial': True, 'id': parent_folder['id'], 'indent': indent,
+                                   'action': f"paste_folder_here:{self.moving_folder_id}"})
 
     def reselect_previous_item(self, focus_folder_id=None):
         utils.log(f"Reselecting previous item. focus_folder_id={focus_folder_id}, selected_item_id={self.selected_item_id}, selected_is_folder={self.selected_is_folder}", "DEBUG")
