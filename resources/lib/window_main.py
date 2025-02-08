@@ -276,12 +276,11 @@ class MainWindow(BaseWindow):
                     status = "In list" if is_member else "Not in list"
                     legend_text = f"[COLOR {color}]{status}[/COLOR]"
 
-                    # Show count for lists when playable
-                    if self.is_playable:
-                        label = current_item.getLabel()
-                        if '(' in label and ')' in label:
-                            count = int(label.split('(')[-1].split(')')[0])
-                            legend_text += f", {count} total movies in list"
+                    # Always show count for lists
+                    label = current_item.getLabel()
+                    if '(' in label and ')' in label:
+                        count = int(label.split('(')[-1].split(')')[0])
+                        legend_text += f", {count} total movies in list"
             except (IndexError, ValueError, TypeError):
                 pass
 
