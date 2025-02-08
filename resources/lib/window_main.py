@@ -342,8 +342,8 @@ class MainWindow(BaseWindow):
                     parent_id = next((f['parent_id'] for f in all_folders if f['id'] == folder_id), None)
                     if parent_id is not None:
                         child_folders = [f['id'] for f in all_folders if f['parent_id'] == parent_id]
-                        if any(folder_color_status.get(cid, 'red') == 'green' for cid in child_folders):
-                            folder_color_status[parent_id] = 'green'
+                        if any(self.folder_color_status.get(cid, 'red') == 'green' for cid in child_folders):
+                            self.folder_color_status[parent_id] = 'green'
                     folder_id = parent_id
             for folder_id in folder_color_status:
                 propagate_status(folder_id)
