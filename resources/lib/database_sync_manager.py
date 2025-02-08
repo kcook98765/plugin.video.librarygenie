@@ -1,4 +1,3 @@
-
 from typing import List, Dict, Any
 import xbmc
 import xbmcgui
@@ -17,20 +16,20 @@ class DatabaseSyncManager:
         self.query_manager.setup_movies_reference_table()
 
     def sync_library_movies(self) -> bool:
-        """Sync movies from Kodi library"""
+        """Sync movies from Kodi library to movies_reference table"""
         progress = xbmcgui.DialogProgress()
         progress.create("Syncing Library")
-        
+
         try:
-            # First ensure table exists
+            # Ensure table exists
             self.query_manager.setup_movies_reference_table()
-            
-            # Get existing library entries
-            existing_entries = self.query_manager.execute_query(
-                "SELECT movieid FROM movies_reference WHERE source = 'Lib'"
+
+            # Get existing entries
+            existing_movies = self.query_manager.execute_query(
+                "SELECT movieid, file_path, file_name FROM movies_reference WHERE source = 'Lib'"
             )
-            existing_movie_ids = {entry['movieid'] for entry in existing_entries}
-            
+            existing_movie_ids = {movie['movieid'] for movie in existing_movies}
+
             # Get all movies from Kodi
             response = self.jsonrpc.execute('VideoLibrary.GetMovies', {
                 'properties': [
@@ -46,21 +45,21 @@ class DatabaseSyncManager:
             if 'result' in response and 'movies' in response['result']:
                 movies = response['result']['movies']
                 total_movies = len(movies)
-                
+
                 # Process each movie
                 for index, movie in enumerate(movies):
                     progress.update(int((index / total_movies) * 100), f"Processing movie {index + 1} of {total_movies}")
-                    
+
                     file_path = movie.get('file', '')
                     file_name = file_path.split('/')[-1] if file_path else ''
                     path = '/'.join(file_path.split('/')[:-1]) if file_path else ''
                     movie_id = movie.get('movieid')
-                    
+
                     # Get IMDB number either directly or from uniqueid
                     imdb_id = movie.get('imdbnumber') or movie.get('uniqueid', {}).get('imdb')
                     tmdb_id = movie.get('uniqueid', {}).get('tmdb')
                     tvdb_id = movie.get('uniqueid', {}).get('tvdb')
-                    
+
                     if movie_id in existing_movie_ids:
                         # Update existing entry
                         self.query_manager.execute_query(
@@ -78,9 +77,9 @@ class DatabaseSyncManager:
                                VALUES (?, ?, ?, ?, ?, ?, 'Lib')""",
                             (path, file_name, movie_id, imdb_id, tmdb_id, tvdb_id)
                         )
-                    
+
                     processed_movie_ids.add(movie_id)
-                
+
                 # Remove entries that no longer exist in library
                 to_remove = existing_movie_ids - processed_movie_ids
                 if to_remove:
@@ -89,9 +88,9 @@ class DatabaseSyncManager:
                         f"DELETE FROM movies_reference WHERE movieid IN ({placeholders}) AND source = 'Lib'",
                         tuple(to_remove)
                     )
-                
+
                 progress.close()
-                
+
                 # Calculate detailed statistics
                 total_movies = len(movies)
                 total_added = len(processed_movie_ids - existing_movie_ids)
@@ -99,7 +98,7 @@ class DatabaseSyncManager:
                 total_removed = len(existing_movie_ids - processed_movie_ids)
                 movies_with_imdb = sum(1 for movie in movies if movie.get('imdbnumber') or movie.get('uniqueid', {}).get('imdb'))
                 percentage = (movies_with_imdb / total_movies * 100) if total_movies > 0 else 0
-                
+
                 stats_message = (
                     f"Sync Complete\n\n"
                     f"Total Movies: {total_movies}\n"
