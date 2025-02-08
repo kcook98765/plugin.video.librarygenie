@@ -32,6 +32,7 @@ class MainWindow(BaseWindow):
         self.moving_list_name = None
         self.moving_folder_id = None
         self.moving_folder_name = None
+        self.folder_color_status = {}  # Add folder color status tracking
 
         self.media_label = pyxbmct.Label("")
         self.list_control = pyxbmct.List()
@@ -331,11 +332,11 @@ class MainWindow(BaseWindow):
         all_lists = db_manager.fetch_all_lists_with_item_status(self.item_info.get('kodi_id', 0))
 
         # For playable media, fetch folder status for color coding and propagate status upward.
-        folder_color_status = {}
+        self.folder_color_status = {}
         if self.is_playable:
             folder_status = db_manager.fetch_folders_with_item_status(self.item_info.get('kodi_id', 0))
             for folder in folder_status:
-                folder_color_status[folder['id']] = 'green' if folder['is_member'] else 'red'
+                self.folder_color_status[folder['id']] = 'green' if folder['is_member'] else 'red'
             def propagate_status(folder_id):
                 while folder_id is not None:
                     parent_id = next((f['parent_id'] for f in all_folders if f['id'] == folder_id), None)
