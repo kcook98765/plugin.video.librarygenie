@@ -78,8 +78,10 @@ class MainWindow(BaseWindow):
         # Legend text for colors and counts
         legend_text = "Red = Not in list, Green = In list"
         if self.is_playable:
-            db_manager = DatabaseManager(Config().db_path)
-            total_count = db_manager.get_total_media_count()
+            total_count = sum(int(item.getLabel().split('(')[-1].split(')')[0]) 
+                            for item in self.list_control.getItems() 
+                            if not item.getProperty('isSpecial') 
+                            and not item.getProperty('isFolder') == 'true')
             legend_text += f", ({total_count}) = total count of movies"
         self.legend_label = pyxbmct.Label(legend_text)
         self.placeControl(self.legend_label, 11, 0, columnspan=10, pad_x=5)
