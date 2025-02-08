@@ -52,7 +52,7 @@ class MainWindow(BaseWindow):
 
         # File browser list
         self.list_control = pyxbmct.List(_imageWidth=25, _imageHeight=25,
-                                         _itemTextXOffset=5, _itemHeight=30, _space=2)
+                                         _itemTextXOffset=0, _itemHeight=30, _space=2)
         self.placeControl(self.list_control, 2, 0, rowspan=9, columnspan=10, pad_x=5, pad_y=5)
         self.connect(self.list_control, self.on_list_item_click)
 
@@ -374,6 +374,7 @@ class MainWindow(BaseWindow):
             folder_label = f"{indent_str}{folder['name']} ({folder_media_count})"
         folder_item = xbmcgui.ListItem(folder_label)
         folder_item.setArt({'icon': self.folder_icon, 'thumb': self.folder_icon})
+        folder_item.setProperty('indent', indent_str)
         folder_item.setProperty('isFolder', 'true')
         folder_item.setProperty('folder_id', str(folder['id']))
         folder_item.setProperty('expanded', str(expanded))
