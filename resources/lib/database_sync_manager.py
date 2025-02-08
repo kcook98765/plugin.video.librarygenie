@@ -1,5 +1,7 @@
+
 from typing import List, Dict, Any
 import xbmc
+import xbmcgui
 from resources.lib.jsonrpc_manager import JSONRPC
 from resources.lib.query_manager import QueryManager
 from resources.lib.database_manager import DatabaseManager
@@ -8,12 +10,11 @@ from resources.lib.config_manager import Config
 class DatabaseSyncManager:
     def __init__(self, query_manager: QueryManager):
         self.query_manager = query_manager
-        self.db_manager = DatabaseManager(Config().db_path)
         self.jsonrpc = JSONRPC()
 
     def setup_tables(self):
         """Create necessary tables for movie reference and addon metadata"""
-        self.db_manager.setup_database()
+        self.query_manager.setup_movies_reference_table()
 
     def sync_library_movies(self) -> bool:
         """Sync movies from Kodi library"""
