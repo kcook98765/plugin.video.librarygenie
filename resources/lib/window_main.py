@@ -61,12 +61,18 @@ class MainWindow(BaseWindow):
             self.placeControl(self.poster_image, 0, 0, rowspan=3, columnspan=1, pad_x=5, pad_y=5)
         
         self.title_label = pyxbmct.Label(title_year, alignment=0)
-        self.placeControl(self.title_label, 0, 2, columnspan=4, pad_x=5)
+        self.placeControl(self.title_label, 0, 1, columnspan=9, pad_x=5)
 
-        # File browser list
+        # Add plot under title
+        plot = self.item_info.get('plot', '')
+        self.plot_label = pyxbmct.TextBox()
+        self.plot_label.setText(plot)
+        self.placeControl(self.plot_label, 1, 1, rowspan=2, columnspan=9, pad_x=5)
+
+        # File browser list moved up to row 3
         self.list_control = pyxbmct.List(_imageWidth=25, _imageHeight=25,
                                          _itemTextXOffset=0, _itemHeight=30, _space=2)
-        self.placeControl(self.list_control, 4, 0, rowspan=7, columnspan=10, pad_x=5, pad_y=5)
+        self.placeControl(self.list_control, 3, 0, rowspan=8, columnspan=10, pad_x=5, pad_y=5)
         self.connect(self.list_control, self.on_list_item_click)
 
         # Bottom status/legend bar with dynamic text
