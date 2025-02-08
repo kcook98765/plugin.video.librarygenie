@@ -80,9 +80,9 @@ class MainWindow(BaseWindow):
         self.placeControl(self.status_label, 11, 0, columnspan=10, pad_x=5)
         # The legend will be updated by update_status_text()
 
-        # Exit button at bottom left
+        # Exit button at bottom right
         self.exit_button = pyxbmct.Button("Exit")
-        self.placeControl(self.exit_button, 12, 0, columnspan=2, pad_x=5, pad_y=5)
+        self.placeControl(self.exit_button, 12, 8, columnspan=2, pad_x=5, pad_y=5)
         self.connect(self.exit_button, self.close)
         self.connect(pyxbmct.ACTION_NAV_BACK, self.close)
 
