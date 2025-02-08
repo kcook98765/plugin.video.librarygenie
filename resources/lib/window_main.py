@@ -256,15 +256,28 @@ class MainWindow(BaseWindow):
             self.selected_is_folder = None
 
         # Update legend text with count
-        legend_text = "[COLOR red]Not in list/folder[/COLOR], [COLOR green]In list/folder[/COLOR]"
-        if self.is_playable and current_item and not current_item.getProperty('isSpecial') == 'true':
-            try:
-                label = current_item.getLabel()
-                if '(' in label and ')' in label:
-                    count = int(label.split('(')[-1].split(')')[0])
-                    legend_text += f", ({count}) = count of movies in list/folder"
-            except (IndexError, ValueError):
-                pass
+        legend_text = ""
+        if current_item and not current_item.getProperty('isSpecial') == 'true':
+            is_folder = current_item.getProperty('isFolder') == 'true'
+            if is_folder:
+                color = folder_color_status.get(int(current_item.getProperty('folder_id')), 'red')
+                status = "In folder" if color == 'green' else "Not in folder"
+                legend_text = f"[COLOR {color}]{status}[/COLOR]"
+            else:
+                is_member = current_item.getProperty('is_member') == '1'
+                color = 'green' if is_member else 'red'
+                status = "In list" if is_member else "Not in list"
+                legend_text = f"[COLOR {color}]{status}[/COLOR]"
+
+            if self.is_playable:
+                try:
+                    label = current_item.getLabel()
+                    if '(' in label and ')' in label:
+                        count = int(label.split('(')[-1].split(')')[0])
+                        legend_text += f", ({count}) = count of movies"
+                except (IndexError, ValueError):
+                    pass
+
         if hasattr(self, 'legend_label'):
             self.legend_label.setLabel(legend_text)
 
