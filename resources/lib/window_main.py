@@ -360,12 +360,19 @@ class MainWindow(BaseWindow):
             self.open_settings()
 
     def show_list_options(self, list_data):
-        # Create a new window to display lists hierarchically
+        # Create a new window to display lists hierarchically 
         list_browser = ListBrowserWindow(self.item_info)
         list_browser.doModal()
         del list_browser
         # Refresh the main window's list after potential changes
         self.populate_list()
+
+        options = []
+        if self.is_playable:
+            if list_data.get('color') == 'red':
+                options.append("Add Media to List")
+            elif list_data.get('color') == 'green':
+                options.append("Remove Media from List")
 
         options.extend([
             "Rename This List",
@@ -453,13 +460,13 @@ class MainWindow(BaseWindow):
         """Export list items to IMDB format"""
         from resources.lib.database_sync_manager import DatabaseSyncManager
         from resources.lib.query_manager import QueryManager
-        
+
         query_manager = QueryManager(Config().db_path)
         sync_manager = DatabaseSyncManager(query_manager)
 
         # Ensure tables exist
         sync_manager.setup_tables()
-        
+
         # Sync library movies
         sync_manager.sync_library_movies()
 
@@ -604,22 +611,22 @@ class MainWindow(BaseWindow):
                 data = {}
                 fields_keys = [field.split()[0] for field in Config.FIELDS]
                 utils.log(f"Field keys: {fields_keys}", "DEBUG")
-                
+
                 for field in fields_keys:
                     value = self.item_info.get(field)
 
                     if field in self.item_info and self.item_info[field]:
                         data[field] = self.item_info[field]
-                
+
                 if data:
                     utils.log("Processing data before insert...", "DEBUG")
                     data['list_id'] = list_id
                     utils.log(f"Added list_id: {list_id} to data", "DEBUG")
-                    
+
                     if 'cast' in data and isinstance(data['cast'], list):
                         utils.log("Converting cast to JSON string", "DEBUG")
                         data['cast'] = json.dumps(data['cast'])
-                    
+
                     # Ensure numeric fields are properly typed
                     for field in ['kodi_id', 'year', 'duration', 'votes']:
                         if field in data:
@@ -629,7 +636,7 @@ class MainWindow(BaseWindow):
                             except (ValueError, TypeError) as e:
                                 utils.log(f"Error converting {field}: {str(e)}", "ERROR")
                                 data[field] = 0
-                    
+
                     if 'rating' in data:
                         try:
                             data['rating'] = float(data['rating']) if data['rating'] else 0.0
@@ -637,7 +644,7 @@ class MainWindow(BaseWindow):
                         except (ValueError, TypeError) as e:
                             utils.log(f"Error converting rating: {str(e)}", "ERROR")
                             data['rating'] = 0.0
-                    
+
                     try:
                         result = db_manager.insert_data('list_items', data)
                         utils.log(f"Insert result: {result}", "DEBUG")
