@@ -75,10 +75,19 @@ class MainWindow(BaseWindow):
         self.placeControl(self.list_control, 3, 0, rowspan=8, columnspan=10, pad_x=5, pad_y=5)
         self.connect(self.list_control, self.on_list_item_click)
 
-        # Bottom status/legend bar with dynamic text
+        # Legend text for colors and counts
+        legend_text = "Red = Not in list, Green = In list"
+        if self.is_playable:
+            db_manager = DatabaseManager(Config().db_path)
+            total_count = db_manager.get_total_media_count()
+            legend_text += f", ({total_count}) = total count of movies"
+        self.legend_label = pyxbmct.Label(legend_text)
+        self.placeControl(self.legend_label, 11, 0, columnspan=10, pad_x=5)
+
+        # Status/tips bar with dynamic text
         self.status_label = pyxbmct.Label("")
-        self.placeControl(self.status_label, 11, 0, columnspan=10, pad_x=5)
-        # The legend will be updated by update_status_text()
+        self.placeControl(self.status_label, 12, 0, columnspan=6, pad_x=5)
+        # The tips will be updated by update_status_text()
 
         # Collapse All button at bottom
         self.collapse_all_button = pyxbmct.Button("Collapse All")
