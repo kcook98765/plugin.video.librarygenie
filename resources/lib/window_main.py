@@ -371,11 +371,25 @@ class MainWindow(BaseWindow):
             self.open_settings()
 
     def show_list_options(self, list_data):
-        # Create a new window to display lists hierarchically 
-        list_browser = ListBrowserWindow(self.item_info)
-        list_browser.doModal()
-        del list_browser
-        # Refresh the main window's list after potential changes
+        is_member = list_data.get('color') == 'green'
+        db_manager = DatabaseManager(Config().db_path)
+        
+        if is_member:
+            # Remove from list
+            item_id = db_manager.get_item_id_by_title_and_list(list_data['id'], self.item_info['title'])
+            if item_id:
+                db_manager.delete_data('list_items', f'id={item_id}')
+                xbmcgui.Dialog().notification("LibraryGenie", "Media removed from list", xbmcgui.NOTIFICATION_INFO, 5000)
+        else:
+            # Add to list
+            fields_keys = [field.split()[0] for field in Config.FIELDS]
+            data = {field: self.item_info.get(field) for field in fields_keys}
+            data['list_id'] = list_data['id']
+            if 'cast' in data and isinstance(data['cast'], list):
+                data['cast'] = json.dumps(data['cast'])
+            db_manager.insert_data('list_items', data)
+            xbmcgui.Dialog().notification("LibraryGenie", "Media added to list", xbmcgui.NOTIFICATION_INFO, 5000)
+            
         self.populate_list()
 
         options = []
