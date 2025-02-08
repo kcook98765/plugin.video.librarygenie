@@ -43,7 +43,7 @@ class MainWindow(BaseWindow):
 
     def setup_ui(self):
         self.setGeometry(800, 600, 12, 10)
-        
+
         # Media info in top right
         title = self.item_info.get('title', 'Unknown')
         year = self.item_info.get('year', '')
@@ -55,12 +55,12 @@ class MainWindow(BaseWindow):
         self.list_control = pyxbmct.List(_imageWidth=25, _imageHeight=25, _itemTextXOffset=5, _itemHeight=30, _space=2)
         self.placeControl(self.list_control, 2, 0, rowspan=9, columnspan=10, pad_x=5, pad_y=5)
         self.connect(self.list_control, self.on_list_item_click)
-        
+
         # Bottom status bar with dynamic text
         self.status_label = pyxbmct.Label("")
         self.placeControl(self.status_label, 11, 0, columnspan=10, pad_x=5)
         self.update_status_text()
-        
+
         # Get default folder icon path
         self.folder_icon = "DefaultFolder.png"
 
@@ -87,7 +87,7 @@ class MainWindow(BaseWindow):
         is_folder = selected_item.getProperty('isFolder') == 'true'
         is_special = selected_item.getProperty('isSpecial') == 'true'
         is_root = selected_item.getProperty('isRoot') == 'true'
-        
+
         if is_root:
             if action == xbmcgui.ACTION_MOVE_RIGHT:
                 self.folder_expanded_states[0] = True
@@ -97,7 +97,7 @@ class MainWindow(BaseWindow):
                 self.folder_expanded_states[0] = False
                 self.populate_list()
                 return
-        
+
         if is_folder and not is_special:
             if action == xbmcgui.ACTION_MOVE_RIGHT:
                 current_pos = self.list_control.getSelectedPosition()
@@ -113,7 +113,7 @@ class MainWindow(BaseWindow):
             try:
                 list_id = int(selected_item.getProperty('list_id'))
                 is_member = selected_item.getProperty('is_member') == '1'
-                
+
                 if action == xbmcgui.ACTION_MOVE_LEFT and is_member:
                     # Remove from list
                     db_manager = DatabaseManager(Config().db_path)
@@ -141,7 +141,7 @@ class MainWindow(BaseWindow):
                     self.setFocus(self.list_control)
             except (ValueError, TypeError):
                 pass
-        
+
         super().onAction(action)
 
     def expand_selected_folder(self):
@@ -160,7 +160,7 @@ class MainWindow(BaseWindow):
             else:
                 # If collapsed, expand and show options
                 self.update_folder_expanded_states(folder_id, True)
-            
+
             self.populate_list(folder_id)
 
     def collapse_selected_folder(self):
@@ -230,18 +230,19 @@ class MainWindow(BaseWindow):
         root_item.setProperty('isFolder', 'true')
         root_item.setProperty('isRoot', 'true')
         root_item.setProperty('folder_id', '0')
-        
+
         # Set expansion state for root
         root_expanded = self.folder_expanded_states.get(0, False)
         root_item.setProperty('expanded', str(root_expanded))
-        
+
         # Add root item with formatting indicating expansion state
         root_label = "[B]> Root[/B]" if not root_expanded else "[B]v Root[/B]"
         root_item.setLabel(root_label)
-        
+
         self.list_control.addItem(root_item)
         self.list_data.append({'name': 'Root', 'isFolder': True, 'isRoot': True, 'id': 0, 'expanded': root_expanded})
 
+        # Only show contents if root is expanded
         if root_expanded:
             # Add special root items
             add_folder_item = xbmcgui.ListItem("  <Add Folder>")
@@ -259,7 +260,7 @@ class MainWindow(BaseWindow):
         add_list_item.setProperty('parent_id', 'None')
         self.list_control.addItem(add_list_item)
         self.list_data.append({'name': '<Add List>', 'isFolder': False, 'isSpecial': True, 'id': None, 'indent': 0, 'action': 'new_list'})
-        
+
         root_folders = [folder for folder in all_folders if folder['parent_id'] is None]
         root_lists = [list_item for list_item in all_lists if list_item['folder_id'] is None]
         combined_root = root_folders + root_lists
@@ -308,7 +309,7 @@ class MainWindow(BaseWindow):
         folder_media_count = db_manager.get_folder_media_count(folder['id'])
 
         folder_label = f"{'  ' * indent}[B][COLOR {color}]{folder['name']} ({folder_media_count})[/COLOR][/B]" if color else f"{'  ' * indent}{folder['name']} ({folder_media_count})"
-        
+
         folder_item = xbmcgui.ListItem(folder_label)
         folder_item.setArt({'icon': self.folder_icon, 'thumb': self.folder_icon})
         folder_item.setProperty('isFolder', 'true')
@@ -434,7 +435,7 @@ class MainWindow(BaseWindow):
         selected_item = self.list_control.getSelectedItem()
         if not selected_item:
             return
-            
+
         if selected_item.getProperty('isRoot') == 'true':
             self.status_label.setLabel("Click to open Settings, Right to expand")
         elif selected_item.getProperty('isFolder') == 'true':
@@ -455,7 +456,7 @@ class MainWindow(BaseWindow):
         selected_item = self.list_control.getSelectedItem()
         if not selected_item:
             return
-            
+
         if selected_item.getProperty('isRoot') == 'true':
             self.open_settings()
             return
@@ -471,7 +472,7 @@ class MainWindow(BaseWindow):
             self.selected_item_id = folder_id
             self.selected_is_folder = True
             utils.log(f"Folder clicked with ID {folder_id}", "DEBUG")
-            
+
             # Toggle expansion state
             current_state = self.folder_expanded_states.get(folder_id, False)
             self.update_folder_expanded_states(folder_id, not current_state)
@@ -491,7 +492,7 @@ class MainWindow(BaseWindow):
 
         selected_item_label = self.strip_color_tags(selected_item.getLabel())
         is_folder = selected_item.getProperty('isFolder') == 'true'
-        
+
         try:
             selected_item_id = int(selected_item.getProperty('folder_id') if is_folder else selected_item.getProperty('list_id'))
             self.display_item_options(selected_item_label, selected_item_id, is_folder)
@@ -533,7 +534,7 @@ class MainWindow(BaseWindow):
     def show_list_options(self, list_data):
         is_member = list_data.get('color') == 'green'
         db_manager = DatabaseManager(Config().db_path)
-        
+
         if is_member:
             # Remove from list
             item_id = db_manager.get_item_id_by_title_and_list(list_data['id'], self.item_info['title'])
@@ -549,7 +550,7 @@ class MainWindow(BaseWindow):
                 data['cast'] = json.dumps(data['cast'])
             db_manager.insert_data('list_items', data)
             xbmcgui.Dialog().notification("LibraryGenie", "Media added to list", xbmcgui.NOTIFICATION_INFO, 5000)
-            
+
         self.populate_list()
 
         options = []
@@ -582,7 +583,7 @@ class MainWindow(BaseWindow):
             self.rename_list(list_data['id'], list_data['name'])
         elif options[selected_option] == "Move This List":
             self.move_list(list_data['id'], list_data['name'])
-        elif options[selected_option] == "Edit This List":
+        elif options[selectedoption] == "Edit This List":
             self.edit_list(list_data['id'])
         elif options[selected_option] == "Delete This List":
             self.delete_list(list_data['id'], list_data['name'])
