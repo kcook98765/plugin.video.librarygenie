@@ -13,7 +13,7 @@
     </extension>
     <extension point="kodi.context.item">
       <menu id="kodi.core.main">
-        <item library="main.py" args="show_main_window">
+        <item library="resources/lib/context.py">
             <label>LibraryGenie</label>
             <visible>true</visible>
         </item>
