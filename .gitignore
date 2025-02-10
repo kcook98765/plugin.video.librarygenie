@@ -35,8 +35,6 @@ attached_assets/*
 Thumbs.db
 debug.log
 kodi.log
-**/kodi-stubs/
-kodi-stubs/
 *.pyo
 *.pyd
 .settings
