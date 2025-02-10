@@ -6,6 +6,7 @@ from resources.lib.kodi_helper import KodiHelper
 from resources.lib.window_main import MainWindow
 
 def build_context_menu():
+    xbmc.executebuiltin('Dialog.Close(all, true)')
     addon = xbmcaddon.Addon()
     options = [
         "Item Management",
