@@ -1,4 +1,3 @@
-
 import json
 import xbmc
 from resources.lib import utils

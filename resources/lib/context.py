@@ -9,8 +9,8 @@ def build_context_menu():
     xbmc.executebuiltin('Dialog.Close(all, true)')
     addon = xbmcaddon.Addon()
     options = [
-        "Item Management",
-        "Additional Feature"
+        xbmcgui.ListItem("Item Management"),
+        xbmcgui.ListItem("Additional Feature")
     ]
     
     dialog = xbmcgui.Dialog()

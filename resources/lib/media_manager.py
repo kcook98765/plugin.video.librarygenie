@@ -1,5 +1,6 @@
 import xbmc
 import json
+from resources.lib.config_manager import Config
 from resources.lib import utils
 from resources.lib.jsonrpc_manager import JSONRPC
 
@@ -8,7 +9,7 @@ class MediaManager:
         from resources.lib.jsonrpc_manager import JSONRPC
         self.jsonrpc = JSONRPC()
         from resources.lib.query_manager import QueryManager
-        self.query_manager = QueryManager()
+        self.query_manager = QueryManager(Config().db_path)
         
     def sync_library(self) -> bool:
         """Sync the Kodi library with our database"""

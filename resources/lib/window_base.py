@@ -7,7 +7,7 @@ from resources.lib.singleton_base import Singleton
 class BaseWindow(Singleton, pyxbmct.AddonDialogWindow):
     def __init__(self, title=""):
         if not hasattr(self, '_initialized'):
-            super().__init__(title)
+            super().__init__()
             self._initialized = True
         
     def show_notification(self, message, icon=xbmcgui.NOTIFICATION_INFO):

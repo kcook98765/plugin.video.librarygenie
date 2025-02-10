@@ -1,6 +1,5 @@
 import sys
 import urllib.parse
-import xbmc
 import xbmcgui
 from resources.lib.config_manager import Config
 from resources.lib.database_manager import DatabaseManager

@@ -1,4 +1,3 @@
-""" /resources/lib/window_results.py """
 import pyxbmct
 import xbmc
 from resources.lib import utils

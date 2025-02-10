@@ -1,4 +1,3 @@
-""" /resources/lib/kodi_helper.py """
 import sys
 import json
 import xbmc
@@ -256,6 +255,7 @@ class KodiHelper:
             if 'duration' in item_data and item_data['duration']:
                 try:
                     duration = int(item_data['duration'])
+                    duration = str(duration)
                     list_item.addStreamInfo('video', {'duration': duration})
                 except (ValueError, TypeError):
                     pass

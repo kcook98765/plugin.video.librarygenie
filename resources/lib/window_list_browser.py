@@ -1,10 +1,8 @@
-
 import json
 import pyxbmct
 import xbmcgui
 from resources.lib.database_manager import DatabaseManager
 from resources.lib.config_manager import Config
-from resources.lib import utils
 
 class ListBrowserWindow(pyxbmct.AddonDialogWindow):
     def __init__(self, item_info, title="Browse Lists"):

@@ -95,7 +95,6 @@ class DatabaseSyncManager:
                 # Calculate detailed statistics
                 total_movies = len(movies)
                 total_added = len(processed_movie_ids - existing_movie_ids)
-                total_updated = len(processed_movie_ids & existing_movie_ids)
                 total_removed = len(existing_movie_ids - processed_movie_ids)
                 movies_with_imdb = sum(1 for movie in movies if movie.get('imdbnumber') or movie.get('uniqueid', {}).get('imdb'))
                 percentage = (movies_with_imdb / total_movies * 100) if total_movies > 0 else 0
