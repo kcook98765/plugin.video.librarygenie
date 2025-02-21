@@ -1,4 +1,4 @@
-<addon id="plugin.video.librarygenie" version="1.0.4" name="LibraryGenie" provider-name="kcook98765">
+<addon id="plugin.video.librarygenie" version="1.0.5" name="LibraryGenie" provider-name="kcook98765">
     <!-- """ /addon.xml """ -->
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
