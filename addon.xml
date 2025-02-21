@@ -11,12 +11,6 @@
     <extension point="xbmc.addon.metadata">
         <summary>LibraryGenie is a Kodi addon handles lists and integration with AI enabled features.</summary>
     </extension>
-    <extension point="xbmc.addon.settings">
-        <settings>
-            <setting id="api_base_url" type="text" label="API Base URL" default="http://your-domain"/>
-            <setting id="api_key" type="text" label="API Key" default=""/>
-        </settings>
-    </extension>
     <extension point="kodi.context.item">
       <menu id="kodi.core.main">
         <item library="resources/lib/context.py">
