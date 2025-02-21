@@ -1,4 +1,3 @@
-"""Helper class for building ListItems with proper metadata"""
 import json
 import xbmcgui
 import xbmc

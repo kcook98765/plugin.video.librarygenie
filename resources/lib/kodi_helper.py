@@ -1,4 +1,3 @@
-""" /resources/lib/kodi_helper.py """
 import sys
 import json
 import xbmc
@@ -256,6 +255,7 @@ class KodiHelper:
             if 'duration' in item_data and item_data['duration']:
                 try:
                     duration = int(item_data['duration'])
+                    duration = str(duration)
                     list_item.addStreamInfo('video', {'duration': duration})
                 except (ValueError, TypeError):
                     pass
@@ -289,6 +289,7 @@ class KodiHelper:
         if db_id:
             # Fetch details via JSON-RPC
             media_type = xbmc.getInfoLabel('ListItem.DBTYPE')
+            key = 'movieid' if media_type == 'movie' else 'episodeid'
             method = 'VideoLibrary.GetMovieDetails' if media_type == 'movie' else 'VideoLibrary.GetEpisodeDetails'
             params = {
                 'properties': [
@@ -296,12 +297,9 @@ class KodiHelper:
                     'file', 'thumbnail', 'fanart', 'runtime', 'tagline',
                     'writer', 'imdbnumber', 'premiered', 'mpaa', 'trailer', "votes",
                     "country", "dateadded", "studio", "art"
-                ]
+                ],
+                key: int(db_id)  # dynamically assign the correct key
             }
-            if method == 'VideoLibrary.GetMovieDetails':
-                params['movieid'] = int(db_id)
-            else:
-                params['episodeid'] = int(db_id)
 
             utils.log(f"Fetching details via RPC - Method: {method}, Params: {params}", "DEBUG")
             response = self.jsonrpc.execute(method, params)

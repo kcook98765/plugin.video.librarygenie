@@ -1,5 +1,3 @@
-
-import json
 import xbmc
 import xbmcgui
 from resources.lib.database_manager import DatabaseManager

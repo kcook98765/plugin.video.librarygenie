@@ -220,13 +220,22 @@ class QueryManager(Singleton):
 
     # Predefined queries
     def get_folders(self, parent_id: Optional[int] = None) -> List[Dict[str, Any]]:
-        query = """
-            SELECT id, name, parent_id
-            FROM folders
-            WHERE parent_id IS ?
-            ORDER BY name COLLATE NOCASE
-        """
-        return self.execute_query(query, (parent_id,))
+        if parent_id is None:
+            query = """
+                SELECT id, name, parent_id
+                FROM folders
+                WHERE parent_id IS NULL
+                ORDER BY name COLLATE NOCASE
+            """
+            return self.execute_query(query)
+        else:
+            query = """
+                SELECT id, name, parent_id
+                FROM folders
+                WHERE parent_id = ?
+                ORDER BY name COLLATE NOCASE
+            """
+            return self.execute_query(query, (parent_id,))
 
     def get_lists(self, folder_id: Optional[int] = None) -> List[Dict[str, Any]]:
         query = """
@@ -320,20 +329,22 @@ class QueryManager(Singleton):
         self.execute_query(query, (list_id, media_item_id))
 
     def get_folder_depth(self, folder_id: int) -> int:
+        if folder_id is None:
+            return -1  # Root level is -1 so first level will be 0
+            
         query = """
-            WITH RECURSIVE folder_tree AS (
+            WITH RECURSIVE parent_chain AS (
                 SELECT id, parent_id, 0 as depth
-                FROM folders 
-                WHERE id = ?
+                FROM folders WHERE id = ?
                 UNION ALL
-                SELECT f.id, f.parent_id, ft.depth + 1
+                SELECT f.id, f.parent_id, pc.depth + 1
                 FROM folders f
-                JOIN folder_tree ft ON f.parent_id = ft.id
+                JOIN parent_chain pc ON f.id = pc.parent_id
             )
-            SELECT MAX(depth) FROM folder_tree
+            SELECT MAX(depth) as max_depth FROM parent_chain
         """
         result = self.execute_query(query, (folder_id,), fetch_all=False)
-        return result[0]['MAX(depth)'] if result and result[0]['MAX(depth)'] is not None else 0
+        return result[0]['max_depth'] if result and result[0]['max_depth'] is not None else 0
 
     def get_folder_by_name(self, folder_name: str) -> Optional[Dict[str, Any]]:
         query = """
@@ -479,13 +490,73 @@ class QueryManager(Singleton):
         """
         return self.execute_query(query)
 
-    def update_folder_parent(self, folder_id: int, new_parent_id: Optional[int]) -> None:
+    def fetch_list_by_id(self, list_id: int) -> Optional[Dict[str, Any]]:
+        """Fetch a single list by its ID"""
         query = """
-            UPDATE folders 
-            SET parent_id = ? 
+            SELECT id, name, folder_id
+            FROM lists
             WHERE id = ?
         """
-        self.execute_query(query, (new_parent_id, folder_id))
+        result = self.execute_query(query, (list_id,), fetch_all=False)
+        return result[0] if result else None
+
+    def update_folder_parent(self, folder_id: int, new_parent_id: Optional[int]) -> None:
+        conn_info = self._get_connection()
+        try:
+            utils.log(f"Starting folder parent update. FolderID={folder_id}, NewParentID={new_parent_id}", "DEBUG")
+            
+            # Get current state
+            cursor = conn_info['connection'].cursor()
+            cursor.execute("SELECT * FROM folders WHERE id = ?", (folder_id,))
+            before_state = cursor.fetchone()
+            utils.log(f"Current folder state - ID:{folder_id}, State:{dict(before_state)}", "DEBUG")
+
+            # Convert string 'None' to Python None
+            if isinstance(new_parent_id, str) and new_parent_id == 'None':
+                new_parent_id = None
+
+            # Verify input parameters
+            utils.log(f"Validating parameters - FolderID type:{type(folder_id)}, NewParentID type:{type(new_parent_id) if new_parent_id is not None else 'None'}", "DEBUG")
+            
+            # Construct query based on new parent
+            if new_parent_id is None:
+                query = """
+                    UPDATE folders 
+                    SET parent_id = NULL 
+                    WHERE id = ?
+                """
+                params = (folder_id,)
+                utils.log("Using NULL parent query", "DEBUG")
+            else:
+                query = """
+                    UPDATE folders 
+                    SET parent_id = ? 
+                    WHERE id = ?
+                """
+                params = (new_parent_id, folder_id)
+                utils.log("Using specific parent query", "DEBUG")
+            
+            utils.log(f"Executing SQL - Query:{query.strip()}, Params:{params}", "DEBUG")
+            cursor.execute(query, params)
+            
+            # Commit the change
+            utils.log("Committing transaction", "DEBUG")
+            conn_info['connection'].commit()
+            
+            # Verify the update
+            cursor.execute("SELECT * FROM folders WHERE id = ?", (folder_id,))
+            after_state = cursor.fetchone()
+            utils.log(f"Updated folder state - ID:{folder_id}, State:{dict(after_state)}", "DEBUG")
+            
+            # Validate result
+            expected_parent = new_parent_id if new_parent_id is not None else None
+            actual_parent = after_state['parent_id']
+            utils.log(f"Validation - Expected parent:{expected_parent}, Actual parent:{actual_parent}", "DEBUG")
+            
+            if actual_parent != expected_parent:
+                utils.log(f"WARNING: Parent ID mismatch - Expected:{expected_parent}, Got:{actual_parent}", "WARNING")
+        finally:
+            self._release_connection(conn_info)
 
     def get_subtree_depth(self, folder_id: int) -> int:
         query = """
@@ -790,5 +861,138 @@ class QueryManager(Singleton):
             cursor = conn_info['connection'].execute(query, (media_id, media_type))
             result = cursor.fetchone()
             return dict(result) if result else {}
+        finally:
+            self._release_connection(conn_info)
+# Add this to the table_creations list in DatabaseManager.setup_database()
+
+    def setup_database(self):
+        """Setup all database tables"""
+        fields_str = ', '.join(Config.FIELDS)
+        
+        table_creations = [
+            """CREATE TABLE IF NOT EXISTS imdb_exports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                kodi_id INTEGER,
+                imdb_id TEXT,
+                title TEXT,
+                year INTEGER,
+                filename TEXT,
+                path TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )""",
+            """CREATE TABLE IF NOT EXISTS folders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE,
+                parent_id INTEGER,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )""",
+            """CREATE TABLE IF NOT EXISTS lists (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                folder_id INTEGER,
+                name TEXT UNIQUE,
+                query TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )""",
+            f"""CREATE TABLE IF NOT EXISTS media_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                {fields_str},
+                UNIQUE (kodi_id, play)
+            )""",
+            """CREATE TABLE IF NOT EXISTS list_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                list_id INTEGER,
+                media_item_id INTEGER,
+                flagged INTEGER DEFAULT 0,
+                FOREIGN KEY (list_id) REFERENCES lists (id),
+                FOREIGN KEY (media_item_id) REFERENCES media_items (id)
+            )""",
+            """CREATE TABLE IF NOT EXISTS whitelist (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                list_id INTEGER,
+                title TEXT,
+                FOREIGN KEY (list_id) REFERENCES lists (id)
+            )""",
+            """CREATE TABLE IF NOT EXISTS blacklist (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                list_id INTEGER,
+                title TEXT,
+                FOREIGN KEY (list_id) REFERENCES lists (id)
+            )""",
+            """CREATE TABLE IF NOT EXISTS genie_lists (
+                list_id INTEGER PRIMARY KEY,
+                description TEXT,
+                rpc TEXT,
+                FOREIGN KEY (list_id) REFERENCES lists (id)
+            )""",
+            """CREATE TABLE IF NOT EXISTS original_requests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                description TEXT,
+                response_json TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )""",
+            """CREATE TABLE IF NOT EXISTS parsed_movies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                request_id INTEGER,
+                title TEXT,
+                year INTEGER,
+                director TEXT,
+                FOREIGN KEY (request_id) REFERENCES original_requests (id)
+            )"""
+        ]
+
+        conn_info = self._get_connection()
+        try:
+            cursor = conn_info['connection'].cursor()
+            for create_sql in table_creations:
+                utils.log(f"Executing SQL: {create_sql}", "DEBUG")
+                cursor.execute(create_sql)
+            conn_info['connection'].commit()
+        finally:
+            self._release_connection(conn_info)
+        
+        # Setup movies reference table as well
+        self.setup_movies_reference_table()
+
+    def setup_movies_reference_table(self):
+        """Create movies_reference table and indexes"""
+        conn_info = self._get_connection()
+        try:
+            cursor = conn_info['connection'].cursor()
+            
+            # Create table
+            create_table_sql = """
+                CREATE TABLE IF NOT EXISTS movies_reference (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    file_path   TEXT,
+                    file_name   TEXT,
+                    movieid     INTEGER,
+                    imdbnumber  TEXT,
+                    tmdbnumber  TEXT,
+                    tvdbnumber  TEXT,
+                    addon_file  TEXT,
+                    source      TEXT NOT NULL CHECK(source IN ('Lib','File'))
+                )
+            """
+            utils.log(f"Executing SQL: {create_table_sql}", "DEBUG")
+            cursor.execute(create_table_sql)
+            
+            # Create indexes
+            create_lib_index_sql = """
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_movies_lib_unique
+                ON movies_reference(file_path, file_name)
+                WHERE source = 'Lib'
+            """
+            utils.log(f"Executing SQL: {create_lib_index_sql}", "DEBUG")
+            cursor.execute(create_lib_index_sql)
+            
+            create_file_index_sql = """
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_movies_file_unique
+                ON movies_reference(addon_file)
+                WHERE source = 'File'
+            """
+            utils.log(f"Executing SQL: {create_file_index_sql}", "DEBUG")
+            cursor.execute(create_file_index_sql)
+            
+            conn_info['connection'].commit()
         finally:
             self._release_connection(conn_info)

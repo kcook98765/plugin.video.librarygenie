@@ -38,6 +38,8 @@ kodi.log
 *.pyo
 *.pyd
 .settings
+Kodistubs/
+**/kodi-stubs/
 .project
 .pydevproject
 .directory

@@ -1,4 +1,3 @@
-""" /resources/lib/window_results.py """
 import pyxbmct
 import xbmc
 from resources.lib import utils
@@ -65,8 +64,14 @@ class ResultsWindow(BaseWindow):
                 self.db_manager.insert_parsed_movie(request_id, title, year, director)
 
                 # Check for matches via JSON-RPC lookup
-                search_results = self.search_movie_by_criteria(title, year, director)
-                matched = bool(search_results)
+                filter_params = {
+                    'and': [
+                        {'field': 'title', 'operator': 'contains', 'value': title},
+                        {'field': 'year', 'operator': 'is', 'value': str(year)}
+                    ]
+                }
+                search_results = self.jsonrpc.search_movies(filter_params)
+                matched = bool(search_results.get('result', {}).get('movies', []))
                 matched_movies.append({'title': title, 'year': year, 'director': director, 'matched': matched})
 
             self.movies = matched_movies

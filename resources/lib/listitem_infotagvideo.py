@@ -1,13 +1,8 @@
-"""
-Classes and functions that process data from JSON-RPC API and assign them to ListItem instances
-"""
-
-from typing import Dict, Any, List, Tuple, Type, Iterable, Union
+from typing import Dict
 from urllib.parse import quote
 import json
 
 import xbmc
-from xbmc import InfoTagVideo, Actor
 from xbmcgui import ListItem
 from resources.lib import utils
 
@@ -30,15 +25,12 @@ class ListItemInfoTagVideo:
             utils.log("ListItem InfoTagVideo module initialized", "INFO")
             ListItemInfoTagVideo._initialized = True
 
-StreamDetailsType = Union[xbmc.VideoStreamDetail, xbmc.AudioStreamDetail, xbmc.SubtitleStreamDetail]
-
 def get_kodi_version() -> int:
     """
     Get the major version number of the current Kodi installation.
     """
     version_info = xbmc.getInfoLabel("System.BuildVersion")
     return int(version_info.split('.')[0])
-
 
 """InfoTag compatibility helper for Kodi 19+"""
 
@@ -51,6 +43,13 @@ def set_info_tag(listitem, infolabels, tag_type='video'):
     if tag_type != 'video' or kodi_version < 19:
         listitem.setInfo(tag_type, infolabels)
         return
+
+    if kodi_version >= 20:
+        # For Kodi 20+, we can use the new InfoTagVideo class
+        from xbmc import InfoTagVideo, Actor
+    else:
+        # For Kodi 19, we need to use the legacy way
+        utils.log("Using legacy method for Kodi 19", "DEBUG")
 
     # Get video tag for Kodi 19+
     info_tag = listitem.getVideoInfoTag()
@@ -97,6 +96,8 @@ def set_info_tag(listitem, infolabels, tag_type='video'):
         info_tag.setStudios([str(infolabels['studio'])])
     if infolabels.get('writer'):
         info_tag.setWriters([str(infolabels['writer'])])
+    
+    # Handle cast differently based on Kodi version
     if infolabels.get('cast'):
         cast = infolabels['cast']
         if isinstance(cast, str):
@@ -104,16 +105,29 @@ def set_info_tag(listitem, infolabels, tag_type='video'):
                 cast = json.loads(cast)
             except json.JSONDecodeError:
                 cast = []
-        actors = []
-        for item in cast:
-            actor = xbmc.Actor(
-                name=str(item.get('name', '')),
-                role=str(item.get('role', '')),
-                order=int(item.get('order', 0)),
-                thumbnail=str(item.get('thumbnail', ''))
-            )
-            actors.append(actor)
-        info_tag.setCast(actors)
+                
+        if kodi_version >= 20:
+            actors = []
+            for item in cast:
+                actor = Actor(
+                    name=str(item.get('name', '')),
+                    role=str(item.get('role', '')),
+                    order=int(item.get('order', 0)),
+                    thumbnail=str(item.get('thumbnail', ''))
+                )
+                actors.append(actor)
+            info_tag.setCast(actors)
+        else:
+            # For Kodi 19, use the legacy dictionary format
+            legacy_cast = []
+            for item in cast:
+                legacy_cast.append({
+                    'name': str(item.get('name', '')),
+                    'role': str(item.get('role', '')),
+                    'order': int(item.get('order', 0)),
+                    'thumbnail': str(item.get('thumbnail', ''))
+                })
+            info_tag.setCast(legacy_cast)
 
 
 def set_art(list_item: ListItem, raw_art: Dict[str, str]) -> None:
