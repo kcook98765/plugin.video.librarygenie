@@ -2,7 +2,8 @@
 import os
 import sys
 import json
-import requests
+import urllib.request
+import urllib.parse
 
 # Add addon directory to Python path
 addon_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
