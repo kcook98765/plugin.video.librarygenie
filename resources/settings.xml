@@ -4,5 +4,7 @@
     <category label="LibraryGenie Server">
         <setting id="lgs_upload_url" type="text" label="LGS Upload API URL" default="https://a5c6756b-056b-474d-a2c8-d3bbffaf5efb-00-32b6uktu04qdf.picard.replit.dev/" />
         <setting id="lgs_upload_key" type="text" label="LGS Upload API Key" default="" option="hidden" />
+        <setting id="lgs_username" type="text" label="LGS Username" default="" />
+        <setting id="lgs_password" type="text" label="LGS Password" default="" option="hidden" />
     </category>
 </settings>
