@@ -1,7 +1,8 @@
 import xbmcgui
 import xbmcaddon
 import json
-import requests
+import urllib.request
+import urllib.parse
 import xbmc
 from .database_manager import DatabaseManager
 from .config_manager import Config
@@ -11,6 +12,24 @@ class ApiClient:
     def __init__(self):
         self.config = Config()
         self.base_url = self.config.get_setting('api_base_url')
+
+    def _encode_multipart_formdata(self, files, boundary):
+        """Encode files for multipart form data"""
+        lines = []
+        for key, (filename, filedata, content_type) in files.items():
+            lines.extend((
+                f'--{boundary}',
+                f'Content-Disposition: form-data; name="{key}"; filename="{filename}"',
+                f'Content-Type: {content_type}',
+                '',
+                filedata,
+            ))
+        lines.extend((
+            f'--{boundary}--',
+            '',
+        ))
+        return '\r\n'.join(lines).encode('utf-8')
+
         self.api_key = self.config.get_setting('api_key')
         self.db_manager = DatabaseManager(Config().db_path)
 
@@ -29,18 +48,26 @@ class ApiClient:
         url = f"{self.base_url}{endpoint}"
 
         try:
-            response = requests.request(
-                method=method,
-                url=url,
+            if data and not files:
+                data = json.dumps(data).encode('utf-8')
+            elif files:
+                # Handle files using urllib MultipartEncoder
+                boundary = 'boundary'
+                headers['Content-Type'] = f'multipart/form-data; boundary={boundary}'
+                # Convert files to multipart format
+                data = self._encode_multipart_formdata(files, boundary)
+            
+            req = urllib.request.Request(
+                url,
+                data=data,
                 headers=headers,
-                data=json.dumps(data) if data and not files else None,
-                files=files
+                method=method
             )
+            
+            with urllib.request.urlopen(req) as response:
+                return json.loads(response.read().decode('utf-8'))
 
-            response.raise_for_status()
-            return response.json()
-
-        except requests.exceptions.RequestException as e:
+        except urllib.error.URLError as e:
             utils.log(f"API request failed: {str(e)}", "ERROR")
             return {'status': 'error', 'message': str(e)}
 
