@@ -1,12 +1,8 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <!-- """ /resources/settings.xml """ -->
 <settings>
-    
-    <category label="General">
-        <setting id="cache_expiry" type="number" label="30006" default="3600" />
-    </category>
     <category label="LibraryGenie Server">
-        <setting id="imdb_upload_url" type="text" label="IMDB Upload API URL" default="" />
-        <setting id="imdb_upload_key" type="text" label="IMDB Upload API Key" default="" option="hidden" />
+        <setting id="lgs_upload_url" type="text" label="LGS Upload API URL" default="" />
+        <setting id="lgs_upload_key" type="text" label="LGS Upload API Key" default="" option="hidden" />
     </category>
 </settings>
