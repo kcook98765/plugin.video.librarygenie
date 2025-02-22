@@ -3,12 +3,12 @@ import json
 import pyxbmct
 import xbmc
 import xbmcgui
-from resources.lib.database_manager import DatabaseManager
-from resources.lib.config_manager import Config
-from resources.lib.window_list import ListWindow
-from resources.lib.window_list_browser import ListBrowserWindow
-from resources.lib import utils
-from resources.lib.window_base import BaseWindow
+from .database_manager import DatabaseManager
+from .config_manager import Config
+from .window_list import ListWindow
+from .window_list_browser import ListBrowserWindow
+from . import utils
+from .window_base import BaseWindow
 
 utils.log("Initializing MainWindow module", "INFO")
 
@@ -671,12 +671,12 @@ class MainWindow(BaseWindow):
             self.open_settings()
 
     def upload_imdb_list(self):
-        from resources.lib.api_client import ApiClient
+        from .api_client import ApiClient
         api_client = ApiClient()
         api_client.upload_imdb_list()
 
     def export_imdb_list(self, list_id):
-        from resources.lib.api_client import ApiClient
+        from .api_client import ApiClient
         api_client = ApiClient()
         api_client.export_imdb_list(list_id)
 

@@ -3,8 +3,8 @@ import sys
 import xbmc
 import xbmcgui
 import xbmcaddon
-from resources.lib.kodi_helper import KodiHelper
-from resources.lib.window_main import MainWindow
+from .kodi_helper import KodiHelper
+from .window_main import MainWindow
 
 def build_context_menu():
     xbmc.executebuiltin('Dialog.Close(all, true)')

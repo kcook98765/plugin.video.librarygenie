@@ -1,8 +1,8 @@
 import xbmc
 import json
-from resources.lib.config_manager import Config
-from resources.lib import utils
-from resources.lib.jsonrpc_manager import JSONRPC
+from .config_manager import Config
+from . import utils
+from .jsonrpc_manager import JSONRPC
 
 class MediaManager:
     def __init__(self):

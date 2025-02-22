@@ -1,11 +1,11 @@
 import sys
 import urllib.parse
 import xbmcgui
-from resources.lib.config_manager import Config
-from resources.lib.database_manager import DatabaseManager
-from resources.lib.kodi_helper import KodiHelper
-from resources.lib.window_main import MainWindow
-from resources.lib import utils
+from .config_manager import Config
+from .database_manager import DatabaseManager
+from .kodi_helper import KodiHelper
+from .window_main import MainWindow
+from . import utils
 
 _initialized = False
 
