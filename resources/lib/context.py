@@ -1,6 +1,11 @@
 
 import os
 import sys
+
+# Add addon directory to Python path
+addon_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(addon_dir)
+
 import xbmc
 import xbmcgui
 import xbmcaddon
