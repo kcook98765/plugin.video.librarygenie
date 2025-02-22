@@ -26,7 +26,7 @@ def register_beta_user(addon):
     api_url = addon.getSetting('lgs_upload_url').rstrip('/') + '/api/v1/api_info/create-user'
     
     try:
-        response = requests.post(
+        response = urllib.request.post(
             api_url,
             headers={'Content-Type': 'application/json'},
             json={'code': code}
