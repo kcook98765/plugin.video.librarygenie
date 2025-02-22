@@ -3,14 +3,8 @@ import sys
 import xbmc
 import xbmcgui
 import xbmcaddon
-
-# Add addon root to Python path
-addon_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, addon_dir)
-
 from resources.lib.kodi_helper import KodiHelper
 from resources.lib.window_main import MainWindow
-
 
 def build_context_menu():
     xbmc.executebuiltin('Dialog.Close(all, true)')
