@@ -3,7 +3,6 @@ import pyxbmct
 import xbmcgui
 from resources.lib.database_manager import DatabaseManager
 from resources.lib.config_manager import Config
-from resources.lib.llm_api_manager import LLMApiManager
 from resources.lib.window_results import ResultsWindow
 from resources.lib import utils
 
@@ -24,7 +23,6 @@ class GenieWindow(pyxbmct.AddonDialogWindow):
         self.setGeometry(800, 600, 10, 10)
         self.list_id = list_id
         self.db_manager = DatabaseManager(Config().db_path)  # Use Config to get the db_path
-        self.llm_api_manager = LLMApiManager()
         self.genie_list = self.db_manager.get_genie_list(self.list_id)
         self.setup_ui()
         self.populate_fields()
