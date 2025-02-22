@@ -1,4 +1,11 @@
 
+import os
+import sys
+
+# Add addon directory to Python path
+addon_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(addon_dir)
+
 import xbmc
 import xbmcgui
 import xbmcaddon
@@ -12,10 +19,10 @@ def build_context_menu():
         xbmcgui.ListItem("Item Management"),
         xbmcgui.ListItem("Additional Feature")
     ]
-    
+
     dialog = xbmcgui.Dialog()
     choice = dialog.select("LibraryGenie", options)
-    
+
     if choice == 0:  # Item Management
         kodi_helper = KodiHelper()
         item_info = kodi_helper.get_focused_item_details()

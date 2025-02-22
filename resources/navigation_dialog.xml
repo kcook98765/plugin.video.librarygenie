@@ -1,0 +1,34 @@
+
+<?xml version="1.0" encoding="UTF-8"?>
+<window>
+    <coordinates>
+        <left>0</left>
+        <top>0</top>
+    </coordinates>
+    <controls>
+        <control type="image" id="101">
+            <description>Background Image</description>
+            <left>0</left>
+            <top>0</top>
+            <width>1920</width>
+            <height>1080</height>
+        </control>
+        <control type="image" id="102">
+            <description>Pointer</description>
+            <left>960</left>
+            <top>540</top>
+            <width>40</width>
+            <height>40</height>
+            <texture>pointer.png</texture>
+        </control>
+        <control type="label" id="103">
+            <description>Coordinates</description>
+            <left>20</left>
+            <top>20</top>
+            <width>500</width>
+            <height>30</height>
+            <font>font12</font>
+            <textcolor>FFFFFFFF</textcolor>
+        </control>
+    </controls>
+</window>

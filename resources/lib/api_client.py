@@ -3,9 +3,9 @@ import xbmcaddon
 import json
 import requests
 import xbmc
-from resources.lib.database_manager import DatabaseManager
-from resources.lib.config_manager import Config
-from resources.lib import utils
+from .database_manager import DatabaseManager
+from .config_manager import Config
+from . import utils
 
 class ApiClient:
     def __init__(self):
