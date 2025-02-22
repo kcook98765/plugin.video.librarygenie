@@ -74,10 +74,6 @@ class Config:
         from resources.lib.settings_manager import SettingsManager
         self.settings = SettingsManager()
         self.addondir = self.settings.addon_data_path
-        self._openai_api_key = self.settings.get_setting('openai_api_key')
-        self._base_url = self.settings.get_setting('base_url')
-        self._api_temperature = float(self.settings.get_setting('api_temperature') or '0.7')
-        self._api_max_tokens = int(self.settings.get_setting('api_max_tokens') or '2048')
         self._max_folder_depth = int(self.settings.get_setting('max_folder_depth') or '3')
 
         utils.log(f"Addon path - {self.addonpath}", "DEBUG")
@@ -85,22 +81,6 @@ class Config:
     @property
     def db_path(self):
         return os.path.join(self.profile, 'librarygenie.db')
-
-    @property
-    def openai_api_key(self):
-        return self._openai_api_key or ""
-
-    @property
-    def base_url(self):
-        return self._base_url or "https://api.openai.com/v1/completions"
-
-    @property
-    def api_temperature(self):
-        return self._api_temperature
-
-    @property
-    def api_max_tokens(self):
-        return self._api_max_tokens
 
     @property
     def max_folder_depth(self):

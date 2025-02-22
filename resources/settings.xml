@@ -1,17 +1,8 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <!-- """ /resources/settings.xml """ -->
 <settings>
-    <category label="30002"><!-- ChatGPT API Key -->
-        <setting id="openai_api_key" type="text" label="30002" default="" visible="true"/>
-        <setting id="base_url" type="text" label="30003" default="https://api.openai.com/v1/chat/completions" visible="true"/>
-        <setting id="api_temperature" type="number" label="30004" default="0.7" visible="true" />
-        <setting id="api_max_tokens" type="number" label="30005" default="3000" visible="true" />
-    </category>
-    <category label="General">
-        <setting id="cache_expiry" type="number" label="30006" default="3600" />
-    </category>
     <category label="LibraryGenie Server">
-        <setting id="imdb_upload_url" type="text" label="IMDB Upload API URL" default="" />
-        <setting id="imdb_upload_key" type="text" label="IMDB Upload API Key" default="" option="hidden" />
+        <setting id="lgs_upload_url" type="text" label="LGS Upload API URL" default="https://a5c6756b-056b-474d-a2c8-d3bbffaf5efb-00-32b6uktu04qdf.picard.replit.dev/" />
+        <setting id="lgs_upload_key" type="text" label="LGS Upload API Key" default="" option="hidden" />
     </category>
 </settings>
