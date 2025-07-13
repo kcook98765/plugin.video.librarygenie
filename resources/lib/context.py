@@ -15,37 +15,10 @@ import xbmcaddon
 from resources.lib.kodi_helper import KodiHelper
 from resources.lib.window_main import MainWindow
 
-def register_beta_user(addon):
-    dialog = xbmcgui.Dialog()
-    code = dialog.input("Enter 6-digit Beta Code", type=xbmcgui.INPUT_NUMERIC)
-    
-    if not code or len(code) != 6:
-        dialog.notification("LibraryGenie", "Invalid code format", xbmcgui.NOTIFICATION_ERROR, 2000)
-        return
-
-    api_url = addon.getSetting('lgs_upload_url').rstrip('/') + '/api/v1/api_info/create-user'
-    
-    try:
-        response = urllib.request.post(
-            api_url,
-            headers={'Content-Type': 'application/json'},
-            json={'code': code}
-        )
-        
-        data = response.json()
-        
-        if data.get('status') == 'success' and 'user' in data:
-            user = data['user']
-            addon.setSetting('lgs_upload_key', user['api_token'])
-            addon.setSetting('lgs_username', user['username'])
-            addon.setSetting('lgs_password', user['password'])
-            
-            dialog.ok("Success", f"Registration successful!\nUsername: {user['username']}\nPassword: {user['password']}\n\nPlease save these credentials securely.")
-        else:
-            dialog.ok("Error", "Registration failed: " + data.get('message', 'Unknown error'))
-            
-    except Exception as e:
-        dialog.ok("Error", f"Failed to register: {str(e)}")
+def authenticate_user():
+    """Authenticate user with one-time code"""
+    from resources.lib.authenticate_code import authenticate_with_code
+    return authenticate_with_code()
 
 def build_context_menu():
     xbmc.executebuiltin('Dialog.Close(all, true)')
