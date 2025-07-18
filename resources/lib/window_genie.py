@@ -112,3 +112,57 @@ class GenieWindow(pyxbmct.AddonDialogWindow):
 
     def __del__(self):
         utils.log("Deleting GenieWindow instance")
+
+    def execute_search(self):
+        """Execute the search using progressive modal and display results"""
+        query = self.search_input.getText().strip()
+        if not query:
+            self.show_notification("Please enter a search query", xbmcgui.NOTIFICATION_WARNING)
+            return
+
+        try:
+            from resources.lib.window_search_progress import SearchProgressWindow
+
+            # Show progressive search modal
+            progress_window = SearchProgressWindow(query)
+            progress_window.doModal()
+
+            # Get results from the modal
+            search_results = progress_window.get_results()
+            del progress_window
+
+            if search_results and search_results.get('status') == 'success':
+                matches = search_results.get('matches', [])
+                if matches:
+                    # Store results and query embedding for later use
+                    self.current_results = search_results
+                    self.current_query_embedding = search_results.get('query_embedding')
+
+                    results_text = f"Found {len(matches)} movies:\n\n"
+                    for i, match in enumerate(matches[:10], 1):  # Show first 10
+                        imdb_id = match.get('imdb_id', 'Unknown')
+                        score = match.get('score', 0)
+                        relevance = match.get('relevance_score', 0)
+                        results_text += f"{i}. {imdb_id} (Score: {score:.3f}, Relevance: {relevance:.1f}%)\n"
+
+                    if len(matches) > 10:
+                        results_text += f"\n... and {len(matches) - 10} more results"
+
+                    # Add timing info if available
+                    timing = search_results.get('timing', {})
+                    if timing.get('total'):
+                        results_text += f"\n\nSearch completed in {timing['total']:.1f}s"
+
+                    self.results_label.setLabel(results_text)
+                    self.create_list_button.setEnabled(True)
+                else:
+                    self.results_label.setLabel("No movies found matching your search.")
+                    self.create_list_button.setEnabled(False)
+            else:
+                self.results_label.setLabel("Search was cancelled or failed.")
+                self.create_list_button.setEnabled(False)
+
+        except Exception as e:
+            utils.log(f"Search error: {str(e)}", "ERROR")
+            self.results_label.setLabel("An error occurred during search.")
+            self.create_list_button.setEnabled(False)
