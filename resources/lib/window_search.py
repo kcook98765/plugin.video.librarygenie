@@ -39,7 +39,7 @@ class SearchWindow(BaseWindow):
         self.connect(self.cancel_button, self.close)
         
         # Connect Enter key to search
-        self.connect(pyxbmct.ACTION_ENTER, self.on_search_click)
+        self.connect(pyxbmct.ACTION_SELECT_ITEM, self.on_search_click)
 
     def set_navigation(self):
         # Set up navigation between controls
@@ -109,7 +109,7 @@ class SearchWindow(BaseWindow):
         """Handle window actions"""
         if action.getId() == pyxbmct.ACTION_NAV_BACK:
             self.close()
-        elif action.getId() == pyxbmct.ACTION_ENTER:
+        elif action.getId() == pyxbmct.ACTION_SELECT_ITEM:
             # Only trigger search if focus is on search input or search button
             focused_control = self.getFocus()
             if focused_control == self.search_input or focused_control == self.search_button:
