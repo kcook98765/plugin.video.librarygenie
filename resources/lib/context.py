@@ -20,6 +20,25 @@ def authenticate_user():
     from resources.lib.authenticate_code import authenticate_with_code
     return authenticate_with_code()
 
+def register_beta_user(addon):
+    """Register user for beta access using one-time code"""
+    from resources.lib.authenticate_code import authenticate_with_code
+    success = authenticate_with_code()
+    if success:
+        xbmcgui.Dialog().notification(
+            "LibraryGenie", 
+            "Beta registration successful!", 
+            xbmcgui.NOTIFICATION_INFO, 
+            3000
+        )
+    else:
+        xbmcgui.Dialog().notification(
+            "LibraryGenie", 
+            "Beta registration failed", 
+            xbmcgui.NOTIFICATION_ERROR, 
+            3000
+        )
+
 def build_context_menu():
     xbmc.executebuiltin('Dialog.Close(all, true)')
     addon = xbmcaddon.Addon()
