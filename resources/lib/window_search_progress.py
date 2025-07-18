@@ -1,4 +1,3 @@
-
 import pyxbmct
 import xbmc
 import xbmcgui
@@ -18,10 +17,10 @@ class SearchProgressWindow(BaseWindow):
         self.is_complete = False
         self.is_cancelled = False
         self.api_client = ApiClient()
-        
+
         self.setup_ui()
         self.set_navigation()
-        
+
         # Start the search in a separate thread
         self.search_thread = threading.Thread(target=self.run_progressive_search)
         self.search_thread.daemon = True
@@ -31,33 +30,34 @@ class SearchProgressWindow(BaseWindow):
         # Title
         self.title_label = pyxbmct.Label(f"Searching: {self.query}", alignment=0)
         self.placeControl(self.title_label, 0, 0, columnspan=6, pad_x=10, pad_y=5)
-        
+
         # Progress steps
         self.step1_label = pyxbmct.Label("1. Processing Query...", alignment=0)
         self.placeControl(self.step1_label, 1, 0, columnspan=6, pad_x=20, pad_y=2)
-        
+
         self.step2_label = pyxbmct.Label("2. Generating Embeddings...", alignment=0) 
         self.placeControl(self.step2_label, 2, 0, columnspan=6, pad_x=20, pad_y=2)
-        
+
         self.step3_label = pyxbmct.Label("3. Vector Search...", alignment=0)
         self.placeControl(self.step3_label, 3, 0, columnspan=6, pad_x=20, pad_y=2)
-        
+
         self.step4_label = pyxbmct.Label("4. AI Quality Filter...", alignment=0)
         self.placeControl(self.step4_label, 4, 0, columnspan=6, pad_x=20, pad_y=2)
-        
+
         # Progress info
         self.progress_label = pyxbmct.Label("Starting search...", alignment=0)
         self.placeControl(self.progress_label, 5, 0, columnspan=6, pad_x=10, pad_y=5)
-        
+
         # Timing info
         self.timing_label = pyxbmct.Label("", alignment=0)
         self.placeControl(self.timing_label, 6, 0, columnspan=6, pad_x=10, pad_y=2)
-        
+
         # Cancel button
         self.cancel_button = pyxbmct.Button("Cancel")
         self.placeControl(self.cancel_button, 7, 4, columnspan=2, pad_x=5, pad_y=5)
         self.connect(self.cancel_button, self.cancel_search)
         self.connect(pyxbmct.ACTION_NAV_BACK, self.cancel_search)
+        self.connect(pyxbmct.ACTION_SELECT_ITEM, self._handle_enter_key)
 
     def set_navigation(self):
         self.set_basic_navigation(self.cancel_button)
@@ -70,11 +70,11 @@ class SearchProgressWindow(BaseWindow):
             'VECTOR_SEARCH': self.step3_label,
             'AI_FILTERING': self.step4_label
         }
-        
+
         if step in step_labels:
             label = step_labels[step]
             step_num = list(step_labels.keys()).index(step) + 1
-            
+
             if status == "active":
                 text = f"[COLOR yellow]{step_num}. {self.get_step_name(step)}... [ACTIVE][/COLOR]"
             elif status == "complete":
@@ -82,7 +82,7 @@ class SearchProgressWindow(BaseWindow):
                 text = f"[COLOR green]{step_num}. {self.get_step_name(step)}... ✓{time_str}[/COLOR]"
             else:
                 text = f"{step_num}. {self.get_step_name(step)}..."
-            
+
             label.setLabel(text)
 
     def get_step_name(self, step):
@@ -103,58 +103,58 @@ class SearchProgressWindow(BaseWindow):
             if not search_data:
                 self.show_error("Failed to start search")
                 return
-                
+
             self.search_id = search_data.get('search_id')
             if not self.search_id:
                 self.show_error("No search ID received")
                 return
-                
+
             xbmc.executebuiltin('Notification(LibraryGenie, Search started, 2000)')
-            
+
             # Poll for progress
             last_step = None
             step_times = {}
-            
+
             while not self.is_cancelled:
                 time.sleep(0.5)  # Poll every 500ms
-                
+
                 progress = self.api_client.get_search_progress(self.search_id)
                 if not progress:
                     self.show_error("Failed to get progress")
                     break
-                    
+
                 status = progress.get('status')
                 current_step = progress.get('current_step')
                 progress_data = progress.get('progress_data', {})
-                
+
                 # Update step visualization
                 if current_step != last_step and current_step:
                     if last_step:
                         # Mark previous step as complete
                         time_taken = self.get_step_time(progress_data, last_step)
                         self.update_step_status(last_step, "complete", time_taken)
-                        
+
                     # Mark current step as active
                     self.update_step_status(current_step, "active")
                     last_step = current_step
-                
+
                 # Update progress text
                 self.update_progress_text(current_step, progress_data)
-                
+
                 # Check if completed
                 if status == 'COMPLETED':
                     # Mark final step as complete
                     if current_step:
                         time_taken = self.get_step_time(progress_data, current_step)
                         self.update_step_status(current_step, "complete", time_taken)
-                    
+
                     # Show final results
                     results = progress_data.get('results', [])
                     total_time = progress_data.get('total_time', 0)
-                    
+
                     self.progress_label.setLabel(f"[COLOR green]Search completed! Found {len(results)} movies[/COLOR]")
                     self.timing_label.setLabel(f"Total time: {total_time:.1f}s")
-                    
+
                     # Store results and embedding
                     self.final_results = {
                         'matches': results,
@@ -163,20 +163,20 @@ class SearchProgressWindow(BaseWindow):
                         'timing': step_times,
                         'status': 'success'
                     }
-                    
+
                     self.is_complete = True
-                    
+
                     # Auto-close after 2 seconds
                     xbmc.executebuiltin('Notification(LibraryGenie, Search complete! Closing..., 2000)')
                     time.sleep(2)
                     self.close_search()
                     break
-                    
+
                 elif status == 'FAILED':
                     error_msg = progress.get('error_message', 'Unknown error')
                     self.show_error(f"Search failed: {error_msg}")
                     break
-                    
+
         except Exception as e:
             utils.log(f"Search progress error: {str(e)}", "ERROR")
             self.show_error(f"Search error: {str(e)}")
@@ -231,3 +231,8 @@ class SearchProgressWindow(BaseWindow):
     def get_results(self):
         """Get the final search results"""
         return self.final_results if self.is_complete else None
+
+    def _handle_enter_key(self):
+        """Handle Enter key press"""
+        # For example, close the window
+        self.close_search()
