@@ -7,17 +7,12 @@ import xbmc
 from .database_manager import DatabaseManager
 from .config_manager import Config
 from . import utils
-import requests #Imported requests
-
 class ApiClient:
     def __init__(self):
         self.config = Config()
         self.base_url = self.config.get_setting('api_base_url')
-        self.api_key = self.config.get_setting('api_key') #Added api key
+        self.api_key = self.config.get_setting('api_key')
         self.db_manager = DatabaseManager(Config().db_path)
-        self.session = requests.Session() #Added session
-        if self.api_key: #added api key to session
-            self.session.headers.update({'X-API-Key': self.api_key}) # added header
 
     def _encode_multipart_formdata(self, files, boundary):
         """Encode files for multipart form data"""
@@ -171,12 +166,17 @@ class ApiClient:
             return False, "No server URL configured"
 
         try:
-            response = self.session.get(f"{self.base_url}/health", timeout=10)
-            if response.status_code == 200:
-                return True, "Connection successful"
-            else:
-                return False, f"Server returned status {response.status_code}"
-        except requests.exceptions.RequestException as e:
+            headers = {}
+            if self.api_key:
+                headers['X-API-Key'] = self.api_key
+            
+            req = urllib.request.Request(f"{self.base_url}/health", headers=headers)
+            with urllib.request.urlopen(req, timeout=10) as response:
+                if response.getcode() == 200:
+                    return True, "Connection successful"
+                else:
+                    return False, f"Server returned status {response.getcode()}"
+        except urllib.error.URLError as e:
             return False, f"Connection failed: {str(e)}"
 
     def start_async_search(self, query):
@@ -187,15 +187,21 @@ class ApiClient:
 
         try:
             url = f"{self.base_url}/user_search/search_async"
-            response = self.session.post(url, json={"query": query}, timeout=10)
+            data = json.dumps({"query": query}).encode('utf-8')
+            headers = {
+                'Content-Type': 'application/json',
+                'X-API-Key': self.api_key
+            }
+            
+            req = urllib.request.Request(url, data=data, headers=headers, method='POST')
+            with urllib.request.urlopen(req, timeout=10) as response:
+                if response.getcode() == 200:
+                    return json.loads(response.read().decode('utf-8'))
+                else:
+                    utils.log(f"Search start failed: {response.getcode()}", "ERROR")
+                    return None
 
-            if response.status_code == 200:
-                return response.json()
-            else:
-                utils.log(f"Search start failed: {response.status_code} - {response.text}", "ERROR")
-                return None
-
-        except requests.exceptions.RequestException as e:
+        except urllib.error.URLError as e:
             utils.log(f"Search start error: {str(e)}", "ERROR")
             return None
 
@@ -206,15 +212,17 @@ class ApiClient:
 
         try:
             url = f"{self.base_url}/user_search/search_progress/{search_id}"
-            response = self.session.get(url, timeout=10)
+            headers = {'X-API-Key': self.api_key}
+            
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=10) as response:
+                if response.getcode() == 200:
+                    return json.loads(response.read().decode('utf-8'))
+                else:
+                    utils.log(f"Progress check failed: {response.getcode()}", "ERROR")
+                    return None
 
-            if response.status_code == 200:
-                return response.json()
-            else:
-                utils.log(f"Progress check failed: {response.status_code}", "ERROR")
-                return None
-
-        except requests.exceptions.RequestException as e:
+        except urllib.error.URLError as e:
             utils.log(f"Progress check error: {str(e)}", "ERROR")
             return None
 
