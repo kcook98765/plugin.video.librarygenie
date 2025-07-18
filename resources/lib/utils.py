@@ -35,9 +35,25 @@ def log(message, level=None):
     xbmc.log(f"LibraryGenie [{level}]: {message}", xbmc.LOGINFO)
 
 
-def show_notification(heading, message, icon=xbmcgui.NOTIFICATION_INFO, time=5000):
-    """Centralized notification display"""
-    xbmcgui.Dialog().notification(heading, message, icon, time)
+def show_notification(title, message, icon=xbmcgui.NOTIFICATION_INFO, time=5000):
+    xbmcgui.Dialog().notification(title, message, icon, time)
+
+def launch_movie_search():
+    """Launch the movie search GUI and return results"""
+    try:
+        from resources.lib.window_search import SearchWindow
+
+        search_window = SearchWindow()
+        search_window.doModal()
+
+        # Get results if any
+        results = search_window.get_search_results()
+        del search_window
+
+        return results
+    except Exception as e:
+        log(f"Error launching search window: {str(e)}", "ERROR")
+        return None
 
 def show_dialog_ok(heading, message):
     """Centralized OK dialog"""

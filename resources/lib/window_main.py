@@ -998,3 +998,184 @@ class MainWindow(BaseWindow):
 
     def __del__(self):
         utils.log("Deleting CustomWindow instance...", "DEBUG")
+class SearchProgressWindow(BaseWindow):
+    def __init__(self, title="Searching..."):
+        super().__init__(title)
+        self.setGeometry(500, 200, 6, 1)
+
+        self.label = pyxbmct.Label("Searching, please wait...")
+        self.placeControl(self.label, 1, 1, 4, 4)
+
+        self.progress_bar = pyxbmct.ProgressBar()
+        self.placeControl(self.progress_bar, 5, 1, 1, 4)
+
+        self.cancel_button = pyxbmct.Button("Cancel")
+        self.placeControl(self.cancel_button, 5, 5, 1, 1)
+        self.connect(self.cancel_button, self.close)
+        self.connect(pyxbmct.ACTION_NAV_BACK, self.close)
+
+    def set_progress(self, percent):
+        self.progress_bar.update(percent)
+        self.progress_bar.setPercent(percent)
+
+    def show_message(self, message):
+        self.label.setLabel(message)
+
+    def close(self):
+        super().close()
+        self.progress_bar = None
+        self.label = None
+        del self
+
+def launch_movie_search():
+    """Launches a dialog to get the search query from the user"""
+
+    keyboard = xbmc.Keyboard('', 'Enter movie search query')
+    keyboard.doModal()
+
+    if keyboard.isConfirmed():
+        search_query = keyboard.getText()
+        if search_query:
+            return perform_movie_search(search_query)
+    return None
+
+
+def perform_movie_search(search_query):
+    """Performs the actual movie search using the provided query"""
+
+    progress_win = SearchProgressWindow()
+    progress_win.doModal()
+
+    try:
+        # Simulate a search process
+        import time
+        total_steps = 100
+        for i in range(total_steps):
+            time.sleep(0.01)  # Simulate work
+            percent = (i + 1) * 100 // total_steps
+            progress_win.set_progress(percent)
+            progress_win.show_message(f"Searching... {percent}%")
+
+            # Check if the user has cancelled the search
+            if not progress_win.is_visible():
+                return {'status': 'cancelled'}
+
+        # Simulate movie matches
+        matches = [
+            {'title': f"Movie Match 1: {search_query}"},
+            {'title': f"Movie Match 2: {search_query}"}
+        ]
+
+        progress_win.show_message("Search completed successfully")
+        return {'status': 'success', 'matches': matches}
+    except Exception as e:
+        progress_win.show_message(f"Search failed: {str(e)}")
+        return {'status': 'failure', 'error': str(e)}
+    finally:
+        # Ensure that progress window is closed
+        progress_win.close()
+        del progress_win
+class MenuWindow(BaseWindow):
+    def __init__(self, title="Main Menu"):
+        super().__init__(title)
+        self.setGeometry(600, 400, 8, 6)
+        self.menu_items = []
+        self.list_control = pyxbmct.List()
+        self.setup_ui()
+        self.populate_list()
+        self.set_navigation()
+
+    def setup_ui(self):
+        # Add label at top
+        self.title_label = pyxbmct.Label("LibraryGenie Menu", alignment=pyxbmct.ALIGN_CENTER)
+        self.placeControl(self.title_label, 0, 0, columnspan=6)
+
+        # Place list control
+        self.placeControl(self.list_control, 1, 0, rowspan=4, columnspan=6)
+        self.connect(self.list_control, self.on_list_click)
+
+        # Exit button at bottom
+        self.exit_button = pyxbmct.Button("Exit")
+        self.placeControl(self.exit_button, 6, 4, columnspan=2)
+        self.connect(self.exit_button, self.close)
+        self.connect(pyxbmct.ACTION_NAV_BACK, self.close)
+
+    def populate_list(self):
+        self.list_control.reset()
+        # Create directory items for main menu options
+        items = [
+            {'label': 'Search Movies', 'action': 'search_movies'},
+            {'label': 'View Lists', 'action': 'view_lists'},
+            {'label': 'Create New List', 'action': 'create_list'},
+            {'label': 'Settings', 'action': 'settings'}
+        ]
+        self.menu_items = items
+        for item in items:
+            list_item = xbmcgui.ListItem(item['label'])
+            self.list_control.addItem(list_item)
+
+    def on_list_click(self):
+        """Handle list item selection"""
+        selected_position = self.list_control.getSelectedPosition()
+        if selected_position >= 0:
+            selected_item = self.menu_items[selected_position]
+            action = selected_item.get('action')
+
+            if action == 'search_movies':
+                self.launch_search()
+            elif action == 'view_lists':
+                self.show_lists()
+            elif action == 'create_list':
+                self.create_new_list()
+            elif action == 'settings':
+                self.show_settings()
+
+    def launch_search(self):
+        """Launch the movie search interface"""
+        from resources.lib import utils
+
+        results = utils.launch_movie_search()
+        if results and results.get('status') == 'success':
+            matches = results.get('matches', [])
+            if matches:
+                # Optionally show a results window or create a list from results
+                self.show_notification(f"Search completed: {len(matches)} movies found")
+            else:
+                self.show_notification("No movies found matching your search")
+
+    def show_notification(self, message, time=3000):
+        """Helper method to display a notification"""
+        xbmcgui.Dialog().notification("LibraryGenie", message, xbmcgui.NOTIFICATION_INFO, time)
+
+    def show_lists(self):
+        """Display lists"""
+        list_browser = ListBrowserWindow()
+        list_browser.doModal()
+        del list_browser
+
+    def create_new_list(self):
+        """Create a new list"""
+        new_list_name = xbmcgui.Dialog().input("Enter new list name").strip()
+        if new_list_name:
+            from .database_manager import DatabaseManager
+            from .config_manager import Config
+            db_manager = DatabaseManager(Config().db_path)
+            db_manager.insert_data('lists', {'name': new_list_name})
+            xbmcgui.Dialog().notification("LibraryGenie", f"New list '{new_list_name}' created", xbmcgui.NOTIFICATION_INFO, 3000)
+
+    def show_settings(self):
+        """Open settings"""
+        xbmc.executebuiltin("Addon.OpenSettings(plugin.video.librarygenie)")
+
+    def set_navigation(self):
+        # Connect list with exit button
+        self.list_control.controlDown(self.exit_button)
+        self.exit_button.controlUp(self.list_control)
+        # Exit button navigation - only up and left
+        self.exit_button.controlRight(self.exit_button)  # Stay on self when right is pressed
+        self.exit_button.controlDown(self.exit_button)  # Stay on self when down is pressed
+        self.setFocus(self.list_control)
+
+    def close(self):
+        super().close()
+        del self
