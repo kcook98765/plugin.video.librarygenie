@@ -44,6 +44,7 @@ def build_context_menu():
     addon = xbmcaddon.Addon()
     options = [
         xbmcgui.ListItem("Item Management"),
+        xbmcgui.ListItem("Search Movies"),
         xbmcgui.ListItem("Beta Signup"),
         xbmcgui.ListItem("Additional Feature")
     ]
@@ -58,9 +59,14 @@ def build_context_menu():
             window = MainWindow(item_info)
             window.doModal()
             del window
-    elif choice == 1:  # Beta Signup
+    elif choice == 1:  # Search Movies
+        from resources.lib.window_search import SearchWindow
+        search_window = SearchWindow()
+        search_window.doModal()
+        del search_window
+    elif choice == 2:  # Beta Signup
         register_beta_user(addon)
-    elif choice == 2:  # Additional Feature
+    elif choice == 3:  # Additional Feature
         dialog.notification("LibraryGenie", "Feature coming soon", xbmcgui.NOTIFICATION_INFO, 2000)
 
 if __name__ == '__main__':
