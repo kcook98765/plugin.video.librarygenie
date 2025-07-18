@@ -1,26 +1,4 @@
 
-import xbmcaddon
-import xbmcvfs
-import os
-import json
-
-class Config:
-    def __init__(self):
-        self.addon = xbmcaddon.Addon()
-        self.addon_path = xbmcvfs.translatePath(self.addon.getAddonInfo('path'))
-        self.db_path = os.path.join(self.addon_path, 'library.db')
-        self.max_folder_depth = 5
-
-    def get_setting(self, setting_id):
-        """Get addon setting value"""
-        return self.addon.getSetting(setting_id)
-
-    def set_setting(self, setting_id, value):
-        """Set addon setting value"""
-        self.addon.setSetting(setting_id, str(value))
-
-
-""" /resources/lib/config_manager.py """
 import os
 import xbmcaddon
 import xbmcvfs
@@ -77,6 +55,14 @@ class Config:
         self._max_folder_depth = int(self.settings.get_setting('max_folder_depth') or '3')
 
         utils.log(f"Addon path - {self.addonpath}", "DEBUG")
+
+    def get_setting(self, setting_id):
+        """Get addon setting value"""
+        return self.settings.get_setting(setting_id)
+
+    def set_setting(self, setting_id, value):
+        """Set addon setting value"""
+        self.settings.set_setting(setting_id, value)
 
     @property
     def db_path(self):
