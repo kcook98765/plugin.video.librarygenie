@@ -109,14 +109,13 @@ class SearchWindow(BaseWindow):
 
     def onAction(self, action):
         """Handle window actions"""
-        import xbmcgui
         action_id = action.getId()
         
         # Handle back/escape key
-        if action_id in (xbmcgui.ACTION_NAV_BACK, xbmcgui.ACTION_PREVIOUS_MENU):
+        if action_id in (pyxbmct.ACTION_NAV_BACK, pyxbmct.ACTION_PREVIOUS_MENU):
             self.close()
-        # Handle enter/select key
-        elif action_id in (xbmcgui.ACTION_SELECT_ITEM, xbmcgui.ACTION_MOUSE_LEFT_CLICK):
+        # Handle enter/select key - using numeric codes as they're more reliable
+        elif action_id in (7, 100):  # 7 = ACTION_SELECT_ITEM, 100 = ACTION_MOUSE_LEFT_CLICK
             # Only trigger search if focus is on search input or search button
             focused_control = self.getFocus()
             if focused_control == self.search_input or focused_control == self.search_button:
