@@ -265,3 +265,6 @@ class SearchProgressWindow(BaseWindow):
                 utils.log("SearchProgressWindow: start_async_search returned None, showing error", "ERROR")
                 self.show_error("Failed to start search")
                 return
+        except Exception as e:
+            utils.log(f"SearchProgressWindow: Error in start_search: {str(e)}", "ERROR")
+            self.show_error(f"Search error: {str(e)}")
