@@ -74,6 +74,9 @@ class SearchProgressWindow(BaseWindow):
             label = step_labels[step]
             step_num = list(step_labels.keys()).index(step) + 1
 
+            # Clear the label first to ensure clean replacement
+            label.setLabel("")
+            
             if status == "active":
                 text = f"[COLOR yellow]{step_num}. {self.get_step_name(step)}... [ACTIVE][/COLOR]"
             elif status == "complete":
@@ -196,7 +199,9 @@ class SearchProgressWindow(BaseWindow):
                         results = progress_data.get('results', [])
                         total_time = progress_data.get('total_time', 0)
 
+                        self.progress_label.setLabel("")
                         self.progress_label.setLabel(f"[COLOR green]Search completed! Found {len(results)} movies[/COLOR]")
+                        self.timing_label.setLabel("")
                         self.timing_label.setLabel(f"Total time: {total_time:.1f}s")
 
                         # Store results and embedding
@@ -237,6 +242,9 @@ class SearchProgressWindow(BaseWindow):
 
     def update_progress_text(self, current_step, progress_data):
         """Update the progress description"""
+        # Clear the label first to ensure clean replacement
+        self.progress_label.setLabel("")
+        
         if current_step == 'QUERY_PROCESSING':
             self.progress_label.setLabel("Processing and expanding search query...")
         elif current_step == 'EMBEDDING_GENERATION':
@@ -244,9 +252,9 @@ class SearchProgressWindow(BaseWindow):
             if query_time > 0:
                 expanded = progress_data.get('expanded_query', '')
                 if expanded and expanded != self.query:
-                    self.progress_label.setLabel(f"Query expanded. Converting to embeddings...")
+                    self.progress_label.setLabel("Query expanded. Converting to embeddings...")
                 else:
-                    self.progress_label.setLabel(f"Using original query. Converting to embeddings...")
+                    self.progress_label.setLabel("Using original query. Converting to embeddings...")
         elif current_step == 'VECTOR_SEARCH':
             self.progress_label.setLabel("Searching vector database for similar movies...")
         elif current_step == 'AI_FILTERING':
@@ -255,6 +263,7 @@ class SearchProgressWindow(BaseWindow):
 
     def show_error(self, message):
         """Show error and close"""
+        self.progress_label.setLabel("")
         self.progress_label.setLabel(f"[COLOR red]Error: {message}[/COLOR]")
         self.cancel_button.setLabel("Close")
         time.sleep(3)
