@@ -1,4 +1,3 @@
-
 import os
 import xbmcaddon
 import xbmcvfs
@@ -57,8 +56,11 @@ class Config:
         utils.log(f"Addon path - {self.addonpath}", "DEBUG")
 
     def get_setting(self, setting_id):
-        """Get addon setting value"""
-        return self.settings.get_setting(setting_id)
+        """Get addon setting by name"""
+        value = self.addon.getSetting(setting_id)
+        if setting_id == 'lgs_upload_key':
+            utils.log(f"Config: Retrieved setting '{setting_id}': '{value[:10] if value else None}...'", "DEBUG")
+        return value
 
     def set_setting(self, setting_id, value):
         """Set addon setting value"""

@@ -234,7 +234,7 @@ class SearchProgressWindow(BaseWindow):
     def onAction(self, action):
         """Handle window actions"""
         action_id = action.getId()
-        
+
         # Handle back/escape key
         if action_id in (pyxbmct.ACTION_NAV_BACK, pyxbmct.ACTION_PREVIOUS_MENU):
             self.cancel_search()
@@ -244,3 +244,24 @@ class SearchProgressWindow(BaseWindow):
             self.close_search()
         else:
             super().onAction(action)
+
+    def start_search(self):
+        """Start the progressive search"""
+        utils.log(f"SearchProgressWindow: Starting search for query: '{self.query}'", "DEBUG")
+        self.search_complete = False
+        self.search_cancelled = False
+
+        try:
+            from resources.lib.api_client import ApiClient
+            utils.log("SearchProgressWindow: Creating ApiClient instance", "DEBUG")
+            self.api_client = ApiClient()
+
+            # Start async search
+            utils.log("SearchProgressWindow: Calling start_async_search", "DEBUG")
+            result = self.api_client.start_async_search(self.query)
+            utils.log(f"SearchProgressWindow: start_async_search result: {result}", "DEBUG")
+
+            if not result:
+                utils.log("SearchProgressWindow: start_async_search returned None, showing error", "ERROR")
+                self.show_error("Failed to start search")
+                return

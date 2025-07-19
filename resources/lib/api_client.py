@@ -181,8 +181,16 @@ class ApiClient:
 
     def start_async_search(self, query):
         """Start an async progressive search"""
+        utils.log(f"ApiClient: Checking API key availability. base_url='{self.base_url}', api_key='{self.api_key[:10] if self.api_key else None}...'", "DEBUG")
+        
         if not self.api_key:
             utils.log("No API token available for search", "ERROR")
+            utils.log(f"ApiClient: Attempting to retrieve lgs_upload_key setting", "DEBUG")
+            # Try to get the key directly from config
+            from resources.lib.config_manager import Config
+            config = Config()
+            direct_key = config.get_setting('lgs_upload_key')
+            utils.log(f"ApiClient: Direct key retrieval result: '{direct_key[:10] if direct_key else None}...'", "DEBUG")
             return None
 
         try:
