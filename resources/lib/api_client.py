@@ -10,8 +10,8 @@ from . import utils
 class ApiClient:
     def __init__(self):
         self.config = Config()
-        self.base_url = self.config.get_setting('api_base_url')
-        self.api_key = self.config.get_setting('api_key')
+        self.base_url = self.config.get_setting('lgs_upload_url')
+        self.api_key = self.config.get_setting('lgs_upload_key')
         self.db_manager = DatabaseManager(Config().db_path)
 
     def _encode_multipart_formdata(self, files, boundary):
