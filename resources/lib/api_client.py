@@ -169,7 +169,7 @@ class ApiClient:
             headers = {}
             if self.api_key:
                 headers['X-API-Key'] = self.api_key
-            
+
             req = urllib.request.Request(f"{self.base_url}/health", headers=headers)
             with urllib.request.urlopen(req, timeout=10) as response:
                 if response.getcode() == 200:
@@ -182,7 +182,7 @@ class ApiClient:
     def start_async_search(self, query):
         """Start an async progressive search"""
         utils.log(f"ApiClient: Checking API key availability. base_url='{self.base_url}', api_key='{self.api_key[:10] if self.api_key else None}...'", "DEBUG")
-        
+
         if not self.api_key:
             utils.log("No API token available for search", "ERROR")
             utils.log(f"ApiClient: Attempting to retrieve lgs_upload_key setting", "DEBUG")
@@ -194,17 +194,26 @@ class ApiClient:
             return None
 
         try:
-            url = f"{self.base_url}/api/v1/user_search/search_async"
+            # Ensure base_url doesn't end with slash to avoid double slashes
+            base_url = self.base_url.rstrip('/')
+            url = f"{base_url}/api/v1/user_search/search_async"
+            utils.log(f"ApiClient: Making request to URL: {url}", "DEBUG")
+
             data = json.dumps({"query": query}).encode('utf-8')
             headers = {
                 'Content-Type': 'application/json',
                 'X-API-Key': self.api_key
             }
-            
+
+            utils.log(f"ApiClient: Request headers: {headers}", "DEBUG")
+            utils.log(f"ApiClient: Request data: {data.decode('utf-8')}", "DEBUG")
+
             req = urllib.request.Request(url, data=data, headers=headers, method='POST')
             with urllib.request.urlopen(req, timeout=10) as response:
                 if response.getcode() == 200:
-                    return json.loads(response.read().decode('utf-8'))
+                    result = json.loads(response.read().decode('utf-8'))
+                    utils.log(f"ApiClient: Search response: {result}", "DEBUG")
+                    return result
                 else:
                     utils.log(f"Search start failed: {response.getcode()}", "ERROR")
                     return None
@@ -221,7 +230,7 @@ class ApiClient:
         try:
             url = f"{self.base_url}/api/v1/user_search/search_progress/{search_id}"
             headers = {'X-API-Key': self.api_key}
-            
+
             req = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(req, timeout=10) as response:
                 if response.getcode() == 200:

@@ -95,86 +95,131 @@ class SearchProgressWindow(BaseWindow):
         return names.get(step, step)
 
     def run_progressive_search(self):
-        """Run the progressive search and update UI"""
+        """Run the search and update UI"""
         try:
-            # Start the async search
+            # Simulate progressive steps for better UX
+            self.update_step_status('QUERY_PROCESSING', "active")
+            self.progress_label.setLabel("Processing and expanding search query...")
+            time.sleep(0.5)
+
+            self.update_step_status('QUERY_PROCESSING', "complete", 0.3)
+            self.update_step_status('EMBEDDING_GENERATION', "active") 
+            self.progress_label.setLabel("Generating embeddings...")
+            time.sleep(0.5)
+
+            self.update_step_status('EMBEDDING_GENERATION', "complete", 0.4)
+            self.update_step_status('VECTOR_SEARCH', "active")
+            self.progress_label.setLabel("Searching vector database...")
+            time.sleep(0.3)
+
+            # Start the search
             search_data = self.api_client.start_async_search(self.query)
             if not search_data:
                 self.show_error("Failed to start search")
                 return
 
-            self.search_id = search_data.get('search_id')
-            if not self.search_id:
-                self.show_error("No search ID received")
-                return
+            # Handle immediate response (not progressive)
+            if search_data.get('status') == 'COMPLETED':
+                self.update_step_status('VECTOR_SEARCH', "complete", 0.5)
+                self.update_step_status('AI_FILTERING', "active")
+                self.progress_label.setLabel("AI analyzing results for relevance...")
+                time.sleep(0.5)
 
-            xbmc.executebuiltin('Notification(LibraryGenie, Search started, 2000)')
+                results = search_data.get('results', [])
+                total_time = search_data.get('query_time', 0)
 
-            # Poll for progress
-            last_step = None
-            step_times = {}
+                self.update_step_status('AI_FILTERING', "complete", 0.3)
+                self.progress_label.setLabel(f"[COLOR green]Search completed! Found {len(results)} movies[/COLOR]")
+                self.timing_label.setLabel(f"Total time: {total_time:.1f}s")
 
-            while not self.is_cancelled:
-                time.sleep(0.5)  # Poll every 500ms
+                # Store results
+                self.final_results = {
+                    'matches': results,
+                    'search_id': search_data.get('search_id', 'immediate_search'),
+                    'timing': {'total': total_time},
+                    'status': 'success'
+                }
 
-                progress = self.api_client.get_search_progress(self.search_id)
-                if not progress:
-                    self.show_error("Failed to get progress")
-                    break
+                self.is_complete = True
 
-                status = progress.get('status')
-                current_step = progress.get('current_step')
-                progress_data = progress.get('progress_data', {})
+                # Auto-close after 2 seconds
+                xbmc.executebuiltin('Notification(LibraryGenie, Search complete! Closing..., 2000)')
+                time.sleep(2)
+                self.close_search()
+            else:
+                # Handle progressive search if the API supports it
+                self.search_id = search_data.get('search_id')
+                if not self.search_id:
+                    self.show_error("No search ID received")
+                    return
 
-                # Update step visualization
-                if current_step != last_step and current_step:
-                    if last_step:
-                        # Mark previous step as complete
-                        time_taken = self.get_step_time(progress_data, last_step)
-                        self.update_step_status(last_step, "complete", time_taken)
+                xbmc.executebuiltin('Notification(LibraryGenie, Search started, 2000)')
 
-                    # Mark current step as active
-                    self.update_step_status(current_step, "active")
-                    last_step = current_step
+                # Poll for progress
+                last_step = None
+                step_times = {}
 
-                # Update progress text
-                self.update_progress_text(current_step, progress_data)
+                while not self.is_cancelled:
+                    time.sleep(0.5)  # Poll every 500ms
 
-                # Check if completed
-                if status == 'COMPLETED':
-                    # Mark final step as complete
-                    if current_step:
-                        time_taken = self.get_step_time(progress_data, current_step)
-                        self.update_step_status(current_step, "complete", time_taken)
+                    progress = self.api_client.get_search_progress(self.search_id)
+                    if not progress:
+                        self.show_error("Failed to get progress")
+                        break
 
-                    # Show final results
-                    results = progress_data.get('results', [])
-                    total_time = progress_data.get('total_time', 0)
+                    status = progress.get('status')
+                    current_step = progress.get('current_step')
+                    progress_data = progress.get('progress_data', {})
 
-                    self.progress_label.setLabel(f"[COLOR green]Search completed! Found {len(results)} movies[/COLOR]")
-                    self.timing_label.setLabel(f"Total time: {total_time:.1f}s")
+                    # Update step visualization
+                    if current_step != last_step and current_step:
+                        if last_step:
+                            # Mark previous step as complete
+                            time_taken = self.get_step_time(progress_data, last_step)
+                            self.update_step_status(last_step, "complete", time_taken)
 
-                    # Store results and embedding
-                    self.final_results = {
-                        'matches': results,
-                        'query_embedding': progress_data.get('query_embedding'),
-                        'search_id': self.search_id,
-                        'timing': step_times,
-                        'status': 'success'
-                    }
+                        # Mark current step as active
+                        self.update_step_status(current_step, "active")
+                        last_step = current_step
 
-                    self.is_complete = True
+                    # Update progress text
+                    self.update_progress_text(current_step, progress_data)
 
-                    # Auto-close after 2 seconds
-                    xbmc.executebuiltin('Notification(LibraryGenie, Search complete! Closing..., 2000)')
-                    time.sleep(2)
-                    self.close_search()
-                    break
+                    # Check if completed
+                    if status == 'COMPLETED':
+                        # Mark final step as complete
+                        if current_step:
+                            time_taken = self.get_step_time(progress_data, current_step)
+                            self.update_step_status(current_step, "complete", time_taken)
 
-                elif status == 'FAILED':
-                    error_msg = progress.get('error_message', 'Unknown error')
-                    self.show_error(f"Search failed: {error_msg}")
-                    break
+                        # Show final results
+                        results = progress_data.get('results', [])
+                        total_time = progress_data.get('total_time', 0)
+
+                        self.progress_label.setLabel(f"[COLOR green]Search completed! Found {len(results)} movies[/COLOR]")
+                        self.timing_label.setLabel(f"Total time: {total_time:.1f}s")
+
+                        # Store results and embedding
+                        self.final_results = {
+                            'matches': results,
+                            'query_embedding': progress_data.get('query_embedding'),
+                            'search_id': self.search_id,
+                            'timing': step_times,
+                            'status': 'success'
+                        }
+
+                        self.is_complete = True
+
+                        # Auto-close after 2 seconds
+                        xbmc.executebuiltin('Notification(LibraryGenie, Search complete! Closing..., 2000)')
+                        time.sleep(2)
+                        self.close_search()
+                        break
+
+                    elif status == 'FAILED':
+                        error_msg = progress.get('error_message', 'Unknown error')
+                        self.show_error(f"Search failed: {error_msg}")
+                        break
 
         except Exception as e:
             utils.log(f"Search progress error: {str(e)}", "ERROR")
