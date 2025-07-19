@@ -165,7 +165,7 @@ class SearchWindow(BaseWindow):
                 
                 # Search for movies with this IMDB ID in the database
                 db_movies = query_manager.execute_query(
-                    "SELECT * FROM media_items WHERE imdb_id = ? AND source = 'lib'",
+                    "SELECT * FROM media_items WHERE imdbnumber = ? AND source = 'lib'",
                     (imdb_id,)
                 )
                 
@@ -191,7 +191,7 @@ class SearchWindow(BaseWindow):
                         'title': movie.get('title', ''),
                         'year': movie.get('year', ''),
                         'kodi_id': movie.get('kodi_id', 0),
-                        'imdb_id': movie.get('imdb_id', ''),
+                        'imdbnumber': movie.get('imdbnumber', ''),
                         'poster': movie.get('poster', ''),
                         'fanart': movie.get('fanart', ''),
                         'plot': movie.get('plot', ''),
