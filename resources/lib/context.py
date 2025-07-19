@@ -63,6 +63,8 @@ def build_context_menu():
         from resources.lib.window_search import SearchWindow
         search_window = SearchWindow()
         search_window.doModal()
+        # Get results if needed
+        results = search_window.get_search_results()
         del search_window
     elif choice == 2:  # Beta Signup
         register_beta_user(addon)

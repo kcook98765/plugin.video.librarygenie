@@ -998,46 +998,15 @@ class MainWindow(BaseWindow):
 
     def __del__(self):
         utils.log("Deleting CustomWindow instance...", "DEBUG")
-class SearchProgressWindow(BaseWindow):
-    def __init__(self, title="Searching..."):
-        super().__init__(title)
-        self.setGeometry(500, 200, 6, 1)
-
-        self.label = pyxbmct.Label("Searching, please wait...")
-        self.placeControl(self.label, 1, 1, 4, 4)
-
-        self.progress_bar = pyxbmct.ProgressBar()
-        self.placeControl(self.progress_bar, 5, 1, 1, 4)
-
-        self.cancel_button = pyxbmct.Button("Cancel")
-        self.placeControl(self.cancel_button, 5, 5, 1, 1)
-        self.connect(self.cancel_button, self.close)
-        self.connect(pyxbmct.ACTION_NAV_BACK, self.close)
-
-    def set_progress(self, percent):
-        self.progress_bar.update(percent)
-        self.progress_bar.setPercent(percent)
-
-    def show_message(self, message):
-        self.label.setLabel(message)
-
-    def close(self):
-        super().close()
-        self.progress_bar = None
-        self.label = None
-        del self
-
 def launch_movie_search():
-    """Launches a dialog to get the search query from the user"""
-
-    keyboard = xbmc.Keyboard('', 'Enter movie search query')
-    keyboard.doModal()
-
-    if keyboard.isConfirmed():
-        search_query = keyboard.getText()
-        if search_query:
-            return perform_movie_search(search_query)
-    return None
+    """Launches the proper SearchWindow for movie search"""
+    from resources.lib.window_search import SearchWindow
+    
+    search_window = SearchWindow()
+    search_window.doModal()
+    results = search_window.get_search_results()
+    del search_window
+    return results
 
 
 def perform_movie_search(search_query):
