@@ -57,7 +57,6 @@ class SearchProgressWindow(BaseWindow):
         self.placeControl(self.cancel_button, 7, 4, columnspan=2, pad_x=5, pad_y=5)
         self.connect(self.cancel_button, self.cancel_search)
         self.connect(pyxbmct.ACTION_NAV_BACK, self.cancel_search)
-        self.connect(pyxbmct.ACTION_SELECT_ITEM, self._handle_enter_key)
 
     def set_navigation(self):
         self.set_basic_navigation(self.cancel_button)
@@ -232,7 +231,16 @@ class SearchProgressWindow(BaseWindow):
         """Get the final search results"""
         return self.final_results if self.is_complete else None
 
-    def _handle_enter_key(self):
-        """Handle Enter key press"""
-        # For example, close the window
-        self.close_search()
+    def onAction(self, action):
+        """Handle window actions"""
+        action_id = action.getId()
+        
+        # Handle back/escape key
+        if action_id in (pyxbmct.ACTION_NAV_BACK, pyxbmct.ACTION_PREVIOUS_MENU):
+            self.cancel_search()
+        # Handle enter/select key (action IDs 7 and 100)
+        elif action_id in (7, 100):
+            # Close the search when Enter is pressed
+            self.close_search()
+        else:
+            super().onAction(action)
