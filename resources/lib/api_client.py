@@ -194,7 +194,7 @@ class ApiClient:
             return None
 
         try:
-            url = f"{self.base_url}/user_search/search_async"
+            url = f"{self.base_url}/api/v1/user_search/search_async"
             data = json.dumps({"query": query}).encode('utf-8')
             headers = {
                 'Content-Type': 'application/json',
@@ -219,7 +219,7 @@ class ApiClient:
             return None
 
         try:
-            url = f"{self.base_url}/user_search/search_progress/{search_id}"
+            url = f"{self.base_url}/api/v1/user_search/search_progress/{search_id}"
             headers = {'X-API-Key': self.api_key}
             
             req = urllib.request.Request(url, headers=headers)
