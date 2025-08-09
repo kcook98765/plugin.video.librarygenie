@@ -2,7 +2,6 @@ import os
 import xbmcaddon
 import xbmcvfs
 from . import utils
-from .settings_manager import SettingsManager
 
 class Config:
     """ FIELDS should align with table list_items fields AND for use in listitem building """
@@ -45,11 +44,19 @@ class Config:
         """
         try:
             self.addon = xbmcaddon.Addon()
-        except RuntimeError:
+        except (RuntimeError, Exception) as e:
             # Fallback when addon ID cannot be automatically detected
-            self.addon = xbmcaddon.Addon(id='plugin.video.librarygenie')
+            utils.log(f"Failed to get addon automatically, using explicit ID: {str(e)}", "DEBUG")
+            try:
+                self.addon = xbmcaddon.Addon(id='plugin.video.librarygenie')
+            except Exception as e2:
+                utils.log(f"Failed to get addon with explicit ID: {str(e2)}", "ERROR")
+                raise
 
+        # Import here to avoid circular dependency
+        from .settings_manager import SettingsManager
         self.settings = SettingsManager()
+        
         self.addonid = self.addon.getAddonInfo('id')
         self.addonname = self.addon.getAddonInfo('name')
         self.addonversion = self.addon.getAddonInfo('version')

@@ -20,6 +20,13 @@ def run_addon():
         args = ""
         action = None
 
+        # Handle special case for setup_remote_api script execution
+        if len(sys.argv) > 1 and sys.argv[1] == 'setup_remote_api':
+            utils.log("Running setup_remote_api script...", "DEBUG")
+            from .remote_api_setup import run_setup
+            run_setup()
+            return
+
         # Handle direct action from context menu
         if len(sys.argv) > 1 and sys.argv[1] == 'show_main_window':
             action = 'show_main_window'
