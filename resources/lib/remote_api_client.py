@@ -95,18 +95,14 @@ class RemoteAPIClient:
             utils.log("Remote API connection test failed", "ERROR")
             return False
     
-    def search_movies(self, query, limit=20, offset=0, filters=None):
-        """Search for movies using the remote API"""
+    def search_movies(self, query, limit=20):
+        """Search for movies using the remote API (semantic search)"""
         data = {
             'query': query,
-            'limit': limit,
-            'offset': offset
+            'limit': limit
         }
-        
-        if filters:
-            data['filters'] = filters
             
-        result = self._make_request('api/search/movies', 'POST', data)
+        result = self._make_request('kodi/search/movies', 'POST', data)
         if result and result.get('success'):
             return result.get('results', [])
         else:

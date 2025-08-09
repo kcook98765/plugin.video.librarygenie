@@ -470,24 +470,26 @@ class DatabaseManager(Singleton):
             results = remote_client.search_movies(query, limit)
             
             # Convert remote API results to our format
+            # New API returns only imdb_id and similarity score
             formatted_results = []
             for movie in results:
                 formatted_movie = {
-                    'title': movie.get('title', ''),
-                    'year': movie.get('year', 0),
-                    'rating': movie.get('rating', 0.0),
-                    'plot': movie.get('overview', ''),
-                    'genre': ', '.join(movie.get('genres', [])),
-                    'imdbnumber': movie.get('id', ''),
+                    'title': f"Movie (Score: {movie.get('score', 0):.3f})",  # Placeholder title with score
+                    'year': 0,
+                    'rating': 0.0,
+                    'plot': f"Semantic search result with similarity score: {movie.get('score', 0):.3f}",
+                    'genre': '',
+                    'imdbnumber': movie.get('imdb_id', ''),
                     'art': {
-                        'poster': movie.get('poster_url', ''),
-                        'fanart': movie.get('backdrop_url', '')
+                        'poster': '',
+                        'fanart': ''
                     },
-                    'source': 'remote_api'
+                    'source': 'remote_api',
+                    'search_score': movie.get('score', 0)  # Store the semantic similarity score
                 }
                 formatted_results.append(formatted_movie)
             
-            utils.log(f"Remote API search returned {len(formatted_results)} movies", "DEBUG")
+            utils.log(f"Remote API search returned {len(formatted_results)} movies with semantic scores", "DEBUG")
             return formatted_results
             
         except Exception as e:
