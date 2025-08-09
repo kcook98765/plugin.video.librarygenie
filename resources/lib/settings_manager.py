@@ -3,7 +3,10 @@ import xbmcvfs
 
 class SettingsManager:
     def __init__(self, addon_id='plugin.video.librarygenie'):
-        self.addon = xbmcaddon.Addon(id=addon_id)
+        try:
+            self.addon = xbmcaddon.Addon() if addon_id == 'plugin.video.librarygenie' else xbmcaddon.Addon(id=addon_id)
+        except RuntimeError:
+            self.addon = xbmcaddon.Addon(id=addon_id)
         self._cache = {}
 
     def get_setting(self, key, default=None):

@@ -42,16 +42,22 @@ class Config:
         """
         Initializes the Config with addon settings and paths.
         """
-        self.addon = xbmcaddon.Addon()
+        try:
+            self.addon = xbmcaddon.Addon()
+        except RuntimeError:
+            # Fallback when addon ID cannot be automatically detected
+            self.addon = xbmcaddon.Addon(id='plugin.video.librarygenie')
+
+        self.settings = SettingsManager()
+        self.addonid = self.addon.getAddonInfo('id')
+        self.addonname = self.addon.getAddonInfo('name')
+        self.addonversion = self.addon.getAddonInfo('version')
         self.addonpath = xbmcvfs.translatePath(self.addon.getAddonInfo('path'))
         self.profile = xbmcvfs.translatePath(self.addon.getAddonInfo('profile'))
+        self._max_folder_depth = 5  # Set maximum folder depth
+
         if not os.path.exists(self.profile):
             os.makedirs(self.profile)
-
-        from resources.lib.settings_manager import SettingsManager
-        self.settings = SettingsManager()
-        self.addondir = self.settings.addon_data_path
-        self._max_folder_depth = int(self.settings.get_setting('max_folder_depth') or '3')
 
         utils.log(f"Addon path - {self.addonpath}", "DEBUG")
 
