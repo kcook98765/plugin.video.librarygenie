@@ -870,29 +870,25 @@ class QueryManager(Singleton):
 
         table_creations = [
             # IMDB exports table for tracking exported data
-            self.connection.execute('''
-                CREATE TABLE IF NOT EXISTS imdb_exports (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    kodi_id INTEGER,
-                    title TEXT,
-                    year INTEGER,
-                    imdb_id TEXT,
-                    exported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            '''),
+            '''CREATE TABLE IF NOT EXISTS imdb_exports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                kodi_id INTEGER,
+                title TEXT,
+                year INTEGER,
+                imdb_id TEXT,
+                exported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )''',
             # IMDB holding table for upload process
-            self.connection.execute('''
-                CREATE TABLE IF NOT EXISTS imdb_holding (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    kodi_id INTEGER,
-                    title TEXT,
-                    year INTEGER,
-                    imdb_id TEXT,
-                    raw_uniqueid TEXT,
-                    raw_imdbnumber TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            '''),
+            '''CREATE TABLE IF NOT EXISTS imdb_holding (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                kodi_id INTEGER,
+                title TEXT,
+                year INTEGER,
+                imdb_id TEXT,
+                raw_uniqueid TEXT,
+                raw_imdbnumber TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )''',
             """CREATE TABLE IF NOT EXISTS folders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT UNIQUE,
