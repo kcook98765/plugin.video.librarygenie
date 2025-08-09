@@ -456,6 +456,43 @@ class DatabaseManager(Singleton):
         from resources.lib.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         query_manager.sync_movies(movies)
+    
+    def search_remote_movies(self, query, limit=20):
+        """Search movies using remote API and return formatted results"""
+        from resources.lib.remote_api_client import RemoteAPIClient
+        
+        remote_client = RemoteAPIClient()
+        if not remote_client.api_key:
+            utils.log("Remote API not configured", "WARNING")
+            return []
+        
+        try:
+            results = remote_client.search_movies(query, limit)
+            
+            # Convert remote API results to our format
+            formatted_results = []
+            for movie in results:
+                formatted_movie = {
+                    'title': movie.get('title', ''),
+                    'year': movie.get('year', 0),
+                    'rating': movie.get('rating', 0.0),
+                    'plot': movie.get('overview', ''),
+                    'genre': ', '.join(movie.get('genres', [])),
+                    'imdbnumber': movie.get('id', ''),
+                    'art': {
+                        'poster': movie.get('poster_url', ''),
+                        'fanart': movie.get('backdrop_url', '')
+                    },
+                    'source': 'remote_api'
+                }
+                formatted_results.append(formatted_movie)
+            
+            utils.log(f"Remote API search returned {len(formatted_results)} movies", "DEBUG")
+            return formatted_results
+            
+        except Exception as e:
+            utils.log(f"Error searching remote movies: {str(e)}", "ERROR")
+            return []
 
     def __del__(self):
         if getattr(self, 'connection', None):

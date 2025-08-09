@@ -7,5 +7,12 @@
         <setting id="lgs_username" type="text" label="LGS Username" default="" />
         <setting id="lgs_password" type="text" label="LGS Password" default="" option="hidden" />
         <setting id="authenticate_code" type="action" label="Authenticate with One-Time Code" action="RunScript(special://home/addons/plugin.video.librarygenie/resources/lib/authenticate_code.py)" />
-    </category></settings>
+    </category>
+    <category label="Remote API">
+        <setting id="remote_api_url" type="text" label="Remote API Server URL" default="https://your-server.com" />
+        <setting id="remote_api_key" type="text" label="Remote API Key" option="hidden" default="" />
+        <setting id="remote_api_setup" type="action" label="Setup Remote API (Easy)" action="RunPlugin(plugin://plugin.video.librarygenie/?action=setup_remote_api)" />
+        <setting id="remote_api_manual" type="action" label="Manual Setup Remote API" action="RunPlugin(plugin://plugin.video.librarygenie/?action=manual_setup_remote_api)" />
+        <setting id="remote_api_test" type="action" label="Test Remote API Connection" action="RunPlugin(plugin://plugin.video.librarygenie/?action=test_remote_api)" />
+    </category>
 </settings>

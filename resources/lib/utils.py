@@ -74,3 +74,13 @@ def show_dialog_yesno(heading, message):
 def show_dialog_input(heading, default=""):
     """Centralized input dialog"""
     return xbmcgui.Dialog().input(heading, defaultt=default).strip()
+
+def setup_remote_api():
+    """Launch remote API setup wizard"""
+    try:
+        from resources.lib.remote_api_setup import setup_remote_api
+        return setup_remote_api()
+    except Exception as e:
+        log(f"Error setting up remote API: {str(e)}", "ERROR")
+        show_dialog_ok("Setup Error", f"Failed to setup remote API: {str(e)}")
+        return False

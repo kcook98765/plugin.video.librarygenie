@@ -60,6 +60,8 @@ class Config:
         value = self.addon.getSetting(setting_id)
         if setting_id == 'lgs_upload_key':
             utils.log(f"Config: Retrieved setting '{setting_id}': '{value[:10] if value else None}...'", "DEBUG")
+        elif setting_id in ['remote_api_key', 'remote_api_url']:
+            utils.log(f"Config: Retrieved setting '{setting_id}': '{value[:20] if value else None}...'", "DEBUG")
         return value
 
     def set_setting(self, setting_id, value):
