@@ -28,7 +28,7 @@ LibraryGenie is a comprehensive Kodi addon that bridges your local Kodi media li
 ### 🎯 Advanced List Features
 - **Context Menu Integration**: Add items directly from any Kodi interface
 - **List Browser**: Navigate and manage your collections easily
-- **Search History**: Track and reuse previous searches
+- **Search History**: Automatic permanent storage of all search results in a protected top-level folder
 - **Export/Import**: Backup and restore your list configurations
 
 ### 🛠️ Technical Features
@@ -85,6 +85,7 @@ LibraryGenie is a comprehensive Kodi addon that bridges your local Kodi media li
 3. Enter your search criteria in natural language
 4. Review and refine results as needed
 5. Save the list for future use
+6. **Automatic**: Search results are also automatically saved to "Search History" folder
 
 ### Natural Language Search Examples
 - "Psychological thrillers with plot twists"
@@ -98,6 +99,13 @@ LibraryGenie is a comprehensive Kodi addon that bridges your local Kodi media li
 - **Manual Addition**: Use context menus to add specific items
 - **Exceptions**: Block unwanted items from appearing in lists
 - **Batch Operations**: Perform actions on multiple items at once
+
+### Search History Management
+- **Automatic Storage**: Every search is automatically saved as a new list under "Search History"
+- **Protected Folder**: The "Search History" folder cannot be deleted, renamed, or modified
+- **Timestamped Lists**: Each search creates a timestamped list showing the exact query and results
+- **Full Management**: Search history lists support all normal operations (view, edit items, etc.)
+- **Permanent Archive**: Build a complete archive of all your search discoveries over time
 
 ### Context Menu Integration
 - Right-click on any media item in Kodi
@@ -172,11 +180,12 @@ resources/
 ```
 
 ### Key Components
-- **DatabaseManager**: Handles local SQLite operations
+- **DatabaseManager**: Handles local SQLite operations and search history management
 - **RemoteAPIClient**: Manages server communication
 - **QueryManager**: Builds and executes database queries
 - **Window Classes**: Implement the user interface
 - **Utils**: Common utility functions and logging
+- **Search History**: Automatic preservation of all search queries and results
 
 ## API Integration
 
