@@ -7,11 +7,11 @@ import hashlib
 import time
 import random
 from resources.lib import utils
-from resources.lib.config_manager import Config
+from resources.lib.config_manager import get_config
 
 class RemoteAPIClient:
-    def __init__(self):
-        self.config = Config()
+    def __init__(self, config=None):
+        self.config = config or get_config()
         self.base_url = self.config.get_setting('remote_api_url') or 'https://your-server.com'
         self.api_key = self.config.get_setting('remote_api_key')
 

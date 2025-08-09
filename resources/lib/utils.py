@@ -87,14 +87,12 @@ def show_dialog_input(heading, default=""):
     """Centralized input dialog"""
     return xbmcgui.Dialog().input(heading, defaultt=default).strip()
 
-def is_debug_logging_enabled():
+def is_debug_enabled():
     """Check if debug logging is enabled in addon settings"""
     try:
         from .addon_ref import get_addon
-        addon = get_addon()
-        return addon.getSetting('debug_logging') == 'true'
-    except:
-        # If we can't get the setting, default to enabled for safety
+        return get_addon().getSetting('debug_logging') == 'true'
+    except Exception:
         return True
 
 def setup_remote_api():

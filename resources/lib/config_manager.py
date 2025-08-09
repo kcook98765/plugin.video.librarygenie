@@ -48,7 +48,7 @@ class Config:
         
         try:
             utils.log("Getting addon instance", "DEBUG")
-            self.addon = get_addon()
+            self._addon = get_addon()
             utils.log("Successfully got addon instance", "DEBUG")
         except Exception as e:
             utils.log(f"CRITICAL: Failed to get addon: {str(e)}", "ERROR")
@@ -60,11 +60,11 @@ class Config:
         self.settings = SettingsManager()
         
         utils.log("Reading addon information", "DEBUG")
-        self.addonid = self.addon.getAddonInfo('id')
-        self.addonname = self.addon.getAddonInfo('name')
-        self.addonversion = self.addon.getAddonInfo('version')
-        self.addonpath = xbmcvfs.translatePath(self.addon.getAddonInfo('path'))
-        self.profile = xbmcvfs.translatePath(self.addon.getAddonInfo('profile'))
+        self.addonid = self._addon.getAddonInfo('id')
+        self.addonname = self._addon.getAddonInfo('name')
+        self.addonversion = self._addon.getAddonInfo('version')
+        self.addonpath = xbmcvfs.translatePath(self._addon.getAddonInfo('path'))
+        self.profile = xbmcvfs.translatePath(self._addon.getAddonInfo('profile'))
         self._max_folder_depth = 5  # Set maximum folder depth
 
         utils.log(f"Addon details - ID: {self.addonid}, Name: {self.addonname}, Version: {self.addonversion}", "INFO")
@@ -81,7 +81,7 @@ class Config:
 
     def get_setting(self, setting_id, default=""):
         """Get addon setting by name with proper normalization"""
-        value = self.addon.getSetting(setting_id)
+        value = self._addon.getSetting(setting_id)
         # Normalize None to empty string
         if value is None:
             value = default

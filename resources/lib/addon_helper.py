@@ -27,7 +27,7 @@ def run_addon():
             utils.log("Detected setup_remote_api script execution", "INFO")
             from .remote_api_setup import run_setup
             run_setup()
-            return
+            return  # Early return to prevent normal startup
 
         # Handle direct action from context menu
         if len(sys.argv) > 1 and sys.argv[1] == 'show_main_window':
