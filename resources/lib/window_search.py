@@ -112,8 +112,8 @@ class SearchWindow(BaseWindow):
                     utils.log(f"SearchWindow: Search successful: {message}", "DEBUG")
                     self.show_notification(message, xbmcgui.NOTIFICATION_INFO)
                     
-                    # Create list from search results and navigate to it
-                    self.create_and_navigate_to_list(query, matches)
+                    # Save to search history and navigate to the list
+                    self.save_to_search_history_and_navigate(query, self.search_results)
                 else:
                     utils.log("SearchWindow: No matches found", "DEBUG")
                     self.show_notification("No movies found matching your search", xbmcgui.NOTIFICATION_INFO)
@@ -127,97 +127,31 @@ class SearchWindow(BaseWindow):
             utils.log(f"Search error traceback: {traceback.format_exc()}", "ERROR")
             self.show_notification("An error occurred during search", xbmcgui.NOTIFICATION_ERROR)
 
-    def create_and_navigate_to_list(self, query, matches):
-        """Create a new list from search results and navigate to it"""
+    def save_to_search_history_and_navigate(self, query, search_results):
+        """Save search results to Search History folder and navigate to the list"""
         try:
             from resources.lib.database_manager import DatabaseManager
             from resources.lib.config_manager import Config
-            from resources.lib.jsonrpc_manager import JSONRPC
             
             config = Config()
             db_manager = DatabaseManager(config.db_path)
-            jsonrpc = JSONRPC()
             
-            # Create list name from query
-            list_name = f"Search: {query}"
-            utils.log(f"SearchWindow: Creating list with name: {list_name}", "DEBUG")
+            # Create list in Search History folder
+            list_id = db_manager.create_search_result_list(query, search_results)
             
-            # Insert the list
-            list_data = {
-                'name': list_name,
-                'folder_id': None  # Root folder
-            }
-            list_id = db_manager.insert_data('lists', list_data)
-            utils.log(f"SearchWindow: Created list with ID: {list_id}", "DEBUG")
-            
-            # Process each match to find corresponding movies
-            matched_movies = []
-            for match in matches:
-                imdb_id = match.get('imdb_id', '')
-                if not imdb_id:
-                    continue
-                    
-                utils.log(f"SearchWindow: Processing match with IMDB ID: {imdb_id}", "DEBUG")
-                
-                # Look up movie in database by IMDB ID
-                from resources.lib.query_manager import QueryManager
-                query_manager = QueryManager(config.db_path)
-                
-                # Search for movies with this IMDB ID in the database
-                db_movies = query_manager.execute_query(
-                    "SELECT * FROM media_items WHERE imdbnumber = ? AND source = 'lib'",
-                    (imdb_id,)
-                )
-                
-                if db_movies:
-                    # Use database movie
-                    for db_movie in db_movies:
-                        matched_movies.append(db_movie)
-                        utils.log(f"SearchWindow: Found database movie: {db_movie.get('title', 'Unknown')}", "DEBUG")
-                else:
-                    # Try to find by title and year using JsonRPC
-                    # First, we need to get movie details from somewhere
-                    # Since we have IMDB ID but no title/year, we'll skip this for now
-                    # In a real implementation, you might want to use an external API
-                    # to get title/year from IMDB ID
-                    utils.log(f"SearchWindow: No database match for IMDB ID: {imdb_id}", "DEBUG")
-            
-            if matched_movies:
-                # Add movies to the list
-                for movie in matched_movies:
-                    # Create list item data
-                    list_item_data = {
-                        'list_id': list_id,
-                        'title': movie.get('title', ''),
-                        'year': movie.get('year', ''),
-                        'kodi_id': movie.get('kodi_id', 0),
-                        'imdbnumber': movie.get('imdbnumber', ''),
-                        'poster': movie.get('poster', ''),
-                        'fanart': movie.get('fanart', ''),
-                        'plot': movie.get('plot', ''),
-                        'rating': movie.get('rating', 0.0),
-                        'genre': movie.get('genre', ''),
-                        'director': movie.get('director', ''),
-                        'cast': movie.get('cast', ''),
-                        'duration': movie.get('duration', 0),
-                        'source': 'search_result'
-                    }
-                    db_manager.insert_data('list_items', list_item_data)
-                    utils.log(f"SearchWindow: Added movie to list: {movie.get('title', 'Unknown')}", "DEBUG")
-                
-                utils.log(f"SearchWindow: Added {len(matched_movies)} movies to list", "DEBUG")
-                
+            if list_id:
+                utils.log(f"SearchWindow: Created search history list with ID: {list_id}", "DEBUG")
                 # Navigate to the list view
                 self.navigate_to_list(list_id)
             else:
-                utils.log("SearchWindow: No matching movies found in database", "WARNING")
-                self.show_notification("No matching movies found in your library", xbmcgui.NOTIFICATION_WARNING)
+                utils.log("SearchWindow: Failed to create search history list", "ERROR")
+                self.show_notification("Error saving search results", xbmcgui.NOTIFICATION_ERROR)
                 
         except Exception as e:
-            utils.log(f"SearchWindow: Error creating list from search results: {str(e)}", "ERROR")
+            utils.log(f"SearchWindow: Error saving to search history: {str(e)}", "ERROR")
             import traceback
             utils.log(f"SearchWindow: Traceback: {traceback.format_exc()}", "ERROR")
-            self.show_notification("Error creating list from search results", xbmcgui.NOTIFICATION_ERROR)
+            self.show_notification("Error saving search results", xbmcgui.NOTIFICATION_ERROR)
     
     def navigate_to_list(self, list_id):
         """Navigate to the list view"""

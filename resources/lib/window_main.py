@@ -31,6 +31,7 @@ class MainWindow(BaseWindow):
         self.moving_folder_id = None
         self.moving_folder_name = None
         self.folder_color_status = {}  # Add folder color status tracking
+        self.db_manager = DatabaseManager(Config().db_path) # Initialize db_manager here
 
         self.media_label = pyxbmct.Label("")
         self.list_control = pyxbmct.List()
@@ -607,11 +608,11 @@ class MainWindow(BaseWindow):
         if selected_option == -1:
             return
         if options[selected_option] == "Rename Folder":
-            self.rename_folder(folder_data['id'], folder_data['name'])
+            self.rename_folder(folder_data['id']) # Changed to pass only id
         elif options[selected_option] == "Move Folder":
-            self.move_folder(folder_data['id'], folder_data['name'])
+            self.move_folder(folder_data['id']) # Changed to pass only id
         elif options[selected_option] == "Delete Folder":
-            self.delete_folder(folder_data['id'], folder_data['name'])
+            self.delete_folder(folder_data['id']) # Changed to pass only id
         elif options[selected_option] == "Settings":
             self.open_settings()
 
@@ -710,7 +711,7 @@ class MainWindow(BaseWindow):
             new_folder_name = xbmcgui.Dialog().input("Enter new folder name").strip()
             utils.log(f"Creating new folder. ParentID={parent_id}, NewFolderName={new_folder_name}", "DEBUG")
             if not new_folder_name:
-                xbmcgui.Dialog().notification("LibraryGenie", "Invalid name entered", xbmcgui.NOTIFICATION_WARNING, 5000)
+                self.show_notification("Invalid name entered", xbmcgui.NOTIFICATION_WARNING)
                 return
             db_manager = DatabaseManager(Config().db_path)
             existing_folder_id = db_manager.get_folder_id_by_name(new_folder_name)
@@ -718,36 +719,67 @@ class MainWindow(BaseWindow):
             utils.log(f"Error creating new folder. ParentID={parent_id}, NewFolderName not set", "ERROR")
             return
         if existing_folder_id:
-            xbmcgui.Dialog().notification("LibraryGenie", f"The folder name '{new_folder_name}' already exists", xbmcgui.NOTIFICATION_WARNING, 5000)
+            self.show_notification(f"The folder name '{new_folder_name}' already exists", xbmcgui.NOTIFICATION_WARNING)
             return
         parent_id = int(parent_id) if parent_id != 'None' else None
         utils.log(f"Creating new folder '{new_folder_name}' under parent ID '{parent_id}'", "DEBUG")
         db_manager.insert_folder(new_folder_name, parent_id)
-        xbmcgui.Dialog().notification("LibraryGenie", f"New folder '{new_folder_name}' created", xbmcgui.NOTIFICATION_INFO, 5000)
+        self.show_notification(f"New folder '{new_folder_name}' created", xbmcgui.NOTIFICATION_INFO)
         self.populate_list()
 
-    def rename_folder(self, folder_id, current_name):
-        clean_name = re.sub(r'^[\s>]+', '', current_name)
-        clean_name = re.sub(r'\[.*?\]', '', clean_name)
-        new_name = xbmcgui.Dialog().input("Enter new name for the folder", defaultt=clean_name).strip()
-        utils.log(f"Renaming folder. FolderID={folder_id}, CurrentName={current_name}, NewName={new_name}", "DEBUG")
-        if not new_name:
-            xbmcgui.Dialog().notification("LibraryGenie", "Invalid name entered", xbmcgui.NOTIFICATION_WARNING, 5000)
-            return
-        db_manager = DatabaseManager(Config().db_path)
-        existing_folder_id = db_manager.get_folder_id_by_name(new_name)
-        if existing_folder_id and existing_folder_id != folder_id:
-            xbmcgui.Dialog().notification("LibraryGenie", f"The folder name '{new_name}' already exists", xbmcgui.NOTIFICATION_WARNING, 5000)
-            return
-        db_manager.update_folder_name(folder_id, new_name)
-        xbmcgui.Dialog().notification("LibraryGenie", f"Folder renamed to '{new_name}'", xbmcgui.NOTIFICATION_INFO, 5000)
-        self.populate_list()
+    def rename_folder(self, folder_id): # Changed to accept only folder_id
+        utils.log(f"MainWindow: Renaming folder with ID: {folder_id}", "DEBUG")
 
-    def move_folder(self, folder_id, folder_name):
+        # Check if this is the Search History folder
+        if self.db_manager.is_search_history_folder(folder_id):
+            self.show_notification("Search History folder cannot be renamed", xbmcgui.NOTIFICATION_WARNING)
+            return
+
+        try:
+            folder = self.db_manager.fetch_folder_by_id(folder_id)
+            if not folder:
+                utils.log(f"Folder with ID {folder_id} not found.", "ERROR")
+                return
+
+            current_name = folder['name']
+            clean_name = re.sub(r'^[\s>]+', '', current_name)
+            clean_name = re.sub(r'\[.*?\]', '', clean_name)
+            new_name = xbmcgui.Dialog().input("Enter new name for the folder", defaultt=clean_name).strip()
+            utils.log(f"Renaming folder. FolderID={folder_id}, CurrentName={current_name}, NewName={new_name}", "DEBUG")
+            if not new_name:
+                self.show_notification("Invalid name entered", xbmcgui.NOTIFICATION_WARNING)
+                return
+            existing_folder_id = self.db_manager.get_folder_id_by_name(new_name)
+            if existing_folder_id and existing_folder_id != folder_id:
+                self.show_notification(f"The folder name '{new_name}' already exists", xbmcgui.NOTIFICATION_WARNING)
+                return
+            self.db_manager.update_folder_name(folder_id, new_name)
+            self.show_notification(f"Folder renamed to '{new_name}'", xbmcgui.NOTIFICATION_INFO)
+            self.populate_list()
+        except Exception as e:
+            utils.log(f"Error renaming folder {folder_id}: {str(e)}", "ERROR")
+            self.show_notification("Error renaming folder", xbmcgui.NOTIFICATION_ERROR)
+
+    def move_folder(self, folder_id): # Changed to accept only folder_id
+        utils.log(f"MainWindow: Moving folder with ID: {folder_id}", "DEBUG")
+
+        # Check if this is the Search History folder
+        if self.db_manager.is_search_history_folder(folder_id):
+            self.show_notification("Search History folder cannot be moved", xbmcgui.NOTIFICATION_WARNING)
+            return
+
+        if self.moving_folder_id:
+            self.show_notification("Already moving a folder. Complete that operation first.", xbmcgui.NOTIFICATION_WARNING)
+            return
+        
+        folder = self.db_manager.fetch_folder_by_id(folder_id)
+        if not folder:
+            utils.log(f"Folder with ID {folder_id} not found for move operation.", "ERROR")
+            return
+
         self.moving_folder_id = folder_id
-        self.moving_folder_name = folder_name
-        xbmcgui.Dialog().notification("LibraryGenie", f"Select new location for folder: {folder_name}", xbmcgui.NOTIFICATION_INFO, 5000)
-        utils.log(f"Moving folder. FolderID={folder_id}, FolderName={folder_name}", "DEBUG")
+        self.moving_folder_name = folder['name']
+        self.show_notification(f"Select new location for folder: {self.moving_folder_name}", xbmcgui.NOTIFICATION_INFO)
         self.populate_list()
 
     def paste_folder_here(self, folder_id, target_folder_id):
@@ -763,7 +795,7 @@ class MainWindow(BaseWindow):
                 current_parent = target_folder_id
                 while current_parent is not None:
                     if current_parent == folder_id:
-                        xbmcgui.Dialog().notification("LibraryGenie", "Cannot move folder: Would create circular reference", xbmcgui.NOTIFICATION_ERROR, 5000)
+                        self.show_notification("Cannot move folder: Would create circular reference", xbmcgui.NOTIFICATION_ERROR)
                         return
                     folder = db_manager.fetch_folder_by_id(current_parent)
                     if folder is None:
@@ -783,26 +815,43 @@ class MainWindow(BaseWindow):
                 raise ValueError(f"Moving folder would exceed maximum depth of {Config().max_folder_depth}")
 
             db_manager.update_folder_parent(folder_id, target_folder_id)
-            xbmcgui.Dialog().notification("LibraryGenie", "Folder moved to new location", xbmcgui.NOTIFICATION_INFO, 5000)
+            self.show_notification("Folder moved to new location", xbmcgui.NOTIFICATION_INFO)
             self.moving_folder_id = None
             self.moving_folder_name = None
             utils.log(f"Pasting folder. FolderID={folder_id}, TargetFolderID={target_folder_id}", "DEBUG")
             self.populate_list()
         except ValueError as e:
-            xbmcgui.Dialog().notification("LibraryGenie", str(e), xbmcgui.NOTIFICATION_ERROR, 5000)
+            self.show_notification(str(e), xbmcgui.NOTIFICATION_ERROR)
             self.moving_folder_id = None
             self.moving_folder_name = None
             self.populate_list()
 
-    def delete_folder(self, folder_id, folder_name):
-        confirmed = xbmcgui.Dialog().yesno("Confirm Delete", f"Are you sure you want to delete the folder '{folder_name}'?")
-        utils.log(f"Deleting folder. FolderID={folder_id}, FolderName={folder_name}, Confirmed={confirmed}", "DEBUG")
-        if not confirmed:
+    def delete_folder(self, folder_id): # Changed to accept only folder_id
+        utils.log(f"MainWindow: Deleting folder with ID: {folder_id}", "DEBUG")
+
+        # Check if this is the Search History folder
+        if self.db_manager.is_search_history_folder(folder_id):
+            self.show_notification("Search History folder cannot be deleted", xbmcgui.NOTIFICATION_WARNING)
             return
-        db_manager = DatabaseManager(Config().db_path)
-        db_manager.delete_folder_and_contents(folder_id)
-        xbmcgui.Dialog().notification("LibraryGenie", f"Folder '{folder_name}' deleted", xbmcgui.NOTIFICATION_INFO, 5000)
-        self.populate_list()
+
+        try:
+            folder = self.db_manager.fetch_folder_by_id(folder_id)
+            if not folder:
+                utils.log(f"Folder with ID {folder_id} not found for deletion.", "ERROR")
+                return
+
+            folder_name = folder['name']
+            confirmed = xbmcgui.Dialog().yesno("Confirm Delete", f"Are you sure you want to delete the folder '{folder_name}'?")
+            utils.log(f"Deleting folder. FolderID={folder_id}, FolderName={folder_name}, Confirmed={confirmed}", "DEBUG")
+            if not confirmed:
+                return
+            db_manager = DatabaseManager(Config().db_path)
+            db_manager.delete_folder_and_contents(folder_id)
+            self.show_notification(f"Folder '{folder_name}' deleted", xbmcgui.NOTIFICATION_INFO)
+            self.populate_list()
+        except Exception as e:
+            utils.log(f"Error deleting folder {folder_id}: {str(e)}", "ERROR")
+            self.show_notification("Error deleting folder", xbmcgui.NOTIFICATION_ERROR)
 
     def open_settings(self):
         utils.log("Opening settings", "DEBUG")
@@ -813,12 +862,12 @@ class MainWindow(BaseWindow):
             new_list_name = xbmcgui.Dialog().input("Enter new list name").strip()
             utils.log(f"Creating new list. ParentID={parent_id}, NewListName={new_list_name}", "DEBUG")
             if not new_list_name:
-                xbmcgui.Dialog().notification("LibraryGenie", "Invalid name entered", xbmcgui.NOTIFICATION_WARNING, 5000)
+                self.show_notification("Invalid name entered", xbmcgui.NOTIFICATION_WARNING)
                 return
             db_manager = DatabaseManager(Config().db_path)
             existing_list_id = db_manager.get_list_id_by_name(new_list_name)
             if existing_list_id:
-                xbmcgui.Dialog().notification("LibraryGenie", f"The list name '{new_list_name}' already exists", xbmcgui.NOTIFICATION_WARNING, 5000)
+                self.show_notification(f"The list name '{new_list_name}' already exists", xbmcgui.NOTIFICATION_WARNING)
                 return
         except Exception:
             utils.log(f"Error creating new list. ParentID={parent_id}, NewListName not set", "ERROR")
@@ -868,20 +917,20 @@ class MainWindow(BaseWindow):
                 notification_text = f"Added '{self.item_info.get('title', '')}' to new list '{new_list_name}'"
             else:
                 notification_text = f"New list '{new_list_name}' created"
-            xbmcgui.Dialog().notification("LibraryGenie", notification_text, xbmcgui.NOTIFICATION_INFO, 5000)
+            self.show_notification(notification_text, xbmcgui.NOTIFICATION_INFO)
         self.populate_list()
 
     def move_list(self, list_id, list_name):
         self.moving_list_id = list_id
         self.moving_list_name = list_name
-        xbmcgui.Dialog().notification("LibraryGenie", f"Select new location for list: {list_name}", xbmcgui.NOTIFICATION_INFO, 5000)
+        self.show_notification(f"Select new location for list: {list_name}", xbmcgui.NOTIFICATION_INFO)
         utils.log(f"Moving list. ListID={list_id}, ListName={list_name}", "DEBUG")
         self.populate_list()
 
     def paste_list_here(self, list_id, target_folder_id):
         db_manager = DatabaseManager(Config().db_path)
         db_manager.update_list_folder(list_id, target_folder_id)
-        xbmcgui.Dialog().notification("LibraryGenie", "List moved to new location", xbmcgui.NOTIFICATION_INFO, 5000)
+        self.show_notification("List moved to new location", xbmcgui.NOTIFICATION_INFO)
         self.moving_list_id = None
         self.moving_list_name = None
         utils.log(f"Pasting list. ListID={list_id}, TargetFolderID={target_folder_id}", "DEBUG")
@@ -900,7 +949,7 @@ class MainWindow(BaseWindow):
             return
         db_manager = DatabaseManager(Config().db_path)
         db_manager.delete_list(list_id)
-        xbmcgui.Dialog().notification("LibraryGenie", f"List '{list_name}' deleted", xbmcgui.NOTIFICATION_INFO, 5000)
+        self.show_notification(f"List '{list_name}' deleted", xbmcgui.NOTIFICATION_INFO)
         self.populate_list()
 
     def add_media_to_list(self, list_id):
@@ -912,7 +961,7 @@ class MainWindow(BaseWindow):
             data['cast'] = json.dumps(data['cast'])
         utils.log(f"Adding media to list with data: {data}", "DEBUG")
         db_manager.insert_data('list_items', data)
-        xbmcgui.Dialog().notification("LibraryGenie", "Media added to list", xbmcgui.NOTIFICATION_INFO, 5000)
+        self.show_notification("Media added to list", xbmcgui.NOTIFICATION_INFO)
         self.populate_list()
 
     def remove_media_from_list(self, list_id):
@@ -921,9 +970,9 @@ class MainWindow(BaseWindow):
         utils.log(f"Removing media from list. ListID={list_id}, ItemID={item_id}", "DEBUG")
         if item_id:
             db_manager.delete_data('list_items', f'id={item_id}')
-            xbmcgui.Dialog().notification("LibraryGenie", "Media removed from list", xbmcgui.NOTIFICATION_INFO, 5000)
+            self.show_notification("Media removed from list", xbmcgui.NOTIFICATION_INFO)
         else:
-            xbmcgui.Dialog().notification("LibraryGenie", "Media not found in list", xbmcgui.NOTIFICATION_WARNING, 5000)
+            self.show_notification("Media not found in list", xbmcgui.NOTIFICATION_WARNING)
         self.populate_list()
 
     def strip_color_tags(self, text):
@@ -1001,7 +1050,7 @@ class MainWindow(BaseWindow):
 def launch_movie_search():
     """Launches the proper SearchWindow for movie search"""
     from resources.lib.window_search import SearchWindow
-    
+
     search_window = SearchWindow()
     search_window.doModal()
     results = search_window.get_search_results()
@@ -1130,7 +1179,7 @@ class MenuWindow(BaseWindow):
             from .config_manager import Config
             db_manager = DatabaseManager(Config().db_path)
             db_manager.insert_data('lists', {'name': new_list_name})
-            xbmcgui.Dialog().notification("LibraryGenie", f"New list '{new_list_name}' created", xbmcgui.NOTIFICATION_INFO, 3000)
+            self.show_notification(f"New list '{new_list_name}' created", xbmcgui.NOTIFICATION_INFO, 3000)
 
     def show_settings(self):
         """Open settings"""

@@ -134,18 +134,10 @@ class GenieWindow(pyxbmct.AddonDialogWindow):
             if search_results and search_results.get('status') == 'success':
                 matches = search_results.get('matches', [])
                 if matches:
-                    # Store results and query embedding for later use
-                    self.current_results = search_results
-                    self.current_query_embedding = search_results.get('query_embedding')
-
-                    results_text = f"Found {len(matches)} movies:\n\n"
-                    for i, match in enumerate(matches[:10], 1):  # Show first 10
-                        imdb_id = match.get('imdb_id', 'Unknown')
-                        score = match.get('score', 0)
-                        relevance = match.get('relevance_score', 0)
-                        results_text += f"{i}. {imdb_id} (Score: {score:.3f}, Relevance: {relevance:.1f}%)\n"
-
-                    if len(matches) > 10:
+                    if len(matches) <= 10:
+                        results_text = "\n".join([f"• {match.get('title', 'Unknown')} ({match.get('year', 'N/A')})" for match in matches[:10]])
+                    else:
+                        results_text = "\n".join([f"• {match.get('title', 'Unknown')} ({match.get('year', 'N/A')})" for match in matches[:10]])
                         results_text += f"\n... and {len(matches) - 10} more results"
 
                     # Add timing info if available
@@ -155,6 +147,9 @@ class GenieWindow(pyxbmct.AddonDialogWindow):
 
                     self.results_label.setLabel(results_text)
                     self.create_list_button.setEnabled(True)
+
+                    # Auto-save to Search History
+                    self.save_to_search_history(self.description_input.getText(), search_results)
                 else:
                     self.results_label.setLabel("No movies found matching your search.")
                     self.create_list_button.setEnabled(False)
@@ -166,3 +161,27 @@ class GenieWindow(pyxbmct.AddonDialogWindow):
             utils.log(f"Search error: {str(e)}", "ERROR")
             self.results_label.setLabel("An error occurred during search.")
             self.create_list_button.setEnabled(False)
+
+    def save_to_search_history(self, query, search_results):
+        """Save search results to Search History folder"""
+        try:
+            from resources.lib.database_manager import DatabaseManager
+            from resources.lib.config_manager import Config
+
+            config = Config()
+            db_manager = DatabaseManager(config.db_path)
+
+            # Create list in Search History folder
+            list_id = db_manager.create_search_result_list(query, search_results)
+
+            if list_id:
+                utils.log(f"GenieWindow: Saved search results to Search History with list ID: {list_id}", "DEBUG")
+            else:
+                utils.log("GenieWindow: Failed to save search results to Search History", "ERROR")
+
+        except Exception as e:
+            utils.log(f"GenieWindow: Error saving to search history: {str(e)}", "ERROR")
+
+    def get_search_results(self):
+        """Get the search results after the window closes"""
+        return self.search_results
