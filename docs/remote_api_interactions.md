@@ -9,32 +9,142 @@ This document provides complete API documentation for developing Kodi addons tha
 https://your-server.com/
 ```
 
-### Authentication Methods
+### User Authentication System
 
-The API supports two authentication methods:
+The system uses **Auth0** for secure user authentication with a Kodi-friendly pairing process:
 
-1. **API Key Authentication** (Recommended for Kodi)
-   ```
-   Authorization: ApiKey YOUR_64_CHARACTER_API_KEY
-   ```
+**For Users (Web Browser):**
+1. Users visit the MediaVault web interface 
+2. Click "Sign In" and authenticate via Auth0 (passwordless email login)
+3. Auth0 creates a secure user session with role-based permissions
+4. Users can generate pairing codes or view API keys from their dashboard
 
-2. **Session Authentication** (Browser-based)
-   - Uses Auth0 session cookies (not suitable for Kodi)
+**For Kodi Addons:**
+- Use API key authentication (Auth0 sessions don't work in Kodi)
+- Obtain API keys through pairing codes or manual setup
+- All requests require: `Authorization: ApiKey YOUR_64_CHARACTER_API_KEY`
 
-## Kodi Addon Integration Flow
+### Integration Methods for Kodi
 
-### Method 1: Easy Pairing (Recommended)
+**Method 1: Pairing Code Flow (Recommended)**
 
-1. **User generates pairing code** via web dashboard
-2. **Kodi addon prompts user** for 8-digit pairing code
-3. **Addon exchanges code** for API key automatically
-4. **Addon stores API key** for future requests
+This is the user-friendly approach for non-technical users:
 
-### Method 2: Manual Setup
+1. **User authenticates** with Auth0 in web browser
+2. **User generates 8-digit pairing code** from their dashboard 
+3. **Kodi addon prompts** user to enter the pairing code
+4. **Addon exchanges** pairing code for permanent API key via `/pairing-code/exchange`
+5. **Addon stores** API key securely for future requests
 
-1. **User copies API key** from web dashboard
-2. **User manually enters** API key in Kodi addon settings
-3. **User manually sets** server URL in addon settings
+Benefits: Simple setup, no manual copying of long API keys, secure token exchange
+
+**Method 2: Manual API Key Setup**
+
+For advanced users who prefer direct configuration:
+
+1. **User authenticates** with Auth0 in web browser
+2. **User copies full API key** from dashboard settings
+3. **User manually enters** API key in Kodi addon settings
+4. **User configures** server URL in addon settings
+
+Benefits: Direct control, works offline after initial setup
+
+### Auth0 Integration Notes
+
+- **User Roles**: Auth0 manages user permissions (admin/user roles)
+- **Session Management**: Web interface uses Auth0 sessions; Kodi uses derived API keys
+- **Security**: API keys inherit user permissions from Auth0 account
+- **Account Linking**: Each API key is permanently linked to a specific Auth0 user account
+
+### Error Handling for Kodi Addons
+
+**Authentication Errors:**
+- `401 Unauthorized` - API key invalid/expired, prompt user to re-pair
+- `403 Forbidden` - User lacks permissions for endpoint
+- `429 Too Many Requests` - Implement exponential backoff retry
+
+**Connection Errors:**
+- Network timeouts - Retry with exponential backoff
+- Server unavailable - Show user-friendly error, suggest checking server status
+- Invalid server URL - Validate URL format before making requests
+
+**Best Practices for Addon Development:**
+- Store API keys securely in Kodi addon settings (encrypted if possible)
+- Cache server URL and validate format (https://domain.com)
+- Implement graceful degradation when search API is unavailable
+- Show clear progress indicators for long operations (batch uploads)
+- Provide meaningful error messages to users
+- Test with both admin and regular user accounts
+
+### Development Testing
+
+**Local Testing:**
+```python
+# Test API connectivity (Kodi 19+ with Python 3)
+import xbmc
+import xbmcaddon
+import urllib.request
+import urllib.error
+
+def test_api_connection(server_url, api_key):
+    try:
+        request = urllib.request.Request(f"{server_url}/")
+        request.add_header("Authorization", f"ApiKey {api_key}")
+        response = urllib.request.urlopen(request, timeout=10)
+        if response.getcode() == 200:
+            xbmc.log("API connection successful", xbmc.LOGINFO)
+            return True
+    except Exception as e:
+        xbmc.log(f"API connection failed: {str(e)}", xbmc.LOGERROR)
+        return False
+```
+
+**Production Considerations:**
+- Always use HTTPS in production
+- Validate all user inputs before sending to API
+- Handle network timeouts gracefully (30+ second operations)
+- Cache movie search results locally when appropriate
+- Respect rate limits and implement backoff strategies
+- Target Kodi 19+ (Python 3) - no backward compatibility needed
+
+### Typical Kodi Addon Workflow
+
+**1. Initial Setup (First Run)**
+```
+User Setup → Auth0 Login → Generate Pairing Code → Kodi Entry → API Key Exchange → Store Credentials
+```
+
+**2. Library Sync (Periodic)**
+```
+Scan Kodi Library → Extract IMDb IDs → Check Delta with /library/hash → Upload New Movies via Chunked Batch → Monitor Progress
+```
+
+**3. Movie Search (User-Initiated)**
+```
+User Search Query → /kodi/search/movies → Filter by User's Library → Present Results → User Selection
+```
+
+**4. Error Recovery**
+```
+API Errors → Check Connectivity → Validate API Key → Re-pair if Needed → Retry Operation
+```
+
+### Key Integration Points
+
+**Authentication Flow:**
+- Auth0 handles user identity and permissions in web browser
+- Pairing codes bridge the gap between Auth0 sessions and Kodi API keys
+- API keys provide stateless authentication for all Kodi requests
+
+**Data Synchronization:**
+- Use delta sync (`/library/hash`) to minimize bandwidth on subsequent runs
+- Chunked uploads ensure reliability for large movie collections
+- Idempotency keys prevent duplicate processing during retries
+
+**Search Integration:**
+- Search results are filtered by user's uploaded movie collection
+- Results include similarity scores for ranking/presentation
+- Search operates on AI-generated embeddings for semantic matching
 
 ## API Endpoints for Kodi Integration
 
@@ -516,14 +626,17 @@ def make_api_request(endpoint, method='GET', data=None):
 ### 4. Chunked Movie Collection Upload
 
 ```python
-import uuid
-import math
+import json
+import time
+import urllib.request
+import urllib.error
+from urllib.parse import urljoin
 
 def chunked_movie_upload(movie_list, mode='merge', chunk_size=500):
     """Upload user's movie collection using chunked batch upload"""
     
     # Step 1: Start batch session
-    session = make_api_request('library/batch/start', 'POST', {
+    session = make_kodi_api_request('library/batch/start', 'POST', {
         'mode': mode,
         'total_count': len(movie_list),
         'source': 'kodi'
@@ -543,7 +656,10 @@ def chunked_movie_upload(movie_list, mode='merge', chunk_size=500):
     failed_chunks = []
     
     for chunk_index, chunk in enumerate(chunks):
-        idempotency_key = str(uuid.uuid4())
+        # Generate unique idempotency key (without uuid dependency)
+        import random
+        import time
+        idempotency_key = f"{int(time.time())}-{random.randint(10000, 99999)}-{chunk_index}"
         
         # Format items for API - only IMDb IDs accepted
         items = []
@@ -563,7 +679,7 @@ def chunked_movie_upload(movie_list, mode='merge', chunk_size=500):
         for attempt in range(3):  # 3 retry attempts
             try:
                 headers = {'Idempotency-Key': idempotency_key}
-                result = make_api_request_with_headers(
+                result = make_kodi_api_request_with_headers(
                     f'library/batch/{upload_id}/chunk',
                     'PUT',
                     {
@@ -585,7 +701,7 @@ def chunked_movie_upload(movie_list, mode='merge', chunk_size=500):
     
     # Step 3: Commit the batch
     if not failed_chunks:
-        commit_result = make_api_request(
+        commit_result = make_kodi_api_request(
             f'library/batch/{upload_id}/commit', 'POST'
         )
         
@@ -604,33 +720,62 @@ def chunked_movie_upload(movie_list, mode='merge', chunk_size=500):
         'error': 'Some chunks failed to upload'
     }
 
-def make_api_request_with_headers(endpoint, method, data, headers=None):
-    """Enhanced API request helper with custom headers"""
-    base_headers = {
-        'Authorization': f"ApiKey {addon.getSetting('api_key')}",
+def make_kodi_api_request_with_headers(endpoint, method, data=None, headers=None):
+    """Kodi 19+ API request helper using Python 3 libraries"""
+    import xbmcaddon
+    import json
+    import xbmc
+    
+    addon = xbmcaddon.Addon()
+    api_key = addon.getSetting('api_key')
+    server_url = addon.getSetting('server_url').rstrip('/')
+    
+    url = f"{server_url}/{endpoint}"
+    
+    # Prepare headers
+    request_headers = {
+        'Authorization': f"ApiKey {api_key}",
         'Content-Type': 'application/json'
     }
-    
     if headers:
-        base_headers.update(headers)
+        request_headers.update(headers)
     
-    url = f"{addon.getSetting('server_url')}/{endpoint}"
+    try:
+        # Create request object
+        if data:
+            json_data = json.dumps(data).encode('utf-8')
+            request = urllib.request.Request(url, data=json_data)
+        else:
+            request = urllib.request.Request(url)
+        
+        # Add headers
+        for key, value in request_headers.items():
+            request.add_header(key, value)
+        
+        # Set method for non-GET requests
+        if method in ['PUT', 'POST', 'DELETE']:
+            request.get_method = lambda: method
+        
+        # Make request
+        response = urllib.request.urlopen(request, timeout=30)
+        
+        if response.getcode() == 200:
+            response_data = response.read().decode('utf-8')
+            return json.loads(response_data)
+        
+    except Exception as e:
+        xbmc.log(f"API request failed: {str(e)}", xbmc.LOGERROR)
     
-    if method == 'PUT':
-        response = requests.put(url, headers=base_headers, json=data)
-    elif method == 'POST':
-        response = requests.post(url, headers=base_headers, json=data)
-    elif method == 'GET':
-        response = requests.get(url, headers=base_headers)
-    elif method == 'DELETE':
-        response = requests.delete(url, headers=base_headers)
-    
-    return response.json() if response.status_code == 200 else None
+    return None
+
+def make_kodi_api_request(endpoint, method='GET', data=None):
+    """Simplified API request without custom headers"""
+    return make_kodi_api_request_with_headers(endpoint, method, data)
 
 def delta_sync_movies():
     """Efficient delta sync using library fingerprints"""
     # Get current server fingerprints
-    server_hash = make_api_request('library/hash')
+    server_hash = make_kodi_api_request('library/hash')
     if not server_hash or not server_hash.get('success'):
         return full_sync_movies()
     
@@ -640,10 +785,12 @@ def delta_sync_movies():
     local_movies = get_user_movie_collection()
     local_fingerprints = set()
     
+    # Use Kodi's built-in hash function (simple approach)
     import hashlib
     for movie in local_movies:
         imdb_id = movie['imdb_id'] if isinstance(movie, dict) else movie
-        hash_obj = hashlib.sha1(imdb_id.encode())
+        # Create simple hash using available libraries
+        hash_obj = hashlib.sha1(imdb_id.encode('utf-8'))
         local_fingerprints.add(hash_obj.hexdigest()[:8])
     
     # Find movies to upload (not on server)
@@ -656,7 +803,7 @@ def delta_sync_movies():
     movies_to_upload = []
     for movie in local_movies:
         imdb_id = movie['imdb_id'] if isinstance(movie, dict) else movie
-        hash_obj = hashlib.sha1(imdb_id.encode())
+        hash_obj = hashlib.sha1(imdb_id.encode('utf-8'))
         if hash_obj.hexdigest()[:8] in new_fingerprints:
             movies_to_upload.append(movie)
     
@@ -670,7 +817,7 @@ def full_sync_movies():
 
 def get_upload_status(upload_id):
     """Check status of an ongoing upload"""
-    return make_api_request(f'library/batch/{upload_id}/status')
+    return make_kodi_api_request(f'library/batch/{upload_id}/status')
 ```
 
 ### 4. Connection Testing
