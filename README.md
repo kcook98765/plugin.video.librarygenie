@@ -9,11 +9,11 @@ LibraryGenie is a comprehensive Kodi addon that bridges your local Kodi media li
 - **Natural Language Queries**: Search your media using plain English descriptions
 - **Semantic Search**: Leverages AI embeddings for intelligent movie discovery
 - **Query Refinement**: Interactive interface to improve and adjust search results
-- **RPC Generation**: Automatically generates Kodi JSON-RPC queries from natural language
+- **Automatic Matching**: Seamlessly matches search results to your local Kodi library
 
 ### 📚 Smart Library Management
 - **Hierarchical Organization**: Create nested folders and lists for better organization
-- **Dynamic Lists**: Lists that update automatically based on your queries
+- **Dynamic Lists**: Lists that update automatically based on your search criteria
 - **Manual Curation**: Add individual items from any addon or source
 - **Exception Handling**: Block specific entries from appearing in lists
 - **Batch Operations**: Efficiently manage large collections
@@ -33,8 +33,8 @@ LibraryGenie is a comprehensive Kodi addon that bridges your local Kodi media li
 
 ### 🛠️ Technical Features
 - **SQLite Database**: Local storage for lists, folders, and metadata
-- **JSON-RPC Integration**: Direct communication with Kodi's API
-- **Error Recovery**: Automatic query fixing via AI when RPC calls fail
+- **Seamless Integration**: Direct communication with Kodi's media library
+- **Intelligent Matching**: Automatic matching of search results to local content
 - **Debug Logging**: Comprehensive logging for troubleshooting
 - **Settings Management**: Centralized configuration system
 
@@ -140,9 +140,9 @@ LibraryGenie is a comprehensive Kodi addon that bridges your local Kodi media li
 - **Error**: "No results found"
 - **Solution**: Ensure your library has been uploaded to the server
 
-#### RPC Query Errors
-- **Error**: "Generated query failed"
-- **Solution**: The addon will automatically attempt to fix the query
+#### Library Matching Issues
+- **Error**: "Search results don't match local content"
+- **Solution**: The addon will automatically attempt to find matching content in your library
 
 ### Debug Mode
 1. Enable debug logging in addon settings
