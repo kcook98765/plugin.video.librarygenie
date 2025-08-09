@@ -913,7 +913,7 @@ class QueryManager(Singleton):
                 media_item_id INTEGER,
                 flagged INTEGER DEFAULT 0,
                 FOREIGN KEY (list_id) REFERENCES lists (id),
-                FOREIGNKEY (media_item_id) REFERENCES media_items (id)
+                FOREIGN KEY (media_item_id) REFERENCES media_items (id)
             )""",
             """CREATE TABLE IF NOT EXISTS whitelist (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -931,7 +931,7 @@ class QueryManager(Singleton):
                 list_id INTEGER PRIMARY KEY,
                 description TEXT,
                 rpc TEXT,
-                FOREIGNKEY (list_id) REFERENCES lists (id)
+                FOREIGN KEY (list_id) REFERENCES lists (id)
             )""",
             """CREATE TABLE IF NOT EXISTS original_requests (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -945,7 +945,7 @@ class QueryManager(Singleton):
                 title TEXT,
                 year INTEGER,
                 director TEXT,
-                FOREIGNKEY (request_id) REFERENCES original_requests (id)
+                FOREIGN KEY (request_id) REFERENCES original_requests (id)
             )"""
         ]
 
