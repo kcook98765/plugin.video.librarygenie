@@ -165,8 +165,30 @@ class DatabaseManager(Singleton):
         self._execute_with_retry(self.cursor.execute, query, tuple(data.values()))
         self.connection.commit()
 
+    def is_list_protected(self, list_id):
+        """Check if a list is protected from modification"""
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        list_data = query_manager.fetch_list_by_id(list_id)
+        return list_data and list_data.get('protected', 0) == 1
+
+    def is_search_history_list(self, list_id):
+        """Check if a list belongs to Search History folder"""
+        search_history_folder_id = self.get_folder_id_by_name("Search History")
+        if not search_history_folder_id:
+            return False
+        
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        list_data = query_manager.fetch_list_by_id(list_id)
+        return list_data and list_data.get('folder_id') == search_history_folder_id
+
     def delete_list(self, list_id):
         """Delete a list and all its related records"""
+        # Check if list is protected
+        if self.is_list_protected(list_id) or self.is_search_history_list(list_id):
+            raise ValueError("Cannot delete protected search history list")
+            
         try:
             self.connection.execute("BEGIN")
             # Delete from genie_lists first
@@ -507,6 +529,9 @@ class DatabaseManager(Singleton):
         from resources.lib.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         
+        # Ensure protected column exists in lists table
+        self._ensure_protected_column()
+        
         search_history_folder_name = "Search History"
         
         # Check if the folder already exists
@@ -514,27 +539,26 @@ class DatabaseManager(Singleton):
         
         if not existing_folder:
             utils.log(f"Creating '{search_history_folder_name}' folder.", "INFO")
-            # Insert the folder with a protected flag (assuming a schema change or a convention)
-            # For now, we'll just insert it. Protection will be handled by disallowing its deletion/renaming.
             query_manager.insert_folder_direct(search_history_folder_name, parent_id=None)
             
-            # Fetch the newly created folder ID to apply protection if schema supports it.
-            # If there's a 'protected' column, update it here.
             newly_created_folder = query_manager.get_folder_by_name(search_history_folder_name)
             if newly_created_folder:
                 utils.log(f"'{search_history_folder_name}' folder created with ID: {newly_created_folder['id']}", "INFO")
-                # If your schema has a 'protected' column in the folders table, update it here:
-                # query_manager.protect_folder(newly_created_folder['id'])
             else:
                 utils.log(f"Failed to retrieve '{search_history_folder_name}' folder after creation.", "ERROR")
-
         else:
             utils.log(f"'{search_history_folder_name}' folder already exists.", "INFO")
-            # Ensure it's not deletable/renamable if that logic is elsewhere.
-            # If there's a 'protected' column, ensure it's set.
-            # if not existing_folder.get('protected', False):
-            #     utils.log(f"Marking '{search_history_folder_name}' folder as protected.", "INFO")
-            #     query_manager.protect_folder(existing_folder['id'])
+
+    def _ensure_protected_column(self):
+        """Ensure the protected column exists in the lists table"""
+        try:
+            # Check if protected column exists
+            self._execute_with_retry(self.cursor.execute, "SELECT protected FROM lists LIMIT 1")
+        except sqlite3.OperationalError:
+            # Column doesn't exist, add it
+            utils.log("Adding protected column to lists table", "INFO")
+            self._execute_with_retry(self.cursor.execute, "ALTER TABLE lists ADD COLUMN protected INTEGER DEFAULT 0")
+            self.connection.commit()
 
     def add_search_history(self, query, results):
         """Adds the search results to the 'Search History' folder as a new list."""
@@ -554,8 +578,13 @@ class DatabaseManager(Singleton):
         utils.log(f"Saving search results for query '{query}' into list '{list_name}'.", "INFO")
 
         try:
-            # Insert the list into the database
-            new_list_id = self.insert_folder(list_name, parent_id=search_history_folder_id)
+            # Insert the list into the database with protected status
+            list_data = {
+                'name': list_name,
+                'folder_id': search_history_folder_id,
+                'protected': 1  # Mark as protected
+            }
+            new_list_id = self.insert_data('lists', list_data)
             
             if new_list_id:
                 # Prepare media items for insertion
