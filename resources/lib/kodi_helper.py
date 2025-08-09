@@ -116,9 +116,10 @@ class KodiHelper:
         """Display items in a list"""
         utils.log(f"Showing list with ID: {list_id}", "DEBUG")
         from resources.lib.database_manager import DatabaseManager
-        from resources.lib.config_manager import Config
+        from resources.lib.config_manager import get_config
         from resources.lib.listitem_builder import ListItemBuilder
-        db_manager = DatabaseManager(Config().db_path)
+        config = get_config()
+        db_manager = DatabaseManager(config.db_path)
         items = db_manager.fetch_list_items(list_id)
 
         # Set content type and force views
@@ -177,8 +178,8 @@ class KodiHelper:
                       WHERE list_items.media_item_id = ?"""
 
             from resources.lib.database_manager import DatabaseManager
-            from resources.lib.config_manager import Config
-            config = Config()
+            from resources.lib.config_manager import get_config
+            config = get_config()
             db = DatabaseManager(config.db_path)
 
             # Handle item_id from various input types and ensure valid integer
@@ -368,13 +369,14 @@ class KodiHelper:
 
     def show_information(self):
         from resources.lib.query_manager import QueryManager
-        from resources.lib.config_manager import Config
+        from resources.lib.config_manager import get_config
 
         db_id = xbmc.getInfoLabel('ListItem.DBID')
         media_type = xbmc.getInfoLabel('ListItem.DBTYPE') or 'movie'
         utils.log(f"Retrieved DBID: {db_id}, Media type: {media_type}", "INFO")
 
-        self.query_manager = QueryManager(Config().db_path)
+        config = get_config()
+        self.query_manager = QueryManager(config.db_path)
 
         if db_id:
             if media_type == 'movie':

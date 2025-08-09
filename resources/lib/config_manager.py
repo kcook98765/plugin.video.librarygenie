@@ -1,4 +1,6 @@
+
 import os
+from functools import lru_cache
 from .addon_ref import get_addon
 import xbmcvfs
 from . import utils
@@ -45,18 +47,12 @@ class Config:
         utils.log("=== Initializing Config Manager ===", "DEBUG")
         
         try:
-            utils.log("Attempting to get addon instance automatically", "DEBUG")
+            utils.log("Getting addon instance", "DEBUG")
             self.addon = get_addon()
-            utils.log("Successfully got addon instance automatically", "DEBUG")
-        except (RuntimeError, Exception) as e:
-            # Fallback when addon ID cannot be automatically detected
-            utils.log(f"Failed to get addon automatically, using explicit ID: {str(e)}", "DEBUG")
-            try:
-                self.addon = xbmcaddon.Addon(id='plugin.video.librarygenie')
-                utils.log("Successfully got addon instance with explicit ID", "DEBUG")
-            except Exception as e2:
-                utils.log(f"CRITICAL: Failed to get addon with explicit ID: {str(e2)}", "ERROR")
-                raise
+            utils.log("Successfully got addon instance", "DEBUG")
+        except Exception as e:
+            utils.log(f"CRITICAL: Failed to get addon: {str(e)}", "ERROR")
+            raise
 
         # Import here to avoid circular dependency
         utils.log("Initializing SettingsManager", "DEBUG")
@@ -83,13 +79,20 @@ class Config:
 
         utils.log("=== Config Manager initialization complete ===", "DEBUG")
 
-    def get_setting(self, setting_id):
-        """Get addon setting by name"""
+    def get_setting(self, setting_id, default=""):
+        """Get addon setting by name with proper normalization"""
         value = self.addon.getSetting(setting_id)
-        if setting_id == 'lgs_upload_key':
-            utils.log(f"Config: Retrieved setting '{setting_id}': '{value[:10] if value else None}...'", "DEBUG")
-        elif setting_id in ['remote_api_key', 'remote_api_url']:
-            utils.log(f"Config: Retrieved setting '{setting_id}': '{value[:20] if value else None}...'", "DEBUG")
+        # Normalize None to empty string
+        if value is None:
+            value = default
+        
+        # Log with proper masking for sensitive settings
+        if setting_id in ['lgs_upload_key', 'remote_api_key']:
+            masked_value = (value[:4] + "..." + value[-2:]) if value else "(not set)"
+            utils.log(f"Config: Retrieved setting '{setting_id}': '{masked_value}'", "DEBUG")
+        else:
+            utils.log(f"Config: Retrieved setting '{setting_id}': '{value or '(not set)'}'", "DEBUG")
+        
         return value
 
     def set_setting(self, setting_id, value):
@@ -130,3 +133,9 @@ class Config:
     @property
     def hints_tv(self):
         return self._load_hint_file("hints_tv.txt")
+
+# Singleton accessor for Config
+@lru_cache(maxsize=1)
+def get_config():
+    """Get the singleton Config instance"""
+    return Config()

@@ -43,11 +43,10 @@ def run_addon():
         listitem_context = (len(sys.argv) > 1 and sys.argv[1] == '-1') or action == 'show_main_window'
         utils.log(f"Launch context analysis - Args: {sys.argv}, Action: {action}, Is Context: {listitem_context}", "DEBUG")
 
-        # Initialize helpers
-        utils.log("Initializing configuration manager", "DEBUG")
-        config = Config()
-        
-        utils.log("Initializing database manager", "DEBUG")
+        # Initialize config and database
+        utils.log("Initializing Config and DatabaseManager", "DEBUG")
+        from resources.lib.config_manager import get_config
+        config = get_config()
         db_manager = DatabaseManager(config.db_path)
 
         # Ensure database is setup
