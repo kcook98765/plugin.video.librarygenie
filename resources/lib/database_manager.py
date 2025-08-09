@@ -172,22 +172,16 @@ class DatabaseManager(Singleton):
         list_data = query_manager.fetch_list_by_id(list_id)
         return list_data and list_data.get('protected', 0) == 1
 
-    def is_search_history_list(self, list_id):
-        """Check if a list belongs to Search History folder"""
+    def is_search_history_folder(self, folder_id):
+        """Check if a folder is the Search History folder"""
         search_history_folder_id = self.get_folder_id_by_name("Search History")
-        if not search_history_folder_id:
-            return False
-        
-        from resources.lib.query_manager import QueryManager
-        query_manager = QueryManager(self.db_path)
-        list_data = query_manager.fetch_list_by_id(list_id)
-        return list_data and list_data.get('folder_id') == search_history_folder_id
+        return folder_id == search_history_folder_id
 
     def delete_list(self, list_id):
         """Delete a list and all its related records"""
-        # Check if list is protected
-        if self.is_list_protected(list_id) or self.is_search_history_list(list_id):
-            raise ValueError("Cannot delete protected search history list")
+        # Check if list is protected (but not search history lists - only the folder is protected)
+        if self.is_list_protected(list_id):
+            raise ValueError("Cannot delete protected list")
             
         try:
             self.connection.execute("BEGIN")
@@ -578,11 +572,10 @@ class DatabaseManager(Singleton):
         utils.log(f"Saving search results for query '{query}' into list '{list_name}'.", "INFO")
 
         try:
-            # Insert the list into the database with protected status
+            # Insert the list into the database (not protected - only the folder is protected)
             list_data = {
                 'name': list_name,
-                'folder_id': search_history_folder_id,
-                'protected': 1  # Mark as protected
+                'folder_id': search_history_folder_id
             }
             new_list_id = self.insert_data('lists', list_data)
             

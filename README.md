@@ -103,10 +103,10 @@ LibraryGenie is a comprehensive Kodi addon that bridges your local Kodi media li
 ### Search History Management
 - **Automatic Storage**: Every search is automatically saved as a new list under "Search History"
 - **Protected Folder**: The "Search History" folder cannot be deleted, renamed, or modified
-- **Protected Lists**: Search history lists are protected from deletion, renaming, and moving
+- **Manageable Lists**: Search history lists can be deleted, renamed, or moved like any other list
 - **Timestamped Lists**: Each search creates a timestamped list showing the exact query and results
-- **Limited Management**: Search history lists support viewing and browsing but cannot be modified
-- **Permanent Archive**: Build a complete archive of all your search discoveries over time
+- **Full Management**: Search history lists support all normal operations (view, edit, delete, rename, move)
+- **Searchable Archive**: Build a searchable archive of all your search discoveries over time
 
 ### Context Menu Integration
 - Right-click on any media item in Kodi
