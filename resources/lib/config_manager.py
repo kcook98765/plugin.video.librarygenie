@@ -2,6 +2,7 @@ import os
 import xbmcaddon
 import xbmcvfs
 from . import utils
+from .settings_manager import SettingsManager
 
 class Config:
     """ FIELDS should align with table list_items fields AND for use in listitem building """
