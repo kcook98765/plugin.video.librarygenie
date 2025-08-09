@@ -63,3 +63,11 @@ msgstr ""
 msgctxt "#30012"
 msgid "Example plot"
 msgstr ""
+
+msgctxt "#30057"
+msgid "Remote Server URL"
+msgstr ""
+
+msgctxt "#30058"
+msgid "Upload Movie Library to Server"
+msgstr ""

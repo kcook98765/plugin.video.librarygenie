@@ -671,9 +671,9 @@ class MainWindow(BaseWindow):
             self.open_settings()
 
     def upload_imdb_list(self):
-        from .api_client import ApiClient
-        api_client = ApiClient()
-        api_client.upload_imdb_list()
+        from .imdb_upload_manager import IMDBUploadManager
+        upload_manager = IMDBUploadManager()
+        upload_manager.start_upload_process()
 
     def export_imdb_list(self, list_id):
         from .api_client import ApiClient
