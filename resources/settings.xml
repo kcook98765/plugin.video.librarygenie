@@ -14,5 +14,6 @@
         <setting id="remote_api_setup" type="action" label="Setup Remote API (Easy)" action="RunPlugin(plugin://plugin.video.librarygenie/?action=setup_remote_api)" />
         <setting id="remote_api_manual" type="action" label="Manual Setup Remote API" action="RunPlugin(plugin://plugin.video.librarygenie/?action=manual_setup_remote_api)" />
         <setting id="remote_api_test" type="action" label="Test Remote API Connection" action="RunPlugin(plugin://plugin.video.librarygenie/?action=test_remote_api)" />
+        <setting id="upload_imdb_list" type="action" label="Upload IMDB List to Server" action="RunPlugin(plugin://plugin.video.librarygenie/?action=upload_imdb_list)" />
     </category>
 </settings>
