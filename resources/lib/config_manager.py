@@ -42,21 +42,28 @@ class Config:
         """
         Initializes the Config with addon settings and paths.
         """
+        utils.log("=== Initializing Config Manager ===", "DEBUG")
+        
         try:
+            utils.log("Attempting to get addon instance automatically", "DEBUG")
             self.addon = xbmcaddon.Addon()
+            utils.log("Successfully got addon instance automatically", "DEBUG")
         except (RuntimeError, Exception) as e:
             # Fallback when addon ID cannot be automatically detected
             utils.log(f"Failed to get addon automatically, using explicit ID: {str(e)}", "DEBUG")
             try:
                 self.addon = xbmcaddon.Addon(id='plugin.video.librarygenie')
+                utils.log("Successfully got addon instance with explicit ID", "DEBUG")
             except Exception as e2:
-                utils.log(f"Failed to get addon with explicit ID: {str(e2)}", "ERROR")
+                utils.log(f"CRITICAL: Failed to get addon with explicit ID: {str(e2)}", "ERROR")
                 raise
 
         # Import here to avoid circular dependency
+        utils.log("Initializing SettingsManager", "DEBUG")
         from .settings_manager import SettingsManager
         self.settings = SettingsManager()
         
+        utils.log("Reading addon information", "DEBUG")
         self.addonid = self.addon.getAddonInfo('id')
         self.addonname = self.addon.getAddonInfo('name')
         self.addonversion = self.addon.getAddonInfo('version')
@@ -64,10 +71,17 @@ class Config:
         self.profile = xbmcvfs.translatePath(self.addon.getAddonInfo('profile'))
         self._max_folder_depth = 5  # Set maximum folder depth
 
-        if not os.path.exists(self.profile):
-            os.makedirs(self.profile)
+        utils.log(f"Addon details - ID: {self.addonid}, Name: {self.addonname}, Version: {self.addonversion}", "INFO")
+        utils.log(f"Addon path: {self.addonpath}", "DEBUG")
+        utils.log(f"Profile path: {self.profile}", "DEBUG")
 
-        utils.log(f"Addon path - {self.addonpath}", "DEBUG")
+        if not os.path.exists(self.profile):
+            utils.log(f"Creating profile directory: {self.profile}", "DEBUG")
+            os.makedirs(self.profile)
+        else:
+            utils.log("Profile directory already exists", "DEBUG")
+
+        utils.log("=== Config Manager initialization complete ===", "DEBUG")
 
     def get_setting(self, setting_id):
         """Get addon setting by name"""

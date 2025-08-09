@@ -1,7 +1,8 @@
-
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<!-- """ /resources/settings.xml """ -->
 <settings>
+    <category label="30001">
+        <setting id="debug_logging" type="bool" label="30010" default="true" />
+    </category>
     <category label="Remote API">
         <setting id="remote_api_url" type="text" label="Remote API Server URL" default="http://192.168.2.106" />
         <setting id="remote_api_key" type="text" label="Remote API Key" default="" option="hidden" />

@@ -17,8 +17,20 @@ def log(message, level=None):
     if level is None:
         level = 'DEBUG'
 
-    # Skip SQL execution logs
-    if isinstance(message, str) and message.startswith("Executing SQL:"):
+    # Check debug logging setting for DEBUG and INFO messages
+    if level in ['DEBUG', 'INFO']:
+        try:
+            import xbmcaddon
+            addon = xbmcaddon.Addon()
+            debug_enabled = addon.getSetting('debug_logging') == 'true'
+            if not debug_enabled:
+                return
+        except:
+            # If we can't get the setting, default to logging for safety
+            pass
+
+    # Skip SQL execution logs in debug mode
+    if isinstance(message, str) and message.startswith("Executing SQL:") and level == 'DEBUG':
         return
 
     # Truncate cast data in JSON responses
@@ -74,6 +86,16 @@ def show_dialog_yesno(heading, message):
 def show_dialog_input(heading, default=""):
     """Centralized input dialog"""
     return xbmcgui.Dialog().input(heading, defaultt=default).strip()
+
+def is_debug_logging_enabled():
+    """Check if debug logging is enabled in addon settings"""
+    try:
+        import xbmcaddon
+        addon = xbmcaddon.Addon()
+        return addon.getSetting('debug_logging') == 'true'
+    except:
+        # If we can't get the setting, default to enabled for safety
+        return True
 
 def setup_remote_api():
     """Launch remote API setup wizard"""
