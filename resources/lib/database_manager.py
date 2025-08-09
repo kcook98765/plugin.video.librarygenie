@@ -492,11 +492,11 @@ class DatabaseManager(Singleton):
             formatted_results = []
             for movie in results:
                 formatted_movie = {
-                    'title': f"Movie (Score: {movie.get('score', 0):.3f})",  # Placeholder title with score
+                    'title': f"Semantic Match (Score: {movie.get('score', 0):.3f})",  # Placeholder title with score
                     'year': 0,
                     'rating': 0.0,
-                    'plot': f"Semantic search result with similarity score: {movie.get('score', 0):.3f}",
-                    'genre': '',
+                    'plot': f"AI-powered semantic search result. Similarity score: {movie.get('score', 0):.3f}",
+                    'genre': 'Search Result',
                     'imdbnumber': movie.get('imdb_id', ''),
                     'art': {
                         'poster': '',
@@ -507,7 +507,7 @@ class DatabaseManager(Singleton):
                 }
                 formatted_results.append(formatted_movie)
 
-            utils.log(f"Remote API search returned {len(formatted_results)} movies with semantic scores", "DEBUG")
+            utils.log(f"Remote API semantic search returned {len(formatted_results)} movies", "DEBUG")
             
             # Add search history
             self.add_search_history(query, formatted_results)
