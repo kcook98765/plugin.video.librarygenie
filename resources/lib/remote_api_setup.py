@@ -89,3 +89,7 @@ def manual_setup_remote_api():
     else:
         xbmcgui.Dialog().ok("Setup Failed", "Connection test failed. Please check your settings.")
         return False
+
+def run_setup():
+    """Wrapper function for setup_remote_api"""
+    return setup_remote_api()
