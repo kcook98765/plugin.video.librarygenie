@@ -3,11 +3,11 @@ import json
 import urllib.request
 import urllib.parse
 import urllib.error
-from resources.lib import utils
-from resources.lib.config_manager import Config
 import hashlib
 import time
 import random
+from resources.lib import utils
+from resources.lib.config_manager import Config
 
 class RemoteAPIClient:
     def __init__(self):

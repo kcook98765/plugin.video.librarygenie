@@ -40,7 +40,7 @@ def run_addon():
         db_manager.setup_database()
 
         kodi_helper = KodiHelper()
-        
+
         # Import MainWindow locally to avoid circular imports
         from .window_main import MainWindow
 
