@@ -3,7 +3,6 @@ import pyxbmct
 import xbmcgui
 from resources.lib.database_manager import DatabaseManager
 from resources.lib.config_manager import Config
-from resources.lib.llm_api_manager import LLMApiManager
 from resources.lib.window_results import ResultsWindow
 from resources.lib import utils
 
@@ -24,7 +23,6 @@ class GenieWindow(pyxbmct.AddonDialogWindow):
         self.setGeometry(800, 600, 10, 10)
         self.list_id = list_id
         self.db_manager = DatabaseManager(Config().db_path)  # Use Config to get the db_path
-        self.llm_api_manager = LLMApiManager()
         self.genie_list = self.db_manager.get_genie_list(self.list_id)
         self.setup_ui()
         self.populate_fields()
@@ -114,3 +112,76 @@ class GenieWindow(pyxbmct.AddonDialogWindow):
 
     def __del__(self):
         utils.log("Deleting GenieWindow instance")
+
+    def execute_search(self):
+        """Execute the search using progressive modal and display results"""
+        query = self.search_input.getText().strip()
+        if not query:
+            self.show_notification("Please enter a search query", xbmcgui.NOTIFICATION_WARNING)
+            return
+
+        try:
+            from resources.lib.window_search_progress import SearchProgressWindow
+
+            # Show progressive search modal
+            progress_window = SearchProgressWindow(query)
+            progress_window.doModal()
+
+            # Get results from the modal
+            search_results = progress_window.get_results()
+            del progress_window
+
+            if search_results and search_results.get('status') == 'success':
+                matches = search_results.get('matches', [])
+                if matches:
+                    if len(matches) <= 10:
+                        results_text = "\n".join([f"• {match.get('title', 'Unknown')} ({match.get('year', 'N/A')})" for match in matches[:10]])
+                    else:
+                        results_text = "\n".join([f"• {match.get('title', 'Unknown')} ({match.get('year', 'N/A')})" for match in matches[:10]])
+                        results_text += f"\n... and {len(matches) - 10} more results"
+
+                    # Add timing info if available
+                    timing = search_results.get('timing', {})
+                    if timing.get('total'):
+                        results_text += f"\n\nSearch completed in {timing['total']:.1f}s"
+
+                    self.results_label.setLabel(results_text)
+                    self.create_list_button.setEnabled(True)
+
+                    # Auto-save to Search History
+                    self.save_to_search_history(self.description_input.getText(), search_results)
+                else:
+                    self.results_label.setLabel("No movies found matching your search.")
+                    self.create_list_button.setEnabled(False)
+            else:
+                self.results_label.setLabel("Search was cancelled or failed.")
+                self.create_list_button.setEnabled(False)
+
+        except Exception as e:
+            utils.log(f"Search error: {str(e)}", "ERROR")
+            self.results_label.setLabel("An error occurred during search.")
+            self.create_list_button.setEnabled(False)
+
+    def save_to_search_history(self, query, search_results):
+        """Save search results to Search History folder"""
+        try:
+            from resources.lib.database_manager import DatabaseManager
+            from resources.lib.config_manager import Config
+
+            config = Config()
+            db_manager = DatabaseManager(config.db_path)
+
+            # Create list in Search History folder
+            list_id = db_manager.create_search_result_list(query, search_results)
+
+            if list_id:
+                utils.log(f"GenieWindow: Saved search results to Search History with list ID: {list_id}", "DEBUG")
+            else:
+                utils.log("GenieWindow: Failed to save search results to Search History", "ERROR")
+
+        except Exception as e:
+            utils.log(f"GenieWindow: Error saving to search history: {str(e)}", "ERROR")
+
+    def get_search_results(self):
+        """Get the search results after the window closes"""
+        return self.search_results

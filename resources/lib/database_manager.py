@@ -13,6 +13,8 @@ class DatabaseManager(Singleton):
             self.db_path = db_path
             self.config = Config()  # Instantiate Config to access FIELDS
             self._connect()
+            self.setup_database()
+            self.ensure_search_history_folder()
             self._initialized = True
 
     def _connect(self):
@@ -116,7 +118,7 @@ class DatabaseManager(Singleton):
             columns = ', '.join(data.keys())
             placeholders = ', '.join(['?' for _ in data])
             query = f'INSERT INTO {table} ({columns}) VALUES ({placeholders})'
-            
+
             self._execute_with_retry(self.cursor.execute, query, tuple(data.values()))
             self.connection.commit()
             last_id = self.cursor.lastrowid
@@ -163,8 +165,24 @@ class DatabaseManager(Singleton):
         self._execute_with_retry(self.cursor.execute, query, tuple(data.values()))
         self.connection.commit()
 
+    def is_list_protected(self, list_id):
+        """Check if a list is protected from modification"""
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        list_data = query_manager.fetch_list_by_id(list_id)
+        return list_data and list_data.get('protected', 0) == 1
+
+    def is_search_history_folder(self, folder_id):
+        """Check if a folder is the Search History folder"""
+        search_history_folder_id = self.get_folder_id_by_name("Search History")
+        return folder_id == search_history_folder_id
+
     def delete_list(self, list_id):
         """Delete a list and all its related records"""
+        # Check if list is protected (but not search history lists - only the folder is protected)
+        if self.is_list_protected(list_id):
+            raise ValueError("Cannot delete protected list")
+            
         try:
             self.connection.execute("BEGIN")
             # Delete from genie_lists first
@@ -232,7 +250,7 @@ class DatabaseManager(Singleton):
     def update_folder_parent(self, folder_id, new_parent_id):
         from resources.lib.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
-        
+
         if new_parent_id is not None:
             # Get the depth of the subtree being moved
             subtree_depth = query_manager.get_subtree_depth(folder_id)
@@ -456,6 +474,155 @@ class DatabaseManager(Singleton):
         from resources.lib.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         query_manager.sync_movies(movies)
+
+    def search_remote_movies(self, query, limit=20):
+        """Search movies using remote API and return formatted results"""
+        from resources.lib.remote_api_client import RemoteAPIClient
+
+        remote_client = RemoteAPIClient()
+        if not remote_client.api_key:
+            utils.log("Remote API not configured", "WARNING")
+            return []
+
+        try:
+            results = remote_client.search_movies(query, limit)
+
+            # Convert remote API results to our format
+            # New API returns only imdb_id and similarity score
+            formatted_results = []
+            for movie in results:
+                formatted_movie = {
+                    'title': f"Semantic Match (Score: {movie.get('score', 0):.3f})",  # Placeholder title with score
+                    'year': 0,
+                    'rating': 0.0,
+                    'plot': f"AI-powered semantic search result. Similarity score: {movie.get('score', 0):.3f}",
+                    'genre': 'Search Result',
+                    'imdbnumber': movie.get('imdb_id', ''),
+                    'art': {
+                        'poster': '',
+                        'fanart': ''
+                    },
+                    'source': 'remote_api',
+                    'search_score': movie.get('score', 0)  # Store the semantic similarity score
+                }
+                formatted_results.append(formatted_movie)
+
+            utils.log(f"Remote API semantic search returned {len(formatted_results)} movies", "DEBUG")
+            
+            # Add search history
+            self.add_search_history(query, formatted_results)
+
+            return formatted_results
+
+        except Exception as e:
+            utils.log(f"Error searching remote movies: {str(e)}", "ERROR")
+            return []
+
+    def ensure_search_history_folder(self):
+        """Ensures the 'Search History' folder exists and is protected."""
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        
+        # Ensure protected column exists in lists table
+        self._ensure_protected_column()
+        
+        search_history_folder_name = "Search History"
+        
+        # Check if the folder already exists
+        existing_folder = query_manager.get_folder_by_name(search_history_folder_name)
+        
+        if not existing_folder:
+            utils.log(f"Creating '{search_history_folder_name}' folder.", "INFO")
+            query_manager.insert_folder_direct(search_history_folder_name, parent_id=None)
+            
+            newly_created_folder = query_manager.get_folder_by_name(search_history_folder_name)
+            if newly_created_folder:
+                utils.log(f"'{search_history_folder_name}' folder created with ID: {newly_created_folder['id']}", "INFO")
+            else:
+                utils.log(f"Failed to retrieve '{search_history_folder_name}' folder after creation.", "ERROR")
+        else:
+            utils.log(f"'{search_history_folder_name}' folder already exists.", "INFO")
+
+    def _ensure_protected_column(self):
+        """Ensure the protected column exists in the lists table"""
+        try:
+            # Check if protected column exists
+            self._execute_with_retry(self.cursor.execute, "SELECT protected FROM lists LIMIT 1")
+        except sqlite3.OperationalError:
+            # Column doesn't exist, add it
+            utils.log("Adding protected column to lists table", "INFO")
+            self._execute_with_retry(self.cursor.execute, "ALTER TABLE lists ADD COLUMN protected INTEGER DEFAULT 0")
+            self.connection.commit()
+
+    def add_search_history(self, query, results):
+        """Adds the search results to the 'Search History' folder as a new list."""
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        
+        search_history_folder_id = self.get_folder_id_by_name("Search History")
+        if not search_history_folder_id:
+            utils.log("Search History folder not found, cannot save search results.", "ERROR")
+            return
+
+        # Create a new list for this search query
+        # Use a timestamp or the query itself as the list name, ensuring uniqueness if needed.
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        list_name = f"Search: {query} ({timestamp})"
+        
+        utils.log(f"Saving search results for query '{query}' into list '{list_name}'.", "INFO")
+
+        try:
+            # Insert the list into the database (not protected - only the folder is protected)
+            list_data = {
+                'name': list_name,
+                'folder_id': search_history_folder_id
+            }
+            new_list_id = self.insert_data('lists', list_data)
+            
+            if new_list_id:
+                # Prepare media items for insertion
+                media_items_to_insert = []
+                for result in results:
+                    # Adapt result to the format expected by insert_data for media_items
+                    media_item_data = {
+                        'title': result.get('title', 'Unknown Title'),
+                        'year': result.get('year', 0),
+                        'rating': result.get('rating', 0.0),
+                        'plot': result.get('plot', ''),
+                        'genre': result.get('genre', ''),
+                        'imdbnumber': result.get('imdbnumber', ''),
+                        'art': json.dumps(result.get('art', {})), # Store art as JSON string
+                        'source': result.get('source', 'search_history'),
+                        'search_score': result.get('search_score', None) # Store search score if available
+                    }
+                    # Ensure imdbnumber is not empty before processing
+                    if media_item_data['imdbnumber']:
+                        media_items_to_insert.append(media_item_data)
+                    else:
+                        utils.log(f"Skipping item due to missing imdbnumber: {result}", "WARNING")
+                
+                if media_items_to_insert:
+                    # Insert media items and link them to the new list
+                    for item_data in media_items_to_insert:
+                        # Need to insert into media_items first, then list_items
+                        media_item_id = query_manager.insert_media_item(item_data) # Assumes insert_media_item handles data formatting
+                        if media_item_id:
+                            list_item_data = {'list_id': new_list_id, 'media_item_id': media_item_id}
+                            query_manager.insert_list_item(list_item_data)
+                        else:
+                            utils.log(f"Failed to insert media item for: {item_data.get('imdbnumber', 'N/A')}", "ERROR")
+                    utils.log(f"Successfully saved {len(media_items_to_insert)} items to list '{list_name}'.", "INFO")
+                else:
+                    utils.log(f"No valid media items to save for search query '{query}'.", "WARNING")
+                    # Optionally, delete the empty list if no items were added
+                    self.delete_list(new_list_id)
+                    utils.log(f"Deleted empty list '{list_name}' as no items were saved.", "INFO")
+
+            else:
+                utils.log(f"Failed to create list '{list_name}' for search history.", "ERROR")
+
+        except Exception as e:
+            utils.log(f"Error saving search history for query '{query}': {str(e)}", "ERROR")
 
     def __del__(self):
         if getattr(self, 'connection', None):

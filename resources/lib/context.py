@@ -1,6 +1,9 @@
 
 import os
 import sys
+import json
+import urllib.request
+import urllib.parse
 
 # Add addon directory to Python path
 addon_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -12,11 +15,37 @@ import xbmcaddon
 from resources.lib.kodi_helper import KodiHelper
 from resources.lib.window_main import MainWindow
 
+def authenticate_user():
+    """Authenticate user with one-time code"""
+    from resources.lib.authenticate_code import authenticate_with_code
+    return authenticate_with_code()
+
+def register_beta_user(addon):
+    """Register user for beta access using one-time code"""
+    from resources.lib.authenticate_code import authenticate_with_code
+    success = authenticate_with_code()
+    if success:
+        xbmcgui.Dialog().notification(
+            "LibraryGenie", 
+            "Beta registration successful!", 
+            xbmcgui.NOTIFICATION_INFO, 
+            3000
+        )
+    else:
+        xbmcgui.Dialog().notification(
+            "LibraryGenie", 
+            "Beta registration failed", 
+            xbmcgui.NOTIFICATION_ERROR, 
+            3000
+        )
+
 def build_context_menu():
     xbmc.executebuiltin('Dialog.Close(all, true)')
     addon = xbmcaddon.Addon()
     options = [
         xbmcgui.ListItem("Item Management"),
+        xbmcgui.ListItem("Search Movies"),
+        xbmcgui.ListItem("Beta Signup"),
         xbmcgui.ListItem("Additional Feature")
     ]
 
@@ -30,8 +59,16 @@ def build_context_menu():
             window = MainWindow(item_info)
             window.doModal()
             del window
-    elif choice == 1:  # Additional Feature
-        # Placeholder for new feature
+    elif choice == 1:  # Search Movies
+        from resources.lib.window_search import SearchWindow
+        search_window = SearchWindow()
+        search_window.doModal()
+        # Get results if needed
+        results = search_window.get_search_results()
+        del search_window
+    elif choice == 2:  # Beta Signup
+        register_beta_user(addon)
+    elif choice == 3:  # Additional Feature
         dialog.notification("LibraryGenie", "Feature coming soon", xbmcgui.NOTIFICATION_INFO, 2000)
 
 if __name__ == '__main__':

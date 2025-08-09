@@ -4,7 +4,6 @@ import xbmcgui
 from .config_manager import Config
 from .database_manager import DatabaseManager
 from .kodi_helper import KodiHelper
-from .window_main import MainWindow
 from . import utils
 
 _initialized = False
@@ -20,7 +19,7 @@ def run_addon():
         # Initialize args and action
         args = ""
         action = None
-        
+
         # Handle direct action from context menu
         if len(sys.argv) > 1 and sys.argv[1] == 'show_main_window':
             action = 'show_main_window'
@@ -41,6 +40,9 @@ def run_addon():
         db_manager.setup_database()
 
         kodi_helper = KodiHelper()
+
+        # Import MainWindow locally to avoid circular imports
+        from .window_main import MainWindow
 
         # Handle context menu vs direct launch
         if listitem_context:
@@ -67,11 +69,54 @@ def run_addon():
                 kodi_helper.show_list(int(list_id))
             return
         else:
-            # Always show root directory for direct launch or unknown action
-            root_folders = db_manager.fetch_folders(None)  # Get root folders
-            root_lists = db_manager.fetch_lists(None)  # Get root lists 
-            kodi_helper.list_folders_and_lists(root_folders, root_lists)
-            return
+            # Handle different actions
+            if action == 'show_main_window':
+                utils.log("Showing main window", "DEBUG")
+                from resources.lib.window_main import MainWindow
+                main_window = MainWindow()
+                main_window.doModal()
+                del main_window
+            elif action == 'setup_remote_api':
+                utils.log("Setting up remote API", "DEBUG")
+                utils.setup_remote_api()
+            elif action == 'manual_setup_remote_api':
+                utils.log("Manual remote API setup", "DEBUG")
+                from resources.lib.remote_api_setup import manual_setup_remote_api
+                manual_setup_remote_api()
+            elif action == 'test_remote_api':
+                utils.log("Testing remote API connection", "DEBUG")
+                from resources.lib.remote_api_client import RemoteAPIClient
+                client = RemoteAPIClient()
+                if client.test_connection():
+                    utils.show_notification("Remote API", "Connection test successful!")
+                else:
+                    utils.show_notification("Remote API", "Connection test failed!", icon=xbmcgui.NOTIFICATION_ERROR)
+            elif action == 'upload_library_full':
+                utils.log("Starting full library upload", "DEBUG")
+                from resources.lib.imdb_upload_manager import IMDbUploadManager
+                upload_manager = IMDbUploadManager()
+                upload_manager.upload_library_full_sync()
+            elif action == 'upload_library_delta':
+                utils.log("Starting delta library sync", "DEBUG")
+                from resources.lib.imdb_upload_manager import IMDbUploadManager
+                upload_manager = IMDbUploadManager()
+                upload_manager.upload_library_delta_sync()
+            elif action == 'upload_status':
+                utils.log("Checking upload status", "DEBUG")
+                from resources.lib.imdb_upload_manager import IMDbUploadManager
+                upload_manager = IMDbUploadManager()
+                upload_manager.get_upload_status()
+            elif action == 'clear_server_library':
+                utils.log("Clearing server library", "DEBUG")
+                from resources.lib.imdb_upload_manager import IMDbUploadManager
+                upload_manager = IMDbUploadManager()
+                upload_manager.clear_server_library()
+            else:
+                # Always show root directory for direct launch or unknown action
+                root_folders = db_manager.fetch_folders(None)  # Get root folders
+                root_lists = db_manager.fetch_lists(None)  # Get root lists
+                kodi_helper.list_folders_and_lists(root_folders, root_lists)
+                return
 
     except Exception as e:
         utils.log(f"Error running addon: {str(e)}", "ERROR")

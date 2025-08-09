@@ -6,7 +6,6 @@ import json
 from resources.lib.database_manager import DatabaseManager
 from resources.lib.config_manager import Config
 from resources.lib.jsonrpc_manager import JSONRPC
-from resources.lib.llm_api_manager import LLMApiManager
 
 from resources.lib.window_base import BaseWindow
 
@@ -32,7 +31,6 @@ class ResultsWindow(BaseWindow):
         self.cancel_button = None
         self.db_manager = DatabaseManager(Config().db_path)
         self.jsonrpc = JSONRPC()  # Initialize JSONRPC
-        self.llm_api_manager = LLMApiManager()  # Initialize LLMApiManager
 
         self.setGeometry(1280, 720, 12, 4)
         self.set_info_controls()
@@ -40,47 +38,6 @@ class ResultsWindow(BaseWindow):
 
         self.connect(self.ok_button, self.on_ok)
         self.connect(self.cancel_button, self.on_cancel)
-
-        if not rpc:
-            self.perform_initial_query()
-
-    def perform_initial_query(self):
-        try:
-            description = "Description for the GenieList"  # Replace with actual description if available
-            rpc, name, movies = self.llm_api_manager.generate_query(description)
-            self.rpc = rpc
-            self.name = name
-
-            # Store the original request and response
-            response_json = json.dumps({'rpc': rpc, 'name': name, 'movies': movies})
-            request_id = self.db_manager.insert_original_request(description, response_json)
-
-            # Store the parsed movie details and check for matches
-            matched_movies = []
-            for movie in movies:
-                title = movie.get('title', 'Unknown Title')
-                year = movie.get('year', 0)
-                director = movie.get('director', 'Unknown Director')
-                self.db_manager.insert_parsed_movie(request_id, title, year, director)
-
-                # Check for matches via JSON-RPC lookup
-                filter_params = {
-                    'and': [
-                        {'field': 'title', 'operator': 'contains', 'value': title},
-                        {'field': 'year', 'operator': 'is', 'value': str(year)}
-                    ]
-                }
-                search_results = self.jsonrpc.search_movies(filter_params)
-                matched = bool(search_results.get('result', {}).get('movies', []))
-                matched_movies.append({'title': title, 'year': year, 'director': director, 'matched': matched})
-
-            self.movies = matched_movies
-            self.populate_movies_list()
-
-        except Exception as e:
-            utils.log(f"Error running LLM request: {str(e)}", "ERROR")
-            xbmcgui.Dialog().notification("LibraryGenie", "Error running LLM request", xbmcgui.NOTIFICATION_ERROR, 5000)
-
 
     def search_movies(self, movie_list):
         results = []

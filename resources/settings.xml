@@ -2,7 +2,22 @@
 <!-- """ /resources/settings.xml """ -->
 <settings>
     <category label="LibraryGenie Server">
-        <setting id="lgs_upload_url" type="text" label="LGS Upload API URL" default="https://a5c6756b-056b-474d-a2c8-d3bbffaf5efb-00-32b6uktu04qdf.picard.replit.dev/" />
+        <setting id="lgs_upload_url" type="text" label="LGS Upload API URL" default="http://192.168.2.106/" />
         <setting id="lgs_upload_key" type="text" label="LGS Upload API Key" default="" option="hidden" />
+        <setting id="lgs_username" type="text" label="LGS Username" default="" />
+        <setting id="lgs_password" type="text" label="LGS Password" default="" option="hidden" />
+        <setting id="authenticate_code" type="action" label="Authenticate with One-Time Code" action="RunScript(special://home/addons/plugin.video.librarygenie/resources/lib/authenticate_code.py)" />
+    </category>
+    <category label="Remote API">
+        <setting id="remote_api_url" type="text" label="Remote API Server URL" default="https://your-server.com" />
+        <setting id="remote_api_key" type="text" label="Remote API Key" default="" option="hidden" />
+        <setting id="setup_remote_api" type="action" label="Setup Remote API (Easy)" action="RunScript(special://home/addons/plugin.video.librarygenie/main.py,setup_remote_api)" />
+        <setting id="manual_setup_remote_api" type="action" label="Manual Setup Remote API" action="RunScript(special://home/addons/plugin.video.librarygenie/main.py,manual_setup_remote_api)" />
+        <setting id="test_remote_api" type="action" label="Test Remote API Connection" action="RunScript(special://home/addons/plugin.video.librarygenie/main.py,test_remote_api)" />
+        <setting type="sep" />
+        <setting id="upload_library_delta" type="action" label="Sync Library to Server (Delta)" action="RunScript(special://home/addons/plugin.video.librarygenie/main.py,upload_library_delta)" />
+        <setting id="upload_library_full" type="action" label="Upload Full Library (Replace)" action="RunScript(special://home/addons/plugin.video.librarygenie/main.py,upload_library_full)" />
+        <setting id="upload_status" type="action" label="View Upload Status" action="RunScript(special://home/addons/plugin.video.librarygenie/main.py,upload_status)" />
+        <setting id="clear_server_library" type="action" label="Clear Server Library" action="RunScript(special://home/addons/plugin.video.librarygenie/main.py,clear_server_library)" />
     </category>
 </settings>

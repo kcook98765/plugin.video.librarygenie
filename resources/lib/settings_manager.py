@@ -18,6 +18,11 @@ class SettingsManager:
     def clear_cache(self):
         self._cache.clear()
 
+    def authenticate_with_code(self):
+        """Trigger one-time code authentication"""
+        from resources.lib.authenticate_code import authenticate_with_code
+        return authenticate_with_code()
+
     @property 
     def addon_path(self):
         return xbmcvfs.translatePath(self.addon.getAddonInfo('path'))

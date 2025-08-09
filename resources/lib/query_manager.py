@@ -331,7 +331,7 @@ class QueryManager(Singleton):
     def get_folder_depth(self, folder_id: int) -> int:
         if folder_id is None:
             return -1  # Root level is -1 so first level will be 0
-            
+
         query = """
             WITH RECURSIVE parent_chain AS (
                 SELECT id, parent_id, 0 as depth
@@ -504,7 +504,7 @@ class QueryManager(Singleton):
         conn_info = self._get_connection()
         try:
             utils.log(f"Starting folder parent update. FolderID={folder_id}, NewParentID={new_parent_id}", "DEBUG")
-            
+
             # Get current state
             cursor = conn_info['connection'].cursor()
             cursor.execute("SELECT * FROM folders WHERE id = ?", (folder_id,))
@@ -517,7 +517,7 @@ class QueryManager(Singleton):
 
             # Verify input parameters
             utils.log(f"Validating parameters - FolderID type:{type(folder_id)}, NewParentID type:{type(new_parent_id) if new_parent_id is not None else 'None'}", "DEBUG")
-            
+
             # Construct query based on new parent
             if new_parent_id is None:
                 query = """
@@ -535,24 +535,24 @@ class QueryManager(Singleton):
                 """
                 params = (new_parent_id, folder_id)
                 utils.log("Using specific parent query", "DEBUG")
-            
+
             utils.log(f"Executing SQL - Query:{query.strip()}, Params:{params}", "DEBUG")
             cursor.execute(query, params)
-            
+
             # Commit the change
             utils.log("Committing transaction", "DEBUG")
             conn_info['connection'].commit()
-            
+
             # Verify the update
             cursor.execute("SELECT * FROM folders WHERE id = ?", (folder_id,))
             after_state = cursor.fetchone()
             utils.log(f"Updated folder state - ID:{folder_id}, State:{dict(after_state)}", "DEBUG")
-            
+
             # Validate result
             expected_parent = new_parent_id if new_parent_id is not None else None
             actual_parent = after_state['parent_id']
             utils.log(f"Validation - Expected parent:{expected_parent}, Actual parent:{actual_parent}", "DEBUG")
-            
+
             if actual_parent != expected_parent:
                 utils.log(f"WARNING: Parent ID mismatch - Expected:{expected_parent}, Got:{actual_parent}", "WARNING")
         finally:
@@ -863,23 +863,32 @@ class QueryManager(Singleton):
             return dict(result) if result else {}
         finally:
             self._release_connection(conn_info)
-# Add this to the table_creations list in DatabaseManager.setup_database()
 
     def setup_database(self):
         """Setup all database tables"""
         fields_str = ', '.join(Config.FIELDS)
-        
+
         table_creations = [
-            """CREATE TABLE IF NOT EXISTS imdb_exports (
+            # IMDB exports table for tracking exported data
+            '''CREATE TABLE IF NOT EXISTS imdb_exports (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 kodi_id INTEGER,
-                imdb_id TEXT,
                 title TEXT,
                 year INTEGER,
-                filename TEXT,
-                path TEXT,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-            )""",
+                imdb_id TEXT,
+                exported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )''',
+            # IMDB holding table for upload process
+            '''CREATE TABLE IF NOT EXISTS imdb_holding (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                kodi_id INTEGER,
+                title TEXT,
+                year INTEGER,
+                imdb_id TEXT,
+                raw_uniqueid TEXT,
+                raw_imdbnumber TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )''',
             """CREATE TABLE IF NOT EXISTS folders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT UNIQUE,
@@ -949,7 +958,7 @@ class QueryManager(Singleton):
             conn_info['connection'].commit()
         finally:
             self._release_connection(conn_info)
-        
+
         # Setup movies reference table as well
         self.setup_movies_reference_table()
 
@@ -958,7 +967,7 @@ class QueryManager(Singleton):
         conn_info = self._get_connection()
         try:
             cursor = conn_info['connection'].cursor()
-            
+
             # Create table
             create_table_sql = """
                 CREATE TABLE IF NOT EXISTS movies_reference (
@@ -975,7 +984,7 @@ class QueryManager(Singleton):
             """
             utils.log(f"Executing SQL: {create_table_sql}", "DEBUG")
             cursor.execute(create_table_sql)
-            
+
             # Create indexes
             create_lib_index_sql = """
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_movies_lib_unique
@@ -984,7 +993,7 @@ class QueryManager(Singleton):
             """
             utils.log(f"Executing SQL: {create_lib_index_sql}", "DEBUG")
             cursor.execute(create_lib_index_sql)
-            
+
             create_file_index_sql = """
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_movies_file_unique
                 ON movies_reference(addon_file)
@@ -992,7 +1001,7 @@ class QueryManager(Singleton):
             """
             utils.log(f"Executing SQL: {create_file_index_sql}", "DEBUG")
             cursor.execute(create_file_index_sql)
-            
+
             conn_info['connection'].commit()
         finally:
             self._release_connection(conn_info)

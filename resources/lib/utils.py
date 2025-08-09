@@ -35,9 +35,33 @@ def log(message, level=None):
     xbmc.log(f"LibraryGenie [{level}]: {message}", xbmc.LOGINFO)
 
 
-def show_notification(heading, message, icon=xbmcgui.NOTIFICATION_INFO, time=5000):
-    """Centralized notification display"""
-    xbmcgui.Dialog().notification(heading, message, icon, time)
+def show_notification(title, message, icon=xbmcgui.NOTIFICATION_INFO, time=5000):
+    xbmcgui.Dialog().notification(title, message, icon, time)
+
+def launch_movie_search():
+    """Launch the movie search GUI and return results"""
+    log("Utils: Starting launch_movie_search", "DEBUG")
+    try:
+        log("Utils: Importing SearchWindow", "DEBUG")
+        from resources.lib.window_search import SearchWindow
+
+        log("Utils: Creating SearchWindow instance", "DEBUG")
+        search_window = SearchWindow()
+        log("Utils: Showing SearchWindow modal", "DEBUG")
+        search_window.doModal()
+
+        # Get results if any
+        log("Utils: Getting search results", "DEBUG")
+        results = search_window.get_search_results()
+        log(f"Utils: Search results obtained: {results}", "DEBUG")
+        del search_window
+
+        return results
+    except Exception as e:
+        log(f"Error launching search window: {str(e)}", "ERROR")
+        import traceback
+        log(f"Error traceback: {traceback.format_exc()}", "ERROR")
+        return None
 
 def show_dialog_ok(heading, message):
     """Centralized OK dialog"""
@@ -50,3 +74,13 @@ def show_dialog_yesno(heading, message):
 def show_dialog_input(heading, default=""):
     """Centralized input dialog"""
     return xbmcgui.Dialog().input(heading, defaultt=default).strip()
+
+def setup_remote_api():
+    """Launch remote API setup wizard"""
+    try:
+        from resources.lib.remote_api_setup import setup_remote_api
+        return setup_remote_api()
+    except Exception as e:
+        log(f"Error setting up remote API: {str(e)}", "ERROR")
+        show_dialog_ok("Setup Error", f"Failed to setup remote API: {str(e)}")
+        return False
