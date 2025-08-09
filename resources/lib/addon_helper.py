@@ -4,7 +4,6 @@ import xbmcgui
 from .config_manager import Config
 from .database_manager import DatabaseManager
 from .kodi_helper import KodiHelper
-from .window_main import MainWindow
 from . import utils
 
 _initialized = False
@@ -41,6 +40,9 @@ def run_addon():
         db_manager.setup_database()
 
         kodi_helper = KodiHelper()
+        
+        # Import MainWindow locally to avoid circular imports
+        from .window_main import MainWindow
 
         # Handle context menu vs direct launch
         if listitem_context:
