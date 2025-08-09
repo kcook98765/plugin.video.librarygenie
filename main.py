@@ -13,13 +13,16 @@ from resources.lib import utils
 
 def main():
     """Main addon entry point"""
-    # Ensure Search History folder exists
     try:
+        # Run the addon
+        run_addon()
+        
+        # Ensure Search History folder exists
         config = Config()
         db_manager = DatabaseManager(config.db_path)
         utils.log("Search History folder initialization complete", "DEBUG")
     except Exception as e:
-        utils.log(f"Error initializing Search History folder: {str(e)}", "ERROR")
+        utils.log(f"Error running addon: {str(e)}", "ERROR")
 
 if __name__ == '__main__':
-    run_addon()
+    main()

@@ -16,13 +16,6 @@ def run_addon():
     utils.log("Running addon...", "DEBUG")
     _initialized = True
     try:
-        # Check if we're running in proper Kodi addon context
-        try:
-            import xbmcaddon
-            xbmcaddon.Addon()
-        except Exception:
-            utils.log("Not running in Kodi addon context - exiting gracefully", "DEBUG")
-            return
         # Initialize args and action
         args = ""
         action = None
