@@ -1,13 +1,7 @@
+
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <!-- """ /resources/settings.xml """ -->
 <settings>
-    <category label="LibraryGenie Server">
-        <setting id="lgs_upload_url" type="text" label="LGS Upload API URL" default="http://192.168.2.106/" />
-        <setting id="lgs_upload_key" type="text" label="LGS Upload API Key" default="" option="hidden" />
-        <setting id="lgs_username" type="text" label="LGS Username" default="" />
-        <setting id="lgs_password" type="text" label="LGS Password" default="" option="hidden" />
-        <setting id="authenticate_code" type="action" label="Authenticate with One-Time Code" action="RunScript(special://home/addons/plugin.video.librarygenie/resources/lib/authenticate_code.py)" />
-    </category>
     <category label="Remote API">
         <setting id="remote_api_url" type="text" label="Remote API Server URL" default="https://your-server.com" />
         <setting id="remote_api_key" type="text" label="Remote API Key" default="" option="hidden" />
