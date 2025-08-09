@@ -20,8 +20,8 @@ def log(message, level=None):
     # Check debug logging setting for DEBUG and INFO messages
     if level in ['DEBUG', 'INFO']:
         try:
-            import xbmcaddon
-            addon = xbmcaddon.Addon()
+            from .addon_ref import get_addon
+            addon = get_addon()
             debug_enabled = addon.getSetting('debug_logging') == 'true'
             if not debug_enabled:
                 return
@@ -90,8 +90,8 @@ def show_dialog_input(heading, default=""):
 def is_debug_logging_enabled():
     """Check if debug logging is enabled in addon settings"""
     try:
-        import xbmcaddon
-        addon = xbmcaddon.Addon()
+        from .addon_ref import get_addon
+        addon = get_addon()
         return addon.getSetting('debug_logging') == 'true'
     except:
         # If we can't get the setting, default to enabled for safety

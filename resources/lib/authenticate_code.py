@@ -4,12 +4,12 @@ import urllib.request
 import urllib.parse
 import xbmc
 import xbmcgui
-import xbmcaddon
+from .addon_ref import get_addon
 from resources.lib.utils import log, show_notification, show_dialog_ok
 
 def authenticate_with_code():
     """Handle one-time code authentication from settings"""
-    addon = xbmcaddon.Addon()
+    addon = get_addon()
     dialog = xbmcgui.Dialog()
     
     # Get the one-time code from user input

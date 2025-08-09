@@ -1,5 +1,5 @@
 import os
-import xbmcaddon
+from .addon_ref import get_addon
 import xbmcvfs
 from . import utils
 
@@ -46,7 +46,7 @@ class Config:
         
         try:
             utils.log("Attempting to get addon instance automatically", "DEBUG")
-            self.addon = xbmcaddon.Addon()
+            self.addon = get_addon()
             utils.log("Successfully got addon instance automatically", "DEBUG")
         except (RuntimeError, Exception) as e:
             # Fallback when addon ID cannot be automatically detected

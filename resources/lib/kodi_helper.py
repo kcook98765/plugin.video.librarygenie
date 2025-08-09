@@ -3,7 +3,7 @@ import json
 import xbmc
 import xbmcgui
 import xbmcplugin
-import xbmcaddon
+from .addon_ref import get_addon
 from .jsonrpc_manager import JSONRPC
 from .utils import get_addon_handle
 from . import utils
@@ -13,7 +13,7 @@ class KodiHelper:
 
     def __init__(self, addon_handle=None):
         self.addon_handle = addon_handle if addon_handle is not None else get_addon_handle()
-        self.addon = xbmcaddon.Addon()
+        self.addon = get_addon()
         self.addon_url = sys.argv[0] if len(sys.argv) > 0 else ""
         self.jsonrpc = JSONRPC()
 

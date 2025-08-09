@@ -11,7 +11,7 @@ sys.path.append(addon_dir)
 
 import xbmc
 import xbmcgui
-import xbmcaddon
+from .addon_ref import get_addon
 from resources.lib.kodi_helper import KodiHelper
 from resources.lib.window_main import MainWindow
 
@@ -41,7 +41,7 @@ def register_beta_user(addon):
 
 def build_context_menu():
     xbmc.executebuiltin('Dialog.Close(all, true)')
-    addon = xbmcaddon.Addon()
+    addon = get_addon()
     options = [
         xbmcgui.ListItem("Item Management"),
         xbmcgui.ListItem("Search Movies"),
