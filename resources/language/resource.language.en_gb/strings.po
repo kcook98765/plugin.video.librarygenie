@@ -71,3 +71,11 @@ msgstr ""
 msgctxt "#30058"
 msgid "Upload Movie Library to Server"
 msgstr ""
+
+msgctxt "#30001"
+msgid "General"
+msgstr ""
+
+msgctxt "#30010"
+msgid "Enable Debug Logging"
+msgstr ""

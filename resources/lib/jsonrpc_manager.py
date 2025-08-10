@@ -19,10 +19,18 @@ class JSONRPC:
             "id": 1
         }
         query_json = json.dumps(query)
-        utils.log(f"Executing JSONRPC method: {method} with params: {query_json}", "DEBUG")
+        utils.log(f"Executing JSONRPC method: {method}", "DEBUG")
 
         response = xbmc.executeJSONRPC(query_json)
-        return json.loads(response)
+        parsed_response = json.loads(response)
+        
+        # Log success/error summary instead of full response
+        if 'error' in parsed_response:
+            utils.log(f"JSONRPC {method} failed: {parsed_response['error'].get('message', 'Unknown error')}", "ERROR")
+        else:
+            utils.log(f"JSONRPC {method} completed successfully", "DEBUG")
+            
+        return parsed_response
 
     def get_movies(self, start=0, limit=50, properties=None):
         if properties is None:
@@ -52,6 +60,68 @@ class JSONRPC:
         if 'result' in response and 'movies' in response['result']:
             return response['result']['movies'], response['result'].get('limits', {}).get('total', 0)
         return [], 0
+
+    def get_movies_with_imdb(self, progress_callback=None):
+        """Get all movies from Kodi library with IMDb information"""
+        utils.log("Getting all movies with IMDb information from Kodi library", "DEBUG")
+        
+        all_movies = []
+        start = 0
+        limit = 100
+        total_estimated = None
+        
+        while True:
+            # Update progress if callback provided
+            if progress_callback:
+                if total_estimated and total_estimated > 0:
+                    percent = min(80, int((len(all_movies) / total_estimated) * 80))
+                    progress_callback.update(percent, f"Retrieved {len(all_movies)} of {total_estimated} movies...")
+                    if progress_callback.iscanceled():
+                        break
+                else:
+                    progress_callback.update(10, f"Retrieved {len(all_movies)} movies...")
+                    if progress_callback.iscanceled():
+                        break
+            
+            response = self.get_movies(start, limit, properties=[
+                "title", "year", "file", "imdbnumber", "uniqueid"
+            ])
+            
+            # Log response summary instead of full response
+            if 'result' not in response:
+                utils.log("JSONRPC GetMovies failed: No 'result' key in response", "DEBUG")
+                break
+                
+            if 'movies' not in response['result']:
+                utils.log("JSONRPC GetMovies failed: No 'movies' key in result", "DEBUG")
+                # Check if there are any movies at all
+                if 'limits' in response['result']:
+                    total = response['result']['limits'].get('total', 0)
+                    utils.log(f"Total movies reported by Kodi: {total}", "INFO")
+                break
+                
+            movies = response['result']['movies']
+            total = response['result'].get('limits', {}).get('total', 0)
+            
+            # Set total estimate on first batch
+            if total_estimated is None and total > 0:
+                total_estimated = total
+            
+            utils.log(f"JSONRPC GetMovies success: Got {len(movies)} movies (batch start={start}, total={total})", "DEBUG")
+            
+            if not movies:
+                break
+                
+            all_movies.extend(movies)
+            
+            # Check if we got fewer movies than requested (end of collection)
+            if len(movies) < limit:
+                break
+                
+            start += limit
+        
+        utils.log(f"Retrieved {len(all_movies)} total movies from Kodi library", "INFO")
+        return all_movies
 
     def get_episode_details(self, episode_id, properties=None):
         if properties is None:

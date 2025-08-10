@@ -7,16 +7,36 @@
     <extension point="xbmc.python.pluginsource" library="main.py">
         <provides>video</provides>
     </extension>
-    <extension point="xbmc.python.script" library="main.py"/>
-    <extension point="xbmc.addon.metadata">
-        <summary>LibraryGenie is a Kodi addon handles lists and integration with AI enabled features.</summary>
+    <extension point="xbmc.python.script" library="resources/lib/context.py">
+        <provides>executable</provides>
     </extension>
-    <extension point="kodi.context.item">
-      <menu id="kodi.core.main">
-        <item library="resources/lib/context.py">
-            <label>LibraryGenie</label>
-            <visible>true</visible>
-        </item>
-      </menu>
+    <extension point="xbmc.addon.context.item">
+        <menu id="kodi.core.main">
+            <item library="resources/lib/context.py">
+                <label>LibraryGenie Options</label>
+                <visible>Container.Content(movies) | Container.Content(episodes) | Container.Content(tvshows)</visible>
+            </item>
+            <item library="resources/lib/context.py" args="search">
+                <label>Search with LibraryGenie</label>
+                <visible>Container.Content(movies) | Container.Content(episodes) | Container.Content(tvshows)</visible>
+            </item>
+            <item library="resources/lib/context.py" args="add_to_list">
+                <label>Add to LibraryGenie List</label>
+                <visible>Container.Content(movies) | Container.Content(episodes) | Container.Content(tvshows)</visible>
+            </item>
+        </menu>
+    </extension>
+    <extension point="xbmc.addon.metadata">
+        <summary lang="en_GB">LibraryGenie - AI-Powered Movie Lists and Search</summary>
+        <description lang="en_GB">Create intelligent movie lists using natural language queries. Organize your collection with AI-powered search and smart categorization.</description>
+        <platform>all</platform>
+        <license>GPL-2.0-or-later</license>
+        <source>https://github.com/yourusername/librarygenie</source>
+        <website>https://github.com/yourusername/librarygenie</website>
+        <email>your.email@example.com</email>
+        <forum>https://forum.kodi.tv/</forum>
+        <assets>
+            <icon>generated-icon.png</icon>
+        </assets>
     </extension>
 </addon>

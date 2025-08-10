@@ -12,17 +12,34 @@ class IMDbUploadManager:
         self.remote_client = RemoteAPIClient()
         self.jsonrpc = JSONRPC()
 
-    def get_kodi_movie_collection(self):
+    def get_kodi_movie_collection(self, progress_dialog=None):
         """Get all movies from Kodi library with IMDb IDs"""
         try:
-            movies = self.jsonrpc.get_movies_with_imdb()
+            if progress_dialog:
+                progress_dialog.update(0, "Scanning Kodi library for movies...")
+            
+            movies = self.jsonrpc.get_movies_with_imdb(progress_callback=progress_dialog)
+
+            if progress_dialog:
+                progress_dialog.update(90, "Processing movie data...")
 
             # Filter movies with valid IMDb IDs
             valid_movies = []
-            for movie in movies:
+            for i, movie in enumerate(movies):
+                if progress_dialog and len(movies) > 100:
+                    # Update progress for large collections
+                    if i % 100 == 0:
+                        percent = 90 + int((i / len(movies)) * 10)
+                        progress_dialog.update(percent, f"Processing movie {i+1} of {len(movies)}...")
+                        if progress_dialog.iscanceled():
+                            return []
+                
                 imdb_id = movie.get('imdbnumber', '')
                 if imdb_id and imdb_id.startswith('tt') and len(imdb_id) > 2:
                     valid_movies.append({'imdb_id': imdb_id})
+
+            if progress_dialog:
+                progress_dialog.update(100, f"Found {len(valid_movies)} movies with valid IMDb IDs")
 
             utils.log(f"Found {len(valid_movies)} movies with valid IMDb IDs", "INFO")
             return valid_movies
@@ -37,9 +54,20 @@ class IMDbUploadManager:
             xbmcgui.Dialog().ok("Error", "Remote API is not configured or not accessible")
             return False
 
-        movies = self.get_kodi_movie_collection()
-        if not movies:
-            xbmcgui.Dialog().ok("Error", "No movies with valid IMDb IDs found in Kodi library")
+        # Show progress during movie collection
+        collection_progress = xbmcgui.DialogProgress()
+        collection_progress.create("Preparing Upload", "Gathering movies from Kodi library...")
+        
+        try:
+            movies = self.get_kodi_movie_collection(collection_progress)
+            collection_progress.close()
+            
+            if not movies:
+                xbmcgui.Dialog().ok("Error", "No movies with valid IMDb IDs found in Kodi library")
+                return False
+        except Exception as e:
+            collection_progress.close()
+            xbmcgui.Dialog().ok("Error", f"Failed to gather movie collection: {str(e)}")
             return False
 
         # Show confirmation dialog
@@ -53,12 +81,34 @@ class IMDbUploadManager:
         progress.create("Uploading Library", "Starting full library sync...")
 
         try:
-            result = self.remote_client.full_sync_movies(movies)
+            # Create progress callback function
+            def progress_callback(current_chunk, total_chunks, chunk_size, current_item=None):
+                if progress.iscanceled():
+                    return False  # Signal to cancel the upload
+                
+                percent = int((current_chunk / total_chunks) * 100)
+                message = f"Uploading chunk {current_chunk} of {total_chunks} ({chunk_size} movies)"
+                if current_item:
+                    message += f"\nProcessing: {current_item}"
+                
+                utils.log(f"Progress update: {percent}% - {message}", "DEBUG")
+                progress.update(percent, message)
+                return True  # Continue uploading
+
+            result = self.remote_client._chunked_movie_upload(movies, mode='replace', progress_callback=progress_callback)
 
             progress.close()
 
             if result.get('success'):
-                message = f"Successfully uploaded {result.get('user_movie_count', len(movies))} movies"
+                # Try multiple ways to get the uploaded count
+                uploaded_count = (
+                    result.get('user_movie_count') or 
+                    result.get('final_tallies', {}).get('total_movies') or 
+                    result.get('final_tallies', {}).get('successful_imports') or 
+                    len(movies)
+                )
+                message = f"Successfully uploaded {uploaded_count} movies"
+                utils.log(f"Upload result: {result}", "DEBUG")
                 xbmcgui.Dialog().ok("Upload Complete", message)
                 return True
             else:
@@ -78,16 +128,41 @@ class IMDbUploadManager:
             xbmcgui.Dialog().ok("Error", "Remote API is not configured or not accessible")
             return False
 
-        movies = self.get_kodi_movie_collection()
-        if not movies:
-            xbmcgui.Dialog().ok("Error", "No movies with valid IMDb IDs found in Kodi library")
+        # Show progress during movie collection
+        collection_progress = xbmcgui.DialogProgress()
+        collection_progress.create("Preparing Sync", "Gathering movies from Kodi library...")
+        
+        try:
+            movies = self.get_kodi_movie_collection(collection_progress)
+            collection_progress.close()
+            
+            if not movies:
+                xbmcgui.Dialog().ok("Error", "No movies with valid IMDb IDs found in Kodi library")
+                return False
+        except Exception as e:
+            collection_progress.close()
+            xbmcgui.Dialog().ok("Error", f"Failed to gather movie collection: {str(e)}")
             return False
 
         progress = xbmcgui.DialogProgress()
         progress.create("Syncing Library", "Checking for new movies...")
 
         try:
-            result = self.remote_client.delta_sync_movies(movies)
+            # Create progress callback function
+            def progress_callback(current_chunk, total_chunks, chunk_size, current_item=None):
+                if progress.iscanceled():
+                    return False  # Signal to cancel the upload
+                
+                percent = int((current_chunk / total_chunks) * 100)
+                message = f"Syncing chunk {current_chunk} of {total_chunks} ({chunk_size} movies)"
+                if current_item:
+                    message += f"\nProcessing: {current_item}"
+                
+                utils.log(f"Progress update: {percent}% - {message}", "DEBUG")
+                progress.update(percent, message)
+                return True  # Continue syncing
+
+            result = self.remote_client._chunked_movie_upload(movies, mode='merge', progress_callback=progress_callback)
 
             progress.close()
 
@@ -95,7 +170,15 @@ class IMDbUploadManager:
                 if result.get('message') == 'Collection already up to date':
                     xbmcgui.Dialog().ok("Sync Complete", "Your collection is already up to date")
                 else:
-                    message = f"Successfully synced {result.get('user_movie_count', 0)} movies"
+                    # Try multiple ways to get the synced count
+                    synced_count = (
+                        result.get('user_movie_count') or 
+                        result.get('final_tallies', {}).get('total_movies') or 
+                        result.get('final_tallies', {}).get('successful_imports') or 
+                        0
+                    )
+                    message = f"Successfully synced {synced_count} movies"
+                    utils.log(f"Sync result: {result}", "DEBUG")
                     xbmcgui.Dialog().ok("Sync Complete", message)
                 return True
             else:

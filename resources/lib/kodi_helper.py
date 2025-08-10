@@ -1,19 +1,20 @@
+
 import sys
 import json
 import xbmc
 import xbmcgui
 import xbmcplugin
-import xbmcaddon
-from .jsonrpc_manager import JSONRPC
-from .utils import get_addon_handle
-from . import utils
-from .listitem_infotagvideo import set_info_tag, set_art
+from resources.lib.addon_ref import get_addon
+from resources.lib.jsonrpc_manager import JSONRPC
+from resources.lib.utils import get_addon_handle
+from resources.lib import utils
+from resources.lib.listitem_infotagvideo import set_info_tag, set_art
 
 class KodiHelper:
 
     def __init__(self, addon_handle=None):
         self.addon_handle = addon_handle if addon_handle is not None else get_addon_handle()
-        self.addon = xbmcaddon.Addon()
+        self.addon = get_addon()
         self.addon_url = sys.argv[0] if len(sys.argv) > 0 else ""
         self.jsonrpc = JSONRPC()
 
@@ -116,9 +117,10 @@ class KodiHelper:
         """Display items in a list"""
         utils.log(f"Showing list with ID: {list_id}", "DEBUG")
         from resources.lib.database_manager import DatabaseManager
-        from resources.lib.config_manager import Config
+        from resources.lib.config_manager import get_config
         from resources.lib.listitem_builder import ListItemBuilder
-        db_manager = DatabaseManager(Config().db_path)
+        config = get_config()
+        db_manager = DatabaseManager(config.db_path)
         items = db_manager.fetch_list_items(list_id)
 
         # Set content type and force views
@@ -177,8 +179,8 @@ class KodiHelper:
                       WHERE list_items.media_item_id = ?"""
 
             from resources.lib.database_manager import DatabaseManager
-            from resources.lib.config_manager import Config
-            config = Config()
+            from resources.lib.config_manager import get_config
+            config = get_config()
             db = DatabaseManager(config.db_path)
 
             # Handle item_id from various input types and ensure valid integer
@@ -368,13 +370,14 @@ class KodiHelper:
 
     def show_information(self):
         from resources.lib.query_manager import QueryManager
-        from resources.lib.config_manager import Config
+        from resources.lib.config_manager import get_config
 
         db_id = xbmc.getInfoLabel('ListItem.DBID')
         media_type = xbmc.getInfoLabel('ListItem.DBTYPE') or 'movie'
         utils.log(f"Retrieved DBID: {db_id}, Media type: {media_type}", "INFO")
 
-        self.query_manager = QueryManager(Config().db_path)
+        config = get_config()
+        self.query_manager = QueryManager(config.db_path)
 
         if db_id:
             if media_type == 'movie':

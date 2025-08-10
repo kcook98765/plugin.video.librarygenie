@@ -11,37 +11,58 @@ _initialized = False
 def run_addon():
     global _initialized
     if _initialized:
+        utils.log("Addon already initialized, skipping", "DEBUG")
         return
 
-    utils.log("Running addon...", "DEBUG")
+    utils.log("=== Starting run_addon() ===", "DEBUG")
     _initialized = True
     try:
         # Initialize args and action
         args = ""
         action = None
+        utils.log(f"Processing command line arguments: {sys.argv}", "DEBUG")
 
-        # Handle direct action from context menu
-        if len(sys.argv) > 1 and sys.argv[1] == 'show_main_window':
-            action = 'show_main_window'
+        # Handle direct script actions from settings
+        script_actions = [
+            'setup_remote_api', 'manual_setup_remote_api', 'test_remote_api',
+            'upload_library_full', 'upload_library_delta', 'upload_status', 
+            'clear_server_library', 'show_main_window'
+        ]
+        
+        if len(sys.argv) > 1 and sys.argv[1] in script_actions:
+            action = sys.argv[1]
+            utils.log(f"Detected script action: {action}", "INFO")
+            
+            # Handle special case for setup_remote_api
+            if action == 'setup_remote_api':
+                from .remote_api_setup import run_setup
+                run_setup()
+                return  # Early return to prevent normal startup
         else:
             args = sys.argv[2][1:] if len(sys.argv) > 2 else ""
             params = urllib.parse.parse_qs(args)
             action = params.get('action', [None])[0]
+            utils.log(f"Parsed URL params - args: '{args}', action: '{action}'", "DEBUG")
 
         # Check if launched from context menu or directly
         listitem_context = (len(sys.argv) > 1 and sys.argv[1] == '-1') or action == 'show_main_window'
-        utils.log(f"Context menu check - Args: {sys.argv}, Action: {action}, Is Context: {listitem_context}", "DEBUG")
+        utils.log(f"Launch context analysis - Args: {sys.argv}, Action: {action}, Is Context: {listitem_context}", "DEBUG")
 
-        # Initialize helpers
-        config = Config()
+        # Initialize config and database
+        utils.log("Initializing Config and DatabaseManager", "DEBUG")
+        from resources.lib.config_manager import get_config
+        config = get_config()
         db_manager = DatabaseManager(config.db_path)
 
         # Ensure database is setup
+        utils.log("Setting up database schema", "DEBUG")
         db_manager.setup_database()
 
+        utils.log("Initializing Kodi helper", "DEBUG")
         kodi_helper = KodiHelper()
 
         # Import MainWindow locally to avoid circular imports
+        utils.log("Importing MainWindow class", "DEBUG")
         from .window_main import MainWindow
 
         # Handle context menu vs direct launch

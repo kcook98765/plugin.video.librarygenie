@@ -79,6 +79,22 @@ LibraryGenie is a comprehensive Kodi addon that bridges your local Kodi media li
 
 ## Usage Guide
 
+### Quick Search Access
+LibraryGenie provides multiple ways to access the search functionality:
+
+1. **Direct Plugin Access**: 
+   - Launch LibraryGenie from the Kodi Add-ons menu
+   - Select "Search Movies..." from the main menu
+   
+2. **Skin/Home Shortcut** (for advanced users):
+   - Add this to your skin or home menu for direct search access:
+   ```
+   ActivateWindow(Videos,"plugin://plugin.video.librarygenie/?action=search",return)
+   ```
+   - This opens the search directly within the Videos window with proper back/return behavior
+
+3. **Context Menu**: Right-click on any media item and select LibraryGenie options
+
 ### Creating Lists
 1. Launch LibraryGenie from the Kodi Add-ons menu
 2. Navigate to create a new list or folder

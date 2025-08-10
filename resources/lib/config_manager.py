@@ -1,5 +1,7 @@
+
 import os
-import xbmcaddon
+from functools import lru_cache
+from .addon_ref import get_addon
 import xbmcvfs
 from . import utils
 
@@ -42,26 +44,55 @@ class Config:
         """
         Initializes the Config with addon settings and paths.
         """
-        self.addon = xbmcaddon.Addon()
-        self.addonpath = xbmcvfs.translatePath(self.addon.getAddonInfo('path'))
-        self.profile = xbmcvfs.translatePath(self.addon.getAddonInfo('profile'))
-        if not os.path.exists(self.profile):
-            os.makedirs(self.profile)
+        utils.log("=== Initializing Config Manager ===", "DEBUG")
+        
+        try:
+            utils.log("Getting addon instance", "DEBUG")
+            self._addon = get_addon()
+            utils.log("Successfully got addon instance", "DEBUG")
+        except Exception as e:
+            utils.log(f"CRITICAL: Failed to get addon: {str(e)}", "ERROR")
+            raise
 
-        from resources.lib.settings_manager import SettingsManager
+        # Import here to avoid circular dependency
+        utils.log("Initializing SettingsManager", "DEBUG")
+        from .settings_manager import SettingsManager
         self.settings = SettingsManager()
-        self.addondir = self.settings.addon_data_path
-        self._max_folder_depth = int(self.settings.get_setting('max_folder_depth') or '3')
+        
+        utils.log("Reading addon information", "DEBUG")
+        self.addonid = self._addon.getAddonInfo('id')
+        self.addonname = self._addon.getAddonInfo('name')
+        self.addonversion = self._addon.getAddonInfo('version')
+        self.addonpath = xbmcvfs.translatePath(self._addon.getAddonInfo('path'))
+        self.profile = xbmcvfs.translatePath(self._addon.getAddonInfo('profile'))
+        self._max_folder_depth = 5  # Set maximum folder depth
 
-        utils.log(f"Addon path - {self.addonpath}", "DEBUG")
+        utils.log(f"Addon details - ID: {self.addonid}, Name: {self.addonname}, Version: {self.addonversion}", "INFO")
+        utils.log(f"Addon path: {self.addonpath}", "DEBUG")
+        utils.log(f"Profile path: {self.profile}", "DEBUG")
 
-    def get_setting(self, setting_id):
-        """Get addon setting by name"""
-        value = self.addon.getSetting(setting_id)
-        if setting_id == 'lgs_upload_key':
-            utils.log(f"Config: Retrieved setting '{setting_id}': '{value[:10] if value else None}...'", "DEBUG")
-        elif setting_id in ['remote_api_key', 'remote_api_url']:
-            utils.log(f"Config: Retrieved setting '{setting_id}': '{value[:20] if value else None}...'", "DEBUG")
+        if not os.path.exists(self.profile):
+            utils.log(f"Creating profile directory: {self.profile}", "DEBUG")
+            os.makedirs(self.profile)
+        else:
+            utils.log("Profile directory already exists", "DEBUG")
+
+        utils.log("=== Config Manager initialization complete ===", "DEBUG")
+
+    def get_setting(self, setting_id, default=""):
+        """Get addon setting by name with proper normalization"""
+        value = self._addon.getSetting(setting_id)
+        # Normalize None to empty string
+        if value is None:
+            value = default
+        
+        # Log with proper masking for sensitive settings
+        if setting_id in ['lgs_upload_key', 'remote_api_key']:
+            masked_value = (value[:4] + "..." + value[-2:]) if value else "(not set)"
+            utils.log(f"Config: Retrieved setting '{setting_id}': '{masked_value}'", "DEBUG")
+        else:
+            utils.log(f"Config: Retrieved setting '{setting_id}': '{value or '(not set)'}'", "DEBUG")
+        
         return value
 
     def set_setting(self, setting_id, value):
@@ -102,3 +133,9 @@ class Config:
     @property
     def hints_tv(self):
         return self._load_hint_file("hints_tv.txt")
+
+# Singleton accessor for Config
+@lru_cache(maxsize=1)
+def get_config():
+    """Get the singleton Config instance"""
+    return Config()
