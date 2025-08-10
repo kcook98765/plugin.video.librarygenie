@@ -13,23 +13,27 @@ if lib_dir not in sys.path:
 import xbmc
 import xbmcgui
 
+# Now import our modules using absolute imports (no dots)
 try:
-    # Now try to import our modules
-    from addon_ref import get_addon
-    from kodi_helper import KodiHelper
-    from window_main import MainWindow
+    import addon_ref
+    import kodi_helper
+    import window_main
+    
+    get_addon = addon_ref.get_addon
+    KodiHelper = kodi_helper.KodiHelper
+    MainWindow = window_main.MainWindow
+    
 except ImportError as e:
     xbmc.log(f"LibraryGenie: Import error in context.py: {str(e)}", xbmc.LOGERROR)
-    # Try alternative import approach
     try:
+        # Fallback: try direct file imports
         import importlib.util
         
-        # Load modules directly by file path
         addon_ref_path = os.path.join(lib_dir, 'addon_ref.py')
         spec = importlib.util.spec_from_file_location("addon_ref", addon_ref_path)
-        addon_ref = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(addon_ref)
-        get_addon = addon_ref.get_addon
+        addon_ref_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(addon_ref_module)
+        get_addon = addon_ref_module.get_addon
         
         kodi_helper_path = os.path.join(lib_dir, 'kodi_helper.py')
         spec = importlib.util.spec_from_file_location("kodi_helper", kodi_helper_path)
