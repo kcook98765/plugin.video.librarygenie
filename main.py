@@ -23,6 +23,23 @@ def main():
     try:
         utils.log("Initializing addon components", "DEBUG")
 
+        # Check if this is a program addon launch (direct launch without context)
+        if len(sys.argv) == 1 or (len(sys.argv) >= 2 and 'action=program' in str(sys.argv)):
+            utils.log("Program addon launch detected - showing main window", "DEBUG")
+            from resources.lib.window_main import MainWindow
+            
+            # Create empty item info for program launch
+            item_info = {
+                'title': 'LibraryGenie Browser',
+                'is_playable': False,
+                'kodi_id': 0
+            }
+            
+            main_window = MainWindow(item_info, "LibraryGenie - Browse Lists")
+            main_window.doModal()
+            del main_window
+            return
+
         # Run the addon
         utils.log("Calling run_addon()", "DEBUG")
         run_addon()

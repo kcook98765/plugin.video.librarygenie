@@ -7,6 +7,9 @@
     <extension point="xbmc.python.pluginsource" library="main.py">
         <provides>video</provides>
     </extension>
+  <extension point="xbmc.python.script" library="main.py">
+    <provides>executable</provides>
+  </extension>
     <extension point="xbmc.python.script" library="resources/lib/runner.py" />
     <extension point="xbmc.addon.metadata">
         <summary>LibraryGenie is a Kodi addon handles lists and integration with AI enabled features.</summary>
