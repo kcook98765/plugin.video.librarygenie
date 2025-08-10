@@ -66,10 +66,23 @@ class JSONRPC:
                 "title", "year", "file", "imdbnumber", "uniqueid", "movieid"
             ])
             
-            if 'result' not in response or 'movies' not in response['result']:
+            utils.log(f"JSONRPC GetMovies response: {response}", "DEBUG")
+            
+            if 'result' not in response:
+                utils.log("No 'result' key in response", "DEBUG")
+                break
+                
+            if 'movies' not in response['result']:
+                utils.log("No 'movies' key in result", "DEBUG")
+                # Check if there are any movies at all
+                if 'limits' in response['result']:
+                    total = response['result']['limits'].get('total', 0)
+                    utils.log(f"Total movies reported by Kodi: {total}", "INFO")
                 break
                 
             movies = response['result']['movies']
+            utils.log(f"Got {len(movies)} movies in this batch (start={start})", "DEBUG")
+            
             if not movies:
                 break
                 
