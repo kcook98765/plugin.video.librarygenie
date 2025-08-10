@@ -4,7 +4,7 @@
         <setting id="debug_logging" type="bool" label="30010" default="true" />
     </category>
     <category label="Remote API">
-        <setting id="remote_api_url" type="text" label="Remote API Server URL" default="http://192.168.2.106" />
+        <setting id="remote_api_url" type="text" label="Remote API Server URL" default="http://192.168.2.106:5020" />
         <setting id="remote_api_key" type="text" label="Remote API Key" default="" option="hidden" />
         <setting id="setup_remote_api" type="action" label="Setup Remote API (Easy)" action="RunScript(plugin.video.librarygenie,setup_remote_api)" />
         <setting id="manual_setup_remote_api" type="action" label="Manual Setup Remote API" action="RunScript(plugin.video.librarygenie,manual_setup_remote_api)" />
