@@ -269,7 +269,7 @@ class RemoteAPIClient:
                     chunk_num + 1, 
                     total_chunks, 
                     len(chunk_movies),
-                    f"Chunk {chunk_num + 1}/{total_chunks}"
+                    f"Uploading movies {chunk_index + 1}-{min(chunk_index + chunk_size, len(movies))}"
                 )
                 if not should_continue:
                     utils.log("Upload cancelled by user", "INFO")

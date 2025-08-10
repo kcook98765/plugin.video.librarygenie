@@ -63,6 +63,7 @@ class IMDbUploadManager:
                 if current_item:
                     message += f"\nProcessing: {current_item}"
                 
+                utils.log(f"Progress update: {percent}% - {message}", "DEBUG")
                 progress.update(percent, message)
                 return True  # Continue uploading
 
@@ -71,7 +72,15 @@ class IMDbUploadManager:
             progress.close()
 
             if result.get('success'):
-                message = f"Successfully uploaded {result.get('user_movie_count', len(movies))} movies"
+                # Try multiple ways to get the uploaded count
+                uploaded_count = (
+                    result.get('user_movie_count') or 
+                    result.get('final_tallies', {}).get('total_movies') or 
+                    result.get('final_tallies', {}).get('successful_imports') or 
+                    len(movies)
+                )
+                message = f"Successfully uploaded {uploaded_count} movies"
+                utils.log(f"Upload result: {result}", "DEBUG")
                 xbmcgui.Dialog().ok("Upload Complete", message)
                 return True
             else:
@@ -110,6 +119,7 @@ class IMDbUploadManager:
                 if current_item:
                     message += f"\nProcessing: {current_item}"
                 
+                utils.log(f"Progress update: {percent}% - {message}", "DEBUG")
                 progress.update(percent, message)
                 return True  # Continue syncing
 
@@ -121,7 +131,15 @@ class IMDbUploadManager:
                 if result.get('message') == 'Collection already up to date':
                     xbmcgui.Dialog().ok("Sync Complete", "Your collection is already up to date")
                 else:
-                    message = f"Successfully synced {result.get('user_movie_count', 0)} movies"
+                    # Try multiple ways to get the synced count
+                    synced_count = (
+                        result.get('user_movie_count') or 
+                        result.get('final_tallies', {}).get('total_movies') or 
+                        result.get('final_tallies', {}).get('successful_imports') or 
+                        0
+                    )
+                    message = f"Successfully synced {synced_count} movies"
+                    utils.log(f"Sync result: {result}", "DEBUG")
                     xbmcgui.Dialog().ok("Sync Complete", message)
                 return True
             else:
