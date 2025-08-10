@@ -11,7 +11,7 @@ sys.path.append(addon_dir)
 
 import xbmc
 import xbmcgui
-from .addon_ref import get_addon
+from resources.lib.addon_ref import get_addon
 from resources.lib.kodi_helper import KodiHelper
 from resources.lib.window_main import MainWindow
 
