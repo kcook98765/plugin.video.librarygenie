@@ -1,4 +1,3 @@
-
 import json
 import urllib.request
 import urllib.parse
@@ -6,6 +5,7 @@ import urllib.error
 import hashlib
 import time
 import random
+import uuid
 from resources.lib import utils
 from resources.lib.config_manager import get_config
 
@@ -36,18 +36,18 @@ class RemoteAPIClient:
                 request = urllib.request.Request(url, data=json_data)
             else:
                 request = urllib.request.Request(url)
-            
+
             # Add headers
             for key, value in request_headers.items():
                 request.add_header(key, value)
-            
+
             # Set method for non-GET requests
             if method in ['PUT', 'POST', 'DELETE']:
                 request.get_method = lambda: method
-            
+
             # Make request
             response = urllib.request.urlopen(request, timeout=30)
-            
+
             if response.getcode() == 200:
                 response_data = response.read().decode('utf-8')
                 return json.loads(response_data)
@@ -73,7 +73,7 @@ class RemoteAPIClient:
         try:
             json_data = json.dumps(data)
             utils.log(f"Sending pairing request data: {json_data}", "DEBUG")
-            
+
             req = urllib.request.Request(url, 
                                        data=json_data.encode('utf-8'),
                                        headers=headers, method='POST')
@@ -83,7 +83,7 @@ class RemoteAPIClient:
                 utils.log(f"HTTP response code: {response.getcode()}", "DEBUG")
                 response_text = response.read().decode('utf-8')
                 utils.log(f"Raw response: {response_text}", "DEBUG")
-                
+
                 result = json.loads(response_text)
 
                 if result.get('success'):
@@ -242,66 +242,73 @@ class RemoteAPIClient:
             utils.log(f"Error getting batch status: {str(e)}", "ERROR")
             return None
 
-    def chunked_movie_upload(self, movie_list, mode='merge', chunk_size=500):
-        """Upload user's movie collection using chunked batch upload"""
-        
+    def _chunked_movie_upload(self, movies, mode='merge', chunk_size=500, progress_callback=None):
+        """Upload movies in chunks with retry logic and proper error handling"""
+
         # Step 1: Start batch session
-        session = self.start_batch_upload(mode, len(movie_list), 'kodi')
-        
+        session = self.start_batch_upload(mode, len(movies), 'kodi')
+
         if not session or not session.get('success'):
             return {'success': False, 'error': 'Failed to start batch session'}
-        
+
         upload_id = session['upload_id']
         max_chunk = session['max_chunk']
         effective_chunk_size = min(chunk_size, max_chunk)
-        
-        # Step 2: Split into chunks and upload
-        chunks = [movie_list[i:i + effective_chunk_size] 
-                  for i in range(0, len(movie_list), effective_chunk_size)]
-        
+
+        # Step 2: Upload chunks
         failed_chunks = []
-        
-        for chunk_index, chunk in enumerate(chunks):
-            # Generate unique idempotency key
-            idempotency_key = f"{int(time.time())}-{random.randint(10000, 99999)}-{chunk_index}"
-            
-            # Format items for API - only IMDb IDs accepted
+        total_chunks = (len(movies) + chunk_size - 1) // chunk_size  # Calculate total chunks
+
+        for chunk_num, chunk_index in enumerate(range(0, len(movies), chunk_size)):
+            chunk_movies = movies[chunk_index:chunk_index + chunk_size]
+            idempotency_key = str(uuid.uuid4())
+
+            # Update progress if callback provided
+            if progress_callback:
+                should_continue = progress_callback(
+                    chunk_num + 1, 
+                    total_chunks, 
+                    len(chunk_movies),
+                    f"Chunk {chunk_num + 1}/{total_chunks}"
+                )
+                if not should_continue:
+                    utils.log("Upload cancelled by user", "INFO")
+                    return {'success': False, 'error': 'Upload cancelled by user'}
+
+            # Convert movies to the expected format
             items = []
-            for movie in chunk:
-                if isinstance(movie, str):
-                    # Just IMDb ID
-                    items.append({'imdb_id': movie})
-                elif isinstance(movie, dict) and 'imdb_id' in movie:
-                    # Movie object - extract only the IMDb ID  
+            for movie in chunk_movies:
+                if 'imdb_id' in movie:
+                    # New format - direct IMDb ID
                     items.append({'imdb_id': movie['imdb_id']})
-                elif isinstance(movie, dict) and 'imdbnumber' in movie:
+                elif 'imdbnumber' in movie and movie['imdbnumber']:
                     # Legacy format - extract from imdbnumber
                     items.append({'imdb_id': movie['imdbnumber']})
                 else:
                     # Skip invalid items - only valid IMDb IDs accepted
                     continue
-            
+
             # Upload chunk with retry logic
             success = False
             for attempt in range(3):  # 3 retry attempts
                 try:
                     result = self.upload_batch_chunk(upload_id, chunk_index, items, idempotency_key)
-                    
+
                     if result and result.get('success'):
                         success = True
                         break
-                        
+
                 except Exception as e:
                     utils.log(f"Chunk upload attempt {attempt + 1} failed: {str(e)}", "WARNING")
                     time.sleep(2 ** attempt)  # Exponential backoff
-            
+
             if not success:
                 failed_chunks.append(chunk_index)
-        
+
         # Step 3: Commit the batch
         if not failed_chunks:
             commit_result = self.commit_batch_upload(upload_id)
-            
+
             if commit_result and commit_result.get('success'):
                 return {
                     'success': True,
@@ -309,7 +316,7 @@ class RemoteAPIClient:
                     'final_tallies': commit_result['final_tallies'],
                     'user_movie_count': commit_result['user_movie_count']
                 }
-        
+
         return {
             'success': False,
             'upload_id': upload_id,
@@ -317,37 +324,37 @@ class RemoteAPIClient:
             'error': 'Some chunks failed to upload'
         }
 
-    def delta_sync_movies(self, local_movies):
-        """Efficient delta sync using library fingerprints"""
+    def delta_sync_movies(self, local_movies, progress_callback=None):
+        """Upload movies using delta sync mode (merge with existing)"""
         # Get current server fingerprints
         server_hash = self.get_library_hash()
         if not server_hash or not server_hash.get('success'):
             return self.chunked_movie_upload(local_movies, mode='replace')
-        
+
         server_fingerprints = set(server_hash['fingerprints'])
-        
+
         # Create local fingerprints using simple hash
         local_fingerprints = set()
         movies_to_upload = []
-        
+
         for movie in local_movies:
             imdb_id = movie['imdb_id'] if isinstance(movie, dict) and 'imdb_id' in movie else movie.get('imdbnumber', movie) if isinstance(movie, dict) else movie
-            
+
             # Create simple hash using available libraries
             hash_obj = hashlib.sha1(imdb_id.encode('utf-8'))
             fingerprint = hash_obj.hexdigest()[:8]
             local_fingerprints.add(fingerprint)
-            
+
             # If not on server, add to upload list
             if fingerprint not in server_fingerprints:
                 movies_to_upload.append(movie)
-        
+
         if not movies_to_upload:
             return {'success': True, 'message': 'Collection already up to date'}
-        
-        # Upload only new movies
-        return self.chunked_movie_upload(movies_to_upload, mode='merge')
 
-    def full_sync_movies(self, local_movies):
-        """Full collection sync (authoritative replacement)"""
-        return self.chunked_movie_upload(local_movies, mode='replace')
+        # Upload only new movies
+        return self.chunked_movie_upload(movies_to_upload, mode='merge', progress_callback=progress_callback)
+
+    def full_sync_movies(self, movies, progress_callback=None):
+        """Upload movies using full sync mode (authoritative replacement)"""
+        return self.chunked_movie_upload(movies, mode='replace', progress_callback=progress_callback)

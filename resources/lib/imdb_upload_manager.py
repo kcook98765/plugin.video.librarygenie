@@ -53,7 +53,20 @@ class IMDbUploadManager:
         progress.create("Uploading Library", "Starting full library sync...")
 
         try:
-            result = self.remote_client.full_sync_movies(movies)
+            # Create progress callback function
+            def progress_callback(current_chunk, total_chunks, chunk_size, current_item=None):
+                if progress.iscanceled():
+                    return False  # Signal to cancel the upload
+                
+                percent = int((current_chunk / total_chunks) * 100)
+                message = f"Uploading chunk {current_chunk} of {total_chunks} ({chunk_size} movies)"
+                if current_item:
+                    message += f"\nProcessing: {current_item}"
+                
+                progress.update(percent, message)
+                return True  # Continue uploading
+
+            result = self.remote_client.full_sync_movies(movies, progress_callback=progress_callback)
 
             progress.close()
 
@@ -87,7 +100,20 @@ class IMDbUploadManager:
         progress.create("Syncing Library", "Checking for new movies...")
 
         try:
-            result = self.remote_client.delta_sync_movies(movies)
+            # Create progress callback function
+            def progress_callback(current_chunk, total_chunks, chunk_size, current_item=None):
+                if progress.iscanceled():
+                    return False  # Signal to cancel the upload
+                
+                percent = int((current_chunk / total_chunks) * 100)
+                message = f"Syncing chunk {current_chunk} of {total_chunks} ({chunk_size} movies)"
+                if current_item:
+                    message += f"\nProcessing: {current_item}"
+                
+                progress.update(percent, message)
+                return True  # Continue syncing
+
+            result = self.remote_client.delta_sync_movies(movies, progress_callback=progress_callback)
 
             progress.close()
 
