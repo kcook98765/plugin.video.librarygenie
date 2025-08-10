@@ -181,7 +181,27 @@ class RemoteAPIClient:
         """Get user's movie upload batch history"""
         result = self._make_request('GET', '/kodi/movies/batches')
         if result and result.get('success'):
-            return result.get('batches', [])
+            batches = result.get('batches', [])
+            # Ensure each batch has the expected format
+            formatted_batches = []
+            for batch in batches:
+                if isinstance(batch, dict):
+                    # Use the batch as-is if it's already a dict
+                    formatted_batches.append(batch)
+                else:
+                    # Convert object to dict if needed, with safe attribute access
+                    formatted_batch = {
+                        'batch_id': getattr(batch, 'batch_id', getattr(batch, 'id', 'unknown')),
+                        'batch_type': getattr(batch, 'batch_type', getattr(batch, 'mode', 'unknown')),
+                        'status': getattr(batch, 'status', 'unknown'),
+                        'total_movies': getattr(batch, 'total_movies', getattr(batch, 'total_count', 0)),
+                        'successful_imports': getattr(batch, 'successful_imports', getattr(batch, 'processed_count', 0)),
+                        'failed_imports': getattr(batch, 'failed_imports', 0),
+                        'started_at': getattr(batch, 'started_at', getattr(batch, 'created_at', 'Unknown')),
+                        'completed_at': getattr(batch, 'completed_at', getattr(batch, 'updated_at', 'Unknown'))
+                    }
+                    formatted_batches.append(formatted_batch)
+            return formatted_batches
         else:
             utils.log("Failed to get batch history", "ERROR")
             return []
