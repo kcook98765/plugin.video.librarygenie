@@ -22,17 +22,22 @@ def run_addon():
         action = None
         utils.log(f"Processing command line arguments: {sys.argv}", "DEBUG")
 
-        # Handle special case for setup_remote_api script execution
-        if len(sys.argv) > 1 and sys.argv[1] == 'setup_remote_api':
-            utils.log("Detected setup_remote_api script execution", "INFO")
-            from .remote_api_setup import run_setup
-            run_setup()
-            return  # Early return to prevent normal startup
-
-        # Handle direct action from context menu
-        if len(sys.argv) > 1 and sys.argv[1] == 'show_main_window':
-            action = 'show_main_window'
-            utils.log("Direct main window action detected", "DEBUG")
+        # Handle direct script actions from settings
+        script_actions = [
+            'setup_remote_api', 'manual_setup_remote_api', 'test_remote_api',
+            'upload_library_full', 'upload_library_delta', 'upload_status', 
+            'clear_server_library', 'show_main_window'
+        ]
+        
+        if len(sys.argv) > 1 and sys.argv[1] in script_actions:
+            action = sys.argv[1]
+            utils.log(f"Detected script action: {action}", "INFO")
+            
+            # Handle special case for setup_remote_api
+            if action == 'setup_remote_api':
+                from .remote_api_setup import run_setup
+                run_setup()
+                return  # Early return to prevent normal startup
         else:
             args = sys.argv[2][1:] if len(sys.argv) > 2 else ""
             params = urllib.parse.parse_qs(args)
@@ -122,11 +127,6 @@ def run_addon():
                 from resources.lib.imdb_upload_manager import IMDbUploadManager
                 upload_manager = IMDbUploadManager()
                 upload_manager.get_upload_status()
-            elif action == 'upload_library_full':
-                utils.log("Starting full library upload", "DEBUG")
-                from resources.lib.imdb_upload_manager import IMDbUploadManager
-                upload_manager = IMDbUploadManager()
-                upload_manager.upload_library_full_sync()
             elif action == 'clear_server_library':
                 utils.log("Clearing server library", "DEBUG")
                 from resources.lib.imdb_upload_manager import IMDbUploadManager
