@@ -28,6 +28,12 @@ def main():
     """Main entry point for context menu actions"""
     try:
         xbmc.log("LibraryGenie: Context menu script started", xbmc.LOGINFO)
+        
+        # Check if we have arguments from the context menu
+        action = None
+        if len(sys.argv) > 1:
+            action = sys.argv[1]
+            xbmc.log(f"LibraryGenie: Context menu action: {action}", xbmc.LOGINFO)
 
         addon = get_addon()
         if not addon:
@@ -45,10 +51,25 @@ def main():
 
         xbmc.log(f"LibraryGenie: Got item info for: {item_info.get('title', 'Unknown')}", xbmc.LOGINFO)
 
-        # Launch the main window with the item information
-        window = MainWindow(item_info, f"LibraryGenie - {item_info.get('title', 'Item')}")
-        window.doModal()
-        del window
+        # Handle different actions
+        if action == "search":
+            # Launch search window directly
+            from resources.lib.window_search import SearchWindow
+            search_window = SearchWindow("LibraryGenie - Movie Search")
+            search_window.doModal()
+            del search_window
+        elif action == "add_to_list":
+            # Launch main window in "add to list" mode
+            from resources.lib.window_main import MainWindow
+            window = MainWindow(item_info, f"LibraryGenie - Add {item_info.get('title', 'Item')} to List")
+            window.doModal()
+            del window
+        else:
+            # Default: Launch the main window with full options
+            from resources.lib.window_main import MainWindow
+            window = MainWindow(item_info, f"LibraryGenie - {item_info.get('title', 'Item')}")
+            window.doModal()
+            del window
 
     except Exception as e:
         xbmc.log(f"LibraryGenie: Context menu error: {str(e)}", xbmc.LOGERROR)

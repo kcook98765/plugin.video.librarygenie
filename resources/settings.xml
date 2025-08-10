@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <settings>
+    <category label="Context Menu">
+        <setting id="context_menu_search" type="action" label="Search with LibraryGenie" action="RunScript(plugin.video.librarygenie,resources/lib/context.py,search)" />
+        <setting id="context_menu_add_to_list" type="action" label="Add to LibraryGenie List" action="RunScript(plugin.video.librarygenie,resources/lib/context.py,add_to_list)" />
+        <setting id="context_menu_main" type="action" label="LibraryGenie Options" action="RunScript(plugin.video.librarygenie,resources/lib/context.py,main)" />
+        <setting type="sep" />
+    </category>
     <category label="Remote API">
         <setting id="debug_logging" type="bool" label="Enable Debug Logging" default="true" />
         <setting type="sep" />
