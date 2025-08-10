@@ -1,13 +1,14 @@
+
 import sys
 import json
 import xbmc
 import xbmcgui
 import xbmcplugin
-from .addon_ref import get_addon
-from .jsonrpc_manager import JSONRPC
-from .utils import get_addon_handle
-from . import utils
-from .listitem_infotagvideo import set_info_tag, set_art
+from resources.lib.addon_ref import get_addon
+from resources.lib.jsonrpc_manager import JSONRPC
+from resources.lib.utils import get_addon_handle
+from resources.lib import utils
+from resources.lib.listitem_infotagvideo import set_info_tag, set_art
 
 class KodiHelper:
 

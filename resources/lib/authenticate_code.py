@@ -4,7 +4,7 @@ import urllib.request
 import urllib.parse
 import xbmc
 import xbmcgui
-from .addon_ref import get_addon
+from resources.lib.addon_ref import get_addon
 from resources.lib.utils import log, show_notification, show_dialog_ok
 
 def authenticate_with_code():
