@@ -14,11 +14,10 @@ except Exception:
 # Get addon and setup paths
 ADDON = xbmcaddon.Addon()
 ADDON_PATH = translatePath(ADDON.getAddonInfo("path"))
-LIB_PATH = os.path.join(ADDON_PATH, "resources", "lib")
 
-# Ensure the lib directory is in the Python path
-if LIB_PATH not in sys.path:
-    sys.path.insert(0, LIB_PATH)
+# Ensure the addon root directory is in the Python path for imports to work
+if ADDON_PATH not in sys.path:
+    sys.path.insert(0, ADDON_PATH)
 
 # Import required modules using absolute imports
 from resources.lib.kodi_helper import KodiHelper
