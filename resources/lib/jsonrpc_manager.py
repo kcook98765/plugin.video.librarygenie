@@ -19,10 +19,18 @@ class JSONRPC:
             "id": 1
         }
         query_json = json.dumps(query)
-        utils.log(f"Executing JSONRPC method: {method} with params: {query_json}", "DEBUG")
+        utils.log(f"Executing JSONRPC method: {method}", "DEBUG")
 
         response = xbmc.executeJSONRPC(query_json)
-        return json.loads(response)
+        parsed_response = json.loads(response)
+        
+        # Log success/error summary instead of full response
+        if 'error' in parsed_response:
+            utils.log(f"JSONRPC {method} failed: {parsed_response['error'].get('message', 'Unknown error')}", "ERROR")
+        else:
+            utils.log(f"JSONRPC {method} completed successfully", "DEBUG")
+            
+        return parsed_response
 
     def get_movies(self, start=0, limit=50, properties=None):
         if properties is None:
@@ -66,14 +74,13 @@ class JSONRPC:
                 "title", "year", "file", "imdbnumber", "uniqueid"
             ])
             
-            utils.log(f"JSONRPC GetMovies response: {response}", "DEBUG")
-            
+            # Log response summary instead of full response
             if 'result' not in response:
-                utils.log("No 'result' key in response", "DEBUG")
+                utils.log("JSONRPC GetMovies failed: No 'result' key in response", "DEBUG")
                 break
                 
             if 'movies' not in response['result']:
-                utils.log("No 'movies' key in result", "DEBUG")
+                utils.log("JSONRPC GetMovies failed: No 'movies' key in result", "DEBUG")
                 # Check if there are any movies at all
                 if 'limits' in response['result']:
                     total = response['result']['limits'].get('total', 0)
@@ -81,7 +88,8 @@ class JSONRPC:
                 break
                 
             movies = response['result']['movies']
-            utils.log(f"Got {len(movies)} movies in this batch (start={start})", "DEBUG")
+            total = response['result'].get('limits', {}).get('total', 0)
+            utils.log(f"JSONRPC GetMovies success: Got {len(movies)} movies (batch start={start}, total={total})", "DEBUG")
             
             if not movies:
                 break
