@@ -61,15 +61,28 @@ class JSONRPC:
             return response['result']['movies'], response['result'].get('limits', {}).get('total', 0)
         return [], 0
 
-    def get_movies_with_imdb(self):
+    def get_movies_with_imdb(self, progress_callback=None):
         """Get all movies from Kodi library with IMDb information"""
         utils.log("Getting all movies with IMDb information from Kodi library", "DEBUG")
         
         all_movies = []
         start = 0
         limit = 100
+        total_estimated = None
         
         while True:
+            # Update progress if callback provided
+            if progress_callback:
+                if total_estimated and total_estimated > 0:
+                    percent = min(80, int((len(all_movies) / total_estimated) * 80))
+                    progress_callback.update(percent, f"Retrieved {len(all_movies)} of {total_estimated} movies...")
+                    if progress_callback.iscanceled():
+                        break
+                else:
+                    progress_callback.update(10, f"Retrieved {len(all_movies)} movies...")
+                    if progress_callback.iscanceled():
+                        break
+            
             response = self.get_movies(start, limit, properties=[
                 "title", "year", "file", "imdbnumber", "uniqueid"
             ])
@@ -89,6 +102,11 @@ class JSONRPC:
                 
             movies = response['result']['movies']
             total = response['result'].get('limits', {}).get('total', 0)
+            
+            # Set total estimate on first batch
+            if total_estimated is None and total > 0:
+                total_estimated = total
+            
             utils.log(f"JSONRPC GetMovies success: Got {len(movies)} movies (batch start={start}, total={total})", "DEBUG")
             
             if not movies:
