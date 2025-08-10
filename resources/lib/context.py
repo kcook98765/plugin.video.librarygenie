@@ -1,75 +1,41 @@
-
-import os
 import sys
-import json
-import urllib.request
-import urllib.parse
+import os
 
-# Add addon directory to Python path
-addon_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-sys.path.append(addon_dir)
+# Add the resources/lib directory to the Python path
+addon_path = os.path.dirname(os.path.dirname(__file__))
+lib_path = os.path.join(addon_path, 'lib')
+if lib_path not in sys.path:
+    sys.path.insert(0, lib_path)
 
 import xbmc
 import xbmcgui
-from resources.lib.addon_ref import get_addon
-from resources.lib.kodi_helper import KodiHelper
-from resources.lib.window_main import MainWindow
+from addon_ref import get_addon
+from kodi_helper import KodiHelper
+from window_main import MainWindow
 
-def authenticate_user():
-    """Authenticate user with one-time code"""
-    from resources.lib.authenticate_code import authenticate_with_code
-    return authenticate_with_code()
+def main():
+    """Main entry point for context menu actions"""
+    try:
+        addon = get_addon()
+        if not addon:
+            xbmc.log("LibraryGenie: Failed to get addon instance", xbmc.LOGERROR)
+            return
 
-def register_beta_user(addon):
-    """Register user for beta access using one-time code"""
-    from resources.lib.authenticate_code import authenticate_with_code
-    success = authenticate_with_code()
-    if success:
-        xbmcgui.Dialog().notification(
-            "LibraryGenie", 
-            "Beta registration successful!", 
-            xbmcgui.NOTIFICATION_INFO, 
-            3000
-        )
-    else:
-        xbmcgui.Dialog().notification(
-            "LibraryGenie", 
-            "Beta registration failed", 
-            xbmcgui.NOTIFICATION_ERROR, 
-            3000
-        )
+        # Get the selected item's database ID
+        info_tag = xbmcgui.Window(10000).getProperty('selected_item')
+        if not info_tag:
+            xbmc.log("LibraryGenie: No selected item found", xbmc.LOGWARNING)
+            return
 
-def build_context_menu():
-    xbmc.executebuiltin('Dialog.Close(all, true)')
-    addon = get_addon()
-    options = [
-        xbmcgui.ListItem("Item Management"),
-        xbmcgui.ListItem("Search Movies"),
-        xbmcgui.ListItem("Beta Signup"),
-        xbmcgui.ListItem("Additional Feature")
-    ]
+        # Launch the main window
+        window = MainWindow()
+        window.doModal()
+        del window
 
-    dialog = xbmcgui.Dialog()
-    choice = dialog.select("LibraryGenie", options)
-
-    if choice == 0:  # Item Management
-        kodi_helper = KodiHelper()
-        item_info = kodi_helper.get_focused_item_details()
-        if item_info:
-            window = MainWindow(item_info)
-            window.doModal()
-            del window
-    elif choice == 1:  # Search Movies
-        from resources.lib.window_search import SearchWindow
-        search_window = SearchWindow()
-        search_window.doModal()
-        # Get results if needed
-        results = search_window.get_search_results()
-        del search_window
-    elif choice == 2:  # Beta Signup
-        register_beta_user(addon)
-    elif choice == 3:  # Additional Feature
-        dialog.notification("LibraryGenie", "Feature coming soon", xbmcgui.NOTIFICATION_INFO, 2000)
+    except Exception as e:
+        xbmc.log(f"LibraryGenie: Context menu error: {str(e)}", xbmc.LOGERROR)
+        import traceback
+        xbmc.log(f"LibraryGenie: Traceback: {traceback.format_exc()}", xbmc.LOGERROR)
 
 if __name__ == '__main__':
-    build_context_menu()
+    main()
