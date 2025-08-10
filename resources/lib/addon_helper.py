@@ -122,6 +122,11 @@ def run_addon():
                 from resources.lib.imdb_upload_manager import IMDbUploadManager
                 upload_manager = IMDbUploadManager()
                 upload_manager.get_upload_status()
+            elif action == 'upload_library_full':
+                utils.log("Starting full library upload", "DEBUG")
+                from resources.lib.imdb_upload_manager import IMDbUploadManager
+                upload_manager = IMDbUploadManager()
+                upload_manager.upload_library_full_sync()
             elif action == 'clear_server_library':
                 utils.log("Clearing server library", "DEBUG")
                 from resources.lib.imdb_upload_manager import IMDbUploadManager
