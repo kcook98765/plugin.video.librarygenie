@@ -67,7 +67,7 @@ class IMDbUploadManager:
                 progress.update(percent, message)
                 return True  # Continue uploading
 
-            result = self.remote_client.full_sync_movies(movies, progress_callback=progress_callback)
+            result = self.remote_client._chunked_movie_upload(movies, mode='replace', progress_callback=progress_callback)
 
             progress.close()
 
@@ -123,7 +123,7 @@ class IMDbUploadManager:
                 progress.update(percent, message)
                 return True  # Continue syncing
 
-            result = self.remote_client.delta_sync_movies(movies, progress_callback=progress_callback)
+            result = self.remote_client._chunked_movie_upload(movies, mode='merge', progress_callback=progress_callback)
 
             progress.close()
 

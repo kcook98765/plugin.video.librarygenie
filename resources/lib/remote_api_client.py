@@ -329,7 +329,7 @@ class RemoteAPIClient:
         # Get current server fingerprints
         server_hash = self.get_library_hash()
         if not server_hash or not server_hash.get('success'):
-            return self.chunked_movie_upload(local_movies, mode='replace')
+            return self._chunked_movie_upload(local_movies, mode='replace')
 
         server_fingerprints = set(server_hash['fingerprints'])
 
@@ -353,8 +353,8 @@ class RemoteAPIClient:
             return {'success': True, 'message': 'Collection already up to date'}
 
         # Upload only new movies
-        return self.chunked_movie_upload(movies_to_upload, mode='merge', progress_callback=progress_callback)
+        return self._chunked_movie_upload(movies_to_upload, mode='merge', progress_callback=progress_callback)
 
     def full_sync_movies(self, movies, progress_callback=None):
         """Upload movies using full sync mode (authoritative replacement)"""
-        return self.chunked_movie_upload(movies, mode='replace', progress_callback=progress_callback)
+        return self._chunked_movie_upload(movies, mode='replace', progress_callback=progress_callback)
