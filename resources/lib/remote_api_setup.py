@@ -45,20 +45,30 @@ def setup_remote_api():
     progress.update(50)
 
     # Exchange pairing code
+    utils.log(f"Starting pairing code exchange for code: {pairing_code[:2]}***", "INFO")
     success = remote_client.exchange_pairing_code(pairing_code)
 
     progress.close()
 
     if success:
+        utils.log("Pairing code exchange successful, testing connection...", "INFO")
         # Test connection
         if remote_client.test_connection():
+            utils.log("Remote API setup completed successfully", "INFO")
             xbmcgui.Dialog().ok("Setup Complete", "Remote API has been successfully configured!")
             return True
         else:
+            utils.log("Pairing successful but connection test failed", "ERROR")
             xbmcgui.Dialog().ok("Setup Error", "Pairing successful but connection test failed.")
             return False
     else:
-        xbmcgui.Dialog().ok("Setup Failed", "Failed to exchange pairing code. Please try again.")
+        utils.log("Pairing code exchange failed", "ERROR")
+        
+        # Get more specific error message based on server URL
+        server_url = config.get_setting('remote_api_url')
+        error_msg = f"Failed to exchange pairing code.\n\nServer: {server_url}\n\nPlease check:\n• Server is running\n• Network connectivity\n• Firewall settings\n• Code is valid and not expired"
+        
+        xbmcgui.Dialog().ok("Setup Failed", error_msg)
         return False
 
 def manual_setup_remote_api():

@@ -67,14 +67,24 @@ class RemoteAPIClient:
         url = f"{self.base_url.rstrip('/')}/pairing-code/exchange"
         headers = {'Content-Type': 'application/json'}
 
+        utils.log(f"Attempting to exchange pairing code with server: {url}", "INFO")
+        utils.log(f"Pairing code length: {len(pairing_code)}", "DEBUG")
+
         try:
             json_data = json.dumps(data)
+            utils.log(f"Sending pairing request data: {json_data}", "DEBUG")
+            
             req = urllib.request.Request(url, 
                                        data=json_data.encode('utf-8'),
                                        headers=headers, method='POST')
 
-            with urllib.request.urlopen(req) as response:
-                result = json.loads(response.read().decode('utf-8'))
+            utils.log("Making HTTP request to pairing endpoint...", "DEBUG")
+            with urllib.request.urlopen(req, timeout=30) as response:
+                utils.log(f"HTTP response code: {response.getcode()}", "DEBUG")
+                response_text = response.read().decode('utf-8')
+                utils.log(f"Raw response: {response_text}", "DEBUG")
+                
+                result = json.loads(response_text)
 
                 if result.get('success'):
                     # Store the API key and server URL
@@ -89,8 +99,23 @@ class RemoteAPIClient:
                     utils.log(f"Pairing failed: {result.get('error')}", "ERROR")
                     return False
 
+        except urllib.error.HTTPError as e:
+            utils.log(f"HTTP error during pairing - Code: {e.code}, Reason: {e.reason}", "ERROR")
+            try:
+                error_body = e.read().decode('utf-8')
+                utils.log(f"Error response body: {error_body}", "ERROR")
+            except:
+                pass
+            return False
+        except urllib.error.URLError as e:
+            utils.log(f"URL/Network error during pairing: {str(e)}", "ERROR")
+            utils.log(f"Server URL being accessed: {url}", "ERROR")
+            return False
+        except json.JSONDecodeError as e:
+            utils.log(f"JSON decode error during pairing: {str(e)}", "ERROR")
+            return False
         except Exception as e:
-            utils.log(f"Error during pairing: {str(e)}", "ERROR")
+            utils.log(f"Unexpected error during pairing: {str(e)}", "ERROR")
             return False
 
     def test_connection(self):
