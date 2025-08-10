@@ -63,7 +63,7 @@ class JSONRPC:
         
         while True:
             response = self.get_movies(start, limit, properties=[
-                "title", "year", "file", "imdbnumber", "uniqueid", "movieid"
+                "title", "year", "file", "imdbnumber", "uniqueid"
             ])
             
             utils.log(f"JSONRPC GetMovies response: {response}", "DEBUG")
