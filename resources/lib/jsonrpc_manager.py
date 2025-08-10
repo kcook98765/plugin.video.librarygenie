@@ -53,6 +53,37 @@ class JSONRPC:
             return response['result']['movies'], response['result'].get('limits', {}).get('total', 0)
         return [], 0
 
+    def get_movies_with_imdb(self):
+        """Get all movies from Kodi library with IMDb information"""
+        utils.log("Getting all movies with IMDb information from Kodi library", "DEBUG")
+        
+        all_movies = []
+        start = 0
+        limit = 100
+        
+        while True:
+            response = self.get_movies(start, limit, properties=[
+                "title", "year", "file", "imdbnumber", "uniqueid", "movieid"
+            ])
+            
+            if 'result' not in response or 'movies' not in response['result']:
+                break
+                
+            movies = response['result']['movies']
+            if not movies:
+                break
+                
+            all_movies.extend(movies)
+            
+            # Check if we got fewer movies than requested (end of collection)
+            if len(movies) < limit:
+                break
+                
+            start += limit
+        
+        utils.log(f"Retrieved {len(all_movies)} total movies from Kodi library", "INFO")
+        return all_movies
+
     def get_episode_details(self, episode_id, properties=None):
         if properties is None:
             properties = [
