@@ -15,6 +15,78 @@ from resources.lib import utils
 # Global variable to track initialization
 _initialized = False
 
+def run_search():
+    """Launch the search window directly"""
+    utils.log("Direct search action triggered", "DEBUG")
+    try:
+        from resources.lib.window_search import SearchWindow
+        search_window = SearchWindow("LibraryGenie - Movie Search")
+        search_window.doModal()
+        del search_window
+    except Exception as e:
+        utils.log(f"Error launching search window: {str(e)}", "ERROR")
+        import traceback
+        utils.log(f"Traceback: {traceback.format_exc()}", "ERROR")
+
+def build_root():
+    """Build the root directory with search option"""
+    import xbmcplugin
+    import xbmcgui
+    from resources.lib.addon_ref import get_addon
+    
+    addon = get_addon()
+    addon_id = addon.getAddonInfo("id")
+    handle = int(sys.argv[1])
+    
+    # Add a top-level "Search..." item
+    li = xbmcgui.ListItem(label="Search Movies...")
+    li.setInfo('video', {'title': 'Search Movies...', 'plot': 'Search for movies using natural language queries'})
+    url = f"plugin://{addon_id}/?action=search"
+    xbmcplugin.addDirectoryItem(handle, url, li, isFolder=False)
+    
+    # Add Browse Lists item
+    li = xbmcgui.ListItem(label="Browse Lists")
+    li.setInfo('video', {'title': 'Browse Lists', 'plot': 'Browse your movie lists and folders'})
+    url = f"plugin://{addon_id}/?action=browse"
+    xbmcplugin.addDirectoryItem(handle, url, li, isFolder=False)
+    
+    xbmcplugin.endOfDirectory(handle)
+
+def router(paramstr):
+    """Route plugin calls to appropriate handlers"""
+    from urllib.parse import parse_qs, urlparse
+    
+    utils.log(f"Router called with params: {paramstr}", "DEBUG")
+    
+    q = parse_qs(urlparse(paramstr).query) if paramstr else {}
+    action = q.get("action", [""])[0]
+    
+    utils.log(f"Action determined: {action}", "DEBUG")
+    
+    if action == "search":
+        utils.log("Routing to search action", "DEBUG")
+        run_search()
+        return
+    elif action == "browse":
+        utils.log("Routing to browse action", "DEBUG")
+        from resources.lib.window_main import MainWindow
+        
+        # Create empty item info for browse launch
+        item_info = {
+            'title': 'LibraryGenie Browser',
+            'is_playable': False,
+            'kodi_id': 0
+        }
+        
+        main_window = MainWindow(item_info, "LibraryGenie - Browse Lists")
+        main_window.doModal()
+        del main_window
+        return
+    
+    # Default: build root directory
+    utils.log("Building root directory", "DEBUG")
+    build_root()
+
 def main():
     """Main addon entry point"""
     utils.log("=== LibraryGenie addon starting ===", "INFO")
@@ -40,7 +112,13 @@ def main():
             del main_window
             return
 
-        # Run the addon
+        # Handle plugin routing
+        if len(sys.argv) >= 3:
+            utils.log("Plugin routing detected", "DEBUG")
+            router(sys.argv[2])
+            return
+
+        # Fallback: Run the addon helper
         utils.log("Calling run_addon()", "DEBUG")
         run_addon()
 
