@@ -157,7 +157,7 @@ def run_search_flow():
         xbmc.sleep(50)
         # Clear navigation flag
         xbmc.executebuiltin("ClearProperty(LibraryGenie.NavInProgress,Home)")
-        utils.log("=== DELAYED NAVIGATION COMPLETED ===", "DEBUG")
+        utils.log("=== DELAYEDNAVIGATION COMPLETED ===", "DEBUG")
     else:
         utils.log("=== NO TARGET URL - SEARCH CANCELLED OR FAILED ===", "DEBUG")
 
@@ -448,51 +448,45 @@ def build_root():
     xbmcplugin.endOfDirectory(handle)
 
 def router(params):
-    """Route plugin calls to appropriate handlers"""
-    global _navigation_in_progress
+    """Route requests to appropriate handlers"""
     utils.log(f"Router called with params: {params}", "DEBUG")
 
-    # Clean up any stuck navigation flags at router entry
+    # Clear any stuck navigation flags that are more than 30 seconds old
     try:
         import time
         current_time = time.time()
         last_navigation = float(xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.LastNavigation)") or "0")
         time_since_nav = current_time - last_navigation
+        if time_since_nav > 30:  # More than 30 seconds stuck
+            utils.log(f"=== ROUTER: CLEARING STUCK NAVIGATION FLAGS (stuck for {time_since_nav}s) ===", "DEBUG")
+            xbmc.executebuiltin("SetProperty(LibraryGenie.Navigating,false,Home)")
+            xbmc.executebuiltin("ClearProperty(LibraryGenie.LastNavigation,Home)")
+    except Exception:
+        pass  # Ignore any errors in cleanup
 
-        if time_since_nav > 15.0:  # Clear flags if stuck for more than 15 seconds
-            utils.log(f"=== ROUTER: CLEARING STUCK NAVIGATION FLAGS (stuck for {time_since_nav:.1f}s) ===", "DEBUG")
-            xbmc.executebuiltin("ClearProperty(LibraryGenie.Navigating,Home)")
-            xbmc.executebuiltin("ClearProperty(LibraryGenie.SearchModalActive,Home)")
-            _navigation_in_progress = False
-    except (ValueError, TypeError):
-        pass
+    action = None
 
-    # Handle deferred option execution from RunScript
-    if isinstance(params, str) and params.startswith('deferred_option'):
-        utils.log("=== HANDLING DEFERRED OPTION EXECUTION ===", "DEBUG")
-        try:
-            # Extract option index from params
-            parts = params.split(',')
-            if len(parts) >= 2:
-                option_index = int(parts[1])
-                execute_deferred_option(option_index)
-            else:
-                utils.log("Invalid deferred option format", "ERROR")
-        except Exception as e:
-            utils.log(f"Error in deferred option execution: {str(e)}", "ERROR")
-        return
+    try:
+        # Handle command line arguments for deferred options
+        if len(sys.argv) > 2 and sys.argv[1] == 'deferred_option':
+            option_index = int(sys.argv[2])
+            execute_deferred_option(option_index)
+            return
+        elif params.startswith('deferred_option:'):
+            option_index = int(params.split(':')[1])
+            execute_deferred_option(option_index)
+            return
+        elif params.strip().isdigit():
+            # Handle numeric params for backwards compatibility
+            action = None  # Will fall through to build_root
+        else:
+            action = params
+    except (ValueError, IndexError):
+        action = None
 
-    # Check if paramstr is valid and not empty before parsing
-    if not params:
-        utils.log("Received empty paramstr, building root directory.", "WARNING")
-        # Clear navigation flags when building root
-        xbmc.executebuiltin("ClearProperty(LibraryGenie.Navigating,Home)")
-        xbmc.executebuiltin("ClearProperty(LibraryGenie.SearchModalActive,Home)")
-        _navigation_in_progress = False
-        build_root()
-        return
+    utils.log(f"Action determined: {action}", "DEBUG")
 
-    # Ensure we are parsing the query string part of the URL
+    # Parse the action from the params string
     try:
         # Handle both full URLs and query strings
         if params.startswith('?'):
@@ -507,25 +501,25 @@ def router(params):
         build_root() # Fallback to building root on parsing error
         return
 
-    action = q.get("action", [""])[0]
+    action_type = q.get("action", [""])[0]
 
-    utils.log(f"Action determined: {action}", "DEBUG")
+    utils.log(f"Action type determined: {action_type}", "DEBUG")
 
-    if action == "search":
+    if action_type == "search":
         utils.log("Routing to search action", "DEBUG")
         # Set navigation flag before starting search
         _navigation_in_progress = True
         xbmc.executebuiltin("SetProperty(LibraryGenie.Navigating,true,Home)")
         run_search()
         return
-    elif action == "browse":
+    elif action_type == "browse":
         utils.log("Routing to browse action", "DEBUG")
         # Set navigation flag before starting browse
         _navigation_in_progress = True
         xbmc.executebuiltin("SetProperty(LibraryGenie.Navigating,true,Home)")
         run_browse()
         return
-    elif action == 'options':
+    elif action_type == 'options':
         utils.log("Routing to options action", "DEBUG")
         # Check if we're in the middle of navigation to prevent dialog conflicts
         if _navigation_in_progress:
@@ -534,46 +528,46 @@ def router(params):
         show_options(q)
         # IMPORTANT: Do NOT call endOfDirectory() here - this is a RunPlugin action
         return
-    elif action == 'search_movies':
+    elif action_type == 'search_movies':
         utils.log("Routing to search_movies action", "DEBUG")
         # Set navigation flag before starting search
         _navigation_in_progress = True
         xbmc.executebuiltin("SetProperty(LibraryGenie.Navigating,true,Home)")
         do_search(q)
         return
-    elif action == 'create_list':
+    elif action_type == 'create_list':
         utils.log("Routing to create_list action", "DEBUG")
         create_list(q)
         return
-    elif action == 'rename_list':
+    elif action_type == 'rename_list':
         utils.log("Routing to rename_list action", "DEBUG")
         rename_list(q)
         return
-    elif action == 'delete_list':
+    elif action_type == 'delete_list':
         utils.log("Routing to delete_list action", "DEBUG")
         delete_list(q)
         return
-    elif action == 'remove_from_list':
+    elif action_type == 'remove_from_list':
         utils.log("Routing to remove_from_list action", "DEBUG")
         remove_from_list(q)
         return
-    elif action == 'rename_folder':
+    elif action_type == 'rename_folder':
         utils.log("Routing to rename_folder action", "DEBUG")
         rename_folder(q)
         return
-    elif action == 'refresh_movie':
+    elif action_type == 'refresh_movie':
         utils.log("Routing to refresh_movie action", "DEBUG")
         refresh_movie(q)
         return
-    elif action == 'show_item_details':
+    elif action_type == 'show_item_details':
         utils.log("Routing to show_item_details action", "DEBUG")
         show_item_details(q)
         return
-    elif action == 'play_movie':
+    elif action_type == 'play_movie':
         utils.log("Routing to play_movie action", "DEBUG")
         play_movie(q)
         return
-    elif action == 'browse_folder':
+    elif action_type == 'browse_folder':
         utils.log("Routing to browse_folder action", "DEBUG")
         folder_id = q.get('folder_id', [None])[0]
         if folder_id:
@@ -585,7 +579,7 @@ def router(params):
             utils.log("Missing folder_id for browse_folder action, returning to root.", "WARNING")
             build_root()
         return
-    elif action == 'browse_list':
+    elif action_type == 'browse_list':
         list_id = q.get('list_id', [None])[0]
         if list_id:
             # Set proper content for list view
@@ -599,13 +593,16 @@ def router(params):
             utils.log("No list_id provided for browse_list action", "WARNING")
             show_empty_directory()
         return
-    elif action == 'separator':
+    elif action_type == 'separator':
         # Do nothing for separator items
         utils.log("Received separator action, doing nothing.", "DEBUG")
         pass
+    elif action_type == "clear_all_local_data" or action_type == "clear_all_local_folders_lists":
+        utils.log("=== SCRIPT ACTION: CLEAR ALL LOCAL FOLDERS/LISTS ===", "DEBUG")
+        clear_all_local_data()
     else:
         # Default: build root directory if action is not recognized or empty
-        utils.log(f"Unrecognized action '{action}' or no action specified, building root directory.", "DEBUG")
+        utils.log(f"Unrecognized action '{action_type}' or no action specified, building root directory.", "DEBUG")
         build_root()
 
 def show_options(params):
@@ -673,7 +670,7 @@ def show_options(params):
         "- Sync Library with Server (Delta)",
         "- View Upload Status",
         "- Clear Server Library",
-        "- Clear All Local Data",
+        "- Clear All Local Folders/Lists",
         "- Settings",
         "- Authenticate with Server"
     ]
@@ -792,11 +789,11 @@ def show_options(params):
             upload_manager = IMDbUploadManager()
             upload_manager.clear_server_library()
             utils.log("=== COMPLETED: CLEAR SERVER LIBRARY - ALL MODALS CLOSED ===", "DEBUG")
-        elif "Clear All Local Data" in selected_text:
-            utils.log("=== EXECUTING: CLEAR ALL LOCAL DATA ===", "DEBUG")
+        elif "Clear All Local Folders/Lists" in selected_text:
+            utils.log("=== EXECUTING: CLEAR ALL LOCAL FOLDERS/LISTS ===", "DEBUG")
             utils.log("=== ABOUT TO CALL clear_all_local_data() - CONFIRMATION MODAL WILL OPEN ===", "DEBUG")
             clear_all_local_data()
-            utils.log("=== COMPLETED: CLEAR ALL LOCAL DATA - ALL MODALS CLOSED ===", "DEBUG")
+            utils.log("=== COMPLETED: CLEAR ALL LOCAL FOLDERS/LISTS - ALL MODALS CLOSED ===", "DEBUG")
         elif "Settings" in selected_text:
             utils.log("=== EXECUTING: OPEN SETTINGS ===", "DEBUG")
             utils.log("=== ABOUT TO OPEN SETTINGS WINDOW ===", "DEBUG")
@@ -832,7 +829,7 @@ def execute_deferred_option(option_index):
         "- Sync Library with Server (Delta)",
         "- View Upload Status",
         "- Clear Server Library",
-        "- Clear All Local Data",
+        "- Clear All Local Folders/Lists",
         "- Settings",
         "- Authenticate with Server"
     ]
