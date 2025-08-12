@@ -298,11 +298,11 @@ class ListItemBuilder:
         list_item = xbmcgui.ListItem(label=name)
         list_item.setIsFolder(is_folder)
 
-        # Set folder-specific artwork (using icon/thumb for folders - more square/compact)
+        # Set folder-specific artwork (using thumb for folders - should be distinctly different from lists)
         folder_art = {
-            'icon': 'special://home/addons/plugin.video.librarygenie/resources/media/icon.jpg',
+            'icon': 'special://home/addons/plugin.video.librarygenie/resources/media/thumb.jpg',
             'thumb': 'special://home/addons/plugin.video.librarygenie/resources/media/thumb.jpg',
-            'poster': 'special://home/addons/plugin.video.librarygenie/resources/media/icon.jpg',
+            'poster': 'special://home/addons/plugin.video.librarygenie/resources/media/thumb.jpg',
             'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg'
         }
         folder_art = _normalize_art_dict(folder_art)
@@ -317,11 +317,11 @@ class ListItemBuilder:
         list_item = xbmcgui.ListItem(label=name)
         list_item.setIsFolder(is_folder)
 
-        # Set list-specific artwork (using banner/landscape for lists - more rectangular/wide)
+        # Set list-specific artwork (using landscape for lists - should be distinctly different from folders)
         list_art = {
-            'icon': 'special://home/addons/plugin.video.librarygenie/resources/media/banner.jpg',
+            'icon': 'special://home/addons/plugin.video.librarygenie/resources/media/landscape.jpg',
             'thumb': 'special://home/addons/plugin.video.librarygenie/resources/media/landscape.jpg',
-            'poster': 'special://home/addons/plugin.video.librarygenie/resources/media/banner.jpg',
+            'poster': 'special://home/addons/plugin.video.librarygenie/resources/media/landscape.jpg',
             'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg'
         }
         list_art = _normalize_art_dict(list_art)
