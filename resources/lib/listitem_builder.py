@@ -22,6 +22,9 @@ def _is_valid_art_url(u: str) -> bool:
     # Accept Kodi image wrapper directly
     if u.startswith("image://"):
         return True
+    # Accept Kodi default icons (like DefaultFolder.png, DefaultMovies.png, etc.)
+    if u.startswith("Default") and u.endswith(".png"):
+        return True
     p = urlparse(u)
     return (p.scheme in VALID_SCHEMES) or (u.startswith("special://"))
 
