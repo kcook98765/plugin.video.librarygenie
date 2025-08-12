@@ -9,56 +9,39 @@ from . import utils
 _initialized = False
 
 def clear_all_local_data():
-    """Clears all lists and folders except 'Search History' folder (but clears its lists). Preserves IMDB exports data."""
-    utils.log("Attempting to clear all local folders/lists", "INFO")
-    dialog = xbmcgui.Dialog()
-    if dialog.yesno("Clear All Folders/Lists", "Are you sure you want to delete ALL your lists and folders? This action cannot be undone. The 'Search History' folder will remain but all its lists will be cleared. IMDB exports data will be preserved."):
-        try:
-            from resources.lib.config_manager import get_config
-            config = get_config()
-            db_manager = DatabaseManager(config.db_path)
+    """Clear all local folders/lists data but preserve IMDB exports"""
+    utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW CONFIRMATION MODAL ===", "DEBUG")
+    if not xbmcgui.Dialog().yesno('Clear All Folders/Lists', 'This will delete all lists, folders, and search history but preserve IMDB exports data.\n\nAre you sure?'):
+        utils.log("=== CLEAR_ALL_LOCAL_DATA: CONFIRMATION MODAL CLOSED - CANCELLED ===", "DEBUG")
+        return
+    utils.log("=== CLEAR_ALL_LOCAL_DATA: CONFIRMATION MODAL CLOSED - CONFIRMED ===", "DEBUG")
+    try:
+        from .config_manager import Config
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
 
-            # Get Search History folder ID
-            search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
+        # Clear only lists/folders related tables, preserve imdb_exports
+        db_manager.delete_data('list_items', '1=1')
+        db_manager.delete_data('lists', '1=1')
+        db_manager.delete_data('folders', '1=1')
+        db_manager.delete_data('media_items', '1=1')
+        # Note: NOT clearing imdb_exports table
 
-            # First, delete all lists in Search History folder
-            if search_history_folder_id:
-                search_history_lists = db_manager.fetch_lists(search_history_folder_id)
-                for list_item in search_history_lists:
-                    try:
-                        db_manager.delete_list(list_item['id'])
-                        utils.log(f"Deleted Search History list ID: {list_item['id']} ('{list_item['name']}')", "DEBUG")
-                    except Exception as e:
-                        utils.log(f"Error deleting Search History list {list_item['id']}: {str(e)}", "WARNING")
+        # Recreate Search History folder
+        search_folder_id = db_manager.ensure_folder_exists("Search History", None)
 
-            # Get all root-level folders and lists
-            all_root_folders = db_manager.fetch_folders(None)  # Root level folders
-            all_root_lists = db_manager.fetch_lists(None)      # Root level lists
-
-            # Delete all root-level folders except 'Search History' (this will cascade to delete all subfolders and their lists)
-            for folder in all_root_folders:
-                if folder['name'] != "Search History":
-                    try:
-                        db_manager.delete_folder_and_contents(folder['id'])
-                        utils.log(f"Deleted folder and all contents: {folder['name']} (ID: {folder['id']})", "DEBUG")
-                    except Exception as e:
-                        utils.log(f"Error deleting folder {folder['name']}: {str(e)}", "WARNING")
-
-            # Delete all root-level lists (not in any folder)
-            for list_item in all_root_lists:
-                try:
-                    db_manager.delete_list(list_item['id'])
-                    utils.log(f"Deleted root-level list: {list_item['name']} (ID: {list_item['id']})", "DEBUG")
-                except Exception as e:
-                    utils.log(f"Error deleting root-level list {list_item['name']}: {str(e)}", "WARNING")
-
-            dialog.notification("LibraryGenie", "All local folders/lists cleared successfully. IMDB exports preserved.", xbmcgui.NOTIFICATION_INFO, 3000)
-            utils.log("Successfully cleared all local folders/lists. IMDB exports preserved.", "INFO")
-        except Exception as e:
-            utils.log(f"Error clearing local folders/lists: {str(e)}", "ERROR")
-            dialog.notification("LibraryGenie", "Error clearing local folders/lists.", xbmcgui.NOTIFICATION_ERROR, 5000)
-    else:
-        utils.log("User cancelled clearing local folders/lists.", "INFO")
+        utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW SUCCESS NOTIFICATION ===", "DEBUG")
+        xbmcgui.Dialog().notification('LibraryGenie', 'All folders/lists cleared, IMDB exports preserved')
+        utils.log("=== CLEAR_ALL_LOCAL_DATA: SUCCESS NOTIFICATION CLOSED ===", "DEBUG")
+        
+        # Use proper import for xbmc
+        import xbmc
+        xbmc.executebuiltin('Container.Refresh')
+    except Exception as e:
+        utils.log(f"Error clearing local folders/lists: {str(e)}", "ERROR")
+        utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW ERROR NOTIFICATION ===", "DEBUG")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Failed to clear folders/lists')
+        utils.log("=== CLEAR_ALL_LOCAL_DATA: ERROR NOTIFICATION CLOSED ===", "DEBUG")
 
 
 def run_addon():

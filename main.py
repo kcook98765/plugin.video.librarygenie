@@ -908,36 +908,8 @@ def create_new_folder_at_root():
 
 def clear_all_local_data():
     """Clear all local folders/lists data but preserve IMDB exports"""
-    utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW CONFIRMATION MODAL ===", "DEBUG")
-    if not xbmcgui.Dialog().yesno('Clear All Folders/Lists', 'This will delete all lists, folders, and search history but preserve IMDB exports data.\n\nAre you sure?'):
-        utils.log("=== CLEAR_ALL_LOCAL_DATA: CONFIRMATION MODAL CLOSED - CANCELLED ===", "DEBUG")
-        return
-    utils.log("=== CLEAR_ALL_LOCAL_DATA: CONFIRMATION MODAL CLOSED - CONFIRMED ===", "DEBUG")
-    try:
-        from resources.lib.database_manager import DatabaseManager
-        from resources.lib.config_manager import Config
-        config = Config()
-        db_manager = DatabaseManager(config.db_path)
-
-        # Clear only lists/folders related tables, preserve imdb_exports
-        db_manager.delete_data('list_items', '1=1')
-        db_manager.delete_data('lists', '1=1')
-        db_manager.delete_data('folders', '1=1')
-        db_manager.delete_data('media_items', '1=1')
-        # Note: NOT clearing imdb_exports table
-
-        # Recreate Search History folder
-        search_folder_id = db_manager.ensure_folder_exists("Search History", None)
-
-        utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW SUCCESS NOTIFICATION ===", "DEBUG")
-        xbmcgui.Dialog().notification('LibraryGenie', 'All folders/lists cleared, IMDB exports preserved')
-        utils.log("=== CLEAR_ALL_LOCAL_DATA: SUCCESS NOTIFICATION CLOSED ===", "DEBUG")
-        xbmc.executebuiltin('Container.Refresh')
-    except Exception as e:
-        utils.log(f"Error clearing local folders/lists: {str(e)}", "ERROR")
-        utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW ERROR NOTIFICATION ===", "DEBUG")
-        xbmcgui.Dialog().notification('LibraryGenie', 'Failed to clear folders/lists')
-        utils.log("=== CLEAR_ALL_LOCAL_DATA: ERROR NOTIFICATION CLOSED ===", "DEBUG")
+    from resources.lib.addon_helper import clear_all_local_data as clear_data
+    clear_data()
 
 def main():
     """Main addon entry point"""
