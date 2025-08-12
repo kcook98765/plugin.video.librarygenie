@@ -46,19 +46,20 @@ def _wrap_for_kodi_image(u: str) -> str:
 
 def _get_addon_artwork_fallbacks() -> dict:
     """Return addon artwork that can be used as fallbacks"""
+    import os
     from resources.lib.addon_ref import get_addon
     addon = get_addon()
     addon_path = addon.getAddonInfo('path')
     
     return {
-        'icon': addon_path + '/resources/media/icon.jpg',
-        'thumb': addon_path + '/resources/media/thumb.jpg',
-        'poster': addon_path + '/resources/media/icon.jpg',
-        'fanart': addon_path + '/resources/media/fanart.jpg',
-        'banner': addon_path + '/resources/media/banner.jpg',
-        'landscape': addon_path + '/resources/media/landscape.jpg',
-        'clearart': addon_path + '/resources/media/clearart.jpg',
-        'clearlogo': addon_path + '/resources/media/clearlogo.png'
+        'icon': os.path.join(addon_path, 'resources', 'media', 'icon.jpg'),
+        'thumb': os.path.join(addon_path, 'resources', 'media', 'thumb.jpg'),
+        'poster': os.path.join(addon_path, 'resources', 'media', 'icon.jpg'),
+        'fanart': os.path.join(addon_path, 'resources', 'media', 'fanart.jpg'),
+        'banner': os.path.join(addon_path, 'resources', 'media', 'banner.jpg'),
+        'landscape': os.path.join(addon_path, 'resources', 'media', 'landscape.jpg'),
+        'clearart': os.path.join(addon_path, 'resources', 'media', 'clearart.jpg'),
+        'clearlogo': os.path.join(addon_path, 'resources', 'media', 'clearlogo.png')
     }
 
 def _normalize_art_dict(art: dict, use_fallbacks: bool = False) -> dict:
@@ -304,15 +305,16 @@ class ListItemBuilder:
         list_item.setIsFolder(is_folder)
 
         # Set folder-specific artwork (using custom LibraryGenie folder icon)
+        import os
         from resources.lib.addon_ref import get_addon
         addon = get_addon()
         addon_path = addon.getAddonInfo('path')
         
         folder_art = {
-            'icon': addon_path + '/resources/media/list_folder_icon.png',
-            'thumb': addon_path + '/resources/media/list_folder_icon.png',
-            'poster': addon_path + '/resources/media/list_folder_icon.png',
-            'fanart': addon_path + '/resources/media/fanart.jpg'
+            'icon': os.path.join(addon_path, 'resources', 'media', 'list_folder_icon.png'),
+            'thumb': os.path.join(addon_path, 'resources', 'media', 'list_folder_icon.png'),
+            'poster': os.path.join(addon_path, 'resources', 'media', 'list_folder_icon.png'),
+            'fanart': os.path.join(addon_path, 'resources', 'media', 'fanart.jpg')
         }
         folder_art = _normalize_art_dict(folder_art)
         if folder_art:
@@ -327,15 +329,16 @@ class ListItemBuilder:
         list_item.setIsFolder(is_folder)
 
         # Set list-specific artwork (using custom LibraryGenie playlist icon)
+        import os
         from resources.lib.addon_ref import get_addon
         addon = get_addon()
         addon_path = addon.getAddonInfo('path')
         
         list_art = {
-            'icon': addon_path + '/resources/media/list_playlist_icon.png',
-            'thumb': addon_path + '/resources/media/list_playlist_icon.png', 
-            'poster': addon_path + '/resources/media/list_playlist_icon.png',
-            'fanart': addon_path + '/resources/media/fanart.jpg'
+            'icon': os.path.join(addon_path, 'resources', 'media', 'list_playlist_icon.png'),
+            'thumb': os.path.join(addon_path, 'resources', 'media', 'list_playlist_icon.png'), 
+            'poster': os.path.join(addon_path, 'resources', 'media', 'list_playlist_icon.png'),
+            'fanart': os.path.join(addon_path, 'resources', 'media', 'fanart.jpg')
         }
         list_art = _normalize_art_dict(list_art)
         if list_art:
