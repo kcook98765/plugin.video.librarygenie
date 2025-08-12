@@ -11,34 +11,52 @@ _initialized = False
 def clear_all_local_data():
     """Clear all local folders/lists data but preserve IMDB exports"""
     utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW CONFIRMATION MODAL ===", "DEBUG")
-    if not xbmcgui.Dialog().yesno('Clear All Folders/Lists', 'This will delete all lists, folders, and search history but preserve IMDB exports data.\n\nAre you sure?'):
+
+    # Show confirmation dialog
+    dialog = xbmcgui.Dialog()
+    if not dialog.yesno('Clear All Data', 
+                       'This will delete ALL folders and lists (except IMDB exports).\n\nAre you sure you want to continue?'):
         utils.log("=== CLEAR_ALL_LOCAL_DATA: CONFIRMATION MODAL CLOSED - CANCELLED ===", "DEBUG")
         return
+
     utils.log("=== CLEAR_ALL_LOCAL_DATA: CONFIRMATION MODAL CLOSED - CONFIRMED ===", "DEBUG")
+
     try:
-        from .config_manager import Config
         config = Config()
         db_manager = DatabaseManager(config.db_path)
 
-        # Clear only lists/folders related tables, preserve imdb_exports
-        db_manager.delete_data('list_items', '1=1')
-        db_manager.delete_data('lists', '1=1')
-        db_manager.delete_data('folders', '1=1')
-        db_manager.delete_data('media_items', '1=1')
-        # Note: NOT clearing imdb_exports table
+        # Preserve IMDB exports but clear everything else
+        search_history_folder_id = db_manager.ensure_folder_exists("Search History", None)
 
-        # Recreate Search History folder
-        search_folder_id = db_manager.ensure_folder_exists("Search History", None)
+        # Clear list items first (foreign key constraints)
+        db_manager.delete_data('list_items', '1=1')
+
+        # Clear lists except those in Search History folder
+        db_manager.delete_data('lists', f'folder_id != {search_history_folder_id} OR folder_id IS NULL')
+
+        # Clear folders except Search History
+        db_manager.delete_data('folders', f'id != {search_history_folder_id}')
+
+        # Clear orphaned media items (those not referenced by any list)
+        db_manager.cursor.execute('''
+            DELETE FROM media_items 
+            WHERE id NOT IN (
+                SELECT DISTINCT media_id FROM list_items WHERE media_id IS NOT NULL
+            )
+        ''')
+        db_manager.connection.commit()
 
         utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW SUCCESS NOTIFICATION ===", "DEBUG")
         xbmcgui.Dialog().notification('LibraryGenie', 'All folders/lists cleared, IMDB exports preserved')
         utils.log("=== CLEAR_ALL_LOCAL_DATA: SUCCESS NOTIFICATION CLOSED ===", "DEBUG")
-        
+
         # Use proper import for xbmc
         import xbmc
         xbmc.executebuiltin('Container.Refresh')
     except Exception as e:
         utils.log(f"Error clearing local folders/lists: {str(e)}", "ERROR")
+        import traceback
+        utils.log(f"Full traceback: {traceback.format_exc()}", "ERROR")
         utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW ERROR NOTIFICATION ===", "DEBUG")
         xbmcgui.Dialog().notification('LibraryGenie', 'Failed to clear folders/lists')
         utils.log("=== CLEAR_ALL_LOCAL_DATA: ERROR NOTIFICATION CLOSED ===", "DEBUG")
