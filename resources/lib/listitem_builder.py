@@ -25,6 +25,10 @@ def _is_valid_art_url(u: str) -> bool:
     # Accept Kodi default icons (bare filenames work best across all skins)
     if u.startswith("Default") and u.endswith(".png"):
         return True
+    # Accept local file paths (Windows and Unix)
+    import os
+    if os.path.isabs(u) and os.path.exists(u):
+        return True
     p = urlparse(u)
     return (p.scheme in VALID_SCHEMES) or (u.startswith("special://"))
 
