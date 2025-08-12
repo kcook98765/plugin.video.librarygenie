@@ -613,23 +613,6 @@ class MainWindow:
         elif action.startswith("move_list_to_root:"):
                 list_id = int(action.split(":")[1])
                 try:
-                    # Check if this list is in the Search History folder
-                    search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
-                    list_data = db_manager.fetch_data('lists', f'id = {list_id}')
-
-                    if list_data and len(list_data) > 0:
-                        current_folder_id = list_data[0].get('folder_id')
-
-                        # Prevent moving lists from Search History folder
-                        if current_folder_id == search_history_folder_id:
-                            xbmcgui.Dialog().notification(
-                                "LibraryGenie",
-                                "Search History lists cannot be moved to root",
-                                xbmcgui.NOTIFICATION_WARNING,
-                                3000
-                            )
-                            return
-
                     # Move list to root (folder_id = None)
                     db_manager.update_data('lists', {'folder_id': None}, f"id = {list_id}")
                     xbmcgui.Dialog().notification("LibraryGenie", "List moved to root", xbmcgui.NOTIFICATION_INFO, 2000)
@@ -641,37 +624,36 @@ class MainWindow:
         elif action.startswith("move_list:"):
                 list_id = int(action.split(":")[1])
                 try:
-                    # Check if this list is in the Search History folder
-                    search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
-                    list_data = db_manager.fetch_data('lists', f'id = {list_id}')
-
-                    if list_data and len(list_data) > 0:
-                        current_folder_id = list_data[0].get('folder_id')
-
-                        # Prevent moving lists from Search History folder
-                        if current_folder_id == search_history_folder_id:
-                            xbmcgui.Dialog().notification(
-                                "LibraryGenie",
-                                "Search History lists cannot be moved",
-                                xbmcgui.NOTIFICATION_WARNING,
-                                3000
-                            )
-                            return
-
-                    # Get available folders for moving
-                    all_folders = db_manager.fetch_folders(None)  # Get all root folders
+                    # Get available folders for moving (including all folders, not just root ones)
+                    all_folders = db_manager.fetch_all_folders()
                     folder_options = ["<Root>"]
                     folder_ids = [None]
 
-                    for folder in all_folders:
-                        folder_options.append(folder['name'])
+                    # Build hierarchical folder list for selection
+                    def add_folder_to_options(folder, indent=0):
+                        indent_str = "  " * indent
+                        folder_options.append(f"{indent_str}{folder['name']}")
                         folder_ids.append(folder['id'])
+                        
+                        # Add subfolders
+                        subfolders = [f for f in all_folders if f.get('parent_id') == folder['id']]
+                        subfolders.sort(key=lambda x: x['name'].lower())
+                        for subfolder in subfolders:
+                            add_folder_to_options(subfolder, indent + 1)
+
+                    # Add all root folders and their children
+                    root_folders = [f for f in all_folders if f.get('parent_id') is None]
+                    root_folders.sort(key=lambda x: x['name'].lower())
+                    for folder in root_folders:
+                        add_folder_to_options(folder)
 
                     selected = xbmcgui.Dialog().select("Move list to folder:", folder_options)
                     if selected >= 0:
                         target_folder_id = folder_ids[selected]
                         db_manager.update_data('lists', {'folder_id': target_folder_id}, f"id = {list_id}")
-                        xbmcgui.Dialog().notification("LibraryGenie", "List moved", xbmcgui.NOTIFICATION_INFO, 2000)
+                        
+                        destination = "root" if target_folder_id is None else folder_options[selected].strip()
+                        xbmcgui.Dialog().notification("LibraryGenie", f"List moved to {destination}", xbmcgui.NOTIFICATION_INFO, 2000)
                         self.populate_list()
                         self.setFocus(self.list_control)
                 except Exception as e:
@@ -1006,11 +988,9 @@ class MainWindow:
         self.populate_list()
 
     def move_list(self, list_id, list_name):
-        self.moving_list_id = list_id
-        self.moving_list_name = list_name
-        self.show_notification(f"Select new location for list: {list_name}", xbmcgui.NOTIFICATION_INFO)
+        # Directly trigger the move action instead of using the cut/paste system
+        self.handle_action(f"move_list:{list_id}", None)
         utils.log(f"Moving list. ListID={list_id}, ListName={list_name}", "DEBUG")
-        self.populate_list()
 
     def paste_list_here(self, list_id, target_folder_id):
         db_manager = DatabaseManager(Config().db_path)
