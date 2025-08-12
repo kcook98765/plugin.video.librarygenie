@@ -160,6 +160,11 @@ def move_list(params):
 
         # Get available folders for moving (including all folders, not just root ones)
         all_folders = db_manager.fetch_all_folders()
+        
+        # Filter out the Search History folder - users shouldn't move lists there
+        search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
+        filtered_folders = [f for f in all_folders if f.get('id') != search_history_folder_id]
+        
         folder_options = ["<Root>"]
         folder_ids = [None]
 
@@ -169,14 +174,14 @@ def move_list(params):
             folder_options.append(f"{indent_str}{folder['name']}")
             folder_ids.append(folder['id'])
             
-            # Add subfolders
-            subfolders = [f for f in all_folders if f.get('parent_id') == folder['id']]
+            # Add subfolders (also filtered)
+            subfolders = [f for f in filtered_folders if f.get('parent_id') == folder['id']]
             subfolders.sort(key=lambda x: x['name'].lower())
             for subfolder in subfolders:
                 add_folder_to_options(subfolder, indent + 1)
 
-        # Add all root folders and their children
-        root_folders = [f for f in all_folders if f.get('parent_id') is None]
+        # Add all root folders and their children (excluding Search History)
+        root_folders = [f for f in filtered_folders if f.get('parent_id') is None]
         root_folders.sort(key=lambda x: x['name'].lower())
         for folder in root_folders:
             add_folder_to_options(folder)
