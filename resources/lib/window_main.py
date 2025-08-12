@@ -602,12 +602,82 @@ class MainWindow:
 
     def handle_action(self, action, parent_id):
         utils.log(f"Handling action. Action={action}, ParentID={parent_id}", "DEBUG")
+        db_manager = DatabaseManager(Config().db_path) # Ensure db_manager is available
+
         if action == 'new_folder':
             self.create_new_folder(parent_id)
         elif action == 'new_list':
             self.create_new_list(parent_id)
         elif action.startswith('paste_'):
             self.handle_paste_action(action, parent_id)
+        elif action.startswith("move_list_to_root:"):
+                list_id = int(action.split(":")[1])
+                try:
+                    # Check if this list is in the Search History folder
+                    search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
+                    list_data = db_manager.fetch_data('lists', f'id = {list_id}')
+
+                    if list_data and len(list_data) > 0:
+                        current_folder_id = list_data[0].get('folder_id')
+
+                        # Prevent moving lists from Search History folder
+                        if current_folder_id == search_history_folder_id:
+                            xbmcgui.Dialog().notification(
+                                "LibraryGenie",
+                                "Search History lists cannot be moved to root",
+                                xbmcgui.NOTIFICATION_WARNING,
+                                3000
+                            )
+                            return
+
+                    # Move list to root (folder_id = None)
+                    db_manager.update_data('lists', {'folder_id': None}, f"id = {list_id}")
+                    xbmcgui.Dialog().notification("LibraryGenie", "List moved to root", xbmcgui.NOTIFICATION_INFO, 2000)
+                    self.populate_list()
+                    self.setFocus(self.list_control)
+                except Exception as e:
+                    utils.log(f"Error moving list to root: {str(e)}", "ERROR")
+                    xbmcgui.Dialog().notification("LibraryGenie", "Error moving list", xbmcgui.NOTIFICATION_ERROR, 2000)
+        elif action.startswith("move_list:"):
+                list_id = int(action.split(":")[1])
+                try:
+                    # Check if this list is in the Search History folder
+                    search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
+                    list_data = db_manager.fetch_data('lists', f'id = {list_id}')
+
+                    if list_data and len(list_data) > 0:
+                        current_folder_id = list_data[0].get('folder_id')
+
+                        # Prevent moving lists from Search History folder
+                        if current_folder_id == search_history_folder_id:
+                            xbmcgui.Dialog().notification(
+                                "LibraryGenie",
+                                "Search History lists cannot be moved",
+                                xbmcgui.NOTIFICATION_WARNING,
+                                3000
+                            )
+                            return
+
+                    # Get available folders for moving
+                    all_folders = db_manager.fetch_folders(None)  # Get all root folders
+                    folder_options = ["<Root>"]
+                    folder_ids = [None]
+
+                    for folder in all_folders:
+                        folder_options.append(folder['name'])
+                        folder_ids.append(folder['id'])
+
+                    selected = xbmcgui.Dialog().select("Move list to folder:", folder_options)
+                    if selected >= 0:
+                        target_folder_id = folder_ids[selected]
+                        db_manager.update_data('lists', {'folder_id': target_folder_id}, f"id = {list_id}")
+                        xbmcgui.Dialog().notification("LibraryGenie", "List moved", xbmcgui.NOTIFICATION_INFO, 2000)
+                        self.populate_list()
+                        self.setFocus(self.list_control)
+                except Exception as e:
+                    utils.log(f"Error moving list: {str(e)}", "ERROR")
+                    xbmcgui.Dialog().notification("LibraryGenie", "Error moving list", xbmcgui.NOTIFICATION_ERROR, 2000)
+
 
     def display_item_options(self, label, item_id, is_folder):
         if is_folder:
