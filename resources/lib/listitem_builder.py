@@ -11,6 +11,7 @@ from resources.lib.listitem_infotagvideo import set_info_tag, set_art
 from typing import Dict
 from urllib.parse import quote, urlparse
 import re
+import os
 
 __all__ = ['set_info_tag', 'set_art']
 
@@ -26,7 +27,7 @@ def _is_valid_art_url(u: str) -> bool:
     if u.startswith("Default") and u.endswith(".png"):
         return True
     # Accept local file paths (Windows and Unix)
-    import os
+    
     if os.path.isabs(u) and os.path.exists(u):
         return True
     p = urlparse(u)
@@ -50,20 +51,28 @@ def _wrap_for_kodi_image(u: str) -> str:
 
 def _get_addon_artwork_fallbacks() -> dict:
     """Return addon artwork that can be used as fallbacks"""
-    import os
+    
     from resources.lib.addon_ref import get_addon
     addon = get_addon()
     addon_path = addon.getAddonInfo('path')
-    
+
+    # Use Kodi's native path translation for cross-platform compatibility
+    try:
+        import xbmcvfs
+        translatePath = xbmcvfs.translatePath
+    except ImportError:
+        import xbmc
+        translatePath = xbmc.translatePath
+
     return {
-        'icon': os.path.join(addon_path, 'resources', 'media', 'icon.jpg'),
-        'thumb': os.path.join(addon_path, 'resources', 'media', 'thumb.jpg'),
-        'poster': os.path.join(addon_path, 'resources', 'media', 'icon.jpg'),
-        'fanart': os.path.join(addon_path, 'resources', 'media', 'fanart.jpg'),
-        'banner': os.path.join(addon_path, 'resources', 'media', 'banner.jpg'),
-        'landscape': os.path.join(addon_path, 'resources', 'media', 'landscape.jpg'),
-        'clearart': os.path.join(addon_path, 'resources', 'media', 'clearart.jpg'),
-        'clearlogo': os.path.join(addon_path, 'resources', 'media', 'clearlogo.png')
+        'icon': translatePath(os.path.join(addon_path, 'resources', 'media', 'icon.jpg')),
+        'thumb': translatePath(os.path.join(addon_path, 'resources', 'media', 'thumb.jpg')),
+        'poster': translatePath(os.path.join(addon_path, 'resources', 'media', 'icon.jpg')),
+        'fanart': translatePath(os.path.join(addon_path, 'resources', 'media', 'fanart.jpg')),
+        'banner': translatePath(os.path.join(addon_path, 'resources', 'media', 'banner.jpg')),
+        'landscape': translatePath(os.path.join(addon_path, 'resources', 'media', 'landscape.jpg')),
+        'clearart': translatePath(os.path.join(addon_path, 'resources', 'media', 'clearart.jpg')),
+        'clearlogo': translatePath(os.path.join(addon_path, 'resources', 'media', 'clearlogo.png'))
     }
 
 def _normalize_art_dict(art: dict, use_fallbacks: bool = False) -> dict:
@@ -309,16 +318,24 @@ class ListItemBuilder:
         list_item.setIsFolder(is_folder)
 
         # Set folder-specific artwork (using custom LibraryGenie folder icon)
-        import os
+        
         from resources.lib.addon_ref import get_addon
         addon = get_addon()
         addon_path = addon.getAddonInfo('path')
-        
+
+        # Use Kodi's native path translation for cross-platform compatibility
+        try:
+            import xbmcvfs
+            translatePath = xbmcvfs.translatePath
+        except ImportError:
+            import xbmc
+            translatePath = xbmc.translatePath
+
         folder_art = {
-            'icon': os.path.join(addon_path, 'resources', 'media', 'list_folder_icon.png'),
-            'thumb': os.path.join(addon_path, 'resources', 'media', 'list_folder_icon.png'),
-            'poster': os.path.join(addon_path, 'resources', 'media', 'list_folder_icon.png'),
-            'fanart': os.path.join(addon_path, 'resources', 'media', 'fanart.jpg')
+            'icon': translatePath(os.path.join(addon_path, 'resources', 'media', 'list_folder_icon.png')),
+            'thumb': translatePath(os.path.join(addon_path, 'resources', 'media', 'list_folder_icon.png')),
+            'poster': translatePath(os.path.join(addon_path, 'resources', 'media', 'list_folder_icon.png')),
+            'fanart': translatePath(os.path.join(addon_path, 'resources', 'media', 'fanart.jpg'))
         }
         folder_art = _normalize_art_dict(folder_art)
         if folder_art:
@@ -333,16 +350,24 @@ class ListItemBuilder:
         list_item.setIsFolder(is_folder)
 
         # Set list-specific artwork (using custom LibraryGenie playlist icon)
-        import os
+        
         from resources.lib.addon_ref import get_addon
         addon = get_addon()
         addon_path = addon.getAddonInfo('path')
-        
+
+        # Use Kodi's native path translation for cross-platform compatibility
+        try:
+            import xbmcvfs
+            translatePath = xbmcvfs.translatePath
+        except ImportError:
+            import xbmc
+            translatePath = xbmc.translatePath
+
         list_art = {
-            'icon': os.path.join(addon_path, 'resources', 'media', 'list_playlist_icon.png'),
-            'thumb': os.path.join(addon_path, 'resources', 'media', 'list_playlist_icon.png'), 
-            'poster': os.path.join(addon_path, 'resources', 'media', 'list_playlist_icon.png'),
-            'fanart': os.path.join(addon_path, 'resources', 'media', 'fanart.jpg')
+            'icon': translatePath(os.path.join(addon_path, 'resources', 'media', 'list_playlist_icon.png')),
+            'thumb': translatePath(os.path.join(addon_path, 'resources', 'media', 'list_playlist_icon.png')), 
+            'poster': translatePath(os.path.join(addon_path, 'resources', 'media', 'list_playlist_icon.png')),
+            'fanart': translatePath(os.path.join(addon_path, 'resources', 'media', 'fanart.jpg'))
         }
         list_art = _normalize_art_dict(list_art)
         if list_art:
