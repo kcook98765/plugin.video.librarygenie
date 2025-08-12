@@ -8,6 +8,7 @@ import xbmcgui
 import xbmcplugin
 from urllib.parse import urlencode, parse_qs
 from urllib.parse import quote_plus, urlparse # Import urlparse
+import time # Import time for timestamp operations
 
 # Add addon directory to Python path
 addon_dir = os.path.dirname(os.path.abspath(__file__))
@@ -227,7 +228,7 @@ def browse_folder(folder_id):
         for list_item in folder_lists:
             list_count = db_manager.get_list_media_count(list_item['id'])
             from resources.lib.listitem_builder import ListItemBuilder
-            li = ListItemBuilder.build_folder_item(f"📋 {list_item['name']} ({list_count})", is_folder=True)
+            li = ListItemBuilder.build_list_item(f"📋 {list_item['name']} ({list_count})", is_folder=True)
             li.setProperty('lg_type', 'list')
             _add_context_menu_for_item(li, 'list', list_id=list_item['id'])
             url = _plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
@@ -438,7 +439,7 @@ def build_root():
         # Add top-level lists
         for list_item in top_level_lists:
             list_count = db_manager.get_list_media_count(list_item['id'])
-            li = ListItemBuilder.build_folder_item(f"📋 {list_item['name']} ({list_count})", is_folder=True)
+            li = ListItemBuilder.build_list_item(f"📋 {list_item['name']} ({list_count})", is_folder=True)
             li.setProperty('lg_type', 'list')
             _add_context_menu_for_item(li, 'list', list_id=list_item['id'])
             url = _plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
@@ -456,7 +457,6 @@ def router(params):
 
     # Clear any stuck navigation flags that are more than 30 seconds old
     try:
-        import time
         current_time = time.time()
         last_navigation = float(xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.LastNavigation)") or "0")
         time_since_nav = current_time - last_navigation
@@ -470,18 +470,6 @@ def router(params):
 
     action = None
 
-    try:
-        if params.strip().isdigit():
-            # Handle numeric params for backwards compatibility
-            action = None  # Will fall through to build_root
-        else:
-            action = params
-    except (ValueError, IndexError):
-        action = None
-
-    utils.log(f"Action determined: {action}", "DEBUG")
-
-    # Parse the action from the params string
     try:
         # Handle both full URLs and query strings
         if params.startswith('?'):
@@ -619,7 +607,6 @@ def show_options(params):
     if navigation_active == "true":
         # Check if navigation has been stuck for too long (more than 10 seconds)
         try:
-            import time
             current_time = time.time()
             last_navigation = float(xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.LastNavigation)") or "0")
             time_since_nav = current_time - last_navigation
@@ -640,7 +627,6 @@ def show_options(params):
     # Time-based protection to prevent immediate re-triggering after navigation
     try:
         last_navigation = float(xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.LastNavigation)") or "0")
-        import time
         current_time = time.time()
         time_since_nav = current_time - last_navigation
 

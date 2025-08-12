@@ -294,19 +294,39 @@ class ListItemBuilder:
 
     @staticmethod
     def build_folder_item(name, is_folder=True):
-        """Build a folder ListItem with addon artwork"""
+        """Build a folder ListItem with folder-specific artwork"""
         list_item = xbmcgui.ListItem(label=name)
         list_item.setIsFolder(is_folder)
 
-        # Set folder-appropriate artwork
+        # Set folder-specific artwork (using banner for folders)
         folder_art = {
-            'icon': 'special://home/addons/plugin.video.librarygenie/resources/media/icon.jpg',
-            'thumb': 'special://home/addons/plugin.video.librarygenie/resources/media/thumb.jpg',
+            'icon': 'special://home/addons/plugin.video.librarygenie/resources/media/banner.jpg',
+            'thumb': 'special://home/addons/plugin.video.librarygenie/resources/media/banner.jpg',
+            'poster': 'special://home/addons/plugin.video.librarygenie/resources/media/banner.jpg',
             'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg'
         }
         folder_art = _normalize_art_dict(folder_art)
         if folder_art:
             set_art(list_item, folder_art)
+
+        return list_item
+
+    @staticmethod
+    def build_list_item(name, is_folder=True):
+        """Build a list ListItem with list-specific artwork"""
+        list_item = xbmcgui.ListItem(label=name)
+        list_item.setIsFolder(is_folder)
+
+        # Set list-specific artwork (using landscape for lists)
+        list_art = {
+            'icon': 'special://home/addons/plugin.video.librarygenie/resources/media/landscape.jpg',
+            'thumb': 'special://home/addons/plugin.video.librarygenie/resources/media/landscape.jpg',
+            'poster': 'special://home/addons/plugin.video.librarygenie/resources/media/landscape.jpg',
+            'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg'
+        }
+        list_art = _normalize_art_dict(list_art)
+        if list_art:
+            set_art(list_item, list_art)
 
         return list_item
 
