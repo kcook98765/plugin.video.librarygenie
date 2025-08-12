@@ -317,11 +317,11 @@ class ListItemBuilder:
         list_item = xbmcgui.ListItem(label=name)
         list_item.setIsFolder(is_folder)
 
-        # Set list-specific artwork (using Kodi default movies icon for LibraryGenie lists)
+        # Set list-specific artwork (using Kodi default video playlists icon for LibraryGenie lists)
         list_art = {
-            'icon': 'DefaultMovies.png',
-            'thumb': 'DefaultMovies.png', 
-            'poster': 'DefaultMovies.png',
+            'icon': 'DefaultVideoPlaylists.png',
+            'thumb': 'DefaultVideoPlaylists.png', 
+            'poster': 'DefaultVideoPlaylists.png',
             'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg'
         }
         list_art = _normalize_art_dict(list_art)
