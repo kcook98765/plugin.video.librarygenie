@@ -1,0 +1,81 @@
+# XBMC Media Center language file
+# Addon Name: LibraryGenie
+# Addon id: plugin.video.librarygenie
+# Addon Provider: [Your Name or Organization]
+msgid ""
+msgstr ""
+"Project-Id-Version: XBMC-Addons\n"
+"Report-Msgid-Bugs-To: [Your Email]\n"
+"POT-Creation-Date: 2024-06-03 00:00+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1)\n"
+
+msgctxt "#30001"
+msgid "LibraryGenie"
+msgstr ""
+
+msgctxt "#30002"
+msgid "ChatGPT API Key"
+msgstr ""
+
+msgctxt "#30003"
+msgid "Base URL"
+msgstr ""
+
+msgctxt "#30004"
+msgid "Temperature"
+msgstr ""
+
+msgctxt "#30005"
+msgid "Max Tokens"
+msgstr ""
+
+msgctxt "#30006"
+msgid "Cache Expiry Time (seconds)"
+msgstr ""
+
+msgctxt "#30007"
+msgid "Enter your text:"
+msgstr ""
+
+msgctxt "#30008"
+msgid "Output"
+msgstr ""
+
+msgctxt "#30009"
+msgid "Lists"
+msgstr ""
+
+msgctxt "#30010"
+msgid "Recycle Bin"
+msgstr ""
+
+msgctxt "#30011"
+msgid "Example title"
+msgstr ""
+
+msgctxt "#30012"
+msgid "Example plot"
+msgstr ""
+
+msgctxt "#30057"
+msgid "Remote Server URL"
+msgstr ""
+
+msgctxt "#30058"
+msgid "Upload Movie Library to Server"
+msgstr ""
+
+msgctxt "#30001"
+msgid "General"
+msgstr ""
+
+msgctxt "#30010"
+msgid "Enable Debug Logging"
+msgstr ""

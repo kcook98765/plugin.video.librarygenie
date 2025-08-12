@@ -1,0 +1,34 @@
+<addon id="plugin.video.librarygenie" version="1.0.6" name="LibraryGenie" provider-name="kcook98765">
+    <!-- """ /addon.xml """ -->
+    <requires>
+        <import addon="xbmc.python" version="3.0.0"/>
+    </requires>
+    <extension point="xbmc.python.pluginsource" library="main.py">
+        <provides>video</provides>
+    </extension>
+  <!-- Plugin entry only; no custom windows needed -->
+    <extension point="xbmc.addon.metadata">
+        <summary>LibraryGenie is a Kodi addon handles lists and integration with AI enabled features.</summary>
+        <description>LibraryGenie bridges your local Kodi media library with remote AI-powered search capabilities. The addon enables natural language queries, intelligent list management, and seamless synchronization with remote search APIs.</description>
+        <platform>all</platform>
+        <license>MIT</license>
+        <forum></forum>
+        <website></website>
+        <source></source>
+        <assets>
+            <icon>resources/media/icon.jpg</icon>
+            <fanart>resources/media/fanart.jpg</fanart>
+            <banner>resources/media/banner.jpg</banner>
+            <clearlogo>resources/media/clearlogo.png</clearlogo>
+            <screenshot>resources/media/landscape.jpg</screenshot>
+        </assets>
+    </extension>
+    <extension point="kodi.context.item">
+      <menu id="kodi.core.main">
+        <item library="resources/lib/context.py">
+            <label>LibraryGenie</label>
+            <visible>true</visible>
+        </item>
+      </menu>
+    </extension>
+</addon>
