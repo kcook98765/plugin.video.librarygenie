@@ -56,23 +56,20 @@ def _get_addon_artwork_fallbacks() -> dict:
     addon = get_addon()
     addon_path = addon.getAddonInfo('path')
 
-    # Use Kodi's native path translation for cross-platform compatibility
-    try:
-        import xbmcvfs
-        translatePath = xbmcvfs.translatePath
-    except ImportError:
-        import xbmc
-        translatePath = xbmc.translatePath
+    # Use Kodi's special:// protocol which is the native way
+    def make_addon_media_path(filename):
+        # Use special://home/addons/ path which is the cleanest Kodi native approach
+        return f"special://home/addons/plugin.video.librarygenie/resources/media/{filename}"
 
     return {
-        'icon': translatePath(os.path.join(addon_path, 'resources', 'media', 'icon.jpg')),
-        'thumb': translatePath(os.path.join(addon_path, 'resources', 'media', 'thumb.jpg')),
-        'poster': translatePath(os.path.join(addon_path, 'resources', 'media', 'icon.jpg')),
-        'fanart': translatePath(os.path.join(addon_path, 'resources', 'media', 'fanart.jpg')),
-        'banner': translatePath(os.path.join(addon_path, 'resources', 'media', 'banner.jpg')),
-        'landscape': translatePath(os.path.join(addon_path, 'resources', 'media', 'landscape.jpg')),
-        'clearart': translatePath(os.path.join(addon_path, 'resources', 'media', 'clearart.jpg')),
-        'clearlogo': translatePath(os.path.join(addon_path, 'resources', 'media', 'clearlogo.png'))
+        'icon': make_addon_media_path('icon.jpg'),
+        'thumb': make_addon_media_path('thumb.jpg'),
+        'poster': make_addon_media_path('icon.jpg'),
+        'fanart': make_addon_media_path('fanart.jpg'),
+        'banner': make_addon_media_path('banner.jpg'),
+        'landscape': make_addon_media_path('landscape.jpg'),
+        'clearart': make_addon_media_path('clearart.jpg'),
+        'clearlogo': make_addon_media_path('clearlogo.png')
     }
 
 def _normalize_art_dict(art: dict, use_fallbacks: bool = False) -> dict:
@@ -317,25 +314,12 @@ class ListItemBuilder:
         list_item = xbmcgui.ListItem(label=name)
         list_item.setIsFolder(is_folder)
 
-        # Set folder-specific artwork (using custom LibraryGenie folder icon)
-        
-        from resources.lib.addon_ref import get_addon
-        addon = get_addon()
-        addon_path = addon.getAddonInfo('path')
-
-        # Use Kodi's native path translation for cross-platform compatibility
-        try:
-            import xbmcvfs
-            translatePath = xbmcvfs.translatePath
-        except ImportError:
-            import xbmc
-            translatePath = xbmc.translatePath
-
+        # Set folder-specific artwork using Kodi's special:// protocol
         folder_art = {
-            'icon': translatePath(os.path.join(addon_path, 'resources', 'media', 'list_folder_icon.png')),
-            'thumb': translatePath(os.path.join(addon_path, 'resources', 'media', 'list_folder_icon.png')),
-            'poster': translatePath(os.path.join(addon_path, 'resources', 'media', 'list_folder_icon.png')),
-            'fanart': translatePath(os.path.join(addon_path, 'resources', 'media', 'fanart.jpg'))
+            'icon': 'special://home/addons/plugin.video.librarygenie/resources/media/list_folder_icon.png',
+            'thumb': 'special://home/addons/plugin.video.librarygenie/resources/media/list_folder_icon.png',
+            'poster': 'special://home/addons/plugin.video.librarygenie/resources/media/list_folder_icon.png',
+            'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg'
         }
         folder_art = _normalize_art_dict(folder_art)
         if folder_art:
@@ -349,25 +333,12 @@ class ListItemBuilder:
         list_item = xbmcgui.ListItem(label=name)
         list_item.setIsFolder(is_folder)
 
-        # Set list-specific artwork (using custom LibraryGenie playlist icon)
-        
-        from resources.lib.addon_ref import get_addon
-        addon = get_addon()
-        addon_path = addon.getAddonInfo('path')
-
-        # Use Kodi's native path translation for cross-platform compatibility
-        try:
-            import xbmcvfs
-            translatePath = xbmcvfs.translatePath
-        except ImportError:
-            import xbmc
-            translatePath = xbmc.translatePath
-
+        # Set list-specific artwork using Kodi's special:// protocol
         list_art = {
-            'icon': translatePath(os.path.join(addon_path, 'resources', 'media', 'list_playlist_icon.png')),
-            'thumb': translatePath(os.path.join(addon_path, 'resources', 'media', 'list_playlist_icon.png')), 
-            'poster': translatePath(os.path.join(addon_path, 'resources', 'media', 'list_playlist_icon.png')),
-            'fanart': translatePath(os.path.join(addon_path, 'resources', 'media', 'fanart.jpg'))
+            'icon': 'special://home/addons/plugin.video.librarygenie/resources/media/list_playlist_icon.png',
+            'thumb': 'special://home/addons/plugin.video.librarygenie/resources/media/list_playlist_icon.png', 
+            'poster': 'special://home/addons/plugin.video.librarygenie/resources/media/list_playlist_icon.png',
+            'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg'
         }
         list_art = _normalize_art_dict(list_art)
         if list_art:
