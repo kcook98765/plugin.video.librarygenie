@@ -95,36 +95,36 @@ class ListItemBuilder:
             media_info = {}
 
         # LOG RAW MOVIE DETAILS
-        # utils.log("=== LISTITEMBUILDER.BUILD_VIDEO_ITEM CALLED ===", "INFO")
-        # utils.log("=== RAW MOVIE DETAILS START ===", "INFO")
-        # utils.log(f"Raw media_info keys: {list(media_info.keys())}", "INFO")
-        # utils.log(f"Title: {media_info.get('title', 'NOT_SET')}", "INFO")
-        # utils.log(f"Year: {media_info.get('year', 'NOT_SET')}", "INFO")
-        # utils.log(f"Plot: {media_info.get('plot', 'NOT_SET')[:200]}...", "INFO")
-        # utils.log(f"Genre: {media_info.get('genre', 'NOT_SET')}", "INFO")
-        # utils.log(f"Director: {media_info.get('director', 'NOT_SET')}", "INFO")
-        # utils.log(f"Rating: {media_info.get('rating', 'NOT_SET')}", "INFO")
-        # utils.log(f"Votes: {media_info.get('votes', 'NOT_SET')}", "INFO")
-        # utils.log(f"Duration: {media_info.get('duration', 'NOT_SET')}", "INFO")
-        # utils.log(f"Kodi ID: {media_info.get('kodi_id', 'NOT_SET')}", "INFO")
-        # utils.log(f"Media Type: {media_info.get('media_type', media_info.get('mediatype', 'NOT_SET'))}", "INFO")
-        # utils.log(f"Cast type: {type(media_info.get('cast', 'NOT_SET'))}, length: {len(media_info.get('cast', []))}", "INFO")
-        # utils.log(f"Art keys: {list(media_info.get('art', {}).keys()) if isinstance(media_info.get('art'), dict) else 'NOT_DICT'}", "INFO")
-        # utils.log(f"Poster: {media_info.get('poster', 'NOT_SET')}", "INFO")
-        # utils.log(f"Fanart: {media_info.get('fanart', 'NOT_SET')}", "INFO")
-        # utils.log(f"Play URL: {media_info.get('play', media_info.get('file', 'NOT_SET'))}", "INFO")
-        # utils.log("=== RAW MOVIE DETAILS END ===", "INFO")
+        utils.log("=== LISTITEMBUILDER.BUILD_VIDEO_ITEM CALLED ===", "INFO")
+        utils.log("=== RAW MOVIE DETAILS START ===", "INFO")
+        utils.log(f"Raw media_info keys: {list(media_info.keys())}", "INFO")
+        utils.log(f"Title: {media_info.get('title', 'NOT_SET')}", "INFO")
+        utils.log(f"Year: {media_info.get('year', 'NOT_SET')}", "INFO")
+        utils.log(f"Plot: {media_info.get('plot', 'NOT_SET')[:200]}...", "INFO")
+        utils.log(f"Genre: {media_info.get('genre', 'NOT_SET')}", "INFO")
+        utils.log(f"Director: {media_info.get('director', 'NOT_SET')}", "INFO")
+        utils.log(f"Rating: {media_info.get('rating', 'NOT_SET')}", "INFO")
+        utils.log(f"Votes: {media_info.get('votes', 'NOT_SET')}", "INFO")
+        utils.log(f"Duration: {media_info.get('duration', 'NOT_SET')}", "INFO")
+        utils.log(f"Kodi ID: {media_info.get('kodi_id', 'NOT_SET')}", "INFO")
+        utils.log(f"Media Type: {media_info.get('media_type', media_info.get('mediatype', 'NOT_SET'))}", "INFO")
+        utils.log(f"Cast type: {type(media_info.get('cast', 'NOT_SET'))}, length: {len(media_info.get('cast', []))}", "INFO")
+        utils.log(f"Art keys: {list(media_info.get('art', {}).keys()) if isinstance(media_info.get('art'), dict) else 'NOT_DICT'}", "INFO")
+        utils.log(f"Poster: {media_info.get('poster', 'NOT_SET')}", "INFO")
+        utils.log(f"Fanart: {media_info.get('fanart', 'NOT_SET')}", "INFO")
+        utils.log(f"Play URL: {media_info.get('play', media_info.get('file', 'NOT_SET'))}", "INFO")
+        utils.log("=== RAW MOVIE DETAILS END ===", "INFO")
 
         # Generate cache key from stable fields
         cache_key = str(media_info.get('title', '')) + str(media_info.get('year', '')) + str(media_info.get('kodi_id', ''))
         if cache_key in ListItemBuilder._item_cache:
-            # utils.log(f"Using cached ListItem for: {media_info.get('title', 'Unknown')}", "DEBUG")
+            utils.log(f"Using cached ListItem for: {media_info.get('title', 'Unknown')}", "DEBUG")
             return ListItemBuilder._item_cache[cache_key]
 
         # Create ListItem with proper string title
         title = str(media_info.get('title', ''))
         list_item = xbmcgui.ListItem(label=title)
-        # utils.log(f"Created ListItem with title: {title}", "DEBUG")
+        utils.log(f"Created ListItem with title: {title}", "DEBUG")
 
         # Prepare artwork dictionary
         art_dict = {}
@@ -143,7 +143,7 @@ class ListItemBuilder:
                     poster_url = url
                     break
             except Exception as e:
-                # utils.log(f"Error getting poster URL: {str(e)}", "ERROR")
+                utils.log(f"Error getting poster URL: {str(e)}", "ERROR")
                 continue
 
         # Handle art data from different sources
@@ -166,23 +166,22 @@ class ListItemBuilder:
             art_dict['poster'] = poster_url
             art_dict['thumb'] = poster_url
             art_dict['icon'] = poster_url
-            # utils.log(f"Setting poster paths: {poster_url}", "DEBUG")
+            utils.log(f"Setting poster paths: {poster_url}", "DEBUG")
 
         # Set fanart
         fanart = media_info.get('fanart') or media_info.get('info', {}).get('fanart')
         if fanart and str(fanart) != 'None':
             art_dict['fanart'] = fanart
-            # utils.log(f"Setting fanart path: {fanart}", "DEBUG")
+            utils.log(f"Setting fanart path: {fanart}", "DEBUG")
 
         # Use the specialized set_art function with improved normalization and fallbacks
         art_dict = _normalize_art_dict(art_dict, use_fallbacks=True)
         if art_dict:
-            # utils.log("Setting art for ListItem", "DEBUG")
+            utils.log("Setting art for ListItem", "DEBUG")
             set_art(list_item, art_dict)
-            # utils.log(f"Art types set: {', '.join(set_art_types)}", "DEBUG")
+            utils.log(f"Art types set: {', '.join(art_dict.keys())}", "DEBUG")
         else:
-            # utils.log("No valid artwork URLs found", "DEBUG")
-            pass
+            utils.log("No valid artwork URLs found", "DEBUG")
 
         # Create info dictionary for InfoTag
         info_dict = {
@@ -204,25 +203,25 @@ class ListItemBuilder:
         if media_info.get('year'):
             try:
                 info_dict['year'] = int(media_info['year'])
-                # utils.log(f"Converted year to int: {info_dict['year']}", "DEBUG")
+                utils.log(f"Converted year to int: {info_dict['year']}", "DEBUG")
             except (ValueError, TypeError):
-                # utils.log(f"Failed to convert year: {media_info.get('year')}", "WARNING")
+                utils.log(f"Failed to convert year: {media_info.get('year')}", "WARNING")
                 pass
 
         if media_info.get('rating'):
             try:
                 info_dict['rating'] = float(media_info['rating'])
-                # utils.log(f"Converted rating to float: {info_dict['rating']}", "DEBUG")
+                utils.log(f"Converted rating to float: {info_dict['rating']}", "DEBUG")
             except (ValueError, TypeError):
-                # utils.log(f"Failed to convert rating: {media_info.get('rating')}", "WARNING")
+                utils.log(f"Failed to convert rating: {media_info.get('rating')}", "WARNING")
                 pass
 
         if media_info.get('votes'):
             try:
                 info_dict['votes'] = int(media_info['votes'])
-                # utils.log(f"Converted votes to int: {info_dict['votes']}", "DEBUG")
+                utils.log(f"Converted votes to int: {info_dict['votes']}", "DEBUG")
             except (ValueError, TypeError):
-                # utils.log(f"Failed to convert votes: {media_info.get('votes')}", "WARNING")
+                utils.log(f"Failed to convert votes: {media_info.get('votes')}", "WARNING")
                 pass
 
         # Handle cast data
@@ -233,61 +232,60 @@ class ListItemBuilder:
                 if isinstance(cast, str):
                     try:
                         cast = json.loads(cast)
-                        # utils.log(f"Decoded cast JSON string, got {len(cast)} members", "DEBUG")
+                        utils.log(f"Decoded cast JSON string, got {len(cast)} members", "DEBUG")
                     except json.JSONDecodeError:
-                        # utils.log("Failed to decode cast JSON string", "ERROR")
+                        utils.log("Failed to decode cast JSON string", "ERROR")
                         cast = []
 
                 # Ensure cast is a list
                 if not isinstance(cast, list):
-                    # utils.log(f"Cast is not a list, got type: {type(cast)}", "WARNING")
+                    utils.log(f"Cast is not a list, got type: {type(cast)}", "WARNING")
                     cast = []
 
                 info_dict['cast'] = cast
-                # utils.log(f"Processed cast with {len(cast)} members", "DEBUG")
+                utils.log(f"Processed cast with {len(cast)} members", "DEBUG")
 
             except Exception as e:
-                # utils.log(f"Error processing cast: {str(e)}", "ERROR")
+                utils.log(f"Error processing cast: {str(e)}", "ERROR")
                 info_dict['cast'] = []
 
         # LOG PROCESSED INFO_DICT BEFORE SETTING
-        # utils.log("=== INFO_DICT TO BE SET START ===", "INFO")
-        # for key, value in info_dict.items():
-        #     if key == 'cast' and isinstance(value, list):
-        #         utils.log(f"  {key}: [{len(value)} cast members]", "INFO")
-        #     else:
-        #         utils.log(f"  {key}: {value}", "INFO")
-        # utils.log("=== INFO_DICT TO BE SET END ===", "INFO")
+        utils.log("=== INFO_DICT TO BE SET START ===", "INFO")
+        for key, value in info_dict.items():
+            if key == 'cast' and isinstance(value, list):
+                utils.log(f"  {key}: [{len(value)} cast members]", "INFO")
+            else:
+                utils.log(f"  {key}: {value}", "INFO")
+        utils.log("=== INFO_DICT TO BE SET END ===", "INFO")
 
         # Use the specialized set_info_tag function that handles Kodi version compatibility
         set_info_tag(list_item, info_dict, 'video')
-        # utils.log(f"Set info tag completed for: {title}", "DEBUG")
+        utils.log(f"Set info tag completed for: {title}", "DEBUG")
 
         # Set resume point if available
         if 'resumetime' in media_info and 'totaltime' in media_info:
             list_item.setProperty('ResumeTime', str(media_info['resumetime']))
             list_item.setProperty('TotalTime', str(media_info['totaltime']))
-            # utils.log(f"Set resume properties - ResumeTime: {media_info['resumetime']}, TotalTime: {media_info['totaltime']}", "DEBUG")
+            utils.log(f"Set resume properties - ResumeTime: {media_info['resumetime']}, TotalTime: {media_info['totaltime']}", "DEBUG")
 
         # Set content properties
         list_item.setProperty('IsPlayable', 'true')
-        # utils.log("Set IsPlayable property to true", "DEBUG")
+        utils.log("Set IsPlayable property to true", "DEBUG")
 
         # Try to get play URL from different possible locations
         play_url = media_info.get('info', {}).get('play') or media_info.get('play') or media_info.get('file')
         if play_url:
             list_item.setPath(play_url)
-            # utils.log(f"Setting play URL: {play_url}", "DEBUG")
+            utils.log(f"Setting play URL: {play_url}", "DEBUG")
         else:
-            # utils.log("No valid play URL found", "WARNING")
-            pass
+            utils.log("No valid play URL found", "WARNING")
 
         # LOG FINAL LISTITEM STATUS
-        # utils.log(f"=== FINAL LISTITEM STATUS FOR {title} ===", "INFO")
-        # utils.log(f"ListItem Label: {list_item.getLabel()}", "INFO")
-        # utils.log(f"ListItem Path: {list_item.getPath()}", "INFO")
-        # utils.log(f"IsPlayable Property: {list_item.getProperty('IsPlayable')}", "INFO")
-        # utils.log("=== LISTITEM BUILD COMPLETED ===", "INFO")
+        utils.log(f"=== FINAL LISTITEM STATUS FOR {title} ===", "INFO")
+        utils.log(f"ListItem Label: {list_item.getLabel()}", "INFO")
+        utils.log(f"ListItem Path: {list_item.getPath()}", "INFO")
+        utils.log(f"IsPlayable Property: {list_item.getProperty('IsPlayable')}", "INFO")
+        utils.log("=== LISTITEM BUILD COMPLETED ===", "INFO")
 
         ListItemBuilder._item_cache[cache_key] = list_item
         return list_item
