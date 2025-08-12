@@ -716,61 +716,40 @@ class DatabaseManager(Singleton):
     def ensure_folder_exists(self, folder_name, parent_folder_id=None):
         """Ensure a folder exists, create if it doesn't, return folder_id"""
         try:
+            from resources.lib.query_manager import QueryManager
+            query_manager = QueryManager(self.db_path)
+            
             # Check if folder exists
-            existing = self.fetch_data('folders', f"name = ? AND parent_folder_id {'IS NULL' if parent_folder_id is None else '= ?'}", 
-                                     [folder_name] if parent_folder_id is None else [folder_name, parent_folder_id])
+            existing_folder = query_manager.get_folder_by_name(folder_name)
+            if existing_folder and existing_folder.get('parent_id') == parent_folder_id:
+                return existing_folder['id']
 
-            if existing:
-                return existing[0]['id']
-
-            # Create folder
+            # Create folder if it doesn't exist
             folder_data = {
                 'name': folder_name,
-                'parent_folder_id': parent_folder_id,
-                'created_at': 'CURRENT_TIMESTAMP'
+                'parent_id': parent_folder_id
             }
-
-            self.insert_data('folders', folder_data)
-            return self.cursor.lastrowid
+            return query_manager.insert_folder_direct(folder_name, parent_folder_id)
 
         except Exception as e:
-            self.log(f"Error ensuring folder exists: {str(e)}", "ERROR")
+            utils.log(f"Error ensuring folder exists: {str(e)}", "ERROR")
             return None
 
-    def create_list(self, list_name, folder_id=None):
-        """Create a new list and return its ID"""
+    def fetch_data(self, table, where_clause=None, params=None):
+        """Fetch data from a table with optional where clause"""
         try:
-            list_data = {
-                'name': list_name,
-                'folder_id': folder_id,
-                'created_at': 'CURRENT_TIMESTAMP'
-            }
-
-            self.insert_data('lists', list_data)
-            return self.cursor.lastrowid
-
+            if where_clause:
+                query = f"SELECT * FROM {table} WHERE {where_clause}"
+                self._execute_with_retry(self.cursor.execute, query, params or [])
+            else:
+                query = f"SELECT * FROM {table}"
+                self._execute_with_retry(self.cursor.execute, query)
+            
+            # Get column names
+            columns = [description[0] for description in self.cursor.description]
+            # Convert rows to dictionaries
+            rows = self.cursor.fetchall()
+            return [dict(zip(columns, row)) for row in rows]
         except Exception as e:
-            self.log(f"Error creating list: {str(e)}", "ERROR")
-            return None
-
-    def update_data(self, table, data_dict, where_clause):
-        """Update data in a table with a where clause"""
-        try:
-            set_clauses = []
-            values = []
-
-            for key, value in data_dict.items():
-                set_clauses.append(f"{key} = ?")
-                values.append(value)
-
-            set_clause = ", ".join(set_clauses)
-            query = f"UPDATE {table} SET {set_clause} WHERE {where_clause}"
-
-            self.cursor.execute(query, values)
-            self.connection.commit()
-
-            return self.cursor.rowcount > 0
-
-        except Exception as e:
-            self.log(f"Error updating data in {table}: {str(e)}", "ERROR")
-            return False
+            utils.log(f"Error fetching data from {table}: {str(e)}", "ERROR")
+            return []
