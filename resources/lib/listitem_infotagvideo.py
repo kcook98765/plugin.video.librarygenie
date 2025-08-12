@@ -69,7 +69,7 @@ def set_info_tag(listitem, infolabels, tag_type='video'):
         # utils.log(f"Set mediatype to: {mediatype}", "DEBUG")
 
         # Set basic string properties
-        if infolabels.get('title'): 
+        if infolabels.get('title'):
             info_tag.setTitle(str(infolabels['title']))
         if infolabels.get('plot'):
             info_tag.setPlot(str(infolabels['plot']))
@@ -196,8 +196,33 @@ def set_info_tag(listitem, infolabels, tag_type='video'):
         listitem.setInfo(tag_type, infolabels)
 
 
-def set_art(list_item: ListItem, raw_art: Dict[str, str]) -> None:
-    # utils.log("Setting art for ListItem", "DEBUG")
-    art = {art_type: raw_url for art_type, raw_url in raw_art.items()}
-    list_item.setArt(art)
-    # utils.log(f"Art types set: {', '.join(art.keys())}", "DEBUG")
+def set_art(listitem: ListItem, art: Dict[str, str]) -> None:
+    """
+    Set artwork for a ListItem with detailed logging.
+    """
+    if not art:
+        utils.log("No artwork provided to set_art", "WARNING")
+        return
+
+    utils.log(f"=== SETTING ARTWORK ON LISTITEM ===", "INFO")
+    utils.log(f"Art dict contains {len(art)} items:", "INFO")
+    for art_type, art_url in art.items():
+        utils.log(f"  {art_type}: {art_url}", "INFO")
+
+    try:
+        utils.log("Attempting to set all artwork at once...", "INFO")
+        listitem.setArt(art)
+        utils.log("Successfully set all artwork", "INFO")
+    except Exception as e:
+        utils.log(f"Error setting artwork batch: {str(e)}", "ERROR")
+        # Fallback: set individual art types
+        utils.log("Attempting to set artwork individually...", "INFO")
+        for art_type, art_url in art.items():
+            try:
+                utils.log(f"Setting individual art: {art_type} = {art_url}", "INFO")
+                listitem.setArt({art_type: art_url})
+                utils.log(f"Successfully set {art_type}", "INFO")
+            except Exception as inner_e:
+                utils.log(f"Error setting {art_type} artwork: {str(inner_e)}", "ERROR")
+
+    utils.log("=== ARTWORK SETTING COMPLETE ===", "INFO")

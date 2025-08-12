@@ -51,17 +51,22 @@ def _wrap_for_kodi_image(u: str) -> str:
 
 def _get_addon_artwork_fallbacks() -> dict:
     """Return addon artwork that can be used as fallbacks"""
-    
+    from resources.lib import utils
     from resources.lib.addon_ref import get_addon
     addon = get_addon()
     addon_path = addon.getAddonInfo('path')
 
+    utils.log("=== GETTING ADDON ARTWORK FALLBACKS ===", "INFO")
+    utils.log(f"Addon path: {addon_path}", "INFO")
+
     # Use Kodi's special:// protocol which is the native way
     def make_addon_media_path(filename):
         # Use special://home/addons/ path which is the cleanest Kodi native approach
-        return f"special://home/addons/plugin.video.librarygenie/resources/media/{filename}"
+        path = f"special://home/addons/plugin.video.librarygenie/resources/media/{filename}"
+        utils.log(f"Created media path for '{filename}': {path}", "INFO")
+        return path
 
-    return {
+    fallback_dict = {
         'icon': make_addon_media_path('icon.jpg'),
         'thumb': make_addon_media_path('thumb.jpg'),
         'poster': make_addon_media_path('icon.jpg'),
@@ -71,35 +76,68 @@ def _get_addon_artwork_fallbacks() -> dict:
         'clearart': make_addon_media_path('clearart.jpg'),
         'clearlogo': make_addon_media_path('clearlogo.png')
     }
+    
+    utils.log("=== ADDON ARTWORK FALLBACKS CREATED ===", "INFO")
+    for art_type, path in fallback_dict.items():
+        utils.log(f"  {art_type}: {path}", "INFO")
+    utils.log("=== END ADDON ARTWORK FALLBACKS ===", "INFO")
+    
+    return fallback_dict
 
 def _normalize_art_dict(art: dict, use_fallbacks: bool = False) -> dict:
+    from resources.lib import utils
     out = {}
     if not isinstance(art, dict):
         art = {}
 
+    utils.log(f"=== NORMALIZING ART DICT (use_fallbacks={use_fallbacks}) ===", "INFO")
+    utils.log(f"Input art dict: {art}", "INFO")
+
     # Add addon artwork as fallbacks if requested
     if use_fallbacks:
+        utils.log("Adding fallback artwork...", "INFO")
         fallbacks = _get_addon_artwork_fallbacks()
         for k, v in fallbacks.items():
             if k not in art or not art[k]:
+                utils.log(f"Using fallback for '{k}': {v}", "INFO")
                 art[k] = v
+            else:
+                utils.log(f"Keeping existing '{k}': {art[k]}", "INFO")
 
+    utils.log("Processing art URLs...", "INFO")
     for k, v in art.items():
         if not v:
+            utils.log(f"Skipping empty value for '{k}'", "INFO")
             continue
         vv = v.strip()
+        utils.log(f"Processing '{k}': '{vv}'", "INFO")
+        
         # Accept image:// as-is, wrap others when valid (http/file/smb/etc.)
         if vv.startswith("image://"):
-            out[k] = _wrap_for_kodi_image(vv)  # add trailing slash if missing
+            wrapped = _wrap_for_kodi_image(vv)  # add trailing slash if missing
+            out[k] = wrapped
+            utils.log(f"  -> Already image:// format, wrapped to: '{wrapped}'", "INFO")
             continue
+        
         if _is_valid_art_url(vv):
-            out[k] = _wrap_for_kodi_image(vv)
+            wrapped = _wrap_for_kodi_image(vv)
+            out[k] = wrapped
+            utils.log(f"  -> Valid URL, wrapped to: '{wrapped}'", "INFO")
         else:
             # Last resort: if it *looks* like a URL but urlparse fails, try wrapping anyway
             if "://" in vv or vv.startswith("special://"):
-                out[k] = _wrap_for_kodi_image(vv)
+                wrapped = _wrap_for_kodi_image(vv)
+                out[k] = wrapped
+                utils.log(f"  -> Looks like URL, wrapped anyway to: '{wrapped}'", "INFO")
             else:
+                utils.log(f"  -> Skipping malformed artwork URL [{k}]: {vv}", "WARNING")
                 xbmc.log(f"LibraryGenie [WARNING]: Skipping malformed artwork URL [{k}]: {vv}", xbmc.LOGINFO)
+    
+    utils.log(f"=== FINAL NORMALIZED ART DICT ===", "INFO")
+    for art_type, path in out.items():
+        utils.log(f"  {art_type}: {path}", "INFO")
+    utils.log("=== END ART NORMALIZATION ===", "INFO")
+    
     return out
 
 
@@ -311,6 +349,7 @@ class ListItemBuilder:
     @staticmethod
     def build_folder_item(name, is_folder=True):
         """Build a folder ListItem with folder-specific artwork"""
+        utils.log(f"=== BUILDING FOLDER ITEM: '{name}' ===", "INFO")
         list_item = xbmcgui.ListItem(label=name)
         list_item.setIsFolder(is_folder)
 
@@ -321,15 +360,23 @@ class ListItemBuilder:
             'poster': 'special://home/addons/plugin.video.librarygenie/resources/media/list_folder_icon.png',
             'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg'
         }
+        utils.log(f"Raw folder art dict: {folder_art}", "INFO")
+        
         folder_art = _normalize_art_dict(folder_art)
         if folder_art:
+            utils.log(f"Setting folder art with {len(folder_art)} items", "INFO")
             set_art(list_item, folder_art)
+            utils.log("Folder artwork set successfully", "INFO")
+        else:
+            utils.log("No valid folder artwork to set", "WARNING")
 
+        utils.log(f"=== FOLDER ITEM '{name}' BUILD COMPLETE ===", "INFO")
         return list_item
 
     @staticmethod
     def build_list_item(name, is_folder=True):
         """Build a list ListItem with list-specific artwork"""
+        utils.log(f"=== BUILDING LIST ITEM: '{name}' ===", "INFO")
         list_item = xbmcgui.ListItem(label=name)
         list_item.setIsFolder(is_folder)
 
@@ -340,10 +387,17 @@ class ListItemBuilder:
             'poster': 'special://home/addons/plugin.video.librarygenie/resources/media/list_playlist_icon.png',
             'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg'
         }
+        utils.log(f"Raw list art dict: {list_art}", "INFO")
+        
         list_art = _normalize_art_dict(list_art)
         if list_art:
+            utils.log(f"Setting list art with {len(list_art)} items", "INFO")
             set_art(list_item, list_art)
+            utils.log("List artwork set successfully", "INFO")
+        else:
+            utils.log("No valid list artwork to set", "WARNING")
 
+        utils.log(f"=== LIST ITEM '{name}' BUILD COMPLETE ===", "INFO")
         return list_item
 
     @staticmethod
