@@ -298,11 +298,11 @@ class ListItemBuilder:
         list_item = xbmcgui.ListItem(label=name)
         list_item.setIsFolder(is_folder)
 
-        # Set folder-specific artwork (using icon.jpg for LibraryGenie folders - visually distinct from lists)
+        # Set folder-specific artwork (using Kodi default folder icon for LibraryGenie folders)
         folder_art = {
-            'icon': 'special://home/addons/plugin.video.librarygenie/resources/media/icon.jpg',
-            'thumb': 'special://home/addons/plugin.video.librarygenie/resources/media/icon.jpg',
-            'poster': 'special://home/addons/plugin.video.librarygenie/resources/media/icon.jpg',
+            'icon': 'DefaultFolder.png',
+            'thumb': 'DefaultFolder.png',
+            'poster': 'DefaultFolder.png',
             'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg'
         }
         folder_art = _normalize_art_dict(folder_art)
@@ -317,11 +317,11 @@ class ListItemBuilder:
         list_item = xbmcgui.ListItem(label=name)
         list_item.setIsFolder(is_folder)
 
-        # Set list-specific artwork (using thumb.jpg for LibraryGenie lists - visually distinct from folders)
+        # Set list-specific artwork (using Kodi default playlist icon for LibraryGenie lists)
         list_art = {
-            'icon': 'special://home/addons/plugin.video.librarygenie/resources/media/thumb.jpg',
-            'thumb': 'special://home/addons/plugin.video.librarygenie/resources/media/thumb.jpg',
-            'poster': 'special://home/addons/plugin.video.librarygenie/resources/media/thumb.jpg',
+            'icon': 'DefaultPlaylist.png',
+            'thumb': 'DefaultPlaylist.png', 
+            'poster': 'DefaultPlaylist.png',
             'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg'
         }
         list_art = _normalize_art_dict(list_art)
