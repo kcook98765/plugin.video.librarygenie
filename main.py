@@ -469,16 +469,7 @@ def router(params):
     action = None
 
     try:
-        # Handle command line arguments for deferred options
-        if len(sys.argv) > 2 and sys.argv[1] == 'deferred_option':
-            option_index = int(sys.argv[2])
-            execute_deferred_option(option_index)
-            return
-        elif params.startswith('deferred_option:'):
-            option_index = int(params.split(':')[1])
-            execute_deferred_option(option_index)
-            return
-        elif params.strip().isdigit():
+        if params.strip().isdigit():
             # Handle numeric params for backwards compatibility
             action = None  # Will fall through to build_root
         else:
@@ -726,23 +717,6 @@ def show_options(params):
     utils.log(f"User selected option: {selected_text}", "DEBUG")
     utils.log(f"=== EXECUTING SELECTED OPTION: {selected_text} ===", "DEBUG")
 
-    # Check remaining time budget
-    execution_start_time = time.time()
-    remaining_time = 4.0 - (execution_start_time - dialog_start_time)
-
-    if remaining_time < 1.0:  # Less than 1 second left
-        utils.log(f"=== INSUFFICIENT TIME REMAINING ({remaining_time:.1f}s) - DEFERRING EXECUTION ===", "WARNING")
-        # Defer execution using RunScript to avoid timeout
-        # Use the correct addon format for RunScript
-        xbmc.executebuiltin(f"RunScript(plugin.video.librarygenie,deferred_option,{selected_option})")
-        return
-
-    # Minimal dialog cleanup before option execution
-    utils.log("=== QUICK DIALOG CLEANUP BEFORE OPTION EXECUTION ===", "DEBUG")
-    xbmc.executebuiltin("Dialog.Close(all,true)")
-    xbmc.sleep(50)
-    utils.log("=== COMPLETED QUICK CLEANUP ===", "DEBUG")
-
     try:
         if "Search Movies" in selected_text:
             utils.log("=== EXECUTING: SEARCH MOVIES ===", "DEBUG")
@@ -819,54 +793,7 @@ def show_options(params):
         # Note: Navigation flag is now handled in individual flows (like run_search_flow)
         utils.log("=== OPTIONS DIALOG REQUEST COMPLETE ===", "DEBUG")
 
-def execute_deferred_option(option_index):
-    """Execute an option that was deferred due to timeout concerns"""
-    utils.log(f"=== EXECUTING DEFERRED OPTION {option_index} ===", "DEBUG")
 
-    options = [
-        "- Search Movies",
-        "- Browse Lists",
-        "- Create New List",
-        "- Create New Folder",
-        "- Upload Library to Server (Full)",
-        "- Sync Library with Server (Delta)",
-        "- View Upload Status",
-        "- Clear Server Library",
-        "- Clear All Local Folders/Lists",
-        "- Settings",
-        "- Authenticate with Server"
-    ]
-
-    if option_index < 0 or option_index >= len(options):
-        utils.log(f"Invalid deferred option index: {option_index}", "ERROR")
-        return
-
-    selected_text = options[option_index]
-    utils.log(f"Executing deferred option: {selected_text}", "DEBUG")
-
-    try:
-        # Execute the option with the same logic as show_options
-        if "Search Movies" in selected_text:
-            utils.log("=== DEFERRED: EXECUTING SEARCH MOVIES ===", "DEBUG")
-            run_search()
-        elif "Browse Lists" in selected_text:
-            utils.log("=== DEFERRED: EXECUTING BROWSE LISTS ===", "DEBUG")
-            run_browse()
-        elif "Create New List" in selected_text:
-            utils.log("=== DEFERRED: EXECUTING CREATE NEW LIST ===", "DEBUG")
-            create_list({})
-        elif "Create New Folder" in selected_text:
-            utils.log("=== DEFERRED: EXECUTING CREATE NEW FOLDER ===", "DEBUG")
-            create_new_folder_at_root()
-        elif "Settings" in selected_text:
-            utils.log("=== DEFERRED: EXECUTING OPEN SETTINGS ===", "DEBUG")
-            xbmc.executebuiltin("Addon.OpenSettings(plugin.video.librarygenie)")
-        # Add other options as needed...
-        else:
-            utils.log(f"=== DEFERRED OPTION NOT IMPLEMENTED: {selected_text} ===", "WARNING")
-
-    except Exception as e:
-        utils.log(f"Error in deferred option execution: {str(e)}", "ERROR")
 
 def _close_all_dialogs():
     """Close all open dialogs with minimal cleanup"""
