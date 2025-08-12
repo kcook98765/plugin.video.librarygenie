@@ -46,15 +46,19 @@ def _wrap_for_kodi_image(u: str) -> str:
 
 def _get_addon_artwork_fallbacks() -> dict:
     """Return addon artwork that can be used as fallbacks"""
+    from resources.lib.addon_ref import get_addon
+    addon = get_addon()
+    addon_path = addon.getAddonInfo('path')
+    
     return {
-        'icon': 'special://home/addons/plugin.video.librarygenie/resources/media/icon.jpg',
-        'thumb': 'special://home/addons/plugin.video.librarygenie/resources/media/thumb.jpg',
-        'poster': 'special://home/addons/plugin.video.librarygenie/resources/media/icon.jpg',
-        'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg',
-        'banner': 'special://home/addons/plugin.video.librarygenie/resources/media/banner.jpg',
-        'landscape': 'special://home/addons/plugin.video.librarygenie/resources/media/landscape.jpg',
-        'clearart': 'special://home/addons/plugin.video.librarygenie/resources/media/clearart.jpg',
-        'clearlogo': 'special://home/addons/plugin.video.librarygenie/resources/media/clearlogo.png'
+        'icon': addon_path + '/resources/media/icon.jpg',
+        'thumb': addon_path + '/resources/media/thumb.jpg',
+        'poster': addon_path + '/resources/media/icon.jpg',
+        'fanart': addon_path + '/resources/media/fanart.jpg',
+        'banner': addon_path + '/resources/media/banner.jpg',
+        'landscape': addon_path + '/resources/media/landscape.jpg',
+        'clearart': addon_path + '/resources/media/clearart.jpg',
+        'clearlogo': addon_path + '/resources/media/clearlogo.png'
     }
 
 def _normalize_art_dict(art: dict, use_fallbacks: bool = False) -> dict:
@@ -300,11 +304,15 @@ class ListItemBuilder:
         list_item.setIsFolder(is_folder)
 
         # Set folder-specific artwork (using custom LibraryGenie folder icon)
+        from resources.lib.addon_ref import get_addon
+        addon = get_addon()
+        addon_path = addon.getAddonInfo('path')
+        
         folder_art = {
-            'icon': 'special://home/addons/plugin.video.librarygenie/resources/media/list_folder_icon.png',
-            'thumb': 'special://home/addons/plugin.video.librarygenie/resources/media/list_folder_icon.png',
-            'poster': 'special://home/addons/plugin.video.librarygenie/resources/media/list_folder_icon.png',
-            'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg'
+            'icon': addon_path + '/resources/media/list_folder_icon.png',
+            'thumb': addon_path + '/resources/media/list_folder_icon.png',
+            'poster': addon_path + '/resources/media/list_folder_icon.png',
+            'fanart': addon_path + '/resources/media/fanart.jpg'
         }
         folder_art = _normalize_art_dict(folder_art)
         if folder_art:
@@ -319,11 +327,15 @@ class ListItemBuilder:
         list_item.setIsFolder(is_folder)
 
         # Set list-specific artwork (using custom LibraryGenie playlist icon)
+        from resources.lib.addon_ref import get_addon
+        addon = get_addon()
+        addon_path = addon.getAddonInfo('path')
+        
         list_art = {
-            'icon': 'special://home/addons/plugin.video.librarygenie/resources/media/list_playlist_icon.png',
-            'thumb': 'special://home/addons/plugin.video.librarygenie/resources/media/list_playlist_icon.png', 
-            'poster': 'special://home/addons/plugin.video.librarygenie/resources/media/list_playlist_icon.png',
-            'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg'
+            'icon': addon_path + '/resources/media/list_playlist_icon.png',
+            'thumb': addon_path + '/resources/media/list_playlist_icon.png', 
+            'poster': addon_path + '/resources/media/list_playlist_icon.png',
+            'fanart': addon_path + '/resources/media/fanart.jpg'
         }
         list_art = _normalize_art_dict(list_art)
         if list_art:
