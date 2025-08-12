@@ -122,6 +122,7 @@ _last_navigation_time = 0
 
 def run_search_flow():
     """Launch search modal and navigate to results after completion"""
+    global _navigation_in_progress
     utils.log("=== RUN_SEARCH_FLOW START ===", "DEBUG")
 
     target_url = None
@@ -260,7 +261,6 @@ def browse_list(list_id):
         from resources.lib.listitem_builder import ListItemBuilder
 
         # Clear navigation flags - simplified
-        global _navigation_in_progress
         _navigation_in_progress = False
         xbmc.executebuiltin("ClearProperty(LibraryGenie.Navigating,Home)")
         utils.log("Cleared navigation flags at browse_list entry", "DEBUG")
@@ -449,6 +449,7 @@ def build_root():
 
 def router(params):
     """Route requests to appropriate handlers"""
+    global _navigation_in_progress
     utils.log(f"Router called with params: {params}", "DEBUG")
 
     # Clear any stuck navigation flags that are more than 30 seconds old
@@ -461,6 +462,7 @@ def router(params):
             utils.log(f"=== ROUTER: CLEARING STUCK NAVIGATION FLAGS (stuck for {time_since_nav}s) ===", "DEBUG")
             xbmc.executebuiltin("SetProperty(LibraryGenie.Navigating,false,Home)")
             xbmc.executebuiltin("ClearProperty(LibraryGenie.LastNavigation,Home)")
+            _navigation_in_progress = False
     except Exception:
         pass  # Ignore any errors in cleanup
 
@@ -607,6 +609,7 @@ def router(params):
 
 def show_options(params):
     """Show the Options & Tools menu"""
+    global _navigation_in_progress
     utils.log("=== OPTIONS DIALOG REQUEST START ===", "DEBUG")
     utils.log("Showing Options & Tools menu", "DEBUG")
 
