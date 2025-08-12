@@ -22,7 +22,10 @@ def _is_valid_art_url(u: str) -> bool:
     # Accept Kodi image wrapper directly
     if u.startswith("image://"):
         return True
-    # Accept Kodi default icons (like DefaultFolder.png, DefaultMovies.png, etc.)
+    # Accept Kodi default icons via special://skin/ paths
+    if u.startswith("special://skin/") and "Default" in u and u.endswith(".png"):
+        return True
+    # Accept Kodi default icons (bare filenames - legacy support)
     if u.startswith("Default") and u.endswith(".png"):
         return True
     p = urlparse(u)
@@ -301,9 +304,9 @@ class ListItemBuilder:
 
         # Set folder-specific artwork (using Kodi default folder icon for LibraryGenie folders)
         folder_art = {
-            'icon': 'DefaultFolder.png',
-            'thumb': 'DefaultFolder.png',
-            'poster': 'DefaultFolder.png',
+            'icon': 'special://skin/media/DefaultFolder.png',
+            'thumb': 'special://skin/media/DefaultFolder.png',
+            'poster': 'special://skin/media/DefaultFolder.png',
             'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg'
         }
         folder_art = _normalize_art_dict(folder_art)
@@ -320,9 +323,9 @@ class ListItemBuilder:
 
         # Set list-specific artwork (using Kodi default video playlists icon for LibraryGenie lists)
         list_art = {
-            'icon': 'DefaultVideoPlaylists.png',
-            'thumb': 'DefaultVideoPlaylists.png', 
-            'poster': 'DefaultVideoPlaylists.png',
+            'icon': 'special://skin/media/DefaultVideoPlaylists.png',
+            'thumb': 'special://skin/media/DefaultVideoPlaylists.png', 
+            'poster': 'special://skin/media/DefaultVideoPlaylists.png',
             'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg'
         }
         list_art = _normalize_art_dict(list_art)
