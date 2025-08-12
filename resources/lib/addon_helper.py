@@ -41,7 +41,7 @@ def clear_all_local_data():
         db_manager.cursor.execute('''
             DELETE FROM media_items 
             WHERE id NOT IN (
-                SELECT DISTINCT media_id FROM list_items WHERE media_id IS NOT NULL
+                SELECT DISTINCT media_item_id FROM list_items WHERE media_item_id IS NOT NULL
             )
         ''')
         db_manager.connection.commit()
