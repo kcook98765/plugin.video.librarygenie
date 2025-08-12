@@ -9,10 +9,10 @@ from . import utils
 _initialized = False
 
 def clear_all_local_data():
-    """Clears all lists and folders except 'Search History' folder (but clears its lists)."""
-    utils.log("Attempting to clear all local data", "INFO")
+    """Clears all lists and folders except 'Search History' folder (but clears its lists). Preserves IMDB exports data."""
+    utils.log("Attempting to clear all local folders/lists", "INFO")
     dialog = xbmcgui.Dialog()
-    if dialog.yesno("Clear All Data", "Are you sure you want to delete ALL your lists and folders? This action cannot be undone. The 'Search History' folder will remain but all its lists will be cleared."):
+    if dialog.yesno("Clear All Folders/Lists", "Are you sure you want to delete ALL your lists and folders? This action cannot be undone. The 'Search History' folder will remain but all its lists will be cleared. IMDB exports data will be preserved."):
         try:
             from resources.lib.config_manager import get_config
             config = get_config()
@@ -51,15 +51,14 @@ def clear_all_local_data():
                     utils.log(f"Deleted root-level list: {list_item['name']} (ID: {list_item['id']})", "DEBUG")
                 except Exception as e:
                     utils.log(f"Error deleting root-level list {list_item['name']}: {str(e)}", "WARNING")
-            
-            dialog.notification("LibraryGenie", "All local data cleared successfully.", xbmcgui.NOTIFICATION_INFO, 3000)
-            utils.log("Successfully cleared all local data.", "INFO")
 
+            dialog.notification("LibraryGenie", "All local folders/lists cleared successfully. IMDB exports preserved.", xbmcgui.NOTIFICATION_INFO, 3000)
+            utils.log("Successfully cleared all local folders/lists. IMDB exports preserved.", "INFO")
         except Exception as e:
-            utils.log(f"Error clearing local data: {str(e)}", "ERROR")
-            dialog.notification("LibraryGenie", "Error clearing local data.", xbmcgui.NOTIFICATION_ERROR, 5000)
+            utils.log(f"Error clearing local folders/lists: {str(e)}", "ERROR")
+            dialog.notification("LibraryGenie", "Error clearing local folders/lists.", xbmcgui.NOTIFICATION_ERROR, 5000)
     else:
-        utils.log("User cancelled clearing local data.", "INFO")
+        utils.log("User cancelled clearing local folders/lists.", "INFO")
 
 
 def run_addon():
@@ -79,7 +78,7 @@ def run_addon():
         # Handle direct script actions from settings
         script_actions = [
             'setup_remote_api', 'manual_setup_remote_api', 'test_remote_api',
-            'upload_library_full', 'upload_library_delta', 'upload_status', 
+            'upload_library_full', 'upload_library_delta', 'upload_status',
             'clear_server_library', 'show_main_window', 'clear_all_local_data'
         ]
 

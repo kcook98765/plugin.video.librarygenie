@@ -907,9 +907,9 @@ def create_new_folder_at_root():
         utils.log("=== CREATE_NEW_FOLDER: ERROR NOTIFICATION CLOSED ===", "DEBUG")
 
 def clear_all_local_data():
-    """Clear all local database data"""
+    """Clear all local folders/lists data but preserve IMDB exports"""
     utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW CONFIRMATION MODAL ===", "DEBUG")
-    if not xbmcgui.Dialog().yesno('Clear All Local Data', 'This will delete all lists, folders, and search history.\n\nAre you sure?'):
+    if not xbmcgui.Dialog().yesno('Clear All Folders/Lists', 'This will delete all lists, folders, and search history but preserve IMDB exports data.\n\nAre you sure?'):
         utils.log("=== CLEAR_ALL_LOCAL_DATA: CONFIRMATION MODAL CLOSED - CANCELLED ===", "DEBUG")
         return
     utils.log("=== CLEAR_ALL_LOCAL_DATA: CONFIRMATION MODAL CLOSED - CONFIRMED ===", "DEBUG")
@@ -919,24 +919,24 @@ def clear_all_local_data():
         config = Config()
         db_manager = DatabaseManager(config.db_path)
 
-        # Clear all tables except keep the schema
+        # Clear only lists/folders related tables, preserve imdb_exports
         db_manager.delete_data('list_items', '1=1')
         db_manager.delete_data('lists', '1=1')
         db_manager.delete_data('folders', '1=1')
         db_manager.delete_data('media_items', '1=1')
-        db_manager.delete_data('imdb_exports', '1=1')
+        # Note: NOT clearing imdb_exports table
 
         # Recreate Search History folder
         search_folder_id = db_manager.ensure_folder_exists("Search History", None)
 
         utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW SUCCESS NOTIFICATION ===", "DEBUG")
-        xbmcgui.Dialog().notification('LibraryGenie', 'All local data cleared')
+        xbmcgui.Dialog().notification('LibraryGenie', 'All folders/lists cleared, IMDB exports preserved')
         utils.log("=== CLEAR_ALL_LOCAL_DATA: SUCCESS NOTIFICATION CLOSED ===", "DEBUG")
         xbmc.executebuiltin('Container.Refresh')
     except Exception as e:
-        utils.log(f"Error clearing local data: {str(e)}", "ERROR")
+        utils.log(f"Error clearing local folders/lists: {str(e)}", "ERROR")
         utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW ERROR NOTIFICATION ===", "DEBUG")
-        xbmcgui.Dialog().notification('LibraryGenie', 'Failed to clear data')
+        xbmcgui.Dialog().notification('LibraryGenie', 'Failed to clear folders/lists')
         utils.log("=== CLEAR_ALL_LOCAL_DATA: ERROR NOTIFICATION CLOSED ===", "DEBUG")
 
 def main():
