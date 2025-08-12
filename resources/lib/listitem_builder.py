@@ -301,9 +301,9 @@ class ListItemBuilder:
 
         # Set folder-specific artwork (using custom LibraryGenie folder icon)
         folder_art = {
-            'icon': 'DefaultFolder.png',  # Fallback to reliable default while testing custom icons
-            'thumb': 'DefaultFolder.png',
-            'poster': 'DefaultFolder.png',
+            'icon': 'special://home/addons/plugin.video.librarygenie/resources/media/list_folder_icon.png',
+            'thumb': 'special://home/addons/plugin.video.librarygenie/resources/media/list_folder_icon.png',
+            'poster': 'special://home/addons/plugin.video.librarygenie/resources/media/list_folder_icon.png',
             'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg'
         }
         folder_art = _normalize_art_dict(folder_art)
@@ -320,9 +320,9 @@ class ListItemBuilder:
 
         # Set list-specific artwork (using custom LibraryGenie playlist icon)
         list_art = {
-            'icon': 'DefaultVideoPlaylists.png',  # Fallback to reliable default while testing custom icons
-            'thumb': 'DefaultVideoPlaylists.png', 
-            'poster': 'DefaultVideoPlaylists.png',
+            'icon': 'special://home/addons/plugin.video.librarygenie/resources/media/list_playlist_icon.png',
+            'thumb': 'special://home/addons/plugin.video.librarygenie/resources/media/list_playlist_icon.png', 
+            'poster': 'special://home/addons/plugin.video.librarygenie/resources/media/list_playlist_icon.png',
             'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg'
         }
         list_art = _normalize_art_dict(list_art)
