@@ -129,12 +129,19 @@ def rename_list(params):
     list_id = params.get('list_id', [None])[0]
     if not list_id:
         return
-    new_name = xbmcgui.Dialog().input('Rename list to', type=xbmcgui.INPUT_ALPHANUM)
-    if not new_name:
-        return
     try:
         config = Config()
         db_manager = DatabaseManager(config.db_path)
+        
+        # Get current list name to pre-fill the dialog
+        current_lists = db_manager.fetch_data('lists', f"id = {list_id}")
+        current_name = ""
+        if current_lists and len(current_lists) > 0:
+            current_name = current_lists[0].get('name', '')
+        
+        new_name = xbmcgui.Dialog().input('Rename list to', defaultt=current_name, type=xbmcgui.INPUT_ALPHANUM)
+        if not new_name:
+            return
 
         db_manager.update_data('lists', {'name': new_name}, f"id = {list_id}")
         xbmcgui.Dialog().notification('LibraryGenie', 'List renamed')
