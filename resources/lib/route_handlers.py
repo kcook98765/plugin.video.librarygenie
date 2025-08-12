@@ -143,6 +143,49 @@ def rename_list(params):
         utils.log(f"Error renaming list: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Rename failed')
 
+def move_list(params):
+    list_id = params.get('list_id', [None])[0]
+    if not list_id:
+        return
+    try:
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+
+        # Get available folders for moving (including all folders, not just root ones)
+        all_folders = db_manager.fetch_all_folders()
+        folder_options = ["<Root>"]
+        folder_ids = [None]
+
+        # Build hierarchical folder list for selection
+        def add_folder_to_options(folder, indent=0):
+            indent_str = "  " * indent
+            folder_options.append(f"{indent_str}{folder['name']}")
+            folder_ids.append(folder['id'])
+            
+            # Add subfolders
+            subfolders = [f for f in all_folders if f.get('parent_id') == folder['id']]
+            subfolders.sort(key=lambda x: x['name'].lower())
+            for subfolder in subfolders:
+                add_folder_to_options(subfolder, indent + 1)
+
+        # Add all root folders and their children
+        root_folders = [f for f in all_folders if f.get('parent_id') is None]
+        root_folders.sort(key=lambda x: x['name'].lower())
+        for folder in root_folders:
+            add_folder_to_options(folder)
+
+        selected = xbmcgui.Dialog().select("Move list to folder:", folder_options)
+        if selected >= 0:
+            target_folder_id = folder_ids[selected]
+            db_manager.update_data('lists', {'folder_id': target_folder_id}, f"id = {list_id}")
+            
+            destination = "root" if target_folder_id is None else folder_options[selected].strip()
+            xbmcgui.Dialog().notification('LibraryGenie', f'List moved to {destination}')
+            xbmc.executebuiltin('Container.Refresh')
+    except Exception as e:
+        utils.log(f"Error moving list: {str(e)}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Move failed')
+
 def delete_list(params):
     list_id = params.get('list_id', [None])[0]
     if not list_id:

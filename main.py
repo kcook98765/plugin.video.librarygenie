@@ -81,6 +81,8 @@ def _add_context_menu_for_item(li: xbmcgui.ListItem, item_type: str, **ids):
         cm += [
             ('Rename list',
              f'RunPlugin({_plugin_url({"action":"rename_list","list_id":list_id})})'),
+            ('Move list',
+             f'RunPlugin({_plugin_url({"action":"move_list","list_id":list_id})})'),
             ('Delete list',
              f'RunPlugin({_plugin_url({"action":"delete_list","list_id":list_id})})'),
         ]
@@ -110,7 +112,7 @@ from resources.lib.database_manager import DatabaseManager
 from resources.lib import utils
 from resources.lib.route_handlers import (
     play_movie, show_item_details, create_list, rename_list, delete_list,
-    remove_from_list, rename_folder, refresh_movie, do_search
+    remove_from_list, rename_folder, refresh_movie, do_search, move_list
 )
 
 # Global variable to track initialization
@@ -535,6 +537,10 @@ def router(params):
     elif action_type == 'rename_list':
         utils.log("Routing to rename_list action", "DEBUG")
         rename_list(q)
+        return
+    elif action_type == "move_list":
+        utils.log("Routing to move_list action", "DEBUG")
+        move_list(q)
         return
     elif action_type == 'delete_list':
         utils.log("Routing to delete_list action", "DEBUG")
