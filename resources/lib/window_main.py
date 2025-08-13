@@ -1,5 +1,3 @@
-import xbmc
-import xbmcgui
 from resources.lib import utils
 
 utils.log("Initializing MainWindow module", "INFO")
