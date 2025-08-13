@@ -79,7 +79,7 @@ class KodiHelper:
     def list_folders(self, folders):
         from resources.lib.listitem_builder import ListItemBuilder
         for folder in folders:
-            list_item = ListItemBuilder.build_folder_item(folder['name'], is_folder=True)
+            list_item = ListItemBuilder.build_folder_item(folder['name'], is_folder=True, item_type='folder')
             url = f'{self.addon_url}?action=show_list&list_id={folder["id"]}'
 
             xbmcplugin.addDirectoryItem(
@@ -94,7 +94,7 @@ class KodiHelper:
     def list_folders_and_lists(self, folders, lists):
         from resources.lib.listitem_builder import ListItemBuilder
         for folder in folders:
-            list_item = ListItemBuilder.build_folder_item(folder['name'], is_folder=True)
+            list_item = ListItemBuilder.build_folder_item(folder['name'], is_folder=True, item_type='folder')
             url = f'{self.addon_url}?action=show_folder&folder_id={folder["id"]}'
             utils.log(f"Adding folder: {folder['name']} with URL - {url}", "INFO")
             xbmcplugin.addDirectoryItem(
@@ -104,7 +104,7 @@ class KodiHelper:
                 isFolder=True
             )
         for list_ in lists:
-            list_item = ListItemBuilder.build_folder_item(list_['name'], is_folder=True)
+            list_item = ListItemBuilder.build_folder_item(list_['name'], is_folder=True, item_type='playlist')
             url = f'{self.addon_url}?action=show_list&list_id={list_["id"]}'
             utils.log(f"Adding list: {list_['name']} with URL - {url}", "INFO")
             xbmcplugin.addDirectoryItem(

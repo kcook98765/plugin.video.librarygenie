@@ -22,8 +22,11 @@ def _is_valid_art_url(u: str) -> bool:
     # Accept Kodi image wrapper directly
     if u.startswith("image://"):
         return True
+    # Accept special:// paths (including PNG files)
+    if u.startswith("special://"):
+        return True
     p = urlparse(u)
-    return (p.scheme in VALID_SCHEMES) or (u.startswith("special://"))
+    return p.scheme in VALID_SCHEMES
 
 def _wrap_for_kodi_image(u: str) -> str:
     """
@@ -51,7 +54,9 @@ def _get_addon_artwork_fallbacks() -> dict:
         'banner': 'special://home/addons/plugin.video.librarygenie/resources/media/banner.jpg',
         'landscape': 'special://home/addons/plugin.video.librarygenie/resources/media/landscape.jpg',
         'clearart': 'special://home/addons/plugin.video.librarygenie/resources/media/clearart.jpg',
-        'clearlogo': 'special://home/addons/plugin.video.librarygenie/resources/media/clearlogo.png'
+        'clearlogo': 'special://home/addons/plugin.video.librarygenie/resources/media/clearlogo.png',
+        'folder': 'special://home/addons/plugin.video.librarygenie/resources/media/list_folder.png',
+        'playlist': 'special://home/addons/plugin.video.librarygenie/resources/media/list_playlist.png'
     }
 
 def _normalize_art_dict(art: dict, use_fallbacks: bool = False) -> dict:
@@ -240,15 +245,27 @@ class ListItemBuilder:
         return list_item
 
     @staticmethod
-    def build_folder_item(name, is_folder=True):
-        """Build a folder ListItem with addon artwork"""
+    def build_folder_item(name, is_folder=True, item_type='folder'):
+        """Build a folder ListItem with addon artwork
+        
+        Args:
+            name: Display name for the item
+            is_folder: Whether this is a folder item
+            item_type: Type of item ('folder', 'playlist', 'list') to determine icon
+        """
         list_item = xbmcgui.ListItem(label=name)
         list_item.setIsFolder(is_folder)
 
+        # Choose appropriate icon based on item type
+        if item_type in ['playlist', 'list']:
+            icon_path = 'special://home/addons/plugin.video.librarygenie/resources/media/list_playlist.png'
+        else:
+            icon_path = 'special://home/addons/plugin.video.librarygenie/resources/media/list_folder.png'
+
         # Set folder-appropriate artwork
         folder_art = {
-            'icon': 'special://home/addons/plugin.video.librarygenie/resources/media/icon.jpg',
-            'thumb': 'special://home/addons/plugin.video.librarygenie/resources/media/thumb.jpg',
+            'icon': icon_path,
+            'thumb': icon_path,
             'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg'
         }
         folder_art = _normalize_art_dict(folder_art)
