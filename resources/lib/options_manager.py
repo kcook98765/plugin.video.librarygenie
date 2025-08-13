@@ -142,8 +142,12 @@ class OptionsManager:
         current_folder_id = params.get('folder_id')
         if current_folder_id and isinstance(current_folder_id, list):
             current_folder_id = current_folder_id[0]
-            if current_folder_id:
-                current_folder_id = int(current_folder_id)
+        if current_folder_id and str(current_folder_id).isdigit():
+            current_folder_id = int(current_folder_id)
+        else:
+            current_folder_id = None
+            
+        utils.log(f"Extracted current_folder_id from params: {current_folder_id}", "DEBUG")
         
         self._execute_option(selected_option, selected_text, current_folder_id)
 

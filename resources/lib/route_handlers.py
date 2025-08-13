@@ -117,8 +117,10 @@ def create_list(params):
         folder_id = params.get('folder_id')
         if folder_id and isinstance(folder_id, list):
             folder_id = folder_id[0]
-            if folder_id:
-                folder_id = int(folder_id)
+        if folder_id and str(folder_id).isdigit():
+            folder_id = int(folder_id)
+        else:
+            folder_id = None
         
         utils.log(f"Creating list '{name}' in folder_id: {folder_id}", "DEBUG")
         list_id = db_manager.create_list(name, folder_id)
