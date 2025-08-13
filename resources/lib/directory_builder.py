@@ -78,11 +78,11 @@ def add_options_header_item(ctx: dict, handle: int):
 
         # Build URL with current context using centralized URL builder
         url = build_plugin_url({
-            'action': 'options',
+            'action': 'show_options',
             'view': ctx.get('view'),
-            # Only include list_id/folder if they exist
+            # Only include list_id/folder_id if they exist
             **({'list_id': ctx['list_id']} if ctx.get('list_id') else {}),
-            **({'folder': ctx['folder']} if ctx.get('folder') else {}),
+            **({'folder_id': ctx['folder_id']} if ctx.get('folder_id') else {}),
         })
 
         # Add as non-folder item so Kodi uses RunPlugin instead of trying to render directory
