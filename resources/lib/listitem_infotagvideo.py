@@ -198,34 +198,18 @@ def set_info_tag(listitem, infolabels, tag_type='video'):
 
 def set_art(listitem: ListItem, art: Dict[str, str]) -> None:
     """
-    Set artwork for a ListItem with detailed logging.
+    Set artwork for a ListItem.
     """
     if not art:
-        utils.log("No artwork provided to set_art", "WARNING")
         return
 
-    utils.log(f"=== SETTING ARTWORK ON LISTITEM ===", "INFO")
-    utils.log(f"Art dict contains {len(art)} items:", "INFO")
-    for art_type, art_url in art.items():
-        utils.log(f"  {art_type}: {art_url}", "INFO")
-
     try:
-        utils.log("Attempting to set all artwork at once...", "INFO")
         listitem.setArt(art)
-        utils.log("Successfully set all artwork", "INFO")
     except Exception as e:
         utils.log(f"Error setting artwork batch: {str(e)}", "ERROR")
         # Fallback: set individual art types
-        utils.log("Attempting to set artwork individually...", "INFO")
         for art_type, art_url in art.items():
             try:
-                utils.log(f"Setting individual art: {art_type} = {art_url}", "INFO")
                 listitem.setArt({art_type: art_url})
-                utils.log(f"Successfully set {art_type}", "INFO")
             except Exception as inner_e:
-                utils.log(f"ERROR: Failed to set {art_type} artwork ({art_url}): {str(inner_e)}", "ERROR")
-                # Also log to Kodi's main log for visibility
-                import xbmc
-                xbmc.log(f"LibraryGenie [ERROR]: Failed to set {art_type} artwork ({art_url}): {str(inner_e)}", xbmc.LOGINFO)
-
-    utils.log("=== ARTWORK SETTING COMPLETE ===", "INFO")
+                utils.log(f"Failed to set {art_type} artwork: {str(inner_e)}", "ERROR")
