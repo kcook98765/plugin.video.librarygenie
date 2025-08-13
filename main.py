@@ -387,7 +387,7 @@ def browse_list(list_id):
         xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_GENRE)
         xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
         xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_DATEADDED)
-        
+
         if has_scores:
             # For search results, add unsorted method to preserve score order as default
             xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)
@@ -456,7 +456,10 @@ def build_root():
         # Add top-level lists
         for list_item in top_level_lists:
             list_count = db_manager.get_list_media_count(list_item['id'])
-            li = ListItemBuilder.build_folder_item(f"📋 {list_item['name']} ({list_count})", is_folder=True, item_type='playlist')
+            # Use the list name as-is without adding another count
+            # The search history lists already include count in their name
+            display_title = list_item['name']
+            li = ListItemBuilder.build_folder_item(f"📋 {display_title}", is_folder=True, item_type='playlist')
             li.setProperty('lg_type', 'list')
             _add_context_menu_for_item(li, 'list', list_id=list_item['id'])
             url = _plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
