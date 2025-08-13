@@ -187,8 +187,9 @@ class ListItemBuilder:
         if fanart and str(fanart) != 'None':
             art_dict['fanart'] = fanart
 
-        # Use the specialized set_art function with improved normalization and fallbacks
-        art_dict = _normalize_art_dict(art_dict, use_fallbacks=True)
+        # Use the specialized set_art function with improved normalization but NO fallbacks for movies
+        # We want to show the actual movie artwork, not addon fallbacks
+        art_dict = _normalize_art_dict(art_dict, use_fallbacks=False)
         if art_dict:
             set_art(list_item, art_dict)
 
