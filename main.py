@@ -830,6 +830,36 @@ def clear_all_local_data():
     from resources.lib.addon_helper import clear_all_local_data as clear_data
     clear_data()
 
+def run_migration_if_needed():
+    """Check if migration is needed and run it once"""
+    try:
+        from resources.lib.database_manager import DatabaseManager
+        from resources.lib.config_manager import Config
+        from resources.lib import utils
+
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+
+        # Check if we need to run migration by looking for a migration marker
+        migration_marker_path = os.path.join(os.path.dirname(config.db_path), '.migration_v2_complete')
+
+        if not os.path.exists(migration_marker_path):
+            utils.log("Running one-time database migration for existing installation", "INFO")
+            db_manager.migrate_existing_database()
+
+            # Create marker file to prevent re-running
+            with open(migration_marker_path, 'w') as f:
+                f.write("Migration v2 completed")
+
+            utils.log("Database migration completed and marked", "INFO")
+        else:
+            utils.log("Migration already completed, skipping", "DEBUG")
+
+    except Exception as e:
+        # Don't fail startup if migration fails
+        import xbmc
+        xbmc.log(f"LibraryGenie migration warning: {str(e)}", xbmc.LOGWARNING)
+
 def main():
     """Main addon entry point"""
     utils.log("=== LibraryGenie addon starting ===", "INFO")
@@ -879,8 +909,10 @@ def main():
         import traceback
         utils.log(f"Full traceback: {traceback.format_exc()}", "ERROR")
 
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    # Run migration check before starting the main application
+    run_migration_if_needed()
+    runner.main()
 
 def show_empty_directory():
     """Show an empty directory message"""

@@ -762,3 +762,34 @@ class DatabaseManager(Singleton):
         except Exception as e:
             utils.log(f"Error fetching data from {table}: {str(e)}", "ERROR")
             return []
+
+
+    def migrate_existing_database(self):
+        """One-time migration for existing databases to update search history lists"""
+        utils.log("Starting database migration for existing installations", "INFO")
+        
+        # Ensure columns exist first
+        self._ensure_protected_column()
+        
+        # Update existing search history lists without created_at timestamps
+        search_history_folder_id = self.get_folder_id_by_name("Search History")
+        if search_history_folder_id:
+            try:
+                # Update lists in Search History folder that don't have created_at
+                query = """
+                    UPDATE lists 
+                    SET created_at = datetime('now') 
+                    WHERE folder_id = ? AND (created_at IS NULL OR created_at = '')
+                """
+                self._execute_with_retry(self.cursor.execute, query, (search_history_folder_id,))
+                self.connection.commit()
+                
+                # Check how many were updated
+                updated_count = self.cursor.rowcount
+                utils.log(f"Updated {updated_count} existing search history lists with timestamps", "INFO")
+                
+            except Exception as e:
+                utils.log(f"Error during migration: {str(e)}", "ERROR")
+                raise
+        
+        utils.log("Database migration completed successfully", "INFO")
