@@ -1,4 +1,3 @@
-
 """Options and tools menu management for LibraryGenie addon"""
 
 import time
@@ -9,7 +8,7 @@ from resources.lib.url_builder import build_plugin_url
 
 class OptionsManager:
     """Manages the Options & Tools menu and related functionality"""
-    
+
     def __init__(self):
         self.options = [
             "Search Movies",
@@ -146,22 +145,22 @@ class OptionsManager:
         utils.log(f"FOLDER_CONTEXT_DEBUG: Raw folder_id from params: {params.get('folder_id')}", "DEBUG")
         current_folder_id = params.get('folder_id')
         utils.log(f"FOLDER_CONTEXT_DEBUG: Initial current_folder_id: {current_folder_id} (type: {type(current_folder_id)})", "DEBUG")
-        
+
         if current_folder_id and isinstance(current_folder_id, list):
             utils.log(f"FOLDER_CONTEXT_DEBUG: current_folder_id is list, extracting first element: {current_folder_id[0]}", "DEBUG")
             current_folder_id = current_folder_id[0]
-        
+
         utils.log(f"FOLDER_CONTEXT_DEBUG: After list extraction: {current_folder_id} (type: {type(current_folder_id)})", "DEBUG")
-        
+
         if current_folder_id and str(current_folder_id).isdigit():
             current_folder_id = int(current_folder_id)
             utils.log(f"FOLDER_CONTEXT_DEBUG: Converted to int: {current_folder_id}", "DEBUG")
         else:
             utils.log(f"FOLDER_CONTEXT_DEBUG: Not a valid digit, setting to None. Value was: {current_folder_id}", "DEBUG")
             current_folder_id = None
-            
+
         utils.log(f"FOLDER_CONTEXT_DEBUG: Final extracted current_folder_id: {current_folder_id}", "DEBUG")
-        
+
         self._execute_option(selected_option, selected_text, current_folder_id)
 
     def _execute_option(self, option_index, selected_text, current_folder_id=None):

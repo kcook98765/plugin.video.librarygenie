@@ -61,5 +61,4 @@ def detect_context(ctx_params: dict) -> dict:
         ctx['list_id'] = ctx_params.get('list_id')
     if 'folder_id' in ctx_params:  # Changed from 'folder' to 'folder_id'
         ctx['folder_id'] = ctx_params.get('folder_id')
-    utils.log(f"FOLDER_CONTEXT_DEBUG: detect_context called with ctx_params: {ctx_params}, returning: {ctx}", "DEBUG")
     return ctx

@@ -102,7 +102,6 @@ def run_browse(params):
 
 def browse_folder(params):
     """Browse a folder and display its contents"""
-    utils.log("FOLDER_CONTEXT_DEBUG: browse_folder called with params: " + str(sys.argv[2]), "DEBUG")
     folder_id = params.get('folder_id', [None])[0]
     if not folder_id:
         utils.log("No folder_id provided for browse_folder", "ERROR")
@@ -124,7 +123,6 @@ def browse_folder(params):
 
         # Add options header with folder context - pass the actual folder_id
         ctx = detect_context({'view': 'folder', 'folder_id': folder_id})
-        utils.log(f"FOLDER_CONTEXT_DEBUG: Context for options header: {ctx}", "DEBUG")
         add_options_header_item(ctx, ADDON_HANDLE)
 
         # Get subfolders
@@ -324,8 +322,6 @@ def browse_list(list_id):
 
 def router(params):
     """Route requests to appropriate handlers"""
-    utils.log(f"Router called with raw params: {params} (type: {type(params)})", "DEBUG")
-    utils.log(f"FOLDER_CONTEXT_DEBUG: Router received full params: {params}", "DEBUG")
 
     # Clean up any stuck navigation flags at router entry
     nav_manager.cleanup_stuck_navigation()
@@ -396,7 +392,6 @@ def router(params):
             xbmcgui.Dialog().notification("LibraryGenie", "Failed to setup Remote API", xbmcgui.NOTIFICATION_ERROR)
     elif action == 'browse_folder':
         utils.log("Handling browse_folder action", "DEBUG")
-        utils.log(f"FOLDER_CONTEXT_DEBUG: browse_folder called with params: {params}", "DEBUG")
         try:
             folder_id = q.get('folder_id', [None])[0]
             if folder_id:
@@ -414,7 +409,6 @@ def router(params):
         if nav_manager.is_navigation_in_progress():
             utils.log("Navigation in progress, skipping options dialog", "DEBUG")
             return
-        utils.log(f"FOLDER_CONTEXT_DEBUG: Invoking show_options_menu with params: {params}", "DEBUG")
         options_manager.show_options_menu(q)
         # IMPORTANT: Do NOT call endOfDirectory() here - this is a RunPlugin action
         return
@@ -512,14 +506,10 @@ def main():
                 if folder_context_str and folder_context_str != "None":
                     try:
                         folder_context = int(folder_context_str)
-                        utils.log(f"FOLDER_CONTEXT_DEBUG: Retrieved folder context for deferred option: {folder_context}", "DEBUG")
                     except ValueError:
-                        utils.log(f"FOLDER_CONTEXT_DEBUG: Invalid folder context string: {folder_context_str}", "WARNING")
-                else:
-                    utils.log("FOLDER_CONTEXT_DEBUG: No folder context for deferred option (root level)", "DEBUG")
+                        pass
                 # Clear the property
                 xbmc.executebuiltin("ClearProperty(LibraryGenie.DeferredFolderContext,Home)")
-                utils.log(f"=== EXECUTING DEFERRED OPTION {option_index} WITH FOLDER CONTEXT {folder_context} ===", "DEBUG")
                 options_manager.execute_deferred_option(option_index, folder_context)
             except Exception as e:
                 utils.log(f"Error in deferred option execution: {str(e)}", "ERROR")
