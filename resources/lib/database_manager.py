@@ -556,8 +556,8 @@ class DatabaseManager(Singleton):
 
             utils.log(f"Remote API semantic search returned {len(formatted_results)} movies", "DEBUG")
 
-            # Search history is handled by the calling function (window_search.py)
-            # No need to save here to avoid duplicates
+            # Add search history
+            self.add_search_history(query, formatted_results)
 
             return formatted_results
 
