@@ -164,7 +164,7 @@ class ListItemBuilder:
             utils.log(f"Using cached ListItem for: {media_info.get('title', 'Unknown')}", "DEBUG")
             return ListItemBuilder._item_cache[cache_key]
 
-        # Create ListItem with proper string title
+        # Create ListItem with proper string title (now updated with fresh Kodi data if available)
         title = str(media_info.get('title', ''))
         list_item = xbmcgui.ListItem(label=title)
 
@@ -242,28 +242,59 @@ class ListItemBuilder:
         
         utils.log(f"Kodi ID: {kodi_id}, has_kodi_id: {has_kodi_id}", "INFO")
         
-        # If we have a valid Kodi ID but no artwork, fetch it from Kodi
-        if has_kodi_id and not art_dict:
-            utils.log(f"Fetching artwork from Kodi for movie ID {kodi_id}", "INFO")
+        # If we have a valid Kodi ID, fetch ALL fresh data from Kodi library
+        if has_kodi_id:
+            utils.log(f"Fetching fresh library data from Kodi for movie ID {kodi_id}", "INFO")
             try:
                 from resources.lib.jsonrpc_manager import JSONRPC
                 jsonrpc = JSONRPC()
                 
-                # Get movie details including artwork from Kodi
-                movie_details = jsonrpc.get_movie_details(int(kodi_id))
-                if movie_details and 'art' in movie_details:
-                    kodi_art = movie_details['art']
-                    utils.log(f"Retrieved Kodi artwork: {kodi_art}", "INFO")
-                    art_dict.update(kodi_art)
+                # Get complete movie details from Kodi library
+                response = jsonrpc.get_movie_details(int(kodi_id))
+                if response and 'result' in response and 'moviedetails' in response['result']:
+                    kodi_movie = response['result']['moviedetails']
+                    utils.log(f"Retrieved fresh Kodi movie data for '{kodi_movie.get('title', 'Unknown')}'", "INFO")
                     
-                    # Also update poster/thumbnail if available
-                    if 'poster' in kodi_art and kodi_art['poster']:
-                        art_dict['thumb'] = kodi_art['poster']
-                        art_dict['icon'] = kodi_art['poster']
-                        utils.log(f"Set thumb/icon from Kodi poster: {kodi_art['poster']}", "INFO")
+                    # Update media_info with fresh Kodi library data
+                    media_info['title'] = kodi_movie.get('title', media_info.get('title', ''))
+                    media_info['year'] = kodi_movie.get('year', media_info.get('year', 0))
+                    media_info['plot'] = kodi_movie.get('plot', '')
+                    media_info['genre'] = ' / '.join(kodi_movie.get('genre', []))
+                    media_info['director'] = ' / '.join(kodi_movie.get('director', []))
+                    media_info['rating'] = kodi_movie.get('rating', 0.0)
+                    media_info['votes'] = kodi_movie.get('votes', 0)
+                    media_info['mpaa'] = kodi_movie.get('mpaa', '')
+                    media_info['tagline'] = kodi_movie.get('tagline', '')
+                    media_info['trailer'] = kodi_movie.get('trailer', '')
+                    media_info['writer'] = ' / '.join(kodi_movie.get('writer', []))
+                    media_info['studio'] = ' / '.join(kodi_movie.get('studio', []))
+                    media_info['country'] = ' / '.join(kodi_movie.get('country', []))
+                    media_info['premiered'] = kodi_movie.get('premiered', '')
+                    
+                    # Update cast data
+                    if 'cast' in kodi_movie:
+                        media_info['cast'] = kodi_movie['cast']
+                        utils.log(f"Updated cast data: {len(kodi_movie['cast'])} cast members", "DEBUG")
+                    
+                    # Update artwork with fresh Kodi data
+                    kodi_art = kodi_movie.get('art', {})
+                    if kodi_art:
+                        art_dict = kodi_art.copy()
+                        utils.log(f"Updated artwork from Kodi: {list(art_dict.keys())}", "INFO")
                         
+                        # Ensure poster/thumb/icon consistency
+                        if 'poster' in art_dict and art_dict['poster']:
+                            art_dict['thumb'] = art_dict['poster']
+                            art_dict['icon'] = art_dict['poster']
+                    
+                    # Update individual art fields
+                    media_info['poster'] = kodi_movie.get('thumbnail', '')
+                    media_info['fanart'] = art_dict.get('fanart', '')
+                    
+                    utils.log(f"Successfully updated media_info with fresh Kodi library data", "INFO")
+                    
             except Exception as e:
-                utils.log(f"Error fetching Kodi artwork: {str(e)}", "ERROR")
+                utils.log(f"Error fetching fresh Kodi library data: {str(e)}", "ERROR")
         
         # Use fallbacks only for actual Kodi library movies that still don't have artwork after fetching
         use_fallbacks = has_kodi_id and not art_dict
