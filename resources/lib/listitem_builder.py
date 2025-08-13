@@ -425,6 +425,8 @@ class ListItemBuilder:
 
         # Check if this is a search history list and enhance the label
         display_name = name
+        label2_text = ""
+        
         if list_data:
             from resources.lib.database_manager import DatabaseManager
             from resources.lib.config_manager import Config
@@ -432,33 +434,50 @@ class ListItemBuilder:
             config = Config()
             db_manager = DatabaseManager(config.db_path)
 
+            # Get list item count
+            list_id = list_data.get('id')
+            item_count = 0
+            if list_id:
+                item_count = db_manager.get_list_media_count(list_id)
+
+            # Get creation date from database
+            created_at = list_data.get('created_at', '')
+            date_str = ""
+            if created_at:
+                # Extract just the date part from the timestamp
+                try:
+                    from datetime import datetime
+                    dt = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S')
+                    date_str = dt.strftime('%Y-%m-%d')
+                except:
+                    from datetime import datetime
+                    date_str = datetime.now().strftime('%Y-%m-%d')
+            else:
+                from datetime import datetime
+                date_str = datetime.now().strftime('%Y-%m-%d')
+
             # Check if this list is in the Search History folder
             search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
             if list_data.get('folder_id') == search_history_folder_id:
-                # Get list item count
-                list_id = list_data.get('id')
-                if list_id:
-                    item_count = db_manager.get_list_media_count(list_id)
-
-                    # Get creation date from database
-                    created_at = list_data.get('created_at', '')
-                    if created_at:
-                        # Extract just the date part from the timestamp
-                        try:
-                            from datetime import datetime
-                            dt = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S')
-                            date_str = dt.strftime('%Y-%m-%d')
-                        except:
-                            date_str = datetime.now().strftime('%Y-%m-%d')
-                    else:
-                        from datetime import datetime
-                        date_str = datetime.now().strftime('%Y-%m-%d')
-
-                    # Enhance the display name with metadata
-                    display_name = f"{name} ({date_str}) ({item_count} items)"
-                    utils.log(f"Enhanced search history list label: '{display_name}'", "DEBUG")
+                # For search history, enhance the display name with metadata
+                display_name = f"{name} ({date_str}) ({item_count} items)"
+                label2_text = f"Search created on {date_str} • {item_count} movies found"
+                utils.log(f"Enhanced search history list label: '{display_name}'", "DEBUG")
+            else:
+                # For regular lists, keep original name but set informative label2
+                label2_text = f"Created {date_str} • {item_count} movies"
+                utils.log(f"Set label2 for regular list: '{label2_text}'", "DEBUG")
 
         list_item = xbmcgui.ListItem(label=display_name)
+        
+        # Set label2 for enhanced display information
+        if label2_text:
+            list_item.setLabel2(label2_text)
+            utils.log(f"Set label2 to: '{label2_text}'", "DEBUG")
+        else:
+            # Fallback label2 for lists without data
+            list_item.setLabel2("Movie List")
+            utils.log("Set fallback label2: 'Movie List'", "DEBUG")
         list_item.setIsFolder(is_folder)
 
         # Set list-specific artwork using Kodi's special:// protocol
