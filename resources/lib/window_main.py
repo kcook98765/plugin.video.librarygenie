@@ -2,32 +2,21 @@ import re
 import json
 import xbmc
 import xbmcgui
+import pyxbmct
 from resources.lib import utils
 from resources.lib.window_base import BaseWindow
+from resources.lib.database_manager import DatabaseManager
+from resources.lib.config_manager import Config
+from resources.lib.window_list import ListWindow
 
 utils.log("Initializing MainWindow module", "INFO")
 
 # Legacy MainWindow functionality moved to plugin-based approach
 # Use main.py router and context menus instead
 
-def launch_movie_search():
-    """Launches the proper SearchWindow for movie search"""
-    try:
-        # Use dialog-based search instead of pyxbmct window
-        search_query = xbmcgui.Dialog().input("Search Movies", type=xbmcgui.INPUT_ALPHANUM)
-        if search_query:
-            # Trigger search via plugin URL
-            import xbmc
-            addon_id = "plugin.video.librarygenie"
-            url = f"plugin://{addon_id}/?action=search_movies&query={search_query}"
-            xbmc.executebuiltin(f'Container.Update({url})')
-            return {'status': 'success', 'query': search_query}
-        return {'status': 'cancelled'}
-    except Exception as e:
-        utils.log(f"Error in movie search: {str(e)}", "ERROR")
-        return {'status': 'error', 'error': str(e)}
 
-class MainWindow:
+
+class MainWindow(BaseWindow):
     INDENTATION_MULTIPLIER = 3  # Used for indenting sublevels
 
     def __init__(self, item_info, title="Item Info"):
@@ -46,8 +35,16 @@ class MainWindow:
         self.moving_folder_id = None
         self.moving_folder_name = None
         self.folder_color_status = {}  # Add folder color status tracking
+        
+        # Import required classes
+        from resources.lib.database_manager import DatabaseManager
+        from resources.lib.config_manager import Config
+        
         self.db_manager = DatabaseManager(Config().db_path) # Initialize db_manager here
 
+        # Import pyxbmct here to avoid import issues
+        import pyxbmct
+        
         self.media_label = pyxbmct.Label("")
         self.list_control = pyxbmct.List()
 
@@ -125,9 +122,7 @@ class MainWindow:
                 is_playable = False
         return is_playable
 
-    def display_media_info(self):
-        # (Not used: Media info is handled in setup_ui)
-        pass
+    
 
     def onAction(self, action):
         # If the action is up or down, update our stored selection state and legend
@@ -1251,7 +1246,7 @@ class MainWindow:
                 try:
                     folder_id = self.db_manager.insert_folder(folder_name, None)  # Root level folder
                     self.show_notification("Folder Created", f"Folder '{folder_name}' created successfully.")
-                    self.refresh_and_focus_item(folder_id, True)
+                    self.populate_list(focus_folder_id=folder_id)
                 except Exception as e:
                     utils.log(f"Error creating folder: {str(e)}", "ERROR")
                     self.show_notification("Error", "Failed to create folder.")
@@ -1259,53 +1254,33 @@ class MainWindow:
             utils.log(f"Error in new folder dialog: {str(e)}", "ERROR")
             self.show_notification("Error", "Failed to open new folder dialog.")
 
+    def handle_new_list_action(self):
+        """Handle new list creation"""
+        try:
+            from resources.lib.user_interaction_manager import UserInteractionManager
+            ui_manager = UserInteractionManager()
+            list_name = ui_manager.get_text_input("Create New List", "Enter list name:")
+            if list_name:
+                try:
+                    list_id = self.db_manager.insert_data('lists', {'name': list_name, 'folder_id': None})
+                    self.show_notification("List Created", f"List '{list_name}' created successfully.")
+                    self.populate_list()
+                except Exception as e:
+                    utils.log(f"Error creating list: {str(e)}", "ERROR")
+                    self.show_notification("Error", "Failed to create list.")
+        except Exception as e:
+            utils.log(f"Error in new list dialog: {str(e)}", "ERROR")
+            self.show_notification("Error", "Failed to open new list dialog.")
 
-def launch_movie_search():
-    """Launches the proper SearchWindow for movie search"""
-    from resources.lib.window_search import SearchWindow
-
-    search_window = SearchWindow()
-    search_window.doModal()
-    results = search_window.get_search_results()
-    del search_window
-    return results
+    def refresh_list(self):
+        """Refresh the list display"""
+        self.populate_list()
 
 
-def perform_movie_search(search_query):
-    """Performs the actual movie search using the provided query"""
 
-    progress_win = SearchProgressWindow()
-    progress_win.doModal()
 
-    try:
-        # Simulate a search process
-        import time
-        total_steps = 100
-        for i in range(total_steps):
-            time.sleep(0.01)  # Simulate work
-            percent = (i + 1) * 100 // total_steps
-            progress_win.set_progress(percent)
-            progress_win.show_message(f"Searching... {percent}%")
 
-            # Check if the user has cancelled the search
-            if not progress_win.is_visible():
-                return {'status': 'cancelled'}
 
-        # Simulate movie matches
-        matches = [
-            {'title': f"Movie Match 1: {search_query}"},
-            {'title': f"Movie Match 2: {search_query}"}
-        ]
-
-        progress_win.show_message("Search completed successfully")
-        return {'status': 'success', 'matches': matches}
-    except Exception as e:
-        progress_win.show_message(f"Search failed: {str(e)}")
-        return {'status': 'failure', 'error': str(e)}
-    finally:
-        # Ensure that progress window is closed
-        progress_win.close()
-        del progress_win
 class MenuWindow(BaseWindow):
     def __init__(self, title="Main Menu"):
         super().__init__(title)

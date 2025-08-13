@@ -1,9 +1,13 @@
+
 import xbmcgui
 from resources.lib import utils
+from resources.lib.singleton_base import Singleton
 
-class BaseWindow:
+class BaseWindow(Singleton):
     def __init__(self, title=""):
-        self.title = title
+        if not hasattr(self, '_initialized'):
+            super().__init__()
+            self._initialized = True
 
     def show_notification(self, message, icon=xbmcgui.NOTIFICATION_INFO):
         utils.show_notification("LibraryGenie", message, icon)
