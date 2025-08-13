@@ -663,6 +663,10 @@ class QueryManager(Singleton):
         # Extract field names from config
         field_names = [field.split()[0] for field in Config.FIELDS]
         media_data = {key: data[key] for key in field_names if key in data}
+        
+        # Ensure search_score is included if present in input data
+        if 'search_score' in data and 'search_score' not in media_data:
+            media_data['search_score'] = data['search_score']
 
         # Process art data
         if 'art' in data:
