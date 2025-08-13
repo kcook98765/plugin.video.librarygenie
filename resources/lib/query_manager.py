@@ -571,6 +571,18 @@ class QueryManager(Singleton):
         """
         return self.execute_query(query, (item_id,))
 
+    def fetch_all_folders(self) -> List[Dict[str, Any]]:
+        """Fetch all folders"""
+        query = """
+            SELECT 
+                id,
+                name,
+                parent_id
+            FROM folders
+            ORDER BY name COLLATE NOCASE
+        """
+        return self.execute_query(query)
+
     def get_imdb_export_stats(self) -> Dict[str, Any]:
         """Get statistics about IMDB numbers in exports"""
         query = """
