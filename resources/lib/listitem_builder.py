@@ -27,10 +27,10 @@ def _is_valid_art_url(u: str) -> bool:
     if u.startswith("Default") and u.endswith(".png"):
         return True
     # Accept local file paths (Windows and Unix)
-    
+
     if os.path.isabs(u) and os.path.exists(u):
         return True
-    
+
     # For special:// paths, try to check if the file exists by converting to real path
     if u.startswith("special://home/addons/plugin.video.librarygenie/"):
         from resources.lib.addon_ref import get_addon
@@ -41,7 +41,7 @@ def _is_valid_art_url(u: str) -> bool:
         file_exists = os.path.exists(real_path)
         utils.log(f"Checking special:// file existence: {u} -> {real_path} (exists: {file_exists})", "INFO")
         return file_exists
-    
+
     p = urlparse(u)
     return (p.scheme in VALID_SCHEMES) or (u.startswith("special://"))
 
@@ -90,12 +90,12 @@ def _get_addon_artwork_fallbacks() -> dict:
         'clearart': make_addon_media_path('clearart.jpg'),
         'clearlogo': make_addon_media_path('clearlogo.png')
     }
-    
+
     utils.log("=== ADDON ARTWORK FALLBACKS CREATED ===", "INFO")
     for art_type, path in fallback_dict.items():
         utils.log(f"  {art_type}: {path}", "INFO")
     utils.log("=== END ADDON ARTWORK FALLBACKS ===", "INFO")
-    
+
     return fallback_dict
 
 def _normalize_art_dict(art: dict, use_fallbacks: bool = False) -> dict:
@@ -125,20 +125,20 @@ def _normalize_art_dict(art: dict, use_fallbacks: bool = False) -> dict:
             continue
         vv = v.strip()
         utils.log(f"Processing '{k}': '{vv}'", "INFO")
-        
+
         # Accept image:// as-is, wrap others when valid (http/file/smb/etc.)
         if vv.startswith("image://"):
             wrapped = _wrap_for_kodi_image(vv)  # add trailing slash if missing
             out[k] = wrapped
             utils.log(f"  -> Already image:// format, wrapped to: '{wrapped}'", "INFO")
             continue
-        
+
         if vv.startswith("special://"):
             wrapped = _wrap_for_kodi_image(vv)  # returns special:// path directly
             out[k] = wrapped
             utils.log(f"  -> Using special:// path directly: '{wrapped}'", "INFO")
             continue
-        
+
         if _is_valid_art_url(vv):
             wrapped = _wrap_for_kodi_image(vv)
             out[k] = wrapped
@@ -152,12 +152,12 @@ def _normalize_art_dict(art: dict, use_fallbacks: bool = False) -> dict:
             else:
                 utils.log(f"  -> Skipping malformed artwork URL [{k}]: {vv}", "WARNING")
                 xbmc.log(f"LibraryGenie [WARNING]: Skipping malformed artwork URL [{k}]: {vv}", xbmc.LOGINFO)
-    
+
     utils.log(f"=== FINAL NORMALIZED ART DICT ===", "INFO")
     for art_type, path in out.items():
         utils.log(f"  {art_type}: {path}", "INFO")
     utils.log("=== END ART NORMALIZATION ===", "INFO")
-    
+
     return out
 
 
@@ -381,7 +381,7 @@ class ListItemBuilder:
             'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg'
         }
         utils.log(f"Raw folder art dict: {folder_art}", "INFO")
-        
+
         folder_art = _normalize_art_dict(folder_art)
         if folder_art:
             utils.log(f"Setting folder art with {len(folder_art)} items", "INFO")
@@ -393,20 +393,20 @@ class ListItemBuilder:
         # Log complete ListItem details for debugging
         utils.log(f"=== COMPLETE FOLDER LISTITEM DETAILS FOR '{name}' ===", "INFO")
         utils.log(f"Label: {list_item.getLabel()}", "INFO")
-        utils.log(f"Label2: {list_item.getLabel2()}", "INFO")
+        utils.log(f"Label2: '{list_item.getLabel2()}'", "INFO")
         utils.log(f"Path: {list_item.getPath()}", "INFO")
         utils.log(f"IsFolder: {list_item.isFolder()}", "INFO")
-        
+
         # Log all properties
         properties_to_check = [
-            'IsPlayable', 'ResumeTime', 'TotalTime', 'Art(icon)', 'Art(thumb)', 
+            'IsPlayable', 'ResumeTime', 'TotalTime', 'Art(icon)', 'Art(thumb)',
             'Art(poster)', 'Art(fanart)', 'Art(banner)', 'Art(landscape)'
         ]
         for prop in properties_to_check:
             prop_value = list_item.getProperty(prop)
             if prop_value:
                 utils.log(f"Property {prop}: {prop_value}", "INFO")
-        
+
         utils.log(f"=== END COMPLETE FOLDER LISTITEM DETAILS ===", "INFO")
         utils.log(f"=== FOLDER ITEM '{name}' BUILD COMPLETE ===", "INFO")
         return list_item
@@ -422,16 +422,16 @@ class ListItemBuilder:
             utils.log(f"list_data keys: {list(list_data.keys()) if isinstance(list_data, dict) else 'NOT_DICT'}", "INFO")
             utils.log(f"list_data contents: {list_data}", "INFO")
         utils.log(f"=== END LIST_DATA DEBUG INFO ===", "INFO")
-        
+
         # Check if this is a search history list and enhance the label
         display_name = name
         if list_data:
             from resources.lib.database_manager import DatabaseManager
             from resources.lib.config_manager import Config
-            
+
             config = Config()
             db_manager = DatabaseManager(config.db_path)
-            
+
             # Check if this list is in the Search History folder
             search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
             if list_data.get('folder_id') == search_history_folder_id:
@@ -439,7 +439,7 @@ class ListItemBuilder:
                 list_id = list_data.get('id')
                 if list_id:
                     item_count = db_manager.get_list_media_count(list_id)
-                    
+
                     # Get creation date from database
                     created_at = list_data.get('created_at', '')
                     if created_at:
@@ -453,23 +453,23 @@ class ListItemBuilder:
                     else:
                         from datetime import datetime
                         date_str = datetime.now().strftime('%Y-%m-%d')
-                    
+
                     # Enhance the display name with metadata
                     display_name = f"{name} ({date_str}) ({item_count} items)"
                     utils.log(f"Enhanced search history list label: '{display_name}'", "DEBUG")
-        
+
         list_item = xbmcgui.ListItem(label=display_name)
         list_item.setIsFolder(is_folder)
 
         # Set list-specific artwork using Kodi's special:// protocol
         list_art = {
             'icon': 'special://home/addons/plugin.video.librarygenie/resources/media/list_playlist_icon.png',
-            'thumb': 'special://home/addons/plugin.video.librarygenie/resources/media/list_playlist_icon.png', 
+            'thumb': 'special://home/addons/plugin.video.librarygenie/resources/media/list_playlist_icon.png',
             'poster': 'special://home/addons/plugin.video.librarygenie/resources/media/list_playlist_icon.png',
             'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg'
         }
         utils.log(f"Raw list art dict: {list_art}", "INFO")
-        
+
         list_art = _normalize_art_dict(list_art)
         if list_art:
             utils.log(f"Setting list art with {len(list_art)} items", "INFO")
@@ -483,27 +483,27 @@ class ListItemBuilder:
         utils.log(f"Original name: {name}", "INFO")
         utils.log(f"Display name: {display_name}", "INFO")
         utils.log(f"Label: {list_item.getLabel()}", "INFO")
-        utils.log(f"Label2: {list_item.getLabel2()}", "INFO")
+        utils.log(f"Label2: '{list_item.getLabel2()}'", "INFO")
         utils.log(f"Path: {list_item.getPath()}", "INFO")
         utils.log(f"IsFolder: {list_item.isFolder()}", "INFO")
-        
+
         # Log all properties
         properties_to_check = [
-            'IsPlayable', 'ResumeTime', 'TotalTime', 'Art(icon)', 'Art(thumb)', 
+            'IsPlayable', 'ResumeTime', 'TotalTime', 'Art(icon)', 'Art(thumb)',
             'Art(poster)', 'Art(fanart)', 'Art(banner)', 'Art(landscape)'
         ]
         for prop in properties_to_check:
             prop_value = list_item.getProperty(prop)
             if prop_value:
                 utils.log(f"Property {prop}: {prop_value}", "INFO")
-        
+
         # Log list-specific metadata if available
         if list_data:
             utils.log(f"List data provided - ID: {list_data.get('id')}, Folder ID: {list_data.get('folder_id')}", "INFO")
             utils.log(f"Created at: {list_data.get('created_at', 'NOT_SET')}", "INFO")
         else:
             utils.log("No list_data provided for enhanced metadata", "INFO")
-        
+
         utils.log(f"=== END COMPLETE LIST LISTITEM DETAILS ===", "INFO")
         utils.log(f"=== LIST ITEM '{name}' BUILD COMPLETE ===", "INFO")
         return list_item
