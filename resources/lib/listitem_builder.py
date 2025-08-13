@@ -48,16 +48,18 @@ def _is_valid_art_url(u: str) -> bool:
 def _wrap_for_kodi_image(u: str) -> str:
     """
     If already 'image://', return as-is.
+    For special:// paths, return directly without image:// wrapper.
     Otherwise wrap raw URL/path into Kodi's image://<percent-encoded>/
-    Avoid double-encoding by keeping '%' safe when source is already encoded.
     """
     if not u:
         return u
     if u.startswith("image://"):
         # Ensure trailing slash; Kodi expects it
         return u if u.endswith("/") else (u + "/")
-    # Keep '%' to avoid double-encoding already-encoded inputs;
-    # keep common URL reserved chars safe so URLs remain valid.
+    if u.startswith("special://"):
+        # Use special:// paths directly - no image:// wrapper needed
+        return u
+    # For other URLs/paths, wrap with image:// and encode
     enc = quote(u, safe=":/%?&=#,+@;[]()!*._-")
     return f"image://{enc}/"
 
@@ -131,13 +133,19 @@ def _normalize_art_dict(art: dict, use_fallbacks: bool = False) -> dict:
             utils.log(f"  -> Already image:// format, wrapped to: '{wrapped}'", "INFO")
             continue
         
+        if vv.startswith("special://"):
+            wrapped = _wrap_for_kodi_image(vv)  # returns special:// path directly
+            out[k] = wrapped
+            utils.log(f"  -> Using special:// path directly: '{wrapped}'", "INFO")
+            continue
+        
         if _is_valid_art_url(vv):
             wrapped = _wrap_for_kodi_image(vv)
             out[k] = wrapped
             utils.log(f"  -> Valid URL, wrapped to: '{wrapped}'", "INFO")
         else:
             # Last resort: if it *looks* like a URL but urlparse fails, try wrapping anyway
-            if "://" in vv or vv.startswith("special://"):
+            if "://" in vv:
                 wrapped = _wrap_for_kodi_image(vv)
                 out[k] = wrapped
                 utils.log(f"  -> Looks like URL, wrapped anyway to: '{wrapped}'", "INFO")
