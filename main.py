@@ -899,7 +899,7 @@ def execute_deferred_option(option_index):
             run_search()
         elif "Search History" in selected_text:
             utils.log("=== DEFERRED: EXECUTING SEARCH HISTORY ===", "DEBUG")
-            browse_search_history() # Call the new function
+            browse_search_history()
         elif "Browse Lists" in selected_text:
             utils.log("=== DEFERRED: EXECUTING BROWSE LISTS ===", "DEBUG")
             run_browse()
@@ -909,10 +909,36 @@ def execute_deferred_option(option_index):
         elif "Create New Folder" in selected_text:
             utils.log("=== DEFERRED: EXECUTING CREATE NEW FOLDER ===", "DEBUG")
             create_new_folder_at_root()
+        elif "Upload Library to Server (Full)" in selected_text:
+            utils.log("=== DEFERRED: EXECUTING FULL LIBRARY UPLOAD ===", "DEBUG")
+            from resources.lib.imdb_upload_manager import IMDbUploadManager
+            upload_manager = IMDbUploadManager()
+            upload_manager.upload_library_full_sync()
+        elif "Sync Library with Server (Delta)" in selected_text:
+            utils.log("=== DEFERRED: EXECUTING DELTA LIBRARY SYNC ===", "DEBUG")
+            from resources.lib.imdb_upload_manager import IMDbUploadManager
+            upload_manager = IMDbUploadManager()
+            upload_manager.upload_library_delta_sync()
+        elif "View Upload Status" in selected_text:
+            utils.log("=== DEFERRED: EXECUTING VIEW UPLOAD STATUS ===", "DEBUG")
+            from resources.lib.imdb_upload_manager import IMDbUploadManager
+            upload_manager = IMDbUploadManager()
+            upload_manager.get_upload_status()
+        elif "Clear Server Library" in selected_text:
+            utils.log("=== DEFERRED: EXECUTING CLEAR SERVER LIBRARY ===", "DEBUG")
+            from resources.lib.imdb_upload_manager import IMDbUploadManager
+            upload_manager = IMDbUploadManager()
+            upload_manager.clear_server_library()
+        elif "Clear All Local Data" in selected_text:
+            utils.log("=== DEFERRED: EXECUTING CLEAR ALL LOCAL DATA ===", "DEBUG")
+            clear_all_local_data()
         elif "Settings" in selected_text:
             utils.log("=== DEFERRED: EXECUTING OPEN SETTINGS ===", "DEBUG")
             xbmc.executebuiltin("Addon.OpenSettings(plugin.video.librarygenie)")
-        # Add other options as needed...
+        elif "Authenticate with Server" in selected_text:
+            utils.log("=== DEFERRED: EXECUTING AUTHENTICATE WITH SERVER ===", "DEBUG")
+            from resources.lib.authenticate_code import authenticate_with_code
+            authenticate_with_code()
         else:
             utils.log(f"=== DEFERRED OPTION NOT IMPLEMENTED: {selected_text} ===", "WARNING")
 
