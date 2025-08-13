@@ -187,9 +187,15 @@ class ListItemBuilder:
         if fanart and str(fanart) != 'None':
             art_dict['fanart'] = fanart
 
-        # Use the specialized set_art function with improved normalization but NO fallbacks for movies
-        # We want to show the actual movie artwork, not addon fallbacks
-        art_dict = _normalize_art_dict(art_dict, use_fallbacks=False)
+        # For actual movies with Kodi IDs, we want to use their artwork but fall back to addon art if none available
+        # For search results without Kodi IDs, use no fallbacks
+        kodi_id = media_info.get('kodi_id')
+        has_kodi_id = kodi_id and str(kodi_id) != '0' and str(kodi_id).isdigit() and int(kodi_id) > 0
+        
+        # Use fallbacks only for actual Kodi library movies that might not have artwork
+        use_fallbacks = has_kodi_id and not art_dict
+        
+        art_dict = _normalize_art_dict(art_dict, use_fallbacks=use_fallbacks)
         if art_dict:
             set_art(list_item, art_dict)
 
