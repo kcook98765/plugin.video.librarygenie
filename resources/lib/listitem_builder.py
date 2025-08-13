@@ -266,7 +266,7 @@ class ListItemBuilder:
         return list_item
 
     @staticmethod
-    def build_folder_item(name, is_folder=True):
+    def build_folder_item(name, is_folder=True, folder_id=None):
         """Build a folder ListItem with folder-specific artwork"""
         list_item = xbmcgui.ListItem(label=name)
         list_item.setIsFolder(is_folder)

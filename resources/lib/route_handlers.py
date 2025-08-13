@@ -422,6 +422,21 @@ def handle_routes(action, **kwargs):
     if action is None or action == '':
         utils.log("No action specified, showing main directory", "DEBUG")
         show_directory()
+    elif action == 'show_folder':
+        utils.log("Handling show_folder action", "DEBUG")
+        show_folder(kwargs)
+    elif action == 'browse_folder':
+        utils.log("Handling browse_folder action", "DEBUG")
+        show_folder(kwargs)
+    elif action == 'show_list':
+        utils.log("Handling show_list action", "DEBUG")
+        show_list(kwargs)
+    elif action == 'browse_list':
+        utils.log("Handling browse_list action", "DEBUG")
+        show_list(kwargs)
+    elif action == 'browse':
+        utils.log("Handling browse action (launching main window)", "DEBUG")
+        launch_main_window(kwargs)
     elif action == 'play_movie':
         utils.log("Handling play_movie action", "DEBUG")
         play_movie(kwargs)
@@ -514,3 +529,158 @@ def handle_test_connection():
     """Placeholder for testing remote API connection."""
     utils.log("Testing remote API connection", "DEBUG")
     xbmcgui.Dialog().notification('LibraryGenie', 'Testing Connection (not fully implemented)')
+
+def show_folder(params):
+    """Show contents of a specific folder"""
+    folder_id = params.get('folder_id', [None])[0] if params.get('folder_id') else None
+    if not folder_id:
+        utils.log("No folder_id provided for show_folder", "ERROR")
+        return
+        
+    utils.log(f"Showing folder with ID: {folder_id}", "DEBUG")
+    
+    try:
+        from resources.lib.config_manager import Config
+        from resources.lib.database_manager import DatabaseManager
+        from resources.lib.listitem_builder import ListItemBuilder
+        import xbmcplugin
+        
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+        
+        # Get folder info
+        folder = db_manager.fetch_folder_by_id(int(folder_id))
+        if not folder:
+            utils.log(f"Folder with ID {folder_id} not found", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'Folder not found')
+            return
+        
+        # Get subfolders
+        subfolders = db_manager.fetch_data('folders', f'parent_id = {folder_id}')
+        subfolders.sort(key=lambda x: x['name'].lower())
+        
+        # Get lists in this folder
+        folder_lists = db_manager.fetch_data('lists', f'folder_id = {folder_id}')
+        folder_lists.sort(key=lambda x: x['name'].lower())
+        
+        handle = int(xbmc.getInfoLabel('System.AddonHandle'))
+        
+        # Add subfolders
+        for subfolder in subfolders:
+            folder_item = ListItemBuilder.build_folder_item(subfolder['name'])
+            xbmcplugin.addDirectoryItem(
+                handle=handle,
+                url=f"plugin://plugin.video.librarygenie/?action=show_folder&folder_id={subfolder['id']}",
+                listitem=folder_item,
+                isFolder=True
+            )
+        
+        # Add lists
+        for lst in folder_lists:
+            list_item = ListItemBuilder.build_list_item(lst['name'], list_data=lst)
+            xbmcplugin.addDirectoryItem(
+                handle=handle,
+                url=f"plugin://plugin.video.librarygenie/?action=show_list&list_id={lst['id']}",
+                listitem=list_item,
+                isFolder=True
+            )
+        
+        xbmcplugin.endOfDirectory(handle=handle, cacheToDisc=True)
+        
+    except Exception as e:
+        utils.log(f"Error showing folder: {str(e)}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error showing folder')
+
+def show_list(params):
+    """Show contents of a specific list"""
+    list_id = params.get('list_id', [None])[0] if params.get('list_id') else None
+    if not list_id:
+        utils.log("No list_id provided for show_list", "ERROR")
+        return
+        
+    utils.log(f"Showing list with ID: {list_id}", "DEBUG")
+    
+    try:
+        from resources.lib.config_manager import Config
+        from resources.lib.database_manager import DatabaseManager
+        from resources.lib.listitem_builder import ListItemBuilder
+        import xbmcplugin
+        
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+        
+        # Get list info
+        list_info = db_manager.fetch_data('lists', f'id = {list_id}')
+        if not list_info or len(list_info) == 0:
+            utils.log(f"List with ID {list_id} not found", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'List not found')
+            return
+        
+        # Get list items
+        list_items = db_manager.fetch_data('list_items', f'list_id = {list_id}')
+        
+        handle = int(xbmc.getInfoLabel('System.AddonHandle'))
+        
+        # Add each list item
+        for item in list_items:
+            try:
+                # Build video item with media info
+                video_item = ListItemBuilder.build_video_item(item)
+                
+                # Determine the URL - check if it's playable from Kodi library
+                kodi_id = item.get('kodi_id')
+                if kodi_id and str(kodi_id).isdigit() and int(kodi_id) > 0:
+                    # This item exists in Kodi library - make it playable
+                    item_url = f"plugin://plugin.video.librarygenie/?action=play_movie&movieid={kodi_id}"
+                    is_folder = False
+                else:
+                    # This item doesn't exist in Kodi library - show details only
+                    item_url = f"plugin://plugin.video.librarygenie/?action=show_item_details&title={item.get('title', '')}&list_id={list_id}&item_id={item.get('id', '')}"
+                    is_folder = False
+                
+                xbmcplugin.addDirectoryItem(
+                    handle=handle,
+                    url=item_url,
+                    listitem=video_item,
+                    isFolder=is_folder
+                )
+                
+            except Exception as e:
+                utils.log(f"Error processing list item {item.get('id', 'unknown')}: {str(e)}", "ERROR")
+                continue
+        
+        xbmcplugin.endOfDirectory(handle=handle, cacheToDisc=True)
+        
+    except Exception as e:
+        utils.log(f"Error showing list: {str(e)}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error showing list')
+
+def launch_main_window(params):
+    """Launch the main browse window"""
+    utils.log("Launching main window for browsing", "DEBUG")
+    
+    try:
+        # Get title from params for context
+        title = params.get('title', [''])[0] if params.get('title') else ''
+        utils.log(f"Browse context title: '{title}'", "DEBUG")
+        
+        # Create dummy item info for browsing mode
+        item_info = {
+            'title': title or 'Browse Lists',
+            'kodi_id': 0,
+            'year': '',
+            'plot': 'Browse your LibraryGenie lists and folders',
+            'is_playable': False
+        }
+        
+        # Import and launch the main window
+        from resources.lib.window_main import MainWindow
+        main_window = MainWindow(item_info, "LibraryGenie Browser")
+        main_window.doModal()
+        del main_window
+        
+    except Exception as e:
+        utils.log(f"Error launching main window: {str(e)}", "ERROR")
+        import traceback
+        utils.log(f"launch_main_window traceback: {traceback.format_exc()}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error launching browser')

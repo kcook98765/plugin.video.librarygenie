@@ -612,7 +612,7 @@ def show_options(params):
             time_since_nav = current_time - last_navigation
 
             if time_since_nav > 10.0:  # Clear stuck navigation flag after 10 seconds
-                utils.log(f"=== CLEARING STUCK NAVIGATION FLAG (stuck for {time_since_nav:.1f}s) ===", "WARNING")
+                utils.log(f"=== CLEARING STUCK NAVIGATION FLAG (stuck for {time_since_nav}s) ===", "WARNING")
                 xbmc.executebuiltin("ClearProperty(LibraryGenie.Navigating,Home)")
                 xbmc.executebuiltin("ClearProperty(LibraryGenie.SearchModalActive,Home)")
             else:
