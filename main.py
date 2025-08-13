@@ -99,41 +99,40 @@ def run_browse(params=None):
     except Exception as e:
         utils.log(f"Error launching browse window: {str(e)}", "ERROR")
 
-def browse_folder(folder_id):
-    """Browse a specific folder"""
-    import xbmcplugin
-    import xbmcgui
-    from resources.lib.addon_ref import get_addon
-    from resources.lib.database_manager import DatabaseManager
-    from resources.lib.config_manager import Config
+def browse_folder(params):
+    """Browse the contents of a folder"""
+    folder_id = params.get('folder_id', [None])[0]
+    if folder_id:
+        folder_id = int(folder_id)
 
-    addon = get_addon()
-    addon_id = addon.getAddonInfo("id")
+    utils.log(f"Browsing folder {folder_id}", "DEBUG")
+
+    config = Config()
+    db_manager = DatabaseManager(config.db_path)
     handle = int(sys.argv[1])
 
-    try:
-        config = Config()
-        db_manager = DatabaseManager(config.db_path)
+    # Add options header for all folder views (including subfolders)
+    ctx = detect_context({'view': 'folder', 'folder_id': folder_id})
+    add_options_header_item(ctx, handle)
 
-        # Get subfolders of this folder
+    try:
+        # Get subfolders
         subfolders = db_manager.fetch_folders(folder_id)
 
         # Get lists in this folder
-        folder_lists = db_manager.fetch_lists(folder_id)
+        lists = db_manager.fetch_lists(folder_id)
 
         # Add subfolders
-        for folder in subfolders:
-            from resources.lib.listitem_builder import ListItemBuilder
-            li = ListItemBuilder.build_folder_item(f"📁 {folder['name']}", is_folder=True)
+        for subfolder in subfolders:
+            li = ListItemBuilder.build_folder_item(f"📁 {subfolder['name']}", is_folder=True)
             li.setProperty('lg_type', 'folder')
-            add_context_menu_for_item(li, 'folder', folder_id=folder['id'])
-            url = build_plugin_url({'action': 'browse_folder', 'folder_id': folder['id'], 'view': 'folder'})
+            add_context_menu_for_item(li, 'folder', folder_id=subfolder['id'])
+            url = build_plugin_url({'action': 'browse_folder', 'folder_id': subfolder['id'], 'view': 'folder'})
             xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
 
-        # Add lists in this folder
-        for list_item in folder_lists:
+        # Add lists
+        for list_item in lists:
             list_count = db_manager.get_list_media_count(list_item['id'])
-            from resources.lib.listitem_builder import ListItemBuilder
 
             # Check if this is a search history list by checking if it's in Search History folder
             plot_text = ''
@@ -371,7 +370,7 @@ def router(params):
             folder_id = q.get('folder_id', [None])[0]
             if folder_id:
                 nav_manager.set_navigation_in_progress(False)
-                browse_folder(int(folder_id))
+                browse_folder(q) # Pass the parsed params to browse_folder
             else:
                 utils.log("Missing folder_id for browse_folder action, returning to root.", "WARNING")
                 build_root_directory(ADDON_HANDLE)
