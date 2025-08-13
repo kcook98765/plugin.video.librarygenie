@@ -37,11 +37,11 @@ def add_context_menu_for_item(li: xbmcgui.ListItem, item_type: str, **ids):
              f'RunPlugin({build_plugin_url({"action":"refresh_movie","movie_id":movie_id})})'),
         ]
     elif item_type == 'folder':
-        folder = ids.get('folder', '')
-        if folder:
+        folder_id = ids.get('folder_id', '') # Changed from 'folder' to 'folder_id' for consistency
+        if folder_id:
             cm += [
                 ('Rename folder',
-                 f'RunPlugin({build_plugin_url({"action":"rename_folder","folder":folder})})'),
+                 f'RunPlugin({build_plugin_url({"action":"rename_folder","folder_id":folder_id})})'), # Changed 'folder' to 'folder_id'
             ]
     if cm:
         li.addContextMenuItems(cm, replaceItems=False)
@@ -116,7 +116,7 @@ def build_root_directory(handle: int):
 
             li = ListItemBuilder.build_folder_item(f"📁 {folder['name']}", is_folder=True)
             li.setProperty('lg_type', 'folder')
-            add_context_menu_for_item(li, 'folder', folder_id=folder['id'])
+            add_context_menu_for_item(li, 'folder', folder_id=folder['id']) # Pass folder_id
             url = build_plugin_url({'action': 'browse_folder', 'folder_id': folder['id'], 'view': 'folder'})
             xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
 
