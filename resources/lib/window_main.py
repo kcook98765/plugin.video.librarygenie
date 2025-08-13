@@ -10,22 +10,7 @@ utils.log("Initializing MainWindow module", "INFO")
 # Legacy MainWindow functionality moved to plugin-based approach
 # Use main.py router and context menus instead
 
-def launch_movie_search():
-    """Launches the proper SearchWindow for movie search"""
-    try:
-        # Use dialog-based search instead of pyxbmct window
-        search_query = xbmcgui.Dialog().input("Search Movies", type=xbmcgui.INPUT_ALPHANUM)
-        if search_query:
-            # Trigger search via plugin URL
-            import xbmc
-            addon_id = "plugin.video.librarygenie"
-            url = f"plugin://{addon_id}/?action=search_movies&query={search_query}"
-            xbmc.executebuiltin(f'Container.Update({url})')
-            return {'status': 'success', 'query': search_query}
-        return {'status': 'cancelled'}
-    except Exception as e:
-        utils.log(f"Error in movie search: {str(e)}", "ERROR")
-        return {'status': 'error', 'error': str(e)}
+
 
 class MainWindow:
     INDENTATION_MULTIPLIER = 3  # Used for indenting sublevels
@@ -125,9 +110,7 @@ class MainWindow:
                 is_playable = False
         return is_playable
 
-    def display_media_info(self):
-        # (Not used: Media info is handled in setup_ui)
-        pass
+    
 
     def onAction(self, action):
         # If the action is up or down, update our stored selection state and legend
@@ -1260,52 +1243,10 @@ class MainWindow:
             self.show_notification("Error", "Failed to open new folder dialog.")
 
 
-def launch_movie_search():
-    """Launches the proper SearchWindow for movie search"""
-    from resources.lib.window_search import SearchWindow
-
-    search_window = SearchWindow()
-    search_window.doModal()
-    results = search_window.get_search_results()
-    del search_window
-    return results
 
 
-def perform_movie_search(search_query):
-    """Performs the actual movie search using the provided query"""
 
-    progress_win = SearchProgressWindow()
-    progress_win.doModal()
 
-    try:
-        # Simulate a search process
-        import time
-        total_steps = 100
-        for i in range(total_steps):
-            time.sleep(0.01)  # Simulate work
-            percent = (i + 1) * 100 // total_steps
-            progress_win.set_progress(percent)
-            progress_win.show_message(f"Searching... {percent}%")
-
-            # Check if the user has cancelled the search
-            if not progress_win.is_visible():
-                return {'status': 'cancelled'}
-
-        # Simulate movie matches
-        matches = [
-            {'title': f"Movie Match 1: {search_query}"},
-            {'title': f"Movie Match 2: {search_query}"}
-        ]
-
-        progress_win.show_message("Search completed successfully")
-        return {'status': 'success', 'matches': matches}
-    except Exception as e:
-        progress_win.show_message(f"Search failed: {str(e)}")
-        return {'status': 'failure', 'error': str(e)}
-    finally:
-        # Ensure that progress window is closed
-        progress_win.close()
-        del progress_win
 class MenuWindow(BaseWindow):
     def __init__(self, title="Main Menu"):
         super().__init__(title)
