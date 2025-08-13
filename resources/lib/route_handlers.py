@@ -179,6 +179,84 @@ def remove_from_list(params):
         utils.log(f"Error removing from list: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Failed to remove')
 
+def move_list(params):
+    """Move a list to a different folder or root"""
+    list_id = params.get('list_id', [None])[0]
+    if not list_id:
+        return
+    
+    try:
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+        
+        # Get current list info
+        list_info = db_manager.fetch_list_by_id(list_id)
+        if not list_info:
+            utils.log(f"List with ID {list_id} not found", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'List not found', xbmcgui.NOTIFICATION_ERROR)
+            return
+        
+        # Check if list is protected (search history lists cannot be moved)
+        if db_manager.is_list_protected(list_id):
+            utils.log(f"Cannot move protected list {list_id}", "WARNING")
+            xbmcgui.Dialog().notification('LibraryGenie', 'Cannot move protected list', xbmcgui.NOTIFICATION_WARNING)
+            return
+        
+        # Get all folders for selection (excluding Search History folder)
+        all_folders = db_manager.fetch_all_folders()
+        search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
+        
+        # Filter out Search History folder and build options
+        folder_options = ["📁 Root (No folder)"]
+        folder_ids = [None]  # Root folder represented as None
+        
+        for folder in all_folders:
+            if folder['id'] != search_history_folder_id:
+                # Build folder path for display
+                folder_path = folder['name']
+                current_folder = folder
+                while current_folder.get('parent_id'):
+                    parent_folder = db_manager.fetch_folder_by_id(current_folder['parent_id'])
+                    if parent_folder and parent_folder['id'] != search_history_folder_id:
+                        folder_path = f"{parent_folder['name']} > {folder_path}"
+                        current_folder = parent_folder
+                    else:
+                        break
+                
+                folder_options.append(f"📁 {folder_path}")
+                folder_ids.append(folder['id'])
+        
+        # Show folder selection dialog
+        selected_index = xbmcgui.Dialog().select(
+            f"Move list '{list_info['name']}' to:",
+            folder_options
+        )
+        
+        if selected_index == -1:  # User cancelled
+            return
+        
+        target_folder_id = folder_ids[selected_index]
+        current_folder_id = list_info.get('folder_id')
+        
+        # Check if already in target location
+        if target_folder_id == current_folder_id:
+            xbmcgui.Dialog().notification('LibraryGenie', 'List is already in that location', xbmcgui.NOTIFICATION_INFO)
+            return
+        
+        # Move the list
+        db_manager.update_list_folder(list_id, target_folder_id)
+        
+        # Show success notification
+        target_name = "Root" if target_folder_id is None else folder_options[selected_index].replace("📁 ", "")
+        xbmcgui.Dialog().notification('LibraryGenie', f'List moved to {target_name}')
+        xbmc.executebuiltin('Container.Refresh')
+        
+    except Exception as e:
+        utils.log(f"Error moving list: {str(e)}", "ERROR")
+        import traceback
+        utils.log(f"Move list traceback: {traceback.format_exc()}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Failed to move list', xbmcgui.NOTIFICATION_ERROR)
+
 def rename_folder(params):
     folder_id = params.get('folder_id', [None])[0]
     if not folder_id:
