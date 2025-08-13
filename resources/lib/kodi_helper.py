@@ -99,14 +99,14 @@ class KodiHelper:
 
         # Add folders first
         for folder in folders:
-            list_item = ListItemBuilder.build_folder_item(f"📁 {folder['name']}", is_folder=True)
+            list_item = ListItemBuilder.build_folder_item(folder['name'], is_folder=True)
             url = f'{self.addon_url}?action=show_folder&folder_id={folder["id"]}'
             utils.log(f"Adding folder: {folder['name']} with URL - {url}", "INFO")
             xbmcplugin.addDirectoryItem(self.addon_handle, url, list_item, isFolder=True)
 
         # Add lists
         for list_item in lists:
-            list_item_obj = ListItemBuilder.build_list_item(f"📋 {list_item['name']}", is_folder=True)
+            list_item_obj = ListItemBuilder.build_list_item(list_item['name'], is_folder=True)
             url = f'{self.addon_url}?action=show_list&list_id={list_item["id"]}'
             utils.log(f"Adding list: {list_item['name']} with URL - {url}", "INFO")
             xbmcplugin.addDirectoryItem(self.addon_handle, url, list_item_obj, isFolder=True)
