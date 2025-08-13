@@ -1,19 +1,39 @@
-
 """URL building and parameter parsing utilities for LibraryGenie addon"""
 
 import sys
 import urllib.parse
-from urllib.parse import urlencode, parse_qs, urlparse
+from urllib.parse import urlencode, parse_qs, urlparse, quote_plus
 import xbmcaddon
 from resources.lib import utils
 
-def build_plugin_url(params: dict) -> str:
-    """Build plugin URL with clean parameters (no empty values)"""
-    # Drop None / '' / False and only encode the rest
-    cleaned = {k: str(v) for k, v in params.items() if v not in (None, '', False)}
-    addon_id = xbmcaddon.Addon().getAddonInfo('id')
-    base_url = f"plugin://{addon_id}/"
-    return base_url + ('?' + urlencode(cleaned, doseq=True) if cleaned else '')
+def build_plugin_url(params):
+    """Build plugin URL from parameters"""
+    utils.log(f"FOLDER_CONTEXT_DEBUG: build_plugin_url called with params: {params}", "DEBUG")
+
+    # Ensure all values are strings for URL encoding
+    string_params = {}
+    for key, value in params.items():
+        if value is not None:
+            if isinstance(value, list):
+                string_params[key] = [str(v) for v in value]
+            else:
+                string_params[key] = str(value)
+
+    utils.log(f"FOLDER_CONTEXT_DEBUG: string_params after conversion: {string_params}", "DEBUG")
+
+    # Build query string
+    query_params = []
+    for key, value in string_params.items():
+        if isinstance(value, list):
+            for v in value:
+                query_params.append(f"{key}={quote_plus(v)}")
+        else:
+            query_params.append(f"{key}={quote_plus(value)}")
+
+    query_string = "&".join(query_params)
+    url = f"plugin://plugin.video.librarygenie/?{query_string}"
+    utils.log(f"FOLDER_CONTEXT_DEBUG: Built URL: {url}", "DEBUG")
+    return url
 
 def parse_params(params_string: str) -> dict:
     """Parse URL parameters from query string or full URL"""
@@ -41,4 +61,5 @@ def detect_context(ctx_params: dict) -> dict:
         ctx['list_id'] = ctx_params.get('list_id')
     if 'folder' in ctx_params:
         ctx['folder'] = ctx_params.get('folder')
+    utils.log(f"FOLDER_CONTEXT_DEBUG: detect_context called with ctx_params: {ctx_params}, returning: {ctx}", "DEBUG")
     return ctx

@@ -1,4 +1,3 @@
-
 """Directory building utilities for LibraryGenie addon"""
 
 import sys
@@ -124,12 +123,12 @@ def build_root_directory(handle: int):
         # Add top-level lists
         for list_item in top_level_lists:
             list_count = db_manager.get_list_media_count(list_item['id'])
-            
+
             # Check if this list contains a count pattern like "(number)" at the end
             # Search history lists already include count, regular lists need count added
             import re
             has_count_in_name = re.search(r'\(\d+\)$', list_item['name'])
-            
+
             if has_count_in_name:
                 # List already has count in name (likely search history), use as-is
                 display_title = list_item['name']

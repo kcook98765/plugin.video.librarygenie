@@ -21,6 +21,7 @@ class FolderListManager:
     def create_new_folder(self, parent_folder_id):
         """Create a new folder in the specified parent folder (None for root)"""
         utils.log("=== CREATE_NEW_FOLDER: ABOUT TO SHOW INPUT MODAL ===", "DEBUG")
+        utils.log(f"FOLDER_CONTEXT_DEBUG: create_new_folder received parent_folder_id: {parent_folder_id} (type: {type(parent_folder_id)})", "DEBUG")
         name = xbmcgui.Dialog().input('New folder name', type=xbmcgui.INPUT_ALPHANUM)
         utils.log("=== CREATE_NEW_FOLDER: INPUT MODAL CLOSED ===", "DEBUG")
         if not name:
@@ -29,6 +30,7 @@ class FolderListManager:
 
         try:
             # Create in specified parent folder
+            utils.log(f"FOLDER_CONTEXT_DEBUG: About to create folder '{name}' in parent folder_id: {parent_folder_id}", "DEBUG")
             utils.log(f"Creating folder '{name}' in parent folder_id: {parent_folder_id}", "DEBUG")
             self.db_manager.insert_folder(name, parent_folder_id)
             utils.log("=== CREATE_NEW_FOLDER: ABOUT TO SHOW SUCCESS NOTIFICATION ===", "DEBUG")

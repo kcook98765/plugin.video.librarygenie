@@ -23,6 +23,7 @@ class OptionsManager:
         """Show the Options & Tools menu"""
         utils.log("=== OPTIONS DIALOG REQUEST START ===", "DEBUG")
         utils.log("Showing Options & Tools menu", "DEBUG")
+        utils.log(f"FOLDER_CONTEXT_DEBUG: Received params in show_options_menu: {params}", "DEBUG")
 
         # Get current window info for debugging
         current_window_id = xbmcgui.getCurrentWindowId()
@@ -139,15 +140,24 @@ class OptionsManager:
         utils.log("=== COMPLETED QUICK CLEANUP ===", "DEBUG")
 
         # Get current folder from params if available
+        utils.log(f"FOLDER_CONTEXT_DEBUG: Raw folder_id from params: {params.get('folder_id')}", "DEBUG")
         current_folder_id = params.get('folder_id')
+        utils.log(f"FOLDER_CONTEXT_DEBUG: Initial current_folder_id: {current_folder_id} (type: {type(current_folder_id)})", "DEBUG")
+        
         if current_folder_id and isinstance(current_folder_id, list):
+            utils.log(f"FOLDER_CONTEXT_DEBUG: current_folder_id is list, extracting first element: {current_folder_id[0]}", "DEBUG")
             current_folder_id = current_folder_id[0]
+        
+        utils.log(f"FOLDER_CONTEXT_DEBUG: After list extraction: {current_folder_id} (type: {type(current_folder_id)})", "DEBUG")
+        
         if current_folder_id and str(current_folder_id).isdigit():
             current_folder_id = int(current_folder_id)
+            utils.log(f"FOLDER_CONTEXT_DEBUG: Converted to int: {current_folder_id}", "DEBUG")
         else:
+            utils.log(f"FOLDER_CONTEXT_DEBUG: Not a valid digit, setting to None. Value was: {current_folder_id}", "DEBUG")
             current_folder_id = None
             
-        utils.log(f"Extracted current_folder_id from params: {current_folder_id}", "DEBUG")
+        utils.log(f"FOLDER_CONTEXT_DEBUG: Final extracted current_folder_id: {current_folder_id}", "DEBUG")
         
         self._execute_option(selected_option, selected_text, current_folder_id)
 
@@ -169,14 +179,17 @@ class OptionsManager:
             elif "Create New List" in selected_text:
                 utils.log("=== EXECUTING: CREATE NEW LIST ===", "DEBUG")
                 utils.log("=== ABOUT TO CALL create_list() - MODAL WILL OPEN ===", "DEBUG")
+                utils.log(f"FOLDER_CONTEXT_DEBUG: Passing current_folder_id to create_list: {current_folder_id}", "DEBUG")
                 from resources.lib.route_handlers import create_list
                 # Pass current folder context
                 params = {'folder_id': [current_folder_id]} if current_folder_id else {}
+                utils.log(f"FOLDER_CONTEXT_DEBUG: Built params for create_list: {params}", "DEBUG")
                 create_list(params)
                 utils.log("=== COMPLETED: CREATE NEW LIST - ALL MODALS CLOSED ===", "DEBUG")
             elif "Create New Folder" in selected_text:
                 utils.log("=== EXECUTING: CREATE NEW FOLDER ===", "DEBUG")
                 utils.log("=== ABOUT TO CALL create_new_folder() - MODAL WILL OPEN ===", "DEBUG")
+                utils.log(f"FOLDER_CONTEXT_DEBUG: Passing current_folder_id to create_new_folder: {current_folder_id}", "DEBUG")
                 from resources.lib.folder_list_manager import get_folder_list_manager
                 folder_manager = get_folder_list_manager()
                 folder_manager.create_new_folder(current_folder_id)

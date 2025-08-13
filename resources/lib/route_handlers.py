@@ -104,6 +104,7 @@ def show_item_details(params):
 
 def create_list(params):
     utils.log("=== CREATE_LIST: ABOUT TO SHOW INPUT MODAL ===", "DEBUG")
+    utils.log(f"FOLDER_CONTEXT_DEBUG: create_list received params: {params}", "DEBUG")
     name = xbmcgui.Dialog().input('New list name', type=xbmcgui.INPUT_ALPHANUM)
     utils.log("=== CREATE_LIST: INPUT MODAL CLOSED ===", "DEBUG")
     if not name:
@@ -114,14 +115,24 @@ def create_list(params):
         db_manager = DatabaseManager(config.db_path)
 
         # Get folder_id from params, default to None (root)
+        utils.log(f"FOLDER_CONTEXT_DEBUG: Raw folder_id from params: {params.get('folder_id')}", "DEBUG")
         folder_id = params.get('folder_id')
+        utils.log(f"FOLDER_CONTEXT_DEBUG: Initial folder_id: {folder_id} (type: {type(folder_id)})", "DEBUG")
+        
         if folder_id and isinstance(folder_id, list):
+            utils.log(f"FOLDER_CONTEXT_DEBUG: folder_id is list, extracting first element: {folder_id[0]}", "DEBUG")
             folder_id = folder_id[0]
+        
+        utils.log(f"FOLDER_CONTEXT_DEBUG: After list extraction: {folder_id} (type: {type(folder_id)})", "DEBUG")
+        
         if folder_id and str(folder_id).isdigit():
             folder_id = int(folder_id)
+            utils.log(f"FOLDER_CONTEXT_DEBUG: Converted to int: {folder_id}", "DEBUG")
         else:
+            utils.log(f"FOLDER_CONTEXT_DEBUG: Not a valid digit, setting to None. Value was: {folder_id}", "DEBUG")
             folder_id = None
         
+        utils.log(f"FOLDER_CONTEXT_DEBUG: Final folder_id for create_list: {folder_id}", "DEBUG")
         utils.log(f"Creating list '{name}' in folder_id: {folder_id}", "DEBUG")
         list_id = db_manager.create_list(name, folder_id)
         utils.log("=== CREATE_LIST: ABOUT TO SHOW SUCCESS NOTIFICATION ===", "DEBUG")

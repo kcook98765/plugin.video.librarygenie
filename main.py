@@ -81,7 +81,7 @@ def run_search(params=None):
     """Legacy function - redirect to new flow"""
     run_search_flow()
 
-def run_browse(params=None):
+def run_browse(params):
     """Launch the browse lists interface"""
     utils.log("Browse action triggered", "DEBUG")
     try:
@@ -314,8 +314,10 @@ def browse_list(list_id):
         xbmcplugin.endOfDirectory(handle, succeeded=False)
 
 def router(params):
-    """Route plugin calls to appropriate handlers"""
-    utils.log(f"Router called with params: {params}", "DEBUG")
+    """Route requests to appropriate handlers"""
+    action = params.get('action', [None])[0]
+    utils.log(f"Router called with action: {action}", "DEBUG")
+    utils.log(f"FOLDER_CONTEXT_DEBUG: Router received full params: {params}", "DEBUG")
 
     # Clean up any stuck navigation flags at router entry
     nav_manager.cleanup_stuck_navigation()
@@ -366,6 +368,7 @@ def router(params):
             xbmcgui.Dialog().notification("LibraryGenie", "Failed to setup Remote API", xbmcgui.NOTIFICATION_ERROR)
     elif action == 'browse_folder':
         utils.log("Handling browse_folder action", "DEBUG")
+        utils.log(f"FOLDER_CONTEXT_DEBUG: browse_folder called with params: {params}", "DEBUG")
         try:
             folder_id = q.get('folder_id', [None])[0]
             if folder_id:
@@ -377,12 +380,13 @@ def router(params):
         except Exception as e:
             utils.log(f"Error in browse_folder action: {str(e)}", "ERROR")
             xbmcgui.Dialog().notification("LibraryGenie", "Error browsing folder", xbmcgui.NOTIFICATION_ERROR)
-    elif action == 'options':
+    elif action == 'show_options':
         utils.log("Routing to options action", "DEBUG")
         # Check if we're in the middle of navigation to prevent dialog conflicts
         if nav_manager.is_navigation_in_progress():
             utils.log("Navigation in progress, skipping options dialog", "DEBUG")
             return
+        utils.log(f"FOLDER_CONTEXT_DEBUG: Invoking show_options_menu with params: {params}", "DEBUG")
         options_manager.show_options_menu(q)
         # IMPORTANT: Do NOT call endOfDirectory() here - this is a RunPlugin action
         return
