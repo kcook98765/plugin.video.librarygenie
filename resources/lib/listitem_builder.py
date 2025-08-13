@@ -136,7 +136,7 @@ class ListItemBuilder:
 
         list_item = xbmcgui.ListItem(label=title)
 
-        
+
 
         # Prepare artwork dictionary
         art_dict = {}
@@ -173,39 +173,11 @@ class ListItemBuilder:
         if isinstance(media_info.get('info', {}).get('art'), dict):
             art_dict.update(media_info['info']['art'])
 
-        # Set poster with fallbacks and apply star overlay if search score exists
+        # Set poster with fallbacks
         if poster_url and str(poster_url) != 'None':
-            # Check if we have a search score to overlay
-            search_score = media_info.get('search_score')
-            if search_score and search_score >= 5.0:
-                # Determine star overlay based on score range 5.0-8.0
-                if search_score >= 7.5:
-                    stars = 5  # Excellent (7.5-8.0)
-                elif search_score >= 7.0:
-                    stars = 4  # Very Good (7.0-7.49)
-                elif search_score >= 6.5:
-                    stars = 3  # Good (6.5-6.99)
-                elif search_score >= 6.0:
-                    stars = 2  # Fair (6.0-6.49)
-                else:
-                    stars = 1  # Poor (5.0-5.99)
-                
-                # Create overlay path
-                from resources.lib.addon_ref import get_addon
-                addon = get_addon()
-                addon_path = addon.getAddonInfo("path")
-                overlay_path = f"{addon_path}/resources/media/overlay_{stars}star.png"
-                
-                # Create composite image URL using Kodi's multiimage format
-                poster_with_overlay = f"multiimage://{_wrap_for_kodi_image(poster_url)}/{_wrap_for_kodi_image(overlay_path)}"
-                
-                art_dict['poster'] = poster_with_overlay
-                art_dict['thumb'] = poster_with_overlay
-                art_dict['icon'] = poster_with_overlay
-            else:
-                art_dict['poster'] = poster_url
-                art_dict['thumb'] = poster_url
-                art_dict['icon'] = poster_url
+            art_dict['poster'] = poster_url
+            art_dict['thumb'] = poster_url
+            art_dict['icon'] = poster_url
 
         # Set fanart
         fanart = media_info.get('fanart') or media_info.get('info', {}).get('fanart')
@@ -278,7 +250,7 @@ class ListItemBuilder:
                 info_dict['cast'] = []
 
         # LOG PROCESSED INFO_DICT BEFORE SETTING
-        # utils.log("=== INFO_DICT TO BE SET START ===", "INFO")
+        # utils.log(f"=== INFO_DICT TO BE SET START ===", "INFO")
         # for key, value in info_dict.items():
         #     if key == 'cast' and isinstance(value, list):
         #         utils.log(f"  {key}: [{len(value)} cast members]", "INFO")
