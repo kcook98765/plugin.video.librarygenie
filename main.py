@@ -502,16 +502,16 @@ def router(params):
 
         # Map option indices to their names and functions  
         option_map = {
-            0: ("🔍 Search Movies", do_search),
-            1: ("📂 Create Folder", lambda: create_new_folder_at_root()),
-            2: ("📝 Create List", lambda: create_list({})),
-            3: ("⚙️ Settings", lambda: xbmc.executebuiltin('Addon.OpenSettings(plugin.video.librarygenie)')),
-            4: ("🔧 Setup Remote API", lambda: run_setup()),
-            5: ("📤 Upload Library (Full)", lambda: upload_manager.upload_library_full()),
-            6: ("📤 Upload Library (Delta)", lambda: upload_manager.upload_library_delta()),
-            7: ("📊 Upload Status", lambda: upload_manager.get_upload_status()),
-            8: ("🗑️ Clear Server Library", lambda: upload_manager.clear_server_library()),
-            9: ("🗑️ Clear All Local Data", clear_all_local_data)
+            0: ("Search Movies", do_search),
+            1: ("Create Folder", lambda: create_new_folder_at_root()),
+            2: ("Create List", lambda: create_list({})),
+            3: ("Settings", lambda: xbmc.executebuiltin('Addon.OpenSettings(plugin.video.librarygenie)')),
+            4: ("Setup Remote API", lambda: run_setup()),
+            5: ("Upload Library (Full)", lambda: upload_manager.upload_library_full()),
+            6: ("Upload Library (Delta)", lambda: upload_manager.upload_library_delta()),
+            7: ("Upload Status", lambda: upload_manager.get_upload_status()),
+            8: ("Clear Server Library", lambda: upload_manager.clear_server_library()),
+            9: ("Clear All Local Data", clear_all_local_data)
         }
 
         if option_index in option_map:
@@ -706,18 +706,18 @@ def show_options(params):
     utils.log(f"Current window ID: {current_window_id}", "DEBUG")
 
     options = [
-        "- Search Movies",
-        "- Search History",
-        "- Browse Lists",
-        "- Create New List",
-        "- Create New Folder",
-        "- Upload Library to Server (Full)",
-        "- Sync Library with Server (Delta)",
-        "- View Upload Status",
-        "- Clear Server Library",
-        "- Clear All Local Data",
-        "- Settings",
-        "- Authenticate with Server"
+        "Search Movies",
+        "Search History",
+        "Browse Lists",
+        "Create New List",
+        "Create New Folder",
+        "Upload Library to Server (Full)",
+        "Sync Library with Server (Delta)",
+        "View Upload Status",
+        "Clear Server Library",
+        "Clear All Local Data",
+        "Settings",
+        "Authenticate with Server"
     ]
 
     try:
@@ -871,18 +871,18 @@ def execute_deferred_option(option_index):
     utils.log(f"=== EXECUTING DEFERRED OPTION {option_index} ===", "DEBUG")
 
     options = [
-        "- Search Movies",
-        "- Search History",
-        "- Browse Lists",
-        "- Create New List",
-        "- Create New Folder",
-        "- Upload Library to Server (Full)",
-        "- Sync Library with Server (Delta)",
-        "- View Upload Status",
-        "- Clear Server Library",
-        "- Clear All Local Data",
-        "- Settings",
-        "- Authenticate with Server"
+        "Search Movies",
+        "Search History",
+        "Browse Lists",
+        "Create New List",
+        "Create New Folder",
+        "Upload Library to Server (Full)",
+        "Sync Library with Server (Delta)",
+        "View Upload Status",
+        "Clear Server Library",
+        "Clear All Local Data",
+        "Settings",
+        "Authenticate with Server"
     ]
 
     if option_index < 0 or option_index >= len(options):
