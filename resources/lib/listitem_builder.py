@@ -46,17 +46,22 @@ def _wrap_for_kodi_image(u: str) -> str:
 
 def _get_addon_artwork_fallbacks() -> dict:
     """Return addon artwork that can be used as fallbacks"""
+    from resources.lib.addon_ref import get_addon
+    addon = get_addon()
+    addon_path = addon.getAddonInfo("path")
+    media = f"{addon_path}/resources/media"
+    
     return {
-        'icon': 'special://home/addons/plugin.video.librarygenie/resources/media/icon.jpg',
-        'thumb': 'special://home/addons/plugin.video.librarygenie/resources/media/thumb.jpg',
-        'poster': 'special://home/addons/plugin.video.librarygenie/resources/media/icon.jpg',
-        'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg',
-        'banner': 'special://home/addons/plugin.video.librarygenie/resources/media/banner.jpg',
-        'landscape': 'special://home/addons/plugin.video.librarygenie/resources/media/landscape.jpg',
-        'clearart': 'special://home/addons/plugin.video.librarygenie/resources/media/clearart.jpg',
-        'clearlogo': 'special://home/addons/plugin.video.librarygenie/resources/media/clearlogo.png',
-        'folder': 'special://home/addons/plugin.video.librarygenie/resources/media/list_folder.png',
-        'playlist': 'special://home/addons/plugin.video.librarygenie/resources/media/list_playlist.png'
+        'icon': f"{media}/icon.jpg",
+        'thumb': f"{media}/thumb.jpg",
+        'poster': f"{media}/icon.jpg",
+        'fanart': f"{media}/fanart.jpg",
+        'banner': f"{media}/banner.jpg",
+        'landscape': f"{media}/landscape.jpg",
+        'clearart': f"{media}/clearart.jpg",
+        'clearlogo': f"{media}/clearlogo.png",
+        'folder': f"{media}/list_folder.png",
+        'playlist': f"{media}/list_playlist.png"
     }
 
 def _normalize_art_dict(art: dict, use_fallbacks: bool = False) -> dict:
@@ -71,22 +76,14 @@ def _normalize_art_dict(art: dict, use_fallbacks: bool = False) -> dict:
             if k not in art or not art[k]:
                 art[k] = v
 
+    # Use paths directly - let Kodi handle them
     for k, v in art.items():
         if not v:
             continue
-        vv = v.strip()
-        # Accept image:// as-is, wrap others when valid (http/file/smb/etc.)
-        if vv.startswith("image://"):
-            out[k] = _wrap_for_kodi_image(vv)  # add trailing slash if missing
-            continue
-        if _is_valid_art_url(vv):
-            out[k] = _wrap_for_kodi_image(vv)
-        else:
-            # Last resort: if it *looks* like a URL but urlparse fails, try wrapping anyway
-            if "://" in vv or vv.startswith("special://"):
-                out[k] = _wrap_for_kodi_image(vv)
-            else:
-                xbmc.log(f"LibraryGenie [WARNING]: Skipping malformed artwork URL [{k}]: {vv}", xbmc.LOGINFO)
+        vv = str(v).strip()
+        if vv:
+            out[k] = vv
+    
     return out
 
 
@@ -253,24 +250,30 @@ class ListItemBuilder:
             is_folder: Whether this is a folder item
             item_type: Type of item ('folder', 'playlist', 'list') to determine icon
         """
+        from resources.lib.addon_ref import get_addon
+        addon = get_addon()
+        addon_path = addon.getAddonInfo("path")
+        media = f"{addon_path}/resources/media"
+        
         list_item = xbmcgui.ListItem(label=name)
         list_item.setIsFolder(is_folder)
 
         # Choose appropriate icon based on item type
         if item_type in ['playlist', 'list']:
-            icon_path = 'special://home/addons/plugin.video.librarygenie/resources/media/list_playlist.png'
+            icon_path = f"{media}/list_playlist.png"
         else:
-            icon_path = 'special://home/addons/plugin.video.librarygenie/resources/media/list_folder.png'
+            icon_path = f"{media}/list_folder.png"
 
-        # Set folder-appropriate artwork
+        # Set folder-appropriate artwork using direct paths
         folder_art = {
             'icon': icon_path,
             'thumb': icon_path,
-            'fanart': 'special://home/addons/plugin.video.librarygenie/resources/media/fanart.jpg'
+            'poster': icon_path,
+            'fanart': f"{media}/fanart.jpg"
         }
-        folder_art = _normalize_art_dict(folder_art)
-        if folder_art:
-            set_art(list_item, folder_art)
+        
+        # Set artwork directly without complex processing
+        set_art(list_item, folder_art)
 
         return list_item
 
