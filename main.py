@@ -459,6 +459,11 @@ def build_root():
             # Use the list name as-is without adding another count
             # The search history lists already include count in their name
             display_title = list_item['name']
+            utils.log(f"=== CREATING LISTITEM FOR LIST ===", "INFO")
+            utils.log(f"Original list name from database: '{list_item['name']}'", "INFO")
+            utils.log(f"Display title being used: '{display_title}'", "INFO")
+            utils.log(f"Final ListItem label will be: '📋 {display_title}'", "INFO")
+            utils.log(f"=== END CREATING LISTITEM FOR LIST ===", "INFO")
             li = ListItemBuilder.build_folder_item(f"📋 {display_title}", is_folder=True, item_type='playlist')
             li.setProperty('lg_type', 'list')
             _add_context_menu_for_item(li, 'list', list_id=list_item['id'])

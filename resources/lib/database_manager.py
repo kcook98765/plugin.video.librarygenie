@@ -631,7 +631,10 @@ class DatabaseManager(Singleton):
             'name': list_name,
             'folder_id': search_history_folder_id
         }
-        utils.log(f"Creating search history list: {final_list_data}", "DEBUG")
+        utils.log(f"=== SAVING LIST TITLE TO DATABASE ===", "INFO")
+        utils.log(f"List title being saved: '{list_name}'", "INFO")
+        utils.log(f"Full list data: {final_list_data}", "DEBUG")
+        utils.log(f"=== END SAVING LIST TITLE ===", "INFO")
         final_list_id = self.insert_data('lists', final_list_data)
         utils.log(f"Created search history list with ID: {final_list_id}", "DEBUG")
 
