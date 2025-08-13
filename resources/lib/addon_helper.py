@@ -8,6 +8,60 @@ from . import utils
 
 _initialized = False
 
+def clear_all_local_data():
+    """Clears all lists and folders except 'Search History' folder (but clears its lists)."""
+    utils.log("Attempting to clear all local data", "INFO")
+    dialog = xbmcgui.Dialog()
+    if dialog.yesno("Clear All Data", "Are you sure you want to delete ALL your lists and folders? This action cannot be undone. The 'Search History' folder will remain but all its lists will be cleared."):
+        try:
+            from resources.lib.config_manager import get_config
+            config = get_config()
+            db_manager = DatabaseManager(config.db_path)
+
+            # Get Search History folder ID
+            search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
+
+            # First, delete all lists in Search History folder
+            if search_history_folder_id:
+                search_history_lists = db_manager.fetch_lists(search_history_folder_id)
+                for list_item in search_history_lists:
+                    try:
+                        db_manager.delete_list(list_item['id'])
+                        utils.log(f"Deleted Search History list ID: {list_item['id']} ('{list_item['name']}')", "DEBUG")
+                    except Exception as e:
+                        utils.log(f"Error deleting Search History list {list_item['id']}: {str(e)}", "WARNING")
+
+            # Get all root-level folders and lists
+            all_root_folders = db_manager.fetch_folders(None)  # Root level folders
+            all_root_lists = db_manager.fetch_lists(None)      # Root level lists
+
+            # Delete all root-level folders except 'Search History' (this will cascade to delete all subfolders and their lists)
+            for folder in all_root_folders:
+                if folder['name'] != "Search History":
+                    try:
+                        db_manager.delete_folder_and_contents(folder['id'])
+                        utils.log(f"Deleted folder and all contents: {folder['name']} (ID: {folder['id']})", "DEBUG")
+                    except Exception as e:
+                        utils.log(f"Error deleting folder {folder['name']}: {str(e)}", "WARNING")
+
+            # Delete all root-level lists (not in any folder)
+            for list_item in all_root_lists:
+                try:
+                    db_manager.delete_list(list_item['id'])
+                    utils.log(f"Deleted root-level list: {list_item['name']} (ID: {list_item['id']})", "DEBUG")
+                except Exception as e:
+                    utils.log(f"Error deleting root-level list {list_item['name']}: {str(e)}", "WARNING")
+            
+            dialog.notification("LibraryGenie", "All local data cleared successfully.", xbmcgui.NOTIFICATION_INFO, 3000)
+            utils.log("Successfully cleared all local data.", "INFO")
+
+        except Exception as e:
+            utils.log(f"Error clearing local data: {str(e)}", "ERROR")
+            dialog.notification("LibraryGenie", "Error clearing local data.", xbmcgui.NOTIFICATION_ERROR, 5000)
+    else:
+        utils.log("User cancelled clearing local data.", "INFO")
+
+
 def run_addon():
     global _initialized
     if _initialized:
@@ -26,13 +80,13 @@ def run_addon():
         script_actions = [
             'setup_remote_api', 'manual_setup_remote_api', 'test_remote_api',
             'upload_library_full', 'upload_library_delta', 'upload_status', 
-            'clear_server_library', 'show_main_window'
+            'clear_server_library', 'show_main_window', 'clear_all_local_data'
         ]
-        
+
         if len(sys.argv) > 1 and sys.argv[1] in script_actions:
             action = sys.argv[1]
             utils.log(f"Detected script action: {action}", "INFO")
-            
+
             # Handle special case for setup_remote_api
             if action == 'setup_remote_api':
                 from .remote_api_setup import run_setup
@@ -61,9 +115,8 @@ def run_addon():
         utils.log("Initializing Kodi helper", "DEBUG")
         kodi_helper = KodiHelper()
 
-        # Import MainWindow locally to avoid circular imports
-        utils.log("Importing MainWindow class", "DEBUG")
-        from .window_main import MainWindow
+        # MainWindow functionality has been moved to plugin-based approach
+        utils.log("Using plugin-based routing instead of MainWindow", "DEBUG")
 
         # Handle context menu vs direct launch
         if listitem_context:
@@ -132,6 +185,8 @@ def run_addon():
                 from resources.lib.imdb_upload_manager import IMDbUploadManager
                 upload_manager = IMDbUploadManager()
                 upload_manager.clear_server_library()
+            elif action == 'clear_all_local_data':
+                clear_all_local_data()
             else:
                 # Always show root directory for direct launch or unknown action
                 root_folders = db_manager.fetch_folders(None)  # Get root folders

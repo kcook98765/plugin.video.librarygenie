@@ -29,9 +29,21 @@ def log(message, level=None):
             # If we can't get the setting, default to logging for safety
             pass
 
-    # Skip SQL execution logs in debug mode
-    if isinstance(message, str) and message.startswith("Executing SQL:") and level == 'DEBUG':
-        return
+    # Skip common spam logs
+    if isinstance(message, str):
+        spam_patterns = [
+            "Executing SQL:",
+            "DEBUG: JSONRPC request:",
+            "DEBUG: JSONRPC response:",
+            "JSONRPC VideoLibrary.GetMovies completed",
+            "JSONRPC GetMovies success: Got",
+            "Executing JSONRPC method:",
+            "Inserted into media_items, got ID:"
+        ]
+        
+        for pattern in spam_patterns:
+            if message.startswith(pattern) and level == 'DEBUG':
+                return
 
     # Truncate cast data in JSON responses
     if isinstance(message, str):
@@ -50,31 +62,6 @@ def log(message, level=None):
 def show_notification(title, message, icon=xbmcgui.NOTIFICATION_INFO, time=5000):
     xbmcgui.Dialog().notification(title, message, icon, time)
 
-def launch_movie_search():
-    """Launch the movie search GUI and return results"""
-    log("Utils: Starting launch_movie_search", "DEBUG")
-    try:
-        log("Utils: Importing SearchWindow", "DEBUG")
-        from resources.lib.window_search import SearchWindow
-
-        log("Utils: Creating SearchWindow instance", "DEBUG")
-        search_window = SearchWindow()
-        log("Utils: Showing SearchWindow modal", "DEBUG")
-        search_window.doModal()
-
-        # Get results if any
-        log("Utils: Getting search results", "DEBUG")
-        results = search_window.get_search_results()
-        log(f"Utils: Search results obtained: {results}", "DEBUG")
-        del search_window
-
-        return results
-    except Exception as e:
-        log(f"Error launching search window: {str(e)}", "ERROR")
-        import traceback
-        log(f"Error traceback: {traceback.format_exc()}", "ERROR")
-        return None
-
 def show_dialog_ok(heading, message):
     """Centralized OK dialog"""
     xbmcgui.Dialog().ok(heading, message)
@@ -85,7 +72,7 @@ def show_dialog_yesno(heading, message):
 
 def show_dialog_input(heading, default=""):
     """Centralized input dialog"""
-    return xbmcgui.Dialog().input(heading, defaultt=default).strip()
+    return xbmcgui.Dialog().input(heading, default).strip()
 
 def is_debug_enabled():
     """Check if debug logging is enabled in addon settings"""

@@ -101,6 +101,3 @@ def authenticate_with_code():
         log(f"Unexpected error during authentication: {str(e)}", "ERROR")
         show_dialog_ok("Unexpected Error", f"An unexpected error occurred: {str(e)}")
         return False
-
-if __name__ == '__main__':
-    authenticate_with_code()

@@ -4,6 +4,7 @@ import json
 import time
 from resources.lib import utils
 from resources.lib.config_manager import Config
+from datetime import datetime # Import datetime
 
 from resources.lib.singleton_base import Singleton
 
@@ -26,22 +27,36 @@ class DatabaseManager(Singleton):
 
             self.connection = sqlite3.connect(self.db_path, timeout=30.0)
             self.cursor = self.connection.cursor()
+
+            # Performance optimizations for bulk operations
             self.cursor.execute('PRAGMA foreign_keys = ON')
+            self.cursor.execute('PRAGMA journal_mode = WAL')  # Write-Ahead Logging for better concurrency
+            self.cursor.execute('PRAGMA synchronous = NORMAL')  # Faster writes
+            self.cursor.execute('PRAGMA cache_size = 10000')  # Larger cache
+            self.cursor.execute('PRAGMA temp_store = MEMORY')  # Use memory for temp tables
+
         except Exception as e:
             utils.log(f"Database connection error: {str(e)}", "ERROR")
             raise
 
     def _execute_with_retry(self, func, *args, **kwargs):
-        retries = 5
+        retries = 10  # Increase retry count
         for i in range(retries):
             try:
                 return func(*args, **kwargs)
             except sqlite3.OperationalError as e:
                 if 'database is locked' in str(e):
-                    utils.log(f"Database is locked, retrying... ({i+1}/{retries})", "WARNING")
-                    time.sleep(0.5)  # Wait for 0.5 seconds before retrying
+                    # Exponential backoff: 0.1, 0.2, 0.4, 0.8, 1.6... seconds
+                    wait_time = min(0.1 * (2 ** i), 2.0)  # Cap at 2 seconds
+                    utils.log(f"Database is locked, retrying in {wait_time}s... ({i+1}/{retries})", "WARNING")
+                    time.sleep(wait_time)
                 else:
+                    utils.log(f"Database error (non-lock): {str(e)}", "ERROR")
                     raise
+
+        # If all retries failed
+        utils.log(f"Database operation failed after {retries} retries", "ERROR")
+        raise sqlite3.OperationalError("Database is locked - operation failed after retries")
 
     def setup_database(self):
         """Initialize database by delegating to query manager"""
@@ -105,9 +120,42 @@ class DatabaseManager(Singleton):
                 truncated_data[key] = str_value
         return truncated_data
 
+    def bulk_insert_data(self, table, data_list):
+        """Bulk insert multiple records in a single transaction for better performance"""
+        if not data_list:
+            return []
+
+        try:
+            self.connection.execute("BEGIN TRANSACTION")
+
+            # Prepare the query
+            first_item = data_list[0]
+            columns = ', '.join(first_item.keys())
+            placeholders = ', '.join(['?' for _ in first_item])
+            query = f'INSERT OR IGNORE INTO {table} ({columns}) VALUES ({placeholders})'
+
+            # Convert cast lists to JSON strings if needed
+            processed_data = []
+            for data in data_list:
+                if 'cast' in data and isinstance(data['cast'], list):
+                    data = data.copy()  # Don't modify original
+                    data['cast'] = json.dumps(data['cast'])
+                processed_data.append(tuple(data.values()))
+
+            # Execute bulk insert
+            self.cursor.executemany(query, processed_data)
+            self.connection.commit()
+
+            utils.log(f"Bulk inserted {len(data_list)} records into {table}", "DEBUG")
+            return [self.cursor.lastrowid - len(data_list) + i + 1 for i in range(len(data_list))]
+
+        except Exception as e:
+            self.connection.rollback()
+            utils.log(f"Error in bulk insert to {table}: {str(e)}", "ERROR")
+            raise
+
     def insert_data(self, table, data):
         from resources.lib.query_manager import QueryManager
-        query_manager = QueryManager(self.db_path)
 
         # Convert the cast list to a JSON string if it exists
         if 'cast' in data and isinstance(data['cast'], list):
@@ -124,7 +172,27 @@ class DatabaseManager(Singleton):
             last_id = self.cursor.lastrowid
             utils.log(f"Inserted into {table}, got ID: {last_id}", "DEBUG")
             return last_id
+        elif table == 'media_items':
+            # Handle media_items directly to avoid creating new connections
+            columns = ', '.join(data.keys())
+            placeholders = ', '.join(['?' for _ in data])
+            query = f'INSERT OR IGNORE INTO {table} ({columns}) VALUES ({placeholders})'
+
+            try:
+                cursor = self.cursor
+                values = tuple(data.values())
+                cursor.execute(query, values)
+                self.connection.commit()
+                row_id = cursor.lastrowid
+                # Only log insertions for non-media_items or in debug mode
+                if table != 'media_items' or utils.is_debug_enabled():
+                    utils.log(f"Inserted into {table}, got ID: {row_id}", "DEBUG")
+                return row_id
+            except sqlite3.Error as e:
+                utils.log(f"Error inserting into {table}: {str(e)}", "ERROR")
+                raise
         elif table == 'list_items':
+            query_manager = QueryManager(self.db_path)
             media_item_id = query_manager.insert_media_item(data)
             if media_item_id:
                 list_data = {
@@ -136,8 +204,13 @@ class DatabaseManager(Singleton):
             else:
                 utils.log("No media_item_id found, insertion skipped", "ERROR")
         else:
-            # For other tables, use generic insert
-            query_manager.insert_generic(table, data)
+            # For other tables, use generic insert with existing connection
+            columns = ', '.join(data.keys())
+            placeholders = ', '.join(['?' for _ in data])
+            query = f'INSERT INTO {table} ({columns}) VALUES ({placeholders})'
+
+            self._execute_with_retry(self.cursor.execute, query, tuple(data.values()))
+            self.connection.commit()
 
         utils.log(f"Data inserted into {table} successfully", "DEBUG")
 
@@ -182,14 +255,9 @@ class DatabaseManager(Singleton):
         # Check if list is protected (but not search history lists - only the folder is protected)
         if self.is_list_protected(list_id):
             raise ValueError("Cannot delete protected list")
-            
+
         try:
             self.connection.execute("BEGIN")
-            # Delete from genie_lists first
-            self._execute_with_retry(self.cursor.execute, 
-                "DELETE FROM genie_lists WHERE list_id = ?", 
-                (list_id,))
-
             # Delete from list_items
             self._execute_with_retry(self.cursor.execute,
                 "DELETE FROM list_items WHERE list_id = ?",
@@ -279,7 +347,7 @@ class DatabaseManager(Singleton):
         query = """
             WITH RECURSIVE folder_tree AS (
                 SELECT id, parent_id, 0 as depth
-                FROM folders 
+                FROM folders
                 WHERE id = ?
                 UNION ALL
                 SELECT f.id, f.parent_id, ft.depth + 1
@@ -295,6 +363,7 @@ class DatabaseManager(Singleton):
     def delete_folder_and_contents(self, folder_id):
         try:
             self.connection.execute("BEGIN")
+
             # Get all nested folder IDs
             self._execute_with_retry(self.cursor.execute, """
                 WITH RECURSIVE nested_folders AS (
@@ -307,20 +376,44 @@ class DatabaseManager(Singleton):
             """, (folder_id,))
             folder_ids = [row[0] for row in self.cursor.fetchall()]
 
-            # Delete lists in all nested folders
-            placeholders = ','.join('?' * len(folder_ids))
-            self._execute_with_retry(self.cursor.execute, 
-                f"DELETE FROM lists WHERE folder_id IN ({placeholders})", 
-                folder_ids)
+            if folder_ids:
+                # Get all list IDs in these folders
+                placeholders = ','.join('?' * len(folder_ids))
+                self._execute_with_retry(self.cursor.execute,
+                    f"SELECT id FROM lists WHERE folder_id IN ({placeholders})",
+                    folder_ids)
+                list_ids = [row[0] for row in self.cursor.fetchall()]
 
-            # Delete all nested folders
-            self._execute_with_retry(self.cursor.execute, 
-                f"DELETE FROM folders WHERE id IN ({placeholders})", 
-                folder_ids)
+                # Delete all related records for each list
+                for list_id in list_ids:
+                    # Delete from list_items
+                    self._execute_with_retry(self.cursor.execute,
+                        "DELETE FROM list_items WHERE list_id = ?",
+                        (list_id,))
+
+                # Now delete the lists themselves
+                self._execute_with_retry(self.cursor.execute,
+                    f"DELETE FROM lists WHERE folder_id IN ({placeholders})",
+                    folder_ids)
+
+                # Finally delete all nested folders (in reverse order - children first)
+                # Sort by depth descending to delete children before parents
+                self._execute_with_retry(self.cursor.execute, """
+                    WITH RECURSIVE nested_folders AS (
+                        SELECT id, 0 as depth FROM folders WHERE id = ?
+                        UNION ALL
+                        SELECT f.id, nf.depth + 1 FROM folders f
+                        JOIN nested_folders nf ON f.parent_id = nf.id
+                    )
+                    DELETE FROM folders WHERE id IN (
+                        SELECT id FROM nested_folders ORDER BY depth DESC
+                    )
+                """, (folder_id,))
 
             self.connection.commit()
         except Exception as e:
             self.connection.rollback()
+            utils.log(f"Error during folder deletion rollback: {str(e)}", "ERROR")
             raise e
 
     def fetch_folder_by_id(self, folder_id):
@@ -343,59 +436,23 @@ class DatabaseManager(Singleton):
         query_manager = QueryManager(self.db_path)
         query_manager.remove_media_item_from_list(list_id, media_item_id)
 
-    def get_genie_list(self, list_id):
+    def fetch_media_items_by_folder(self, folder_id):
+        """Fetch all media items from lists in a specific folder"""
         from resources.lib.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
-        return query_manager.get_genie_list(list_id)
 
-    def update_genie_list(self, list_id, description, rpc):
-        from resources.lib.query_manager import QueryManager
-        query_manager = QueryManager(self.db_path)
-        query_manager.update_genie_list(list_id, description, rpc)
-        utils.log(f"Updated genie_list for list_id={list_id}", "DEBUG")
+        # Get all lists in this folder
+        lists_in_folder = query_manager.fetch_lists_direct(folder_id)
 
-    def insert_genie_list(self, list_id, description, rpc):
-        from resources.lib.query_manager import QueryManager
-        query_manager = QueryManager(self.db_path)
-        query_manager.insert_genie_list(list_id, description, rpc)
-        utils.log(f"Inserted genie_list for list_id={list_id}", "DEBUG")
+        all_media_items = []
+        for list_item in lists_in_folder:
+            # Get items from each list
+            list_items = query_manager.fetch_list_items_with_details(list_item['id'])
+            all_media_items.extend(list_items)
 
-    def delete_genie_list(self, list_id):
-        from resources.lib.query_manager import QueryManager
-        query_manager = QueryManager(self.db_path)
-        query_manager.delete_genie_list_direct(list_id)
+        return all_media_items
 
-    def remove_genielist_entries(self, list_id):
-        from resources.lib.query_manager import QueryManager
-        query_manager = QueryManager(self.db_path)
-        query_manager.remove_genielist_entries_direct(list_id)
-        utils.log(f"Removed GenieList entries for list_id={list_id}", "DEBUG")
 
-    def insert_genielist_entries(self, list_id, media_items):
-        for item in media_items:
-            fields_keys = [field.split()[0] for field in Config.FIELDS]
-            data = {field: item.get(field) for field in fields_keys}
-
-            # Ensure data types are correct
-            data['kodi_id'] = int(data['kodi_id']) if data['kodi_id'] and data['kodi_id'].isdigit() else 0
-            data['duration'] = int(data['duration']) if data['duration'] and data['duration'].isdigit() else 0
-            data['rating'] = float(data['rating']) if data['rating'] else 0.0
-            data['votes'] = int(data['votes']) if data['votes'] else 0
-            data['year'] = int(data['year']) if data['year'] else 0
-            data['source'] = 'genielist'
-            data['country'] = ','.join(data['country']) if isinstance(data['country'], list) else data['country']
-            data['director'] = ','.join(data['director']) if isinstance(data['director'], list) else data['director']
-            data['genre'] = ','.join(data['genre']) if isinstance(data['genre'], list) else data['genre']
-            data['studio'] = ','.join(data['studio']) if isinstance(data['studio'], list) else data['studio']
-            data['writer'] = ','.join(data['writer']) if isinstance(data['writer'], list) else data['writer']
-
-            if 'cast' in data and isinstance(data['cast'], list):
-                data['cast'] = json.dumps(data['cast'])
-
-            self.insert_data('media_items', data)
-            media_item_id = self.cursor.lastrowid
-            list_item_data = {'list_id': list_id, 'media_item_id': media_item_id}
-            self.insert_data('list_items', list_item_data)
 
     def get_list_media_count(self, list_id):
         query = """
@@ -487,28 +544,18 @@ class DatabaseManager(Singleton):
         try:
             results = remote_client.search_movies(query, limit)
 
-            # Convert remote API results to our format
-            # New API returns only imdb_id and similarity score
+            # Convert remote API results to minimal format - only IMDB ID and score
             formatted_results = []
             for movie in results:
                 formatted_movie = {
-                    'title': f"Semantic Match (Score: {movie.get('score', 0):.3f})",  # Placeholder title with score
-                    'year': 0,
-                    'rating': 0.0,
-                    'plot': f"AI-powered semantic search result. Similarity score: {movie.get('score', 0):.3f}",
-                    'genre': 'Search Result',
-                    'imdbnumber': movie.get('imdb_id', ''),
-                    'art': {
-                        'poster': '',
-                        'fanart': ''
-                    },
-                    'source': 'remote_api',
-                    'search_score': movie.get('score', 0)  # Store the semantic similarity score
+                    'imdbnumber': movie.get('imdb_id', ''),  # ONLY store IMDB ID
+                    'score': movie.get('score', 0),          # ONLY store search score
+                    'search_score': movie.get('score', 0)    # Alias for compatibility
                 }
                 formatted_results.append(formatted_movie)
 
             utils.log(f"Remote API semantic search returned {len(formatted_results)} movies", "DEBUG")
-            
+
             # Add search history
             self.add_search_history(query, formatted_results)
 
@@ -522,19 +569,19 @@ class DatabaseManager(Singleton):
         """Ensures the 'Search History' folder exists and is protected."""
         from resources.lib.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
-        
+
         # Ensure protected column exists in lists table
         self._ensure_protected_column()
-        
+
         search_history_folder_name = "Search History"
-        
+
         # Check if the folder already exists
         existing_folder = query_manager.get_folder_by_name(search_history_folder_name)
-        
+
         if not existing_folder:
             utils.log(f"Creating '{search_history_folder_name}' folder.", "INFO")
             query_manager.insert_folder_direct(search_history_folder_name, parent_id=None)
-            
+
             newly_created_folder = query_manager.get_folder_by_name(search_history_folder_name)
             if newly_created_folder:
                 utils.log(f"'{search_history_folder_name}' folder created with ID: {newly_created_folder['id']}", "INFO")
@@ -555,75 +602,195 @@ class DatabaseManager(Singleton):
             self.connection.commit()
 
     def add_search_history(self, query, results):
-        """Adds the search results to the 'Search History' folder as a new list."""
+        """Adds the search results to the 'Search History' folder as a new list. Returns the list ID."""
         from resources.lib.query_manager import QueryManager
+
         query_manager = QueryManager(self.db_path)
-        
+
         search_history_folder_id = self.get_folder_id_by_name("Search History")
         if not search_history_folder_id:
             utils.log("Search History folder not found, cannot save search results.", "ERROR")
-            return
+            return None
 
-        # Create a new list for this search query
-        # Use a timestamp or the query itself as the list name, ensuring uniqueness if needed.
-        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-        list_name = f"Search: {query} ({timestamp})"
-        
+        # Format the list name with search query, date only, and count
+        timestamp = datetime.now().strftime("%Y-%m-%d")
+        base_list_name = f"{query} ({timestamp}) ({len(results)})"
+
+
+        # Check if a list with this name already exists and create unique name
+        counter = 1
+        list_name = base_list_name
+        while self.get_list_id_by_name(list_name):
+            list_name = f"{base_list_name} (#{counter})"
+            counter += 1
+
         utils.log(f"Saving search results for query '{query}' into list '{list_name}'.", "INFO")
 
-        try:
-            # Insert the list into the database (not protected - only the folder is protected)
-            list_data = {
-                'name': list_name,
-                'folder_id': search_history_folder_id
-            }
-            new_list_id = self.insert_data('lists', list_data)
-            
-            if new_list_id:
-                # Prepare media items for insertion
-                media_items_to_insert = []
-                for result in results:
-                    # Adapt result to the format expected by insert_data for media_items
-                    media_item_data = {
-                        'title': result.get('title', 'Unknown Title'),
-                        'year': result.get('year', 0),
-                        'rating': result.get('rating', 0.0),
-                        'plot': result.get('plot', ''),
-                        'genre': result.get('genre', ''),
-                        'imdbnumber': result.get('imdbnumber', ''),
-                        'art': json.dumps(result.get('art', {})), # Store art as JSON string
-                        'source': result.get('source', 'search_history'),
-                        'search_score': result.get('search_score', None) # Store search score if available
-                    }
-                    # Ensure imdbnumber is not empty before processing
-                    if media_item_data['imdbnumber']:
-                        media_items_to_insert.append(media_item_data)
+        # Create the final list (only one creation needed)
+        final_list_data = {
+            'name': list_name,
+            'folder_id': search_history_folder_id
+        }
+        utils.log(f"Creating search history list: {final_list_data}", "DEBUG")
+        final_list_id = self.insert_data('lists', final_list_data)
+        utils.log(f"Created search history list with ID: {final_list_id}", "DEBUG")
+
+        if final_list_id:
+            utils.log(f"Successfully created search history list ID {final_list_id}, now adding {len(results)} items", "INFO")
+            # Store only IMDB IDs and scores - no library data
+            media_items_to_insert = []
+            for i, result in enumerate(results):
+                imdb_id = result.get('imdbnumber') or result.get('imdb_id', '')
+                if not imdb_id:
+                    utils.log(f"Skipping result {i+1}: No IMDB ID found", "WARNING")
+                    continue
+
+                score_display = result.get('score', result.get('search_score', 0))
+                # utils.log(f"Processing search result {i+1}/{len(results)}: {imdb_id} with score {score_display}", "DEBUG")
+
+                # Look up title and year from imdb_exports table if available
+                title_from_exports = ''
+                year_from_exports = 0
+
+                try:
+                    query = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
+                    self._execute_with_retry(self.cursor.execute, query, (imdb_id,))
+                    export_result = self.cursor.fetchone()
+                    if export_result:
+                        title_from_exports = export_result[0] or ''
+                        year_from_exports = int(export_result[1]) if export_result[1] else 0
+                        # utils.log(f"Found title/year from exports for {imdb_id}: '{title}' ({year})", "DEBUG")
                     else:
-                        utils.log(f"Skipping item due to missing imdbnumber: {result}", "WARNING")
-                
-                if media_items_to_insert:
-                    # Insert media items and link them to the new list
-                    for item_data in media_items_to_insert:
-                        # Need to insert into media_items first, then list_items
-                        media_item_id = query_manager.insert_media_item(item_data) # Assumes insert_media_item handles data formatting
-                        if media_item_id:
-                            list_item_data = {'list_id': new_list_id, 'media_item_id': media_item_id}
-                            query_manager.insert_list_item(list_item_data)
-                        else:
-                            utils.log(f"Failed to insert media item for: {item_data.get('imdbnumber', 'N/A')}", "ERROR")
-                    utils.log(f"Successfully saved {len(media_items_to_insert)} items to list '{list_name}'.", "INFO")
-                else:
-                    utils.log(f"No valid media items to save for search query '{query}'.", "WARNING")
-                    # Optionally, delete the empty list if no items were added
-                    self.delete_list(new_list_id)
-                    utils.log(f"Deleted empty list '{list_name}' as no items were saved.", "INFO")
+                        utils.log(f"No export data found for {imdb_id}", "DEBUG")
+                except Exception as e:
+                    utils.log(f"Error looking up export data for {imdb_id}: {str(e)}", "DEBUG")
 
+                # Store search data with title/year from imdb_exports if available
+                plot_text = f"Search result for '{query}' - Score: {score_display}"
+                if imdb_id:
+                    plot_text += f" - IMDb: {imdb_id}"
+
+                media_item_data = {
+                    'kodi_id': 0,  # No Kodi ID for search results
+                    'title': title_from_exports if title_from_exports else imdb_id,
+                    'year': year_from_exports,    # Year from imdb_exports lookup
+                    'rating': 0.0,
+                    'plot': plot_text,
+                    'tagline': 'Search result from LibraryGenie',
+                    'genre': 'Search Result',
+                    'director': '',
+                    'studio': 'LibraryGenie',
+                    'writer': '',
+                    'country': '',
+                    'cast': '[]',
+                    'imdbnumber': imdb_id,  # Store IMDB ID
+                    'art': '{}',
+                    'poster': '',
+                    'fanart': '',
+                    'source': 'Lib',
+                    'search_score': score_display,  # Store search score
+                    'duration': 0,
+                    'votes': 0,
+                    'play': f"search_history://{imdb_id}"  # Unique identifier for search results
+                }
+
+                # Enhanced logging to show complete data being stored
+                # utils.log(f"=== SEARCH HISTORY ITEM DETAILS FOR {imdb_id} ===", "DEBUG")
+                # utils.log(f"Full media_item_data: {media_item_data}", "DEBUG")
+                # utils.log(f"Original result keys: {list(result.keys())}", "DEBUG")
+                # utils.log(f"Original result data: {result}", "DEBUG")
+                # utils.log(f"=== END SEARCH HISTORY ITEM DETAILS ===", "DEBUG")
+
+                media_items_to_insert.append(media_item_data)
+
+            if media_items_to_insert:
+                # Insert media items and link them to the new list
+                for item_data in media_items_to_insert:
+                    media_item_id = query_manager.insert_media_item(item_data)
+                    if media_item_id:
+                        list_item_data = {'list_id': final_list_id, 'media_item_id': media_item_id}
+                        query_manager.insert_list_item(list_item_data)
+                    else:
+                        utils.log(f"Failed to insert media item for: {item_data.get('imdbnumber', 'N/A')}", "ERROR")
+                utils.log(f"=== SEARCH HISTORY SAVE COMPLETE ===", "INFO")
+                utils.log(f"List Name: '{list_name}'", "INFO")
+                utils.log(f"List ID: {final_list_id}", "INFO")
+                utils.log(f"Items Saved: {len(media_items_to_insert)}", "INFO")
+                utils.log(f"Query: '{query}'", "INFO")
+                utils.log(f"=== END SEARCH HISTORY SAVE ===", "INFO")
+                return final_list_id
             else:
-                utils.log(f"Failed to create list '{list_name}' for search history.", "ERROR")
+                utils.log(f"No valid media items to save for search query '{query}'.", "WARNING")
+                # Delete the empty list if no items were added
+                self.delete_list(final_list_id)
+                utils.log(f"Deleted empty list '{list_name}' as no items were saved.", "INFO")
+                return None
 
-        except Exception as e:
-            utils.log(f"Error saving search history for query '{query}': {str(e)}", "ERROR")
+        else:
+            utils.log(f"Failed to create list '{list_name}' for search history.", "ERROR")
+            return None
 
     def __del__(self):
-        if getattr(self, 'connection', None):
+        if hasattr(self, 'connection') and self.connection:
             self.connection.close()
+
+
+    def ensure_folder_exists(self, folder_name, parent_folder_id=None):
+        """Ensure a folder exists, create if not found"""
+        try:
+            # Check if folder already exists - use 'parent' instead of 'parent_folder_id'
+            query = "SELECT id FROM folders WHERE name = ? AND parent = ?"
+            result = self.fetch_data(query, (folder_name, parent_folder_id))
+
+            if result:
+                utils.log(f"'{folder_name}' folder already exists.", "INFO")
+                return result[0]['id']
+            else:
+                # Create the folder
+                utils.log(f"Creating '{folder_name}' folder.", "INFO")
+                folder_data = {
+                    'name': folder_name,
+                    'parent': parent_folder_id
+                }
+                folder_id = self.insert_data('folders', folder_data)
+                utils.log(f"'{folder_name}' folder created with ID: {folder_id}", "INFO")
+                return folder_id
+        except Exception as e:
+            utils.log(f"Error ensuring folder exists: {str(e)}", "ERROR")
+            return None
+
+    def create_list(self, list_name, folder_id=None):
+        """Create a new list and return its ID"""
+        try:
+            list_data = {
+                'name': list_name,
+                'folder_id': folder_id
+            }
+
+            return self.insert_data('lists', list_data)
+
+        except Exception as e:
+            utils.log(f"Error creating list: {str(e)}", "ERROR")
+            return None
+
+    def update_data(self, table, data_dict, where_clause):
+        """Update data in a table with a where clause"""
+        try:
+            set_clauses = []
+            values = []
+
+            for key, value in data_dict.items():
+                set_clauses.append(f"{key} = ?")
+                values.append(value)
+
+            set_clause = ", ".join(set_clauses)
+            query = f"UPDATE {table} SET {set_clause} WHERE {where_clause}"
+
+            self.cursor.execute(query, values)
+            self.connection.commit()
+
+            return self.cursor.rowcount > 0
+
+        except Exception as e:
+            utils.log(f"Error updating data in {table}: {str(e)}", "ERROR")
+            return False

@@ -1,4 +1,3 @@
-
 import sys
 import json
 import xbmc
@@ -55,7 +54,7 @@ class KodiHelper:
             'wide': 55,
             'wall': 500,
             'fanart': 502,
-            'media': 504  
+            'media': 504
         }
 
         # Set default view mode to poster
@@ -77,8 +76,9 @@ class KodiHelper:
         xbmcplugin.endOfDirectory(self.addon_handle)
 
     def list_folders(self, folders):
+        from resources.lib.listitem_builder import ListItemBuilder
         for folder in folders:
-            list_item = xbmcgui.ListItem(label=folder['name'])
+            list_item = ListItemBuilder.build_folder_item(folder['name'], is_folder=True, item_type='folder')
             url = f'{self.addon_url}?action=show_list&list_id={folder["id"]}'
 
             xbmcplugin.addDirectoryItem(
@@ -91,10 +91,11 @@ class KodiHelper:
         xbmcplugin.endOfDirectory(self.addon_handle)
 
     def list_folders_and_lists(self, folders, lists):
+        from resources.lib.listitem_builder import ListItemBuilder
         for folder in folders:
-            list_item = xbmcgui.ListItem(label=folder['name'])
+            list_item = ListItemBuilder.build_folder_item(folder['name'], is_folder=True, item_type='folder')
             url = f'{self.addon_url}?action=show_folder&folder_id={folder["id"]}'
-            utils.log(f"Adding folder: {folder['name']} with URL - {url}", "INFO")
+            utils.log(f"Adding folder: {folder['name']} with URL - {url}", "DEBUG")
             xbmcplugin.addDirectoryItem(
                 handle=self.addon_handle,
                 url=url,
@@ -102,9 +103,9 @@ class KodiHelper:
                 isFolder=True
             )
         for list_ in lists:
-            list_item = xbmcgui.ListItem(label=list_['name'])
+            list_item = ListItemBuilder.build_folder_item(list_['name'], is_folder=True, item_type='playlist')
             url = f'{self.addon_url}?action=show_list&list_id={list_["id"]}'
-            utils.log(f"Adding list: {list_['name']} with URL - {url}", "INFO")
+            utils.log(f"Adding list: {list_['name']} with URL - {url}", "DEBUG")
             xbmcplugin.addDirectoryItem(
                 handle=self.addon_handle,
                 url=url,
@@ -126,13 +127,27 @@ class KodiHelper:
         # Set content type and force views
         xbmcplugin.setContent(self.addon_handle, 'movies')
 
-        # Enable all sort methods
+        # Check if items have search scores to determine sorting approach
+        has_scores = any(item.get('search_score', 0) > 0 for item in items)
+
+        if has_scores:
+            # Sort items by search score before displaying (highest first)
+            items.sort(key=lambda x: x.get('search_score', 0), reverse=True)
+            utils.log("Sorted items by search score", "DEBUG")
+
+        # Always enable sort methods so users can override the default order
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_LABEL)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_TITLE)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_GENRE)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_DATEADDED)
+
+        if has_scores:
+            # Set the default sort method to unsorted to preserve our score-based order
+            # but still allow users to change it via skin options
+            xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
+            utils.log("Enabled all sort methods with score-based default order", "DEBUG")
 
         # Set view modes
         view_modes = {
@@ -142,7 +157,7 @@ class KodiHelper:
             'wide': 55,
             'wall': 500,
             'fanart': 502,
-            'media': 504  
+            'media': 504
         }
 
         # Set default view mode to poster
@@ -174,8 +189,8 @@ class KodiHelper:
             utils.log(f"Play item called with item_id: {item_id} (type: {type(item_id)})", "DEBUG")
 
             # Query the database for item
-            query = """SELECT media_items.* FROM media_items 
-                      JOIN list_items ON list_items.media_item_id = media_items.id 
+            query = """SELECT media_items.* FROM media_items
+                      JOIN list_items ON list_items.media_item_id = media_items.id
                       WHERE list_items.media_item_id = ?"""
 
             from resources.lib.database_manager import DatabaseManager
@@ -218,8 +233,19 @@ class KodiHelper:
             field_names = [field.split()[0] for field in db.config.FIELDS]
             item_data = dict(zip(['id'] + field_names, result))
 
-            # Create list item with title and setup basic properties
-            list_item = xbmcgui.ListItem(label=item_data.get('title', ''))
+            # Create list item with proper metadata using ListItemBuilder if it's a video item
+            if item_data.get('mediatype') == 'movie' or item_data.get('media_type') == 'movie':
+                from resources.lib.listitem_builder import ListItemBuilder
+                list_item = ListItemBuilder.build_video_item(item_data)
+            else:
+                # For non-video items, create basic ListItem using ListItemBuilder
+                from resources.lib.listitem_builder import ListItemBuilder
+                info_dict = {
+                    'title': item_data.get('title', ''),
+                    'plot': item_data.get('plot', ''),
+                    'mediatype': item_data.get('mediatype', item_data.get('media_type', 'video'))
+                }
+                list_item = ListItemBuilder.build_video_item(info_dict)
 
             # Get play URL and check validity
             folder_path = item_data.get('path', '')

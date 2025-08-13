@@ -7,6 +7,14 @@ from . import utils
 
 class Config:
     """ FIELDS should align with table list_items fields AND for use in listitem building """
+    _instance = None
+    _initialized = False
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(Config, cls).__new__(cls)
+        return cls._instance
+    
     FIELDS = [
         "cast TEXT",
         "country TEXT",
@@ -24,6 +32,7 @@ class Config:
         "plot TEXT",
         "premiered TEXT",
         "rating REAL",
+        "search_score REAL",
         "source TEXT",
         "status TEXT",
         "stream_url TEXT",
@@ -44,6 +53,9 @@ class Config:
         """
         Initializes the Config with addon settings and paths.
         """
+        if Config._initialized:
+            return
+            
         utils.log("=== Initializing Config Manager ===", "DEBUG")
         
         try:
@@ -78,6 +90,7 @@ class Config:
             utils.log("Profile directory already exists", "DEBUG")
 
         utils.log("=== Config Manager initialization complete ===", "DEBUG")
+        Config._initialized = True
 
     def get_setting(self, setting_id, default=""):
         """Get addon setting by name with proper normalization"""
