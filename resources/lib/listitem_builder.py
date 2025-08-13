@@ -390,6 +390,24 @@ class ListItemBuilder:
         else:
             utils.log("No valid folder artwork to set", "WARNING")
 
+        # Log complete ListItem details for debugging
+        utils.log(f"=== COMPLETE FOLDER LISTITEM DETAILS FOR '{name}' ===", "INFO")
+        utils.log(f"Label: {list_item.getLabel()}", "INFO")
+        utils.log(f"Label2: {list_item.getLabel2()}", "INFO")
+        utils.log(f"Path: {list_item.getPath()}", "INFO")
+        utils.log(f"IsFolder: {list_item.isFolder()}", "INFO")
+        
+        # Log all properties
+        properties_to_check = [
+            'IsPlayable', 'ResumeTime', 'TotalTime', 'Art(icon)', 'Art(thumb)', 
+            'Art(poster)', 'Art(fanart)', 'Art(banner)', 'Art(landscape)'
+        ]
+        for prop in properties_to_check:
+            prop_value = list_item.getProperty(prop)
+            if prop_value:
+                utils.log(f"Property {prop}: {prop_value}", "INFO")
+        
+        utils.log(f"=== END COMPLETE FOLDER LISTITEM DETAILS ===", "INFO")
         utils.log(f"=== FOLDER ITEM '{name}' BUILD COMPLETE ===", "INFO")
         return list_item
 
@@ -397,6 +415,13 @@ class ListItemBuilder:
     def build_list_item(name, is_folder=True, list_data=None):
         """Build a list ListItem with list-specific artwork and enhanced metadata"""
         utils.log(f"=== BUILDING LIST ITEM: '{name}' ===", "INFO")
+        utils.log(f"=== LIST_DATA DEBUG INFO ===", "INFO")
+        utils.log(f"list_data provided: {list_data is not None}", "INFO")
+        if list_data:
+            utils.log(f"list_data type: {type(list_data)}", "INFO")
+            utils.log(f"list_data keys: {list(list_data.keys()) if isinstance(list_data, dict) else 'NOT_DICT'}", "INFO")
+            utils.log(f"list_data contents: {list_data}", "INFO")
+        utils.log(f"=== END LIST_DATA DEBUG INFO ===", "INFO")
         
         # Check if this is a search history list and enhance the label
         display_name = name
@@ -453,6 +478,33 @@ class ListItemBuilder:
         else:
             utils.log("No valid list artwork to set", "WARNING")
 
+        # Log complete ListItem details for debugging
+        utils.log(f"=== COMPLETE LIST LISTITEM DETAILS FOR '{display_name}' ===", "INFO")
+        utils.log(f"Original name: {name}", "INFO")
+        utils.log(f"Display name: {display_name}", "INFO")
+        utils.log(f"Label: {list_item.getLabel()}", "INFO")
+        utils.log(f"Label2: {list_item.getLabel2()}", "INFO")
+        utils.log(f"Path: {list_item.getPath()}", "INFO")
+        utils.log(f"IsFolder: {list_item.isFolder()}", "INFO")
+        
+        # Log all properties
+        properties_to_check = [
+            'IsPlayable', 'ResumeTime', 'TotalTime', 'Art(icon)', 'Art(thumb)', 
+            'Art(poster)', 'Art(fanart)', 'Art(banner)', 'Art(landscape)'
+        ]
+        for prop in properties_to_check:
+            prop_value = list_item.getProperty(prop)
+            if prop_value:
+                utils.log(f"Property {prop}: {prop_value}", "INFO")
+        
+        # Log list-specific metadata if available
+        if list_data:
+            utils.log(f"List data provided - ID: {list_data.get('id')}, Folder ID: {list_data.get('folder_id')}", "INFO")
+            utils.log(f"Created at: {list_data.get('created_at', 'NOT_SET')}", "INFO")
+        else:
+            utils.log("No list_data provided for enhanced metadata", "INFO")
+        
+        utils.log(f"=== END COMPLETE LIST LISTITEM DETAILS ===", "INFO")
         utils.log(f"=== LIST ITEM '{name}' BUILD COMPLETE ===", "INFO")
         return list_item
 
