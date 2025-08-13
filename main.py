@@ -512,10 +512,6 @@ def router(params):
             7: ("📊 Upload Status", lambda: upload_manager.get_upload_status()),
             8: ("🗑️ Clear Server Library", lambda: upload_manager.clear_server_library()),
             9: ("🗑️ Clear All Local Data", clear_all_local_data)
-            6: ("📤 Upload Library (Delta)", lambda: upload_manager.upload_library_delta()),
-            7: ("📊 Upload Status", lambda: upload_manager.get_upload_status()),
-            8: ("🗑️ Clear Server Library", lambda: upload_manager.clear_server_library()),
-            9: ("🗑️ Clear All Local Data", clear_all_local_data)
         }
 
         if option_index in option_map:
