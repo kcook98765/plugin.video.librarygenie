@@ -1,4 +1,3 @@
-
 """Route handlers for LibraryGenie plugin actions"""
 import xbmc
 import xbmcgui
@@ -132,13 +131,13 @@ def rename_list(params):
     try:
         config = Config()
         db_manager = DatabaseManager(config.db_path)
-        
+
         # Get current list name to pre-fill the dialog
         current_lists = db_manager.fetch_data('lists', f"id = {list_id}")
         current_name = ""
         if current_lists and len(current_lists) > 0:
             current_name = current_lists[0].get('name', '')
-        
+
         new_name = xbmcgui.Dialog().input('Rename list to', defaultt=current_name, type=xbmcgui.INPUT_ALPHANUM)
         if not new_name:
             return
@@ -160,11 +159,11 @@ def move_list(params):
 
         # Get available folders for moving (including all folders, not just root ones)
         all_folders = db_manager.fetch_all_folders()
-        
+
         # Filter out the Search History folder - users shouldn't move lists there
         search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
         filtered_folders = [f for f in all_folders if f.get('id') != search_history_folder_id]
-        
+
         folder_options = ["<Root>"]
         folder_ids = [None]
 
@@ -173,7 +172,7 @@ def move_list(params):
             indent_str = "  " * indent
             folder_options.append(f"{indent_str}{folder['name']}")
             folder_ids.append(folder['id'])
-            
+
             # Add subfolders (also filtered)
             subfolders = [f for f in filtered_folders if f.get('parent_id') == folder['id']]
             subfolders.sort(key=lambda x: x['name'].lower())
@@ -190,7 +189,7 @@ def move_list(params):
         if selected >= 0:
             target_folder_id = folder_ids[selected]
             db_manager.update_data('lists', {'folder_id': target_folder_id}, f"id = {list_id}")
-            
+
             destination = "root" if target_folder_id is None else folder_options[selected].strip()
             xbmcgui.Dialog().notification('LibraryGenie', f'List moved to {destination}')
             xbmc.executebuiltin('Container.Refresh')
@@ -318,3 +317,200 @@ def do_search(params):
     except Exception as e:
         utils.log(f"Error in search: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Search error', xbmcgui.NOTIFICATION_ERROR)
+
+def show_directory():
+    """Show the main directory with folders and lists"""
+    utils.log("Showing main directory", "DEBUG")
+
+    from resources.lib.config_manager import Config
+    from resources.lib.database_manager import DatabaseManager
+    from resources.lib.listitem_builder import ListItemBuilder
+    import xbmcplugin
+
+    config = Config()
+    db_manager = DatabaseManager(config.db_path)
+
+    # Add special "Options & Tools" entry at the top
+    options_item = ListItemBuilder.build_folder_item("Options & Tools", is_folder=False)
+    options_url = f"plugin://plugin.video.librarygenie/?action=options"
+    utils.log(f"Adding Options & Tools with URL: {options_url}", "DEBUG")
+    xbmcplugin.addDirectoryItem(
+        handle=int(xbmc.getInfoLabel('System.AddonHandle')),
+        url=options_url,
+        listitem=options_item,
+        isFolder=False
+    )
+
+    # Fetch root folders and lists
+    root_folders = db_manager.fetch_data('folders', 'parent_id IS NULL')
+    root_folders.sort(key=lambda x: x['name'].lower())
+    for folder in root_folders:
+        folder_item = ListItemBuilder.build_folder_item(folder['name'], folder_id=folder['id'])
+        xbmcplugin.addDirectoryItem(
+            handle=int(xbmc.getInfoLabel('System.AddonHandle')),
+            url=f"plugin://plugin.video.librarygenie/?action=browse_folder&folder_id={folder['id']}",
+            listitem=folder_item,
+            isFolder=True
+        )
+
+    # Fetch root lists (lists directly under root)
+    root_lists = db_manager.fetch_data('lists', 'folder_id IS NULL')
+    root_lists.sort(key=lambda x: x['name'].lower())
+    for lst in root_lists:
+        list_item = ListItemBuilder.build_list_item(lst['name'], lst['id'])
+        xbmcplugin.addDirectoryItem(
+            handle=int(xbmc.getInfoLabel('System.AddonHandle')),
+            url=f"plugin://plugin.video.librarygenie/?action=browse_list&list_id={lst['id']}",
+            listitem=list_item,
+            isFolder=True
+        )
+
+    xbmcplugin.endOfDirectory(handle=int(xbmc.getInfoLabel('System.AddonHandle')), cacheToDisc=True)
+
+def show_options_menu():
+    """Show the options menu"""
+    import xbmcgui
+
+    utils.log("=== ENTERING OPTIONS MENU ===", "DEBUG")
+
+    options = [
+        "Search Movies...",
+        "Manage Folders",
+        "Manage Lists",
+        "Upload Library to Server",
+        "Setup Remote API",
+        "Test Remote Connection",
+        "Addon Settings"
+    ]
+
+    utils.log(f"Showing dialog with options: {options}", "DEBUG")
+    selected = xbmcgui.Dialog().select("LibraryGenie Options", options)
+    utils.log(f"User selected option index: {selected}", "DEBUG")
+
+    if selected == -1:  # User cancelled
+        utils.log("User cancelled options menu", "DEBUG")
+        return
+    elif selected == 0:  # Search Movies
+        utils.log("User selected: Search Movies", "DEBUG")
+        handle_search()
+    elif selected == 1:  # Manage Folders
+        utils.log("User selected: Manage Folders", "DEBUG")
+        handle_folder_management()
+    elif selected == 2:  # Manage Lists
+        utils.log("User selected: Manage Lists", "DEBUG")
+        handle_list_management()
+    elif selected == 3:  # Upload Library
+        utils.log("User selected: Upload Library", "DEBUG")
+        handle_library_upload()
+    elif selected == 4:  # Setup Remote API
+        utils.log("User selected: Setup Remote API", "DEBUG")
+        handle_remote_api_setup()
+    elif selected == 5:  # Test Remote Connection
+        utils.log("User selected: Test Remote Connection", "DEBUG")
+        handle_test_connection()
+    elif selected == 6:  # Addon Settings
+        utils.log("User selected: Addon Settings", "DEBUG")
+        from resources.lib.addon_ref import get_addon
+        get_addon().openSettings()
+
+    utils.log("=== EXITING OPTIONS MENU ===", "DEBUG")
+
+def handle_routes(action, **kwargs):
+    """Main route handler for all addon actions"""
+    utils.log(f"=== ROUTE HANDLER: action='{action}', kwargs={kwargs} ===", "DEBUG")
+
+    if action is None or action == '':
+        utils.log("No action specified, showing main directory", "DEBUG")
+        show_directory()
+    elif action == 'play_movie':
+        utils.log("Handling play_movie action", "DEBUG")
+        play_movie(kwargs)
+    elif action == 'show_item_details':
+        utils.log("Handling show_item_details action", "DEBUG")
+        show_item_details(kwargs)
+    elif action == 'create_list':
+        utils.log("Handling create_list action", "DEBUG")
+        create_list(kwargs)
+    elif action == 'rename_list':
+        utils.log("Handling rename_list action", "DEBUG")
+        rename_list(kwargs)
+    elif action == 'move_list':
+        utils.log("Handling move_list action", "DEBUG")
+        move_list(kwargs)
+    elif action == 'delete_list':
+        utils.log("Handling delete_list action", "DEBUG")
+        delete_list(kwargs)
+    elif action == 'remove_from_list':
+        utils.log("Handling remove_from_list action", "DEBUG")
+        remove_from_list(kwargs)
+    elif action == 'rename_folder':
+        utils.log("Handling rename_folder action", "DEBUG")
+        rename_folder(kwargs)
+    elif action == 'refresh_movie':
+        utils.log("Handling refresh_movie action", "DEBUG")
+        refresh_movie(kwargs)
+    elif action == 'search':
+        utils.log("Starting search", "DEBUG")
+        handle_search()
+    elif action == 'manage_folders':
+        utils.log("Starting folder management", "DEBUG")
+        handle_folder_management()
+    elif action == 'manage_lists':
+        utils.log("Starting list management", "DEBUG")
+        handle_list_management()
+    elif action == 'upload_library':
+        utils.log("Starting library upload", "DEBUG")
+        handle_library_upload()
+    elif action == 'remote_api_setup':
+        utils.log("Starting remote API setup", "DEBUG")
+        handle_remote_api_setup()
+    elif action == 'settings':
+        utils.log("Opening addon settings", "DEBUG")
+        from resources.lib.addon_ref import get_addon
+        get_addon().openSettings()
+    elif action == 'test_connection':
+        utils.log("Testing remote API connection", "DEBUG")
+        handle_test_connection()
+    elif action == 'options':
+        utils.log("Showing options menu", "DEBUG")
+        show_options_menu()
+    else:
+        utils.log(f"Unknown action: {action}", "WARNING")
+        xbmcgui.Dialog().notification('LibraryGenie', f'Unknown action: {action}')
+
+# Placeholder functions for actions called from the options menu and elsewhere.
+# These would typically be defined in other modules or handled by specific routing logic.
+
+def handle_search():
+    """Placeholder for search handling."""
+    from resources.lib.window_search import SearchWindow
+    SearchWindow().doModal() # Assuming SearchWindow is designed to be shown modally
+
+def handle_folder_management():
+    """Placeholder for folder management."""
+    utils.log("Navigating to folder management", "DEBUG")
+    # Example: Navigate to a new directory that lists folders
+    # In a real implementation, this would likely involve showing a list of folders
+    # For now, we'll just show a notification.
+    xbmcgui.Dialog().notification('LibraryGenie', 'Folder Management (not fully implemented)')
+
+def handle_list_management():
+    """Placeholder for list management."""
+    utils.log("Navigating to list management", "DEBUG")
+    # Example: Navigate to a new directory that lists lists
+    xbmcgui.Dialog().notification('LibraryGenie', 'List Management (not fully implemented)')
+
+def handle_library_upload():
+    """Placeholder for library upload."""
+    utils.log("Initiating library upload", "DEBUG")
+    xbmcgui.Dialog().notification('LibraryGenie', 'Library Upload (not fully implemented)')
+
+def handle_remote_api_setup():
+    """Placeholder for remote API setup."""
+    utils.log("Navigating to remote API setup", "DEBUG")
+    xbmcgui.Dialog().notification('LibraryGenie', 'Remote API Setup (not fully implemented)')
+
+def handle_test_connection():
+    """Placeholder for testing remote API connection."""
+    utils.log("Testing remote API connection", "DEBUG")
+    xbmcgui.Dialog().notification('LibraryGenie', 'Testing Connection (not fully implemented)')
