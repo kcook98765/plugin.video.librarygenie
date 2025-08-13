@@ -35,6 +35,7 @@ from resources.lib.route_handlers import (
     play_movie, show_item_details, create_list, rename_list, delete_list,
     remove_from_list, rename_folder, refresh_movie, do_search, move_list
 )
+from resources.lib.listitem_builder import ListItemBuilder
 
 # Global variable to track initialization
 _initialized = False
