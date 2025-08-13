@@ -88,31 +88,31 @@ def _normalize_art_dict(art: dict, use_fallbacks: bool = False) -> dict:
 class ListItemBuilder:
     _item_cache = {}
     _cache_timestamps = {}
-    _max_cache_size = 100  # Maximum number of cached items
-    _cache_ttl = 300  # Cache TTL in seconds (5 minutes)
+    _max_cache_size = 50   # Smaller cache for current session only
+    _cache_ttl = 30    # Very short TTL (30 seconds) for immediate navigation
 
     @staticmethod
     def _cleanup_cache():
         """Remove expired items and enforce size limits"""
         import time
         current_time = time.time()
-        
+
         # Remove expired items
         expired_keys = []
         for key, timestamp in ListItemBuilder._cache_timestamps.items():
             if current_time - timestamp > ListItemBuilder._cache_ttl:
                 expired_keys.append(key)
-        
+
         for key in expired_keys:
             ListItemBuilder._item_cache.pop(key, None)
             ListItemBuilder._cache_timestamps.pop(key, None)
-        
+
         # Enforce size limit by removing oldest items
         if len(ListItemBuilder._item_cache) > ListItemBuilder._max_cache_size:
             # Sort by timestamp and remove oldest items
             sorted_items = sorted(ListItemBuilder._cache_timestamps.items(), key=lambda x: x[1])
             items_to_remove = len(ListItemBuilder._item_cache) - ListItemBuilder._max_cache_size
-            
+
             for i in range(items_to_remove):
                 key_to_remove = sorted_items[i][0]
                 ListItemBuilder._item_cache.pop(key_to_remove, None)
@@ -123,7 +123,7 @@ class ListItemBuilder:
         """Get item from cache if valid, None otherwise"""
         import time
         current_time = time.time()
-        
+
         if cache_key in ListItemBuilder._item_cache:
             timestamp = ListItemBuilder._cache_timestamps.get(cache_key, 0)
             if current_time - timestamp <= ListItemBuilder._cache_ttl:
@@ -132,17 +132,17 @@ class ListItemBuilder:
                 # Remove expired item
                 ListItemBuilder._item_cache.pop(cache_key, None)
                 ListItemBuilder._cache_timestamps.pop(cache_key, None)
-        
+
         return None
 
     @staticmethod
     def _store_in_cache(cache_key, list_item):
         """Store item in cache with cleanup"""
         import time
-        
+
         # Clean up cache before adding new item
         ListItemBuilder._cleanup_cache()
-        
+
         # Store the new item
         ListItemBuilder._item_cache[cache_key] = list_item
         ListItemBuilder._cache_timestamps[cache_key] = time.time()
@@ -163,7 +163,7 @@ class ListItemBuilder:
 
         # Generate cache key from stable fields
         cache_key = str(media_info.get('title', '')) + str(media_info.get('year', '')) + str(media_info.get('kodi_id', ''))
-        
+
         # Check cache first
         cached_item = ListItemBuilder._get_from_cache(cache_key)
         if cached_item:
