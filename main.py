@@ -479,7 +479,7 @@ def router(params):
         pass
 
     # Handle deferred option execution from RunScript
-    if len(sys.argv) > 2 and sys.argv[1] == 'deferred_option':
+    if len(sys.argv) >= 3 and sys.argv[1] == 'deferred_option':
         utils.log("=== HANDLING DEFERRED OPTION EXECUTION FROM MAIN ===", "DEBUG")
         option_index = int(sys.argv[2])
         utils.log(f"=== EXECUTING DEFERRED OPTION {option_index} ===", "DEBUG")
@@ -500,7 +500,7 @@ def router(params):
         def create_list(params={}):
             utils.log("Placeholder for create_list", "DEBUG")
 
-        # Map option indices to their names and functions  
+        # Map option indices to their names and functions
         option_map = {
             0: ("Search Movies", do_search),
             1: ("Create Folder", lambda: create_new_folder_at_root()),
@@ -555,19 +555,43 @@ def router(params):
     utils.log(f"Action determined: {action}", "DEBUG")
 
     if action == "search":
-        utils.log("Routing to search action", "DEBUG")
-        # Set navigation flag before starting search
-        _navigation_in_progress = True
-        xbmc.executebuiltin("SetProperty(LibraryGenie.Navigating,true,Home)")
-        run_search()
-        return
-    elif action == "browse":
-        utils.log("Routing to browse action", "DEBUG")
-        # Set navigation flag before starting browse
-        _navigation_in_progress = True
-        xbmc.executebuiltin("SetProperty(LibraryGenie.Navigating,true,Home)")
-        run_browse()
-        return
+        utils.log("Handling search action", "DEBUG")
+        try:
+            from resources.lib.window_search import SearchWindow
+            search_window = SearchWindow()
+            search_window.doModal()
+
+            # Check if we need to navigate after search
+            target_url = search_window.get_target_url()
+            if target_url:
+                utils.log(f"Navigating to search results: {target_url}", "DEBUG")
+                xbmc.executebuiltin(f'Container.Update({target_url})')
+        except Exception as e:
+            utils.log(f"Error in search action: {str(e)}", "ERROR")
+            xbmcgui.Dialog().notification("LibraryGenie", "Search failed", xbmcgui.NOTIFICATION_ERROR)
+    elif action == 'setup_remote_api':
+        utils.log("Handling setup_remote_api action", "DEBUG")
+        try:
+            from resources.lib.remote_api_setup import run_setup
+            run_setup()
+        except Exception as e:
+            utils.log(f"Error in setup_remote_api action: {str(e)}", "ERROR")
+            xbmcgui.Dialog().notification("LibraryGenie", "Failed to setup Remote API", xbmcgui.NOTIFICATION_ERROR)
+    elif action == 'browse_folder':
+        utils.log("Handling browse_folder action", "DEBUG")
+        try:
+            folder_id = q.get('folder_id', [None])[0]
+            if folder_id:
+                # Clear navigation flag when we reach the target
+                _navigation_in_progress = False
+                xbmc.executebuiltin("ClearProperty(LibraryGenie.Navigating,Home)")
+                browse_folder(int(folder_id))
+            else:
+                utils.log("Missing folder_id for browse_folder action, returning to root.", "WARNING")
+                build_root()
+        except Exception as e:
+            utils.log(f"Error in browse_folder action: {str(e)}", "ERROR")
+            xbmcgui.Dialog().notification("LibraryGenie", "Error browsing folder", xbmcgui.NOTIFICATION_ERROR)
     elif action == 'options':
         utils.log("Routing to options action", "DEBUG")
         # Check if we're in the middle of navigation to prevent dialog conflicts
@@ -615,18 +639,6 @@ def router(params):
     elif action == 'play_movie':
         utils.log("Routing to play_movie action", "DEBUG")
         play_movie(q)
-        return
-    elif action == 'browse_folder':
-        utils.log("Routing to browse_folder action", "DEBUG")
-        folder_id = q.get('folder_id', [None])[0]
-        if folder_id:
-            # Clear navigation flag when we reach the target
-            _navigation_in_progress = False
-            xbmc.executebuiltin("ClearProperty(LibraryGenie.Navigating,Home)")
-            browse_folder(int(folder_id))
-        else:
-            utils.log("Missing folder_id for browse_folder action, returning to root.", "WARNING")
-            build_root()
         return
     elif action == 'browse_list':
         list_id = q.get('list_id', [None])[0]
@@ -1068,7 +1080,7 @@ def show_empty_directory(message="No items to display."):
         xbmcplugin.endOfDirectory(handle, succeeded=True)
     except Exception as e:
         utils.log(f"Error showing empty directory: {str(e)}", "ERROR")
-        # Fallback: just end directory to prevent Kodi hanging
+        # Fallback: just end directory to prevent hanging
         xbmcplugin.endOfDirectory(handle, succeeded=False)
 
 
