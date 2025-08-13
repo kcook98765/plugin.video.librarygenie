@@ -39,10 +39,9 @@ def _detect_context(ctx_params: dict) -> dict:
     return ctx
 
 def add_options_header_item(ctx: dict):
-    """Add the options and tools header item as a non-folder RunPlugin item"""
+    """Add the options and tools header item that navigates to options directory"""
     try:
-
-        # Create list item for options as non-folder
+        # Create list item for options that navigates to options directory
         li = xbmcgui.ListItem(label="[B]🔧 Options & Tools[/B]")
         li.setInfo('video', {
             'title': '🔧 Options & Tools',
@@ -50,17 +49,11 @@ def add_options_header_item(ctx: dict):
             'mediatype': 'video'
         })
 
-        # Build URL with current context using centralized URL builder
-        url = _plugin_url({
-            'action': 'options',
-            'view': ctx.get('view'),
-            # Only include list_id/folder if they exist
-            **({'list_id': ctx['list_id']} if ctx.get('list_id') else {}),
-            **({'folder': ctx['folder']} if ctx.get('folder') else {}),
-        })
+        # Build URL for options directory
+        url = _plugin_url({'action': 'options'})
 
-        # Add as non-folder item so Kodi uses RunPlugin instead of trying to render directory
-        xbmcplugin.addDirectoryItem(ADDON_HANDLE, url, li, isFolder=False)
+        # Add as folder item so it navigates to options directory
+        xbmcplugin.addDirectoryItem(ADDON_HANDLE, url, li, isFolder=True)
 
     except Exception as e:
         utils.log(f"Error adding options header: {str(e)}", "ERROR")
@@ -253,6 +246,8 @@ def browse_folder(folder_id):
     addon_id = addon.getAddonInfo("id")
     handle = int(sys.argv[1])
 
+    utils.log(f"=== BROWSE_FOLDER FUNCTION CALLED with folder_id={folder_id}, handle={handle} ===", "INFO")
+
     try:
         config = Config()
         db_manager = DatabaseManager(config.db_path)
@@ -263,15 +258,21 @@ def browse_folder(folder_id):
         # Set content type to ensure proper display
         xbmcplugin.setContent(handle, "files")
 
+        utils.log(f"Set breadcrumb: {folder_breadcrumb}", "DEBUG")
+
         # Add options header
         ctx = {'view': 'folder', 'folder_id': str(folder_id)}
         add_options_header_item(ctx)
 
         # Get subfolders of this folder
         subfolders = db_manager.fetch_folders(folder_id)
+        utils.log(f"Found {len(subfolders)} subfolders", "DEBUG")
 
         # Get lists in this folder
         folder_lists = db_manager.fetch_lists(folder_id)
+        utils.log(f"Found {len(folder_lists)} lists in folder", "DEBUG")
+
+        items_added = 0
 
         # Add subfolders
         for folder in subfolders:
@@ -281,21 +282,35 @@ def browse_folder(folder_id):
             _add_context_menu_for_item(li, 'folder', folder_id=folder['id'])
             url = _plugin_url({'action': 'browse_folder', 'folder_id': folder['id'], 'view': 'folder'})
             xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
+            items_added += 1
+            utils.log(f"Added subfolder: {folder['name']}", "DEBUG")
 
         # Add lists in this folder
         for list_item in folder_lists:
             list_count = db_manager.get_list_media_count(list_item['id'])
             from resources.lib.listitem_builder import ListItemBuilder
-            li = ListItemBuilder.build_list_item(f"📋 {list_item['name']} ({list_count})", is_folder=True)
+            li = ListItemBuilder.build_list_item(f"📋 {list_item['name']} ({list_count})", is_folder=True, list_data=list_item)
             li.setProperty('lg_type', 'list')
             _add_context_menu_for_item(li, 'list', list_id=list_item['id'])
             url = _plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
             xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
+            items_added += 1
+            utils.log(f"Added list: {list_item['name']} ({list_count})", "DEBUG")
+
+        if items_added == 0:
+            # Add empty message
+            from resources.lib.listitem_builder import ListItemBuilder
+            li = ListItemBuilder.build_folder_item("This folder is empty", is_folder=False)
+            xbmcplugin.addDirectoryItem(handle, "", li, isFolder=False)
+
+        utils.log(f"Successfully added {items_added} items to folder directory", "INFO")
 
     except Exception as e:
         utils.log(f"Error browsing folder {folder_id}: {str(e)}", "ERROR")
+        import traceback
+        utils.log(f"browse_folder traceback: {traceback.format_exc()}", "ERROR")
 
-    xbmcplugin.endOfDirectory(handle)
+    xbmcplugin.endOfDirectory(handle, succeeded=True)
 
 def browse_list(list_id):
     """Browse items in a specific list"""
@@ -651,203 +666,117 @@ def router(params):
     elif action_type == "clear_all_local_data" or action_type == "clear_all_local_folders_lists":
         utils.log("=== SCRIPT ACTION: CLEAR ALL LOCAL FOLDERS/LISTS ===", "DEBUG")
         clear_all_local_data()
+    elif action_type == 'new_folder':
+        utils.log("Routing to new_folder action", "DEBUG")
+        create_new_folder_at_root()
+        return
+    elif action_type == 'upload_full':
+        utils.log("Routing to upload_full action", "DEBUG")
+        try:
+            from resources.lib.imdb_upload_manager import IMDbUploadManager
+            upload_manager = IMDbUploadManager()
+            upload_manager.upload_library_full_sync()
+        except Exception as e:
+            utils.log(f"Error in full upload: {str(e)}", "ERROR")
+        return
+    elif action_type == 'upload_delta':
+        utils.log("Routing to upload_delta action", "DEBUG")
+        try:
+            from resources.lib.imdb_upload_manager import IMDbUploadManager
+            upload_manager = IMDbUploadManager()
+            upload_manager.upload_library_delta_sync()
+        except Exception as e:
+            utils.log(f"Error in delta sync: {str(e)}", "ERROR")
+        return
+    elif action_type == 'upload_status':
+        utils.log("Routing to upload_status action", "DEBUG")
+        try:
+            from resources.lib.imdb_upload_manager import IMDbUploadManager
+            upload_manager = IMDbUploadManager()
+            upload_manager.get_upload_status()
+        except Exception as e:
+            utils.log(f"Error viewing upload status: {str(e)}", "ERROR")
+        return
+    elif action_type == 'clear_server':
+        utils.log("Routing to clear_server action", "DEBUG")
+        try:
+            from resources.lib.imdb_upload_manager import IMDbUploadManager
+            upload_manager = IMDbUploadManager()
+            upload_manager.clear_server_library()
+        except Exception as e:
+            utils.log(f"Error clearing server: {str(e)}", "ERROR")
+        return
+    elif action_type == 'clear_local':
+        utils.log("Routing to clear_local action", "DEBUG")
+        clear_all_local_data()
+        return
+    elif action_type == 'settings':
+        utils.log("Routing to settings action", "DEBUG")
+        xbmc.executebuiltin("Addon.OpenSettings(plugin.video.librarygenie)")
+        return
+    elif action_type == 'authenticate':
+        utils.log("Routing to authenticate action", "DEBUG")
+        try:
+            from resources.lib.authenticate_code import authenticate_with_code
+            authenticate_with_code()
+        except Exception as e:
+            utils.log(f"Error authenticating: {str(e)}", "ERROR")
+        return
     else:
         # Default: build root directory if action is not recognized or empty
         utils.log(f"Unrecognized action '{action_type}' or no action specified, building root directory.", "DEBUG")
         build_root()
 
 def show_options(params):
-    """Show the Options & Tools menu"""
-    global _navigation_in_progress
-    utils.log("=== OPTIONS DIALOG REQUEST START ===", "DEBUG")
-    utils.log("Showing Options & Tools menu", "DEBUG")
-
-    # Get current window info for debugging
-    current_window_id = xbmcgui.getCurrentWindowId()
-    utils.log(f"Current window ID before options: {current_window_id}", "DEBUG")
-
-    # Check for navigation protection with automatic cleanup
-    navigation_active = xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.Navigating)")
-    if navigation_active == "true":
-        # Check if navigation has been stuck for too long (more than 10 seconds)
-        try:
-            current_time = time.time()
-            last_navigation = float(xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.LastNavigation)") or "0")
-            time_since_nav = current_time - last_navigation
-
-            if time_since_nav > 10.0:  # Clear stuck navigation flag after 10 seconds
-                utils.log(f"=== CLEARING STUCK NAVIGATION FLAG (stuck for {time_since_nav}s) ===", "WARNING")
-                xbmc.executebuiltin("ClearProperty(LibraryGenie.Navigating,Home)")
-                xbmc.executebuiltin("ClearProperty(LibraryGenie.SearchModalActive,Home)")
+    """Show the Options & Tools menu using plugin directory listing"""
+    utils.log("=== OPTIONS DIRECTORY REQUEST START ===", "DEBUG")
+    
+    handle = int(sys.argv[1])
+    
+    # Set proper breadcrumb
+    xbmcplugin.setPluginCategory(handle, "LibraryGenie - Options & Tools")
+    xbmcplugin.setContent(handle, "files")
+    
+    try:
+        from resources.lib.listitem_builder import ListItemBuilder
+        
+        # Create menu items as directory entries
+        menu_items = [
+            {"label": "🔍 Search Movies", "action": "search"},
+            {"label": "📁 Browse Lists", "action": "browse"},
+            {"label": "➕ Create New List", "action": "create_list"},
+            {"label": "📂 Create New Folder", "action": "new_folder"},
+            {"label": "⬆️ Upload Library to Server (Full)", "action": "upload_full"},
+            {"label": "🔄 Sync Library with Server (Delta)", "action": "upload_delta"},
+            {"label": "📊 View Upload Status", "action": "upload_status"},
+            {"label": "🗑️ Clear Server Library", "action": "clear_server"},
+            {"label": "💾 Clear All Local Folders/Lists", "action": "clear_local"},
+            {"label": "⚙️ Settings", "action": "settings"},
+            {"label": "🔐 Authenticate with Server", "action": "authenticate"}
+        ]
+        
+        for item in menu_items:
+            li = ListItemBuilder.build_folder_item(item["label"], is_folder=False)
+            li.setProperty('IsPlayable', 'false')
+            
+            # Create RunPlugin URLs for actions that don't need directory listing
+            if item["action"] in ["create_list", "new_folder", "upload_full", "upload_delta", "upload_status", "clear_server", "clear_local", "settings", "authenticate"]:
+                url = f'RunPlugin({_plugin_url({"action": item["action"]})})'
+                li.setProperty('IsPlayable', 'false')
             else:
-                utils.log(f"=== OPTIONS BLOCKED: NAVIGATION IN PROGRESS ({time_since_nav}s) ===", "WARNING")
-                return
-        except (ValueError, TypeError):
-            # If we can't get timestamps, clear the flag anyway
-            utils.log("=== CLEARING NAVIGATION FLAG (timestamp error) ===", "WARNING")
-            xbmc.executebuiltin("ClearProperty(LibraryGenie.Navigating,Home)")
-            xbmc.executebuiltin("ClearProperty(LibraryGenie.SearchModalActive,Home)")
-
-    # Time-based protection to prevent immediate re-triggering after navigation
-    try:
-        last_navigation = float(xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.LastNavigation)") or "0")
-        current_time = time.time()
-        time_since_nav = current_time - last_navigation
-
-        if time_since_nav < 3.0:  # Increased back to 3 seconds for better stability
-            utils.log(f"=== OPTIONS BLOCKED: TOO SOON AFTER NAVIGATION ({time_since_nav}s) ===", "WARNING")
-            return
-    except (ValueError, TypeError):
-        pass  # If property doesn't exist or isn't a number, continue
-
-    # Additional protection: check if we just completed a search
-    try:
-        search_modal_active = xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.SearchModalActive)")
-        if search_modal_active == "true":
-            utils.log("=== OPTIONS BLOCKED: SEARCH MODAL STILL ACTIVE ===", "WARNING")
-            return
-    except:
-        pass
-
-    utils.log(f"Current window ID: {current_window_id}", "DEBUG")
-
-    options = [
-        "- Search Movies",
-        "- Browse Lists",
-        "- Create New List",
-        "- Create New Folder",
-        "- Upload Library to Server (Full)",
-        "- Sync Library with Server (Delta)",
-        "- View Upload Status",
-        "- Clear Server Library",
-        "- Clear All Local Folders/Lists",
-        "- Settings",
-        "- Authenticate with Server"
-    ]
-
-    try:
-        utils.log("=== ABOUT TO SHOW OPTIONS MODAL DIALOG ===", "DEBUG")
-        utils.log(f"Pre-modal window state: {xbmcgui.getCurrentWindowId()}", "DEBUG")
-        utils.log("=== CREATING xbmcgui.Dialog() INSTANCE ===", "DEBUG")
-
-        # Use a timeout mechanism to prevent hanging
-        dialog_start_time = time.time()
-        dialog = xbmcgui.Dialog()
-        utils.log("=== CALLING dialog.select() METHOD ===", "DEBUG")
-
-        # Set a property to track dialog state
-        xbmc.executebuiltin("SetProperty(LibraryGenie.DialogActive,true,Home)")
-
-        selected_option = dialog.select("LibraryGenie - Options & Tools", options)
-
-        # Clear dialog state property
-        xbmc.executebuiltin("ClearProperty(LibraryGenie.DialogActive,Home)")
-
-        dialog_duration = time.time() - dialog_start_time
-        utils.log(f"=== OPTIONS MODAL DIALOG CLOSED, SELECTION: {selected_option}, DURATION: {dialog_duration:.1f}s ===", "DEBUG")
-        utils.log(f"Post-modal window state: {xbmcgui.getCurrentWindowId()}", "DEBUG")
-
-        # Check for timeout condition
-        if dialog_duration > 4.0:  # If dialog took more than 4 seconds
-            utils.log(f"=== WARNING: Dialog took {dialog_duration:.1f}s - near timeout threshold ===", "WARNING")
-
+                # For search and browse, use regular plugin URLs
+                url = _plugin_url({"action": item["action"]})
+            
+            xbmcplugin.addDirectoryItem(handle, url, li, isFolder=False)
+        
+        utils.log("=== ADDED ALL OPTIONS MENU ITEMS ===", "DEBUG")
+        xbmcplugin.endOfDirectory(handle, succeeded=True)
+        
     except Exception as e:
-        utils.log(f"=== ERROR IN OPTIONS DIALOG CREATION: {str(e)} ===", "ERROR")
-        xbmc.executebuiltin("ClearProperty(LibraryGenie.DialogActive,Home)")
-        return
-
-    if selected_option == -1:
-        utils.log("User cancelled options menu", "DEBUG")
-        utils.log("=== OPTIONS DIALOG CANCELLED BY USER ===", "DEBUG")
-        # Clear any lingering properties
-        xbmc.executebuiltin("ClearProperty(LibraryGenie.DialogActive,Home)")
-        return
-
-    # Early validation
-    if selected_option < 0 or selected_option >= len(options):
-        utils.log(f"Invalid option selected: {selected_option}", "ERROR")
-        xbmc.executebuiltin("ClearProperty(LibraryGenie.DialogActive,Home)")
-        return
-
-    selected_text = options[selected_option]
-    utils.log(f"User selected option: {selected_text}", "DEBUG")
-    utils.log(f"=== EXECUTING SELECTED OPTION: {selected_text} ===", "DEBUG")
-
-    try:
-        if "Search Movies" in selected_text:
-            utils.log("=== EXECUTING: SEARCH MOVIES ===", "DEBUG")
-            utils.log("=== ABOUT TO CALL run_search_flow() - MODAL WILL OPEN ===", "DEBUG")
-            run_search_flow()
-            utils.log("=== COMPLETED: SEARCH MOVIES - ALL MODALS CLOSED ===", "DEBUG")
-        elif "Browse Lists" in selected_text:
-            utils.log("=== EXECUTING: BROWSE LISTS ===", "DEBUG")
-            utils.log("=== ABOUT TO CALL run_browse() - MODAL WILL OPEN ===", "DEBUG")
-            run_browse()
-            utils.log("=== COMPLETED: BROWSE LISTS - ALL MODALS CLOSED ===", "DEBUG")
-        elif "Create New List" in selected_text:
-            utils.log("=== EXECUTING: CREATE NEW LIST ===", "DEBUG")
-            utils.log("=== ABOUT TO CALL create_list() - MODAL WILL OPEN ===", "DEBUG")
-            create_list({})
-            utils.log("=== COMPLETED: CREATE NEW LIST - ALL MODALS CLOSED ===", "DEBUG")
-        elif "Create New Folder" in selected_text:
-            utils.log("=== EXECUTING: CREATE NEW FOLDER ===", "DEBUG")
-            utils.log("=== ABOUT TO CALL create_new_folder_at_root() - MODAL WILL OPEN ===", "DEBUG")
-            create_new_folder_at_root()
-            utils.log("=== COMPLETED: CREATE NEW FOLDER - ALL MODALS CLOSED ===", "DEBUG")
-        elif "Upload Library to Server (Full)" in selected_text:
-            utils.log("=== EXECUTING: FULL LIBRARY UPLOAD ===", "DEBUG")
-            utils.log("=== LIBRARY UPLOAD MAY SHOW PROGRESS MODALS ===", "DEBUG")
-            from resources.lib.imdb_upload_manager import IMDbUploadManager
-            upload_manager = IMDbUploadManager()
-            upload_manager.upload_library_full_sync()
-            utils.log("=== COMPLETED: FULL LIBRARY UPLOAD - ALL MODALS CLOSED ===", "DEBUG")
-        elif "Sync Library with Server (Delta)" in selected_text:
-            utils.log("=== EXECUTING: DELTA LIBRARY SYNC ===", "DEBUG")
-            utils.log("=== DELTA SYNC MAY SHOW PROGRESS MODALS ===", "DEBUG")
-            from resources.lib.imdb_upload_manager import IMDbUploadManager
-            upload_manager = IMDbUploadManager()
-            upload_manager.upload_library_delta_sync()
-            utils.log("=== COMPLETED: DELTA LIBRARY SYNC - ALL MODALS CLOSED ===", "DEBUG")
-        elif "View Upload Status" in selected_text:
-            utils.log("=== EXECUTING: VIEW UPLOAD STATUS ===", "DEBUG")
-            utils.log("=== UPLOAD STATUS WILL SHOW INFO MODAL ===", "DEBUG")
-            from resources.lib.imdb_upload_manager import IMDbUploadManager
-            upload_manager = IMDbUploadManager()
-            upload_manager.get_upload_status()
-            utils.log("=== COMPLETED: VIEW UPLOAD STATUS - INFO MODAL CLOSED ===", "DEBUG")
-        elif "Clear Server Library" in selected_text:
-            utils.log("=== EXECUTING: CLEAR SERVER LIBRARY ===", "DEBUG")
-            utils.log("=== CLEAR SERVER MAY SHOW CONFIRMATION MODAL ===", "DEBUG")
-            from resources.lib.imdb_upload_manager import IMDbUploadManager
-            upload_manager = IMDbUploadManager()
-            upload_manager.clear_server_library()
-            utils.log("=== COMPLETED: CLEAR SERVER LIBRARY - ALL MODALS CLOSED ===", "DEBUG")
-        elif "Clear All Local Folders/Lists" in selected_text:
-            utils.log("=== EXECUTING: CLEAR ALL LOCAL FOLDERS/LISTS ===", "DEBUG")
-            utils.log("=== ABOUT TO CALL clear_all_local_data() - CONFIRMATION MODAL WILL OPEN ===", "DEBUG")
-            clear_all_local_data()
-            utils.log("=== COMPLETED: CLEAR ALL LOCAL FOLDERS/LISTS - ALL MODALS CLOSED ===", "DEBUG")
-        elif "Settings" in selected_text:
-            utils.log("=== EXECUTING: OPEN SETTINGS ===", "DEBUG")
-            utils.log("=== ABOUT TO OPEN SETTINGS WINDOW ===", "DEBUG")
-            xbmc.executebuiltin("Addon.OpenSettings(plugin.video.librarygenie)")
-            utils.log("=== COMPLETED: OPEN SETTINGS - SETTINGS WINDOW CLOSED ===", "DEBUG")
-        elif "Authenticate with Server" in selected_text:
-            utils.log("=== EXECUTING: AUTHENTICATE WITH SERVER ===", "DEBUG")
-            utils.log("=== ABOUT TO CALL authenticate_with_code() - INPUT MODAL WILL OPEN ===", "DEBUG")
-            from resources.lib.authenticate_code import authenticate_with_code
-            authenticate_with_code()
-            utils.log("=== COMPLETED: AUTHENTICATE WITH SERVER - ALL MODALS CLOSED ===", "DEBUG")
-        else:
-            utils.log(f"=== UNKNOWN OPTION SELECTED: {selected_text} ===", "WARNING")
-
-    except Exception as e:
-        utils.log(f"=== ERROR EXECUTING SELECTED OPTION: {str(e)} ===", "ERROR")
+        utils.log(f"=== ERROR IN OPTIONS DIRECTORY: {str(e)} ===", "ERROR")
         import traceback
         utils.log(f"Traceback: {traceback.format_exc()}", "ERROR")
-    finally:
-        # Note: Navigation flag is now handled in individual flows (like run_search_flow)
-        utils.log("=== OPTIONS DIALOG REQUEST COMPLETE ===", "DEBUG")
+        xbmcplugin.endOfDirectory(handle, succeeded=False)
 
 def _close_all_dialogs():
     """Close all open dialogs with minimal cleanup"""
