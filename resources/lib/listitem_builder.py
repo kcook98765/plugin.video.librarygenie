@@ -86,72 +86,6 @@ def _normalize_art_dict(art: dict, use_fallbacks: bool = False) -> dict:
 
 
 class ListItemBuilder:
-    _item_cache = {}
-    _cache_timestamps = {}
-    _max_cache_size = 50   # Smaller cache for current session only
-    _cache_ttl = 30    # Very short TTL (30 seconds) for immediate navigation
-
-    @staticmethod
-    def _cleanup_cache():
-        """Remove expired items and enforce size limits"""
-        import time
-        current_time = time.time()
-
-        # Remove expired items
-        expired_keys = []
-        for key, timestamp in ListItemBuilder._cache_timestamps.items():
-            if current_time - timestamp > ListItemBuilder._cache_ttl:
-                expired_keys.append(key)
-
-        for key in expired_keys:
-            ListItemBuilder._item_cache.pop(key, None)
-            ListItemBuilder._cache_timestamps.pop(key, None)
-
-        # Enforce size limit by removing oldest items
-        if len(ListItemBuilder._item_cache) > ListItemBuilder._max_cache_size:
-            # Sort by timestamp and remove oldest items
-            sorted_items = sorted(ListItemBuilder._cache_timestamps.items(), key=lambda x: x[1])
-            items_to_remove = len(ListItemBuilder._item_cache) - ListItemBuilder._max_cache_size
-
-            for i in range(items_to_remove):
-                key_to_remove = sorted_items[i][0]
-                ListItemBuilder._item_cache.pop(key_to_remove, None)
-                ListItemBuilder._cache_timestamps.pop(key_to_remove, None)
-
-    @staticmethod
-    def _get_from_cache(cache_key):
-        """Get item from cache if valid, None otherwise"""
-        import time
-        current_time = time.time()
-
-        if cache_key in ListItemBuilder._item_cache:
-            timestamp = ListItemBuilder._cache_timestamps.get(cache_key, 0)
-            if current_time - timestamp <= ListItemBuilder._cache_ttl:
-                return ListItemBuilder._item_cache[cache_key]
-            else:
-                # Remove expired item
-                ListItemBuilder._item_cache.pop(cache_key, None)
-                ListItemBuilder._cache_timestamps.pop(cache_key, None)
-
-        return None
-
-    @staticmethod
-    def _store_in_cache(cache_key, list_item):
-        """Store item in cache with cleanup"""
-        import time
-
-        # Clean up cache before adding new item
-        ListItemBuilder._cleanup_cache()
-
-        # Store the new item
-        ListItemBuilder._item_cache[cache_key] = list_item
-        ListItemBuilder._cache_timestamps[cache_key] = time.time()
-
-    @staticmethod
-    def clear_cache():
-        """Clear all cached items"""
-        ListItemBuilder._item_cache.clear()
-        ListItemBuilder._cache_timestamps.clear()
 
     @staticmethod
     def build_video_item(media_info):
@@ -160,15 +94,6 @@ class ListItemBuilder:
             media_info = {}
 
         # Detailed logging available for debugging when needed
-
-        # Generate cache key from stable fields
-        cache_key = str(media_info.get('title', '')) + str(media_info.get('year', '')) + str(media_info.get('kodi_id', ''))
-
-        # Check cache first
-        cached_item = ListItemBuilder._get_from_cache(cache_key)
-        if cached_item:
-            # utils.log(f"Using cached ListItem for: {media_info.get('title', 'Unknown')}", "DEBUG")
-            return cached_item
 
         # Create ListItem with proper string title
         title = str(media_info.get('title', ''))
@@ -312,7 +237,6 @@ class ListItemBuilder:
         # utils.log(f"IsPlayable Property: {list_item.getProperty('IsPlayable')}", "INFO")
         # utils.log("=== LISTITEM BUILD COMPLETED ===", "INFO")
 
-        ListItemBuilder._store_in_cache(cache_key, list_item)
         return list_item
 
     @staticmethod
