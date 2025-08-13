@@ -90,6 +90,34 @@ def _normalize_art_dict(art: dict, use_fallbacks: bool = False) -> dict:
 class ListItemBuilder:
 
     @staticmethod
+    def _clean_title(title):
+        """Remove emoji characters and other problematic Unicode that Kodi can't render"""
+        import re
+        if not title:
+            return title
+        
+        # Remove emoji characters (covers most emoji ranges)
+        emoji_pattern = re.compile(
+            "["
+            "\U0001F600-\U0001F64F"  # emoticons
+            "\U0001F300-\U0001F5FF"  # symbols & pictographs
+            "\U0001F680-\U0001F6FF"  # transport & map symbols
+            "\U0001F1E0-\U0001F1FF"  # flags (iOS)
+            "\U00002702-\U000027B0"  # dingbats
+            "\U000024C2-\U0001F251"  # enclosed characters
+            "]+", 
+            flags=re.UNICODE
+        )
+        
+        # Remove emojis and clean up extra spaces
+        cleaned = emoji_pattern.sub('', title).strip()
+        
+        # Remove multiple spaces and clean up
+        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+        
+        return cleaned
+
+    @staticmethod
     def build_video_item(media_info):
         """Build a complete video ListItem with all available metadata"""
         if not isinstance(media_info, dict):
@@ -97,8 +125,9 @@ class ListItemBuilder:
 
         # Detailed logging available for debugging when needed
 
-        # Create ListItem with proper string title
+        # Create ListItem with proper string title (remove emoji characters)
         title = str(media_info.get('title', ''))
+        title = ListItemBuilder._clean_title(title)
         list_item = xbmcgui.ListItem(label=title)
 
         # Prepare artwork dictionary
@@ -255,7 +284,9 @@ class ListItemBuilder:
         addon_path = addon.getAddonInfo("path")
         media = f"{addon_path}/resources/media"
         
-        list_item = xbmcgui.ListItem(label=name)
+        # Clean the name to remove emoji characters
+        clean_name = ListItemBuilder._clean_title(name)
+        list_item = xbmcgui.ListItem(label=clean_name)
         list_item.setIsFolder(is_folder)
 
         # Choose appropriate icon based on item type
