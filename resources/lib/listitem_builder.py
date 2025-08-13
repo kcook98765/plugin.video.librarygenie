@@ -19,16 +19,22 @@ VALID_SCHEMES = {'image', 'http', 'https', 'file', 'smb', 'nfs', 'ftp', 'ftps', 
 
 def _is_valid_art_url(u: str) -> bool:
     if not u:
+        utils.log(f"_is_valid_art_url: empty URL", "DEBUG")
         return False
+    
     # Accept Kodi image wrapper directly
     if u.startswith("image://"):
+        utils.log(f"_is_valid_art_url: accepted image:// URL: {u}", "DEBUG")
         return True
+    
     # Accept Kodi default icons (bare filenames work best across all skins)
     if u.startswith("Default") and u.endswith(".png"):
+        utils.log(f"_is_valid_art_url: accepted Default icon: {u}", "DEBUG")
         return True
+    
     # Accept local file paths (Windows and Unix)
-
     if os.path.isabs(u) and os.path.exists(u):
+        utils.log(f"_is_valid_art_url: accepted existing absolute path: {u}", "DEBUG")
         return True
 
     # For special:// paths, try to check if the file exists by converting to real path
@@ -39,10 +45,13 @@ def _is_valid_art_url(u: str) -> bool:
         relative_path = u.replace("special://home/addons/plugin.video.librarygenie/", "")
         real_path = os.path.join(addon.getAddonInfo('path'), relative_path)
         file_exists = os.path.exists(real_path)
+        utils.log(f"_is_valid_art_url: special:// path {u} -> {real_path}, exists: {file_exists}", "DEBUG")
         return file_exists
 
     p = urlparse(u)
-    return (p.scheme in VALID_SCHEMES) or (u.startswith("special://"))
+    is_valid = (p.scheme in VALID_SCHEMES) or (u.startswith("special://"))
+    utils.log(f"_is_valid_art_url: URL {u} -> scheme: {p.scheme}, valid: {is_valid}", "DEBUG")
+    return is_valid
 
 def _wrap_for_kodi_image(u: str) -> str:
     """
@@ -83,42 +92,60 @@ def _get_addon_artwork_fallbacks() -> dict:
     return fallback_dict
 
 def _normalize_art_dict(art: dict, use_fallbacks: bool = False) -> dict:
+    utils.log(f"=== _normalize_art_dict DEBUG ===", "DEBUG")
+    utils.log(f"Input art: {art}", "DEBUG")
+    utils.log(f"use_fallbacks: {use_fallbacks}", "DEBUG")
+    
     out = {}
     if not isinstance(art, dict):
+        utils.log(f"Input art is not dict, converting from {type(art)}", "DEBUG")
         art = {}
 
     # Add addon artwork as fallbacks if requested
     if use_fallbacks:
         fallbacks = _get_addon_artwork_fallbacks()
+        utils.log(f"Adding fallback artwork: {fallbacks}", "DEBUG")
         for k, v in fallbacks.items():
             if k not in art or not art[k]:
                 art[k] = v
+                utils.log(f"Added fallback {k}: {v}", "DEBUG")
+
+    utils.log(f"Art dict after fallbacks: {art}", "DEBUG")
 
     for k, v in art.items():
         if not v:
+            utils.log(f"Skipping empty art value for {k}", "DEBUG")
             continue
         vv = v.strip()
+        utils.log(f"Processing {k}: {vv}", "DEBUG")
 
         # Accept image:// as-is, wrap others when valid (http/file/smb/etc.)
         if vv.startswith("image://"):
             wrapped = _wrap_for_kodi_image(vv)  # add trailing slash if missing
             out[k] = wrapped
+            utils.log(f"Used image:// URL for {k}: {wrapped}", "DEBUG")
             continue
 
         if vv.startswith("special://"):
             wrapped = _wrap_for_kodi_image(vv)  # returns special:// path directly
             out[k] = wrapped
+            utils.log(f"Used special:// URL for {k}: {wrapped}", "DEBUG")
             continue
 
         if _is_valid_art_url(vv):
             wrapped = _wrap_for_kodi_image(vv)
             out[k] = wrapped
+            utils.log(f"Wrapped valid URL for {k}: {wrapped}", "DEBUG")
         else:
             # Last resort: if it *looks* like a URL but urlparse fails, try wrapping anyway
             if "://" in vv:
                 wrapped = _wrap_for_kodi_image(vv)
                 out[k] = wrapped
+                utils.log(f"Force-wrapped URL-like string for {k}: {wrapped}", "DEBUG")
+            else:
+                utils.log(f"Rejected invalid URL for {k}: {vv}", "WARNING")
 
+    utils.log(f"Final normalized art dict: {out}", "INFO")
     return out
 
 
@@ -144,36 +171,53 @@ class ListItemBuilder:
         # Prepare artwork dictionary
         art_dict = {}
 
+        # Log initial media_info image data
+        utils.log(f"=== IMAGE DATA DEBUG for '{title}' ===", "INFO")
+        utils.log(f"Raw media_info keys: {list(media_info.keys())}", "DEBUG")
+        utils.log(f"media_info.poster: {media_info.get('poster')}", "DEBUG")
+        utils.log(f"media_info.thumbnail: {media_info.get('thumbnail')}", "DEBUG")
+        utils.log(f"media_info.fanart: {media_info.get('fanart')}", "DEBUG")
+        utils.log(f"media_info.art: {media_info.get('art')}", "DEBUG")
+        if media_info.get('info'):
+            utils.log(f"media_info.info keys: {list(media_info['info'].keys()) if isinstance(media_info['info'], dict) else 'Not a dict'}", "DEBUG")
+            utils.log(f"media_info.info.art: {media_info.get('info', {}).get('art')}", "DEBUG")
+
         # Get poster URL with priority order
         poster_url = None
-        for source in [
+        for i, source in enumerate([
             lambda: media_info.get('poster'),
             lambda: media_info.get('art', {}).get('poster') if isinstance(media_info.get('art'), dict) else None,
             lambda: media_info.get('info', {}).get('poster'),
             lambda: media_info.get('thumbnail')
-        ]:
+        ]):
             try:
                 url = source()
+                utils.log(f"Poster source {i}: {url}", "DEBUG")
                 if url and str(url) != 'None':
                     poster_url = url
+                    utils.log(f"Selected poster URL from source {i}: {poster_url}", "INFO")
                     break
             except Exception as e:
-                utils.log(f"Error getting poster URL: {str(e)}", "ERROR")
+                utils.log(f"Error getting poster URL from source {i}: {str(e)}", "ERROR")
                 continue
 
         # Handle art data from different sources
         if media_info.get('art'):
             try:
                 if isinstance(media_info['art'], str):
+                    utils.log(f"Parsing art from JSON string: {media_info['art'][:100]}...", "DEBUG")
                     art_data = json.loads(media_info['art'])
                 else:
+                    utils.log(f"Using art dictionary directly: {media_info['art']}", "DEBUG")
                     art_data = media_info['art']
                 art_dict.update(art_data)
-            except (json.JSONDecodeError, AttributeError, TypeError):
-                pass
+                utils.log(f"Updated art_dict with art data: {art_dict}", "DEBUG")
+            except (json.JSONDecodeError, AttributeError, TypeError) as e:
+                utils.log(f"Failed to parse art data: {str(e)}", "ERROR")
 
         # Get art dictionary from info if available
         if isinstance(media_info.get('info', {}).get('art'), dict):
+            utils.log(f"Adding art from info.art: {media_info['info']['art']}", "DEBUG")
             art_dict.update(media_info['info']['art'])
 
         # Set poster with fallbacks
@@ -181,11 +225,15 @@ class ListItemBuilder:
             art_dict['poster'] = poster_url
             art_dict['thumb'] = poster_url
             art_dict['icon'] = poster_url
+            utils.log(f"Set poster/thumb/icon to: {poster_url}", "DEBUG")
 
         # Set fanart
         fanart = media_info.get('fanart') or media_info.get('info', {}).get('fanart')
         if fanart and str(fanart) != 'None':
             art_dict['fanart'] = fanart
+            utils.log(f"Set fanart to: {fanart}", "DEBUG")
+
+        utils.log(f"Pre-normalization art_dict: {art_dict}", "INFO")
 
         # For actual movies with Kodi IDs, we want to use their artwork but fall back to addon art if none available
         # For search results without Kodi IDs, use no fallbacks
@@ -195,9 +243,16 @@ class ListItemBuilder:
         # Use fallbacks only for actual Kodi library movies that might not have artwork
         use_fallbacks = has_kodi_id and not art_dict
         
+        utils.log(f"Kodi ID: {kodi_id}, has_kodi_id: {has_kodi_id}, use_fallbacks: {use_fallbacks}", "INFO")
+        
         art_dict = _normalize_art_dict(art_dict, use_fallbacks=use_fallbacks)
+        utils.log(f"Post-normalization art_dict: {art_dict}", "INFO")
+        
         if art_dict:
             set_art(list_item, art_dict)
+            utils.log(f"Set artwork on ListItem for '{title}': {list(art_dict.keys())}", "INFO")
+        else:
+            utils.log(f"No artwork set for '{title}' - art_dict is empty", "WARNING")
 
         # Create info dictionary for InfoTag
         info_dict = {

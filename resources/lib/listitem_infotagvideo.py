@@ -201,15 +201,24 @@ def set_art(listitem: ListItem, art: Dict[str, str]) -> None:
     Set artwork for a ListItem.
     """
     if not art:
+        utils.log("set_art called with empty art dictionary", "WARNING")
         return
+
+    utils.log(f"=== SET_ART DEBUG ===", "INFO")
+    utils.log(f"Setting artwork with {len(art)} items:", "INFO")
+    for art_type, art_url in art.items():
+        utils.log(f"  {art_type}: {art_url}", "INFO")
 
     try:
         listitem.setArt(art)
+        utils.log("Successfully set artwork using batch setArt()", "INFO")
     except Exception as e:
         utils.log(f"Error setting artwork batch: {str(e)}", "ERROR")
         # Fallback: set individual art types
+        utils.log("Attempting individual artwork setting as fallback", "DEBUG")
         for art_type, art_url in art.items():
             try:
                 listitem.setArt({art_type: art_url})
+                utils.log(f"Successfully set individual {art_type} artwork", "DEBUG")
             except Exception as inner_e:
                 utils.log(f"Failed to set {art_type} artwork: {str(inner_e)}", "ERROR")
