@@ -242,17 +242,18 @@ class ListItemBuilder:
         
         utils.log(f"Kodi ID: {kodi_id}, has_kodi_id: {has_kodi_id}", "INFO")
         
-        # If we have a valid Kodi ID, fetch ALL fresh data from Kodi library
-        if has_kodi_id:
-            utils.log(f"Fetching fresh library data from Kodi for movie ID {kodi_id}", "INFO")
+        # If we have a valid Kodi ID or title+year, fetch ALL fresh data from Kodi library using title-year search
+        if has_kodi_id or (media_info.get('title') and media_info.get('year')):
+            search_title = media_info.get('title', '')
+            search_year = media_info.get('year', 0)
+            utils.log(f"Fetching fresh library data from Kodi for '{search_title}' ({search_year})", "INFO")
             try:
                 from resources.lib.jsonrpc_manager import JSONRPC
                 jsonrpc = JSONRPC()
                 
-                # Get complete movie details from Kodi library
-                response = jsonrpc.get_movie_details(int(kodi_id))
-                if response and 'result' in response and 'moviedetails' in response['result']:
-                    kodi_movie = response['result']['moviedetails']
+                # Get complete movie details using title-year search (more reliable than kodi_id)
+                kodi_movie = jsonrpc.get_movie_by_title_year(search_title, search_year)
+                if kodi_movie:
                     utils.log(f"Retrieved fresh Kodi movie data for '{kodi_movie.get('title', 'Unknown')}'", "INFO")
                     
                     # Update media_info with fresh Kodi library data
