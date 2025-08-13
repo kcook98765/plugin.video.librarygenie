@@ -55,6 +55,18 @@ def add_options_header_item(ctx: dict):
             'mediatype': 'video'
         })
 
+        # Set custom icon for Options & Tools
+        from resources.lib.addon_ref import get_addon
+        addon = get_addon()
+        addon_path = addon.getAddonInfo("path")
+        icon_path = f"{addon_path}/resources/media/icon.jpg"
+        
+        li.setArt({
+            'icon': icon_path,
+            'thumb': icon_path,
+            'poster': icon_path
+        })
+
         # Build URL with current context using centralized URL builder
         url = _plugin_url({
             'action': 'options',
