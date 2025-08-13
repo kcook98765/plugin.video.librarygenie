@@ -669,7 +669,7 @@ class DatabaseManager(Singleton):
                 plot_text = f"Search result for '{query}' - Score: {score_display}"
                 if imdb_id:
                     plot_text += f" - IMDb: {imdb_id}"
-                
+
                 media_item_data = {
                     'kodi_id': 0,  # No Kodi ID for search results
                     'title': title_from_exports if title_from_exports else imdb_id,
