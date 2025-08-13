@@ -51,11 +51,11 @@ def add_options_header_item(ctx: dict):
 def _get_folder_breadcrumb(db_manager, folder_id):
     """Build breadcrumb path for folder hierarchy"""
     breadcrumbs = ["LibraryGenie"]
-    
+
     if folder_id:
         folder_path = []
         current_folder_id = folder_id
-        
+
         # Build path from current folder to root
         while current_folder_id:
             folder = db_manager.fetch_folder_by_id(current_folder_id)
@@ -64,32 +64,32 @@ def _get_folder_breadcrumb(db_manager, folder_id):
                 current_folder_id = folder['parent_id']
             else:
                 break
-        
+
         breadcrumbs.extend(folder_path)
-    
+
     return " / ".join(breadcrumbs)
 
 def _get_list_breadcrumb(query_manager, list_id):
     """Build breadcrumb path for list including its folder hierarchy"""
     breadcrumbs = ["LibraryGenie"]
-    
+
     if list_id:
         from resources.lib.database_manager import DatabaseManager
         from resources.lib.config_manager import Config
-        
+
         config = Config()
         db_manager = DatabaseManager(config.db_path)
-        
+
         # Get list info
         list_info = db_manager.fetch_list_by_id(list_id)
         if list_info:
             folder_id = list_info.get('folder_id')
-            
+
             # Build folder hierarchy if list is in a folder
             if folder_id:
                 folder_path = []
                 current_folder_id = folder_id
-                
+
                 while current_folder_id:
                     folder = db_manager.fetch_folder_by_id(current_folder_id)
                     if folder:
@@ -97,12 +97,12 @@ def _get_list_breadcrumb(query_manager, list_id):
                         current_folder_id = folder['parent_id']
                     else:
                         break
-                
+
                 breadcrumbs.extend(folder_path)
-            
+
             # Add list name
             breadcrumbs.append(list_info['name'])
-    
+
     return " / ".join(breadcrumbs)
 
 
@@ -333,7 +333,7 @@ def browse_list(list_id):
 
         # Set proper container properties first
         xbmcplugin.setContent(handle, "movies")
-        
+
         # Set breadcrumb with list name and folder hierarchy
         list_breadcrumb = _get_list_breadcrumb(query_manager, list_id)
         xbmcplugin.setPluginCategory(handle, list_breadcrumb)
@@ -680,11 +680,11 @@ def show_options(params):
             time_since_nav = current_time - last_navigation
 
             if time_since_nav > 10.0:  # Clear stuck navigation flag after 10 seconds
-                utils.log(f"=== CLEARING STUCK NAVIGATION FLAG (stuck for {time_since_nav:.1f}s) ===", "WARNING")
+                utils.log(f"=== CLEARING STUCK NAVIGATION FLAG (stuck for {time_since_nav}s) ===", "WARNING")
                 xbmc.executebuiltin("ClearProperty(LibraryGenie.Navigating,Home)")
                 xbmc.executebuiltin("ClearProperty(LibraryGenie.SearchModalActive,Home)")
             else:
-                utils.log(f"=== OPTIONS BLOCKED: NAVIGATION IN PROGRESS ({time_since_nav:.1f}s) ===", "WARNING")
+                utils.log(f"=== OPTIONS BLOCKED: NAVIGATION IN PROGRESS ({time_since_nav}s) ===", "WARNING")
                 return
         except (ValueError, TypeError):
             # If we can't get timestamps, clear the flag anyway
@@ -699,7 +699,7 @@ def show_options(params):
         time_since_nav = current_time - last_navigation
 
         if time_since_nav < 3.0:  # Increased back to 3 seconds for better stability
-            utils.log(f"=== OPTIONS BLOCKED: TOO SOON AFTER NAVIGATION ({time_since_nav:.1f}s) ===", "WARNING")
+            utils.log(f"=== OPTIONS BLOCKED: TOO SOON AFTER NAVIGATION ({time_since_nav}s) ===", "WARNING")
             return
     except (ValueError, TypeError):
         pass  # If property doesn't exist or isn't a number, continue
