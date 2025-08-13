@@ -138,9 +138,16 @@ class OptionsManager:
         xbmc.sleep(50)
         utils.log("=== COMPLETED QUICK CLEANUP ===", "DEBUG")
 
-        self._execute_option(selected_option, selected_text)
+        # Get current folder from params if available
+        current_folder_id = params.get('folder_id')
+        if current_folder_id and isinstance(current_folder_id, list):
+            current_folder_id = current_folder_id[0]
+            if current_folder_id:
+                current_folder_id = int(current_folder_id)
+        
+        self._execute_option(selected_option, selected_text, current_folder_id)
 
-    def _execute_option(self, option_index, selected_text):
+    def _execute_option(self, option_index, selected_text, current_folder_id=None):
         """Execute the selected option"""
         try:
             if "Search Movies" in selected_text:
@@ -159,13 +166,16 @@ class OptionsManager:
                 utils.log("=== EXECUTING: CREATE NEW LIST ===", "DEBUG")
                 utils.log("=== ABOUT TO CALL create_list() - MODAL WILL OPEN ===", "DEBUG")
                 from resources.lib.route_handlers import create_list
-                create_list({})
+                # Pass current folder context
+                params = {'folder_id': [current_folder_id]} if current_folder_id else {}
+                create_list(params)
                 utils.log("=== COMPLETED: CREATE NEW LIST - ALL MODALS CLOSED ===", "DEBUG")
             elif "Create New Folder" in selected_text:
                 utils.log("=== EXECUTING: CREATE NEW FOLDER ===", "DEBUG")
-                utils.log("=== ABOUT TO CALL create_new_folder_at_root() - MODAL WILL OPEN ===", "DEBUG")
-                from main import create_new_folder_at_root
-                create_new_folder_at_root()
+                utils.log("=== ABOUT TO CALL create_new_folder() - MODAL WILL OPEN ===", "DEBUG")
+                from resources.lib.folder_list_manager import get_folder_list_manager
+                folder_manager = get_folder_list_manager()
+                folder_manager.create_new_folder(current_folder_id)
                 utils.log("=== COMPLETED: CREATE NEW FOLDER - ALL MODALS CLOSED ===", "DEBUG")
             elif "Settings" in selected_text:
                 utils.log("=== EXECUTING: OPEN SETTINGS ===", "DEBUG")
@@ -194,4 +204,5 @@ class OptionsManager:
         selected_text = self.options[option_index]
         utils.log(f"Executing deferred option: {selected_text}", "DEBUG")
 
-        self._execute_option(option_index, selected_text)
+        # For deferred options, we don't have folder context, so use root (None)
+        self._execute_option(option_index, selected_text, None)

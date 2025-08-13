@@ -16,6 +16,10 @@ class FolderListManager:
 
     def create_new_folder_at_root(self):
         """Create a new folder at root level"""
+        self.create_new_folder(None)
+
+    def create_new_folder(self, parent_folder_id):
+        """Create a new folder in the specified parent folder (None for root)"""
         utils.log("=== CREATE_NEW_FOLDER: ABOUT TO SHOW INPUT MODAL ===", "DEBUG")
         name = xbmcgui.Dialog().input('New folder name', type=xbmcgui.INPUT_ALPHANUM)
         utils.log("=== CREATE_NEW_FOLDER: INPUT MODAL CLOSED ===", "DEBUG")
@@ -24,8 +28,9 @@ class FolderListManager:
             return
 
         try:
-            # Create in root folder (None parent)
-            self.db_manager.insert_folder(name, None)
+            # Create in specified parent folder
+            utils.log(f"Creating folder '{name}' in parent folder_id: {parent_folder_id}", "DEBUG")
+            self.db_manager.insert_folder(name, parent_folder_id)
             utils.log("=== CREATE_NEW_FOLDER: ABOUT TO SHOW SUCCESS NOTIFICATION ===", "DEBUG")
             xbmcgui.Dialog().notification('LibraryGenie', f'Folder "{name}" created')
             utils.log("=== CREATE_NEW_FOLDER: SUCCESS NOTIFICATION CLOSED ===", "DEBUG")

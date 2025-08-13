@@ -113,8 +113,15 @@ def create_list(params):
         config = Config()
         db_manager = DatabaseManager(config.db_path)
 
-        # Create in root folder for now
-        list_id = db_manager.create_list(name, None)
+        # Get folder_id from params, default to None (root)
+        folder_id = params.get('folder_id')
+        if folder_id and isinstance(folder_id, list):
+            folder_id = folder_id[0]
+            if folder_id:
+                folder_id = int(folder_id)
+        
+        utils.log(f"Creating list '{name}' in folder_id: {folder_id}", "DEBUG")
+        list_id = db_manager.create_list(name, folder_id)
         utils.log("=== CREATE_LIST: ABOUT TO SHOW SUCCESS NOTIFICATION ===", "DEBUG")
         xbmcgui.Dialog().notification('LibraryGenie', 'List created')
         utils.log("=== CREATE_LIST: SUCCESS NOTIFICATION CLOSED ===", "DEBUG")
