@@ -89,12 +89,12 @@ def _normalize_art_dict(art: dict, use_fallbacks: bool = False) -> dict:
 
 class ListItemBuilder:
 
-    # Color map for score indication (AARRGGBB format)
+    # Color map for score indication (AARRGGBB format) - bleached/lighter versions
     SCORE_COLORS = {
-        "green":  "FF1A944B",  # High scores (7.0+)
-        "yellow": "FFE0C341",  # Good scores (6.0-6.9)
-        "orange": "FFEA7A32",  # Average scores (5.0-5.9)
-        "red":    "FFD9534F",  # Low scores (below 5.0)
+        "green":  "FF7BC99A",  # High scores (7.0+) - lighter green
+        "yellow": "FFF0DC8A",  # Good scores (6.0-6.9) - lighter yellow
+        "orange": "FFF4BC7B",  # Average scores (5.0-5.9) - lighter orange
+        "red":    "FFECA9A7",  # Low scores (below 5.0) - lighter red
     }
 
     @staticmethod
@@ -159,9 +159,8 @@ class ListItemBuilder:
         # Apply color coding based on search score
         search_score = media_info.get('search_score')
         if search_score and search_score > 0:
-            # Color the title based on score and append score value
-            colored_title = ListItemBuilder._colorize_title_by_score(title, search_score)
-            title = f"{colored_title} ({search_score:.2f})"
+            # Color the title based on score without showing the numeric value
+            title = ListItemBuilder._colorize_title_by_score(title, search_score)
         
         list_item = xbmcgui.ListItem(label=title)
 
