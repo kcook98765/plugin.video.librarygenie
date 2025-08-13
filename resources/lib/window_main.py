@@ -2,7 +2,6 @@ import re
 import json
 import xbmc
 import xbmcgui
-import pyxbmct
 from resources.lib import utils
 from resources.lib.window_base import BaseWindow
 from resources.lib.database_manager import DatabaseManager
@@ -35,16 +34,16 @@ class MainWindow(BaseWindow):
         self.moving_folder_id = None
         self.moving_folder_name = None
         self.folder_color_status = {}  # Add folder color status tracking
-        
+
         # Import required classes
         from resources.lib.database_manager import DatabaseManager
         from resources.lib.config_manager import Config
-        
+
         self.db_manager = DatabaseManager(Config().db_path) # Initialize db_manager here
 
         # Import pyxbmct here to avoid import issues
         import pyxbmct
-        
+
         self.media_label = pyxbmct.Label("")
         self.list_control = pyxbmct.List()
 
@@ -122,7 +121,7 @@ class MainWindow(BaseWindow):
                 is_playable = False
         return is_playable
 
-    
+
 
     def onAction(self, action):
         # If the action is up or down, update our stored selection state and legend
