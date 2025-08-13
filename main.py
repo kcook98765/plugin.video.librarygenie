@@ -124,7 +124,7 @@ def browse_folder(params):
         # Add options header with folder context - pass the actual folder_id
         ctx = detect_context({'view': 'folder', 'folder_id': folder_id})
         utils.log(f"FOLDER_CONTEXT_DEBUG: Context for options header: {ctx}", "DEBUG")
-        add_options_header_item(ctx, _handle)
+        add_options_header_item(ctx, ADDON_HANDLE)
 
         # Get subfolders
         subfolders = db_manager.fetch_folders(folder_id)
@@ -138,7 +138,7 @@ def browse_folder(params):
             li.setProperty('lg_type', 'folder')
             add_context_menu_for_item(li, 'folder', folder_id=subfolder['id'])
             url = build_plugin_url({'action': 'browse_folder', 'folder_id': subfolder['id'], 'view': 'folder'})
-            xbmcplugin.addDirectoryItem(_handle, url, li, isFolder=True)
+            xbmcplugin.addDirectoryItem(ADDON_HANDLE, url, li, isFolder=True)
 
         # Add lists
         for list_item in lists:
@@ -159,15 +159,15 @@ def browse_folder(params):
             li.setProperty('lg_type', 'list')
             add_context_menu_for_item(li, 'list', list_id=list_item['id'])
             url = build_plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
-            xbmcplugin.addDirectoryItem(_handle, url, li, isFolder=True)
+            xbmcplugin.addDirectoryItem(ADDON_HANDLE, url, li, isFolder=True)
 
-        xbmcplugin.endOfDirectory(_handle)
+        xbmcplugin.endOfDirectory(ADDON_HANDLE)
 
     except Exception as e:
         utils.log(f"Error browsing folder: {str(e)}", "ERROR")
         import traceback
         utils.log(f"browse_folder traceback: {traceback.format_exc()}", "ERROR")
-        show_empty_directory(_handle, "Error loading folder contents")
+        show_empty_directory(ADDON_HANDLE, "Error loading folder contents")
 
 def browse_list(list_id):
     """Browse items in a specific list"""
