@@ -1037,3 +1037,72 @@ class KodiHelper:
 
             except Exception as e:
                 utils.log(f"Error processing item for Kodi listing: {str(e)}", "ERROR")
+
+# Placeholder for browse_list_action function
+# This function is called by router, and its implementation should be correct.
+# The changes from the prompt should have already been integrated into the main function.
+def browse_list_action(list_id):
+    """Browse items in a specific list"""
+    try:
+        # Get database manager
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+
+        # Get list details and items
+        list_details = db_manager.get_list_details(list_id)
+        if not list_details:
+            utils.log(f"List with ID {list_id} not found", "ERROR")
+            show_empty_directory()
+            return
+
+        # Set the plugin category to the list name
+        xbmcplugin.setPluginCategory(ADDON_HANDLE, list_details['name'])
+
+        # Add options and tools header
+        add_options_header_item({'view': 'list', 'list_id': str(list_id)})
+
+        # Get list items
+        list_items = db_manager.get_list_items(list_id)
+        utils.log(f"Retrieved {len(list_items)} items for list {list_id}", "DEBUG")
+
+        # Build items for display
+        kodi_helper = KodiHelper(ADDON_HANDLE)
+        items = []
+
+        for list_item in list_items:
+            media_item = db_manager.get_media_item(list_item['media_item_id'])
+            if media_item:
+                # Convert database item to display format
+                item = {
+                    'id': media_item['id'],
+                    'title': media_item.get('title', 'Unknown'),
+                    'plot': media_item.get('plot', ''),
+                    'year': media_item.get('year', 0),
+                    'genre': media_item.get('genre', ''),
+                    'rating': media_item.get('rating', 0.0),
+                    'imdb': media_item.get('imdbnumber', ''),
+                    'art': {
+                        'poster': media_item.get('art_poster', ''),
+                        'fanart': media_item.get('art_fanart', ''),
+                        'thumb': media_item.get('art_thumb', '')
+                    }
+                }
+                items.append(item)
+
+        # Display items
+        if items:
+            kodi_helper.list_items(items)
+        else:
+            # Add "No items found" entry
+            from resources.lib.listitem_builder import ListItemBuilder
+            list_item = ListItemBuilder.build_folder_item("No items found in this list", is_folder=False)
+            xbmcplugin.addDirectoryItem(ADDON_HANDLE, "", list_item, False)
+
+        # Finish with proper list container behavior
+        xbmcplugin.endOfDirectory(ADDON_HANDLE, succeeded=True, updateListing=True, cacheToDisc=False)
+
+    except Exception as e:
+        utils.log(f"Error in browse_list_action: {str(e)}", "ERROR")
+        import traceback
+        utils.log(f"Traceback: {traceback.format_exc()}", "ERROR")
+        show_empty_directory()

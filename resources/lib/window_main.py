@@ -1,4 +1,3 @@
-
 import re
 import json
 import xbmc
@@ -28,7 +27,6 @@ def launch_movie_search():
         utils.log(f"Error in movie search: {str(e)}", "ERROR")
         return {'status': 'error', 'error': str(e)}
 
-
 class MainWindow:
     INDENTATION_MULTIPLIER = 3  # Used for indenting sublevels
 
@@ -48,16 +46,8 @@ class MainWindow:
         self.moving_folder_id = None
         self.moving_folder_name = None
         self.folder_color_status = {}  # Add folder color status tracking
-        
-        # Import required classes
-        from resources.lib.database_manager import DatabaseManager
-        from resources.lib.config_manager import Config
-        
-        self.db_manager = DatabaseManager(Config().db_path)  # Initialize db_manager here
+        self.db_manager = DatabaseManager(Config().db_path) # Initialize db_manager here
 
-        # Import pyxbmct here to avoid import issues
-        import pyxbmct
-        
         self.media_label = pyxbmct.Label("")
         self.list_control = pyxbmct.List()
 
@@ -144,7 +134,6 @@ class MainWindow:
         if action in (xbmcgui.ACTION_MOVE_UP, xbmcgui.ACTION_MOVE_DOWN):
             self.update_selection_state()
             self.update_status_text()
-        
         # (Now update our state as before for left/right actions)
         current_item = self.list_control.getSelectedItem()
         if current_item:
@@ -169,14 +158,12 @@ class MainWindow:
 
         is_folder = current_item.getProperty('isFolder') == 'true'
         is_root = current_item.getProperty('isRoot') == 'true'
-        
         if is_folder or is_root:
             folder_id_prop = current_item.getProperty('folder_id')
             folder_id = 0 if is_root else (int(folder_id_prop) if folder_id_prop else None)
             if folder_id is None:
                 return
             current_pos = self.list_control.getSelectedPosition()
-            
             if action == xbmcgui.ACTION_MOVE_RIGHT:
                 self.folder_expanded_states[folder_id] = True
                 self.populate_list()
@@ -193,7 +180,6 @@ class MainWindow:
         try:
             list_id = int(current_item.getProperty('list_id'))
             is_member = current_item.getProperty('is_member') == '1'
-            
             if action == xbmcgui.ACTION_MOVE_LEFT and is_member:
                 db_manager = DatabaseManager(Config().db_path)
                 item_id = db_manager.get_item_id_by_title_and_list(list_id, self.item_info['title'])
@@ -206,7 +192,6 @@ class MainWindow:
                     self.list_control.selectItem(current_position)
                     self.setFocus(self.list_control)
                     self.update_status_text()
-                    
             elif action == xbmcgui.ACTION_MOVE_RIGHT and not is_member:
                 db_manager = DatabaseManager(Config().db_path)
                 fields_keys = [field.split()[0] for field in Config.FIELDS]
@@ -366,7 +351,6 @@ class MainWindow:
             folder_status = db_manager.fetch_folders_with_item_status(self.item_info.get('kodi_id', 0))
             for folder in folder_status:
                 self.folder_color_status[folder['id']] = 'green' if folder['is_member'] else 'red'
-            
             def propagate_status(folder_id):
                 while folder_id is not None:
                     parent_id = next((f['parent_id'] for f in all_folders if f['id'] == folder_id), None)
@@ -375,7 +359,6 @@ class MainWindow:
                         if any(self.folder_color_status.get(cid, 'red') == 'green' for cid in child_folders):
                             self.folder_color_status[parent_id] = 'green'
                     folder_id = parent_id
-            
             for folder_id in self.folder_color_status:
                 propagate_status(folder_id)
             utils.log(f"Folder color statuses: {self.folder_color_status}", "DEBUG")
@@ -429,14 +412,13 @@ class MainWindow:
             combined_root = root_lists + root_folders
             combined_root.sort(key=lambda x: (0, self.clean_name(x['name']).lower()) if 'parent_id' in x else (1, self.clean_name(x['name']).lower()))
             utils.log(f"Sorted combined root items: {[(self.clean_name(i['name']), i['name']) for i in combined_root]}", "DEBUG")
-            
             for item in combined_root:
                 if 'parent_id' in item:
                     utils.log(f"Adding root folder item - ID: {item['id']}, Name: {item['name']}", "DEBUG")
                     self.add_folder_items(item, 0, all_folders, all_lists, self.folder_color_status)
                 else:
                     list_media_count = db_manager.get_list_media_count(item['id'])
-                    list_label = f"  {item['name']}"  # Removed count
+                    list_label = f"  {item['name']}" #Removed count
                     color = 'green' if item['is_member'] else 'red'
                     if self.is_playable:
                         list_label = f"[COLOR {color}]{list_label}[/COLOR]"
@@ -481,7 +463,6 @@ class MainWindow:
         utils.log(f"Adding folder - Name: {folder['name']}, Expanded: {expanded}, Indent: {indent}, Color: {color}", "DEBUG")
         db_manager = DatabaseManager(Config().db_path)
         folder_media_count = db_manager.get_folder_media_count(folder['id'])  # Keep for background use
-        
         # Add extra indent for top-level folders (where indent is 0)
         folder_indent = indent + (2 if indent == 0 else 1)
         indent_str = " " * folder_indent
@@ -489,7 +470,6 @@ class MainWindow:
             folder_label = f"{indent_str}[I][COLOR {color}]{folder['name']}[/COLOR][/I]"
         else:
             folder_label = f"{indent_str}[I]{folder['name']}[I]"
-            
         folder_item = xbmcgui.ListItem(folder_label)
         folder_item.setProperty('indent', indent_str)
         folder_item.setProperty('isFolder', 'true')
@@ -497,7 +477,6 @@ class MainWindow:
         folder_item.setProperty('expanded', str(expanded))
         self.list_control.addItem(folder_item)
         self.list_data.append({'name': folder['name'], 'isFolder': True, 'id': folder['id'], 'indent': indent, 'expanded': expanded, 'color': color})
-        
         if expanded:
             # First add the new items options
             self.add_new_items(folder, indent + 1)
@@ -508,13 +487,12 @@ class MainWindow:
             combined = folder_lists + subfolders
             combined.sort(key=lambda x: (0, self.clean_name(x['name']).lower()) if 'parent_id' in x else (1, self.clean_name(x['name']).lower()))
             utils.log(f"Sorted combined items for {folder['name']}: {[(self.clean_name(i['name']), i['name']) for i in combined]}", "DEBUG")
-            
             for item in combined:
                 if 'parent_id' in item:
                     self.add_folder_items(item, indent + 1, all_folders, all_lists, folder_color_status)
                 else:
                     list_media_count = db_manager.get_list_media_count(item['id'])
-                    list_label = f"{' ' * ((indent + 1) * self.INDENTATION_MULTIPLIER)} {item['name']}"  # Removed count
+                    list_label = f"{' ' * ((indent + 1) * self.INDENTATION_MULTIPLIER)} {item['name']}" #Removed count
                     color = 'green' if item['is_member'] else 'red'
                     if self.is_playable:
                         list_label = f"[COLOR {color}]{list_label}[/COLOR]"
@@ -532,7 +510,6 @@ class MainWindow:
             current_depth += 1
             folder = DatabaseManager(Config().db_path).fetch_folder_by_id(temp_parent_id)
             temp_parent_id = folder['parent_id'] if folder else None
-            
         if current_depth < Config().max_folder_depth:
             new_folder_item = xbmcgui.ListItem(f"{' ' * (indent * self.INDENTATION_MULTIPLIER)}<New Folder>")
             new_folder_item.setProperty('isFolder', 'true')
@@ -541,7 +518,6 @@ class MainWindow:
             new_folder_item.setProperty('parent_id', str(parent_folder['id']))
             self.list_control.addItem(new_folder_item)
             self.list_data.append({'name': '<New Folder>', 'isFolder': True, 'isSpecial': True, 'id': parent_folder['id'], 'indent': indent, 'action': 'new_folder'})
-            
         new_list_item = xbmcgui.ListItem(f"{' ' * (indent * self.INDENTATION_MULTIPLIER)}<New List>")
         new_list_item.setProperty('isFolder', 'false')
         new_list_item.setProperty('isSpecial', 'true')
@@ -549,7 +525,6 @@ class MainWindow:
         new_list_item.setProperty('parent_id', str(parent_folder['id']))
         self.list_control.addItem(new_list_item)
         self.list_data.append({'name': '<New List>', 'isFolder': False, 'isSpecial': True, 'id': parent_folder['id'], 'indent': indent, 'action': 'new_list'})
-        
         if self.moving_list_id:
             paste_list_item = xbmcgui.ListItem(f"{' ' * (indent * self.INDENTATION_MULTIPLIER)}<Paste List Here : {self.moving_list_name}>")
             paste_list_item.setProperty('isFolder', 'false')
@@ -558,7 +533,6 @@ class MainWindow:
             paste_list_item.setProperty('parent_id', str(parent_folder['id']))
             self.list_control.addItem(paste_list_item)
             self.list_data.append({'name': f'<Paste List Here : {self.moving_list_name}>', 'isFolder': False, 'isSpecial': True, 'id': parent_folder['id'], 'indent': indent, 'action': f"paste_list_here:{self.moving_list_id}"})
-            
         if self.moving_folder_id:
             paste_folder_item = xbmcgui.ListItem(f"{' ' * (indent * self.INDENTATION_MULTIPLIER)}<Paste Folder Here : {self.moving_folder_name}>")
             paste_folder_item.setProperty('isFolder', 'true')
@@ -580,13 +554,11 @@ class MainWindow:
                 item_exists = db_manager.fetch_folder_by_id(focus_id) is not None
             else:
                 item_exists = db_manager.fetch_list_by_id(focus_id) is not None
-                
             if not item_exists:
                 utils.log(f"Item with ID {focus_id} no longer exists", "DEBUG")
                 self.list_control.selectItem(0)
                 self.setFocus(self.list_control)
                 return
-                
             for index in range(self.list_control.size()):
                 list_item = self.list_control.getListItem(index)
                 is_folder = list_item.getProperty('isFolder') == 'true'
@@ -620,7 +592,7 @@ class MainWindow:
 
     def handle_action(self, action, parent_id):
         utils.log(f"Handling action. Action={action}, ParentID={parent_id}", "DEBUG")
-        db_manager = DatabaseManager(Config().db_path)  # Ensure db_manager is available
+        db_manager = DatabaseManager(Config().db_path) # Ensure db_manager is available
 
         if action == 'new_folder':
             self.create_new_folder(parent_id)
@@ -629,56 +601,57 @@ class MainWindow:
         elif action.startswith('paste_'):
             self.handle_paste_action(action, parent_id)
         elif action.startswith("move_list_to_root:"):
-            list_id = int(action.split(":")[1])
-            try:
-                # Move list to root (folder_id = None)
-                db_manager.update_data('lists', {'folder_id': None}, f"id = {list_id}")
-                xbmcgui.Dialog().notification("LibraryGenie", "List moved to root", xbmcgui.NOTIFICATION_INFO, 2000)
-                self.populate_list()
-                self.setFocus(self.list_control)
-            except Exception as e:
-                utils.log(f"Error moving list to root: {str(e)}", "ERROR")
-                xbmcgui.Dialog().notification("LibraryGenie", "Error moving list", xbmcgui.NOTIFICATION_ERROR, 2000)
-        elif action.startswith("move_list:"):
-            list_id = int(action.split(":")[1])
-            try:
-                # Get available folders for moving (including all folders, not just root ones)
-                all_folders = db_manager.fetch_all_folders()
-                folder_options = ["<Root>"]
-                folder_ids = [None]
-
-                # Build hierarchical folder list for selection
-                def add_folder_to_options(folder, indent=0):
-                    indent_str = "  " * indent
-                    folder_options.append(f"{indent_str}{folder['name']}")
-                    folder_ids.append(folder['id'])
-
-                    # Add subfolders
-                    subfolders = [f for f in all_folders if f.get('parent_id') == folder['id']]
-                    subfolders.sort(key=lambda x: x['name'].lower())
-                    for subfolder in subfolders:
-                        add_folder_to_options(subfolder, indent + 1)
-
-                # Add all root folders and their children
-                root_folders = [f for f in all_folders if f.get('parent_id') is None]
-                root_folders.sort(key=lambda x: x['name'].lower())
-                for folder in root_folders:
-                    add_folder_to_options(folder)
-
-                selected = xbmcgui.Dialog().select("Move list to folder:", folder_options)
-                if selected >= 0:
-                    target_folder_id = folder_ids[selected]
-                    db_manager.update_data('lists', {'folder_id': target_folder_id}, f"id = {list_id}")
-
-                    destination = "root" if target_folder_id is None else folder_options[selected].strip()
-                    xbmcgui.Dialog().notification("LibraryGenie", f"List moved to {destination}", xbmcgui.NOTIFICATION_INFO, 2000)
+                list_id = int(action.split(":")[1])
+                try:
+                    # Move list to root (folder_id = None)
+                    db_manager.update_data('lists', {'folder_id': None}, f"id = {list_id}")
+                    xbmcgui.Dialog().notification("LibraryGenie", "List moved to root", xbmcgui.NOTIFICATION_INFO, 2000)
                     self.populate_list()
                     self.setFocus(self.list_control)
-            except Exception as e:
-                utils.log(f"Error moving list: {str(e)}", "ERROR")
-                xbmcgui.Dialog().notification("LibraryGenie", "Error moving list", xbmcgui.NOTIFICATION_ERROR, 2000)
+                except Exception as e:
+                    utils.log(f"Error moving list to root: {str(e)}", "ERROR")
+                    xbmcgui.Dialog().notification("LibraryGenie", "Error moving list", xbmcgui.NOTIFICATION_ERROR, 2000)
+        elif action.startswith("move_list:"):
+                list_id = int(action.split(":")[1])
+                try:
+                    # Get available folders for moving (including all folders, not just root ones)
+                    all_folders = db_manager.fetch_all_folders()
+                    folder_options = ["<Root>"]
+                    folder_ids = [None]
+
+                    # Build hierarchical folder list for selection
+                    def add_folder_to_options(folder, indent=0):
+                        indent_str = "  " * indent
+                        folder_options.append(f"{indent_str}{folder['name']}")
+                        folder_ids.append(folder['id'])
+
+                        # Add subfolders
+                        subfolders = [f for f in all_folders if f.get('parent_id') == folder['id']]
+                        subfolders.sort(key=lambda x: x['name'].lower())
+                        for subfolder in subfolders:
+                            add_folder_to_options(subfolder, indent + 1)
+
+                    # Add all root folders and their children
+                    root_folders = [f for f in all_folders if f.get('parent_id') is None]
+                    root_folders.sort(key=lambda x: x['name'].lower())
+                    for folder in root_folders:
+                        add_folder_to_options(folder)
+
+                    selected = xbmcgui.Dialog().select("Move list to folder:", folder_options)
+                    if selected >= 0:
+                        target_folder_id = folder_ids[selected]
+                        db_manager.update_data('lists', {'folder_id': target_folder_id}, f"id = {list_id}")
+
+                        destination = "root" if target_folder_id is None else folder_options[selected].strip()
+                        xbmcgui.Dialog().notification("LibraryGenie", f"List moved to {destination}", xbmcgui.NOTIFICATION_INFO, 2000)
+                        self.populate_list()
+                        self.setFocus(self.list_control)
+                except Exception as e:
+                    utils.log(f"Error moving list: {str(e)}", "ERROR")
+                    xbmcgui.Dialog().notification("LibraryGenie", "Error moving list", xbmcgui.NOTIFICATION_ERROR, 2000)
         elif action == 'options_tools':
             self.handle_options_tools_action()
+
 
     def display_item_options(self, label, item_id, is_folder):
         if is_folder:
@@ -694,11 +667,11 @@ class MainWindow:
         if selected_option == -1:
             return
         if options[selected_option] == "Rename Folder":
-            self.rename_folder(folder_data['id'])  # Changed to pass only id
+            self.rename_folder(folder_data['id']) # Changed to pass only id
         elif options[selected_option] == "Move Folder":
-            self.move_folder(folder_data['id'])  # Changed to pass only id
+            self.move_folder(folder_data['id']) # Changed to pass only id
         elif options[selected_option] == "Delete Folder":
-            self.delete_folder(folder_data['id'])  # Changed to pass only id
+            self.delete_folder(folder_data['id']) # Changed to pass only id
         elif options[selected_option] == "Settings":
             self.open_settings()
 
@@ -719,14 +692,12 @@ class MainWindow:
             db_manager.insert_data('list_items', data)
             xbmcgui.Dialog().notification("LibraryGenie", "Media added to list", xbmcgui.NOTIFICATION_INFO, 5000)
         self.populate_list()
-        
         options = []
         if self.is_playable:
             if list_data.get('color') == 'red':
                 options.append("Add Media to List")
             elif list_data.get('color') == 'green':
                 options.append("Remove Media from List")
-                
         options.extend([
             "Rename This List",
             "Move This List",
@@ -736,12 +707,10 @@ class MainWindow:
             "Upload IMDB List",
             "Settings"
         ])
-        
         selected_option = xbmcgui.Dialog().select("Choose an action", options)
         utils.log(f"List options selected. ListID={list_data['id']}, Option={options[selected_option] if selected_option != -1 else 'None'}", "DEBUG")
         if selected_option == -1:
             return
-            
         if options[selected_option] == "Add Media to List":
             self.add_media_to_list(list_data['id'])
         elif options[selected_option] == "Remove Media from List":
@@ -811,18 +780,16 @@ class MainWindow:
         except Exception:
             utils.log(f"Error creating new folder. ParentID={parent_id}, NewFolderName not set", "ERROR")
             return
-            
         if existing_folder_id:
             self.show_notification(f"The folder name '{new_folder_name}' already exists", xbmcgui.NOTIFICATION_WARNING)
             return
-            
         parent_id = int(parent_id) if parent_id != 'None' else None
         utils.log(f"Creating new folder '{new_folder_name}' under parent ID '{parent_id}'", "DEBUG")
         db_manager.insert_folder(new_folder_name, parent_id)
         self.show_notification(f"New folder '{new_folder_name}' created", xbmcgui.NOTIFICATION_INFO)
         self.populate_list()
 
-    def rename_folder(self, folder_id):  # Changed to accept only folder_id
+    def rename_folder(self, folder_id): # Changed to accept only folder_id
         utils.log(f"MainWindow: Renaming folder with ID: {folder_id}", "DEBUG")
 
         # Check if this is the Search History folder
@@ -855,7 +822,7 @@ class MainWindow:
             utils.log(f"Error renaming folder {folder_id}: {str(e)}", "ERROR")
             self.show_notification("Error renaming folder", xbmcgui.NOTIFICATION_ERROR)
 
-    def move_folder(self, folder_id):  # Changed to accept only folder_id
+    def move_folder(self, folder_id): # Changed to accept only folder_id
         utils.log(f"MainWindow: Moving folder with ID: {folder_id}", "DEBUG")
 
         # Check if this is the Search History folder
@@ -921,7 +888,7 @@ class MainWindow:
             self.moving_folder_name = None
             self.populate_list()
 
-    def delete_folder(self, folder_id):  # Changed to accept only folder_id
+    def delete_folder(self, folder_id): # Changed to accept only folder_id
         utils.log(f"MainWindow: Deleting folder with ID: {folder_id}", "DEBUG")
 
         # Check if this is the Search History folder
@@ -967,12 +934,10 @@ class MainWindow:
         except Exception:
             utils.log(f"Error creating new list. ParentID={parent_id}, NewListName not set", "ERROR")
             return
-            
         parent_id = int(parent_id) if parent_id != 'None' else None
         utils.log(f"Creating new list '{new_list_name}' under parent ID '{parent_id}'", "DEBUG")
         list_id = db_manager.insert_data('lists', {'name': new_list_name, 'folder_id': parent_id})
         utils.log(f"Created new list with ID: {list_id}", "DEBUG")
-        
         if list_id:
             if self.item_info:
                 utils.log(f"Adding media to new list: {self.item_info}", "DEBUG")
@@ -982,16 +947,13 @@ class MainWindow:
                 for field in fields_keys:
                     if field in self.item_info and self.item_info[field]:
                         data[field] = self.item_info[field]
-                        
                 if data:
                     utils.log("Processing data before insert...", "DEBUG")
                     data['list_id'] = list_id
                     utils.log(f"Added list_id: {list_id} to data", "DEBUG")
-                    
                     if 'cast' in data and isinstance(data['cast'], list):
                         utils.log("Converting cast to JSON string", "DEBUG")
                         data['cast'] = json.dumps(data['cast'])
-                        
                     for field in ['kodi_id', 'year', 'duration', 'votes']:
                         if field in data:
                             try:
@@ -1000,7 +962,6 @@ class MainWindow:
                             except (ValueError, TypeError) as e:
                                 utils.log(f"Error converting {field}: {str(e)}", "ERROR")
                                 data[field] = 0
-                                
                     if 'rating' in data:
                         try:
                             data['rating'] = float(data['rating']) if data['rating'] else 0.0
@@ -1008,7 +969,6 @@ class MainWindow:
                         except (ValueError, TypeError) as e:
                             utils.log(f"Error converting rating: {str(e)}", "ERROR")
                             data['rating'] = 0.0
-                            
                     try:
                         result = db_manager.insert_data('list_items', data)
                         utils.log(f"Insert result: {result}", "DEBUG")
@@ -1016,11 +976,9 @@ class MainWindow:
                         utils.log(f"Error during insert: {str(e)}", "ERROR")
                 else:
                     utils.log("No media data to insert", "WARNING")
-                    
                 notification_text = f"Added '{self.item_info.get('title', '')}' to new list '{new_list_name}'"
             else:
                 notification_text = f"New list '{new_list_name}' created"
-                
             self.show_notification(notification_text, xbmcgui.NOTIFICATION_INFO)
         self.populate_list()
 
@@ -1098,7 +1056,6 @@ class MainWindow:
                 self.collapse_all_button.controlRight(self.exit_button)
                 self.collapse_all_button.controlLeft(self.collapse_all_button)
                 self.exit_button.controlLeft(self.collapse_all_button)
-                
                 # Exit button navigation - only up and left
                 self.exit_button.controlUp(self.list_control)
                 self.exit_button.controlRight(self.exit_button)  # Stay on self when right is pressed
@@ -1349,8 +1306,6 @@ def perform_movie_search(search_query):
         # Ensure that progress window is closed
         progress_win.close()
         del progress_win
-
-
 class MenuWindow(BaseWindow):
     def __init__(self, title="Main Menu"):
         super().__init__(title)
