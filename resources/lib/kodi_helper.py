@@ -1,4 +1,3 @@
-
 import sys
 import json
 import xbmc
@@ -55,7 +54,7 @@ class KodiHelper:
             'wide': 55,
             'wall': 500,
             'fanart': 502,
-            'media': 504  
+            'media': 504
         }
 
         # Set default view mode to poster
@@ -128,13 +127,23 @@ class KodiHelper:
         # Set content type and force views
         xbmcplugin.setContent(self.addon_handle, 'movies')
 
-        # Enable all sort methods
-        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_LABEL)
-        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_TITLE)
-        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
-        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_GENRE)
-        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
-        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_DATEADDED)
+        # Check if items have search scores to determine sorting approach
+        has_scores = any(item.get('search_score', 0) > 0 for item in items)
+
+        if has_scores:
+            # Sort items by search score before displaying (highest first)
+            items.sort(key=lambda x: x.get('search_score', 0), reverse=True)
+            # Disable Kodi sorting to preserve our score-based order
+            xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_NONE)
+            utils.log("Sorted items by search score and disabled Kodi sorting", "DEBUG")
+        else:
+            # Enable all sort methods for regular lists
+            xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_LABEL)
+            xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_TITLE)
+            xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
+            xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_GENRE)
+            xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
+            xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_DATEADDED)
 
         # Set view modes
         view_modes = {
@@ -144,7 +153,7 @@ class KodiHelper:
             'wide': 55,
             'wall': 500,
             'fanart': 502,
-            'media': 504  
+            'media': 504
         }
 
         # Set default view mode to poster
@@ -176,8 +185,8 @@ class KodiHelper:
             utils.log(f"Play item called with item_id: {item_id} (type: {type(item_id)})", "DEBUG")
 
             # Query the database for item
-            query = """SELECT media_items.* FROM media_items 
-                      JOIN list_items ON list_items.media_item_id = media_items.id 
+            query = """SELECT media_items.* FROM media_items
+                      JOIN list_items ON list_items.media_item_id = media_items.id
                       WHERE list_items.media_item_id = ?"""
 
             from resources.lib.database_manager import DatabaseManager
