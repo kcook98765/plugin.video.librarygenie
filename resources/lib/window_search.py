@@ -63,54 +63,50 @@ class SearchWindow:
             utils.log("=== SearchWindow: doModal() COMPLETE ===", "DEBUG")
 
     def start_search(self, query):
-        """Perform the search directly without progress modal"""
-        utils.log(f"SearchWindow: Starting search with query: '{query}'", "DEBUG")
+        """Perform the search with progress dialog"""
+        utils.log(f"SearchWindow: Starting search with progress dialog for query: '{query}'", "DEBUG")
         try:
-            # Record start time
-            start_time = time.time()
-
-            # Perform search directly
-            utils.log("SearchWindow: Initializing RemoteAPIClient", "DEBUG")
-            from resources.lib.remote_api_client import RemoteAPIClient
-            api_client = RemoteAPIClient()
-
-            utils.log("SearchWindow: Starting movie search", "DEBUG")
-            self.search_results = api_client.search_movies(query)
-
-            # Calculate search time
-            search_time = time.time() - start_time
+            # Use the progress window for the search
+            from resources.lib.window_search_progress import SearchProgressWindow
+            progress_window = SearchProgressWindow(query)
+            
+            utils.log("SearchWindow: Showing progress dialog", "DEBUG")
+            progress_window.doModal()
+            
+            # Get the search results
+            self.search_results = progress_window.get_results()
+            utils.log(f"SearchWindow: Retrieved search results: {self.search_results}", "DEBUG")
 
             # Process results
-            utils.log(f"SearchWindow: Processing search results: {self.search_results}", "DEBUG")
+            if self.search_results and not progress_window.cancelled:
+                if isinstance(self.search_results, dict):
+                    if self.search_results.get('status') == 'error':
+                        error_msg = self.search_results.get('error', 'Unknown error')
+                        utils.log(f"SearchWindow: Search error: {error_msg}", "ERROR")
+                        xbmcgui.Dialog().notification(
+                            "LibraryGenie", 
+                            f"Search error: {error_msg}", 
+                            xbmcgui.NOTIFICATION_ERROR
+                        )
+                        return
+                    elif self.search_results.get('status') == 'cancelled':
+                        utils.log("SearchWindow: Search was cancelled", "DEBUG")
+                        return
 
-            # Handle both list format (direct results) and dict format (wrapped results)
-            if self.search_results:
-                if isinstance(self.search_results, list):
-                    # Direct list of results
-                    matches = self.search_results
-                elif isinstance(self.search_results, dict) and self.search_results.get('status') == 'success':
-                    # Wrapped results format
                     matches = self.search_results.get('matches', [])
+                elif isinstance(self.search_results, list):
+                    matches = self.search_results
                 else:
                     matches = []
 
                 if matches:
-                    message = f"Found {len(matches)} movies in {search_time:.1f}s"
-                    utils.log(f"SearchWindow: Search successful: {message}", "DEBUG")
+                    utils.log(f"SearchWindow: Search successful with {len(matches)} matches", "DEBUG")
 
-                    # Save to search history first
-                    # Convert to expected format for save_to_search_history_and_navigate
+                    # Save to search history
                     results_dict = {'matches': matches} if isinstance(self.search_results, list) else self.search_results
                     created_list_id = self.save_to_search_history(query, results_dict)
 
-                    # Show success notification and store target URL for delayed navigation
                     if created_list_id:
-                        utils.log(f"SearchWindow: Search successful: {message}", "DEBUG")
-                        xbmcgui.Dialog().notification(
-                            "LibraryGenie", 
-                            f"Found {len(matches)} movies in {search_time:.1f}s", 
-                            xbmcgui.NOTIFICATION_INFO
-                        )
                         # Store target URL for navigation after modal closes
                         self._target_url = self.build_plugin_url({
                             'action': 'browse_list',
@@ -127,14 +123,16 @@ class SearchWindow:
                     utils.log("SearchWindow: No matches found", "DEBUG")
                     xbmcgui.Dialog().notification(
                         "LibraryGenie", 
-                        f"No movies found matching your search ({search_time:.1f}s)", 
+                        "No movies found matching your search", 
                         xbmcgui.NOTIFICATION_INFO
                     )
+            elif progress_window.cancelled:
+                utils.log("SearchWindow: Search was cancelled by user", "DEBUG")
             else:
-                utils.log("SearchWindow: Search failed", "DEBUG")
+                utils.log("SearchWindow: Search failed or returned no results", "DEBUG")
                 xbmcgui.Dialog().notification(
                     "LibraryGenie", 
-                    f"Search failed ({search_time:.1f}s)", 
+                    "Search failed", 
                     xbmcgui.NOTIFICATION_WARNING
                 )
 
