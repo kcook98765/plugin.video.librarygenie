@@ -16,13 +16,8 @@ class OptionsManager:
             "Search History",
             "Create New List",
             "Create New Folder",
-            "Upload Library to Server (Full)",
-            "Sync Library with Server (Delta)",
-            "View Upload Status",
-            "Clear Server Library",
             "Clear All Local Data",
-            "Settings",
-            "Authenticate with Server"
+            "Settings"
         ]
 
     def show_options_menu(self, params):
@@ -173,34 +168,6 @@ class OptionsManager:
                 from main import create_new_folder_at_root
                 create_new_folder_at_root()
                 utils.log("=== COMPLETED: CREATE NEW FOLDER - ALL MODALS CLOSED ===", "DEBUG")
-            elif "Upload Library to Server (Full)" in selected_text:
-                utils.log("=== EXECUTING: FULL LIBRARY UPLOAD ===", "DEBUG")
-                utils.log("=== LIBRARY UPLOAD MAY SHOW PROGRESS MODALS ===", "DEBUG")
-                from resources.lib.imdb_upload_manager import IMDbUploadManager
-                upload_manager = IMDbUploadManager()
-                upload_manager.upload_library_full_sync()
-                utils.log("=== COMPLETED: FULL LIBRARY UPLOAD - ALL MODALS CLOSED ===", "DEBUG")
-            elif "Sync Library with Server (Delta)" in selected_text:
-                utils.log("=== EXECUTING: DELTA LIBRARY SYNC ===", "DEBUG")
-                utils.log("=== DELTA SYNC MAY SHOW PROGRESS MODALS ===", "DEBUG")
-                from resources.lib.imdb_upload_manager import IMDbUploadManager
-                upload_manager = IMDbUploadManager()
-                upload_manager.upload_library_delta_sync()
-                utils.log("=== COMPLETED: DELTA LIBRARY SYNC - ALL MODALS CLOSED ===", "DEBUG")
-            elif "View Upload Status" in selected_text:
-                utils.log("=== EXECUTING: VIEW UPLOAD STATUS ===", "DEBUG")
-                utils.log("=== UPLOAD STATUS WILL SHOW INFO MODAL ===", "DEBUG")
-                from resources.lib.imdb_upload_manager import IMDbUploadManager
-                upload_manager = IMDbUploadManager()
-                upload_manager.get_upload_status()
-                utils.log("=== COMPLETED: VIEW UPLOAD STATUS - INFO MODAL CLOSED ===", "DEBUG")
-            elif "Clear Server Library" in selected_text:
-                utils.log("=== EXECUTING: CLEAR SERVER LIBRARY ===", "DEBUG")
-                utils.log("=== CLEAR SERVER MAY SHOW CONFIRMATION MODAL ===", "DEBUG")
-                from resources.lib.imdb_upload_manager import IMDbUploadManager
-                upload_manager = IMDbUploadManager()
-                upload_manager.clear_server_library()
-                utils.log("=== COMPLETED: CLEAR SERVER LIBRARY - ALL MODALS CLOSED ===", "DEBUG")
             elif "Clear All Local Data" in selected_text:
                 utils.log("=== EXECUTING: CLEAR ALL LOCAL DATA ===", "DEBUG")
                 utils.log("=== ABOUT TO CALL clear_all_local_data() - CONFIRMATION MODAL WILL OPEN ===", "DEBUG")
@@ -212,12 +179,6 @@ class OptionsManager:
                 utils.log("=== ABOUT TO OPEN SETTINGS WINDOW ===", "DEBUG")
                 xbmc.executebuiltin("Addon.OpenSettings(plugin.video.librarygenie)")
                 utils.log("=== COMPLETED: OPEN SETTINGS - SETTINGS WINDOW CLOSED ===", "DEBUG")
-            elif "Authenticate with Server" in selected_text:
-                utils.log("=== EXECUTING: AUTHENTICATE WITH SERVER ===", "DEBUG")
-                utils.log("=== ABOUT TO CALL authenticate_with_code() - INPUT MODAL WILL OPEN ===", "DEBUG")
-                from resources.lib.authenticate_code import authenticate_with_code
-                authenticate_with_code()
-                utils.log("=== COMPLETED: AUTHENTICATE WITH SERVER - ALL MODALS CLOSED ===", "DEBUG")
             else:
                 utils.log(f"=== UNKNOWN OPTION SELECTED: {selected_text} ===", "WARNING")
 
