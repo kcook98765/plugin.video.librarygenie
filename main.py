@@ -264,7 +264,7 @@ def browse_folder(folder_id):
         xbmcplugin.setContent(handle, "files")
 
         # Add options header
-        ctx = _detect_context({'view': 'folder', 'folder_id': str(folder_id)})
+        ctx = {'view': 'folder', 'folder_id': str(folder_id)}
         add_options_header_item(ctx)
 
         # Get subfolders of this folder
@@ -334,7 +334,7 @@ def browse_list(list_id):
         xbmcplugin.setPluginCategory(handle, list_breadcrumb)
 
         # Add options header
-        ctx = _detect_context({'view': 'list', 'list_id': str(list_id)})
+        ctx = {'view': 'list', 'list_id': str(list_id)}
         add_options_header_item(ctx)
         utils.log(f"Added options header item", "DEBUG")
 
@@ -471,7 +471,7 @@ def build_root():
     xbmcplugin.setContent(handle, "files")
 
     # Add options header
-    ctx = _detect_context({'view': 'root'})
+    ctx = {'view': 'root'}
     add_options_header_item(ctx)
 
     # Legacy search and browse items removed - now available via Options & Tools
