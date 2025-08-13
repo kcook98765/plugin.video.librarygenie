@@ -468,16 +468,11 @@ def router(params):
         pass
 
     # Handle deferred option execution from RunScript
-    if isinstance(params, str) and params.startswith('deferred_option'):
+    if isinstance(params, str) and params.isdigit():
         utils.log("=== HANDLING DEFERRED OPTION EXECUTION ===", "DEBUG")
         try:
-            # Extract option index from params
-            parts = params.split(',')
-            if len(parts) >= 2:
-                option_index = int(parts[1])
-                execute_deferred_option(option_index)
-            else:
-                utils.log("Invalid deferred option format", "ERROR")
+            option_index = int(params)
+            execute_deferred_option(option_index)
         except Exception as e:
             utils.log(f"Error in deferred option execution: {str(e)}", "ERROR")
         return
@@ -946,6 +941,16 @@ def main():
 
     try:
         utils.log("Initializing addon components", "DEBUG")
+
+        # Check for deferred option execution from RunScript
+        if len(sys.argv) >= 3 and sys.argv[1] == 'deferred_option':
+            utils.log("=== HANDLING DEFERRED OPTION EXECUTION FROM MAIN ===", "DEBUG")
+            try:
+                option_index = int(sys.argv[2])
+                execute_deferred_option(option_index)
+            except Exception as e:
+                utils.log(f"Error in deferred option execution: {str(e)}", "ERROR")
+            return
 
         # Check if this is a program addon launch (direct launch without context)
         if len(sys.argv) == 1 or (len(sys.argv) >= 2 and ('action=program' in str(sys.argv[1]) or 'action=program' in str(sys.argv))):
