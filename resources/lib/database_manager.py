@@ -440,16 +440,16 @@ class DatabaseManager(Singleton):
         """Fetch all media items from lists in a specific folder"""
         from resources.lib.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
-        
+
         # Get all lists in this folder
         lists_in_folder = query_manager.fetch_lists_direct(folder_id)
-        
+
         all_media_items = []
         for list_item in lists_in_folder:
             # Get items from each list
             list_items = query_manager.fetch_list_items_with_details(list_item['id'])
             all_media_items.extend(list_items)
-        
+
         return all_media_items
 
 
@@ -708,7 +708,7 @@ class DatabaseManager(Singleton):
                         utils.log(f"Failed to insert media item for: {item_data.get('imdbnumber', 'N/A')}", "ERROR")
                 utils.log(f"=== SEARCH HISTORY SAVE COMPLETE ===", "INFO")
                 utils.log(f"List Name: '{list_name}'", "INFO")
-                utils.log(f"List ID: {final_list_id}", "INFO") 
+                utils.log(f"List ID: {final_list_id}", "INFO")
                 utils.log(f"Items Saved: {len(media_items_to_insert)}", "INFO")
                 utils.log(f"Query: '{query}'", "INFO")
                 utils.log(f"=== END SEARCH HISTORY SAVE ===", "INFO")
@@ -730,24 +730,25 @@ class DatabaseManager(Singleton):
 
 
     def ensure_folder_exists(self, folder_name, parent_folder_id=None):
-        """Ensure a folder exists, create if it doesn't, return folder_id"""
+        """Ensure a folder exists, create if not found"""
         try:
-            from resources.lib.query_manager import QueryManager
-            query_manager = QueryManager(self.db_path)
-            
-            # Check if folder exists
-            existing_folder = query_manager.get_folder_by_name(folder_name)
-            if existing_folder and existing_folder.get('parent_id') == parent_folder_id:
-                return existing_folder['id']
+            # Check if folder already exists - use 'parent' instead of 'parent_folder_id'
+            query = "SELECT id FROM folders WHERE name = ? AND parent = ?"
+            result = self.fetch_data(query, (folder_name, parent_folder_id))
 
-            # Create folder
-            folder_data = {
-                'name': folder_name,
-                'parent_folder_id': parent_folder_id
-            }
-
-            return self.insert_data('folders', folder_data)
-
+            if result:
+                utils.log(f"'{folder_name}' folder already exists.", "INFO")
+                return result[0]['id']
+            else:
+                # Create the folder
+                utils.log(f"Creating '{folder_name}' folder.", "INFO")
+                folder_data = {
+                    'name': folder_name,
+                    'parent': parent_folder_id
+                }
+                folder_id = self.insert_data('folders', folder_data)
+                utils.log(f"'{folder_name}' folder created with ID: {folder_id}", "INFO")
+                return folder_id
         except Exception as e:
             utils.log(f"Error ensuring folder exists: {str(e)}", "ERROR")
             return None

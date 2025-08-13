@@ -26,6 +26,7 @@ from resources.lib.addon_ref import get_addon
 def main():
     """Main entry point for context menu actions"""
     try:
+        import xbmc
         xbmc.log("LibraryGenie: Context menu script started", xbmc.LOGINFO)
 
         addon = get_addon()
@@ -47,12 +48,12 @@ def main():
         # Navigate to plugin interface instead of custom window
         addon = get_addon()
         addon_id = addon.getAddonInfo("id")
-        
+
         # Launch plugin browser
         import xbmc
         url = f"plugin://{addon_id}/?action=browse&title={item_info.get('title', 'Item')}"
         xbmc.executebuiltin(f'ActivateWindow(videos,{url})')
-        
+
         xbmcgui.Dialog().notification("LibraryGenie", f"Browse lists for: {item_info.get('title', 'Unknown')}", xbmcgui.NOTIFICATION_INFO, 3000)
 
     except Exception as e:
