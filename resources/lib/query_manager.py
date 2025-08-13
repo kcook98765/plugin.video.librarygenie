@@ -260,7 +260,7 @@ class QueryManager(Singleton):
                 m.*,
                 li.id as list_item_id
             FROM list_items li
-            JOIN media_items m ON li.media_id = m.id
+            JOIN media_items m ON li.media_item_id = m.id
             WHERE li.list_id = ?
             ORDER BY 
                 CASE 
