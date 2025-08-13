@@ -20,6 +20,5 @@
         <setting id="upload_library_delta" type="action" label="Sync Library to Server (Delta)" action="RunScript(plugin.video.librarygenie,upload_library_delta)" />
         <setting id="upload_library_full" type="action" label="Upload Full Library (Replace)" action="RunScript(plugin.video.librarygenie,upload_library_full)" />
         <setting id="upload_status" type="action" label="View Upload Status" action="RunScript(plugin.video.librarygenie,upload_status)" />
-        <setting id="clear_server_library" type="action" label="Clear Server Library" action="RunScript(plugin.video.librarygenie,clear_server_library)" />
     </category>
 </settings>
