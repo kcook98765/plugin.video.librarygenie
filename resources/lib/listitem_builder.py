@@ -129,6 +129,14 @@ class ListItemBuilder:
         title = str(media_info.get('title', ''))
         title = ListItemBuilder._clean_title(title)
         list_item = xbmcgui.ListItem(label=title)
+        
+        # Add test label2 for search history items (items with search_history:// play URLs)
+        play_url = media_info.get('play', '')
+        if play_url and play_url.startswith('search_history://'):
+            imdb_id = play_url.replace('search_history://', '')
+            score = media_info.get('search_score', 0)
+            test_label2 = f"TEST LABEL2: IMDB {imdb_id} | Score: {score}"
+            list_item.setLabel2(test_label2)
 
         # Prepare artwork dictionary
         art_dict = {}
@@ -271,15 +279,13 @@ class ListItemBuilder:
         return list_item
 
     @staticmethod
-    def build_folder_item(name, is_folder=True, item_type='folder', list_data=None, folder_context=None):
+    def build_folder_item(name, is_folder=True, item_type='folder'):
         """Build a folder ListItem with addon artwork
         
         Args:
             name: Display name for the item
             is_folder: Whether this is a folder item
             item_type: Type of item ('folder', 'playlist', 'list') to determine icon
-            list_data: Optional list data for additional information
-            folder_context: Optional context about which folder we're browsing
         """
         from resources.lib.addon_ref import get_addon
         addon = get_addon()
@@ -290,23 +296,6 @@ class ListItemBuilder:
         clean_name = ListItemBuilder._clean_title(name)
         list_item = xbmcgui.ListItem(label=clean_name)
         list_item.setIsFolder(is_folder)
-        
-        # Add test text for search history lists
-        if folder_context == "Search History" and item_type in ['list', 'playlist'] and list_data:
-            test_label2 = f"TEST LABEL2: List ID {list_data.get('id', 'N/A')} | Created: {list_data.get('timestamp', 'Unknown')}"
-            list_item.setLabel2(test_label2)
-            
-            # Add test plot and tagline using InfoTag
-            test_plot = f"TEST PLOT: This is a search history list created on {list_data.get('timestamp', 'Unknown')}. Original query stored in database. List contains search results."
-            test_tagline = f"TEST TAGLINE: Search History List - {list_data.get('name', 'Unknown')}"
-            
-            # Create info dict and set it
-            info_dict = {
-                'plot': test_plot,
-                'tagline': test_tagline,
-                'mediatype': 'set'  # Use 'set' for collections/lists
-            }
-            set_info_tag(list_item, info_dict, 'video')
 
         # Choose appropriate icon based on item type
         if item_type in ['playlist', 'list']:

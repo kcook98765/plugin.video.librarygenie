@@ -233,20 +233,7 @@ def browse_folder(folder_id):
         for list_item in folder_lists:
             list_count = db_manager.get_list_media_count(list_item['id'])
             from resources.lib.listitem_builder import ListItemBuilder
-            
-            # Get folder name for context
-            folder_name = None
-            if folder_id:
-                folder_data = db_manager.fetch_folder_by_id(folder_id)
-                folder_name = folder_data.get('name') if folder_data else None
-            
-            li = ListItemBuilder.build_folder_item(
-                f"📋 {list_item['name']} ({list_count})", 
-                is_folder=True, 
-                item_type='list',
-                list_data=list_item,
-                folder_context=folder_name
-            )
+            li = ListItemBuilder.build_folder_item(f"📋 {list_item['name']} ({list_count})", is_folder=True)
             li.setProperty('lg_type', 'list')
             _add_context_menu_for_item(li, 'list', list_id=list_item['id'])
             url = _plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
@@ -452,7 +439,7 @@ def build_root():
         # Add top-level lists
         for list_item in top_level_lists:
             list_count = db_manager.get_list_media_count(list_item['id'])
-            li = ListItemBuilder.build_folder_item(f"📋 {list_item['name']} ({list_count})", is_folder=True, item_type='list')
+            li = ListItemBuilder.build_folder_item(f"📋 {list_item['name']} ({list_count})", is_folder=True)
             li.setProperty('lg_type', 'list')
             _add_context_menu_for_item(li, 'list', list_id=list_item['id'])
             url = _plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
