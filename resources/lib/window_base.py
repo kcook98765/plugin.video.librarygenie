@@ -22,10 +22,4 @@ class BaseWindow(Singleton):
     def confirm_delete(self, name, entity_type="item"):
         return utils.show_dialog_yesno("Confirm Delete", f"Are you sure you want to delete the {entity_type} '{name}'?")
 
-    def doModal(self):
-        """Compatibility method for modal display"""
-        pass
-
-    def close(self):
-        """Compatibility method for close"""
-        pass
+    
