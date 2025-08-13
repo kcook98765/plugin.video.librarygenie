@@ -478,6 +478,32 @@ class ListItemBuilder:
             # Fallback label2 for lists without data
             list_item.setLabel2("Movie List")
             utils.log("Set fallback label2: 'Movie List'", "DEBUG")
+        
+        # Set additional properties that are more likely to be displayed in GUI
+        if list_data:
+            # Set plot/description property (often displayed in info panels)
+            if label2_text:
+                list_item.setProperty('plot', label2_text)
+                list_item.setProperty('description', label2_text)
+                utils.log(f"Set plot and description properties: '{label2_text}'", "DEBUG")
+            
+            # Set item count as a separate property
+            if item_count > 0:
+                list_item.setProperty('totalepisodes', str(item_count))  # Often used for counts
+                list_item.setProperty('size', f"{item_count} movies")
+                utils.log(f"Set count properties: {item_count}", "DEBUG")
+            
+            # Set date information
+            if date_str:
+                list_item.setProperty('dateadded', date_str)
+                list_item.setProperty('date', date_str)
+                utils.log(f"Set date properties: {date_str}", "DEBUG")
+        else:
+            # Fallback properties for lists without data
+            list_item.setProperty('plot', "Movie collection")
+            list_item.setProperty('description', "Movie collection")
+            utils.log("Set fallback plot/description properties", "DEBUG")
+        
         list_item.setIsFolder(is_folder)
 
         # Set list-specific artwork using Kodi's special:// protocol
