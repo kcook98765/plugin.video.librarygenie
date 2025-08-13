@@ -933,6 +933,16 @@ class QueryManager(Singleton):
                 utils.log(f"Executing SQL: {create_sql}", "DEBUG")
                 cursor.execute(create_sql)
             conn_info['connection'].commit()
+            
+            # Add migration for search_score column if it doesn't exist
+            try:
+                cursor.execute("SELECT search_score FROM media_items LIMIT 1")
+            except sqlite3.OperationalError:
+                # Column doesn't exist, add it
+                utils.log("Adding search_score column to media_items table", "INFO")
+                cursor.execute("ALTER TABLE media_items ADD COLUMN search_score REAL")
+                conn_info['connection'].commit()
+                
         finally:
             self._release_connection(conn_info)
 
