@@ -233,7 +233,14 @@ def browse_folder(folder_id):
         for list_item in folder_lists:
             list_count = db_manager.get_list_media_count(list_item['id'])
             from resources.lib.listitem_builder import ListItemBuilder
-            li = ListItemBuilder.build_folder_item(f"📋 {list_item['name']} ({list_count})", is_folder=True)
+
+            # Check if this is a search history list by checking if it's in Search History folder
+            plot_text = ''
+            search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
+            if search_history_folder_id and list_item.get('folder_id') == search_history_folder_id:
+                plot_text = 'Built by LibraryGenie'
+
+            li = ListItemBuilder.build_folder_item(f"📋 {list_item['name']} ({list_count})", is_folder=True, plot=plot_text)
             li.setProperty('lg_type', 'list')
             _add_context_menu_for_item(li, 'list', list_id=list_item['id'])
             url = _plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
@@ -685,7 +692,7 @@ def show_options(params):
             xbmc.executebuiltin("ClearProperty(LibraryGenie.Navigating,Home)")
             xbmc.executebuiltin("ClearProperty(LibraryGenie.SearchModalActive,Home)")
 
-    # Time-based protection to prevent immediate re-triggering after navigation
+    # Time-based protection to prevent re-triggering after navigation
     try:
         last_navigation = float(xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.LastNavigation)") or "0")
         current_time = time.time()

@@ -279,13 +279,14 @@ class ListItemBuilder:
         return list_item
 
     @staticmethod
-    def build_folder_item(name, is_folder=True, item_type='folder'):
+    def build_folder_item(name, is_folder=True, item_type='folder', plot=''):
         """Build a folder ListItem with addon artwork
         
         Args:
             name: Display name for the item
             is_folder: Whether this is a folder item
             item_type: Type of item ('folder', 'playlist', 'list') to determine icon
+            plot: Plot/description text for the item
         """
         from resources.lib.addon_ref import get_addon
         addon = get_addon()
@@ -313,6 +314,14 @@ class ListItemBuilder:
         
         # Set artwork directly without complex processing
         set_art(list_item, folder_art)
+
+        # Set plot information if provided
+        if plot:
+            info_dict = {
+                'plot': plot,
+                'mediatype': 'video'
+            }
+            set_info_tag(list_item, info_dict, 'video')
 
         return list_item
 
