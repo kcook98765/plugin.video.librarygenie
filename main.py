@@ -242,11 +242,20 @@ def browse_folder(folder_id):
             if search_history_folder_id and list_item.get('folder_id') == search_history_folder_id:
                 plot_text = 'Built by LibraryGenie'
 
-            # Build the display title that will be passed to ListItemBuilder
-            display_title = f"📋 {list_item['name']} ({list_count})"
+            # Check if this is a search history list (which already includes count in name)
+            is_search_history_list = (search_history_folder_id and 
+                                    list_item.get('folder_id') == search_history_folder_id)
+            
+            # Build the display title - don't add count for search history lists as they already have it
+            if is_search_history_list:
+                display_title = f"📋 {list_item['name']}"
+            else:
+                display_title = f"📋 {list_item['name']} ({list_count})"
+            
             utils.log(f"=== BROWSE_FOLDER CREATING LISTITEM ===", "INFO")
             utils.log(f"Raw list name from database: '{list_item['name']}'", "INFO")
             utils.log(f"List count: {list_count}", "INFO")
+            utils.log(f"Is search history list: {is_search_history_list}", "INFO")
             utils.log(f"Final display title being passed to build_folder_item: '{display_title}'", "INFO")
             utils.log(f"=== END BROWSE_FOLDER LISTITEM CREATION ===", "INFO")
 
@@ -464,11 +473,22 @@ def build_root():
         # Add top-level lists
         for list_item in top_level_lists:
             list_count = db_manager.get_list_media_count(list_item['id'])
-            # Use the list name as-is without adding another count
-            # The search history lists already include count in their name
-            display_title = list_item['name']
+            
+            # Check if this list contains a count pattern like "(number)" at the end
+            # Search history lists already include count, regular lists need count added
+            import re
+            has_count_in_name = re.search(r'\(\d+\)$', list_item['name'])
+            
+            if has_count_in_name:
+                # List already has count in name (likely search history), use as-is
+                display_title = list_item['name']
+            else:
+                # Regular list, add count
+                display_title = f"{list_item['name']} ({list_count})"
+            
             utils.log(f"=== CREATING LISTITEM FOR LIST ===", "INFO")
             utils.log(f"Original list name from database: '{list_item['name']}'", "INFO")
+            utils.log(f"Has count in name: {has_count_in_name is not None}", "INFO")
             utils.log(f"Display title being used: '{display_title}'", "INFO")
             utils.log(f"Final ListItem label will be: '📋 {display_title}'", "INFO")
             utils.log(f"=== END CREATING LISTITEM FOR LIST ===", "INFO")
