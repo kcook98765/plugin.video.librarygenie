@@ -47,6 +47,29 @@ def add_options_header_item(ctx: dict):
             utils.log("Navigation in progress, skipping options header item", "DEBUG")
             return
 
+        # Create list item for options as non-folder
+        li = xbmcgui.ListItem(label="[B]🔧 Options & Tools[/B]")
+        li.setInfo('video', {
+            'title': '🔧 Options & Tools',
+            'plot': 'Access list management tools, search options, and addon settings.',
+            'mediatype': 'video'
+        })
+
+        # Build URL with current context using centralized URL builder
+        url = _plugin_url({
+            'action': 'options',
+            'view': ctx.get('view'),
+            # Only include list_id/folder if they exist
+            **({'list_id': ctx['list_id']} if ctx.get('list_id') else {}),
+            **({'folder': ctx['folder']} if ctx.get('folder') else {}),
+        })
+
+        # Add as non-folder item so Kodi uses RunPlugin instead of trying to render directory
+        xbmcplugin.addDirectoryItem(ADDON_HANDLE, url, li, isFolder=False)
+
+    except Exception as e:
+        utils.log(f"Error adding options header: {str(e)}", "ERROR")
+
 
 def _get_folder_breadcrumb(db_manager, folder_id):
     """Build breadcrumb path for folder hierarchy"""
