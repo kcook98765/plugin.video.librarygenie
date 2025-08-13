@@ -612,9 +612,10 @@ class DatabaseManager(Singleton):
             utils.log("Search History folder not found, cannot save search results.", "ERROR")
             return None
 
-        # Create a unique list name for the search results
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        base_list_name = f"Search: {query} ({timestamp})"
+        # Format the list name with search query, date only, and count
+        timestamp = datetime.now().strftime("%Y-%m-%d")
+        base_list_name = f"{query} ({timestamp}) - {len(results)} results"
+
 
         # Check if a list with this name already exists and create unique name
         counter = 1
