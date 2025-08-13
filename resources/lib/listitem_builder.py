@@ -50,7 +50,7 @@ def _get_addon_artwork_fallbacks() -> dict:
     addon = get_addon()
     addon_path = addon.getAddonInfo("path")
     media = f"{addon_path}/resources/media"
-    
+
     return {
         'icon': f"{media}/icon.jpg",
         'thumb': f"{media}/thumb.jpg",
@@ -83,7 +83,7 @@ def _normalize_art_dict(art: dict, use_fallbacks: bool = False) -> dict:
         vv = str(v).strip()
         if vv:
             out[k] = vv
-    
+
     return out
 
 
@@ -95,7 +95,7 @@ class ListItemBuilder:
         import re
         if not title:
             return title
-        
+
         # Remove emoji characters (covers most emoji ranges)
         emoji_pattern = re.compile(
             "["
@@ -105,16 +105,16 @@ class ListItemBuilder:
             "\U0001F1E0-\U0001F1FF"  # flags (iOS)
             "\U00002702-\U000027B0"  # dingbats
             "\U000024C2-\U0001F251"  # enclosed characters
-            "]+", 
+            "]+",
             flags=re.UNICODE
         )
-        
+
         # Remove emojis and clean up extra spaces
         cleaned = emoji_pattern.sub('', title).strip()
-        
+
         # Remove multiple spaces and clean up
         cleaned = re.sub(r'\s+', ' ', cleaned).strip()
-        
+
         return cleaned
 
     @staticmethod
@@ -128,14 +128,14 @@ class ListItemBuilder:
         # Create ListItem with proper string title (remove emoji characters)
         title = str(media_info.get('title', ''))
         title = ListItemBuilder._clean_title(title)
-        
+
         # Append search score to title if score exists
         search_score = media_info.get('search_score')
         if search_score and search_score > 0:
             title = f"{title} ({search_score:.2f})"
-        
+
         list_item = xbmcgui.ListItem(label=title)
-        
+
         # Set label2 for search history items to show score and IMDB ID
         play_url = media_info.get('play', '')
         if play_url and play_url.startswith('search_history://'):
@@ -292,7 +292,7 @@ class ListItemBuilder:
     @staticmethod
     def build_folder_item(name, is_folder=True, item_type='folder', plot=''):
         """Build a folder ListItem with addon artwork
-        
+
         Args:
             name: Display name for the item
             is_folder: Whether this is a folder item
@@ -303,7 +303,7 @@ class ListItemBuilder:
         addon = get_addon()
         addon_path = addon.getAddonInfo("path")
         media = f"{addon_path}/resources/media"
-        
+
         # Clean the name to remove emoji characters
         clean_name = ListItemBuilder._clean_title(name)
         list_item = xbmcgui.ListItem(label=clean_name)
@@ -322,7 +322,7 @@ class ListItemBuilder:
             'poster': icon_path,
             'fanart': f"{media}/fanart.jpg"
         }
-        
+
         # Set artwork directly without complex processing
         set_art(list_item, folder_art)
 
