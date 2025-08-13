@@ -129,7 +129,7 @@ from resources.lib.route_handlers import (
 # Global variable to track initialization
 _initialized = False
 
-# Global navigation state to prevent dialog conflicts
+# Global navigation state to prevent conflicts
 _navigation_in_progress = False
 _last_navigation_time = 0
 
