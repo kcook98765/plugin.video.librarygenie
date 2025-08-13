@@ -177,18 +177,18 @@ class ListItemBuilder:
         if poster_url and str(poster_url) != 'None':
             # Check if we have a search score to overlay
             search_score = media_info.get('search_score')
-            if search_score and search_score > 0:
-                # Determine star overlay based on score
-                if search_score >= 0.8:
-                    stars = 5
-                elif search_score >= 0.6:
-                    stars = 4
-                elif search_score >= 0.4:
-                    stars = 3
-                elif search_score >= 0.2:
-                    stars = 2
+            if search_score and search_score >= 5.0:
+                # Determine star overlay based on score range 5.0-8.0
+                if search_score >= 7.5:
+                    stars = 5  # Excellent (7.5-8.0)
+                elif search_score >= 7.0:
+                    stars = 4  # Very Good (7.0-7.49)
+                elif search_score >= 6.5:
+                    stars = 3  # Good (6.5-6.99)
+                elif search_score >= 6.0:
+                    stars = 2  # Fair (6.0-6.49)
                 else:
-                    stars = 1
+                    stars = 1  # Poor (5.0-5.99)
                 
                 # Create overlay path
                 from resources.lib.addon_ref import get_addon
