@@ -490,13 +490,13 @@ def router(params):
 
         # Import setup function
         from resources.lib.remote_api_setup import run_setup
-        
+
         # Missing create_folder and create_list imports
         # these are not used in the original but are in the map.
         # For now, we will just add them here to make the code runnable.
         def create_folder():
             utils.log("Placeholder for create_folder", "DEBUG")
-        
+
         def create_list(params={}):
             utils.log("Placeholder for create_list", "DEBUG")
 
