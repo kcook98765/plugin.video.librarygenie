@@ -8,7 +8,6 @@ if addon_dir not in sys.path:
 
 from resources.lib.addon_helper import run_addon
 from resources.lib import utils
-from resources.lib import params
 
 def main():
     """Main entry point for the runner module"""
