@@ -1,3 +1,4 @@
+
 """ /main.py """
 import os
 import sys
@@ -70,7 +71,6 @@ def add_options_header_item(ctx: dict):
     except Exception as e:
         utils.log(f"Error adding options header: {str(e)}", "ERROR")
 
-
 def _get_folder_breadcrumb(db_manager, folder_id):
     """Build breadcrumb path for folder hierarchy"""
     breadcrumbs = ["LibraryGenie"]
@@ -127,10 +127,6 @@ def _get_list_breadcrumb(query_manager, list_id):
             breadcrumbs.append(list_info['name'])
 
     return " / ".join(breadcrumbs)
-
-
-    except Exception as e:
-        utils.log(f"Error adding options header: {str(e)}", "ERROR")
 
 def _add_context_menu_for_item(li: xbmcgui.ListItem, item_type: str, **ids):
     """
@@ -462,7 +458,6 @@ def browse_list(list_id):
         error_li = ListItemBuilder.build_folder_item(f"Error loading list: {str(e)}", is_folder=False)
         xbmcplugin.addDirectoryItem(handle, "", error_li, False)
         xbmcplugin.endOfDirectory(handle, succeeded=False)
-
 
 def build_root():
     """Build the root directory with search option"""
@@ -856,8 +851,6 @@ def show_options(params):
         # Note: Navigation flag is now handled in individual flows (like run_search_flow)
         utils.log("=== OPTIONS DIALOG REQUEST COMPLETE ===", "DEBUG")
 
-
-
 def _close_all_dialogs():
     """Close all open dialogs with minimal cleanup"""
     utils.log("=== STARTING MINIMAL DIALOG CLOSURE ===", "DEBUG")
@@ -868,7 +861,6 @@ def _close_all_dialogs():
     xbmc.sleep(100)  # Short wait
 
     utils.log("=== DIALOG CLOSURE COMPLETE ===", "DEBUG")
-
 
 def create_new_folder_at_root():
     """Create a new folder at root level"""
