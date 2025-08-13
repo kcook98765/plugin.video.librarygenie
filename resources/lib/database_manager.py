@@ -436,6 +436,22 @@ class DatabaseManager(Singleton):
         query_manager = QueryManager(self.db_path)
         query_manager.remove_media_item_from_list(list_id, media_item_id)
 
+    def fetch_media_items_by_folder(self, folder_id):
+        """Fetch all media items from lists in a specific folder"""
+        from resources.lib.query_manager import QueryManager
+        query_manager = QueryManager(self.db_path)
+        
+        # Get all lists in this folder
+        lists_in_folder = query_manager.fetch_lists_direct(folder_id)
+        
+        all_media_items = []
+        for list_item in lists_in_folder:
+            # Get items from each list
+            list_items = query_manager.fetch_list_items_with_details(list_item['id'])
+            all_media_items.extend(list_items)
+        
+        return all_media_items
+
 
 
     def get_list_media_count(self, list_id):
@@ -716,25 +732,24 @@ class DatabaseManager(Singleton):
     def ensure_folder_exists(self, folder_name, parent_folder_id=None):
         """Ensure a folder exists, create if it doesn't, return folder_id"""
         try:
+            from resources.lib.query_manager import QueryManager
+            query_manager = QueryManager(self.db_path)
+            
             # Check if folder exists
-            existing = self.fetch_data('folders', f"name = ? AND parent_folder_id {'IS NULL' if parent_folder_id is None else '= ?'}", 
-                                     [folder_name] if parent_folder_id is None else [folder_name, parent_folder_id])
-
-            if existing:
-                return existing[0]['id']
+            existing_folder = query_manager.get_folder_by_name(folder_name)
+            if existing_folder and existing_folder.get('parent_id') == parent_folder_id:
+                return existing_folder['id']
 
             # Create folder
             folder_data = {
                 'name': folder_name,
-                'parent_folder_id': parent_folder_id,
-                'created_at': 'CURRENT_TIMESTAMP'
+                'parent_folder_id': parent_folder_id
             }
 
-            self.insert_data('folders', folder_data)
-            return self.cursor.lastrowid
+            return self.insert_data('folders', folder_data)
 
         except Exception as e:
-            self.log(f"Error ensuring folder exists: {str(e)}", "ERROR")
+            utils.log(f"Error ensuring folder exists: {str(e)}", "ERROR")
             return None
 
     def create_list(self, list_name, folder_id=None):
@@ -742,15 +757,13 @@ class DatabaseManager(Singleton):
         try:
             list_data = {
                 'name': list_name,
-                'folder_id': folder_id,
-                'created_at': 'CURRENT_TIMESTAMP'
+                'folder_id': folder_id
             }
 
-            self.insert_data('lists', list_data)
-            return self.cursor.lastrowid
+            return self.insert_data('lists', list_data)
 
         except Exception as e:
-            self.log(f"Error creating list: {str(e)}", "ERROR")
+            utils.log(f"Error creating list: {str(e)}", "ERROR")
             return None
 
     def update_data(self, table, data_dict, where_clause):
@@ -772,5 +785,5 @@ class DatabaseManager(Singleton):
             return self.cursor.rowcount > 0
 
         except Exception as e:
-            self.log(f"Error updating data in {table}: {str(e)}", "ERROR")
+            utils.log(f"Error updating data in {table}: {str(e)}", "ERROR")
             return False
