@@ -89,6 +89,33 @@ def _normalize_art_dict(art: dict, use_fallbacks: bool = False) -> dict:
 
 class ListItemBuilder:
 
+    # Color map for score indication (AARRGGBB format)
+    SCORE_COLORS = {
+        "green":  "FF1A944B",  # High scores (7.0+)
+        "yellow": "FFE0C341",  # Good scores (6.0-6.9)
+        "orange": "FFEA7A32",  # Average scores (5.0-5.9)
+        "red":    "FFD9534F",  # Low scores (below 5.0)
+    }
+
+    @staticmethod
+    def _get_score_bucket(score: float) -> str:
+        """Map score to color bucket"""
+        if score >= 7.0:
+            return "green"
+        elif score >= 6.0:
+            return "yellow"
+        elif score >= 5.0:
+            return "orange"
+        else:
+            return "red"
+
+    @staticmethod
+    def _colorize_title_by_score(title: str, score: float) -> str:
+        """Apply Kodi color formatting to title based on score"""
+        color_bucket = ListItemBuilder._get_score_bucket(score)
+        color_hex = ListItemBuilder.SCORE_COLORS[color_bucket]
+        return f"[COLOR {color_hex}]{title}[/COLOR]"
+
     @staticmethod
     def _clean_title(title):
         """Remove emoji characters and other problematic Unicode that Kodi can't render"""
@@ -129,11 +156,13 @@ class ListItemBuilder:
         title = str(media_info.get('title', ''))
         title = ListItemBuilder._clean_title(title)
 
-        # Append search score to title if score exists
+        # Apply color coding based on search score
         search_score = media_info.get('search_score')
         if search_score and search_score > 0:
-            title = f"{title} ({search_score:.2f})"
-
+            # Color the title based on score and append score value
+            colored_title = ListItemBuilder._colorize_title_by_score(title, search_score)
+            title = f"{colored_title} ({search_score:.2f})"
+        
         list_item = xbmcgui.ListItem(label=title)
 
 
