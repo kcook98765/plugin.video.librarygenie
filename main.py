@@ -158,7 +158,7 @@ def run_search_flow():
         xbmc.sleep(50)
         # Clear navigation flag
         xbmc.executebuiltin("ClearProperty(LibraryGenie.NavInProgress,Home)")
-        utils.log("=== DELAYED NAVIGATION COMPLETED ===", "DEBUG")
+        utils.log("=== DELAYEDNAVIGATION COMPLETED ===", "DEBUG")
     else:
         utils.log("=== NO TARGET URL - SEARCH CANCELLED OR FAILED ===", "DEBUG")
 
@@ -938,117 +938,35 @@ def clear_all_local_data():
         utils.log("=== CLEAR_ALL_LOCAL_DATA: ERROR NOTIFICATION CLOSED ===", "DEBUG")
 
 def browse_search_history():
-    """Browse the search history, keeping its protected status intact."""
+    """Browse the search history by navigating to the Search History folder"""
     utils.log("=== BROWSE_SEARCH_HISTORY FUNCTION CALLED ===", "INFO")
     try:
-        from resources.lib.addon_ref import get_addon
         from resources.lib.database_manager import DatabaseManager
         from resources.lib.config_manager import Config
-        from resources.lib.listitem_builder import ListItemBuilder
-
-        addon = get_addon()
-        addon_id = addon.getAddonInfo("id")
-        handle = ADDON_HANDLE # Use the global ADDON_HANDLE
 
         config = Config()
         db_manager = DatabaseManager(config.db_path)
 
-        # Ensure Search History folder exists and get its ID
-        search_history_folder_id = db_manager.ensure_folder_exists("Search History", None)
+        # Get Search History folder ID
+        search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
         if not search_history_folder_id:
-            utils.log("Error: Could not find or create 'Search History' folder.", "ERROR")
-            show_empty_directory("Search History folder not found.")
+            utils.log("Error: Search History folder not found.", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'Search History folder not found', xbmcgui.NOTIFICATION_ERROR)
             return
 
-        utils.log(f"Browsing Search History folder with ID: {search_history_folder_id}", "DEBUG")
+        utils.log(f"Found Search History folder with ID: {search_history_folder_id}", "DEBUG")
 
-        # Set Kodi container properties
-        xbmcplugin.setContent(handle, "movies") # Content type might not be accurate but is required
-        xbmcplugin.setPluginCategory(handle, "Search History")
+        # Navigate to the Search History folder using the existing browse_folder function
+        plugin_url = _plugin_url({
+            'action': 'browse_folder',
+            'folder_id': search_history_folder_id,
+            'view': 'folder'
+        })
 
-        # Add options header (contextually relevant for the current view)
-        ctx = _detect_context({'view': 'list', 'list_id': str(search_history_folder_id)})
-        add_options_header_item(ctx)
-        utils.log("Added options header for Search History view", "DEBUG")
+        utils.log(f"Navigating to Search History folder: {plugin_url}", "DEBUG")
 
-        # Fetch search history items
-        # Assuming DatabaseManager has a method to fetch items specifically for 'Search History' folder
-        # If not, a new method might need to be added to DatabaseManager or QueryManager
-        search_history_items = db_manager.fetch_media_items_by_folder(search_history_folder_id)
-        utils.log(f"Found {len(search_history_items)} items in Search History", "INFO")
-
-        items_added = 0
-        if search_history_items:
-            for item in search_history_items:
-                try:
-                    li = ListItemBuilder.build_video_item(item) # Use media item details
-                    li.setProperty('lg_type', 'movie') # Treat history items as movies for consistency
-                    li.setProperty('lg_list_id', str(search_history_folder_id)) # Link to the history folder
-                    li.setProperty('lg_movie_id', str(item.get('id'))) # Use media item ID
-
-                    # Context menu for search history items (e.g., remove from history)
-                    list_id = search_history_folder_id
-                    movie_id = item.get('id')
-                    cm = []
-                    if list_id and movie_id:
-                        cm.append(('Remove from Search History',
-                                   f'RunPlugin({_plugin_url({"action":"remove_from_list","list_id":list_id,"movie_id":movie_id})})'))
-                    if cm:
-                        li.addContextMenuItems(cm, replaceItems=False)
-
-                    # Determine playability and URL
-                    url = item.get('file') or item.get('play') or ''
-                    is_playable = False
-                    media_kodi_id = None
-
-                    if item.get('movieid') and str(item['movieid']).isdigit() and int(item['movieid']) > 0:
-                        media_kodi_id = int(item['movieid'])
-                        is_playable = True
-                    elif item.get('kodi_id') and str(item['kodi_id']).isdigit() and int(item['kodi_id']) > 0:
-                        media_kodi_id = int(item['kodi_id'])
-                        is_playable = True
-                    elif url:
-                        is_playable = True
-
-                    if media_kodi_id and is_playable:
-                        url = _plugin_url({
-                            'action': 'play_movie',
-                            'movieid': media_kodi_id,
-                            'list_id': search_history_folder_id
-                        })
-                        if item.get('file'):
-                            li.setPath(item['file'])
-                    elif url and is_playable:
-                        pass # Use direct URL
-                    else:
-                        # Fallback for items without playable links
-                        url = _plugin_url({
-                            'action': 'show_item_details',
-                            'list_id': search_history_folder_id,
-                            'item_id': item.get('id'),
-                            'title': item.get('title', 'Unknown Search')
-                        })
-                        is_playable = False
-
-                    if is_playable:
-                        li.setProperty('IsPlayable', 'true')
-                    else:
-                        li.setProperty('IsPlayable', 'false')
-
-                    xbmcplugin.addDirectoryItem(handle, url, li, isFolder=not is_playable)
-                    items_added += 1
-                except Exception as e:
-                    utils.log(f"Error processing Search History item {item.get('title', 'Unknown')}: {str(e)}", "ERROR")
-                    import traceback
-                    utils.log(f"Traceback: {traceback.format_exc()}", "ERROR")
-
-        if items_added > 0:
-            utils.log("Completing directory for Search History", "DEBUG")
-            xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_TITLE)
-            xbmcplugin.endOfDirectory(handle, succeeded=True, cacheToDisc=False, updateListing=True)
-        else:
-            utils.log("No items in Search History", "WARNING")
-            show_empty_directory("Your search history is empty.")
+        # Use Container.Update to navigate to the folder
+        xbmc.executebuiltin(f'Container.Update({plugin_url})')
 
         utils.log("=== BROWSE_SEARCH_HISTORY FUNCTION COMPLETE ===", "INFO")
 
@@ -1056,7 +974,7 @@ def browse_search_history():
         utils.log(f"Error in browse_search_history: {e}", "ERROR")
         import traceback
         utils.log(f"Traceback: {traceback.format_exc()}", "ERROR")
-        show_empty_directory(f"Error loading search history: {str(e)}")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error accessing search history', xbmcgui.NOTIFICATION_ERROR)
 
 
 def show_empty_directory(message="No items to display."):
