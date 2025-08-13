@@ -421,8 +421,12 @@ def build_root():
         # Import ListItemBuilder
         from resources.lib.listitem_builder import ListItemBuilder
 
-        # Add top-level folders
+        # Add top-level folders (excluding Search History folder)
         for folder in top_level_folders:
+            # Skip the Search History folder - it's accessed via Options & Tools menu
+            if folder['name'] == "Search History":
+                continue
+                
             li = ListItemBuilder.build_folder_item(f"📁 {folder['name']}", is_folder=True)
             li.setProperty('lg_type', 'folder')
             _add_context_menu_for_item(li, 'folder', folder_id=folder['id'])
