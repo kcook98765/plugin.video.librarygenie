@@ -128,6 +128,12 @@ class ListItemBuilder:
         # Create ListItem with proper string title (remove emoji characters)
         title = str(media_info.get('title', ''))
         title = ListItemBuilder._clean_title(title)
+        
+        # Append search score to title for verification if score exists
+        search_score = media_info.get('search_score')
+        if search_score and search_score > 0:
+            title = f"{title} [Score: {search_score}]"
+        
         list_item = xbmcgui.ListItem(label=title)
         
         # Set label2 for search history items to show score and IMDB ID
