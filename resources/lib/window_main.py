@@ -2,11 +2,8 @@ import re
 import json
 import xbmc
 import xbmcgui
-import pyxbmct
 from resources.lib import utils
 from resources.lib.window_base import BaseWindow
-from resources.lib.database_manager import DatabaseManager
-from resources.lib.config_manager import Config
 
 utils.log("Initializing MainWindow module", "INFO")
 
@@ -30,16 +27,13 @@ def launch_movie_search():
         utils.log(f"Error in movie search: {str(e)}", "ERROR")
         return {'status': 'error', 'error': str(e)}
 
-class MainWindow(pyxbmct.AddonDialogWindow):
+class MainWindow:
     INDENTATION_MULTIPLIER = 3  # Used for indenting sublevels
 
     def __init__(self, item_info, title="Item Info"):
-        utils.log(f"MainWindow initializing with title: {title}", "DEBUG")
-        utils.log(f"MainWindow received item_info: {type(item_info)}", "DEBUG")
-
+        super().__init__(title)
+        self.setGeometry(800, 600, 10, 10)
         self.item_info = item_info
-        super().__init__(item_info, title)
-        self.setGeometry(800, 600, 13, 10) # Adjusted geometry to accommodate new elements
         self.list_data = []
         # We'll store our own selection state:
         self.selected_item_id = None   # For folders: the folder id; for lists: the list id.
@@ -1264,36 +1258,6 @@ class MainWindow(pyxbmct.AddonDialogWindow):
         except Exception as e:
             utils.log(f"Error in new folder dialog: {str(e)}", "ERROR")
             self.show_notification("Error", "Failed to open new folder dialog.")
-
-    def refresh_list(self):
-        """Refreshes the list and refocuses on the selected item if possible."""
-        current_selection = self.list_control.getSelectedPosition()
-        self.populate_list()
-        if current_selection is not None and current_selection < self.list_control.size():
-            self.list_control.selectItem(current_selection)
-        self.setFocus(self.list_control)
-
-    def refresh_and_focus_item(self, item_id, is_folder):
-        """Refreshes the list and attempts to focus on a specific item."""
-        self.populate_list()
-        current_size = self.list_control.size()
-        for index in range(current_size):
-            list_item = self.list_control.getListItem(index)
-            is_current_item_folder = list_item.getProperty('isFolder') == 'true'
-            try:
-                list_item_id = int(list_item.getProperty('folder_id' if is_current_item_folder else 'list_id'))
-            except (ValueError, TypeError):
-                continue
-
-            if list_item_id == item_id and is_current_item_folder == is_folder:
-                self.list_control.selectItem(index)
-                self.setFocus(self.list_control)
-                break
-        else:
-            # If not found, focus on the first item
-            if current_size > 0:
-                self.list_control.selectItem(0)
-            self.setFocus(self.list_control)
 
 
 def launch_movie_search():

@@ -4,18 +4,10 @@ from resources.lib import utils
 from resources.lib.singleton_base import Singleton
 
 class BaseWindow(Singleton):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, title=""):
         if not hasattr(self, '_initialized'):
-            # Extract title if it's passed as a positional or keyword argument
-            if args and len(args) >= 2:
-                title = args[1] if isinstance(args[1], str) else ""
-            else:
-                title = kwargs.get('title', "")
-            
-            # Don't call super().__init__() with arguments since Singleton expects none
             super().__init__()
             self._initialized = True
-            self.title = title
 
     def show_notification(self, message, icon=xbmcgui.NOTIFICATION_INFO):
         utils.show_notification("LibraryGenie", message, icon)
