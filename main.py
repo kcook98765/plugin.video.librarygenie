@@ -214,10 +214,6 @@ def browse_folder(folder_id):
         config = Config()
         db_manager = DatabaseManager(config.db_path)
 
-        # Add options header
-        ctx = _detect_context({'view': 'folder', 'folder_id': str(folder_id)})
-        add_options_header_item(ctx)
-
         # Get subfolders of this folder
         subfolders = db_manager.fetch_folders(folder_id)
 
@@ -281,11 +277,6 @@ def browse_list(list_id):
         # Set proper container properties first
         xbmcplugin.setContent(handle, "movies")
         xbmcplugin.setPluginCategory(handle, f"Search Results")
-
-        # Add options header
-        ctx = _detect_context({'view': 'list', 'list_id': str(list_id)})
-        add_options_header_item(ctx)
-        utils.log(f"Added options header item", "DEBUG")
 
         # Use policy-aware resolver
         utils.log(f"Creating ResultsManager for list resolution", "DEBUG")
