@@ -115,9 +115,8 @@ def run_addon():
         utils.log("Initializing Kodi helper", "DEBUG")
         kodi_helper = KodiHelper()
 
-        # Import MainWindow locally to avoid circular imports
-        utils.log("Importing MainWindow class", "DEBUG")
-        from .window_main import MainWindow
+        # MainWindow functionality has been moved to plugin-based approach
+        utils.log("Using plugin-based routing instead of MainWindow", "DEBUG")
 
         # Handle context menu vs direct launch
         if listitem_context:
