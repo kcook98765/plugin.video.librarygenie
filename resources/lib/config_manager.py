@@ -32,6 +32,7 @@ class Config:
         "plot TEXT",
         "premiered TEXT",
         "rating REAL",
+        "search_score REAL",
         "source TEXT",
         "status TEXT",
         "stream_url TEXT",
