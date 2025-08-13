@@ -47,6 +47,65 @@ def add_options_header_item(ctx: dict):
             utils.log("Navigation in progress, skipping options header item", "DEBUG")
             return
 
+
+def _get_folder_breadcrumb(db_manager, folder_id):
+    """Build breadcrumb path for folder hierarchy"""
+    breadcrumbs = ["LibraryGenie"]
+    
+    if folder_id:
+        folder_path = []
+        current_folder_id = folder_id
+        
+        # Build path from current folder to root
+        while current_folder_id:
+            folder = db_manager.fetch_folder_by_id(current_folder_id)
+            if folder:
+                folder_path.insert(0, folder['name'])
+                current_folder_id = folder['parent_id']
+            else:
+                break
+        
+        breadcrumbs.extend(folder_path)
+    
+    return " / ".join(breadcrumbs)
+
+def _get_list_breadcrumb(query_manager, list_id):
+    """Build breadcrumb path for list including its folder hierarchy"""
+    breadcrumbs = ["LibraryGenie"]
+    
+    if list_id:
+        from resources.lib.database_manager import DatabaseManager
+        from resources.lib.config_manager import Config
+        
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+        
+        # Get list info
+        list_info = db_manager.fetch_list_by_id(list_id)
+        if list_info:
+            folder_id = list_info.get('folder_id')
+            
+            # Build folder hierarchy if list is in a folder
+            if folder_id:
+                folder_path = []
+                current_folder_id = folder_id
+                
+                while current_folder_id:
+                    folder = db_manager.fetch_folder_by_id(current_folder_id)
+                    if folder:
+                        folder_path.insert(0, folder['name'])
+                        current_folder_id = folder['parent_id']
+                    else:
+                        break
+                
+                breadcrumbs.extend(folder_path)
+            
+            # Add list name
+            breadcrumbs.append(list_info['name'])
+    
+    return " / ".join(breadcrumbs)
+
+
         # Create list item for options as non-folder
         li = xbmcgui.ListItem(label="[B]🔧 Options & Tools[/B]")
         li.setInfo('video', {
@@ -205,6 +264,10 @@ def browse_folder(folder_id):
         config = Config()
         db_manager = DatabaseManager(config.db_path)
 
+        # Set breadcrumb with folder hierarchy
+        folder_breadcrumb = _get_folder_breadcrumb(db_manager, folder_id)
+        xbmcplugin.setPluginCategory(handle, folder_breadcrumb)
+
         # Add options header
         ctx = _detect_context({'view': 'folder', 'folder_id': str(folder_id)})
         add_options_header_item(ctx)
@@ -270,7 +333,10 @@ def browse_list(list_id):
 
         # Set proper container properties first
         xbmcplugin.setContent(handle, "movies")
-        xbmcplugin.setPluginCategory(handle, f"Search Results")
+        
+        # Set breadcrumb with list name and folder hierarchy
+        list_breadcrumb = _get_list_breadcrumb(query_manager, list_id)
+        xbmcplugin.setPluginCategory(handle, list_breadcrumb)
 
         # Add options header
         ctx = _detect_context({'view': 'list', 'list_id': str(list_id)})
@@ -404,6 +470,9 @@ def build_root():
     addon = get_addon()
     addon_id = addon.getAddonInfo("id")
     handle = int(sys.argv[1])
+
+    # Set LibraryGenie as the main breadcrumb
+    xbmcplugin.setPluginCategory(handle, "LibraryGenie")
 
     # Add options header
     ctx = _detect_context({'view': 'root'})
@@ -570,7 +639,6 @@ def router(params):
         list_id = q.get('list_id', [None])[0]
         if list_id:
             # Set proper content for list view
-            xbmcplugin.setPluginCategory(ADDON_HANDLE, "Search Results")
             xbmcplugin.setContent(ADDON_HANDLE, "movies")
             # Clear navigation flag when we reach the target
             _navigation_in_progress = False
