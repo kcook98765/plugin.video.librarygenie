@@ -970,11 +970,12 @@ def clear_all_local_data():
         config = Config()
         db_manager = DatabaseManager(config.db_path)
 
-        # Clear only user-created content, preserve library data
+        # Clear user-created content and media cache
         db_manager.delete_data('list_items', '1=1')
         db_manager.delete_data('lists', '1=1')
         db_manager.delete_data('folders', '1=1')
-        # Preserve media_items and imdb_exports - they contain valuable library data
+        db_manager.delete_data('media_items', '1=1')
+        # Preserve imdb_exports - they contain valuable library reference data
 
         # Recreate Search History folder
         search_folder_id = db_manager.ensure_folder_exists("Search History", None)
