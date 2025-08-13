@@ -86,7 +86,7 @@ class QueryManager(Singleton):
         """
         self.execute_query(query, (new_name, folder_id))
 
-    
+
 
     def execute_rpc_query(self, rpc):
         """Execute RPC query and return results"""
@@ -242,7 +242,7 @@ class QueryManager(Singleton):
         """
         return self.execute_query(query, (list_id,))
 
-    
+
 
     def get_list_media_count(self, list_id: int) -> int:
         query = """
@@ -254,16 +254,26 @@ class QueryManager(Singleton):
         return result[0]['COUNT(*)'] if result else 0
 
     def fetch_list_items_with_details(self, list_id: int) -> List[Dict[str, Any]]:
+        """Fetch list items with media details, ordered by search score (highest first)"""
         query = """
-            SELECT m.*, li.id as list_item_id, li.flagged
+            SELECT 
+                m.*,
+                li.id as list_item_id
             FROM list_items li
-            JOIN media_items m ON li.media_item_id = m.id
+            JOIN media_items m ON li.media_id = m.id
             WHERE li.list_id = ?
-            ORDER BY m.title COLLATE NOCASE
+            ORDER BY 
+                CASE 
+                    WHEN m.search_score IS NOT NULL AND m.search_score > 0 
+                    THEN m.search_score 
+                    ELSE 0 
+                END DESC,
+                m.title ASC
         """
         return self.execute_query(query, (list_id,))
 
     def fetch_lists_with_item_status(self, item_id: int) -> List[Dict[str, Any]]:
+        """Fetch lists with item status"""
         query = """
             SELECT 
                 lists.id, 
@@ -426,17 +436,6 @@ class QueryManager(Singleton):
         ]
         for query in queries:
             self.execute_query(query, (list_id,))
-
-    def fetch_all_folders(self) -> List[Dict[str, Any]]:
-        query = """
-            SELECT 
-                id,
-                name,
-                parent_id
-            FROM folders
-            ORDER BY parent_id, name COLLATE NOCASE
-        """
-        return self.execute_query(query)
 
     def fetch_all_lists(self) -> List[Dict[str, Any]]:
         query = """
@@ -777,69 +776,6 @@ class QueryManager(Singleton):
                 return rec[0]
         return self.insert_media_item(payload) or 0
 
-    def upsert_reference_media_item(self, imdb_id: str, kodi_id: int = None, source: str = 'lib') -> int:
-        """Ensure a minimal media_items row exists for a library/provider item.
-        Only identifiers are stored. Returns media_items.id.
-        """
-        if source not in ('lib', 'provider'):
-            source = 'lib'
-        uniqueid_json = json.dumps({'imdb': imdb_id}) if imdb_id else None
-
-        # Try find existing
-        query = """
-            SELECT id FROM media_items
-            WHERE source IN ('lib','provider')
-              AND (
-                    (uniqueid IS NOT NULL AND json_extract(uniqueid,'$.imdb') = ?)
-                 OR (? IS NULL AND kodi_id = ?)
-              )
-            LIMIT 1
-        """
-        row = self.execute_query(query, (imdb_id, imdb_id, kodi_id))
-        if row:
-            rec = row[0]
-            try:
-                return rec['id']
-            except Exception:
-                return rec[0]
-
-        data = {
-            'kodi_id': int(kodi_id or 0),
-            'title': '',
-            'year': 0,
-            'source': source,
-            'media_type': 'movie',
-            'play': '',
-            'uniqueid': uniqueid_json,
-        }
-        return self.insert_media_item(data) or 0
-
-    def upsert_external_media_item(self, payload: dict) -> int:
-        """Persist full metadata for a non-library item (external addon).
-        Returns media_items.id.
-        """
-        payload = dict(payload or {})
-        payload['source'] = 'external'
-        payload.setdefault('media_type', 'movie')
-        title = payload.get('title','')
-        year = int(payload.get('year') or 0)
-        play = payload.get('play','')
-        existing = self.execute_query(
-            """
-            SELECT id FROM media_items
-            WHERE source='external' AND title=? AND year=? AND COALESCE(play,'')=COALESCE(?, '')
-            LIMIT 1
-            """,
-            (title, year, play)
-        )
-        if existing:
-            rec = existing[0]
-            try:
-                return rec['id']
-            except Exception:
-                return rec[0]
-        return self.insert_media_item(payload) or 0
-
     def insert_list_item(self, data: Dict[str, Any]) -> None:
         """Insert a list item"""
         columns = ', '.join(data.keys())
@@ -959,7 +895,7 @@ class QueryManager(Singleton):
                 media_item_id INTEGER,
                 flagged INTEGER DEFAULT 0,
                 FOREIGN KEY (list_id) REFERENCES lists (id),
-                FOREIGN KEY (media_item_id) REFERENCES media_items (id)
+                FOREIGNKEY (media_item_id) REFERENCES media_items (id)
             )""",
             """CREATE TABLE IF NOT EXISTS whitelist (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -973,7 +909,7 @@ class QueryManager(Singleton):
                 title TEXT,
                 FOREIGN KEY (list_id) REFERENCES lists (id)
             )""",
-            
+
             """CREATE TABLE IF NOT EXISTS original_requests (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 description TEXT,

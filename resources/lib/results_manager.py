@@ -102,7 +102,7 @@ class ResultsManager(Singleton):
             kt = _key(m.get("title"), 0)
             idx_t.setdefault(kt, []).append(m)
 
-        # Rebuild resolved list in the original refs order
+        # Rebuild resolved list in the original refs order (already sorted by search score from query)
         for i, item in enumerate(rows): # Use original 'rows' to get 'id' and 'source' for unmatched items
             ref_title = item.get("title", "") # Get title from original row if available
             ref_year = item.get("year", 0) # Get year from original row if available
@@ -125,6 +125,8 @@ class ResultsManager(Singleton):
                 meta['cast'] = cast
                 if isinstance(meta.get('writer'), list):
                     meta['writer'] = ' / '.join(meta['writer'])
+                # Preserve search score from original item for sorting
+                meta['search_score'] = item.get('search_score', 0)
                 resolved_item = meta
             else:
                 # No Kodi match found - using fallback data
@@ -142,11 +144,15 @@ class ResultsManager(Singleton):
                         'file': None,
                         'genre': '',
                         'cast': [],
-                        'art': {}
+                        'art': {},
+                        'search_score': item.get('search_score', 0)
                     }
 
             # Ensure a resolved item exists before appending
             if resolved_item:
                 resolved.append(resolved_item)
 
-        return resolved + external
+        # Sort external items by search score as well if they have scores
+        external_sorted = sorted(external, key=lambda x: x.get('search_score', 0), reverse=True)
+        
+        return resolved + external_sorted
