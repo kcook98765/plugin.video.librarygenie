@@ -30,6 +30,18 @@ def _is_valid_art_url(u: str) -> bool:
     
     if os.path.isabs(u) and os.path.exists(u):
         return True
+    
+    # For special:// paths, try to check if the file exists by converting to real path
+    if u.startswith("special://home/addons/plugin.video.librarygenie/"):
+        from resources.lib.addon_ref import get_addon
+        addon = get_addon()
+        # Convert special:// path to real file path
+        relative_path = u.replace("special://home/addons/plugin.video.librarygenie/", "")
+        real_path = os.path.join(addon.getAddonInfo('path'), relative_path)
+        file_exists = os.path.exists(real_path)
+        utils.log(f"Checking special:// file existence: {u} -> {real_path} (exists: {file_exists})", "INFO")
+        return file_exists
+    
     p = urlparse(u)
     return (p.scheme in VALID_SCHEMES) or (u.startswith("special://"))
 

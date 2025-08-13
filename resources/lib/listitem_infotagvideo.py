@@ -223,6 +223,9 @@ def set_art(listitem: ListItem, art: Dict[str, str]) -> None:
                 listitem.setArt({art_type: art_url})
                 utils.log(f"Successfully set {art_type}", "INFO")
             except Exception as inner_e:
-                utils.log(f"Error setting {art_type} artwork: {str(inner_e)}", "ERROR")
+                utils.log(f"ERROR: Failed to set {art_type} artwork ({art_url}): {str(inner_e)}", "ERROR")
+                # Also log to Kodi's main log for visibility
+                import xbmc
+                xbmc.log(f"LibraryGenie [ERROR]: Failed to set {art_type} artwork ({art_url}): {str(inner_e)}", xbmc.LOGINFO)
 
     utils.log("=== ARTWORK SETTING COMPLETE ===", "INFO")
