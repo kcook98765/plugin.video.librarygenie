@@ -69,7 +69,7 @@ def set_info_tag(listitem, infolabels, tag_type='video'):
         # utils.log(f"Set mediatype to: {mediatype}", "DEBUG")
 
         # Set basic string properties
-        if infolabels.get('title'):
+        if infolabels.get('title'): 
             info_tag.setTitle(str(infolabels['title']))
         if infolabels.get('plot'):
             info_tag.setPlot(str(infolabels['plot']))
@@ -196,20 +196,8 @@ def set_info_tag(listitem, infolabels, tag_type='video'):
         listitem.setInfo(tag_type, infolabels)
 
 
-def set_art(listitem: ListItem, art: Dict[str, str]) -> None:
-    """
-    Set artwork for a ListItem.
-    """
-    if not art:
-        return
-
-    try:
-        listitem.setArt(art)
-    except Exception as e:
-        utils.log(f"Error setting artwork batch: {str(e)}", "ERROR")
-        # Fallback: set individual art types
-        for art_type, art_url in art.items():
-            try:
-                listitem.setArt({art_type: art_url})
-            except Exception as inner_e:
-                utils.log(f"Failed to set {art_type} artwork: {str(inner_e)}", "ERROR")
+def set_art(list_item: ListItem, raw_art: Dict[str, str]) -> None:
+    # utils.log("Setting art for ListItem", "DEBUG")
+    art = {art_type: raw_url for art_type, raw_url in raw_art.items()}
+    list_item.setArt(art)
+    # utils.log(f"Art types set: {', '.join(art.keys())}", "DEBUG")

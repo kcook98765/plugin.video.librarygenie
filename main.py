@@ -8,7 +8,6 @@ import xbmcgui
 import xbmcplugin
 from urllib.parse import urlencode, parse_qs
 from urllib.parse import quote_plus, urlparse # Import urlparse
-import time # Import time for timestamp operations
 
 # Add addon directory to Python path
 addon_dir = os.path.dirname(os.path.abspath(__file__))
@@ -82,8 +81,6 @@ def _add_context_menu_for_item(li: xbmcgui.ListItem, item_type: str, **ids):
         cm += [
             ('Rename list',
              f'RunPlugin({_plugin_url({"action":"rename_list","list_id":list_id})})'),
-            ('Move list',
-             f'RunPlugin({_plugin_url({"action":"move_list","list_id":list_id})})'),
             ('Delete list',
              f'RunPlugin({_plugin_url({"action":"delete_list","list_id":list_id})})'),
         ]
@@ -113,7 +110,7 @@ from resources.lib.database_manager import DatabaseManager
 from resources.lib import utils
 from resources.lib.route_handlers import (
     play_movie, show_item_details, create_list, rename_list, delete_list,
-    remove_from_list, rename_folder, refresh_movie, do_search, move_list
+    remove_from_list, rename_folder, refresh_movie, do_search
 )
 
 # Global variable to track initialization
@@ -125,7 +122,6 @@ _last_navigation_time = 0
 
 def run_search_flow():
     """Launch search modal and navigate to results after completion"""
-    global _navigation_in_progress
     utils.log("=== RUN_SEARCH_FLOW START ===", "DEBUG")
 
     target_url = None
@@ -161,7 +157,7 @@ def run_search_flow():
         xbmc.sleep(50)
         # Clear navigation flag
         xbmc.executebuiltin("ClearProperty(LibraryGenie.NavInProgress,Home)")
-        utils.log("=== DELAYEDNAVIGATION COMPLETED ===", "DEBUG")
+        utils.log("=== DELAYED NAVIGATION COMPLETED ===", "DEBUG")
     else:
         utils.log("=== NO TARGET URL - SEARCH CANCELLED OR FAILED ===", "DEBUG")
 
@@ -228,7 +224,7 @@ def browse_folder(folder_id):
         for list_item in folder_lists:
             list_count = db_manager.get_list_media_count(list_item['id'])
             from resources.lib.listitem_builder import ListItemBuilder
-            li = ListItemBuilder.build_list_item(f"📋 {list_item['name']} ({list_count})", is_folder=True)
+            li = ListItemBuilder.build_folder_item(f"📋 {list_item['name']} ({list_count})", is_folder=True)
             li.setProperty('lg_type', 'list')
             _add_context_menu_for_item(li, 'list', list_id=list_item['id'])
             url = _plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
@@ -264,6 +260,7 @@ def browse_list(list_id):
         from resources.lib.listitem_builder import ListItemBuilder
 
         # Clear navigation flags - simplified
+        global _navigation_in_progress
         _navigation_in_progress = False
         xbmc.executebuiltin("ClearProperty(LibraryGenie.Navigating,Home)")
         utils.log("Cleared navigation flags at browse_list entry", "DEBUG")
@@ -439,7 +436,7 @@ def build_root():
         # Add top-level lists
         for list_item in top_level_lists:
             list_count = db_manager.get_list_media_count(list_item['id'])
-            li = ListItemBuilder.build_list_item(f"📋 {list_item['name']} ({list_count})", is_folder=True)
+            li = ListItemBuilder.build_folder_item(f"📋 {list_item['name']} ({list_count})", is_folder=True)
             li.setProperty('lg_type', 'list')
             _add_context_menu_for_item(li, 'list', list_id=list_item['id'])
             url = _plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
@@ -451,25 +448,51 @@ def build_root():
     xbmcplugin.endOfDirectory(handle)
 
 def router(params):
-    """Route requests to appropriate handlers"""
+    """Route plugin calls to appropriate handlers"""
     global _navigation_in_progress
     utils.log(f"Router called with params: {params}", "DEBUG")
 
-    # Clear any stuck navigation flags that are more than 30 seconds old
+    # Clean up any stuck navigation flags at router entry
     try:
+        import time
         current_time = time.time()
         last_navigation = float(xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.LastNavigation)") or "0")
         time_since_nav = current_time - last_navigation
-        if time_since_nav > 30:  # More than 30 seconds stuck
-            utils.log(f"=== ROUTER: CLEARING STUCK NAVIGATION FLAGS (stuck for {time_since_nav}s) ===", "DEBUG")
-            xbmc.executebuiltin("SetProperty(LibraryGenie.Navigating,false,Home)")
-            xbmc.executebuiltin("ClearProperty(LibraryGenie.LastNavigation,Home)")
+
+        if time_since_nav > 15.0:  # Clear flags if stuck for more than 15 seconds
+            utils.log(f"=== ROUTER: CLEARING STUCK NAVIGATION FLAGS (stuck for {time_since_nav:.1f}s) ===", "DEBUG")
+            xbmc.executebuiltin("ClearProperty(LibraryGenie.Navigating,Home)")
+            xbmc.executebuiltin("ClearProperty(LibraryGenie.SearchModalActive,Home)")
             _navigation_in_progress = False
-    except Exception:
-        pass  # Ignore any errors in cleanup
+    except (ValueError, TypeError):
+        pass
 
-    action = None
+    # Handle deferred option execution from RunScript
+    if isinstance(params, str) and params.startswith('deferred_option'):
+        utils.log("=== HANDLING DEFERRED OPTION EXECUTION ===", "DEBUG")
+        try:
+            # Extract option index from params
+            parts = params.split(',')
+            if len(parts) >= 2:
+                option_index = int(parts[1])
+                execute_deferred_option(option_index)
+            else:
+                utils.log("Invalid deferred option format", "ERROR")
+        except Exception as e:
+            utils.log(f"Error in deferred option execution: {str(e)}", "ERROR")
+        return
 
+    # Check if paramstr is valid and not empty before parsing
+    if not params:
+        utils.log("Received empty paramstr, building root directory.", "WARNING")
+        # Clear navigation flags when building root
+        xbmc.executebuiltin("ClearProperty(LibraryGenie.Navigating,Home)")
+        xbmc.executebuiltin("ClearProperty(LibraryGenie.SearchModalActive,Home)")
+        _navigation_in_progress = False
+        build_root()
+        return
+
+    # Ensure we are parsing the query string part of the URL
     try:
         # Handle both full URLs and query strings
         if params.startswith('?'):
@@ -484,25 +507,25 @@ def router(params):
         build_root() # Fallback to building root on parsing error
         return
 
-    action_type = q.get("action", [""])[0]
+    action = q.get("action", [""])[0]
 
-    utils.log(f"Action type determined: {action_type}", "DEBUG")
+    utils.log(f"Action determined: {action}", "DEBUG")
 
-    if action_type == "search":
+    if action == "search":
         utils.log("Routing to search action", "DEBUG")
         # Set navigation flag before starting search
         _navigation_in_progress = True
         xbmc.executebuiltin("SetProperty(LibraryGenie.Navigating,true,Home)")
         run_search()
         return
-    elif action_type == "browse":
+    elif action == "browse":
         utils.log("Routing to browse action", "DEBUG")
         # Set navigation flag before starting browse
         _navigation_in_progress = True
         xbmc.executebuiltin("SetProperty(LibraryGenie.Navigating,true,Home)")
         run_browse()
         return
-    elif action_type == 'options':
+    elif action == 'options':
         utils.log("Routing to options action", "DEBUG")
         # Check if we're in the middle of navigation to prevent dialog conflicts
         if _navigation_in_progress:
@@ -511,50 +534,46 @@ def router(params):
         show_options(q)
         # IMPORTANT: Do NOT call endOfDirectory() here - this is a RunPlugin action
         return
-    elif action_type == 'search_movies':
+    elif action == 'search_movies':
         utils.log("Routing to search_movies action", "DEBUG")
         # Set navigation flag before starting search
         _navigation_in_progress = True
         xbmc.executebuiltin("SetProperty(LibraryGenie.Navigating,true,Home)")
         do_search(q)
         return
-    elif action_type == 'create_list':
+    elif action == 'create_list':
         utils.log("Routing to create_list action", "DEBUG")
         create_list(q)
         return
-    elif action_type == 'rename_list':
+    elif action == 'rename_list':
         utils.log("Routing to rename_list action", "DEBUG")
         rename_list(q)
         return
-    elif action_type == "move_list":
-        utils.log("Routing to move_list action", "DEBUG")
-        move_list(q)
-        return
-    elif action_type == 'delete_list':
+    elif action == 'delete_list':
         utils.log("Routing to delete_list action", "DEBUG")
         delete_list(q)
         return
-    elif action_type == 'remove_from_list':
+    elif action == 'remove_from_list':
         utils.log("Routing to remove_from_list action", "DEBUG")
         remove_from_list(q)
         return
-    elif action_type == 'rename_folder':
+    elif action == 'rename_folder':
         utils.log("Routing to rename_folder action", "DEBUG")
         rename_folder(q)
         return
-    elif action_type == 'refresh_movie':
+    elif action == 'refresh_movie':
         utils.log("Routing to refresh_movie action", "DEBUG")
         refresh_movie(q)
         return
-    elif action_type == 'show_item_details':
+    elif action == 'show_item_details':
         utils.log("Routing to show_item_details action", "DEBUG")
         show_item_details(q)
         return
-    elif action_type == 'play_movie':
+    elif action == 'play_movie':
         utils.log("Routing to play_movie action", "DEBUG")
         play_movie(q)
         return
-    elif action_type == 'browse_folder':
+    elif action == 'browse_folder':
         utils.log("Routing to browse_folder action", "DEBUG")
         folder_id = q.get('folder_id', [None])[0]
         if folder_id:
@@ -566,7 +585,7 @@ def router(params):
             utils.log("Missing folder_id for browse_folder action, returning to root.", "WARNING")
             build_root()
         return
-    elif action_type == 'browse_list':
+    elif action == 'browse_list':
         list_id = q.get('list_id', [None])[0]
         if list_id:
             # Set proper content for list view
@@ -580,21 +599,17 @@ def router(params):
             utils.log("No list_id provided for browse_list action", "WARNING")
             show_empty_directory()
         return
-    elif action_type == 'separator':
+    elif action == 'separator':
         # Do nothing for separator items
         utils.log("Received separator action, doing nothing.", "DEBUG")
         pass
-    elif action_type == "clear_all_local_data" or action_type == "clear_all_local_folders_lists":
-        utils.log("=== SCRIPT ACTION: CLEAR ALL LOCAL FOLDERS/LISTS ===", "DEBUG")
-        clear_all_local_data()
     else:
         # Default: build root directory if action is not recognized or empty
-        utils.log(f"Unrecognized action '{action_type}' or no action specified, building root directory.", "DEBUG")
+        utils.log(f"Unrecognized action '{action}' or no action specified, building root directory.", "DEBUG")
         build_root()
 
 def show_options(params):
     """Show the Options & Tools menu"""
-    global _navigation_in_progress
     utils.log("=== OPTIONS DIALOG REQUEST START ===", "DEBUG")
     utils.log("Showing Options & Tools menu", "DEBUG")
 
@@ -607,12 +622,13 @@ def show_options(params):
     if navigation_active == "true":
         # Check if navigation has been stuck for too long (more than 10 seconds)
         try:
+            import time
             current_time = time.time()
             last_navigation = float(xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.LastNavigation)") or "0")
             time_since_nav = current_time - last_navigation
 
             if time_since_nav > 10.0:  # Clear stuck navigation flag after 10 seconds
-                utils.log(f"=== CLEARING STUCK NAVIGATION FLAG (stuck for {time_since_nav}s) ===", "WARNING")
+                utils.log(f"=== CLEARING STUCK NAVIGATION FLAG (stuck for {time_since_nav:.1f}s) ===", "WARNING")
                 xbmc.executebuiltin("ClearProperty(LibraryGenie.Navigating,Home)")
                 xbmc.executebuiltin("ClearProperty(LibraryGenie.SearchModalActive,Home)")
             else:
@@ -627,6 +643,7 @@ def show_options(params):
     # Time-based protection to prevent immediate re-triggering after navigation
     try:
         last_navigation = float(xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.LastNavigation)") or "0")
+        import time
         current_time = time.time()
         time_since_nav = current_time - last_navigation
 
@@ -656,7 +673,7 @@ def show_options(params):
         "- Sync Library with Server (Delta)",
         "- View Upload Status",
         "- Clear Server Library",
-        "- Clear All Local Folders/Lists",
+        "- Clear All Local Data",
         "- Settings",
         "- Authenticate with Server"
     ]
@@ -709,6 +726,23 @@ def show_options(params):
     utils.log(f"User selected option: {selected_text}", "DEBUG")
     utils.log(f"=== EXECUTING SELECTED OPTION: {selected_text} ===", "DEBUG")
 
+    # Check remaining time budget
+    execution_start_time = time.time()
+    remaining_time = 4.0 - (execution_start_time - dialog_start_time)
+
+    if remaining_time < 1.0:  # Less than 1 second left
+        utils.log(f"=== INSUFFICIENT TIME REMAINING ({remaining_time:.1f}s) - DEFERRING EXECUTION ===", "WARNING")
+        # Defer execution using RunScript to avoid timeout
+        # Use the correct addon format for RunScript
+        xbmc.executebuiltin(f"RunScript(plugin.video.librarygenie,deferred_option,{selected_option})")
+        return
+
+    # Minimal dialog cleanup before option execution
+    utils.log("=== QUICK DIALOG CLEANUP BEFORE OPTION EXECUTION ===", "DEBUG")
+    xbmc.executebuiltin("Dialog.Close(all,true)")
+    xbmc.sleep(50)
+    utils.log("=== COMPLETED QUICK CLEANUP ===", "DEBUG")
+
     try:
         if "Search Movies" in selected_text:
             utils.log("=== EXECUTING: SEARCH MOVIES ===", "DEBUG")
@@ -758,11 +792,11 @@ def show_options(params):
             upload_manager = IMDbUploadManager()
             upload_manager.clear_server_library()
             utils.log("=== COMPLETED: CLEAR SERVER LIBRARY - ALL MODALS CLOSED ===", "DEBUG")
-        elif "Clear All Local Folders/Lists" in selected_text:
-            utils.log("=== EXECUTING: CLEAR ALL LOCAL FOLDERS/LISTS ===", "DEBUG")
+        elif "Clear All Local Data" in selected_text:
+            utils.log("=== EXECUTING: CLEAR ALL LOCAL DATA ===", "DEBUG")
             utils.log("=== ABOUT TO CALL clear_all_local_data() - CONFIRMATION MODAL WILL OPEN ===", "DEBUG")
             clear_all_local_data()
-            utils.log("=== COMPLETED: CLEAR ALL LOCAL FOLDERS/LISTS - ALL MODALS CLOSED ===", "DEBUG")
+            utils.log("=== COMPLETED: CLEAR ALL LOCAL DATA - ALL MODALS CLOSED ===", "DEBUG")
         elif "Settings" in selected_text:
             utils.log("=== EXECUTING: OPEN SETTINGS ===", "DEBUG")
             utils.log("=== ABOUT TO OPEN SETTINGS WINDOW ===", "DEBUG")
@@ -785,7 +819,54 @@ def show_options(params):
         # Note: Navigation flag is now handled in individual flows (like run_search_flow)
         utils.log("=== OPTIONS DIALOG REQUEST COMPLETE ===", "DEBUG")
 
+def execute_deferred_option(option_index):
+    """Execute an option that was deferred due to timeout concerns"""
+    utils.log(f"=== EXECUTING DEFERRED OPTION {option_index} ===", "DEBUG")
 
+    options = [
+        "- Search Movies",
+        "- Browse Lists",
+        "- Create New List",
+        "- Create New Folder",
+        "- Upload Library to Server (Full)",
+        "- Sync Library with Server (Delta)",
+        "- View Upload Status",
+        "- Clear Server Library",
+        "- Clear All Local Data",
+        "- Settings",
+        "- Authenticate with Server"
+    ]
+
+    if option_index < 0 or option_index >= len(options):
+        utils.log(f"Invalid deferred option index: {option_index}", "ERROR")
+        return
+
+    selected_text = options[option_index]
+    utils.log(f"Executing deferred option: {selected_text}", "DEBUG")
+
+    try:
+        # Execute the option with the same logic as show_options
+        if "Search Movies" in selected_text:
+            utils.log("=== DEFERRED: EXECUTING SEARCH MOVIES ===", "DEBUG")
+            run_search()
+        elif "Browse Lists" in selected_text:
+            utils.log("=== DEFERRED: EXECUTING BROWSE LISTS ===", "DEBUG")
+            run_browse()
+        elif "Create New List" in selected_text:
+            utils.log("=== DEFERRED: EXECUTING CREATE NEW LIST ===", "DEBUG")
+            create_list({})
+        elif "Create New Folder" in selected_text:
+            utils.log("=== DEFERRED: EXECUTING CREATE NEW FOLDER ===", "DEBUG")
+            create_new_folder_at_root()
+        elif "Settings" in selected_text:
+            utils.log("=== DEFERRED: EXECUTING OPEN SETTINGS ===", "DEBUG")
+            xbmc.executebuiltin("Addon.OpenSettings(plugin.video.librarygenie)")
+        # Add other options as needed...
+        else:
+            utils.log(f"=== DEFERRED OPTION NOT IMPLEMENTED: {selected_text} ===", "WARNING")
+
+    except Exception as e:
+        utils.log(f"Error in deferred option execution: {str(e)}", "ERROR")
 
 def _close_all_dialogs():
     """Close all open dialogs with minimal cleanup"""
@@ -826,39 +907,37 @@ def create_new_folder_at_root():
         utils.log("=== CREATE_NEW_FOLDER: ERROR NOTIFICATION CLOSED ===", "DEBUG")
 
 def clear_all_local_data():
-    """Clear all local folders/lists data but preserve IMDB exports"""
-    from resources.lib.addon_helper import clear_all_local_data as clear_data
-    clear_data()
-
-def run_migration_if_needed():
-    """Check if migration is needed and run it once"""
+    """Clear all local database data"""
+    utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW CONFIRMATION MODAL ===", "DEBUG")
+    if not xbmcgui.Dialog().yesno('Clear All Local Data', 'This will delete all lists, folders, and search history.\n\nAre you sure?'):
+        utils.log("=== CLEAR_ALL_LOCAL_DATA: CONFIRMATION MODAL CLOSED - CANCELLED ===", "DEBUG")
+        return
+    utils.log("=== CLEAR_ALL_LOCAL_DATA: CONFIRMATION MODAL CLOSED - CONFIRMED ===", "DEBUG")
     try:
         from resources.lib.database_manager import DatabaseManager
         from resources.lib.config_manager import Config
-        from resources.lib import utils
-
         config = Config()
         db_manager = DatabaseManager(config.db_path)
 
-        # Check if we need to run migration by looking for a migration marker
-        migration_marker_path = os.path.join(os.path.dirname(config.db_path), '.migration_v2_complete')
+        # Clear all tables except keep the schema
+        db_manager.delete_data('list_items', '1=1')
+        db_manager.delete_data('lists', '1=1')
+        db_manager.delete_data('folders', '1=1')
+        db_manager.delete_data('media_items', '1=1')
+        db_manager.delete_data('imdb_exports', '1=1')
 
-        if not os.path.exists(migration_marker_path):
-            utils.log("Running one-time database migration for existing installation", "INFO")
-            db_manager.migrate_existing_database()
+        # Recreate Search History folder
+        search_folder_id = db_manager.ensure_folder_exists("Search History", None)
 
-            # Create marker file to prevent re-running
-            with open(migration_marker_path, 'w') as f:
-                f.write("Migration v2 completed")
-
-            utils.log("Database migration completed and marked", "INFO")
-        else:
-            utils.log("Migration already completed, skipping", "DEBUG")
-
+        utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW SUCCESS NOTIFICATION ===", "DEBUG")
+        xbmcgui.Dialog().notification('LibraryGenie', 'All local data cleared')
+        utils.log("=== CLEAR_ALL_LOCAL_DATA: SUCCESS NOTIFICATION CLOSED ===", "DEBUG")
+        xbmc.executebuiltin('Container.Refresh')
     except Exception as e:
-        # Don't fail startup if migration fails
-        import xbmc
-        xbmc.log(f"LibraryGenie migration warning: {str(e)}", xbmc.LOGWARNING)
+        utils.log(f"Error clearing local data: {str(e)}", "ERROR")
+        utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW ERROR NOTIFICATION ===", "DEBUG")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Failed to clear data')
+        utils.log("=== CLEAR_ALL_LOCAL_DATA: ERROR NOTIFICATION CLOSED ===", "DEBUG")
 
 def main():
     """Main addon entry point"""
@@ -910,10 +989,7 @@ def main():
         utils.log(f"Full traceback: {traceback.format_exc()}", "ERROR")
 
 if __name__ == '__main__':
-    # Run migration check before starting the main application
-    run_migration_if_needed()
-    from resources.lib import runner
-    runner.main()
+    main()
 
 def show_empty_directory():
     """Show an empty directory message"""

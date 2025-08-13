@@ -602,64 +602,12 @@ class MainWindow:
 
     def handle_action(self, action, parent_id):
         utils.log(f"Handling action. Action={action}, ParentID={parent_id}", "DEBUG")
-        db_manager = DatabaseManager(Config().db_path) # Ensure db_manager is available
-
         if action == 'new_folder':
             self.create_new_folder(parent_id)
         elif action == 'new_list':
             self.create_new_list(parent_id)
         elif action.startswith('paste_'):
             self.handle_paste_action(action, parent_id)
-        elif action.startswith("move_list_to_root:"):
-                list_id = int(action.split(":")[1])
-                try:
-                    # Move list to root (folder_id = None)
-                    db_manager.update_data('lists', {'folder_id': None}, f"id = {list_id}")
-                    xbmcgui.Dialog().notification("LibraryGenie", "List moved to root", xbmcgui.NOTIFICATION_INFO, 2000)
-                    self.populate_list()
-                    self.setFocus(self.list_control)
-                except Exception as e:
-                    utils.log(f"Error moving list to root: {str(e)}", "ERROR")
-                    xbmcgui.Dialog().notification("LibraryGenie", "Error moving list", xbmcgui.NOTIFICATION_ERROR, 2000)
-        elif action.startswith("move_list:"):
-                list_id = int(action.split(":")[1])
-                try:
-                    # Get available folders for moving (including all folders, not just root ones)
-                    all_folders = db_manager.fetch_all_folders()
-                    folder_options = ["<Root>"]
-                    folder_ids = [None]
-
-                    # Build hierarchical folder list for selection
-                    def add_folder_to_options(folder, indent=0):
-                        indent_str = "  " * indent
-                        folder_options.append(f"{indent_str}{folder['name']}")
-                        folder_ids.append(folder['id'])
-                        
-                        # Add subfolders
-                        subfolders = [f for f in all_folders if f.get('parent_id') == folder['id']]
-                        subfolders.sort(key=lambda x: x['name'].lower())
-                        for subfolder in subfolders:
-                            add_folder_to_options(subfolder, indent + 1)
-
-                    # Add all root folders and their children
-                    root_folders = [f for f in all_folders if f.get('parent_id') is None]
-                    root_folders.sort(key=lambda x: x['name'].lower())
-                    for folder in root_folders:
-                        add_folder_to_options(folder)
-
-                    selected = xbmcgui.Dialog().select("Move list to folder:", folder_options)
-                    if selected >= 0:
-                        target_folder_id = folder_ids[selected]
-                        db_manager.update_data('lists', {'folder_id': target_folder_id}, f"id = {list_id}")
-                        
-                        destination = "root" if target_folder_id is None else folder_options[selected].strip()
-                        xbmcgui.Dialog().notification("LibraryGenie", f"List moved to {destination}", xbmcgui.NOTIFICATION_INFO, 2000)
-                        self.populate_list()
-                        self.setFocus(self.list_control)
-                except Exception as e:
-                    utils.log(f"Error moving list: {str(e)}", "ERROR")
-                    xbmcgui.Dialog().notification("LibraryGenie", "Error moving list", xbmcgui.NOTIFICATION_ERROR, 2000)
-
 
     def display_item_options(self, label, item_id, is_folder):
         if is_folder:
@@ -988,9 +936,11 @@ class MainWindow:
         self.populate_list()
 
     def move_list(self, list_id, list_name):
-        # Directly trigger the move action instead of using the cut/paste system
-        self.handle_action(f"move_list:{list_id}", None)
+        self.moving_list_id = list_id
+        self.moving_list_name = list_name
+        self.show_notification(f"Select new location for list: {list_name}", xbmcgui.NOTIFICATION_INFO)
         utils.log(f"Moving list. ListID={list_id}, ListName={list_name}", "DEBUG")
+        self.populate_list()
 
     def paste_list_here(self, list_id, target_folder_id):
         db_manager = DatabaseManager(Config().db_path)

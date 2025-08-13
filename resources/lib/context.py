@@ -23,14 +23,9 @@ if ADDON_PATH not in sys.path:
 from resources.lib.kodi_helper import KodiHelper
 from resources.lib.addon_ref import get_addon
 
-import xbmc
-import xbmcgui
-
 def main():
     """Main entry point for context menu actions"""
     try:
-        import xbmc
-        import xbmcgui
         xbmc.log("LibraryGenie: Context menu script started", xbmc.LOGINFO)
 
         addon = get_addon()

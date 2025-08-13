@@ -575,7 +575,7 @@ class DatabaseManager(Singleton):
             utils.log(f"'{search_history_folder_name}' folder already exists.", "INFO")
 
     def _ensure_protected_column(self):
-        """Ensure the protected and created_at columns exist in the lists table"""
+        """Ensure the protected column exists in the lists table"""
         try:
             # Check if protected column exists
             self._execute_with_retry(self.cursor.execute, "SELECT protected FROM lists LIMIT 1")
@@ -583,15 +583,6 @@ class DatabaseManager(Singleton):
             # Column doesn't exist, add it
             utils.log("Adding protected column to lists table", "INFO")
             self._execute_with_retry(self.cursor.execute, "ALTER TABLE lists ADD COLUMN protected INTEGER DEFAULT 0")
-            self.connection.commit()
-        
-        try:
-            # Check if created_at column exists
-            self._execute_with_retry(self.cursor.execute, "SELECT created_at FROM lists LIMIT 1")
-        except sqlite3.OperationalError:
-            # Column doesn't exist, add it
-            utils.log("Adding created_at column to lists table", "INFO")
-            self._execute_with_retry(self.cursor.execute, "ALTER TABLE lists ADD COLUMN created_at TEXT")
             self.connection.commit()
 
     def add_search_history(self, query, results):
@@ -605,9 +596,10 @@ class DatabaseManager(Singleton):
             utils.log("Search History folder not found, cannot save search results.", "ERROR")
             return None
 
-        # Create a unique list name using just the query text
-        base_list_name = query
-        
+        # Create a unique list name for the search results
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        base_list_name = f"Search: {query} ({timestamp})"
+
         # Check if a list with this name already exists and create unique name
         counter = 1
         list_name = base_list_name
@@ -620,8 +612,7 @@ class DatabaseManager(Singleton):
         # Create the final list (only one creation needed)
         final_list_data = {
             'name': list_name,
-            'folder_id': search_history_folder_id,
-            'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            'folder_id': search_history_folder_id
         }
         utils.log(f"Creating search history list: {final_list_data}", "DEBUG")
         final_list_id = self.insert_data('lists', final_list_data)
@@ -725,71 +716,61 @@ class DatabaseManager(Singleton):
     def ensure_folder_exists(self, folder_name, parent_folder_id=None):
         """Ensure a folder exists, create if it doesn't, return folder_id"""
         try:
-            from resources.lib.query_manager import QueryManager
-            query_manager = QueryManager(self.db_path)
-            
             # Check if folder exists
-            existing_folder = query_manager.get_folder_by_name(folder_name)
-            if existing_folder and existing_folder.get('parent_id') == parent_folder_id:
-                return existing_folder['id']
+            existing = self.fetch_data('folders', f"name = ? AND parent_folder_id {'IS NULL' if parent_folder_id is None else '= ?'}", 
+                                     [folder_name] if parent_folder_id is None else [folder_name, parent_folder_id])
 
-            # Create folder if it doesn't exist
+            if existing:
+                return existing[0]['id']
+
+            # Create folder
             folder_data = {
                 'name': folder_name,
-                'parent_id': parent_folder_id
+                'parent_folder_id': parent_folder_id,
+                'created_at': 'CURRENT_TIMESTAMP'
             }
-            return query_manager.insert_folder_direct(folder_name, parent_folder_id)
+
+            self.insert_data('folders', folder_data)
+            return self.cursor.lastrowid
 
         except Exception as e:
-            utils.log(f"Error ensuring folder exists: {str(e)}", "ERROR")
+            self.log(f"Error ensuring folder exists: {str(e)}", "ERROR")
             return None
 
-    def fetch_data(self, table, where_clause=None, params=None):
-        """Fetch data from a table with optional where clause"""
+    def create_list(self, list_name, folder_id=None):
+        """Create a new list and return its ID"""
         try:
-            if where_clause:
-                query = f"SELECT * FROM {table} WHERE {where_clause}"
-                self._execute_with_retry(self.cursor.execute, query, params or [])
-            else:
-                query = f"SELECT * FROM {table}"
-                self._execute_with_retry(self.cursor.execute, query)
-            
-            # Get column names
-            columns = [description[0] for description in self.cursor.description]
-            # Convert rows to dictionaries
-            rows = self.cursor.fetchall()
-            return [dict(zip(columns, row)) for row in rows]
+            list_data = {
+                'name': list_name,
+                'folder_id': folder_id,
+                'created_at': 'CURRENT_TIMESTAMP'
+            }
+
+            self.insert_data('lists', list_data)
+            return self.cursor.lastrowid
+
         except Exception as e:
-            utils.log(f"Error fetching data from {table}: {str(e)}", "ERROR")
-            return []
+            self.log(f"Error creating list: {str(e)}", "ERROR")
+            return None
 
+    def update_data(self, table, data_dict, where_clause):
+        """Update data in a table with a where clause"""
+        try:
+            set_clauses = []
+            values = []
 
-    def migrate_existing_database(self):
-        """One-time migration for existing databases to update search history lists"""
-        utils.log("Starting database migration for existing installations", "INFO")
-        
-        # Ensure columns exist first
-        self._ensure_protected_column()
-        
-        # Update existing search history lists without created_at timestamps
-        search_history_folder_id = self.get_folder_id_by_name("Search History")
-        if search_history_folder_id:
-            try:
-                # Update lists in Search History folder that don't have created_at
-                query = """
-                    UPDATE lists 
-                    SET created_at = datetime('now') 
-                    WHERE folder_id = ? AND (created_at IS NULL OR created_at = '')
-                """
-                self._execute_with_retry(self.cursor.execute, query, (search_history_folder_id,))
-                self.connection.commit()
-                
-                # Check how many were updated
-                updated_count = self.cursor.rowcount
-                utils.log(f"Updated {updated_count} existing search history lists with timestamps", "INFO")
-                
-            except Exception as e:
-                utils.log(f"Error during migration: {str(e)}", "ERROR")
-                raise
-        
-        utils.log("Database migration completed successfully", "INFO")
+            for key, value in data_dict.items():
+                set_clauses.append(f"{key} = ?")
+                values.append(value)
+
+            set_clause = ", ".join(set_clauses)
+            query = f"UPDATE {table} SET {set_clause} WHERE {where_clause}"
+
+            self.cursor.execute(query, values)
+            self.connection.commit()
+
+            return self.cursor.rowcount > 0
+
+        except Exception as e:
+            self.log(f"Error updating data in {table}: {str(e)}", "ERROR")
+            return False
