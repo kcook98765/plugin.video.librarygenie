@@ -500,11 +500,11 @@ def router(params):
         def create_list(params={}):
             utils.log("Placeholder for create_list", "DEBUG")
 
-        # Map option indices to their names and functions
+        # Map option indices to their names and functions  
         option_map = {
             0: ("🔍 Search Movies", do_search),
-            1: ("📂 Create Folder", lambda: create_folder()),
-            2: ("📝 Create List", lambda: create_list()),
+            1: ("📂 Create Folder", lambda: create_new_folder_at_root()),
+            2: ("📝 Create List", lambda: create_list({})),
             3: ("⚙️ Settings", lambda: xbmc.executebuiltin('Addon.OpenSettings(plugin.video.librarygenie)')),
             4: ("🔧 Setup Remote API", lambda: run_setup()),
             5: ("📤 Upload Library (Full)", lambda: upload_manager.upload_library_full()),
