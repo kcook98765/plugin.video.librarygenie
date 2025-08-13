@@ -57,12 +57,7 @@ class IMDbUploadManager:
         except Exception as e:
             utils.log(f"Error getting Kodi movie collection: {str(e)}", "ERROR")
             return []
-# probable orphan, test with rename DEL_
-    def DEL_store_library_data_locally(self, movies):
-        """Legacy method - now integrated into get_full_kodi_movie_collection_and_store_locally"""
-        # This method is kept for compatibility but the actual storage now happens
-        # during the initial collection to be more efficient
-        utils.log("Using integrated storage - this method is deprecated", "DEBUG")
+
 
     def get_full_kodi_movie_collection_and_store_locally(self, progress_dialog=None):
         """Get all movies from Kodi library and store them locally in one efficient operation."""
