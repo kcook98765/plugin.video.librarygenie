@@ -240,10 +240,35 @@ class ListItemBuilder:
         kodi_id = media_info.get('kodi_id')
         has_kodi_id = kodi_id and str(kodi_id) != '0' and str(kodi_id).isdigit() and int(kodi_id) > 0
         
-        # Use fallbacks only for actual Kodi library movies that might not have artwork
+        utils.log(f"Kodi ID: {kodi_id}, has_kodi_id: {has_kodi_id}", "INFO")
+        
+        # If we have a valid Kodi ID but no artwork, fetch it from Kodi
+        if has_kodi_id and not art_dict:
+            utils.log(f"Fetching artwork from Kodi for movie ID {kodi_id}", "INFO")
+            try:
+                from resources.lib.jsonrpc_manager import JSONRPC
+                jsonrpc = JSONRPC()
+                
+                # Get movie details including artwork from Kodi
+                movie_details = jsonrpc.get_movie_details(int(kodi_id))
+                if movie_details and 'art' in movie_details:
+                    kodi_art = movie_details['art']
+                    utils.log(f"Retrieved Kodi artwork: {kodi_art}", "INFO")
+                    art_dict.update(kodi_art)
+                    
+                    # Also update poster/thumbnail if available
+                    if 'poster' in kodi_art and kodi_art['poster']:
+                        art_dict['thumb'] = kodi_art['poster']
+                        art_dict['icon'] = kodi_art['poster']
+                        utils.log(f"Set thumb/icon from Kodi poster: {kodi_art['poster']}", "INFO")
+                        
+            except Exception as e:
+                utils.log(f"Error fetching Kodi artwork: {str(e)}", "ERROR")
+        
+        # Use fallbacks only for actual Kodi library movies that still don't have artwork after fetching
         use_fallbacks = has_kodi_id and not art_dict
         
-        utils.log(f"Kodi ID: {kodi_id}, has_kodi_id: {has_kodi_id}, use_fallbacks: {use_fallbacks}", "INFO")
+        utils.log(f"use_fallbacks: {use_fallbacks}, final art_dict before normalization: {art_dict}", "INFO")
         
         art_dict = _normalize_art_dict(art_dict, use_fallbacks=use_fallbacks)
         utils.log(f"Post-normalization art_dict: {art_dict}", "INFO")
