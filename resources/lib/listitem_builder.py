@@ -129,6 +129,14 @@ class ListItemBuilder:
         title = str(media_info.get('title', ''))
         title = ListItemBuilder._clean_title(title)
         list_item = xbmcgui.ListItem(label=title)
+        
+        # Add test label2 for search history items (items with search_history:// play URLs)
+        play_url = media_info.get('play', '')
+        if play_url and play_url.startswith('search_history://'):
+            imdb_id = play_url.replace('search_history://', '')
+            score = media_info.get('search_score', 0)
+            test_label2 = f"TEST LABEL2: IMDB {imdb_id} | Score: {score}"
+            list_item.setLabel2(test_label2)
 
         # Prepare artwork dictionary
         art_dict = {}

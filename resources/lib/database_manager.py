@@ -666,15 +666,20 @@ class DatabaseManager(Singleton):
                     utils.log(f"Error looking up export data for {imdb_id}: {str(e)}", "DEBUG")
 
                 # Store search data with title/year from imdb_exports if available
+                # Add test text for GUI testing
+                test_plot = f"TEST PLOT: This is a test plot for {imdb_id}. Score: {score_display}. Original query: '{query}'"
+                test_tagline = f"TEST TAGLINE: Search result from LibraryGenie"
+                
                 media_item_data = {
                     'kodi_id': 0,  # No Kodi ID for search results
-                    'title': title_from_exports,  # Title from imdb_exports lookup
+                    'title': f"TEST TITLE: {title_from_exports}" if title_from_exports else f"TEST TITLE: {imdb_id}",  # Title with test prefix
                     'year': year_from_exports,    # Year from imdb_exports lookup
                     'rating': 0.0,
-                    'plot': '',   # Empty - will be populated from library lookup
-                    'genre': '',  # Empty - will be populated from library lookup
-                    'director': '',
-                    'studio': '',
+                    'plot': test_plot,   # Test plot text
+                    'tagline': test_tagline,  # Test tagline text
+                    'genre': 'TEST GENRE: Search Result',  # Test genre
+                    'director': 'TEST DIRECTOR: Unknown',
+                    'studio': 'TEST STUDIO: LibraryGenie',
                     'writer': '',
                     'country': '',
                     'cast': '[]',
