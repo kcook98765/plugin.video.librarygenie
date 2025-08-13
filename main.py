@@ -42,11 +42,6 @@ def _detect_context(ctx_params: dict) -> dict:
 def add_options_header_item(ctx: dict):
     """Add the options and tools header item as a non-folder RunPlugin item"""
     try:
-        # Check if navigation is in progress - skip adding options header during navigation
-        navigating = xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.Navigating)")
-        if navigating == "true":
-            utils.log("Navigation in progress, skipping options header item", "DEBUG")
-            return
 
         # Create list item for options as non-folder
         li = xbmcgui.ListItem(label="[B]🔧 Options & Tools[/B]")
@@ -266,6 +261,8 @@ def browse_folder(folder_id):
         # Set breadcrumb with folder hierarchy
         folder_breadcrumb = _get_folder_breadcrumb(db_manager, folder_id)
         xbmcplugin.setPluginCategory(handle, folder_breadcrumb)
+        # Set content type to ensure proper display
+        xbmcplugin.setContent(handle, "files")
 
         # Add options header
         ctx = _detect_context({'view': 'folder', 'folder_id': str(folder_id)})
@@ -469,8 +466,10 @@ def build_root():
     addon_id = addon.getAddonInfo("id")
     handle = int(sys.argv[1])
 
-    # Set LibraryGenie as the main breadcrumb
+    # Set LibraryGenie as the main breadcrumb - this replaces "Videos"
     xbmcplugin.setPluginCategory(handle, "LibraryGenie")
+    # Also set content type to ensure proper display
+    xbmcplugin.setContent(handle, "files")
 
     # Add options header
     ctx = _detect_context({'view': 'root'})
