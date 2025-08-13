@@ -720,7 +720,6 @@ def show_options(params):
     options = [
         "Search Movies",
         "Search History",
-        "Browse Lists",
         "Create New List",
         "Create New Folder",
         "Upload Library to Server (Full)",
@@ -808,11 +807,6 @@ def show_options(params):
             utils.log("=== ABOUT TO CALL browse_search_history() - MODAL WILL OPEN ===", "DEBUG")
             browse_search_history() # Call the new function
             utils.log("=== COMPLETED: SEARCH HISTORY - ALL MODALS CLOSED ===", "DEBUG")
-        elif "Browse Lists" in selected_text:
-            utils.log("=== EXECUTING: BROWSE LISTS ===", "DEBUG")
-            utils.log("=== ABOUT TO CALL run_browse() - MODAL WILL OPEN ===", "DEBUG")
-            run_browse()
-            utils.log("=== COMPLETED: BROWSE LISTS - ALL MODALS CLOSED ===", "DEBUG")
         elif "Create New List" in selected_text:
             utils.log("=== EXECUTING: CREATE NEW LIST ===", "DEBUG")
             utils.log("=== ABOUT TO CALL create_list() - MODAL WILL OPEN ===", "DEBUG")
@@ -885,7 +879,6 @@ def execute_deferred_option(option_index):
     options = [
         "Search Movies",
         "Search History",
-        "Browse Lists",
         "Create New List",
         "Create New Folder",
         "Upload Library to Server (Full)",
@@ -912,9 +905,6 @@ def execute_deferred_option(option_index):
         elif "Search History" in selected_text:
             utils.log("=== DEFERRED: EXECUTING SEARCH HISTORY ===", "DEBUG")
             browse_search_history()
-        elif "Browse Lists" in selected_text:
-            utils.log("=== DEFERRED: EXECUTING BROWSE LISTS ===", "DEBUG")
-            run_browse()
         elif "Create New List" in selected_text:
             utils.log("=== DEFERRED: EXECUTING CREATE NEW LIST ===", "DEBUG")
             create_list({})
