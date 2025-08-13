@@ -297,8 +297,10 @@ def browse_list(list_id):
 
         utils.log(f"Processing {len(display_items)} display items", "DEBUG")
         items_added = 0
+        playable_count = 0
+        non_playable_count = 0
+        
         for i, media in enumerate(display_items):
-            utils.log(f"Processing item {i+1}/{len(display_items)}: {media.get('title', 'Unknown')}", "DEBUG")
             try:
                 li = ListItemBuilder.build_video_item(media)
                 li.setProperty('lg_type', 'movie')
@@ -315,14 +317,11 @@ def browse_list(list_id):
                 if media.get('movieid') and str(media['movieid']).isdigit() and int(media['movieid']) > 0:
                     movie_id = int(media['movieid'])
                     is_playable = True
-                    utils.log(f"Item {i+1}: Using Kodi movieid {movie_id} for playback", "DEBUG")
                 elif media.get('kodi_id') and str(media['kodi_id']).isdigit() and int(media['kodi_id']) > 0:
                     movie_id = int(media['kodi_id'])
                     is_playable = True
-                    utils.log(f"Item {i+1}: Using Kodi kodi_id {movie_id} for playback", "DEBUG")
                 elif url:
                     is_playable = True
-                    utils.log(f"Item {i+1}: Using existing URL for playback: {url}", "DEBUG")
 
                 # For Kodi library items, create a plugin URL that will handle playback
                 if movie_id and is_playable:
@@ -334,10 +333,9 @@ def browse_list(list_id):
                     # Also set the file path directly so Kodi can use its native playback if needed
                     if media.get('file'):
                         li.setPath(media['file'])
-                    utils.log(f"Item {i+1}: Created plugin playback URL for Kodi movie {movie_id}: {url}", "DEBUG")
                 elif url and is_playable:
                     # For items with direct file paths, use them directly
-                    utils.log(f"Item {i+1}: Using direct file path for playback: {url}", "DEBUG")
+                    pass
                 elif not url or not is_playable:
                     # For items without valid play URLs, create a plugin URL that will show item details
                     url = _plugin_url({
@@ -347,27 +345,24 @@ def browse_list(list_id):
                         'title': media.get('title', 'Unknown')
                     })
                     is_playable = False
-                    utils.log(f"Item {i+1}: Created details URL for non-playable item: {url}", "DEBUG")
 
                 # Set playability properties
                 if is_playable:
                     li.setProperty('IsPlayable', 'true')
+                    playable_count += 1
                 else:
                     li.setProperty('IsPlayable', 'false')
-
-                # Log the item being added for debugging
-                utils.log(f"Adding item {i+1}: title='{media.get('title', 'Unknown')}', url='{url}', isFolder={not is_playable}, playable={is_playable}", "DEBUG")
+                    non_playable_count += 1
 
                 # Add directory item with proper folder flag
                 xbmcplugin.addDirectoryItem(handle, url, li, isFolder=not is_playable)
                 items_added += 1
-                utils.log(f"Successfully added item {i+1}: {media.get('title', 'Unknown')} (playable: {is_playable})", "DEBUG")
             except Exception as e:
                 utils.log(f"Error processing item {i+1} ({media.get('title', 'Unknown')}): {str(e)}", "ERROR")
                 import traceback
                 utils.log(f"Item processing traceback: {traceback.format_exc()}", "ERROR")
 
-        utils.log(f"Successfully added {items_added} out of {len(display_items)} items to directory", "INFO")
+        utils.log(f"Successfully added {items_added} items ({playable_count} playable, {non_playable_count} non-playable)", "INFO")
 
         # Always complete directory - this route must always produce a directory
         if items_added > 0:
