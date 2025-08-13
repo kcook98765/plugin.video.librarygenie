@@ -173,11 +173,39 @@ class ListItemBuilder:
         if isinstance(media_info.get('info', {}).get('art'), dict):
             art_dict.update(media_info['info']['art'])
 
-        # Set poster with fallbacks
+        # Set poster with fallbacks and apply star overlay if search score exists
         if poster_url and str(poster_url) != 'None':
-            art_dict['poster'] = poster_url
-            art_dict['thumb'] = poster_url
-            art_dict['icon'] = poster_url
+            # Check if we have a search score to overlay
+            search_score = media_info.get('search_score')
+            if search_score and search_score > 0:
+                # Determine star overlay based on score
+                if search_score >= 0.8:
+                    stars = 5
+                elif search_score >= 0.6:
+                    stars = 4
+                elif search_score >= 0.4:
+                    stars = 3
+                elif search_score >= 0.2:
+                    stars = 2
+                else:
+                    stars = 1
+                
+                # Create overlay path
+                from resources.lib.addon_ref import get_addon
+                addon = get_addon()
+                addon_path = addon.getAddonInfo("path")
+                overlay_path = f"{addon_path}/resources/media/overlay_{stars}star.png"
+                
+                # Create composite image URL using Kodi's multiimage format
+                poster_with_overlay = f"multiimage://{_wrap_for_kodi_image(poster_url)}/{_wrap_for_kodi_image(overlay_path)}"
+                
+                art_dict['poster'] = poster_with_overlay
+                art_dict['thumb'] = poster_with_overlay
+                art_dict['icon'] = poster_with_overlay
+            else:
+                art_dict['poster'] = poster_url
+                art_dict['thumb'] = poster_url
+                art_dict['icon'] = poster_url
 
         # Set fanart
         fanart = media_info.get('fanart') or media_info.get('info', {}).get('fanart')
