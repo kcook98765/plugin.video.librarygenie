@@ -2,8 +2,12 @@ import re
 import json
 import xbmc
 import xbmcgui
+import pyxbmct
 from resources.lib import utils
 from resources.lib.window_base import BaseWindow
+from resources.lib.database_manager import DatabaseManager
+from resources.lib.config_manager import Config
+from resources.lib.window_list import ListWindow
 
 utils.log("Initializing MainWindow module", "INFO")
 
@@ -12,7 +16,7 @@ utils.log("Initializing MainWindow module", "INFO")
 
 
 
-class MainWindow:
+class MainWindow(BaseWindow):
     INDENTATION_MULTIPLIER = 3  # Used for indenting sublevels
 
     def __init__(self, item_info, title="Item Info"):
@@ -31,8 +35,16 @@ class MainWindow:
         self.moving_folder_id = None
         self.moving_folder_name = None
         self.folder_color_status = {}  # Add folder color status tracking
+        
+        # Import required classes
+        from resources.lib.database_manager import DatabaseManager
+        from resources.lib.config_manager import Config
+        
         self.db_manager = DatabaseManager(Config().db_path) # Initialize db_manager here
 
+        # Import pyxbmct here to avoid import issues
+        import pyxbmct
+        
         self.media_label = pyxbmct.Label("")
         self.list_control = pyxbmct.List()
 
@@ -1234,13 +1246,35 @@ class MainWindow:
                 try:
                     folder_id = self.db_manager.insert_folder(folder_name, None)  # Root level folder
                     self.show_notification("Folder Created", f"Folder '{folder_name}' created successfully.")
-                    self.refresh_and_focus_item(folder_id, True)
+                    self.populate_list(focus_folder_id=folder_id)
                 except Exception as e:
                     utils.log(f"Error creating folder: {str(e)}", "ERROR")
                     self.show_notification("Error", "Failed to create folder.")
         except Exception as e:
             utils.log(f"Error in new folder dialog: {str(e)}", "ERROR")
             self.show_notification("Error", "Failed to open new folder dialog.")
+
+    def handle_new_list_action(self):
+        """Handle new list creation"""
+        try:
+            from resources.lib.user_interaction_manager import UserInteractionManager
+            ui_manager = UserInteractionManager()
+            list_name = ui_manager.get_text_input("Create New List", "Enter list name:")
+            if list_name:
+                try:
+                    list_id = self.db_manager.insert_data('lists', {'name': list_name, 'folder_id': None})
+                    self.show_notification("List Created", f"List '{list_name}' created successfully.")
+                    self.populate_list()
+                except Exception as e:
+                    utils.log(f"Error creating list: {str(e)}", "ERROR")
+                    self.show_notification("Error", "Failed to create list.")
+        except Exception as e:
+            utils.log(f"Error in new list dialog: {str(e)}", "ERROR")
+            self.show_notification("Error", "Failed to open new list dialog.")
+
+    def refresh_list(self):
+        """Refresh the list display"""
+        self.populate_list()
 
 
 
