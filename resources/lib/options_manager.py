@@ -16,7 +16,6 @@ class OptionsManager:
             "Search History",
             "Create New List",
             "Create New Folder",
-            "Clear All Local Data",
             "Settings"
         ]
 
@@ -168,12 +167,6 @@ class OptionsManager:
                 from main import create_new_folder_at_root
                 create_new_folder_at_root()
                 utils.log("=== COMPLETED: CREATE NEW FOLDER - ALL MODALS CLOSED ===", "DEBUG")
-            elif "Clear All Local Data" in selected_text:
-                utils.log("=== EXECUTING: CLEAR ALL LOCAL DATA ===", "DEBUG")
-                utils.log("=== ABOUT TO CALL clear_all_local_data() - CONFIRMATION MODAL WILL OPEN ===", "DEBUG")
-                from main import clear_all_local_data
-                clear_all_local_data()
-                utils.log("=== COMPLETED: CLEAR ALL LOCAL DATA - ALL MODALS CLOSED ===", "DEBUG")
             elif "Settings" in selected_text:
                 utils.log("=== EXECUTING: OPEN SETTINGS ===", "DEBUG")
                 utils.log("=== ABOUT TO OPEN SETTINGS WINDOW ===", "DEBUG")
