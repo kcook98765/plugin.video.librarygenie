@@ -380,7 +380,16 @@ class MainWindow:
 
         # If Root is expanded, add its children (top-level folders and lists).
         if root_expanded:
-            # First add the new items options at root level
+            # Add Options & Tools as the first item
+            options_item = xbmcgui.ListItem("  [B]🔧 Options & Tools[/B]")
+            options_item.setProperty('isFolder', 'false')
+            options_item.setProperty('isSpecial', 'true')
+            options_item.setProperty('action', 'options_tools')
+            options_item.setProperty('parent_id', 'None')
+            self.list_control.addItem(options_item)
+            self.list_data.append({'name': '[B]🔧 Options & Tools[/B]', 'isFolder': False, 'isSpecial': True, 'id': None, 'indent': 0, 'action': 'options_tools'})
+
+            # Add special action items at the top level only
             new_list_item = xbmcgui.ListItem("  <New List>")
             new_list_item.setProperty('isFolder', 'false')
             new_list_item.setProperty('isSpecial', 'true')
@@ -396,25 +405,6 @@ class MainWindow:
             new_folder_item.setProperty('parent_id', 'None')
             self.list_control.addItem(new_folder_item)
             self.list_data.append({'name': '<New Folder>', 'isFolder': True, 'isSpecial': True, 'id': None, 'indent': 0, 'action': 'new_folder'})
-
-            # Add any paste/move actions if active
-            if self.moving_list_id:
-                paste_list_item = xbmcgui.ListItem(f"  <Paste List Here : {self.moving_list_name}>")
-                paste_list_item.setProperty('isFolder', 'false')
-                paste_list_item.setProperty('isSpecial', 'true')
-                paste_list_item.setProperty('action', f"paste_list_here:{self.moving_list_id}")
-                paste_list_item.setProperty('parent_id', 'None')
-                self.list_control.addItem(paste_list_item)
-                self.list_data.append({'name': f'<Paste List Here : {self.moving_list_name}>', 'isFolder': False, 'isSpecial': True, 'id': None, 'indent': 0, 'action': f"paste_list_here:{self.moving_list_id}"})
-
-            if self.moving_folder_id:
-                paste_folder_item = xbmcgui.ListItem(f"  <Paste Folder Here : {self.moving_folder_name}>")
-                paste_folder_item.setProperty('isFolder', 'true')
-                paste_folder_item.setProperty('isSpecial', 'true')
-                paste_folder_item.setProperty('action', f"paste_folder_here:{self.moving_folder_id}")
-                paste_folder_item.setProperty('parent_id', 'None')
-                self.list_control.addItem(paste_folder_item)
-                self.list_data.append({'name': f'<Paste Folder Here : {self.moving_folder_name}>', 'isFolder': True, 'isSpecial': True, 'id': None, 'indent': 0, 'action': f"paste_folder_here:{self.moving_folder_id}"})
 
             # Then add regular items
             root_lists = [list_item for list_item in all_lists if list_item['folder_id'] is None]
@@ -634,7 +624,7 @@ class MainWindow:
                         indent_str = "  " * indent
                         folder_options.append(f"{indent_str}{folder['name']}")
                         folder_ids.append(folder['id'])
-                        
+
                         # Add subfolders
                         subfolders = [f for f in all_folders if f.get('parent_id') == folder['id']]
                         subfolders.sort(key=lambda x: x['name'].lower())
@@ -651,7 +641,7 @@ class MainWindow:
                     if selected >= 0:
                         target_folder_id = folder_ids[selected]
                         db_manager.update_data('lists', {'folder_id': target_folder_id}, f"id = {list_id}")
-                        
+
                         destination = "root" if target_folder_id is None else folder_options[selected].strip()
                         xbmcgui.Dialog().notification("LibraryGenie", f"List moved to {destination}", xbmcgui.NOTIFICATION_INFO, 2000)
                         self.populate_list()
@@ -659,6 +649,8 @@ class MainWindow:
                 except Exception as e:
                     utils.log(f"Error moving list: {str(e)}", "ERROR")
                     xbmcgui.Dialog().notification("LibraryGenie", "Error moving list", xbmcgui.NOTIFICATION_ERROR, 2000)
+        elif action == 'options_tools':
+            self.handle_options_tools_action()
 
 
     def display_item_options(self, label, item_id, is_folder):
@@ -738,10 +730,13 @@ class MainWindow:
         elif options[selected_option] == "Settings":
             self.open_settings()
 
+    def show_notification(self, title, message, notification_type=xbmcgui.NOTIFICATION_INFO):
+        xbmcgui.Dialog().notification(title, message, notification_type, 3000)
+
     def upload_imdb_list(self):
-        from .imdb_upload_manager import IMDBUploadManager
-        upload_manager = IMDBUploadManager()
-        upload_manager.start_upload_process()
+        from .api_client import ApiClient
+        api_client = ApiClient()
+        api_client.export_imdb_list(list_id)
 
     def export_imdb_list(self, list_id):
         from .api_client import ApiClient
@@ -1112,6 +1107,159 @@ class MainWindow:
 
     def __del__(self):
         utils.log("Deleting CustomWindow instance...", "DEBUG")
+
+    def handle_options_tools_action(self):
+        """Handle options and tools menu"""
+        try:
+            options = [
+                "- Search Movies",
+                "- Create New List",
+                "- Create New Folder", 
+                "- Upload Library to Server (Full)",
+                "- Sync Library with Server (Delta)",
+                "- View Upload Status",
+                "- Clear Server Library",
+                "- Clear All Local Folders/Lists",
+                "- Settings",
+                "- Authenticate with Server"
+            ]
+
+            from resources.lib.user_interaction_manager import UserInteractionManager
+            ui_manager = UserInteractionManager()
+            selected_option = ui_manager.show_select_dialog("LibraryGenie - Options & Tools", options)
+
+            if selected_option >= 0:
+                selected_text = options[selected_option]
+                utils.log(f"User selected option: {selected_text}", "DEBUG")
+
+                if "Search Movies" in selected_text:
+                    self.handle_search_action()
+                elif "Create New List" in selected_text:
+                    self.handle_new_list_action()
+                elif "Create New Folder" in selected_text:
+                    self.handle_new_folder_action()
+                elif "Upload Library to Server (Full)" in selected_text:
+                    self.handle_upload_full_action()
+                elif "Sync Library with Server (Delta)" in selected_text:
+                    self.handle_upload_delta_action()
+                elif "View Upload Status" in selected_text:
+                    self.handle_upload_status_action()
+                elif "Clear Server Library" in selected_text:
+                    self.handle_clear_server_action()
+                elif "Clear All Local Folders/Lists" in selected_text:
+                    self.handle_clear_local_action()
+                elif "Settings" in selected_text:
+                    self.handle_settings_action()
+                elif "Authenticate with Server" in selected_text:
+                    self.handle_authenticate_action()
+
+        except Exception as e:
+            utils.log(f"Error in options menu: {str(e)}", "ERROR")
+            self.show_notification("Error", "Failed to show options menu.")
+
+    def handle_search_action(self):
+        """Handle search movies action"""
+        try:
+            from resources.lib.window_search import SearchWindow
+            search_window = SearchWindow()
+            search_window.doModal()
+            del search_window
+            # Refresh after search
+            self.refresh_list()
+        except Exception as e:
+            utils.log(f"Error launching search: {str(e)}", "ERROR")
+            self.show_notification("Error", "Failed to launch search.")
+
+    def handle_upload_full_action(self):
+        """Handle full library upload"""
+        try:
+            from resources.lib.imdb_upload_manager import IMDbUploadManager
+            upload_manager = IMDbUploadManager()
+            upload_manager.upload_library_full_sync()
+        except Exception as e:
+            utils.log(f"Error in full upload: {str(e)}", "ERROR")
+            self.show_notification("Error", "Failed to upload library.")
+
+    def handle_upload_delta_action(self):
+        """Handle delta library sync"""
+        try:
+            from resources.lib.imdb_upload_manager import IMDbUploadManager
+            upload_manager = IMDbUploadManager()
+            upload_manager.upload_library_delta_sync()
+        except Exception as e:
+            utils.log(f"Error in delta sync: {str(e)}", "ERROR")
+            self.show_notification("Error", "Failed to sync library.")
+
+    def handle_upload_status_action(self):
+        """Handle view upload status"""
+        try:
+            from resources.lib.imdb_upload_manager import IMDbUploadManager
+            upload_manager = IMDbUploadManager()
+            upload_manager.get_upload_status()
+        except Exception as e:
+            utils.log(f"Error viewing upload status: {str(e)}", "ERROR")
+            self.show_notification("Error", "Failed to get upload status.")
+
+    def handle_clear_server_action(self):
+        """Handle clear server library"""
+        try:
+            from resources.lib.imdb_upload_manager import IMDbUploadManager
+            upload_manager = IMDbUploadManager()
+            upload_manager.clear_server_library()
+        except Exception as e:
+            utils.log(f"Error clearing server: {str(e)}", "ERROR")
+            self.show_notification("Error", "Failed to clear server library.")
+
+    def handle_clear_local_action(self):
+        """Handle clear all local data"""
+        try:
+            from resources.lib.user_interaction_manager import UserInteractionManager
+            ui_manager = UserInteractionManager()
+            if ui_manager.show_yes_no_dialog("Clear All Data", "Are you sure you want to clear all local folders and lists?"):
+                from resources.lib.addon_helper import clear_all_local_data
+                clear_all_local_data()
+                self.refresh_list()
+        except Exception as e:
+            utils.log(f"Error clearing local data: {str(e)}", "ERROR")
+            self.show_notification("Error", "Failed to clear local data.")
+
+    def handle_settings_action(self):
+        """Handle open settings"""
+        try:
+            import xbmc
+            xbmc.executebuiltin("Addon.OpenSettings(plugin.video.librarygenie)")
+        except Exception as e:
+            utils.log(f"Error opening settings: {str(e)}", "ERROR")
+            self.show_notification("Error", "Failed to open settings.")
+
+    def handle_authenticate_action(self):
+        """Handle authenticate with server"""
+        try:
+            from resources.lib.authenticate_code import authenticate_with_code
+            authenticate_with_code()
+        except Exception as e:
+            utils.log(f"Error authenticating: {str(e)}", "ERROR")
+            self.show_notification("Error", "Failed to authenticate with server.")
+
+    def handle_new_folder_action(self):
+        """Handle new folder creation"""
+        try:
+            from resources.lib.user_interaction_manager import UserInteractionManager
+            ui_manager = UserInteractionManager()
+            folder_name = ui_manager.get_text_input("Create New Folder", "Enter folder name:")
+            if folder_name:
+                try:
+                    folder_id = self.db_manager.insert_folder(folder_name, None)  # Root level folder
+                    self.show_notification("Folder Created", f"Folder '{folder_name}' created successfully.")
+                    self.refresh_and_focus_item(folder_id, True)
+                except Exception as e:
+                    utils.log(f"Error creating folder: {str(e)}", "ERROR")
+                    self.show_notification("Error", "Failed to create folder.")
+        except Exception as e:
+            utils.log(f"Error in new folder dialog: {str(e)}", "ERROR")
+            self.show_notification("Error", "Failed to open new folder dialog.")
+
+
 def launch_movie_search():
     """Launches the proper SearchWindow for movie search"""
     from resources.lib.window_search import SearchWindow
