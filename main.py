@@ -315,8 +315,7 @@ def browse_list(list_id):
 
 def router(params):
     """Route requests to appropriate handlers"""
-    action = params.get('action', [None])[0]
-    utils.log(f"Router called with action: {action}", "DEBUG")
+    utils.log(f"Router called with raw params: {params} (type: {type(params)})", "DEBUG")
     utils.log(f"FOLDER_CONTEXT_DEBUG: Router received full params: {params}", "DEBUG")
 
     # Clean up any stuck navigation flags at router entry
@@ -337,9 +336,16 @@ def router(params):
         build_root_directory(ADDON_HANDLE)
         return
 
-    # Parse parameters using the new utility
-    q = parse_params(params)
-    action = q.get("action", [""])[0]
+    # Parse parameters using the new utility - handle both string and dict inputs
+    if isinstance(params, str):
+        q = parse_params(params)
+    elif isinstance(params, dict):
+        q = params
+    else:
+        utils.log(f"Unexpected params type: {type(params)}, treating as empty", "WARNING")
+        q = {}
+    
+    action = q.get("action", [""])[0] if isinstance(q.get("action", [""]), list) else q.get("action", "")
 
     utils.log(f"Action determined: {action}", "DEBUG")
 
