@@ -337,9 +337,8 @@ def router(params):
             if folder_context_str and folder_context_str != "None":
                 try:
                     folder_context = int(folder_context_str)
-                    utils.log(f"FOLDER_CONTEXT_DEBUG: Retrieved folder context for deferred option: {folder_context}", "DEBUG")
                 except ValueError:
-                    utils.log(f"FOLDER_CONTEXT_DEBUG: Invalid folder context string: {folder_context_str}", "WARNING")
+                    pass
             # Clear the property
             xbmc.executebuiltin("ClearProperty(LibraryGenie.DeferredFolderContext,Home)")
             options_manager.execute_deferred_option(option_index, folder_context)

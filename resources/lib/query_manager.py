@@ -461,20 +461,14 @@ class QueryManager(Singleton):
     def update_folder_parent(self, folder_id: int, new_parent_id: Optional[int]) -> None:
         conn_info = self._get_connection()
         try:
-            utils.log(f"Starting folder parent update. FolderID={folder_id}, NewParentID={new_parent_id}", "DEBUG")
-
             # Get current state
             cursor = conn_info['connection'].cursor()
             cursor.execute("SELECT * FROM folders WHERE id = ?", (folder_id,))
             before_state = cursor.fetchone()
-            utils.log(f"Current folder state - ID:{folder_id}, State:{dict(before_state)}", "DEBUG")
 
             # Convert string 'None' to Python None
             if isinstance(new_parent_id, str) and new_parent_id == 'None':
                 new_parent_id = None
-
-            # Verify input parameters
-            utils.log(f"Validating parameters - FolderID type:{type(folder_id)}, NewParentID type:{type(new_parent_id) if new_parent_id is not None else 'None'}", "DEBUG")
 
             # Construct query based on new parent
             if new_parent_id is None:
@@ -484,7 +478,6 @@ class QueryManager(Singleton):
                     WHERE id = ?
                 """
                 params = (folder_id,)
-                utils.log("Using NULL parent query", "DEBUG")
             else:
                 query = """
                     UPDATE folders 
@@ -492,24 +485,19 @@ class QueryManager(Singleton):
                     WHERE id = ?
                 """
                 params = (new_parent_id, folder_id)
-                utils.log("Using specific parent query", "DEBUG")
 
-            utils.log(f"Executing SQL - Query:{query.strip()}, Params:{params}", "DEBUG")
             cursor.execute(query, params)
 
             # Commit the change
-            utils.log("Committing transaction", "DEBUG")
             conn_info['connection'].commit()
 
             # Verify the update
             cursor.execute("SELECT * FROM folders WHERE id = ?", (folder_id,))
             after_state = cursor.fetchone()
-            utils.log(f"Updated folder state - ID:{folder_id}, State:{dict(after_state)}", "DEBUG")
 
             # Validate result
             expected_parent = new_parent_id if new_parent_id is not None else None
             actual_parent = after_state['parent_id']
-            utils.log(f"Validation - Expected parent:{expected_parent}, Actual parent:{actual_parent}", "DEBUG")
 
             if actual_parent != expected_parent:
                 utils.log(f"WARNING: Parent ID mismatch - Expected:{expected_parent}, Got:{actual_parent}", "WARNING")

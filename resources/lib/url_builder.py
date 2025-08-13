@@ -8,8 +8,6 @@ from resources.lib import utils
 
 def build_plugin_url(params):
     """Build plugin URL from parameters"""
-    utils.log(f"FOLDER_CONTEXT_DEBUG: build_plugin_url called with params: {params}", "DEBUG")
-
     # Ensure all values are strings for URL encoding
     string_params = {}
     for key, value in params.items():
@@ -18,8 +16,6 @@ def build_plugin_url(params):
                 string_params[key] = [str(v) for v in value]
             else:
                 string_params[key] = str(value)
-
-    utils.log(f"FOLDER_CONTEXT_DEBUG: string_params after conversion: {string_params}", "DEBUG")
 
     # Build query string
     query_params = []
@@ -32,7 +28,6 @@ def build_plugin_url(params):
 
     query_string = "&".join(query_params)
     url = f"plugin://plugin.video.librarygenie/?{query_string}"
-    utils.log(f"FOLDER_CONTEXT_DEBUG: Built URL: {url}", "DEBUG")
     return url
 
 def parse_params(params_string: str) -> dict:
