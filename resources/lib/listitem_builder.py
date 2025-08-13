@@ -214,7 +214,12 @@ class ListItemBuilder:
         # Handle numeric fields with proper conversion
         if media_info.get('year'):
             try:
-                info_dict['year'] = int(media_info['year'])
+                year_val = media_info['year']
+                # Handle both integer and string years
+                if isinstance(year_val, str) and year_val.isdigit():
+                    info_dict['year'] = int(year_val)
+                elif isinstance(year_val, (int, float)) and year_val > 0:
+                    info_dict['year'] = int(year_val)
             except (ValueError, TypeError):
                 pass
 

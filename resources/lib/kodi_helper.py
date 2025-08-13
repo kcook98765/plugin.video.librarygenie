@@ -133,17 +133,21 @@ class KodiHelper:
         if has_scores:
             # Sort items by search score before displaying (highest first)
             items.sort(key=lambda x: x.get('search_score', 0), reverse=True)
-            # Disable Kodi sorting to preserve our score-based order
-            xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_NONE)
-            utils.log("Sorted items by search score and disabled Kodi sorting", "DEBUG")
-        else:
-            # Enable all sort methods for regular lists
-            xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_LABEL)
-            xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_TITLE)
-            xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
-            xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_GENRE)
-            xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
-            xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_DATEADDED)
+            utils.log("Sorted items by search score", "DEBUG")
+        
+        # Always enable sort methods so users can override the default order
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_LABEL)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_TITLE)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_GENRE)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
+        xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_DATEADDED)
+        
+        if has_scores:
+            # Set the default sort method to unsorted to preserve our score-based order
+            # but still allow users to change it via skin options
+            xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
+            utils.log("Enabled all sort methods with score-based default order", "DEBUG")
 
         # Set view modes
         view_modes = {
