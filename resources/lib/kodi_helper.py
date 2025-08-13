@@ -1,4 +1,3 @@
-
 import sys
 import json
 import xbmc
@@ -92,27 +91,25 @@ class KodiHelper:
         xbmcplugin.endOfDirectory(self.addon_handle)
 
     def list_folders_and_lists(self, folders, lists):
+        """List both folders and lists in the current directory."""
         from resources.lib.listitem_builder import ListItemBuilder
+
+        # Add options header first
+        self._add_options_header_item()
+
+        # Add folders first
         for folder in folders:
-            list_item = ListItemBuilder.build_folder_item(folder['name'], is_folder=True)
+            list_item = ListItemBuilder.build_folder_item(f"📁 {folder['name']}", is_folder=True)
             url = f'{self.addon_url}?action=show_folder&folder_id={folder["id"]}'
             utils.log(f"Adding folder: {folder['name']} with URL - {url}", "INFO")
-            xbmcplugin.addDirectoryItem(
-                handle=self.addon_handle,
-                url=url,
-                listitem=list_item,
-                isFolder=True
-            )
-        for list_ in lists:
-            list_item = ListItemBuilder.build_list_item(list_['name'], is_folder=True)
-            url = f'{self.addon_url}?action=show_list&list_id={list_["id"]}'
-            utils.log(f"Adding list: {list_['name']} with URL - {url}", "INFO")
-            xbmcplugin.addDirectoryItem(
-                handle=self.addon_handle,
-                url=url,
-                listitem=list_item,
-                isFolder=True
-            )
+            xbmcplugin.addDirectoryItem(self.addon_handle, url, list_item, isFolder=True)
+
+        # Add lists
+        for list_item in lists:
+            list_item_obj = ListItemBuilder.build_list_item(f"📋 {list_item['name']}", is_folder=True)
+            url = f'{self.addon_url}?action=show_list&list_id={list_item["id"]}'
+            utils.log(f"Adding list: {list_item['name']} with URL - {url}", "INFO")
+            xbmcplugin.addDirectoryItem(self.addon_handle, url, list_item_obj, isFolder=True)
         xbmcplugin.endOfDirectory(self.addon_handle)
 
     def show_list(self, list_id):
@@ -429,3 +426,26 @@ class KodiHelper:
         except Exception as e:
             utils.log(f"Error getting cast info: {str(e)}", "ERROR")
             return "[]"
+
+    def _add_options_header_item(self):
+        """Add the options and tools header item as a non-folder RunPlugin item"""
+        try:
+            import xbmcgui
+
+            # Create list item for options as non-folder
+            li = xbmcgui.ListItem(label="[B]🔧 Options & Tools[/B]")
+            li.setInfo('video', {
+                'title': '🔧 Options & Tools',
+                'plot': 'Access list management tools, search options, and addon settings.',
+                'mediatype': 'video'
+            })
+
+            # Build URL for options
+            url = f'{self.addon_url}?action=options&view=root'
+
+            # Add as non-folder item so Kodi uses RunPlugin instead of trying to render directory
+            xbmcplugin.addDirectoryItem(self.addon_handle, url, li, isFolder=False)
+            utils.log("Added options header item via KodiHelper", "DEBUG")
+
+        except Exception as e:
+            utils.log(f"Error adding options header in KodiHelper: {str(e)}", "ERROR")
