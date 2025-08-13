@@ -242,7 +242,15 @@ def browse_folder(folder_id):
             if search_history_folder_id and list_item.get('folder_id') == search_history_folder_id:
                 plot_text = 'Built by LibraryGenie'
 
-            li = ListItemBuilder.build_folder_item(f"📋 {list_item['name']} ({list_count})", is_folder=True, item_type='playlist', plot=plot_text)
+            # Build the display title that will be passed to ListItemBuilder
+            display_title = f"📋 {list_item['name']} ({list_count})"
+            utils.log(f"=== BROWSE_FOLDER CREATING LISTITEM ===", "INFO")
+            utils.log(f"Raw list name from database: '{list_item['name']}'", "INFO")
+            utils.log(f"List count: {list_count}", "INFO")
+            utils.log(f"Final display title being passed to build_folder_item: '{display_title}'", "INFO")
+            utils.log(f"=== END BROWSE_FOLDER LISTITEM CREATION ===", "INFO")
+
+            li = ListItemBuilder.build_folder_item(display_title, is_folder=True, item_type='playlist', plot=plot_text)
             li.setProperty('lg_type', 'list')
             _add_context_menu_for_item(li, 'list', list_id=list_item['id'])
             url = _plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
