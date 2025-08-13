@@ -1,4 +1,3 @@
-
 import xbmcgui
 from resources.lib import utils
 from resources.lib.singleton_base import Singleton
@@ -6,7 +5,11 @@ from resources.lib.singleton_base import Singleton
 class BaseWindow(Singleton):
     def __init__(self, title=""):
         if not hasattr(self, '_initialized'):
-            super().__init__()
+            # Only call super().__init__() if this is the first initialization
+            if not hasattr(self.__class__, '_singleton_initialized'):
+                super().__init__()
+                self.__class__._singleton_initialized = True
+            self.title = title
             self._initialized = True
 
     def show_notification(self, message, icon=xbmcgui.NOTIFICATION_INFO):
