@@ -597,8 +597,8 @@ class DatabaseManager(Singleton):
             return None
 
         # Create a unique list name for the search results
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        base_list_name = f"Search: {query} ({timestamp})"
+        date_only = datetime.now().strftime('%Y-%m-%d')
+        base_list_name = f"{query} ({date_only})"
 
         # Check if a list with this name already exists and create unique name
         counter = 1
