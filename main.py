@@ -100,22 +100,32 @@ def run_browse(params):
         utils.log(f"Error launching browse window: {str(e)}", "ERROR")
 
 def browse_folder(params):
-    """Browse the contents of a folder"""
+    """Browse a folder and display its contents"""
+    utils.log("FOLDER_CONTEXT_DEBUG: browse_folder called with params: " + str(sys.argv[2]), "DEBUG")
     folder_id = params.get('folder_id', [None])[0]
-    if folder_id:
-        folder_id = int(folder_id)
-
-    utils.log(f"Browsing folder {folder_id}", "DEBUG")
-
-    config = Config()
-    db_manager = DatabaseManager(config.db_path)
-    handle = int(sys.argv[1])
-
-    # Add options header for all folder views (including subfolders)
-    ctx = detect_context({'view': 'folder', 'folder_id': folder_id})
-    add_options_header_item(ctx, handle)
+    if not folder_id:
+        utils.log("No folder_id provided for browse_folder", "ERROR")
+        return
 
     try:
+        folder_id = int(folder_id)
+        utils.log(f"Browsing folder {folder_id}", "DEBUG")
+
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+
+        # Get folder details
+        folder = db_manager.fetch_folder_by_id(folder_id)
+        if not folder:
+            utils.log(f"Folder {folder_id} not found", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'Folder not found')
+            return
+
+        # Add options header with folder context - pass the actual folder_id
+        ctx = detect_context({'view': 'folder', 'folder_id': folder_id})
+        utils.log(f"FOLDER_CONTEXT_DEBUG: Context for options header: {ctx}", "DEBUG")
+        add_options_header_item(ctx, _handle)
+
         # Get subfolders
         subfolders = db_manager.fetch_folders(folder_id)
 
@@ -128,38 +138,36 @@ def browse_folder(params):
             li.setProperty('lg_type', 'folder')
             add_context_menu_for_item(li, 'folder', folder_id=subfolder['id'])
             url = build_plugin_url({'action': 'browse_folder', 'folder_id': subfolder['id'], 'view': 'folder'})
-            xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
+            xbmcplugin.addDirectoryItem(_handle, url, li, isFolder=True)
 
         # Add lists
         for list_item in lists:
             list_count = db_manager.get_list_media_count(list_item['id'])
 
-            # Check if this is a search history list by checking if it's in Search History folder
-            plot_text = ''
-            search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
-            if search_history_folder_id and list_item.get('folder_id') == search_history_folder_id:
-                plot_text = 'Built by LibraryGenie'
+            # Check if this list contains a count pattern like "(number)" at the end
+            import re
+            has_count_in_name = re.search(r'\(\d+\)$', list_item['name'])
 
-            # Check if this is a search history list (which already includes count in name)
-            is_search_history_list = (search_history_folder_id and
-                                    list_item.get('folder_id') == search_history_folder_id)
-
-            # Build the display title - don't add count for search history lists as they already have it
-            if is_search_history_list:
-                display_title = f"📋 {list_item['name']}"
+            if has_count_in_name:
+                # List already has count in name (likely search history), use as-is
+                display_title = list_item['name']
             else:
-                display_title = f"📋 {list_item['name']} ({list_count})"
+                # Regular list, add count
+                display_title = f"{list_item['name']} ({list_count})"
 
-            li = ListItemBuilder.build_folder_item(display_title, is_folder=True, item_type='playlist', plot=plot_text)
+            li = ListItemBuilder.build_folder_item(f"📋 {display_title}", is_folder=True, item_type='playlist')
             li.setProperty('lg_type', 'list')
             add_context_menu_for_item(li, 'list', list_id=list_item['id'])
             url = build_plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
-            xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
+            xbmcplugin.addDirectoryItem(_handle, url, li, isFolder=True)
+
+        xbmcplugin.endOfDirectory(_handle)
 
     except Exception as e:
-        utils.log(f"Error browsing folder {folder_id}: {str(e)}", "ERROR")
-
-    xbmcplugin.endOfDirectory(handle)
+        utils.log(f"Error browsing folder: {str(e)}", "ERROR")
+        import traceback
+        utils.log(f"browse_folder traceback: {traceback.format_exc()}", "ERROR")
+        show_empty_directory(_handle, "Error loading folder contents")
 
 def browse_list(list_id):
     """Browse items in a specific list"""
@@ -344,7 +352,7 @@ def router(params):
     else:
         utils.log(f"Unexpected params type: {type(params)}, treating as empty", "WARNING")
         q = {}
-    
+
     action = q.get("action", [""])[0] if isinstance(q.get("action", [""]), list) else q.get("action", "")
 
     utils.log(f"Action determined: {action}", "DEBUG")

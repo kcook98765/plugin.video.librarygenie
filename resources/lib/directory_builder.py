@@ -77,13 +77,20 @@ def add_options_header_item(ctx: dict, handle: int):
         })
 
         # Build URL with current context using centralized URL builder
-        url = build_plugin_url({
+        url_params = {
             'action': 'show_options',
             'view': ctx.get('view'),
-            # Only include list_id/folder_id if they exist
-            **({'list_id': ctx['list_id']} if ctx.get('list_id') else {}),
-            **({'folder_id': ctx['folder_id']} if ctx.get('folder_id') else {}),
-        })
+        }
+        
+        # Only include list_id/folder_id if they exist
+        if ctx.get('list_id'):
+            url_params['list_id'] = ctx['list_id']
+        if ctx.get('folder_id'):
+            url_params['folder_id'] = ctx['folder_id']
+            
+        utils.log(f"FOLDER_CONTEXT_DEBUG: Building options URL with params: {url_params}", "DEBUG")
+        url = build_plugin_url(url_params)
+        utils.log(f"FOLDER_CONTEXT_DEBUG: Built options URL: {url}", "DEBUG")
 
         # Add as non-folder item so Kodi uses RunPlugin instead of trying to render directory
         xbmcplugin.addDirectoryItem(handle, url, li, isFolder=False)
