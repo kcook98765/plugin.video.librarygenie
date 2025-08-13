@@ -48,9 +48,9 @@ def add_options_header_item(ctx: dict):
             return
 
         # Create list item for options as non-folder
-        li = xbmcgui.ListItem(label="[B]🔧 Options & Tools[/B]")
+        li = xbmcgui.ListItem(label="[B]Options & Tools[/B]")
         li.setInfo('video', {
-            'title': '🔧 Options & Tools',
+            'title': 'Options & Tools',
             'plot': 'Access list management tools, search options, and addon settings.',
             'mediatype': 'video'
         })
