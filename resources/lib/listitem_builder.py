@@ -134,7 +134,6 @@ class ListItemBuilder:
         # Generate cache key from stable fields
         cache_key = str(media_info.get('title', '')) + str(media_info.get('year', '')) + str(media_info.get('kodi_id', ''))
         if cache_key in ListItemBuilder._item_cache:
-            utils.log(f"Using cached ListItem for: {media_info.get('title', 'Unknown')}", "DEBUG")
             return ListItemBuilder._item_cache[cache_key]
 
         # Create ListItem with proper string title
