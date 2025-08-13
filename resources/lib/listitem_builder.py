@@ -161,7 +161,7 @@ class ListItemBuilder:
         if search_score and search_score > 0:
             # Color the title based on score without showing the numeric value
             title = ListItemBuilder._colorize_title_by_score(title, search_score)
-        
+
         list_item = xbmcgui.ListItem(label=title)
 
 
@@ -327,14 +327,8 @@ class ListItemBuilder:
         addon_path = addon.getAddonInfo("path")
         media = f"{addon_path}/resources/media"
 
-        utils.log(f"=== BUILD_FOLDER_ITEM PROCESSING ===", "INFO")
-        utils.log(f"Original name parameter: '{name}'", "INFO")
-
-        # Clean the name to remove emoji characters
+        # Clean the title to remove emoji and get base name
         clean_name = ListItemBuilder._clean_title(name)
-        utils.log(f"Cleaned name after _clean_title: '{clean_name}'", "INFO")
-        utils.log(f"Final ListItem label will be: '{clean_name}'", "INFO")
-        utils.log(f"=== END BUILD_FOLDER_ITEM PROCESSING ===", "INFO")
 
         list_item = xbmcgui.ListItem(label=clean_name)
         list_item.setIsFolder(is_folder)

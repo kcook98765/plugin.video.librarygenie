@@ -251,13 +251,6 @@ def browse_folder(folder_id):
                 display_title = f"📋 {list_item['name']}"
             else:
                 display_title = f"📋 {list_item['name']} ({list_count})"
-            
-            utils.log(f"=== BROWSE_FOLDER CREATING LISTITEM ===", "INFO")
-            utils.log(f"Raw list name from database: '{list_item['name']}'", "INFO")
-            utils.log(f"List count: {list_count}", "INFO")
-            utils.log(f"Is search history list: {is_search_history_list}", "INFO")
-            utils.log(f"Final display title being passed to build_folder_item: '{display_title}'", "INFO")
-            utils.log(f"=== END BROWSE_FOLDER LISTITEM CREATION ===", "INFO")
 
             li = ListItemBuilder.build_folder_item(display_title, is_folder=True, item_type='playlist', plot=plot_text)
             li.setProperty('lg_type', 'list')
@@ -485,13 +478,6 @@ def build_root():
             else:
                 # Regular list, add count
                 display_title = f"{list_item['name']} ({list_count})"
-            
-            utils.log(f"=== CREATING LISTITEM FOR LIST ===", "INFO")
-            utils.log(f"Original list name from database: '{list_item['name']}'", "INFO")
-            utils.log(f"Has count in name: {has_count_in_name is not None}", "INFO")
-            utils.log(f"Display title being used: '{display_title}'", "INFO")
-            utils.log(f"Final ListItem label will be: '📋 {display_title}'", "INFO")
-            utils.log(f"=== END CREATING LISTITEM FOR LIST ===", "INFO")
             li = ListItemBuilder.build_folder_item(f"📋 {display_title}", is_folder=True, item_type='playlist')
             li.setProperty('lg_type', 'list')
             _add_context_menu_for_item(li, 'list', list_id=list_item['id'])
