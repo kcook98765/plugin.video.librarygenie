@@ -380,18 +380,20 @@ def browse_list(list_id):
         # Check if this is a search results list with scores to preserve order
         has_scores = any(item.get('search_score', 0) > 0 for item in display_items)
 
+        # Always enable sort methods so users can override the default order
+        xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_LABEL)
+        xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_TITLE)
+        xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
+        xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_GENRE)
+        xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
+        xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_DATEADDED)
+        
         if has_scores:
-            # For search results, disable sorting to preserve search score order
-            xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_NONE)
-            utils.log(f"Disabled sorting for search results list {list_id} to preserve score order", "DEBUG")
+            # For search results, add unsorted method to preserve score order as default
+            xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)
+            utils.log(f"Enabled all sort methods for search results list {list_id} with score-based default order", "DEBUG")
         else:
-            # Enable sort methods for regular lists
-            xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_LABEL)
-            xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_TITLE)
-            xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
-            xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_GENRE)
-            xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
-            xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_DATEADDED)
+            utils.log(f"Enabled all sort methods for regular list {list_id}", "DEBUG")
 
         xbmcplugin.endOfDirectory(handle, succeeded=True, cacheToDisc=False, updateListing=True)
         utils.log(f"=== BROWSE_LIST ACTION COMPLETE for list_id={list_id} ===", "INFO")
