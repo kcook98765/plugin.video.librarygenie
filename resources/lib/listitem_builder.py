@@ -394,10 +394,46 @@ class ListItemBuilder:
         return list_item
 
     @staticmethod
-    def build_list_item(name, is_folder=True):
-        """Build a list ListItem with list-specific artwork"""
+    def build_list_item(name, is_folder=True, list_data=None):
+        """Build a list ListItem with list-specific artwork and enhanced metadata"""
         utils.log(f"=== BUILDING LIST ITEM: '{name}' ===", "INFO")
-        list_item = xbmcgui.ListItem(label=name)
+        
+        # Check if this is a search history list and enhance the label
+        display_name = name
+        if list_data:
+            from resources.lib.database_manager import DatabaseManager
+            from resources.lib.config_manager import Config
+            
+            config = Config()
+            db_manager = DatabaseManager(config.db_path)
+            
+            # Check if this list is in the Search History folder
+            search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
+            if list_data.get('folder_id') == search_history_folder_id:
+                # Get list item count
+                list_id = list_data.get('id')
+                if list_id:
+                    item_count = db_manager.get_list_media_count(list_id)
+                    
+                    # Get creation date from database
+                    created_at = list_data.get('created_at', '')
+                    if created_at:
+                        # Extract just the date part from the timestamp
+                        try:
+                            from datetime import datetime
+                            dt = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S')
+                            date_str = dt.strftime('%Y-%m-%d')
+                        except:
+                            date_str = datetime.now().strftime('%Y-%m-%d')
+                    else:
+                        from datetime import datetime
+                        date_str = datetime.now().strftime('%Y-%m-%d')
+                    
+                    # Enhance the display name with metadata
+                    display_name = f"{name} ({date_str}) ({item_count} items)"
+                    utils.log(f"Enhanced search history list label: '{display_name}'", "DEBUG")
+        
+        list_item = xbmcgui.ListItem(label=display_name)
         list_item.setIsFolder(is_folder)
 
         # Set list-specific artwork using Kodi's special:// protocol

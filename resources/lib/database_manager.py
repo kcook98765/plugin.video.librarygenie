@@ -575,7 +575,7 @@ class DatabaseManager(Singleton):
             utils.log(f"'{search_history_folder_name}' folder already exists.", "INFO")
 
     def _ensure_protected_column(self):
-        """Ensure the protected column exists in the lists table"""
+        """Ensure the protected and created_at columns exist in the lists table"""
         try:
             # Check if protected column exists
             self._execute_with_retry(self.cursor.execute, "SELECT protected FROM lists LIMIT 1")
@@ -583,6 +583,15 @@ class DatabaseManager(Singleton):
             # Column doesn't exist, add it
             utils.log("Adding protected column to lists table", "INFO")
             self._execute_with_retry(self.cursor.execute, "ALTER TABLE lists ADD COLUMN protected INTEGER DEFAULT 0")
+            self.connection.commit()
+        
+        try:
+            # Check if created_at column exists
+            self._execute_with_retry(self.cursor.execute, "SELECT created_at FROM lists LIMIT 1")
+        except sqlite3.OperationalError:
+            # Column doesn't exist, add it
+            utils.log("Adding created_at column to lists table", "INFO")
+            self._execute_with_retry(self.cursor.execute, "ALTER TABLE lists ADD COLUMN created_at TEXT")
             self.connection.commit()
 
     def add_search_history(self, query, results):
@@ -596,10 +605,9 @@ class DatabaseManager(Singleton):
             utils.log("Search History folder not found, cannot save search results.", "ERROR")
             return None
 
-        # Create a unique list name for the search results
-        date_only = datetime.now().strftime('%Y-%m-%d')
-        base_list_name = f"{query} ({date_only})"
-
+        # Create a unique list name using just the query text
+        base_list_name = query
+        
         # Check if a list with this name already exists and create unique name
         counter = 1
         list_name = base_list_name
@@ -612,7 +620,8 @@ class DatabaseManager(Singleton):
         # Create the final list (only one creation needed)
         final_list_data = {
             'name': list_name,
-            'folder_id': search_history_folder_id
+            'folder_id': search_history_folder_id,
+            'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
         utils.log(f"Creating search history list: {final_list_data}", "DEBUG")
         final_list_id = self.insert_data('lists', final_list_data)
