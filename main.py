@@ -909,9 +909,10 @@ def main():
         import traceback
         utils.log(f"Full traceback: {traceback.format_exc()}", "ERROR")
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # Run migration check before starting the main application
     run_migration_if_needed()
+    from resources.lib import runner
     runner.main()
 
 def show_empty_directory():
