@@ -2,8 +2,11 @@ import re
 import json
 import xbmc
 import xbmcgui
+import pyxbmct
 from resources.lib import utils
 from resources.lib.window_base import BaseWindow
+from resources.lib.database_manager import DatabaseManager
+from resources.lib.config_manager import Config
 
 utils.log("Initializing MainWindow module", "INFO")
 
@@ -27,7 +30,7 @@ def launch_movie_search():
         utils.log(f"Error in movie search: {str(e)}", "ERROR")
         return {'status': 'error', 'error': str(e)}
 
-class MainWindow:
+class MainWindow(pyxbmct.AddonDialogWindow):
     INDENTATION_MULTIPLIER = 3  # Used for indenting sublevels
 
     def __init__(self, item_info, title="Item Info"):
