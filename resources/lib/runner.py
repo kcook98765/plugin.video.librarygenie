@@ -1,4 +1,5 @@
 
+
 import sys
 import os
 
@@ -9,6 +10,11 @@ if addon_dir not in sys.path:
 
 from resources.lib.addon_helper import run_addon
 
+def main():
+    """Main entry point for the runner module"""
+    run_addon()
+
 if __name__ == "__main__":
     # This will receive ["setup_remote_api"] etc.
-    run_addon()
+    main()
+
