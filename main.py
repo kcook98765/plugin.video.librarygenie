@@ -77,7 +77,7 @@ def run_search_flow():
 
     utils.log("=== RUN_SEARCH_FLOW COMPLETE ===", "DEBUG")
 
-def run_search(params=None):
+def run_search(params):
     """Legacy function - redirect to new flow"""
     run_search_flow()
 
@@ -329,12 +329,25 @@ def router(params):
     # Clean up any stuck navigation flags at router entry
     nav_manager.cleanup_stuck_navigation()
 
-    # Handle deferred option execution from RunScript
+    # Check for deferred option execution from RunScript
     if len(sys.argv) >= 3 and sys.argv[1] == 'deferred_option':
         utils.log("=== HANDLING DEFERRED OPTION EXECUTION FROM MAIN ===", "DEBUG")
-        option_index = int(sys.argv[2])
-        utils.log(f"=== EXECUTING DEFERRED OPTION {option_index} ===", "DEBUG")
-        options_manager.execute_deferred_option(option_index)
+        try:
+            option_index = int(sys.argv[2])
+            # Retrieve stored folder context
+            folder_context_str = xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.DeferredFolderContext)")
+            folder_context = None
+            if folder_context_str and folder_context_str != "None":
+                try:
+                    folder_context = int(folder_context_str)
+                    utils.log(f"FOLDER_CONTEXT_DEBUG: Retrieved folder context for deferred option: {folder_context}", "DEBUG")
+                except ValueError:
+                    utils.log(f"FOLDER_CONTEXT_DEBUG: Invalid folder context string: {folder_context_str}", "WARNING")
+            # Clear the property
+            xbmc.executebuiltin("ClearProperty(LibraryGenie.DeferredFolderContext,Home)")
+            options_manager.execute_deferred_option(option_index, folder_context)
+        except Exception as e:
+            utils.log(f"Error in deferred option execution: {str(e)}", "ERROR")
         return
 
     # Check if paramstr is valid and not empty before parsing
@@ -492,7 +505,21 @@ def main():
             utils.log("=== HANDLING DEFERRED OPTION EXECUTION FROM MAIN ===", "DEBUG")
             try:
                 option_index = int(sys.argv[2])
-                options_manager.execute_deferred_option(option_index)
+                # Retrieve stored folder context
+                folder_context_str = xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.DeferredFolderContext)")
+                folder_context = None
+                if folder_context_str and folder_context_str != "None":
+                    try:
+                        folder_context = int(folder_context_str)
+                        utils.log(f"FOLDER_CONTEXT_DEBUG: Retrieved folder context for deferred option: {folder_context}", "DEBUG")
+                    except ValueError:
+                        utils.log(f"FOLDER_CONTEXT_DEBUG: Invalid folder context string: {folder_context_str}", "WARNING")
+                else:
+                    utils.log("FOLDER_CONTEXT_DEBUG: No folder context for deferred option (root level)", "DEBUG")
+                # Clear the property
+                xbmc.executebuiltin("ClearProperty(LibraryGenie.DeferredFolderContext,Home)")
+                utils.log(f"=== EXECUTING DEFERRED OPTION {option_index} WITH FOLDER CONTEXT {folder_context} ===", "DEBUG")
+                options_manager.execute_deferred_option(option_index, folder_context)
             except Exception as e:
                 utils.log(f"Error in deferred option execution: {str(e)}", "ERROR")
             return

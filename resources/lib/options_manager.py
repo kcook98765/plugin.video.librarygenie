@@ -129,6 +129,9 @@ class OptionsManager:
         if remaining_time < 1.0:  # Less than 1 second left
             utils.log(f"=== INSUFFICIENT TIME REMAINING ({remaining_time:.1f}s) - DEFERRING EXECUTION ===", "WARNING")
             # Defer execution using RunScript to avoid timeout
+            # Store folder context in a property for deferred execution
+            folder_context_str = str(current_folder_id) if current_folder_id else "None"
+            xbmc.executebuiltin(f"SetProperty(LibraryGenie.DeferredFolderContext,{folder_context_str},Home)")
             # Use the correct addon format for RunScript
             xbmc.executebuiltin(f"RunScript(plugin.video.librarygenie,deferred_option,{selected_option})")
             return
@@ -210,7 +213,7 @@ class OptionsManager:
             # Note: Navigation flag is now handled in individual flows (like run_search_flow)
             utils.log("=== OPTIONS DIALOG REQUEST COMPLETE ===", "DEBUG")
 
-    def execute_deferred_option(self, option_index):
+    def execute_deferred_option(self, option_index, folder_context=None):
         """Execute an option that was deferred due to timeout concerns"""
         utils.log(f"=== EXECUTING DEFERRED OPTION {option_index} ===", "DEBUG")
 
@@ -221,5 +224,6 @@ class OptionsManager:
         selected_text = self.options[option_index]
         utils.log(f"Executing deferred option: {selected_text}", "DEBUG")
 
-        # For deferred options, we don't have folder context, so use root (None)
-        self._execute_option(option_index, selected_text, None)
+        # Use provided folder context, or None for root
+        utils.log(f"FOLDER_CONTEXT_DEBUG: Deferred option using folder context: {folder_context}", "DEBUG")
+        self._execute_option(option_index, selected_text, folder_context)
