@@ -614,7 +614,7 @@ class DatabaseManager(Singleton):
 
         # Format the list name with search query, date only, and count
         timestamp = datetime.now().strftime("%Y-%m-%d")
-        base_list_name = f"{query} ({timestamp}) - {len(results)} results"
+        base_list_name = f"{query} ({timestamp}) ({len(results)})"
 
 
         # Check if a list with this name already exists and create unique name
