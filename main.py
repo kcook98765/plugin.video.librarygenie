@@ -177,6 +177,7 @@ def browse_list(list_id):
     from resources.lib.database_manager import DatabaseManager
     from resources.lib.config_manager import Config
     from resources.lib.listitem_builder import ListItemBuilder
+    from resources.lib.query_manager import QueryManager
 
     addon = get_addon()
     addon_id = addon.getAddonInfo("id")
