@@ -317,13 +317,30 @@ class QueryManager(Singleton):
         return result[0]['max_depth'] if result and result[0]['max_depth'] is not None else 0
 
     def get_folder_by_name(self, folder_name: str) -> Optional[Dict[str, Any]]:
-        query = """
-            SELECT id, name, parent_id
-            FROM folders
-            WHERE name = ?
-        """
-        result = self.execute_query(query, (folder_name,), fetch_all=False)
-        return result[0] if result else None
+        """Get folder ID by name"""
+        query = "SELECT id FROM folders WHERE name = ?"
+        result = self.execute_query(query, (folder_name,))
+        return result[0]['id'] if result else None
+
+    def is_search_history(self, list_id):
+        """Check if a list is in the Search History folder"""
+        try:
+            # Get the list data
+            list_data = self.fetch_list_by_id(list_id)
+            if not list_data:
+                return False
+
+            # Get the Search History folder ID
+            search_history_folder_id = self.get_folder_id_by_name("Search History")
+            if not search_history_folder_id:
+                return False
+
+            # Check if the list's folder_id matches the Search History folder
+            return list_data.get('folder_id') == search_history_folder_id
+        except Exception as e:
+            from resources.lib import utils
+            utils.log(f"Error checking if list is search history: {str(e)}", "ERROR")
+            return False
 
     def insert_folder(self, name: str, parent_id: Optional[int] = None) -> int:
         query = """
@@ -663,7 +680,7 @@ class QueryManager(Singleton):
         # Extract field names from config
         field_names = [field.split()[0] for field in Config.FIELDS]
         media_data = {key: data[key] for key in field_names if key in data}
-        
+
         # Ensure search_score is included if present in input data
         if 'search_score' in data and 'search_score' not in media_data:
             media_data['search_score'] = data['search_score']
@@ -937,7 +954,7 @@ class QueryManager(Singleton):
                 utils.log(f"Executing SQL: {create_sql}", "DEBUG")
                 cursor.execute(create_sql)
             conn_info['connection'].commit()
-            
+
             # Add migration for search_score column if it doesn't exist
             try:
                 cursor.execute("SELECT search_score FROM media_items LIMIT 1")
@@ -946,7 +963,7 @@ class QueryManager(Singleton):
                 utils.log("Adding search_score column to media_items table", "INFO")
                 cursor.execute("ALTER TABLE media_items ADD COLUMN search_score REAL")
                 conn_info['connection'].commit()
-                
+
         finally:
             self._release_connection(conn_info)
 
