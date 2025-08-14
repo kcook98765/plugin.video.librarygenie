@@ -42,16 +42,47 @@ class IMDbUploadManager:
                         if progress_dialog.iscanceled():
                             return []
 
-                imdb_id = movie.get('imdbnumber', '') or movie.get('uniqueid', {}).get('imdb', '')
+                # Handle both v19 and v20+ IMDb ID extraction
+                imdb_id = movie.get('imdbnumber', '')
+                
+                # v20+ also has uniqueid field
+                if not imdb_id and 'uniqueid' in movie:
+                    uniqueid = movie.get('uniqueid', {})
+                    if isinstance(uniqueid, dict):
+                        imdb_id = uniqueid.get('imdb', '')
+                
+                # Clean up IMDb ID format
+                if imdb_id:
+                    imdb_id = str(imdb_id).strip()
+                    # Remove common prefixes that might be present
+                    if imdb_id.startswith('imdb://'):
+                        imdb_id = imdb_id[7:]
+                    elif imdb_id.startswith('http'):
+                        # Extract tt number from URLs
+                        import re
+                        match = re.search(r'tt\d+', imdb_id)
+                        imdb_id = match.group(0) if match else ''
+                
                 if imdb_id and imdb_id.startswith('tt') and len(imdb_id) > 2:
                     # Ensure we have the IMDB ID in the right field
                     movie['imdbnumber'] = imdb_id
                     valid_movies.append(movie)
+                    utils.log(f"Found valid IMDb ID for '{movie.get('title', 'Unknown')}': {imdb_id}", "DEBUG")
 
             if progress_dialog:
                 progress_dialog.update(100, f"Found {len(valid_movies)} movies with valid IMDb IDs")
 
-            utils.log(f"Found {len(valid_movies)} movies with valid IMDb IDs", "INFO")
+            # Debug logging for troubleshooting
+            if len(valid_movies) == 0 and len(movies) > 0:
+                utils.log("=== DEBUG: No valid IMDb IDs found, analyzing first few movies ===", "WARNING")
+                for i, movie in enumerate(movies[:5]):  # Check first 5 movies
+                    title = movie.get('title', 'Unknown')
+                    imdbnumber = movie.get('imdbnumber', '')
+                    uniqueid = movie.get('uniqueid', {})
+                    utils.log(f"Movie {i+1}: '{title}' - imdbnumber: '{imdbnumber}', uniqueid: {uniqueid}", "WARNING")
+                utils.log("=== END DEBUG ANALYSIS ===", "WARNING")
+
+            utils.log(f"Found {len(valid_movies)} movies with valid IMDb IDs out of {len(movies)} total movies", "INFO")
             return valid_movies
 
         except Exception as e:

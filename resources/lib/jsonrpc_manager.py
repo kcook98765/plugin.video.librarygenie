@@ -208,9 +208,37 @@ class JSONRPC:
             return response['result']['movies'], response['result'].get('limits', {}).get('total', 0)
         return [], 0
 
+    def _get_kodi_version(self):
+        """Get Kodi version for version-aware API calls"""
+        try:
+            response = self.execute("Application.GetProperties", {"properties": ["version"]})
+            if 'result' in response and 'version' in response['result']:
+                major = response['result']['version'].get('major', 0)
+                utils.log(f"Detected Kodi version: {major}", "DEBUG")
+                return major
+        except Exception as e:
+            utils.log(f"Could not detect Kodi version, assuming v20+: {str(e)}", "WARNING")
+        return 20  # Default to v20+ behavior
+
+    def _get_version_compatible_properties(self):
+        """Get movie properties compatible with current Kodi version"""
+        kodi_version = self._get_kodi_version()
+        
+        if kodi_version >= 20:
+            # v20+ supports uniqueid property
+            return ["title", "year", "file", "imdbnumber", "uniqueid"]
+        else:
+            # v19 and earlier - use only basic properties
+            utils.log("Using Kodi v19 compatible properties (no uniqueid)", "DEBUG")
+            return ["title", "year", "file", "imdbnumber"]
+
     def get_movies_with_imdb(self, progress_callback=None):
         """Get all movies from Kodi library with IMDb information"""
         utils.log("Getting all movies with IMDb information from Kodi library", "DEBUG")
+
+        # Get version-compatible properties
+        properties = self._get_version_compatible_properties()
+        utils.log(f"Using properties for this Kodi version: {properties}", "DEBUG")
 
         all_movies = []
         start = 0
@@ -230,9 +258,7 @@ class JSONRPC:
                     if progress_callback.iscanceled():
                         break
 
-            response = self.get_movies(start, limit, properties=[
-                "title", "year", "file", "imdbnumber", "uniqueid"
-            ])
+            response = self.get_movies(start, limit, properties=properties)
 
             # Log response summary instead of full response
             if 'result' not in response:
