@@ -922,7 +922,7 @@ class QueryManager(Singleton):
                 media_item_id INTEGER,
                 flagged INTEGER DEFAULT 0,
                 FOREIGN KEY (list_id) REFERENCES lists (id),
-                FOREIGNKEY (media_item_id) REFERENCES media_items (id)
+                FOREIGN KEY (media_item_id) REFERENCES media_items (id)
             )""",
             """CREATE TABLE IF NOT EXISTS whitelist (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
