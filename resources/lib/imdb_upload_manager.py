@@ -43,13 +43,21 @@ class IMDbUploadManager:
                             return []
 
                 # Handle both v19 and v20+ IMDb ID extraction
-                imdb_id = movie.get('imdbnumber', '')
+                # In v19, imdbnumber often contains TMDB ID, so prioritize uniqueid.imdb
+                imdb_id = ''
                 
-                # v20+ also has uniqueid field
-                if not imdb_id and 'uniqueid' in movie:
+                # First try uniqueid.imdb (most reliable in both v19 and v20+)
+                if 'uniqueid' in movie:
                     uniqueid = movie.get('uniqueid', {})
                     if isinstance(uniqueid, dict):
                         imdb_id = uniqueid.get('imdb', '')
+                
+                # Fallback to imdbnumber only if uniqueid.imdb is not available
+                if not imdb_id:
+                    fallback_id = movie.get('imdbnumber', '')
+                    # Only use imdbnumber if it looks like an IMDb ID (starts with tt)
+                    if fallback_id and str(fallback_id).strip().startswith('tt'):
+                        imdb_id = str(fallback_id).strip()
                 
                 # Clean up IMDb ID format
                 if imdb_id:
@@ -172,7 +180,17 @@ class IMDbUploadManager:
 
                     batch_data = []
                     for movie in batch_movies:
-                        imdb_id = movie.get('imdbnumber', '') or movie.get('uniqueid', {}).get('imdb', '')
+                        # Prioritize uniqueid.imdb over imdbnumber for v19 compatibility
+                        imdb_id = ''
+                        if 'uniqueid' in movie and isinstance(movie.get('uniqueid'), dict):
+                            imdb_id = movie.get('uniqueid', {}).get('imdb', '')
+                        
+                        # Fallback to imdbnumber only if it looks like an IMDb ID
+                        if not imdb_id:
+                            fallback_id = movie.get('imdbnumber', '')
+                            if fallback_id and str(fallback_id).strip().startswith('tt'):
+                                imdb_id = str(fallback_id).strip()
+                        
                         if imdb_id and imdb_id.startswith('tt') and len(imdb_id) > 2:
                             movie['imdbnumber'] = imdb_id
                             valid_movies.append(movie)
@@ -224,7 +242,17 @@ class IMDbUploadManager:
                     # Fall back to individual inserts for this batch
                     for movie in batch_movies:
                         try:
-                            imdb_id = movie.get('imdbnumber', '') or movie.get('uniqueid', {}).get('imdb', '')
+                            # Prioritize uniqueid.imdb over imdbnumber for v19 compatibility
+                            imdb_id = ''
+                            if 'uniqueid' in movie and isinstance(movie.get('uniqueid'), dict):
+                                imdb_id = movie.get('uniqueid', {}).get('imdb', '')
+                            
+                            # Fallback to imdbnumber only if it looks like an IMDb ID
+                            if not imdb_id:
+                                fallback_id = movie.get('imdbnumber', '')
+                                if fallback_id and str(fallback_id).strip().startswith('tt'):
+                                    imdb_id = str(fallback_id).strip()
+                            
                             if imdb_id and imdb_id.startswith('tt') and len(imdb_id) > 2:
                                 movie['imdbnumber'] = imdb_id
                                 valid_movies.append(movie)
