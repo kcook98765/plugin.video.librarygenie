@@ -63,6 +63,9 @@ class DatabaseManager(Singleton):
         from resources.lib.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         query_manager.setup_database()
+        
+        # Ensure database compatibility for Kodi v19+
+        self._ensure_kodi_v19_compatibility()
 
     def fetch_folders(self, parent_id=None):
         from resources.lib.query_manager import QueryManager
@@ -646,6 +649,29 @@ class DatabaseManager(Singleton):
             self._execute_with_retry(self.cursor.execute, "ALTER TABLE lists ADD COLUMN protected INTEGER DEFAULT 0")
             self.connection.commit()
 
+    def _ensure_kodi_v19_compatibility(self):
+        """Ensure database schema is compatible with Kodi v19+"""
+        try:
+            # Check if folders table uses correct column names
+            self._execute_with_retry(self.cursor.execute, "PRAGMA table_info(folders)")
+            columns = self.cursor.fetchall()
+            column_names = [col[1] for col in columns]
+            
+            # Check if we have 'parent' instead of 'parent_id'
+            if 'parent' in column_names and 'parent_id' not in column_names:
+                utils.log("Migrating folders table for Kodi v19+ compatibility", "INFO")
+                # Rename parent column to parent_id
+                self._execute_with_retry(self.cursor.execute, "ALTER TABLE folders RENAME COLUMN parent TO parent_id")
+                self.connection.commit()
+                utils.log("Database migration completed successfully", "INFO")
+            
+        except sqlite3.OperationalError as e:
+            if "duplicate column name" in str(e).lower():
+                # Column already exists, this is fine
+                pass
+            else:
+                utils.log(f"Database migration warning: {str(e)}", "WARNING")
+
     def add_search_history(self, query, results):
         """Adds the search results to the 'Search History' folder as a new list. Returns the list ID."""
         from resources.lib.query_manager import QueryManager
@@ -786,9 +812,13 @@ class DatabaseManager(Singleton):
     def ensure_folder_exists(self, folder_name, parent_folder_id=None):
         """Ensure a folder exists, create if not found"""
         try:
-            # Check if folder already exists - use 'parent' instead of 'parent_folder_id'
-            query = "SELECT id FROM folders WHERE name = ? AND parent = ?"
-            result = self.fetch_data(query, (folder_name, parent_folder_id))
+            # Check if folder already exists using proper column name
+            if parent_folder_id is None:
+                condition = f"name = '{folder_name}' AND parent_id IS NULL"
+            else:
+                condition = f"name = '{folder_name}' AND parent_id = {parent_folder_id}"
+            
+            result = self.fetch_data('folders', condition)
 
             if result:
                 utils.log(f"'{folder_name}' folder already exists.", "INFO")
@@ -798,7 +828,7 @@ class DatabaseManager(Singleton):
                 utils.log(f"Creating '{folder_name}' folder.", "INFO")
                 folder_data = {
                     'name': folder_name,
-                    'parent': parent_folder_id
+                    'parent_id': parent_folder_id
                 }
                 folder_id = self.insert_data('folders', folder_data)
                 utils.log(f"'{folder_name}' folder created with ID: {folder_id}", "INFO")

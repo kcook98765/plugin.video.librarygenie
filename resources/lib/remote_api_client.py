@@ -69,10 +69,14 @@ class RemoteAPIClient:
 
         utils.log(f"Attempting to exchange pairing code with server: {url}", "INFO")
         utils.log(f"Pairing code length: {len(pairing_code)}", "DEBUG")
+        # Redact sensitive pairing code from logs
+        redacted_data = json.loads(json.dumps(data)) # Create a mutable copy
+        redacted_data['pairing_code'] = f"{redacted_data['pairing_code'][:2]}***{redacted_data['pairing_code'][-2:]}"
+        utils.log(f"Sending pairing request data: {json.dumps(redacted_data)}", "DEBUG")
 
         try:
             json_data = json.dumps(data)
-            utils.log(f"Sending pairing request data: {json_data}", "DEBUG")
+            
 
             req = urllib.request.Request(url, 
                                        data=json_data.encode('utf-8'),
