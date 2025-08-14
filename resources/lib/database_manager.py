@@ -74,6 +74,17 @@ class DatabaseManager(Singleton):
         query_manager = QueryManager(self.db_path)
         return query_manager.fetch_lists_direct(folder_id)
 
+    def get_folder_id_by_name(self, folder_name):
+        """Get folder ID by name"""
+        try:
+            folders = self.fetch_data('folders', f"name = '{folder_name}'")
+            if folders and len(folders) > 0:
+                return folders[0]['id']
+            return None
+        except Exception as e:
+            self.log(f"Error getting folder ID by name '{folder_name}': {str(e)}", "ERROR")
+            return None
+
     def get_folder_depth(self, folder_id):
         from resources.lib.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
@@ -287,6 +298,20 @@ class DatabaseManager(Singleton):
         from resources.lib.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         return query_manager.fetch_all_folders()
+
+    def fetch_lists_by_folder(self, folder_id):
+        """Fetch all lists in a specific folder"""
+        try:
+            if folder_id is None:
+                condition = "folder_id IS NULL"
+            else:
+                condition = f"folder_id = {folder_id}"
+            
+            lists = self.fetch_data('lists', condition)
+            return lists if lists else []
+        except Exception as e:
+            self.log(f"Error fetching lists by folder {folder_id}: {str(e)}", "ERROR")
+            return []
 
     def fetch_all_lists(self):
         from resources.lib.query_manager import QueryManager

@@ -10,18 +10,86 @@ class OptionsManager:
     """Manages the Options & Tools menu and related functionality"""
 
     def __init__(self):
-        self.options = [
-            "Search Movies",
-            "Search History",
+        # Base options that are always available
+        self.base_options = [
             "Create New List",
             "Create New Folder",
             "Settings"
         ]
 
+    def _build_options_list(self):
+        """Build the options list dynamically based on current state"""
+        options = []
+        
+        # Check if user is authenticated to show Search Movies
+        if self._is_authenticated():
+            options.append("Search Movies")
+        
+        # Check if there are search history entries to show Search History
+        if self._has_search_history():
+            options.append("Search History")
+        
+        # Add base options
+        options.extend(self.base_options)
+        
+        return options
+
+    def _is_authenticated(self):
+        """Check if user is authenticated to the server"""
+        try:
+            from resources.lib.addon_ref import get_addon
+            addon = get_addon()
+            
+            # Check if we have API configuration
+            api_url = addon.getSetting('remote_api_url')
+            api_key = addon.getSetting('remote_api_key')
+            
+            # Also check LGS settings as backup
+            lgs_url = addon.getSetting('lgs_upload_url')
+            lgs_key = addon.getSetting('lgs_upload_key')
+            
+            # User is authenticated if they have either remote API or LGS credentials
+            has_remote_api = api_url and api_key
+            has_lgs_auth = lgs_url and lgs_key
+            
+            return has_remote_api or has_lgs_auth
+            
+        except Exception as e:
+            utils.log(f"Error checking authentication status: {str(e)}", "ERROR")
+            return False
+
+    def _has_search_history(self):
+        """Check if there are any search history entries"""
+        try:
+            from resources.lib.config_manager import Config
+            from resources.lib.database_manager import DatabaseManager
+            
+            config = Config()
+            db_manager = DatabaseManager(config.db_path)
+            
+            # Get the Search History folder ID
+            search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
+            
+            if not search_history_folder_id:
+                return False
+            
+            # Check if there are any lists in the Search History folder
+            search_history_lists = db_manager.fetch_lists_by_folder(search_history_folder_id)
+            
+            return len(search_history_lists) > 0
+            
+        except Exception as e:
+            utils.log(f"Error checking search history: {str(e)}", "ERROR")
+            return False
+
     def show_options_menu(self, query_params):
         """Show the options and tools menu"""
         utils.log("=== OPTIONS DIALOG REQUEST START ===", "DEBUG")
         utils.log("Showing Options & Tools menu", "DEBUG")
+        
+        # Build dynamic options list
+        self.options = self._build_options_list()
+        utils.log(f"Available options: {self.options}", "DEBUG")
 
         # Initialize current_folder_id from query params
         current_folder_id = None
