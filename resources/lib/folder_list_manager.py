@@ -25,6 +25,24 @@ class FolderListManager:
             return
 
         try:
+            # Check folder depth limit before creating
+            if parent_folder_id is not None:
+                current_depth = self.db_manager.get_folder_depth(parent_folder_id)
+                max_depth = self.config.max_folder_depth - 1  # -1 because we're adding a new level
+                
+                if current_depth >= max_depth:
+                    # Show limit reached dialog with override option
+                    override = xbmcgui.Dialog().yesno(
+                        'Folder Depth Limit Reached',
+                        f'Maximum folder depth of {self.config.max_folder_depth} would be exceeded.\n\n'
+                        f'Current depth: {current_depth + 1}, Limit: {self.config.max_folder_depth}\n\n'
+                        'Override limit and create folder anyway?'
+                    )
+                    
+                    if not override:
+                        xbmcgui.Dialog().notification('LibraryGenie', 'Folder creation cancelled')
+                        return
+
             # Create in specified parent folder
             self.db_manager.insert_folder(name, parent_folder_id)
             xbmcgui.Dialog().notification('LibraryGenie', f'Folder "{name}" created')

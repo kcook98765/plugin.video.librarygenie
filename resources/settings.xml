@@ -3,6 +3,7 @@
 <settings>
     <category label="General">
         <setting id="debug_logging" type="bool" label="Enable Debug Logging" default="true" />
+        <setting id="max_folder_depth" type="number" label="Maximum Folder Depth" default="2" />
         <setting type="sep" />
         <setting id="clear_all_local_data" type="action" label="Clear All Local Lists and Folders" action="RunScript(plugin.video.librarygenie,clear_all_local_data)" />
     </category>

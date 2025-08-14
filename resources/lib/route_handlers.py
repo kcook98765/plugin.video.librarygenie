@@ -216,14 +216,17 @@ def move_list(params):
         all_folders = db_manager.fetch_all_folders()
         search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
         
-        # Filter out Search History folder and build options
+        # Filter out Search History folder and folders that would exceed depth limit
         folder_options = ["📁 Root (No folder)"]
         folder_ids = [None]  # Root folder represented as None
         
         for folder in all_folders:
             if folder['id'] != search_history_folder_id:
-                # Build folder path for display
-                folder_path = folder['name']
+                # Check if moving to this folder would exceed depth limit
+                folder_depth = db_manager.get_folder_depth(folder['id'])
+                if folder_depth < config.max_folder_depth:
+                    # Build folder path for display
+                    folder_path = folder['name']
                 current_folder = folder
                 while current_folder.get('parent_id'):
                     parent_folder = db_manager.fetch_folder_by_id(current_folder['parent_id'])

@@ -77,7 +77,7 @@ class Config:
         self.addonversion = self._addon.getAddonInfo('version')
         self.addonpath = xbmcvfs.translatePath(self._addon.getAddonInfo('path'))
         self.profile = xbmcvfs.translatePath(self._addon.getAddonInfo('profile'))
-        self._max_folder_depth = 5  # Set maximum folder depth
+        self._max_folder_depth = None  # Will be loaded from settings
 
         utils.log(f"Addon details - ID: {self.addonid}, Name: {self.addonname}, Version: {self.addonversion}", "INFO")
         utils.log(f"Addon path: {self.addonpath}", "DEBUG")
@@ -118,7 +118,16 @@ class Config:
 
     @property
     def max_folder_depth(self):
+        if self._max_folder_depth is None:
+            try:
+                self._max_folder_depth = int(self.get_setting('max_folder_depth', '2'))
+            except (ValueError, TypeError):
+                self._max_folder_depth = 2
         return self._max_folder_depth
+
+    def refresh_max_folder_depth(self):
+        """Refresh the cached max folder depth from settings"""
+        self._max_folder_depth = None
 
     def _load_hint_file(self, filename):
         filepath = os.path.join(self.addonpath, "resources", "lib", filename)

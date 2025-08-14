@@ -315,23 +315,11 @@ class DatabaseManager(Singleton):
         query_manager = QueryManager(self.db_path)
         query_manager.update_folder_name(folder_id, new_name)
 
-    def update_folder_parent(self, folder_id, new_parent_id):
+    def update_folder_parent(self, folder_id, new_parent_id, override_depth_check=False):
         from resources.lib.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
 
         if new_parent_id is not None:
-            # Get the depth of the subtree being moved
-            subtree_depth = query_manager.get_subtree_depth(folder_id)
-
-            # Get the depth at the new location
-            target_depth = query_manager.get_folder_depth(new_parent_id)
-
-            # Calculate total depth after move
-            total_depth = target_depth + subtree_depth + 1
-
-            if total_depth > self.config.max_folder_depth:
-                raise ValueError(f"Moving folder would exceed maximum depth of {self.config.max_folder_depth}")
-
             # Check if move would create a cycle
             temp_parent = new_parent_id
             while temp_parent is not None:
@@ -339,6 +327,20 @@ class DatabaseManager(Singleton):
                     raise ValueError("Cannot move folder: would create a cycle")
                 folder = query_manager.fetch_folder_by_id(temp_parent)
                 temp_parent = folder['parent_id'] if folder else None
+
+            # Check depth limit unless overridden
+            if not override_depth_check:
+                # Get the depth of the subtree being moved
+                subtree_depth = query_manager.get_subtree_depth(folder_id)
+
+                # Get the depth at the new location
+                target_depth = query_manager.get_folder_depth(new_parent_id)
+
+                # Calculate total depth after move
+                total_depth = target_depth + subtree_depth + 1
+
+                if total_depth > self.config.max_folder_depth:
+                    raise ValueError(f"Moving folder would exceed maximum depth of {self.config.max_folder_depth}")
 
         query_manager.update_folder_parent(folder_id, new_parent_id)
 
