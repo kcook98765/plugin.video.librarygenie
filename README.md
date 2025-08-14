@@ -8,35 +8,38 @@ LibraryGenie is a comprehensive Kodi addon that bridges your local Kodi media li
 ### 🤖 AI-Powered Search
 - **Natural Language Queries**: Search your media using plain English descriptions
 - **Semantic Search**: Leverages AI embeddings for intelligent movie discovery
-- **Query Refinement**: Interactive interface to improve and adjust search results
-- **Automatic Matching**: Seamlessly matches search results to your local Kodi library
+- **Interactive Search Interface**: Modal search window with real-time query refinement
+- **Automatic Library Matching**: Seamlessly matches search results to your local Kodi library
+- **Score-Based Results**: Search results ranked by relevance with automatic sorting
 
 ### 📚 Smart Library Management
-- **Hierarchical Organization**: Create nested folders and lists for better organization
-- **Dynamic Lists**: Lists that update automatically based on your search criteria
-- **Manual Curation**: Add individual items from any addon or source
-- **Exception Handling**: Block specific entries from appearing in lists
+- **Hierarchical Organization**: Create nested folders and lists with unlimited depth
+- **Dynamic Lists**: Lists that update automatically based on search criteria
+- **Manual Curation**: Add individual items from any addon or source via context menus
 - **Batch Operations**: Efficiently manage large collections
+- **Protected Search History**: Automatic permanent storage of all searches in a protected folder
 
 ### 🔄 Remote API Integration
 - **Easy Pairing**: Simple 8-digit code pairing with remote servers
-- **Batch Upload**: Efficiently sync your entire movie collection
+- **Chunked Batch Upload**: Efficiently sync your entire movie collection in chunks
 - **Delta Synchronization**: Only upload changes since last sync
-- **Multiple Auth Methods**: Support for API keys and pairing codes
-- **Connection Testing**: Verify connectivity and troubleshoot issues
+- **Multiple Auth Methods**: Support for API keys, pairing codes, and LGS authentication
+- **Connection Testing**: Built-in connectivity verification and troubleshooting
 
-### 🎯 Advanced List Features
+### 🎯 Advanced Navigation & UI
+- **Modal Interface System**: Clean, non-intrusive search and browse interfaces
 - **Context Menu Integration**: Add items directly from any Kodi interface
-- **List Browser**: Navigate and manage your collections easily
-- **Search History**: Automatic permanent storage of all search results as protected lists in a protected top-level folder
-- **Export/Import**: Backup and restore your list configurations
+- **Smart Navigation Management**: Prevents UI conflicts with timeout protection
+- **Options & Tools Menu**: Centralized access to all addon functionality
+- **Deferred Execution**: Handles complex operations without blocking the UI
 
 ### 🛠️ Technical Features
-- **SQLite Database**: Local storage for lists, folders, and metadata
-- **Seamless Integration**: Direct communication with Kodi's media library
-- **Intelligent Matching**: Automatic matching of search results to local content
-- **Debug Logging**: Comprehensive logging for troubleshooting
-- **Settings Management**: Centralized configuration system
+- **SQLite Database**: Local storage with comprehensive schema for lists, folders, and metadata
+- **JSONRPC Integration**: Direct communication with Kodi's media library
+- **Intelligent Matching**: Advanced algorithms for matching search results to local content
+- **Comprehensive Logging**: Detailed debug logging with configurable levels
+- **Settings Management**: Centralized configuration with validation
+- **Window Management**: Proper Kodi window lifecycle management
 
 ## Installation
 
@@ -74,145 +77,203 @@ LibraryGenie is a comprehensive Kodi addon that bridges your local Kodi media li
 ### Library Upload
 1. After API setup, go to **Remote API** in settings
 2. Click **Upload IMDB List to Server**
-3. The addon will scan your Kodi library and upload movie data
+3. The addon will scan your Kodi library and upload movie data in chunks
 4. This enables AI-powered search functionality
 
 ## Usage Guide
 
-### Quick Search Access
-LibraryGenie provides multiple ways to access the search functionality:
+### Accessing LibraryGenie
 
-1. **Direct Plugin Access**: 
-   - Launch LibraryGenie from the Kodi Add-ons menu
-   - Select "Search Movies..." from the main menu
-   
-2. **Skin/Home Shortcut** (for advanced users):
-   - Add this to your skin or home menu for direct search access:
-   ```
-   ActivateWindow(Videos,"plugin://plugin.video.librarygenie/?action=search",return)
-   ```
-   - This opens the search directly within the Videos window with proper back/return behavior
+#### From Add-ons Menu
+1. Navigate to **Add-ons** → **Video add-ons**
+2. Select **LibraryGenie**
+3. Choose from available options
 
-3. **Context Menu**: Right-click on any media item and select LibraryGenie options
+#### Quick Search Access
+- **Plugin URL for Skins**: `plugin://plugin.video.librarygenie/?action=search`
+- **Direct Window Access**: `ActivateWindow(Videos,"plugin://plugin.video.librarygenie/?action=search",return)`
 
-### Creating Lists
-1. Launch LibraryGenie from the Kodi Add-ons menu
-2. Navigate to create a new list or folder
-3. Enter your search criteria in natural language
-4. Review and refine results as needed
-5. Save the list for future use
-6. **Automatic**: Search results are also automatically saved as protected lists to "Search History" folder
+#### Context Menu
+- Right-click on any media item in Kodi
+- Select **LibraryGenie** from the context menu
+- Add items directly to existing lists or create new ones
 
-### Natural Language Search Examples
+### Using the Options & Tools Menu
+
+The Options & Tools menu dynamically adapts based on your authentication status and available data:
+
+- **Search Movies**: Available when authenticated to remote API
+- **Search History**: Available when search history exists
+- **Create New List**: Always available
+- **Create New Folder**: Always available  
+- **Settings**: Always available
+
+### Search Functionality
+
+#### Natural Language Search Examples
 - "Psychological thrillers with plot twists"
 - "Comedy movies from the 80s and 90s"
 - "Sci-fi movies about time travel"
 - "Action movies starring Tom Cruise"
 - "Animated movies suitable for kids"
 
+#### Search Process
+1. Access search via Options menu or direct plugin call
+2. Enter your natural language query in the search modal
+3. Review results ranked by relevance score
+4. Results are automatically saved to "Search History" folder
+5. Navigate to saved search list to view matched local content
+
 ### Managing Collections
-- **Folders**: Organize your lists into hierarchical folders
-- **Manual Addition**: Use context menus to add specific items
-- **Exceptions**: Block unwanted items from appearing in lists
-- **Batch Operations**: Perform actions on multiple items at once
+
+#### Folder Structure
+- **Root Level**: Top-level folders and lists
+- **Nested Folders**: Unlimited hierarchical organization
+- **Search History**: Protected folder containing all search results
+- **Context Preservation**: Folder context maintained across operations
+
+#### List Management
+- **View Lists**: Browse list contents with proper sorting options
+- **Rename/Delete**: Full management capabilities via context menus
+- **Move Lists**: Reorganize lists between folders
+- **Manual Addition**: Add specific items via context menus
+- **Remove Items**: Remove individual items from lists
 
 ### Search History Management
-- **Automatic Storage**: Every search is automatically saved as a new list under "Search History"
-- **Protected Folder**: The "Search History" folder cannot be deleted, renamed, or modified
-- **Manageable Lists**: Search history lists can be deleted, renamed, or moved like any other list
-- **Timestamped Lists**: Each search creates a timestamped list showing the exact query and results
-- **Full Management**: Search history lists support all normal operations (view, edit, delete, rename, move)
-- **Searchable Archive**: Build a searchable archive of all your search discoveries over time
 
-### Context Menu Integration
-- Right-click on any media item in Kodi
-- Select LibraryGenie options from the context menu
-- Add items directly to existing lists
-- Create new lists on the fly
+The Search History system automatically preserves all your searches:
+
+- **Automatic Storage**: Every search creates a timestamped list in "Search History"
+- **Protected Folder**: Cannot be deleted, renamed, or modified
+- **Manageable Lists**: Individual search lists can be deleted, renamed, or moved
+- **Score Preservation**: Search results maintain relevance scores
+- **Full Archive**: Complete searchable history of all discoveries
 
 ## Configuration Options
-
-### LibraryGenie Server Settings
-- **LGS Upload API URL**: Your server's API endpoint
-- **LGS Upload API Key**: Authentication key for uploads
-- **LGS Username/Password**: Optional user credentials
-- **Authenticate with One-Time Code**: Quick setup option
 
 ### Remote API Settings
 - **Remote API Server URL**: Base URL for your search API server
 - **Remote API Key**: Your unique API authentication key
-- **Connection Testing**: Verify API connectivity
-- **Upload Management**: Sync your library with the server
+- **Connection Testing**: Verify API connectivity and troubleshoot issues
+
+### LGS Integration Settings
+- **LGS Upload API URL**: Your server's API endpoint
+- **LGS Upload API Key**: Authentication key for uploads
+- **LGS Username/Password**: Optional user credentials
+- **One-Time Code Authentication**: Quick setup option
 
 ### Advanced Options
 - **Debug Logging**: Enable detailed logging for troubleshooting
 - **Database Management**: Backup and restore local data
 - **Performance Tuning**: Adjust timeouts and batch sizes
+- **Navigation Protection**: Configurable UI conflict prevention
 
-## Troubleshooting
+## Architecture Overview
 
-### Common Issues
+### Core Components
 
-#### Authentication Problems
-- **Error**: "Invalid or missing API key"
-- **Solution**: Re-pair the addon or regenerate your API key
+#### Database Layer
+- **DatabaseManager**: SQLite operations and schema management
+- **QueryManager**: Optimized SQL query building and execution
+- **DatabaseSyncManager**: Kodi library synchronization
 
-#### Connection Issues
-- **Error**: "Cannot connect to server"
-- **Solution**: Verify server URL and check network connectivity
+#### API Integration
+- **RemoteAPIClient**: Search API communication
+- **APIClient**: General API utilities
+- **AuthenticationManager**: Pairing and credential management
 
-#### Search Not Working
-- **Error**: "No results found"
-- **Solution**: Ensure your library has been uploaded to the server
+#### User Interface
+- **WindowSearch**: Modal search interface
+- **OptionsManager**: Dynamic options menu system
+- **NavigationManager**: UI state and navigation management
+- **DirectoryBuilder**: Kodi directory listing construction
 
-#### Library Matching Issues
-- **Error**: "Search results don't match local content"
-- **Solution**: The addon will automatically attempt to find matching content in your library
-
-### Debug Mode
-1. Enable debug logging in addon settings
-2. Reproduce the issue
-3. Check Kodi's log file for detailed error information
-4. Look for entries prefixed with `[LibraryGenie]`
-
-### Getting Help
-- Check the addon's log output for error messages
-- Verify all settings are correctly configured
-- Test the remote API connection
-- Review the server documentation for API changes
-
-## Development
+#### Media Management
+- **ResultsManager**: Search result processing and display
+- **MediaManager**: Kodi library integration
+- **ListItemBuilder**: Kodi ListItem construction with proper metadata
 
 ### File Structure
 ```
 resources/
 ├── lib/                    # Core addon logic
-│   ├── api_client.py      # API communication
-│   ├── database_manager.py # Local database operations
-│   ├── query_manager.py   # SQL query management
-│   ├── remote_api_client.py # Remote server integration
-│   └── window_*.py        # UI components
-├── language/              # Localization files
-└── settings.xml          # Addon configuration
+│   ├── database_manager.py     # Local database operations
+│   ├── query_manager.py        # SQL query management
+│   ├── remote_api_client.py    # Remote server integration
+│   ├── options_manager.py      # Dynamic options menu
+│   ├── navigation_manager.py   # UI navigation control
+│   ├── window_search.py        # Search modal interface
+│   ├── results_manager.py      # Search result processing
+│   ├── folder_list_manager.py  # Folder/list operations
+│   ├── route_handlers.py       # Action routing
+│   ├── listitem_builder.py     # Kodi ListItem creation
+│   └── utils.py               # Logging and utilities
+├── media/                      # Addon graphics and icons
+├── language/                   # Localization files
+└── settings.xml               # Addon configuration schema
 ```
 
-### Key Components
-- **DatabaseManager**: Handles local SQLite operations and search history management
-- **RemoteAPIClient**: Manages server communication
-- **QueryManager**: Builds and executes database queries
-- **Window Classes**: Implement the user interface
-- **Utils**: Common utility functions and logging
-- **Search History**: Automatic preservation of all search queries and results
+## Troubleshooting
+
+### Common Issues
+
+#### Search Not Working
+- **Symptoms**: "Search Movies" not available in options
+- **Solution**: Verify remote API configuration and authentication
+
+#### Navigation Conflicts
+- **Symptoms**: Options menu not responding or appearing multiple times
+- **Solution**: Built-in navigation protection handles this automatically
+
+#### Library Matching Issues
+- **Symptoms**: Search results don't show local matches
+- **Solution**: Ensure library upload completed successfully
+
+#### Database Corruption
+- **Symptoms**: Lists or folders not displaying correctly
+- **Solution**: Check addon logs and consider database rebuild
+
+### Debug Mode
+1. Enable debug logging in addon settings
+2. Reproduce the issue
+3. Check Kodi's log file for entries prefixed with `[LibraryGenie]`
+4. Look for ERROR, WARNING, and DEBUG level messages
+
+### Log Analysis
+The addon provides comprehensive logging with these levels:
+- **ERROR**: Critical issues requiring attention
+- **WARNING**: Potential problems or edge cases
+- **INFO**: Important operational information
+- **DEBUG**: Detailed execution flow and data
 
 ## API Integration
 
-The addon integrates with a remote search API that provides:
-- AI-powered semantic search capabilities
-- Movie metadata and recommendations
-- User library synchronization
-- Natural language query processing
+### Search API Endpoints
+- **Search**: Natural language movie search with AI processing
+- **Library Upload**: Chunked batch upload of user's movie collection
+- **Authentication**: Pairing code and API key management
 
-See `docs/remote_api_interactions.md` for detailed API documentation.
+### Data Flow
+1. User enters natural language query
+2. Query sent to remote search API
+3. AI processes query and returns ranked results
+4. Results matched against local Kodi library
+5. Combined results displayed with relevance scores
+6. Search automatically saved to Search History
+
+## Development
+
+### Key Design Patterns
+- **Singleton Pattern**: Used for configuration and database managers
+- **Factory Pattern**: ListItem creation and directory building
+- **Observer Pattern**: Navigation state management
+- **Command Pattern**: Route handling and action execution
+
+### Testing
+- **Modal Testing**: Search interface validation
+- **Database Testing**: SQLite schema and query validation
+- **API Testing**: Remote endpoint connectivity
+- **Navigation Testing**: UI state management
 
 ## License
 
@@ -221,21 +282,22 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Support
 
 For issues, feature requests, or questions:
-1. Check the troubleshooting section above
-2. Enable debug logging and review log files
-3. Open an issue on the project repository
-4. Provide log excerpts and detailed error descriptions
+1. Enable debug logging in addon settings
+2. Review log files for error messages
+3. Check the troubleshooting section above
+4. Open an issue with detailed error descriptions and log excerpts
 
 ## Contributing
 
-Contributions are welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes with proper documentation
-4. Submit a pull request with a clear description
+Contributions are welcome! The codebase uses:
+- **Python 3.x** compatible with Kodi's Python API
+- **SQLite** for local data storage
+- **Kodi's JSONRPC API** for media library integration
+- **Modal UI patterns** for non-intrusive user interaction
 
 ## Acknowledgments
 
 - Built for the Kodi media center platform
 - Utilizes AI technologies for enhanced search capabilities
-- Inspired by the need for better media discovery tools
+- Inspired by the need for better media discovery and organization tools
+- Implements modern UI patterns for seamless user experience
