@@ -18,13 +18,25 @@ class OptionsManager:
             "Settings"
         ]
 
-    def show_options_menu(self, params):
-        """Show the Options & Tools menu"""
+    def show_options_menu(self, query_params):
+        """Show the options and tools menu"""
         utils.log("=== OPTIONS DIALOG REQUEST START ===", "DEBUG")
         utils.log("Showing Options & Tools menu", "DEBUG")
-        # Get current window info for debugging
-        current_window_id = xbmcgui.getCurrentWindowId()
+
+        # Initialize current_folder_id from query params
+        current_folder_id = None
+        if 'folder_id' in query_params:
+            folder_id_param = query_params.get('folder_id', [None])
+            if isinstance(folder_id_param, list) and folder_id_param:
+                try:
+                    current_folder_id = int(folder_id_param[0]) if folder_id_param[0] and folder_id_param[0].isdigit() else None
+                except (ValueError, TypeError):
+                    current_folder_id = None
+
+        # Get current window information for debugging
+        current_window_id = xbmc.getInfoLabel('System.CurrentWindow')
         utils.log(f"Current window ID before options: {current_window_id}", "DEBUG")
+        utils.log(f"Current window ID: {current_window_id}", "DEBUG")
 
         # Check for navigation protection with automatic cleanup
         navigation_active = xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.Navigating)")
@@ -140,15 +152,14 @@ class OptionsManager:
         utils.log("=== COMPLETED QUICK CLEANUP ===", "DEBUG")
 
         # Get current folder from params if available
-        current_folder_id = params.get('folder_id')
-
-        if current_folder_id and isinstance(current_folder_id, list):
-            current_folder_id = current_folder_id[0]
-
-        if current_folder_id and str(current_folder_id).isdigit():
-            current_folder_id = int(current_folder_id)
-        else:
-            current_folder_id = None
+        # This is a fallback if the property-based initialization didn't catch it or if it was reset
+        if current_folder_id is None and 'folder_id' in query_params:
+            folder_id_param = query_params.get('folder_id', [None])
+            if isinstance(folder_id_param, list) and folder_id_param:
+                try:
+                    current_folder_id = int(folder_id_param[0]) if folder_id_param[0] and folder_id_param[0].isdigit() else None
+                except (ValueError, TypeError):
+                    current_folder_id = None
 
         self._execute_option(selected_option, selected_text, current_folder_id)
 
