@@ -20,28 +20,27 @@ class FolderListManager:
 
     def create_new_folder(self, parent_folder_id):
         """Create a new folder in the specified parent folder (None for root)"""
-        name = xbmcgui.Dialog().input('New folder name', type=xbmcgui.INPUT_ALPHANUM)
-        if not name:
-            return
-
         try:
-            # Check folder depth limit before creating
+            # Check folder depth limit BEFORE asking for folder name
             if parent_folder_id is not None:
                 current_depth = self.db_manager.get_folder_depth(parent_folder_id)
                 max_depth = self.config.max_folder_depth - 1  # -1 because we're adding a new level
                 
                 if current_depth >= max_depth:
-                    # Show limit reached dialog with override option
-                    override = xbmcgui.Dialog().yesno(
+                    # Show limit reached notification without override option
+                    xbmcgui.Dialog().ok(
                         'Folder Depth Limit Reached',
-                        f'Maximum folder depth of {self.config.max_folder_depth} would be exceeded.\n\n'
-                        f'Current depth: {current_depth + 1}, Limit: {self.config.max_folder_depth}\n\n'
-                        'Override limit and create folder anyway?'
+                        f'Maximum folder depth of {self.config.max_folder_depth} has been reached.\n\n'
+                        f'Current location depth: {current_depth + 1}\n'
+                        f'Maximum allowed depth: {self.config.max_folder_depth}\n\n'
+                        'Please adjust the "Maximum Folder Depth" setting to allow deeper nesting.'
                     )
-                    
-                    if not override:
-                        xbmcgui.Dialog().notification('LibraryGenie', 'Folder creation cancelled')
-                        return
+                    return
+
+            # Only ask for name if depth check passed
+            name = xbmcgui.Dialog().input('New folder name', type=xbmcgui.INPUT_ALPHANUM)
+            if not name:
+                return
 
             # Create in specified parent folder
             self.db_manager.insert_folder(name, parent_folder_id)

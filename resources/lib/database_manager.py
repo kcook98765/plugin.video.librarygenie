@@ -80,12 +80,6 @@ class DatabaseManager(Singleton):
         return query_manager.get_folder_depth(folder_id)
 
     def insert_folder(self, name, parent_id=None):
-        if parent_id is not None:
-            current_depth = self.get_folder_depth(parent_id)
-            max_depth = self.config.max_folder_depth - 1  # -1 because we're adding a new level
-            if current_depth >= max_depth:
-                raise ValueError(f"Maximum folder depth of {self.config.max_folder_depth} exceeded")
-
         from resources.lib.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         query_manager.insert_folder_direct(name, parent_id)
