@@ -281,6 +281,10 @@ class OptionsManager:
         """Execute an option that was deferred due to timeout concerns"""
         utils.log(f"=== EXECUTING DEFERRED OPTION {option_index} ===", "DEBUG")
 
+        # Build the options list since this is a new instance
+        self.options = self._build_options_list()
+        utils.log(f"Built options list for deferred execution: {self.options}", "DEBUG")
+
         if option_index < 0 or option_index >= len(self.options):
             utils.log(f"Invalid deferred option index: {option_index}", "ERROR")
             return
