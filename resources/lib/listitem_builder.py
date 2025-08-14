@@ -145,7 +145,7 @@ class ListItemBuilder:
         return cleaned
 
     @staticmethod
-    def build_video_item(media_info):
+    def build_video_item(media_info, is_search_history=False):
         """Build a complete video ListItem with all available metadata"""
         if not isinstance(media_info, dict):
             media_info = {}
@@ -156,9 +156,9 @@ class ListItemBuilder:
         title = str(media_info.get('title', ''))
         title = ListItemBuilder._clean_title(title)
 
-        # Apply color coding based on search score
+        # Apply color coding based on search score only for Search History lists
         search_score = media_info.get('search_score')
-        if search_score and search_score > 0:
+        if is_search_history and search_score and search_score > 0:
             # Color the title based on score without showing the numeric value
             title = ListItemBuilder._colorize_title_by_score(title, search_score)
 

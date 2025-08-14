@@ -27,6 +27,10 @@ class ResultsManager(Singleton):
         import json
         rows = self.query_manager.fetch_list_items_with_details(list_id)
         external, refs = [], []
+
+        # Determine if this list is part of the search history
+        is_search_history = self.query_manager.is_search_history(list_id)
+
         for r in rows:
             src = (r.get('source') or '').lower()
             if src == 'external':
@@ -73,9 +77,8 @@ class ResultsManager(Singleton):
                     title = f"IMDB: {imdb}" if imdb else "Unknown Movie"
                     utils.log(f"Using IMDB ID as title fallback: {title}", "WARNING")
 
-            refs.append({'imdb': imdb, 'title': title, 'year': year})
+            refs.append({'imdb': imdb, 'title': title, 'year': year, 'search_score': r.get('search_score', 0)}) # Include search_score here
 
-        resolved = []
         # ---- Batch resolve via one JSON-RPC call using OR of (title AND year) ----
         batch_pairs = [{"title": r.get("title"), "year": r.get("year")} for r in refs]
         utils.log(f"Batch lookup pairs: {batch_pairs[:3]}..." if len(batch_pairs) > 3 else f"Batch lookup pairs: {batch_pairs}", "DEBUG")
@@ -103,20 +106,27 @@ class ResultsManager(Singleton):
             idx_t.setdefault(kt, []).append(m)
 
         # Rebuild resolved list in the original refs order (already sorted by search score from query)
-        for i, item in enumerate(rows): # Use original 'rows' to get 'id' and 'source' for unmatched items
-            ref_title = item.get("title", "") # Get title from original row if available
-            ref_year = item.get("year", 0) # Get year from original row if available
-            ref_imdb = item.get("imdbnumber", "") # Get imdbnumber from original row if available
+        resolved_items_for_list = []
+        for i, r in enumerate(rows): # Use original 'rows' to get 'id' and 'source' for unmatched items
+            ref_title = r.get("title", "") # Get title from original row if available
+            ref_year = r.get("year", 0) # Get year from original row if available
+            ref_imdb = r.get("imdbnumber", "") # Get imdbnumber from original row if available
 
-            k_exact = _key(ref_title, ref_year)
-            k_title = _key(ref_title, 0)
+            # Find the corresponding processed ref data
+            processed_ref = next((ref for ref in refs if ref.get('imdb') == ref_imdb and ref.get('title') == ref_title and ref.get('year') == ref_year), None)
+            if not processed_ref:
+                # Fallback if processed_ref is somehow not found, use original row data
+                processed_ref = {'title': ref_title, 'year': ref_year, 'imdb': ref_imdb, 'search_score': r.get('search_score', 0)}
+
+
+            k_exact = _key(processed_ref.get("title"), processed_ref.get("year"))
+            k_title = _key(processed_ref.get("title"), 0)
             cand = (idx_ty.get(k_exact) or idx_t.get(k_title) or [])
             meta = cand[0] if cand else None
 
             resolved_item = None
             if meta:
                 # Found in Kodi library via JSON-RPC
-                # utils.log(f"Item {i+1}: Found Kodi match for '{ref_title}' ({ref_year}) -> '{meta.get('title')}' ({meta.get('year')})", "DEBUG")
                 cast = meta.get('cast') or []
                 if isinstance(cast, list):
                     cast = [{'name': a.get('name'),
@@ -126,33 +136,39 @@ class ResultsManager(Singleton):
                 if isinstance(meta.get('writer'), list):
                     meta['writer'] = ' / '.join(meta['writer'])
                 # Preserve search score from original item for sorting
-                meta['search_score'] = item.get('search_score', 0)
-                resolved_item = meta
+                meta['search_score'] = processed_ref.get('search_score', 0)
+                meta['list_item_id'] = r.get('list_item_id') # from original row
+                from resources.lib.listitem_builder import ListItemBuilder
+                list_item = ListItemBuilder.build_video_item(meta, is_search_history=is_search_history)
+                resolved_items_for_list.append((list_item, meta.get('file', ''), meta))
             else:
                 # No Kodi match found - using fallback data
-                fallback_title = ref_title or 'Unknown Title'
-                utils.log(f"Item {i+1}: No Kodi match for '{ref_title}' ({ref_year}), using fallback title: '{fallback_title}'", "WARNING")
-                # Keep unmatched items for now - they're acceptable
-                if not resolved_item:
-                    resolved_item = {
-                        'id': item.get('id'),
-                        'title': f"[Unmatched] {ref_title or ref_imdb or 'Unknown'}",
-                        'year': ref_year or 0,
-                        'plot': f"IMDb ID: {ref_imdb} - Not found in Kodi library" if ref_imdb else "Not found in Kodi library",
-                        'rating': 0.0,
-                        'kodi_id': None,
-                        'file': None,
-                        'genre': '',
-                        'cast': [],
-                        'art': {},
-                        'search_score': item.get('search_score', 0)
-                    }
+                fallback_title = processed_ref.get("title") or 'Unknown Title'
+                utils.log(f"Item {i+1}: No Kodi match for '{processed_ref.get('title')}' ({processed_ref.get('year')}), using fallback title: '{fallback_title}'", "WARNING")
+                resolved_item = {
+                    'id': r.get('id'), # from original row
+                    'title': f"[Unmatched] {processed_ref.get('title') or ref_imdb or 'Unknown'}",
+                    'year': processed_ref.get('year', 0) or 0,
+                    'plot': f"IMDb ID: {ref_imdb} - Not found in Kodi library" if ref_imdb else "Not found in Kodi library",
+                    'rating': 0.0,
+                    'kodi_id': None,
+                    'file': None,
+                    'genre': '',
+                    'cast': [],
+                    'art': {},
+                    'search_score': processed_ref.get('search_score', 0),
+                    'list_item_id': r.get('list_item_id') # from original row
+                }
+                from resources.lib.listitem_builder import ListItemBuilder
+                list_item = ListItemBuilder.build_video_item(resolved_item, is_search_history=is_search_history)
+                resolved_items_for_list.append((list_item, resolved_item.get('file', ''), resolved_item))
 
-            # Ensure a resolved item exists before appending
-            if resolved_item:
-                resolved.append(resolved_item)
 
         # Sort external items by search score as well if they have scores
         external_sorted = sorted(external, key=lambda x: x.get('search_score', 0), reverse=True)
-        
-        return resolved + external_sorted
+        for item in external_sorted:
+            from resources.lib.listitem_builder import ListItemBuilder
+            list_item = ListItemBuilder.build_video_item(item, is_search_history=is_search_history)
+            resolved_items_for_list.append((list_item, item.get('file', ''), item))
+
+        return resolved_items_for_list

@@ -81,13 +81,13 @@ def add_options_header_item(ctx: dict, handle: int):
             'action': 'show_options',
             'view': ctx.get('view'),
         }
-        
+
         # Only include list_id/folder_id if they exist
         if ctx.get('list_id'):
             url_params['list_id'] = ctx['list_id']
         if ctx.get('folder_id'):
             url_params['folder_id'] = ctx['folder_id']
-            
+
         utils.log(f"FOLDER_CONTEXT_DEBUG: Building options URL with params: {url_params}", "DEBUG")
         url = build_plugin_url(url_params)
         utils.log(f"FOLDER_CONTEXT_DEBUG: Built options URL: {url}", "DEBUG")
