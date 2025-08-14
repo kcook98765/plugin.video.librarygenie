@@ -1,45 +1,51 @@
 
 # LibraryGenie Kodi Addon
 
-LibraryGenie is a comprehensive Kodi addon that bridges your local Kodi media library with remote AI-powered search capabilities. The addon enables natural language queries, intelligent list management, and seamless synchronization with remote search APIs.
+LibraryGenie is a comprehensive Kodi addon focused on intelligent list management and organization for your media library. The addon provides hierarchical folder structures, smart list creation, and seamless integration with Kodi's interface.
 
-## Features
+## Current Features (Available Now)
 
-### 🤖 AI-Powered Search
+### 📚 Smart Library Management
+- **Hierarchical Organization**: Create nested folders and lists with unlimited depth
+- **Manual Curation**: Add individual items from any addon or source via context menus
+- **Batch Operations**: Efficiently manage large collections
+- **Context Menu Integration**: Add items directly from any Kodi interface
+- **Smart Navigation Management**: Prevents UI conflicts with timeout protection
+
+### 🎯 Advanced Navigation & UI
+- **Modal Interface System**: Clean, non-intrusive browse interfaces
+- **Options & Tools Menu**: Centralized access to all addon functionality
+- **Deferred Execution**: Handles complex operations without blocking the UI
+- **Window Management**: Proper Kodi window lifecycle management
+
+### 🛠️ Technical Features
+- **SQLite Database**: Local storage with comprehensive schema for lists, folders, and metadata
+- **JSONRPC Integration**: Direct communication with Kodi's media library
+- **Comprehensive Logging**: Detailed debug logging with configurable levels
+- **Settings Management**: Centralized configuration with validation
+
+## Future AI Features (Invite-Only Alpha) 🚀
+
+> ⚠️ **Alpha Status Notice**: The AI-powered features below are currently in invite-only alpha testing. These capabilities are not available in the general release and require special server access. Contact the development team for alpha testing opportunities.
+
+### 🤖 AI-Powered Search (Alpha)
 - **Natural Language Queries**: Search your media using plain English descriptions
 - **Semantic Search**: Leverages AI embeddings for intelligent movie discovery
 - **Interactive Search Interface**: Modal search window with real-time query refinement
 - **Automatic Library Matching**: Seamlessly matches search results to your local Kodi library
 - **Score-Based Results**: Search results ranked by relevance with automatic sorting
 
-### 📚 Smart Library Management
-- **Hierarchical Organization**: Create nested folders and lists with unlimited depth
-- **Dynamic Lists**: Lists that update automatically based on search criteria
-- **Manual Curation**: Add individual items from any addon or source via context menus
-- **Batch Operations**: Efficiently manage large collections
-- **Protected Search History**: Automatic permanent storage of all searches in a protected folder
-
-### 🔄 Remote API Integration
+### 🔄 Remote API Integration (Alpha)
 - **Easy Pairing**: Simple 8-digit code pairing with remote servers
 - **Chunked Batch Upload**: Efficiently sync your entire movie collection in chunks
 - **Delta Synchronization**: Only upload changes since last sync
 - **Multiple Auth Methods**: Support for API keys, pairing codes, and LGS authentication
 - **Connection Testing**: Built-in connectivity verification and troubleshooting
 
-### 🎯 Advanced Navigation & UI
-- **Modal Interface System**: Clean, non-intrusive search and browse interfaces
-- **Context Menu Integration**: Add items directly from any Kodi interface
-- **Smart Navigation Management**: Prevents UI conflicts with timeout protection
-- **Options & Tools Menu**: Centralized access to all addon functionality
-- **Deferred Execution**: Handles complex operations without blocking the UI
-
-### 🛠️ Technical Features
-- **SQLite Database**: Local storage with comprehensive schema for lists, folders, and metadata
-- **JSONRPC Integration**: Direct communication with Kodi's media library
+### 📊 Advanced Search Features (Alpha)
+- **Dynamic Lists**: Lists that update automatically based on search criteria
+- **Protected Search History**: Automatic permanent storage of all searches in a protected folder
 - **Intelligent Matching**: Advanced algorithms for matching search results to local content
-- **Comprehensive Logging**: Detailed debug logging with configurable levels
-- **Settings Management**: Centralized configuration with validation
-- **Window Management**: Proper Kodi window lifecycle management
 
 ## Installation
 
@@ -57,9 +63,13 @@ LibraryGenie is a comprehensive Kodi addon that bridges your local Kodi media li
 
 ## Initial Setup
 
-### Remote API Configuration
+The addon works immediately after installation with no additional configuration required for list management features.
 
-#### Method 1: Easy Pairing (Recommended)
+### For Alpha AI Features (Invite-Only)
+
+> ⚠️ **Alpha Access Required**: These setup steps only apply to users with alpha testing access.
+
+#### Method 1: Easy Pairing (Recommended for Alpha Users)
 1. Visit your server's web dashboard and generate a pairing code
 2. Open LibraryGenie addon settings
 3. Go to **Remote API** section
@@ -67,14 +77,14 @@ LibraryGenie is a comprehensive Kodi addon that bridges your local Kodi media li
 5. Enter the 8-digit pairing code when prompted
 6. The addon will automatically configure the connection
 
-#### Method 2: Manual Setup
+#### Method 2: Manual Setup (Alpha Users)
 1. Obtain your API key from the server dashboard
 2. Open addon settings → **Remote API**
 3. Set **Remote API Server URL** to your server address
 4. Set **Remote API Key** to your API key
 5. Click **Test Remote API Connection** to verify
 
-### Library Upload
+#### Library Upload (Alpha Users)
 1. After API setup, go to **Remote API** in settings
 2. Click **Upload IMDB List to Server**
 3. The addon will scan your Kodi library and upload movie data in chunks
@@ -89,10 +99,6 @@ LibraryGenie is a comprehensive Kodi addon that bridges your local Kodi media li
 2. Select **LibraryGenie**
 3. Choose from available options
 
-#### Quick Search Access
-- **Plugin URL for Skins**: `plugin://plugin.video.librarygenie/?action=search`
-- **Direct Window Access**: `ActivateWindow(Videos,"plugin://plugin.video.librarygenie/?action=search",return)`
-
 #### Context Menu
 - Right-click on any media item in Kodi
 - Select **LibraryGenie** from the context menu
@@ -100,36 +106,22 @@ LibraryGenie is a comprehensive Kodi addon that bridges your local Kodi media li
 
 ### Using the Options & Tools Menu
 
-The Options & Tools menu dynamically adapts based on your authentication status and available data:
+The Options & Tools menu adapts based on your authentication status:
 
+**Always Available:**
+- **Create New List**: Create new lists in any folder
+- **Create New Folder**: Organize lists in hierarchical folders
+- **Settings**: Access addon configuration
+
+**Alpha Users Only:**
 - **Search Movies**: Available when authenticated to remote API
 - **Search History**: Available when search history exists
-- **Create New List**: Always available
-- **Create New Folder**: Always available  
-- **Settings**: Always available
-
-### Search Functionality
-
-#### Natural Language Search Examples
-- "Psychological thrillers with plot twists"
-- "Comedy movies from the 80s and 90s"
-- "Sci-fi movies about time travel"
-- "Action movies starring Tom Cruise"
-- "Animated movies suitable for kids"
-
-#### Search Process
-1. Access search via Options menu or direct plugin call
-2. Enter your natural language query in the search modal
-3. Review results ranked by relevance score
-4. Results are automatically saved to "Search History" folder
-5. Navigate to saved search list to view matched local content
 
 ### Managing Collections
 
 #### Folder Structure
 - **Root Level**: Top-level folders and lists
 - **Nested Folders**: Unlimited hierarchical organization
-- **Search History**: Protected folder containing all search results
 - **Context Preservation**: Folder context maintained across operations
 
 #### List Management
@@ -139,34 +131,36 @@ The Options & Tools menu dynamically adapts based on your authentication status 
 - **Manual Addition**: Add specific items via context menus
 - **Remove Items**: Remove individual items from lists
 
-### Search History Management
+### Alpha AI Features Usage (Invite-Only)
 
-The Search History system automatically preserves all your searches:
+> ⚠️ **Alpha Access Required**: These features require special server access.
 
-- **Automatic Storage**: Every search creates a timestamped list in "Search History"
-- **Protected Folder**: Cannot be deleted, renamed, or modified
-- **Manageable Lists**: Individual search lists can be deleted, renamed, or moved
-- **Score Preservation**: Search results maintain relevance scores
-- **Full Archive**: Complete searchable history of all discoveries
+#### Natural Language Search Examples
+- "Psychological thrillers with plot twists"
+- "Comedy movies from the 80s and 90s"
+- "Sci-fi movies about time travel"
+- "Action movies starring Tom Cruise"
+- "Animated movies suitable for kids"
+
+#### Search Process (Alpha)
+1. Access search via Options menu
+2. Enter your natural language query in the search modal
+3. Review results ranked by relevance score
+4. Results are automatically saved to "Search History" folder
+5. Navigate to saved search list to view matched local content
 
 ## Configuration Options
 
-### Remote API Settings
+### Basic Settings (Available to All Users)
+- **Debug Logging**: Enable detailed logging for troubleshooting
+- **Performance Tuning**: Adjust timeouts and batch sizes
+- **Navigation Protection**: Configurable UI conflict prevention
+
+### Alpha Settings (Invite-Only)
 - **Remote API Server URL**: Base URL for your search API server
 - **Remote API Key**: Your unique API authentication key
 - **Connection Testing**: Verify API connectivity and troubleshoot issues
-
-### LGS Integration Settings
-- **LGS Upload API URL**: Your server's API endpoint
-- **LGS Upload API Key**: Authentication key for uploads
-- **LGS Username/Password**: Optional user credentials
-- **One-Time Code Authentication**: Quick setup option
-
-### Advanced Options
-- **Debug Logging**: Enable detailed logging for troubleshooting
-- **Database Management**: Backup and restore local data
-- **Performance Tuning**: Adjust timeouts and batch sizes
-- **Navigation Protection**: Configurable UI conflict prevention
+- **LGS Integration Settings**: Alternative authentication methods
 
 ## Architecture Overview
 
@@ -175,23 +169,16 @@ The Search History system automatically preserves all your searches:
 #### Database Layer
 - **DatabaseManager**: SQLite operations and schema management
 - **QueryManager**: Optimized SQL query building and execution
-- **DatabaseSyncManager**: Kodi library synchronization
-
-#### API Integration
-- **RemoteAPIClient**: Search API communication
-- **APIClient**: General API utilities
-- **AuthenticationManager**: Pairing and credential management
 
 #### User Interface
-- **WindowSearch**: Modal search interface
 - **OptionsManager**: Dynamic options menu system
 - **NavigationManager**: UI state and navigation management
 - **DirectoryBuilder**: Kodi directory listing construction
 
-#### Media Management
+#### Alpha Components (Future Release)
+- **RemoteAPIClient**: Search API communication
+- **WindowSearch**: Modal search interface
 - **ResultsManager**: Search result processing and display
-- **MediaManager**: Kodi library integration
-- **ListItemBuilder**: Kodi ListItem construction with proper metadata
 
 ### File Structure
 ```
@@ -199,14 +186,14 @@ resources/
 ├── lib/                    # Core addon logic
 │   ├── database_manager.py     # Local database operations
 │   ├── query_manager.py        # SQL query management
-│   ├── remote_api_client.py    # Remote server integration
 │   ├── options_manager.py      # Dynamic options menu
 │   ├── navigation_manager.py   # UI navigation control
-│   ├── window_search.py        # Search modal interface
-│   ├── results_manager.py      # Search result processing
 │   ├── folder_list_manager.py  # Folder/list operations
 │   ├── route_handlers.py       # Action routing
 │   ├── listitem_builder.py     # Kodi ListItem creation
+│   ├── remote_api_client.py    # (Alpha) Remote server integration
+│   ├── window_search.py        # (Alpha) Search modal interface
+│   ├── results_manager.py      # (Alpha) Search result processing
 │   └── utils.py               # Logging and utilities
 ├── media/                      # Addon graphics and icons
 ├── language/                   # Localization files
@@ -217,21 +204,27 @@ resources/
 
 ### Common Issues
 
-#### Search Not Working
-- **Symptoms**: "Search Movies" not available in options
-- **Solution**: Verify remote API configuration and authentication
+#### Lists Not Displaying
+- **Symptoms**: Folders or lists not showing correctly
+- **Solution**: Check addon logs for database errors
 
 #### Navigation Conflicts
 - **Symptoms**: Options menu not responding or appearing multiple times
 - **Solution**: Built-in navigation protection handles this automatically
 
+#### Context Menu Not Working
+- **Symptoms**: LibraryGenie option not appearing in context menus
+- **Solution**: Verify addon is properly installed and enabled
+
+### Alpha-Specific Issues (Invite-Only)
+
+#### Search Not Working
+- **Symptoms**: "Search Movies" not available in options
+- **Solution**: Verify remote API configuration and alpha access
+
 #### Library Matching Issues
 - **Symptoms**: Search results don't show local matches
 - **Solution**: Ensure library upload completed successfully
-
-#### Database Corruption
-- **Symptoms**: Lists or folders not displaying correctly
-- **Solution**: Check addon logs and consider database rebuild
 
 ### Debug Mode
 1. Enable debug logging in addon settings
@@ -239,41 +232,23 @@ resources/
 3. Check Kodi's log file for entries prefixed with `[LibraryGenie]`
 4. Look for ERROR, WARNING, and DEBUG level messages
 
-### Log Analysis
-The addon provides comprehensive logging with these levels:
-- **ERROR**: Critical issues requiring attention
-- **WARNING**: Potential problems or edge cases
-- **INFO**: Important operational information
-- **DEBUG**: Detailed execution flow and data
+## Alpha Testing Program
 
-## API Integration
+> 🔬 **Join the Alpha**: Interested in testing AI-powered search features? The alpha program provides early access to cutting-edge media discovery capabilities powered by artificial intelligence.
 
-### Search API Endpoints
-- **Search**: Natural language movie search with AI processing
-- **Library Upload**: Chunked batch upload of user's movie collection
-- **Authentication**: Pairing code and API key management
+**What Alpha Testers Get:**
+- Early access to AI-powered natural language search
+- Advanced semantic matching algorithms
+- Automatic search history and smart recommendations
+- Direct feedback channel to influence feature development
 
-### Data Flow
-1. User enters natural language query
-2. Query sent to remote search API
-3. AI processes query and returns ranked results
-4. Results matched against local Kodi library
-5. Combined results displayed with relevance scores
-6. Search automatically saved to Search History
+**Requirements for Alpha Access:**
+- Stable internet connection for API communication
+- Willingness to provide feedback and bug reports
+- Understanding that features are experimental and may change
 
-## Development
-
-### Key Design Patterns
-- **Singleton Pattern**: Used for configuration and database managers
-- **Factory Pattern**: ListItem creation and directory building
-- **Observer Pattern**: Navigation state management
-- **Command Pattern**: Route handling and action execution
-
-### Testing
-- **Modal Testing**: Search interface validation
-- **Database Testing**: SQLite schema and query validation
-- **API Testing**: Remote endpoint connectivity
-- **Navigation Testing**: UI state management
+**How to Request Alpha Access:**
+Contact the development team with your use case and testing environment details.
 
 ## License
 
@@ -287,6 +262,8 @@ For issues, feature requests, or questions:
 3. Check the troubleshooting section above
 4. Open an issue with detailed error descriptions and log excerpts
 
+For alpha testing inquiries, contact the development team directly.
+
 ## Contributing
 
 Contributions are welcome! The codebase uses:
@@ -298,6 +275,6 @@ Contributions are welcome! The codebase uses:
 ## Acknowledgments
 
 - Built for the Kodi media center platform
-- Utilizes AI technologies for enhanced search capabilities
+- Core list management available to all users
+- AI capabilities powered by cutting-edge machine learning technologies (alpha)
 - Inspired by the need for better media discovery and organization tools
-- Implements modern UI patterns for seamless user experience
