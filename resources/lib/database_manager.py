@@ -638,13 +638,20 @@ class DatabaseManager(Singleton):
     def _ensure_protected_column(self):
         """Ensure the protected column exists in the lists table"""
         try:
-            # Check if protected column exists
-            self._execute_with_retry(self.cursor.execute, "SELECT protected FROM lists LIMIT 1")
-        except sqlite3.OperationalError:
-            # Column doesn't exist, add it
-            utils.log("Adding protected column to lists table", "INFO")
-            self._execute_with_retry(self.cursor.execute, "ALTER TABLE lists ADD COLUMN protected INTEGER DEFAULT 0")
-            self.connection.commit()
+            # Check if protected column exists by querying table info
+            self._execute_with_retry(self.cursor.execute, "PRAGMA table_info(lists)")
+            columns = self.cursor.fetchall()
+            column_names = [col[1] for col in columns]
+            
+            if 'protected' not in column_names:
+                # Column doesn't exist, add it
+                utils.log("Adding protected column to lists table", "INFO")
+                self._execute_with_retry(self.cursor.execute, "ALTER TABLE lists ADD COLUMN protected INTEGER DEFAULT 0")
+                self.connection.commit()
+            else:
+                utils.log("Protected column already exists in lists table", "DEBUG")
+        except Exception as e:
+            utils.log(f"Error ensuring protected column: {str(e)}", "ERROR")
 
     
 
