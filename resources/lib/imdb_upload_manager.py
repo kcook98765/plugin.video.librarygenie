@@ -79,7 +79,12 @@ class IMDbUploadManager:
                     title = movie.get('title', 'Unknown')
                     imdbnumber = movie.get('imdbnumber', '')
                     uniqueid = movie.get('uniqueid', {})
-                    utils.log(f"Movie {i+1}: '{title}' - imdbnumber: '{imdbnumber}', uniqueid: {uniqueid}", "WARNING")
+                    all_fields = list(movie.keys())
+                    utils.log(f"Movie {i+1}: '{title}'", "WARNING")
+                    utils.log(f"  - All fields: {all_fields}", "WARNING")
+                    utils.log(f"  - imdbnumber: '{imdbnumber}' (type: {type(imdbnumber)})", "WARNING")
+                    utils.log(f"  - uniqueid: {uniqueid} (type: {type(uniqueid)})", "WARNING")
+                    utils.log(f"  - Raw movie data: {json.dumps(movie, indent=2)}", "WARNING")
                 utils.log("=== END DEBUG ANALYSIS ===", "WARNING")
 
             utils.log(f"Found {len(valid_movies)} movies with valid IMDb IDs out of {len(movies)} total movies", "INFO")

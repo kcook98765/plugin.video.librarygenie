@@ -154,10 +154,10 @@ class JSONRPC:
         }
         query_json = json.dumps(query)
         
-        # Verbose JSONRPC logging - disabled to reduce log spam, uncomment to re-enable
-        # utils.log(f"Executing JSONRPC method: {method}", "DEBUG")
-        # utils.log(f"RAW JSONRPC REQUEST: {query_json}", "INFO")
-        # utils.log(f"RAW JSONRPC PARAMS: {json.dumps(params, indent=2)}", "INFO")
+        # Verbose JSONRPC logging - enabled for v19 debugging
+        utils.log(f"Executing JSONRPC method: {method}", "DEBUG")
+        utils.log(f"RAW JSONRPC REQUEST: {query_json}", "INFO")
+        utils.log(f"RAW JSONRPC PARAMS: {json.dumps(params, indent=2)}", "INFO")
 
         response = xbmc.executeJSONRPC(query_json)
         parsed_response = json.loads(response)
@@ -173,9 +173,8 @@ class JSONRPC:
             if method != "VideoLibrary.GetMovies" or utils.is_debug_enabled():
                 utils.log(f"JSONRPC {method} completed successfully", "DEBUG")
 
-        # Only log detailed responses in debug mode
-        if utils.is_debug_enabled():
-            utils.log(f"DEBUG: JSONRPC response: {response}", "DEBUG")
+        # Always log raw responses for debugging v19 issues
+        utils.log(f"RAW JSONRPC RESPONSE: {response}", "INFO")
 
         return parsed_response
 
