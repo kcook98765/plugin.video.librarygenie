@@ -299,7 +299,19 @@ def browse_list(list_id):
         utils.log(f"Successfully added {items_added} items ({playable_count} playable, {non_playable_count} non-playable)", "INFO")
 
         # Check if this is a search results list with scores to preserve order
-        has_scores = any(item.get('search_score', 0) > 0 for item in display_items)
+        has_scores = False
+        for item in display_items:
+            # Handle both tuple (li, file, media) and dict formats
+            if isinstance(item, tuple) and len(item) >= 3:
+                media_dict = item[2]  # Third element is the metadata dict
+            elif isinstance(item, dict):
+                media_dict = item
+            else:
+                media_dict = {}
+            
+            if media_dict.get('search_score', 0) > 0:
+                has_scores = True
+                break
 
         # Always enable sort methods so users can override the default order
         xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_LABEL)
