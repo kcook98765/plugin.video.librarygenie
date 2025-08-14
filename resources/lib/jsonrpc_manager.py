@@ -107,11 +107,20 @@ class JSONRPC:
         Resolve many movies in one VideoLibrary.GetMovies using an OR of (title AND year) groups.
         `pairs`: iterable of dicts like {"title": "...", "year": 2024}
         Returns the raw JSON-RPC response (same shape as GetMovies).
+        v19 compatibility: Falls back to manual filtering if complex filters fail.
         """
         if not pairs:
             return {"result": {"movies": []}}
 
-        # Kodi boolean filter: {"or": [ {"and":[rule, rule]}, {"and":[...]} ]}
+        kodi_version = self._get_kodi_version()
+        props = properties or self._get_version_compatible_properties()
+
+        # v19 may not support complex boolean filters, use manual filtering
+        if kodi_version < 20:
+            utils.log("DEBUG: Using v19 compatible batch search (manual filtering)", "DEBUG")
+            return self._get_movies_by_title_year_batch_v19(pairs, props, start, limit)
+
+        # v20+ can try advanced filters first
         or_groups = []
         for p in pairs:
             t = (p.get("title") or "").strip()
@@ -127,15 +136,127 @@ class JSONRPC:
         if not or_groups:
             return {"result": {"movies": []}}
 
-        props = properties or [
-            "title", "year", "file", "imdbnumber", "uniqueid",
-            "genre", "rating", "plot", "cast", "art"
-        ]
+        try:
+            # Try advanced filter first
+            filter_obj = {"or": or_groups}
+            limits = {"start": int(start), "end": int(start + max(limit, len(or_groups) + 10))}
+            result = self._getmovies_with_backoff(properties=props, filter_obj=filter_obj, limits=limits)
+            
+            # Check if we got results or errors
+            if 'error' not in result and 'result' in result:
+                return result
+        except Exception as e:
+            utils.log(f"DEBUG: Advanced filter failed, using manual filtering: {str(e)}", "DEBUG")
 
-        # Use the backoff helper so unsupported props don't kill the whole query
-        filter_obj = {"or": or_groups}
-        limits = {"start": int(start), "end": int(start + max(limit, len(or_groups) + 10))}
-        return self._getmovies_with_backoff(properties=props, filter_obj=filter_obj, limits=limits)
+        # Fallback to manual filtering
+        return self._get_movies_by_title_year_batch_manual(pairs, props, start, limit)
+
+    def _get_movies_by_title_year_batch_v19(self, pairs, properties, start, limit):
+        """v19-specific batch search using manual filtering"""
+        try:
+            # Get all movies first
+            all_movies_response = self.execute('VideoLibrary.GetMovies', {
+                'properties': properties,
+                'limits': {'start': 0, 'end': 10000}  # Get more movies for manual filtering
+            })
+
+            if 'result' not in all_movies_response or 'movies' not in all_movies_response['result']:
+                return {"result": {"movies": []}}
+
+            all_movies = all_movies_response['result']['movies']
+            matched_movies = []
+
+            # Create lookup for faster matching
+            title_year_pairs = set()
+            for p in pairs:
+                title = (p.get("title") or "").strip().lower()
+                year = int(p.get("year") or 0)
+                if title:
+                    title_year_pairs.add((title, year))
+
+            # Manual filtering
+            for movie in all_movies:
+                movie_title = (movie.get('title') or '').strip().lower()
+                movie_year = int(movie.get('year') or 0)
+                
+                # Check for exact matches
+                if (movie_title, movie_year) in title_year_pairs:
+                    matched_movies.append(movie)
+                # Also check title-only matches if year is 0 in search
+                elif movie_title and (movie_title, 0) in title_year_pairs:
+                    matched_movies.append(movie)
+
+            # Apply pagination
+            start_idx = max(0, start)
+            end_idx = start_idx + limit
+            paginated_movies = matched_movies[start_idx:end_idx]
+
+            utils.log(f"DEBUG: v19 batch search found {len(matched_movies)} total matches, returning {len(paginated_movies)}", "DEBUG")
+
+            return {
+                "result": {
+                    "movies": paginated_movies,
+                    "limits": {
+                        "start": start,
+                        "end": start + len(paginated_movies),
+                        "total": len(matched_movies)
+                    }
+                }
+            }
+
+        except Exception as e:
+            utils.log(f"ERROR: v19 batch search failed: {str(e)}", "ERROR")
+            return {"result": {"movies": []}}
+
+    def _get_movies_by_title_year_batch_manual(self, pairs, properties, start, limit):
+        """Manual batch search fallback for all versions"""
+        try:
+            # Get all movies
+            response = self.execute('VideoLibrary.GetMovies', {
+                'properties': properties
+            })
+
+            if 'result' not in response or 'movies' not in response['result']:
+                return {"result": {"movies": []}}
+
+            all_movies = response['result']['movies']
+            matched_movies = []
+
+            # Create lookup set for faster matching
+            search_criteria = set()
+            for p in pairs:
+                title = (p.get("title") or "").strip().lower()
+                year = int(p.get("year") or 0)
+                if title:
+                    search_criteria.add((title, year))
+
+            # Filter movies
+            for movie in all_movies:
+                movie_title = (movie.get('title') or '').strip().lower()
+                movie_year = int(movie.get('year') or 0)
+                
+                if (movie_title, movie_year) in search_criteria or (movie_title, 0) in search_criteria:
+                    matched_movies.append(movie)
+
+            # Apply pagination
+            start_idx = max(0, start)
+            end_idx = start_idx + limit
+            paginated_movies = matched_movies[start_idx:end_idx]
+
+            return {
+                "result": {
+                    "movies": paginated_movies,
+                    "limits": {
+                        "start": start,
+                        "end": start + len(paginated_movies),
+                        "total": len(matched_movies)
+                    }
+                }
+            }
+
+        except Exception as e:
+            utils.log(f"ERROR: Manual batch search failed: {str(e)}", "ERROR")
+            return {"result": {"movies": []}}
 
     _instance = None
 
@@ -299,17 +420,26 @@ class JSONRPC:
         })
 
     def find_movie_by_imdb(self, imdb_id):
-        """Find a movie in Kodi library by IMDb ID"""
+        """Find a movie in Kodi library by IMDb ID with v19 compatibility"""
         try:
             utils.log(f"DEBUG: Starting JSONRPC lookup for IMDB ID: {imdb_id}", "DEBUG")
+            kodi_version = self._get_kodi_version()
 
-            # Try multiple search strategies
+            # Get version-compatible properties
+            properties = self._get_version_compatible_properties()
+            
+            # v19 has limited filter support, so always fetch all movies and filter manually
+            if kodi_version < 20:
+                utils.log("DEBUG: Using v19 compatible search (manual filtering)", "DEBUG")
+                return self._find_movie_by_imdb_v19(imdb_id, properties)
+            
+            # v20+ can use more advanced filters
             strategies = [
-                # Strategy 1: Search by uniqueid.imdb
+                # Strategy 1: Search by uniqueid.imdb (v20+ only)
                 {
                     'filter': {
                         'field': 'uniqueid',
-                        'operator': 'is',
+                        'operator': 'is', 
                         'value': imdb_id
                     }
                 },
@@ -325,67 +455,111 @@ class JSONRPC:
 
             for i, strategy in enumerate(strategies):
                 utils.log(f"DEBUG: Trying JSONRPC strategy {i+1} for IMDB ID: {imdb_id}", "DEBUG")
-                utils.log(f"DEBUG: Strategy {i+1} request: VideoLibrary.GetMovies with {strategy}", "DEBUG")
+                
+                try:
+                    response = self.execute('VideoLibrary.GetMovies', {
+                        'properties': properties,
+                        **strategy
+                    })
 
-                response = self.execute('VideoLibrary.GetMovies', {
-                    'properties': ['title', 'year', 'movieid', 'imdbnumber', 'uniqueid'],
-                    **strategy
-                })
+                    if 'result' in response and 'movies' in response['result']:
+                        movies = response['result']['movies']
+                        utils.log(f"DEBUG: Strategy {i+1} found {len(movies)} movies for IMDB ID: {imdb_id}", "DEBUG")
 
-                utils.log(f"DEBUG: Strategy {i+1} response: {response}", "DEBUG")
+                        if movies:
+                            movie = movies[0]  # Take first match
+                            return {
+                                'title': movie.get('title', ''),
+                                'year': movie.get('year', 0),
+                                'kodi_id': movie.get('movieid', 0)
+                            }
+                except Exception as e:
+                    utils.log(f"DEBUG: Strategy {i+1} failed: {str(e)}", "DEBUG")
+                    continue
 
-                if 'result' in response and 'movies' in response['result']:
-                    movies = response['result']['movies']
-                    utils.log(f"DEBUG: Strategy {i+1} found {len(movies)} movies for IMDB ID: {imdb_id}", "DEBUG")
-
-                    if movies:
-                        movie = movies[0]  # Take first match
-                        utils.log(f"DEBUG: Strategy {i+1} returning movie: {movie}", "DEBUG")
-                        return {
-                            'title': movie.get('title', ''),
-                            'year': movie.get('year', 0),
-                            'kodi_id': movie.get('movieid', 0)
-                        }
-
-            # If no direct matches, try searching all movies and filtering manually
-            utils.log(f"DEBUG: No direct JSONRPC match found, searching all movies for IMDB ID: {imdb_id}", "DEBUG")
-
-            request_params = {
-                'properties': ['title', 'year', 'movieid', 'imdbnumber', 'uniqueid']
-            }
-            utils.log(f"DEBUG: GetMovies request params: {request_params}", "DEBUG")
-
-            response = self.execute('VideoLibrary.GetMovies', request_params)
-            utils.log(f"DEBUG: GetMovies response keys: {list(response.keys()) if response else 'None'}", "DEBUG")
-
-            if response and 'result' in response:
-                utils.log(f"DEBUG: Response result keys: {list(response['result'].keys()) if 'result' in response else 'No result'}", "DEBUG")
-
-            if 'result' in response and 'movies' in response['result']:
-                movies = response['result']['movies']
-                utils.log(f"DEBUG: Total movies in library: {len(movies)}", "DEBUG")
-
-                # Show sample of first few movies for debugging
-                if movies:
-                    sample_movies = movies[:3]
-                    for idx, sample in enumerate(sample_movies):
-                        utils.log(f"DEBUG: Sample movie {idx+1}: Title='{sample.get('title', 'N/A')}', IMDB='{sample.get('imdbnumber', 'N/A')}', UniqueID={sample.get('uniqueid', {})}", "DEBUG")
-
-                for movie in movies:
-                    movie_imdb = movie.get('imdbnumber') or movie.get('uniqueid', {}).get('imdb')
-                    if movie_imdb == imdb_id:
-                        utils.log(f"DEBUG: Found manual JSONRPC match for IMDB ID: {imdb_id} -> {movie}", "DEBUG")
-                        return {
-                            'title': movie.get('title', ''),
-                            'year': movie.get('year', 0),
-                            'kodi_id': movie.get('movieid', 0)
-                        }
-
-            utils.log(f"DEBUG: No movie found in Kodi library via JSONRPC for IMDB ID: {imdb_id}", "DEBUG")
-            return None
+            # Fallback to manual search for both versions
+            utils.log(f"DEBUG: Using fallback manual search for IMDB ID: {imdb_id}", "DEBUG")
+            return self._find_movie_by_imdb_manual(imdb_id, properties)
 
         except Exception as e:
             utils.log(f"ERROR: JSONRPC error finding movie by IMDB ID {imdb_id}: {str(e)}", "ERROR")
+            return None
+
+    def _find_movie_by_imdb_v19(self, imdb_id, properties):
+        """v19-specific movie search using manual filtering"""
+        try:
+            # Get all movies (v19 has limited filter support)
+            response = self.execute('VideoLibrary.GetMovies', {
+                'properties': properties
+            })
+
+            if 'result' in response and 'movies' in response['result']:
+                movies = response['result']['movies']
+                utils.log(f"DEBUG: v19 search - got {len(movies)} total movies", "DEBUG")
+
+                for movie in movies:
+                    # Check imdbnumber field (contains TMDB ID in v19)
+                    movie_imdb_number = movie.get('imdbnumber', '')
+                    
+                    # Check uniqueid.imdb if available (contains real IMDb ID in v19)
+                    uniqueid = movie.get('uniqueid', {})
+                    movie_imdb_unique = uniqueid.get('imdb', '') if isinstance(uniqueid, dict) else ''
+                    
+                    # Priority: uniqueid.imdb first (real IMDb ID), then imdbnumber if it starts with 'tt'
+                    movie_imdb = None
+                    if movie_imdb_unique and movie_imdb_unique.startswith('tt'):
+                        movie_imdb = movie_imdb_unique
+                    elif movie_imdb_number and movie_imdb_number.startswith('tt'):
+                        movie_imdb = movie_imdb_number
+
+                    if movie_imdb == imdb_id:
+                        utils.log(f"DEBUG: v19 found match for IMDB ID: {imdb_id} -> {movie.get('title', 'N/A')}", "DEBUG")
+                        return {
+                            'title': movie.get('title', ''),
+                            'year': movie.get('year', 0),
+                            'kodi_id': movie.get('movieid', 0)
+                        }
+
+            utils.log(f"DEBUG: v19 search - no match found for IMDB ID: {imdb_id}", "DEBUG")
+            return None
+
+        except Exception as e:
+            utils.log(f"ERROR: v19 search failed for IMDB ID {imdb_id}: {str(e)}", "ERROR")
+            return None
+
+    def _find_movie_by_imdb_manual(self, imdb_id, properties):
+        """Manual search fallback for all versions"""
+        try:
+            response = self.execute('VideoLibrary.GetMovies', {
+                'properties': properties
+            })
+
+            if 'result' in response and 'movies' in response['result']:
+                movies = response['result']['movies']
+                utils.log(f"DEBUG: Manual search - checking {len(movies)} movies", "DEBUG")
+
+                for movie in movies:
+                    # Use the same logic as the IMDb upload manager for consistency
+                    uniqueid = movie.get('uniqueid', {})
+                    imdb_from_uniqueid = uniqueid.get('imdb', '') if isinstance(uniqueid, dict) else ''
+                    imdb_from_number = movie.get('imdbnumber', '')
+                    
+                    # Priority: uniqueid.imdb, then imdbnumber if it starts with 'tt'
+                    final_imdb = imdb_from_uniqueid or (imdb_from_number if imdb_from_number.startswith('tt') else '')
+                    
+                    if final_imdb == imdb_id:
+                        utils.log(f"DEBUG: Manual search found match: {movie.get('title', 'N/A')}", "DEBUG")
+                        return {
+                            'title': movie.get('title', ''),
+                            'year': movie.get('year', 0),
+                            'kodi_id': movie.get('movieid', 0)
+                        }
+
+            utils.log(f"DEBUG: Manual search - no match found for IMDB ID: {imdb_id}", "DEBUG")
+            return None
+
+        except Exception as e:
+            utils.log(f"ERROR: Manual search failed for IMDB ID {imdb_id}: {str(e)}", "ERROR")
             return None
 
     # v19+ (API v12) Video.Fields.Movie (must be valid enums)
@@ -401,10 +575,72 @@ class JSONRPC:
     ]
 
     def search_movies(self, filter_obj: Dict[str, Any]) -> Dict[str, Any]:
-        payload = {
-            "properties": self.DEFAULT_MOVIE_PROPS,
-            "filter": filter_obj
-        }
-        return self.execute("VideoLibrary.GetMovies", payload)
+        """Search movies with v19 compatibility"""
+        kodi_version = self._get_kodi_version()
+        properties = self._get_version_compatible_properties()
+        
+        # v19 may not support complex filters
+        if kodi_version < 20:
+            utils.log("DEBUG: Using v19 compatible movie search", "DEBUG")
+            return self._search_movies_v19(filter_obj, properties)
+        
+        # v20+ can use full property set and filters
+        try:
+            payload = {
+                "properties": self.DEFAULT_MOVIE_PROPS,
+                "filter": filter_obj
+            }
+            return self.execute("VideoLibrary.GetMovies", payload)
+        except Exception as e:
+            utils.log(f"DEBUG: Advanced search failed, using fallback: {str(e)}", "DEBUG")
+            return self._search_movies_v19(filter_obj, properties)
+
+    def _search_movies_v19(self, filter_obj: Dict[str, Any], properties):
+        """v19-compatible movie search with manual filtering"""
+        try:
+            # Get all movies first 
+            all_movies = self.execute("VideoLibrary.GetMovies", {
+                "properties": properties
+            })
+            
+            if 'result' not in all_movies or 'movies' not in all_movies['result']:
+                return {"result": {"movies": []}}
+            
+            movies = all_movies['result']['movies']
+            filtered_movies = []
+            
+            # Manual filter application (basic support)
+            if 'field' in filter_obj and 'operator' in filter_obj and 'value' in filter_obj:
+                field = filter_obj['field']
+                operator = filter_obj['operator']
+                value = filter_obj['value']
+                
+                for movie in movies:
+                    movie_value = movie.get(field, '')
+                    
+                    if operator == 'is' and str(movie_value).lower() == str(value).lower():
+                        filtered_movies.append(movie)
+                    elif operator == 'contains' and str(value).lower() in str(movie_value).lower():
+                        filtered_movies.append(movie)
+                    elif operator == 'startswith' and str(movie_value).lower().startswith(str(value).lower()):
+                        filtered_movies.append(movie)
+            else:
+                # If complex filter, return all movies (let caller handle filtering)
+                filtered_movies = movies
+            
+            return {
+                "result": {
+                    "movies": filtered_movies,
+                    "limits": {
+                        "start": 0,
+                        "end": len(filtered_movies),
+                        "total": len(filtered_movies)
+                    }
+                }
+            }
+            
+        except Exception as e:
+            utils.log(f"ERROR: v19 movie search failed: {str(e)}", "ERROR")
+            return {"result": {"movies": []}}
 
     
