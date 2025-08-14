@@ -1,4 +1,3 @@
-
 # LibraryGenie Kodi Addon
 
 LibraryGenie is a comprehensive Kodi addon focused on intelligent list management and organization for your media library. The addon provides hierarchical folder structures, smart list creation, and seamless integration with Kodi's interface.
