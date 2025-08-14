@@ -257,6 +257,63 @@ class ListItemBuilder:
             except (ValueError, TypeError):
                 pass
 
+        # Handle runtime/duration
+        if media_info.get('runtime'):
+            try:
+                info_dict['duration'] = int(media_info['runtime'])
+            except (ValueError, TypeError):
+                pass
+
+        # Handle user rating
+        if media_info.get('userrating'):
+            try:
+                info_dict['userrating'] = float(media_info['userrating'])
+            except (ValueError, TypeError):
+                pass
+
+        # Handle top250 ranking
+        if media_info.get('top250'):
+            try:
+                info_dict['top250'] = int(media_info['top250'])
+            except (ValueError, TypeError):
+                pass
+
+        # Handle playcount
+        if media_info.get('playcount'):
+            try:
+                info_dict['playcount'] = int(media_info['playcount'])
+            except (ValueError, TypeError):
+                pass
+
+        # Handle date fields
+        for date_field in ['dateadded', 'lastplayed', 'premiered']:
+            if media_info.get(date_field):
+                info_dict[date_field] = str(media_info[date_field])
+
+        # Handle set information
+        if media_info.get('set'):
+            info_dict['set'] = str(media_info['set'])
+        if media_info.get('setid'):
+            try:
+                info_dict['setid'] = int(media_info['setid'])
+            except (ValueError, TypeError):
+                pass
+
+        # Handle multiple ratings (v19+)
+        if media_info.get('ratings') and isinstance(media_info['ratings'], dict):
+            # Use the default rating or first available rating
+            for rating_source in ['default', 'imdb', 'themoviedb', 'thetvdb']:
+                if rating_source in media_info['ratings']:
+                    rating_data = media_info['ratings'][rating_source]
+                    if isinstance(rating_data, dict) and 'rating' in rating_data:
+                        try:
+                            info_dict['rating'] = float(rating_data['rating'])
+                            if 'votes' in rating_data:
+                                info_dict['votes'] = int(rating_data['votes'])
+                        except (ValueError, TypeError):
+                            pass
+                        break
+
         # Handle cast data
         cast = media_info.get('cast', [])
         if cast:
@@ -289,10 +346,50 @@ class ListItemBuilder:
         # Use the specialized set_info_tag function that handles Kodi version compatibility
         set_info_tag(list_item, info_dict, 'video')
 
-        # Set resume point if available
-        if 'resumetime' in media_info and 'totaltime' in media_info:
+        # Set resume point from different possible sources
+        resume_data = media_info.get('resume')
+        if resume_data and isinstance(resume_data, dict):
+            # Handle Kodi's resume structure: {"position": float, "total": float}
+            if 'position' in resume_data and 'total' in resume_data:
+                list_item.setProperty('ResumeTime', str(resume_data['position']))
+                list_item.setProperty('TotalTime', str(resume_data['total']))
+        elif 'resumetime' in media_info and 'totaltime' in media_info:
+            # Handle legacy format
             list_item.setProperty('ResumeTime', str(media_info['resumetime']))
             list_item.setProperty('TotalTime', str(media_info['totaltime']))
+
+        # Handle stream details for video/audio information
+        streamdetails = media_info.get('streamdetails')
+        if streamdetails and isinstance(streamdetails, dict):
+            # Set video stream properties
+            video_streams = streamdetails.get('video', [])
+            if video_streams and len(video_streams) > 0:
+                video = video_streams[0]  # Use first video stream
+                stream_info = {}
+                if 'width' in video:
+                    stream_info['width'] = int(video['width'])
+                if 'height' in video:
+                    stream_info['height'] = int(video['height'])
+                if 'codec' in video:
+                    stream_info['codec'] = str(video['codec'])
+                if 'duration' in video:
+                    stream_info['duration'] = int(video['duration'])
+                if stream_info:
+                    list_item.addStreamInfo('video', stream_info)
+            
+            # Set audio stream properties
+            audio_streams = streamdetails.get('audio', [])
+            if audio_streams and len(audio_streams) > 0:
+                audio = audio_streams[0]  # Use first audio stream
+                stream_info = {}
+                if 'codec' in audio:
+                    stream_info['codec'] = str(audio['codec'])
+                if 'language' in audio:
+                    stream_info['language'] = str(audio['language'])
+                if 'channels' in audio:
+                    stream_info['channels'] = int(audio['channels'])
+                if stream_info:
+                    list_item.addStreamInfo('audio', stream_info)
 
         # Set content properties
         list_item.setProperty('IsPlayable', 'true')

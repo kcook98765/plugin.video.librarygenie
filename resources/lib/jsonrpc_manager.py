@@ -21,14 +21,14 @@ class JSONRPC:
         props = list(properties or [])
         # 'movieid' must NOT be in the properties list; it's implicit
         props = [p for p in props if p != 'movieid']
-        
+
         # Build the payload with correct structure
         payload = {"properties": props}
-        
+
         # Add filter if provided - ensure it's a proper dict structure
         if filter_obj and isinstance(filter_obj, dict):
             payload["filter"] = filter_obj
-            
+
         # Add limits if provided - ensure proper integer types
         if limits and isinstance(limits, dict):
             payload["limits"] = {
@@ -141,7 +141,7 @@ class JSONRPC:
             filter_obj = {"or": or_groups}
             limits = {"start": int(start), "end": int(start + max(limit, len(or_groups) + 10))}
             result = self._getmovies_with_backoff(properties=props, filter_obj=filter_obj, limits=limits)
-            
+
             # Check if we got results or errors
             if 'error' not in result and 'result' in result:
                 return result
@@ -178,7 +178,7 @@ class JSONRPC:
             for movie in all_movies:
                 movie_title = (movie.get('title') or '').strip().lower()
                 movie_year = int(movie.get('year') or 0)
-                
+
                 # Check for exact matches
                 if (movie_title, movie_year) in title_year_pairs:
                     matched_movies.append(movie)
@@ -234,7 +234,7 @@ class JSONRPC:
             for movie in all_movies:
                 movie_title = (movie.get('title') or '').strip().lower()
                 movie_year = int(movie.get('year') or 0)
-                
+
                 if (movie_title, movie_year) in search_criteria or (movie_title, 0) in search_criteria:
                     matched_movies.append(movie)
 
@@ -274,7 +274,7 @@ class JSONRPC:
             "id": 1
         }
         query_json = json.dumps(query)
-        
+
         response = xbmc.executeJSONRPC(query_json)
         parsed_response = json.loads(response)
 
@@ -330,7 +330,7 @@ class JSONRPC:
     def _get_version_compatible_properties(self):
         """Get movie properties compatible with current Kodi version"""
         kodi_version = self._get_kodi_version()
-        
+
         if kodi_version >= 20:
             # v20+ supports uniqueid property
             return ["title", "year", "file", "imdbnumber", "uniqueid"]
@@ -427,12 +427,12 @@ class JSONRPC:
 
             # Get version-compatible properties
             properties = self._get_version_compatible_properties()
-            
+
             # v19 has limited filter support, so always fetch all movies and filter manually
             if kodi_version < 20:
                 utils.log("DEBUG: Using v19 compatible search (manual filtering)", "DEBUG")
                 return self._find_movie_by_imdb_v19(imdb_id, properties)
-            
+
             # v20+ can use more advanced filters
             strategies = [
                 # Strategy 1: Search by uniqueid.imdb (v20+ only)
@@ -455,7 +455,7 @@ class JSONRPC:
 
             for i, strategy in enumerate(strategies):
                 utils.log(f"DEBUG: Trying JSONRPC strategy {i+1} for IMDB ID: {imdb_id}", "DEBUG")
-                
+
                 try:
                     response = self.execute('VideoLibrary.GetMovies', {
                         'properties': properties,
@@ -500,11 +500,11 @@ class JSONRPC:
                 for movie in movies:
                     # Check imdbnumber field (contains TMDB ID in v19)
                     movie_imdb_number = movie.get('imdbnumber', '')
-                    
+
                     # Check uniqueid.imdb if available (contains real IMDb ID in v19)
                     uniqueid = movie.get('uniqueid', {})
                     movie_imdb_unique = uniqueid.get('imdb', '') if isinstance(uniqueid, dict) else ''
-                    
+
                     # Priority: uniqueid.imdb first (real IMDb ID), then imdbnumber if it starts with 'tt'
                     movie_imdb = None
                     if movie_imdb_unique and movie_imdb_unique.startswith('tt'):
@@ -543,10 +543,10 @@ class JSONRPC:
                     uniqueid = movie.get('uniqueid', {})
                     imdb_from_uniqueid = uniqueid.get('imdb', '') if isinstance(uniqueid, dict) else ''
                     imdb_from_number = movie.get('imdbnumber', '')
-                    
+
                     # Priority: uniqueid.imdb, then imdbnumber if it starts with 'tt'
                     final_imdb = imdb_from_uniqueid or (imdb_from_number if imdb_from_number.startswith('tt') else '')
-                    
+
                     if final_imdb == imdb_id:
                         utils.log(f"DEBUG: Manual search found match: {movie.get('title', 'N/A')}", "DEBUG")
                         return {
@@ -578,12 +578,12 @@ class JSONRPC:
         """Search movies with v19 compatibility"""
         kodi_version = self._get_kodi_version()
         properties = self._get_version_compatible_properties()
-        
+
         # v19 may not support complex filters
         if kodi_version < 20:
             utils.log("DEBUG: Using v19 compatible movie search", "DEBUG")
             return self._search_movies_v19(filter_obj, properties)
-        
+
         # v20+ can use full property set and filters
         try:
             payload = {
@@ -602,22 +602,22 @@ class JSONRPC:
             all_movies = self.execute("VideoLibrary.GetMovies", {
                 "properties": properties
             })
-            
+
             if 'result' not in all_movies or 'movies' not in all_movies['result']:
                 return {"result": {"movies": []}}
-            
+
             movies = all_movies['result']['movies']
             filtered_movies = []
-            
+
             # Manual filter application (basic support)
             if 'field' in filter_obj and 'operator' in filter_obj and 'value' in filter_obj:
                 field = filter_obj['field']
                 operator = filter_obj['operator']
                 value = filter_obj['value']
-                
+
                 for movie in movies:
                     movie_value = movie.get(field, '')
-                    
+
                     if operator == 'is' and str(movie_value).lower() == str(value).lower():
                         filtered_movies.append(movie)
                     elif operator == 'contains' and str(value).lower() in str(movie_value).lower():
@@ -627,7 +627,7 @@ class JSONRPC:
             else:
                 # If complex filter, return all movies (let caller handle filtering)
                 filtered_movies = movies
-            
+
             return {
                 "result": {
                     "movies": filtered_movies,
@@ -638,9 +638,46 @@ class JSONRPC:
                     }
                 }
             }
-            
+
         except Exception as e:
             utils.log(f"ERROR: v19 movie search failed: {str(e)}", "ERROR")
             return {"result": {"movies": []}}
 
-    
+    def get_comprehensive_properties(self):
+        """Get maximum possible property set for current Kodi version with intelligent backoff"""
+        kodi_version = self._get_kodi_version()
+
+        if kodi_version >= 20:
+            # v20+ comprehensive property set - includes all available properties
+            return [
+                "title", "genre", "year", "rating", "director", "trailer", "tagline", "plot",
+                "plotoutline", "originaltitle", "lastplayed", "playcount", "writer", "studio",
+                "mpaa", "cast", "country", "imdbnumber", "runtime", "set", "showlink",
+                "streamdetails", "top250", "votes", "fanart", "thumbnail", "file", "sorttitle",
+                "resume", "setid", "dateadded", "tag", "art", "userrating", "ratings",
+                "premiered", "uniqueid"
+            ]
+        else:
+            # v19 comprehensive property set - includes all v19-compatible properties
+            return [
+                "title", "genre", "year", "rating", "director", "trailer", "tagline", "plot",
+                "plotoutline", "originaltitle", "lastplayed", "playcount", "writer", "studio",
+                "mpaa", "cast", "country", "imdbnumber", "runtime", "set", "showlink",
+                "streamdetails", "top250", "votes", "fanart", "thumbnail", "file", "sorttitle",
+                "resume", "setid", "dateadded", "tag", "art", "userrating", "ratings",
+                "premiered"
+                # Note: 'uniqueid' is excluded for v19 as it can cause issues
+            ]
+
+    def get_movies_with_comprehensive_data(self, start=0, limit=50):
+        """Get movies with maximum possible metadata using intelligent backoff"""
+        properties = self.get_comprehensive_properties()
+        return self._getmovies_with_backoff(
+            properties=properties,
+            limits={"start": start, "end": start + limit}
+        )
+
+    def get_movie_details_comprehensive(self, movie_id):
+        """Get comprehensive movie details with all available metadata"""
+        properties = self.get_comprehensive_properties()
+        return self.get_movie_details(movie_id, properties=properties)

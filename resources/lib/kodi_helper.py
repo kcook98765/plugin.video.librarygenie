@@ -315,17 +315,25 @@ class KodiHelper:
         db_id = xbmc.getInfoLabel('ListItem.DBID')
 
         if db_id:
-            # Fetch details via JSON-RPC
+            # Fetch details via JSON-RPC using comprehensive properties
             media_type = xbmc.getInfoLabel('ListItem.DBTYPE')
             key = 'movieid' if media_type == 'movie' else 'episodeid'
             method = 'VideoLibrary.GetMovieDetails' if media_type == 'movie' else 'VideoLibrary.GetEpisodeDetails'
+            
+            if media_type == 'movie':
+                # Use comprehensive properties for movies
+                properties = self.jsonrpc.get_comprehensive_properties()
+            else:
+                # Use existing properties for episodes (can be enhanced later)
+                properties = [
+                    'title', 'plot', 'rating', 'writer', 'firstaired', 'playcount',
+                    'runtime', 'director', 'season', 'episode', 'originaltitle',
+                    'showtitle', 'cast', 'streamdetails', 'lastplayed', 'fanart',
+                    'thumbnail', 'file', 'resume', 'tvshowid', 'dateadded', 'uniqueid', 'art'
+                ]
+            
             params = {
-                'properties': [
-                    'title', 'genre', 'year', 'director', 'cast', 'plot', 'rating',
-                    'file', 'thumbnail', 'fanart', 'runtime', 'tagline',
-                    'writer', 'imdbnumber', 'premiered', 'mpaa', 'trailer', "votes",
-                    "country", "dateadded", "studio", "art"
-                ],
+                'properties': properties,
                 key: int(db_id)  # dynamically assign the correct key
             }
 
