@@ -226,24 +226,24 @@ def browse_list(list_id):
         playable_count = 0
         non_playable_count = 0
 
-        for i, media in enumerate(display_items):
+        for i, item in enumerate(display_items):
             try:
-                li = ListItemBuilder.build_video_item(media)
+                # ResultsManager.build_display_items_for_list returns tuples: (li, file, media)
+                if isinstance(item, tuple) and len(item) >= 3:
+                    li, file_path, media_dict = item
+                else:
+                    # Fallback for unexpected format
+                    utils.log(f"Unexpected item format: {type(item)}", "WARNING")
+                    continue
+
+                # Set additional properties
                 li.setProperty('lg_type', 'movie')
                 li.setProperty('lg_list_id', str(list_id))
-                # Handle both tuple (li, file, media) and dict formats
-                if isinstance(media, tuple) and len(media) >= 3:
-                    media_dict = media[2]  # Third element is the metadata dict
-                elif isinstance(media, dict):
-                    media_dict = media
-                else:
-                    media_dict = {}
-
                 li.setProperty('lg_movie_id', str(media_dict.get('id', '')))
                 add_context_menu_for_item(li, 'movie', list_id=list_id, movie_id=media_dict.get('id'))
 
                 # Determine the URL and playability
-                url = media_dict.get('file') or media_dict.get('play') or ''
+                url = file_path or media_dict.get('file') or media_dict.get('play') or ''
                 is_playable = False
                 movie_id = None
 
@@ -265,11 +265,12 @@ def browse_list(list_id):
                         'list_id': list_id
                     })
                     # Also set the file path directly so Kodi can use its native playback if needed
-                    if media_dict.get('file'):
-                        li.setPath(media_dict['file'])
+                    if file_path or media_dict.get('file'):
+                        li.setPath(file_path or media_dict.get('file'))
                 elif url and is_playable:
                     # For items with direct file paths, use them directly
-                    pass
+                    if url:
+                        li.setPath(url)
                 elif not url or not is_playable:
                     # For items without valid play URLs, create a plugin URL that will show item details
                     url = build_plugin_url({
@@ -292,7 +293,7 @@ def browse_list(list_id):
                 xbmcplugin.addDirectoryItem(handle, url, li, isFolder=not is_playable)
                 items_added += 1
             except Exception as e:
-                utils.log(f"Error processing item {i+1} ({media_dict.get('title', 'Unknown')}): {str(e)}", "ERROR")
+                utils.log(f"Error processing item {i+1}: {str(e)}", "ERROR")
                 import traceback
                 utils.log(f"Item processing traceback: {traceback.format_exc()}", "ERROR")
 
