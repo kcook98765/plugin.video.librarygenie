@@ -906,10 +906,10 @@ class QueryManager(Singleton):
             )""",
             """CREATE TABLE IF NOT EXISTS lists (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
                 folder_id INTEGER,
-                name TEXT UNIQUE,
-                query TEXT,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                protected INTEGER DEFAULT 0,
+                FOREIGN KEY (folder_id) REFERENCES folders (id)
             )""",
             f"""CREATE TABLE IF NOT EXISTS media_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -922,7 +922,7 @@ class QueryManager(Singleton):
                 media_item_id INTEGER,
                 flagged INTEGER DEFAULT 0,
                 FOREIGN KEY (list_id) REFERENCES lists (id),
-                FOREIGN KEY (media_item_id) REFERENCES media_items (id)
+                FOREIGNKEY (media_item_id) REFERENCES media_items (id)
             )""",
             """CREATE TABLE IF NOT EXISTS whitelist (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
