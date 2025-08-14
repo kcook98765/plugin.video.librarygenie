@@ -154,27 +154,14 @@ class JSONRPC:
         }
         query_json = json.dumps(query)
         
-        # Verbose JSONRPC logging - enabled for v19 debugging
-        utils.log(f"Executing JSONRPC method: {method}", "DEBUG")
-        utils.log(f"RAW JSONRPC REQUEST: {query_json}", "INFO")
-        utils.log(f"RAW JSONRPC PARAMS: {json.dumps(params, indent=2)}", "INFO")
-
         response = xbmc.executeJSONRPC(query_json)
         parsed_response = json.loads(response)
 
-        # Log success/error summary
+        # Only log errors with full details
         if 'error' in parsed_response:
             utils.log(f"JSONRPC {method} failed: {parsed_response['error'].get('message', 'Unknown error')}", "ERROR")
-            utils.log(f"DEBUG: Full error response: {parsed_response}", "ERROR")
-            # Log the request that caused the error for debugging
-            utils.log(f"FAILED REQUEST JSON: {query_json}", "ERROR")
-        else:
-            # Only log individual GetMovies successes in debug mode
-            if method != "VideoLibrary.GetMovies" or utils.is_debug_enabled():
-                utils.log(f"JSONRPC {method} completed successfully", "DEBUG")
-
-        # Always log raw responses for debugging v19 issues
-        utils.log(f"RAW JSONRPC RESPONSE: {response}", "INFO")
+            utils.log(f"Full error response: {parsed_response}", "ERROR")
+            utils.log(f"Failed request: {query_json}", "ERROR")
 
         return parsed_response
 
