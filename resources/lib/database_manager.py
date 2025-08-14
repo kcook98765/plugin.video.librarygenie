@@ -74,6 +74,30 @@ class DatabaseManager(Singleton):
         query_manager = QueryManager(self.db_path)
         return query_manager.fetch_lists_direct(folder_id)
 
+    def fetch_data(self, table, condition=None):
+        """Generic method to fetch data from a table"""
+        try:
+            if condition:
+                query = f"SELECT * FROM {table} WHERE {condition}"
+            else:
+                query = f"SELECT * FROM {table}"
+            
+            self._execute_with_retry(self.cursor.execute, query)
+            rows = self.cursor.fetchall()
+            
+            # Get column names
+            columns = [description[0] for description in self.cursor.description]
+            
+            # Convert rows to list of dictionaries
+            result = []
+            for row in rows:
+                result.append(dict(zip(columns, row)))
+            
+            return result
+        except Exception as e:
+            utils.log(f"Error fetching data from {table}: {str(e)}", "ERROR")
+            return []
+
     def get_folder_id_by_name(self, folder_name):
         """Get folder ID by name"""
         try:
@@ -82,7 +106,7 @@ class DatabaseManager(Singleton):
                 return folders[0]['id']
             return None
         except Exception as e:
-            self.log(f"Error getting folder ID by name '{folder_name}': {str(e)}", "ERROR")
+            utils.log(f"Error getting folder ID by name '{folder_name}': {str(e)}", "ERROR")
             return None
 
     def get_folder_depth(self, folder_id):
@@ -310,7 +334,7 @@ class DatabaseManager(Singleton):
             lists = self.fetch_data('lists', condition)
             return lists if lists else []
         except Exception as e:
-            self.log(f"Error fetching lists by folder {folder_id}: {str(e)}", "ERROR")
+            utils.log(f"Error fetching lists by folder {folder_id}: {str(e)}", "ERROR")
             return []
 
     def fetch_all_lists(self):
