@@ -33,7 +33,6 @@ def log(message, level=None):
     if isinstance(message, str):
         spam_patterns = [
             "Executing SQL:",
-            "DEBUG: JSONRPC request:",
             "DEBUG: JSONRPC response:",
             "JSONRPC VideoLibrary.GetMovies completed",
             "JSONRPC GetMovies success: Got",
@@ -41,9 +40,13 @@ def log(message, level=None):
             "Inserted into media_items, got ID:"
         ]
         
-        for pattern in spam_patterns:
-            if message.startswith(pattern) and level == 'DEBUG':
-                return
+        # Allow JSON-RPC request logging to always show through
+        if message.startswith("JSONRPC Request"):
+            pass  # Don't filter these out
+        else:
+            for pattern in spam_patterns:
+                if message.startswith(pattern) and level == 'DEBUG':
+                    return
 
     # Truncate cast data in JSON responses
     if isinstance(message, str):
