@@ -317,6 +317,12 @@ class QueryManager(Singleton):
         return result[0]['max_depth'] if result and result[0]['max_depth'] is not None else 0
 
     def get_folder_by_name(self, folder_name: str) -> Optional[Dict[str, Any]]:
+        """Get folder by name"""
+        query = "SELECT id, name, parent_id FROM folders WHERE name = ?"
+        result = self.execute_query(query, (folder_name,))
+        return result[0] if result else None
+
+    def get_folder_id_by_name(self, folder_name: str) -> Optional[int]:
         """Get folder ID by name"""
         query = "SELECT id FROM folders WHERE name = ?"
         result = self.execute_query(query, (folder_name,))

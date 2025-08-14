@@ -177,7 +177,6 @@ def browse_list(list_id):
     from resources.lib.database_manager import DatabaseManager
     from resources.lib.config_manager import Config
     from resources.lib.listitem_builder import ListItemBuilder
-    from resources.lib.query_manager import QueryManager
 
     addon = get_addon()
     addon_id = addon.getAddonInfo("id")
@@ -231,20 +230,28 @@ def browse_list(list_id):
                 li = ListItemBuilder.build_video_item(media)
                 li.setProperty('lg_type', 'movie')
                 li.setProperty('lg_list_id', str(list_id))
-                li.setProperty('lg_movie_id', str(media.get('id')))
-                add_context_menu_for_item(li, 'movie', list_id=list_id, movie_id=media.get('id'))
+                # Handle both tuple (li, file, media) and dict formats
+                if isinstance(media, tuple) and len(media) >= 3:
+                    media_dict = media[2]  # Third element is the metadata dict
+                elif isinstance(media, dict):
+                    media_dict = media
+                else:
+                    media_dict = {}
+
+                li.setProperty('lg_movie_id', str(media_dict.get('id', '')))
+                add_context_menu_for_item(li, 'movie', list_id=list_id, movie_id=media_dict.get('id'))
 
                 # Determine the URL and playability
-                url = media.get('file') or media.get('play') or ''
+                url = media_dict.get('file') or media_dict.get('play') or ''
                 is_playable = False
                 movie_id = None
 
                 # Check if we have a valid Kodi ID for playable content
-                if media.get('movieid') and str(media['movieid']).isdigit() and int(media['movieid']) > 0:
-                    movie_id = int(media['movieid'])
+                if media_dict.get('movieid') and str(media_dict['movieid']).isdigit() and int(media_dict['movieid']) > 0:
+                    movie_id = int(media_dict['movieid'])
                     is_playable = True
-                elif media.get('kodi_id') and str(media['kodi_id']).isdigit() and int(media['kodi_id']) > 0:
-                    movie_id = int(media['kodi_id'])
+                elif media_dict.get('kodi_id') and str(media_dict['kodi_id']).isdigit() and int(media_dict['kodi_id']) > 0:
+                    movie_id = int(media_dict['kodi_id'])
                     is_playable = True
                 elif url:
                     is_playable = True
@@ -257,8 +264,8 @@ def browse_list(list_id):
                         'list_id': list_id
                     })
                     # Also set the file path directly so Kodi can use its native playback if needed
-                    if media.get('file'):
-                        li.setPath(media['file'])
+                    if media_dict.get('file'):
+                        li.setPath(media_dict['file'])
                 elif url and is_playable:
                     # For items with direct file paths, use them directly
                     pass
@@ -267,8 +274,8 @@ def browse_list(list_id):
                     url = build_plugin_url({
                         'action': 'show_item_details',
                         'list_id': list_id,
-                        'item_id': media.get('id'),
-                        'title': media.get('title', 'Unknown')
+                        'item_id': media_dict.get('id'),
+                        'title': media_dict.get('title', 'Unknown')
                     })
                     is_playable = False
 
@@ -284,7 +291,7 @@ def browse_list(list_id):
                 xbmcplugin.addDirectoryItem(handle, url, li, isFolder=not is_playable)
                 items_added += 1
             except Exception as e:
-                utils.log(f"Error processing item {i+1} ({media.get('title', 'Unknown')}): {str(e)}", "ERROR")
+                utils.log(f"Error processing item {i+1} ({media_dict.get('title', 'Unknown')}): {str(e)}", "ERROR")
                 import traceback
                 utils.log(f"Item processing traceback: {traceback.format_exc()}", "ERROR")
 
