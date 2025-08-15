@@ -389,8 +389,7 @@ class ListItemBuilder:
                 total = float(resume_data.get('total', 0))
 
                 if position > 0:
-                    kodi_version = utils.get_kodi_version() if hasattr(utils, 'get_kodi_version') else 21
-                    if kodi_version >= 20:
+                    if utils.is_kodi_v20_plus():
                         # Use v20+ InfoTag method to avoid deprecation warnings
                         try:
                             info_tag = list_item.getVideoInfoTag()
@@ -419,8 +418,7 @@ class ListItemBuilder:
         stream_details = media_info.get('streamdetails', {})
         if isinstance(stream_details, dict):
             try:
-                kodi_version = utils.get_kodi_version() if hasattr(utils, 'get_kodi_version') else 21
-                if kodi_version >= 20:
+                if utils.is_kodi_v20_plus():
                     # Use v20+ InfoTag methods to avoid deprecation warnings
                     try:
                         info_tag = list_item.getVideoInfoTag()
@@ -530,3 +528,52 @@ class ListItemBuilder:
     def add_context_menu(list_item, menu_items):
         """Add context menu items to ListItem"""
         list_item.addContextMenuItems(menu_items, replaceItems=True)
+
+    @staticmethod
+    def _add_stream_info_deprecated(list_item, stream_details):
+        """Adds stream details using deprecated methods for compatibility with older Kodi versions."""
+        # This method is a fallback for versions where setVideoStream, setAudioStream, setSubtitleStream are deprecated
+        # or not available. It aims to set properties that might be recognized by older Kodi clients or skins.
+        video_streams = stream_details.get('video', [])
+        audio_streams = stream_details.get('audio', [])
+        subtitle_streams = stream_details.get('subtitle', [])
+
+        if video_streams:
+            for stream in video_streams:
+                if isinstance(stream, dict):
+                    codec = stream.get('codec', '')
+                    resolution = stream.get('resolution', '')
+                    aspect_ratio = stream.get('aspect_ratio', '')
+                    lang = stream.get('language', '')
+
+                    # Construct a string that might be interpretable by skins/players
+                    stream_str = f"Video: Codec({codec}), Res({resolution}), Aspect({aspect_ratio}), Lang({lang})"
+                    # Using generic properties as specific ones are deprecated
+                    list_item.setProperty('VideoCodec', codec)
+                    list_item.setProperty('VideoResolution', resolution)
+                    list_item.setProperty('VideoAspectRatio', aspect_ratio)
+                    list_item.setProperty('VideoLanguage', lang)
+
+        if audio_streams:
+            for stream in audio_streams:
+                if isinstance(stream, dict):
+                    codec = stream.get('codec', '')
+                    channels = stream.get('channels', '')
+                    language = stream.get('language', '')
+                    bitrate = stream.get('bitrate', '')
+
+                    list_item.setProperty('AudioCodec', codec)
+                    list_item.setProperty('AudioChannels', str(channels))
+                    list_item.setProperty('AudioLanguage', language)
+                    list_item.setProperty('AudioBitrate', str(bitrate))
+
+        if subtitle_streams:
+            for stream in subtitle_streams:
+                if isinstance(stream, dict):
+                    language = stream.get('language', '')
+                    codec = stream.get('codec', '')
+                    forced = stream.get('forced', False)
+
+                    list_item.setProperty('SubtitleLanguage', language)
+                    list_item.setProperty('SubtitleCodec', codec)
+                    list_item.setProperty('SubtitleForced', str(forced).lower())
