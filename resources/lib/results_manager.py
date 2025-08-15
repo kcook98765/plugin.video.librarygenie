@@ -21,12 +21,16 @@ class ResultsManager(Singleton):
 
     def build_display_items_for_list(self, list_id: int):
         """Build display items for a specific list with comprehensive metadata"""
+        import time
+        start_time = time.time()
         try:
-            utils.log(f"DEBUG: Calling build_display_items_for_list for list_id={list_id}", "DEBUG")
+            utils.log(f"[LIST BUILD] Starting build_display_items_for_list for list_id={list_id}", "INFO")
 
             # Get list items with full details
+            fetch_start = time.time()
             list_items = self.query_manager.fetch_list_items_with_details(list_id)
-            utils.log(f"Found {len(list_items)} items in list {list_id}", "DEBUG")
+            fetch_time = time.time() - fetch_start
+            utils.log(f"[LIST BUILD] Fetched {len(list_items)} items in {fetch_time:.3f}s", "INFO")
 
             # Log summary of items being processed
             utils.log(f"Processing {len(list_items)} items for list display", "DEBUG")
@@ -86,12 +90,16 @@ class ResultsManager(Singleton):
                 refs.append({'imdb': imdb, 'title': title, 'year': year, 'search_score': r.get('search_score', 0)}) # Include search_score here
 
             # ---- Batch resolve via one JSON-RPC call using OR of (title AND year) ----
+            batch_start = time.time()
             batch_pairs = [{"title": r.get("title"), "year": r.get("year")} for r in refs]
-            utils.log(f"Batch lookup pairs: {batch_pairs[:3]}..." if len(batch_pairs) > 3 else f"Batch lookup pairs: {batch_pairs}", "DEBUG")
+            utils.log(f"[LIST BUILD] Prepared {len(batch_pairs)} batch lookup pairs", "DEBUG")
+            utils.log(f"[LIST BUILD] Sample pairs: {batch_pairs[:3]}..." if len(batch_pairs) > 3 else f"Batch lookup pairs: {batch_pairs}", "DEBUG")
 
+            jsonrpc_start = time.time()
             batch_resp = self.jsonrpc.get_movies_by_title_year_batch(batch_pairs) or {}
+            jsonrpc_time = time.time() - jsonrpc_start
             batch_movies = (batch_resp.get("result") or {}).get("movies") or []
-            utils.log(f"JSON-RPC returned {len(batch_movies)} movies from batch lookup", "DEBUG")
+            utils.log(f"[LIST BUILD] JSON-RPC batch lookup completed in {jsonrpc_time:.3f}s, returned {len(batch_movies)} movies", "INFO")
 
             # Build a simple matcher key: (normalized_title, year_int)
             def _key(t, y):
@@ -181,7 +189,16 @@ class ResultsManager(Singleton):
                 list_item = ListItemBuilder.build_video_item(item, is_search_history=is_search_history)
                 resolved_items_for_list.append((list_item, item.get('file', ''), item))
 
+            build_time = time.time() - batch_start
+            total_time = time.time() - start_time
+            utils.log(f"[LIST BUILD] Item building completed in {build_time:.3f}s", "DEBUG")
+            utils.log(f"[LIST BUILD] Total list build time: {total_time:.3f}s for {len(resolved_items_for_list)} items", "INFO")
+            utils.log(f"[LIST BUILD] Performance breakdown - fetch: {fetch_time:.3f}s, jsonrpc: {jsonrpc_time:.3f}s, build: {build_time:.3f}s", "INFO")
+            
             return resolved_items_for_list
         except Exception as e:
-            utils.log(f"Error in build_display_items_for_list: {e}", "ERROR")
+            total_time = time.time() - start_time
+            utils.log(f"[LIST BUILD] Error after {total_time:.3f}s in build_display_items_for_list: {e}", "ERROR")
+            import traceback
+            utils.log(f"[LIST BUILD] Build exception traceback: {traceback.format_exc()}", "ERROR")
             return []

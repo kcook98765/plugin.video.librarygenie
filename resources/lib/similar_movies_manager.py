@@ -14,24 +14,44 @@ class SimilarMoviesManager:
 
     def show_similar_movies_dialog(self, imdb_id, movie_title):
         """Show facet selection dialog and execute similar movies search"""
+        import time
+        start_time = time.time()
+        utils.log(f"[SIMILARITY TIMING] Starting similarity search for '{movie_title}' (IMDb: {imdb_id})", "INFO")
+        
         try:
             # Check if IMDb ID exists in uploaded collection
+            validation_start = time.time()
             if not self._is_movie_uploaded(imdb_id):
+                utils.log(f"[SIMILARITY TIMING] Validation failed after {time.time() - validation_start:.3f}s", "WARNING")
                 xbmcgui.Dialog().notification(
                     'LibraryGenie', 
                     'Movie not found in uploaded collection',
                     xbmcgui.NOTIFICATION_WARNING
                 )
                 return
+            utils.log(f"[SIMILARITY TIMING] Validation completed in {time.time() - validation_start:.3f}s", "DEBUG")
 
             # Show facet selection dialog
+            dialog_start = time.time()
             facets = self._show_facet_selection_dialog(movie_title)
+            dialog_time = time.time() - dialog_start
+            utils.log(f"[SIMILARITY TIMING] User dialog completed in {dialog_time:.3f}s", "DEBUG")
+            
             if not facets:
+                utils.log(f"[SIMILARITY TIMING] User cancelled dialog after {dialog_time:.3f}s", "INFO")
                 return  # User cancelled
 
+            utils.log(f"[SIMILARITY TIMING] Selected facets: {facets}", "INFO")
+
             # Make API request
+            api_start = time.time()
+            utils.log(f"[SIMILARITY TIMING] Starting API request to /similar_to", "INFO")
             results = self._find_similar_movies(imdb_id, facets)
+            api_time = time.time() - api_start
+            utils.log(f"[SIMILARITY TIMING] API request completed in {api_time:.3f}s, found {len(results) if results else 0} results", "INFO")
+            
             if not results:
+                utils.log(f"[SIMILARITY TIMING] No results from API after {api_time:.3f}s", "WARNING")
                 xbmcgui.Dialog().notification(
                     'LibraryGenie', 
                     'No similar movies found',
@@ -40,13 +60,19 @@ class SimilarMoviesManager:
                 return
 
             # Save to Search History
+            save_start = time.time()
+            utils.log(f"[SIMILARITY TIMING] Starting save to search history with {len(results)} results", "INFO")
             list_id = self._save_to_search_history(movie_title, results)
+            save_time = time.time() - save_start
+            utils.log(f"[SIMILARITY TIMING] Save to search history completed in {save_time:.3f}s, list_id: {list_id}", "INFO")
+            
             if list_id:
                 xbmcgui.Dialog().notification(
                     'LibraryGenie', 
                     f'Found {len(results)} similar movies'
                 )
                 # Navigate to the search results list with proper replacement
+                nav_start = time.time()
                 from resources.lib.url_builder import build_plugin_url
                 import xbmc
                 list_url = build_plugin_url({
@@ -54,21 +80,30 @@ class SimilarMoviesManager:
                     'list_id': list_id,
                     'view': 'list'
                 })
-                utils.log(f"Navigating to similar movies results: {list_url}", "DEBUG")
+                utils.log(f"[SIMILARITY TIMING] Navigating to results: {list_url}", "DEBUG")
                 
                 # Use replace and add a small delay to ensure clean navigation
                 xbmc.sleep(100)
                 xbmc.executebuiltin(f'Container.Update({list_url},replace)')
                 xbmc.sleep(50)
+                nav_time = time.time() - nav_start
+                utils.log(f"[SIMILARITY TIMING] Navigation completed in {nav_time:.3f}s", "DEBUG")
             else:
+                utils.log(f"[SIMILARITY TIMING] Save failed after {save_time:.3f}s", "ERROR")
                 xbmcgui.Dialog().notification(
                     'LibraryGenie', 
                     'Failed to save results',
                     xbmcgui.NOTIFICATION_ERROR
                 )
 
+            total_time = time.time() - start_time
+            utils.log(f"[SIMILARITY TIMING] Total similarity search process completed in {total_time:.3f}s", "INFO")
+
         except Exception as e:
-            utils.log(f"Error in similar movies dialog: {str(e)}", "ERROR")
+            total_time = time.time() - start_time
+            utils.log(f"[SIMILARITY TIMING] Error after {total_time:.3f}s: {str(e)}", "ERROR")
+            import traceback
+            utils.log(f"[SIMILARITY TIMING] Full traceback: {traceback.format_exc()}", "ERROR")
             xbmcgui.Dialog().notification(
                 'LibraryGenie', 
                 'Error finding similar movies',
@@ -136,9 +171,10 @@ class SimilarMoviesManager:
 
     def _find_similar_movies(self, imdb_id, facets):
         """Call the similar movies API endpoint"""
+        import time
         try:
             if not self.remote_client.api_key:
-                utils.log("Remote API not configured", "WARNING")
+                utils.log("[SIMILARITY API] Remote API not configured", "WARNING")
                 return []
 
             # Make request to /similar_to endpoint
@@ -147,25 +183,34 @@ class SimilarMoviesManager:
                 **facets
             }
             
+            utils.log(f"[SIMILARITY API] Making POST request to /similar_to with data: {data}", "DEBUG")
+            request_start = time.time()
             response = self.remote_client._make_request('POST', '/similar_to', data)
+            request_time = time.time() - request_start
             
             if response and response.get('success'):
                 similar_imdb_ids = response.get('results', [])
-                utils.log(f"Found {len(similar_imdb_ids)} similar movies", "DEBUG")
+                utils.log(f"[SIMILARITY API] Request successful in {request_time:.3f}s, found {len(similar_imdb_ids)} similar movies", "INFO")
+                utils.log(f"[SIMILARITY API] First 5 results: {similar_imdb_ids[:5]}", "DEBUG")
                 return similar_imdb_ids
             else:
                 error_msg = response.get('error', 'Unknown error') if response else 'No response'
-                utils.log(f"Similar movies request failed: {error_msg}", "ERROR")
+                utils.log(f"[SIMILARITY API] Request failed after {request_time:.3f}s: {error_msg}", "ERROR")
+                utils.log(f"[SIMILARITY API] Full response: {response}", "DEBUG")
                 return []
 
         except Exception as e:
-            utils.log(f"Error finding similar movies: {str(e)}", "ERROR")
+            utils.log(f"[SIMILARITY API] Exception in API request: {str(e)}", "ERROR")
+            import traceback
+            utils.log(f"[SIMILARITY API] API exception traceback: {traceback.format_exc()}", "ERROR")
             return []
 
     def _save_to_search_history(self, movie_title, similar_imdb_ids):
         """Save similar movies results to Search History folder"""
+        import time
         try:
             # Convert IMDb IDs to the format expected by search history
+            format_start = time.time()
             formatted_results = []
             for imdb_id in similar_imdb_ids:
                 formatted_movie = {
@@ -175,13 +220,21 @@ class SimilarMoviesManager:
                     'search_score': 1.0
                 }
                 formatted_results.append(formatted_movie)
+            format_time = time.time() - format_start
+            utils.log(f"[SIMILARITY SAVE] Formatted {len(similar_imdb_ids)} results in {format_time:.3f}s", "DEBUG")
 
             # Use the existing search history functionality
             query = f"Similar to {movie_title}"
+            db_start = time.time()
+            utils.log(f"[SIMILARITY SAVE] Adding to search history with query: '{query}'", "DEBUG")
             list_id = self.db_manager.add_search_history(query, formatted_results)
+            db_time = time.time() - db_start
+            utils.log(f"[SIMILARITY SAVE] Database save completed in {db_time:.3f}s, list_id: {list_id}", "INFO")
             
             return list_id
 
         except Exception as e:
-            utils.log(f"Error saving similar movies to search history: {str(e)}", "ERROR")
+            utils.log(f"[SIMILARITY SAVE] Error saving to search history: {str(e)}", "ERROR")
+            import traceback
+            utils.log(f"[SIMILARITY SAVE] Save exception traceback: {traceback.format_exc()}", "ERROR")
             return None
