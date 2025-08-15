@@ -167,7 +167,14 @@ class DatabaseManager(Singleton):
             self.connection.commit()
 
             utils.log(f"Bulk inserted {len(data_list)} records into {table}", "DEBUG")
-            return [self.cursor.lastrowid - len(data_list) + i + 1 for i in range(len(data_list))]
+            
+            # Handle case where lastrowid is None (when INSERT OR IGNORE doesn't insert any rows)
+            lastrowid = self.cursor.lastrowid
+            if lastrowid is None:
+                utils.log(f"No rows inserted into {table}. Possible conflict or ignore situation.", "WARNING")
+                return []
+            
+            return [lastrowid - len(data_list) + i + 1 for i in range(len(data_list))]
 
         except Exception as e:
             self.connection.rollback()
