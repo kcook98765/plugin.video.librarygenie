@@ -86,9 +86,7 @@ def add_options_header_item(ctx: dict, handle: int):
             'thumb': icon_path,
             'poster': icon_path
         }
-        utils.log(f"=== SETTING ART WITH DICT: {art_dict} ===", "INFO")
         li.setArt(art_dict)
-        utils.log("Successfully called li.setArt(art_dict)", "INFO")
 
         # Build URL with current context using centralized URL builder
         utils.log("=== BUILDING URL ===", "INFO")
