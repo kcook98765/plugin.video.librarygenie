@@ -150,17 +150,39 @@ class ListItemBuilder:
         if not isinstance(media_info, dict):
             media_info = {}
 
-        # LOG INCOMING MEDIA_INFO
-        utils.log(f"=== BUILD_VIDEO_ITEM START for '{media_info.get('title', 'Unknown')}' ===", "INFO")
-        utils.log(f"Raw media_info keys: {list(media_info.keys())}", "DEBUG")
+        # LOG INCOMING MEDIA_INFO COMPREHENSIVELY
+        utils.log(f"=== BUILD_VIDEO_ITEM COMPREHENSIVE START for '{media_info.get('title', 'Unknown')}' ===", "INFO")
+        utils.log(f"Raw media_info keys: {list(media_info.keys())}", "INFO")
+        utils.log(f"Raw media_info type: {type(media_info)}", "INFO")
         
-        # Log plot specifically
-        plot_value = media_info.get('plot', '')
-        if plot_value:
-            plot_preview = str(plot_value)[:100] + "..." if len(str(plot_value)) > 100 else str(plot_value)
-            utils.log(f"Raw plot from media_info: '{plot_preview}' (length: {len(str(plot_value))})", "INFO")
-        else:
-            utils.log("No plot found in media_info", "WARNING")
+        # Log ALL fields comprehensively
+        for key, value in media_info.items():
+            if key in ['plot', 'cast', 'art']:
+                # Special handling for verbose fields
+                if key == 'plot':
+                    plot_str = str(value) if value else ''
+                    utils.log(f"RAW {key}: '{plot_str[:100]}...' (length: {len(plot_str)})" if len(plot_str) > 100 else f"RAW {key}: '{plot_str}'", "INFO")
+                elif key == 'cast':
+                    cast_str = str(value) if value else ''
+                    utils.log(f"RAW {key}: '{cast_str[:100]}...' (length: {len(cast_str)})" if len(cast_str) > 100 else f"RAW {key}: '{cast_str}'", "INFO")
+                elif key == 'art':
+                    art_str = str(value) if value else ''
+                    utils.log(f"RAW {key}: '{art_str[:100]}...' (length: {len(art_str)})" if len(art_str) > 100 else f"RAW {key}: '{art_str}'", "INFO")
+            else:
+                utils.log(f"RAW {key}: {value}", "INFO")
+        
+        # Verify plot specifically with multiple checks
+        plot_checks = [
+            ("direct_plot", media_info.get('plot', '')),
+            ("info_plot", media_info.get('info', {}).get('plot', '')),
+            ("nested_plot", media_info.get('plot', '') or media_info.get('info', {}).get('plot', ''))
+        ]
+        
+        for check_name, check_value in plot_checks:
+            if check_value:
+                utils.log(f"PLOT CHECK {check_name}: Found plot (length: {len(str(check_value))})", "INFO")
+            else:
+                utils.log(f"PLOT CHECK {check_name}: No plot found", "WARNING")
 
         # Create ListItem with proper string title (remove emoji characters)
         title = str(media_info.get('title', ''))

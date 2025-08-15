@@ -76,64 +76,86 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
             except Exception as e:
                 utils.log(f"Error setting mediatype: {str(e)}", "DEBUG")
 
-        # Set other properties using InfoTag methods
+        # Set other properties using InfoTag methods with comprehensive logging
         for key, value in info_dict.items():
             if key == 'mediatype':
                 continue  # Already handled above or not supported in v19
             if not value:  # Skip empty values
+                utils.log(f"INFOTAG: Skipping empty value for key '{key}'", "DEBUG")
                 continue
+
+            utils.log(f"INFOTAG: Processing key '{key}' with value type {type(value)} (length: {len(str(value)) if value else 0})", "DEBUG")
 
             try:
                 # Handle special cases
                 if key in ['year'] and isinstance(value, (int, str)):
                     # Year handling - setYear() doesn't exist in Kodi v19
-                    # Skip year for InfoTag in v19, let setInfo fallback handle it
+                    utils.log(f"INFOTAG: Attempting to set year: {value} (Kodi v{kodi_version})", "INFO")
                     if kodi_version >= 20 and hasattr(info_tag, 'setYear'):
                         try:
                             year_val = int(value) if value else 0
                             if year_val > 0:
                                 info_tag.setYear(year_val)
-                        except (ValueError, TypeError):
-                            pass
+                                utils.log(f"INFOTAG: Successfully set year via setYear(): {year_val}", "INFO")
+                        except (ValueError, TypeError) as e:
+                            utils.log(f"INFOTAG: Failed to convert year value '{value}': {str(e)}", "WARNING")
+                    else:
+                        utils.log(f"INFOTAG: setYear() not available in Kodi v{kodi_version}", "DEBUG")
                 elif key in ['rating'] and isinstance(value, (int, float, str)):
                     # Rating handling - setRating() doesn't exist in Kodi v19
+                    utils.log(f"INFOTAG: Attempting to set rating: {value} (Kodi v{kodi_version})", "INFO")
                     if kodi_version >= 20 and hasattr(info_tag, 'setRating'):
                         try:
                             rating_val = float(value) if value else 0.0
                             info_tag.setRating(rating_val)
-                        except (ValueError, TypeError):
-                            pass
+                            utils.log(f"INFOTAG: Successfully set rating via setRating(): {rating_val}", "INFO")
+                        except (ValueError, TypeError) as e:
+                            utils.log(f"INFOTAG: Failed to convert rating value '{value}': {str(e)}", "WARNING")
+                    else:
+                        utils.log(f"INFOTAG: setRating() not available in Kodi v{kodi_version}", "DEBUG")
                 elif key in ['votes'] and isinstance(value, (int, str)):
                     # Votes handling - setVotes() doesn't exist in Kodi v19
+                    utils.log(f"INFOTAG: Attempting to set votes: {value} (Kodi v{kodi_version})", "INFO")
                     if kodi_version >= 20 and hasattr(info_tag, 'setVotes'):
                         try:
                             votes_val = int(value) if value else 0
                             if votes_val > 0:
                                 info_tag.setVotes(votes_val)
-                        except (ValueError, TypeError):
-                            pass
+                                utils.log(f"INFOTAG: Successfully set votes via setVotes(): {votes_val}", "INFO")
+                        except (ValueError, TypeError) as e:
+                            utils.log(f"INFOTAG: Failed to convert votes value '{value}': {str(e)}", "WARNING")
+                    else:
+                        utils.log(f"INFOTAG: setVotes() not available in Kodi v{kodi_version}", "DEBUG")
                 elif key == 'cast' and isinstance(value, list):
                     # Cast handling - setCast() doesn't exist in Kodi v19
+                    utils.log(f"INFOTAG: Attempting to set cast: {len(value)} cast members (Kodi v{kodi_version})", "INFO")
                     if kodi_version >= 20 and hasattr(info_tag, 'setCast'):
                         try:
                             info_tag.setCast(value)
-                        except Exception:
-                            pass
+                            utils.log(f"INFOTAG: Successfully set cast via setCast(): {len(value)} members", "INFO")
+                        except Exception as e:
+                            utils.log(f"INFOTAG: Failed to set cast via setCast(): {str(e)}", "ERROR")
+                    else:
+                        utils.log(f"INFOTAG: setCast() not available in Kodi v{kodi_version}", "DEBUG")
                 elif hasattr(info_tag, f'set{key.capitalize()}'):
                     # Generic setter (e.g., setTitle, setPlot, etc.)
+                    setter_name = f'set{key.capitalize()}'
+                    utils.log(f"INFOTAG: Attempting to set {key} via {setter_name}(): value length {len(str(value))}", "INFO")
                     try:
-                        setter = getattr(info_tag, f'set{key.capitalize()}')
+                        setter = getattr(info_tag, setter_name)
                         setter(str(value))
                         if key == 'plot':
-                            utils.log(f"Successfully set plot via InfoTag.setPlot() - length: {len(str(value))}", "INFO")
+                            utils.log(f"INFOTAG: Successfully set plot via {setter_name}() - length: {len(str(value))}", "INFO")
+                        else:
+                            utils.log(f"INFOTAG: Successfully set {key} via {setter_name}()", "INFO")
                     except Exception as e:
-                        if key == 'plot':
-                            utils.log(f"Failed to set plot via InfoTag.setPlot(): {str(e)}", "ERROR")
-                        pass
+                        utils.log(f"INFOTAG: Failed to set {key} via {setter_name}(): {str(e)}", "ERROR")
+                else:
+                    utils.log(f"INFOTAG: No setter method found for key '{key}' (set{key.capitalize()})", "WARNING")
 
             except Exception as e:
                 # Log but don't fail - continue with other properties
-                utils.log(f"Error setting InfoTag property {key}: {str(e)}", "DEBUG")
+                utils.log(f"INFOTAG: Outer exception setting property {key}: {str(e)}", "ERROR")
 
     except Exception as e:
         # If InfoTag fails completely, fall back to the old setInfo method
