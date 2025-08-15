@@ -98,8 +98,8 @@ def run_addon():
             action = params.get('action', [None])[0]
             utils.log(f"Parsed URL params - args: '{args}', action: '{action}'", "DEBUG")
 
-        # Check if launched from context menu or directly
-        listitem_context = (len(sys.argv) > 1 and sys.argv[1] == '-1') or action == 'show_main_window'
+        # Check if launched from context menu only (exclude show_main_window which has its own handler)
+        listitem_context = (len(sys.argv) > 1 and sys.argv[1] == '-1') and action != 'show_main_window'
         utils.log(f"Launch context analysis - Args: {sys.argv}, Action: {action}, Is Context: {listitem_context}", "DEBUG")
 
         # Initialize config and database
@@ -121,20 +121,10 @@ def run_addon():
         # Handle context menu vs direct launch
         if listitem_context:
             utils.log("Processing context menu click", "DEBUG")
-            # Context menu on media item - show options window
-            kodi_helper = KodiHelper()
-            item_info = kodi_helper.get_focused_item_details()
-            if item_info:
-                window = MainWindow(item_info)
-                utils.log("MainWindow instance created", "DEBUG")
-                window.doModal()
-                utils.log("MainWindow closed", "DEBUG")
-                del window
-                return
-            else:
-                utils.log("No item info found for context menu", "WARNING")
-                xbmcgui.Dialog().notification("LibraryGenie", "Could not get item details", xbmcgui.NOTIFICATION_WARNING, 3000)
-                return
+            # Context menu functionality has been moved to plugin-based approach
+            utils.log("Context menu handling deprecated - using plugin routing", "INFO")
+            xbmcgui.Dialog().notification("LibraryGenie", "Use addon menu instead of context menu", xbmcgui.NOTIFICATION_INFO, 3000)
+            return
         elif action == 'show_list':
             # Handle specific list display
             params = urllib.parse.parse_qs(args)
@@ -145,11 +135,8 @@ def run_addon():
         else:
             # Handle different actions
             if action == 'show_main_window':
-                utils.log("Showing main window", "DEBUG")
-                from resources.lib.window_main import MainWindow
-                main_window = MainWindow()
-                main_window.doModal()
-                del main_window
+                utils.log("Main window functionality deprecated - using plugin routing", "INFO")
+                xbmcgui.Dialog().notification("LibraryGenie", "Main window has been replaced with plugin interface", xbmcgui.NOTIFICATION_INFO, 3000)
             elif action == 'setup_remote_api':
                 utils.log("Setting up remote API", "DEBUG")
                 utils.setup_remote_api()

@@ -492,7 +492,6 @@ class QueryManager(Singleton):
             # Get current state
             cursor = conn_info['connection'].cursor()
             cursor.execute("SELECT * FROM folders WHERE id = ?", (folder_id,))
-
             # Convert string 'None' to Python None
             if isinstance(new_parent_id, str) and new_parent_id == 'None':
                 new_parent_id = None
@@ -767,8 +766,9 @@ class QueryManager(Singleton):
             rec = row[0]
             try:
                 return rec['id']
-            except Exception:
-                return rec[0]
+            except KeyError:
+                utils.log("ID not found in query result", "WARNING")
+                return 0
 
         data = {
             'kodi_id': int(kodi_id or 0),
@@ -803,8 +803,9 @@ class QueryManager(Singleton):
             rec = existing[0]
             try:
                 return rec['id']
-            except Exception:
-                return rec[0]
+            except KeyError:
+                utils.log("ID not found in query result", "WARNING")
+                return 0
         return self.insert_media_item(payload) or 0
 
     def insert_list_item(self, data: Dict[str, Any]) -> None:
