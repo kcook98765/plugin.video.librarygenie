@@ -492,7 +492,6 @@ class QueryManager(Singleton):
             # Get current state
             cursor = conn_info['connection'].cursor()
             cursor.execute("SELECT * FROM folders WHERE id = ?", (folder_id,))
-
             # Convert string 'None' to Python None
             if isinstance(new_parent_id, str) and new_parent_id == 'None':
                 new_parent_id = None
