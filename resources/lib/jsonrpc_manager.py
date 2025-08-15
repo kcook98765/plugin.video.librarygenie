@@ -445,6 +445,7 @@ class JSONRPC:
 
                 if year and str(year).isdigit():
                     # AND condition for both title and year - use proper Kodi syntax
+                    # NOTE: All values must be strings for Kodi JSON-RPC
                     and_condition = [
                         {
                             'field': 'title',
@@ -454,7 +455,7 @@ class JSONRPC:
                         {
                             'field': 'year',
                             'operator': 'is',
-                            'value': int(year)
+                            'value': str(year)
                         }
                     ]
                     filter_conditions.append(and_condition)
