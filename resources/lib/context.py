@@ -3,7 +3,9 @@ import sys
 import xbmc
 import xbmcgui
 import xbmcaddon
-
+# Import required modules using absolute imports
+from resources.lib.kodi_helper import KodiHelper
+from resources.lib.addon_ref import get_addon
 try:
     import xbmcvfs
     translatePath = xbmcvfs.translatePath
@@ -18,10 +20,6 @@ ADDON_PATH = translatePath(ADDON.getAddonInfo("path"))
 # Ensure the addon root directory is in the Python path for imports to work
 if ADDON_PATH not in sys.path:
     sys.path.insert(0, ADDON_PATH)
-
-# Import required modules using absolute imports
-from resources.lib.kodi_helper import KodiHelper
-from resources.lib.addon_ref import get_addon
 
 def main():
     """Main entry point for context menu actions"""
