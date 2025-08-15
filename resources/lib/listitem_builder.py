@@ -10,6 +10,7 @@ from resources.lib import utils
 from resources.lib.listitem_infotagvideo import set_info_tag, set_art
 from typing import Dict
 from urllib.parse import quote, urlparse, quote_plus
+import os
 
 
 __all__ = ['set_info_tag', 'set_art']
@@ -152,18 +153,19 @@ class ListItemBuilder:
 
         # Basic logging for build process
         title = str(media_info.get('title', 'Unknown'))
-        utils.log(f"Building ListItem for: {title}", "DEBUG")
+        
 
         # Create ListItem with proper string title (remove emoji characters)
-        title = ListItemBuilder._clean_title(title)
+        formatted_title = ListItemBuilder._clean_title(title)
 
         # Apply color coding based on search score only for Search History lists
         search_score = media_info.get('search_score')
         if is_search_history and search_score and search_score > 0:
             # Color the title based on score without showing the numeric value
-            title = ListItemBuilder._colorize_title_by_score(title, search_score)
+            formatted_title = ListItemBuilder._colorize_title_by_score(formatted_title, search_score)
 
-        list_item = xbmcgui.ListItem(label=title)
+        # Create the ListItem
+        li = xbmcgui.ListItem(label=formatted_title)
 
 
 
@@ -216,11 +218,11 @@ class ListItemBuilder:
         # Use the specialized set_art function with improved normalization and fallbacks
         art_dict = _normalize_art_dict(art_dict, use_fallbacks=True)
         if art_dict:
-            set_art(list_item, art_dict)
+            set_art(li, art_dict)
 
         # Create info dictionary for InfoTag
         info_dict = {
-            'title': title,
+            'title': formatted_title,
             'plot': media_info.get('plot', ''),
             'tagline': media_info.get('tagline', ''),
             'country': media_info.get('country', ''),
@@ -337,10 +339,10 @@ class ListItemBuilder:
 
         # Log key info for debugging if needed
         if media_info.get('plot'):
-            utils.log(f"Setting plot for {title} (length: {len(str(media_info.get('plot')))})", "DEBUG")
+            pass # utils.log(f"Setting plot for {title} (length: {len(str(media_info.get('plot')))})", "DEBUG")
 
         # Use the specialized set_info_tag function that handles Kodi version compatibility
-        set_info_tag(list_item, info_dict, 'video')
+        set_info_tag(li, info_dict, 'video')
 
         # Handle resume data with v20+ compatibility
         resume_data = media_info.get('resume', {})
@@ -353,24 +355,24 @@ class ListItemBuilder:
                     if utils.is_kodi_v20_plus():
                         # Use v20+ InfoTag method to avoid deprecation warnings
                         try:
-                            info_tag = list_item.getVideoInfoTag()
+                            info_tag = li.getVideoInfoTag()
                             if hasattr(info_tag, 'setResumePoint'):
                                 info_tag.setResumePoint(position, total)
                             else:
                                 # Fallback to deprecated method
-                                list_item.setProperty('resumetime', str(position))
+                                li.setProperty('resumetime', str(position))
                                 if total > 0:
-                                    list_item.setProperty('totaltime', str(total))
+                                    li.setProperty('totaltime', str(total))
                         except Exception:
                             # Fallback to deprecated method
-                            list_item.setProperty('resumetime', str(position))
+                            li.setProperty('resumetime', str(position))
                             if total > 0:
-                                list_item.setProperty('totaltime', str(total))
+                                li.setProperty('totaltime', str(total))
                     else:
                         # v19 - use deprecated methods
-                        list_item.setProperty('resumetime', str(position))
+                        li.setProperty('resumetime', str(position))
                         if total > 0:
-                            list_item.setProperty('totaltime', str(total))
+                            li.setProperty('totaltime', str(total))
             except (ValueError, TypeError):
                 pass
 
@@ -382,54 +384,49 @@ class ListItemBuilder:
                 if utils.is_kodi_v20_plus():
                     # Use v20+ InfoTag methods to avoid deprecation warnings
                     try:
-                        info_tag = list_item.getVideoInfoTag()
-
-                        # V20+ stream methods have compatibility issues with dict format
-                        # Skip InfoTag stream methods and use property fallback instead
-                        utils.log("V20+ InfoTag stream methods skipped due to API compatibility issues", "DEBUG")
-                        self._add_stream_info_deprecated(list_item, stream_details)
+                        info_tag = li.getVideoInfoTag()
+                        # Skip stream detail methods as they are not reliably handled by v20+ InfoTag
+                        # Use property fallback instead
+                        _add_stream_info_deprecated(li, stream_details)
                     except Exception:
                         # Fallback to deprecated methods
-                        self._add_stream_info_deprecated(list_item, stream_details)
+                        _add_stream_info_deprecated(li, stream_details)
                 else:
                     # v19 - use deprecated methods
-                    self._add_stream_info_deprecated(list_item, stream_details)
+                    _add_stream_info_deprecated(li, stream_details)
             except Exception as e:
                 pass
 
         # Set content properties
-        list_item.setProperty('IsPlayable', 'true')
+        li.setProperty('IsPlayable', 'true')
 
         # Set DBID for Kodi Information dialog support
         kodi_id = media_info.get('kodi_id') or media_info.get('movieid') or media_info.get('id')
         if kodi_id:
-            list_item.setProperty('DBID', str(kodi_id))
+            li.setProperty('DBID', str(kodi_id))
 
         # Set MediaType property for Kodi recognition
         media_type = info_dict.get('mediatype', 'movie')
-        list_item.setProperty('MediaType', media_type)
+        li.setProperty('MediaType', media_type)
 
         # Add Information context menu item
         context_menu_items = []
         # Original line: context_menu_items.append(('Show Details', f'RunPlugin(plugin://script.librarygenie/?action=show_item_details&title={quote(title)}&item_id={media_info.get("id", "")})')))
         # Updated line:
-        context_menu_items.append(('Show Details', f'RunPlugin(plugin://script.librarygenie/?action=show_item_details&title={quote_plus(title)}&item_id={media_info.get("id", "")})'))
+        context_menu_items.append(('Show Details', f'RunPlugin(plugin://script.librarygenie/?action=show_item_details&title={quote_plus(formatted_title)}&item_id={media_info.get("id", "")})'))
         context_menu_items.append(('Information', 'Action(Info)'))
 
         # Add context menu to ListItem
-        list_item.addContextMenuItems(context_menu_items, replaceItems=False)
+        li.addContextMenuItems(context_menu_items, replaceItems=False)
 
-        
+
 
         # Try to get play URL from different possible locations
         play_url = media_info.get('info', {}).get('play') or media_info.get('play') or media_info.get('file')
         if play_url:
-            list_item.setPath(play_url)
+            li.setPath(play_url)
 
-        # Basic completion logging
-        utils.log(f"ListItem built successfully for: {title}", "DEBUG")
-
-        return list_item
+        return li
 
     @staticmethod
     def build_folder_item(name, is_folder=True, item_type='folder', plot=''):

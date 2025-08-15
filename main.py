@@ -325,9 +325,6 @@ def browse_list(list_id):
         if has_scores:
             # For search results, add unsorted method to preserve score order as default
             xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)
-            utils.log(f"Enabled all sort methods for search results list {list_id} with score-based default order", "DEBUG")
-        else:
-            utils.log(f"Enabled all sort methods for regular list {list_id}", "DEBUG")
 
         xbmcplugin.endOfDirectory(handle, succeeded=True, cacheToDisc=False, updateListing=True)
         utils.log(f"=== BROWSE_LIST ACTION COMPLETE for list_id={list_id} ===", "INFO")
