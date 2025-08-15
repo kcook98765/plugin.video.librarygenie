@@ -166,11 +166,20 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                 else:
                     clean_info[key] = value
 
-            # Skip ALL DBID setting for v19 to prevent Information dialog conflicts
-            # v19's setInfo() with DBID causes context menu conflicts regardless of item type
+            # Skip DBID for v19 non-playable items to prevent Information dialog conflicts
+            # Only add DBID for actual playable library movies, not for options/folder items
             kodi_id = info_dict.get('kodi_id') or info_dict.get('movieid') or info_dict.get('id')
-            if kodi_id:
-                utils.log(f"Skipped ALL DBID for v19 to prevent Information dialog conflicts: {kodi_id}", "DEBUG")
+            file_path = info_dict.get('file', '')
+            is_playable = file_path and not file_path.startswith('plugin://') and info_dict.get('mediatype') == 'movie'
+            
+            if kodi_id and is_playable:
+                try:
+                    clean_info['dbid'] = int(kodi_id)
+                    utils.log(f"Added DBID to setInfo for playable library movie: {kodi_id}", "DEBUG")
+                except (ValueError, TypeError):
+                    pass
+            elif kodi_id:
+                utils.log(f"Skipped DBID for non-playable item to prevent v19 Information dialog: {kodi_id} (file: {file_path})", "DEBUG")
             
             utils.log(f"Using setInfo with {len(clean_info)} properties for v19", "INFO")
             if 'plot' in clean_info:
