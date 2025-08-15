@@ -6,8 +6,10 @@ This document provides complete API documentation for developing Kodi addons tha
 
 ### Base URL
 ```
-https://your-server.com/
+Search API Service: https://your-server.com:5020/
 ```
+
+**Important:** All documented endpoints run on the **search-api service** (port 5020)
 
 ### User Authentication System
 
@@ -167,13 +169,25 @@ API Errors → Check Connectivity → Validate API Key → Re-pair if Needed →
   "success": true,
   "api_key": "abc123...xyz789",
   "user_email": "user@example.com",
-  "server_url": "https://your-server.com/api",
+  "server_url": "https://your-server.com",
   "message": "Pairing successful - your Kodi addon is now configured"
 }
 ```
 
 **Error Responses:**
 ```json
+// Missing JSON data
+{
+  "success": false,
+  "error": "JSON data required"
+}
+
+// Missing pairing code
+{
+  "success": false,
+  "error": "Pairing code required"
+}
+
 // Invalid code
 {
   "success": false,
@@ -250,6 +264,7 @@ This endpoint uses the same advanced search process as MediaVault:
   "success": true,
   "query": "psychological thriller with mind bending plot twists",
   "total_results": 15,
+  "max_score": 0.924,
   "results": [
     {
       "imdb_id": "tt1375666",
@@ -275,15 +290,31 @@ This endpoint uses the same advanced search process as MediaVault:
 - `success`: Boolean indicating if search succeeded
 - `query`: The original search query  
 - `total_results`: Number of results returned
+- `max_score`: Highest similarity score in the result set
 - `results`: Array of objects containing:
   - `imdb_id`: IMDb identifier (e.g., "tt1375666")
   - `score`: Semantic similarity score (0.0 to 1.0, higher is better match)
 
-**Error Response:**
+**Error Responses:**
 ```json
+// Missing query
 {
   "success": false,
   "error": "Search query required",
+  "results": []
+}
+
+// Service unavailable
+{
+  "success": false,
+  "error": "Search service not available",
+  "results": []
+}
+
+// Internal error
+{
+  "success": false,
+  "error": "Internal search error",
   "results": []
 }
 ```
@@ -505,27 +536,108 @@ Idempotency-Key: <uuid-per-chunk>
 }
 ```
 
-### 12. Get Similar Movies (Future Endpoint)
+### 12. Find Similar Movies
 
-**Endpoint:** `GET /api/movies/{imdb_id}/similar`  
-**Authentication:** Required (API Key)  
-**Purpose:** Get movies similar to the specified movie using AI embeddings
+**Endpoint:** `POST /similar_to`  
+**Authentication:** None (public endpoint)  
+**Purpose:** Find movies similar to a reference movie based on selected embedding facets
 
-**Response:**
+**Description:**
+This endpoint uses vector similarity search to find movies that match specific aspects of a reference movie:
+1. **Dynamic Facet Selection**: Choose which movie aspects to compare (plot, mood, themes, genre)
+2. **Equal Weight Distribution**: Selected facets receive equal weighting (e.g., 2 facets = 50% each)
+3. **Vector Similarity**: Uses cosine similarity on OpenAI embeddings stored in OpenSearch
+4. **Sorted Results**: Returns up to 50 IMDb IDs ranked by similarity score
+
+**Request:**
+```json
+{
+  "reference_imdb_id": "tt0111161",
+  "include_plot": true,
+  "include_mood": true,
+  "include_themes": false,
+  "include_genre": false
+}
+```
+
+**Parameters:**
+- `reference_imdb_id` (required): IMDb ID of the reference movie (format: "tt" + digits)
+- `include_plot` (optional): Include plot similarity (default: false)
+- `include_mood` (optional): Include mood/tone similarity (default: false)
+- `include_themes` (optional): Include themes/subtext similarity (default: false)
+- `include_genre` (optional): Include genre/tropes similarity (default: false)
+
+**Requirements:**
+- At least one facet must be set to `true`
+- Reference movie must exist in the system with embedding data
+- Valid IMDb ID format required
+
+**Success Response (200):**
 ```json
 {
   "success": true,
-  "similar_movies": [
-    {
-      "id": "tt0816692",
-      "title": "Interstellar", 
-      "similarity_score": 0.89,
-      "poster_url": "https://image.tmdb.org/...",
-      "year": 2014,
-      "rating": 8.6
-    }
+  "results": [
+    "tt0068646",
+    "tt0071562", 
+    "tt0468569",
+    "tt0816692",
+    "tt1375666"
   ]
 }
+```
+
+**Error Responses:**
+```json
+// Missing reference ID
+{
+  "success": false,
+  "error": "reference_imdb_id is required"
+}
+
+// No facets selected
+{
+  "success": false,
+  "error": "At least one facet must be included"
+}
+
+// Invalid IMDb ID format
+{
+  "success": false,
+  "error": "Invalid IMDb ID format"
+}
+
+// Search service unavailable
+{
+  "success": false,
+  "error": "Search service not available"
+}
+```
+
+**Usage Example (Python):**
+```python
+def find_similar_movies(reference_imdb, facets):
+    payload = {
+        "reference_imdb_id": reference_imdb,
+        "include_plot": facets.get("plot", False),
+        "include_mood": facets.get("mood", False), 
+        "include_themes": facets.get("themes", False),
+        "include_genre": facets.get("genre", False)
+    }
+    
+    response = requests.post(f"{BASE_URL}/similar_to", json=payload)
+    
+    if response.status_code == 200:
+        data = response.json()
+        if data["success"]:
+            return data["results"]  # List of IMDb IDs
+    
+    return []
+
+# Example usage
+similar_movies = find_similar_movies("tt0111161", {
+    "plot": True,
+    "mood": True
+})
 ```
 
 ## Error Handling
