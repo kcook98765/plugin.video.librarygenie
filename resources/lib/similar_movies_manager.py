@@ -64,19 +64,18 @@ class SimilarMoviesManager:
             )
 
     def _is_movie_uploaded(self, imdb_id):
-        """Check if movie exists in uploaded collection via local database"""
+        """Check if movie has valid IMDb ID (skip upload requirement)"""
         try:
-            # Check if this IMDb ID exists in the local media_items table with source='lib'
-            # This table is populated when movies are uploaded to the server
-            condition = f"imdbnumber = '{imdb_id}' AND source = 'lib'"
-            results = self.db_manager.fetch_data('media_items', condition)
-            
-            is_uploaded = len(results) > 0
-            utils.log(f"Movie {imdb_id} upload status: {is_uploaded}", "DEBUG")
-            return is_uploaded
+            # Simply check if we have a valid IMDb ID format
+            if imdb_id and imdb_id.startswith('tt') and len(imdb_id) > 2:
+                utils.log(f"Movie {imdb_id} has valid IMDb ID format", "DEBUG")
+                return True
+            else:
+                utils.log(f"Movie {imdb_id} has invalid IMDb ID format", "DEBUG")
+                return False
             
         except Exception as e:
-            utils.log(f"Error checking if movie is uploaded: {str(e)}", "ERROR")
+            utils.log(f"Error checking IMDb ID format: {str(e)}", "ERROR")
             return False
 
     def _show_facet_selection_dialog(self, movie_title):

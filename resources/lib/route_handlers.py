@@ -1,4 +1,3 @@
-
 """Route handlers for LibraryGenie plugin actions"""
 import xbmc
 import xbmcgui
@@ -115,10 +114,10 @@ def create_list(params):
 
         # Get folder_id from params, default to None (root)
         folder_id = params.get('folder_id')
-        
+
         if folder_id and isinstance(folder_id, list):
             folder_id = folder_id[0]
-        
+
         if folder_id and str(folder_id).isdigit():
             folder_id = int(folder_id)
         else:
@@ -194,32 +193,32 @@ def move_list(params):
     list_id = params.get('list_id', [None])[0]
     if not list_id:
         return
-    
+
     try:
         config = Config()
         db_manager = DatabaseManager(config.db_path)
-        
+
         # Get current list info
         list_info = db_manager.fetch_list_by_id(list_id)
         if not list_info:
             utils.log(f"List with ID {list_id} not found", "ERROR")
             xbmcgui.Dialog().notification('LibraryGenie', 'List not found', xbmcgui.NOTIFICATION_ERROR)
             return
-        
+
         # Check if list is protected (search history lists cannot be moved)
         if db_manager.is_list_protected(list_id):
             utils.log(f"Cannot move protected list {list_id}", "WARNING")
             xbmcgui.Dialog().notification('LibraryGenie', 'Cannot move protected list', xbmcgui.NOTIFICATION_WARNING)
             return
-        
+
         # Get all folders for selection (excluding Search History folder)
         all_folders = db_manager.fetch_all_folders()
         search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
-        
+
         # Filter out Search History folder and folders that would exceed depth limit
         folder_options = ["Root (No folder)"]
         folder_ids = [None]  # Root folder represented as None
-        
+
         for folder in all_folders:
             if folder['id'] != search_history_folder_id:
                 # Check if moving to this folder would exceed depth limit
@@ -235,35 +234,35 @@ def move_list(params):
                             current_folder = parent_folder
                         else:
                             break
-                    
+
                     folder_options.append(folder_path)
                     folder_ids.append(folder['id'])
-        
+
         # Show folder selection dialog
         selected_index = xbmcgui.Dialog().select(
             f"Move list '{list_info['name']}' to:",
             folder_options
         )
-        
+
         if selected_index == -1:  # User cancelled
             return
-        
+
         target_folder_id = folder_ids[selected_index]
         current_folder_id = list_info.get('folder_id')
-        
+
         # Check if already in target location
         if target_folder_id == current_folder_id:
             xbmcgui.Dialog().notification('LibraryGenie', 'List is already in that location', xbmcgui.NOTIFICATION_INFO)
             return
-        
+
         # Move the list
         db_manager.update_list_folder(list_id, target_folder_id)
-        
+
         # Show success notification
         target_name = "Root" if target_folder_id is None else folder_options[selected_index].replace("📁 ", "")
         xbmcgui.Dialog().notification('LibraryGenie', f'List moved to {target_name}')
         xbmc.executebuiltin('Container.Refresh')
-        
+
     except Exception as e:
         utils.log(f"Error moving list: {str(e)}", "ERROR")
         import traceback
@@ -304,23 +303,23 @@ def find_similar_movies(params):
     try:
         # Extract parameters
         imdb_id = params.get('imdb_id', [None])[0] if params.get('imdb_id') else None
-        movie_title = params.get('title', ['Unknown Movie'])[0] if params.get('title') else 'Unknown Movie'
-        
+        movie_title = params.get('title', ['Unknown'])[0] if params.get('title') else 'Unknown Movie'
+
         if not imdb_id:
             xbmcgui.Dialog().notification('LibraryGenie', 'No IMDb ID found for this movie', xbmcgui.NOTIFICATION_ERROR)
             return
-        
+
         # Decode URL-encoded title if needed
         import urllib.parse
         movie_title = urllib.parse.unquote_plus(movie_title)
-        
+
         utils.log(f"Finding similar movies for '{movie_title}' (IMDb: {imdb_id})", "INFO")
-        
+
         # Use the similar movies manager
         from resources.lib.similar_movies_manager import SimilarMoviesManager
         similar_manager = SimilarMoviesManager()
         similar_manager.show_similar_movies_dialog(imdb_id, movie_title)
-        
+
     except Exception as e:
         utils.log(f"Error in find_similar_movies: {str(e)}", "ERROR")
         import traceback
