@@ -58,6 +58,49 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
     kodi_version = get_kodi_version()
     utils.log(f"Using Kodi version: {kodi_version}", "DEBUG")
 
+    # For Kodi v19, use setInfo directly since InfoTag setters are unreliable
+    if kodi_version < 20:
+        utils.log("Using setInfo method for Kodi v19", "INFO")
+        try:
+            # Clean up info_dict for setInfo compatibility
+            clean_info = {}
+            for key, value in info_dict.items():
+                if not value:  # Skip empty values
+                    continue
+                    
+                # Handle special data types for setInfo
+                if key == 'cast' and isinstance(value, list):
+                    # Convert cast list to simple list of actor names for setInfo
+                    try:
+                        if all(isinstance(actor, dict) for actor in value):
+                            clean_info[key] = [actor.get('name', '') for actor in value if actor.get('name')]
+                        else:
+                            clean_info[key] = [str(actor) for actor in value]
+                    except Exception:
+                        pass  # Skip cast if conversion fails
+                elif key in ['country', 'director', 'genre', 'studio'] and isinstance(value, list):
+                    # Convert lists to comma-separated strings for setInfo
+                    clean_info[key] = ' / '.join(str(item) for item in value if item)
+                elif key == 'mediatype':
+                    # Skip mediatype for v19 setInfo
+                    continue
+                else:
+                    clean_info[key] = value
+
+            utils.log(f"Using setInfo with {len(clean_info)} properties for v19", "INFO")
+            if 'plot' in clean_info:
+                plot_preview = str(clean_info['plot'])[:100] + "..." if len(str(clean_info['plot'])) > 100 else str(clean_info['plot'])
+                utils.log(f"setInfo plot: '{plot_preview}' (length: {len(str(clean_info['plot']))})", "INFO")
+            
+            list_item.setInfo(content_type, clean_info)
+            utils.log("setInfo completed successfully for v19", "INFO")
+        except Exception as setinfo_error:
+            utils.log(f"setInfo failed for v19: {str(setinfo_error)}", "ERROR")
+        
+        utils.log(f"=== SET_INFO_TAG COMPLETE for '{title}' ===", "INFO")
+        return
+
+    # For Kodi v20+, try InfoTag methods first
     try:
         # Get the InfoTag for the specified content type
         if content_type == 'video':
@@ -68,123 +111,85 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
             utils.log(f"Unsupported content type: {content_type}", "WARNING")
             return
 
-        # Set mediatype only for Kodi 20+ (setMediaType was introduced in v20)
+        # Set mediatype for Kodi 20+
         mediatype = info_dict.get('mediatype')
-        if mediatype and kodi_version >= 20 and hasattr(info_tag, 'setMediaType'):
+        if mediatype and hasattr(info_tag, 'setMediaType'):
             try:
                 info_tag.setMediaType(mediatype)
+                utils.log(f"Successfully set mediatype: {mediatype}", "DEBUG")
             except Exception as e:
                 utils.log(f"Error setting mediatype: {str(e)}", "DEBUG")
 
-        # Set other properties using InfoTag methods with comprehensive logging
+        # Set other properties using InfoTag methods
+        infotag_success = False
         for key, value in info_dict.items():
-            if key == 'mediatype':
-                continue  # Already handled above or not supported in v19
-            if not value:  # Skip empty values
-                utils.log(f"INFOTAG: Skipping empty value for key '{key}'", "DEBUG")
+            if key == 'mediatype' or not value:  # Skip mediatype (handled above) and empty values
                 continue
 
-            utils.log(f"INFOTAG: Processing key '{key}' with value type {type(value)} (length: {len(str(value)) if value else 0})", "DEBUG")
-
             try:
-                # Handle special cases
-                if key in ['year'] and isinstance(value, (int, str)):
-                    # Year handling - setYear() doesn't exist in Kodi v19
-                    utils.log(f"INFOTAG: Attempting to set year: {value} (Kodi v{kodi_version})", "INFO")
-                    if kodi_version >= 20 and hasattr(info_tag, 'setYear'):
-                        try:
-                            year_val = int(value) if value else 0
-                            if year_val > 0:
-                                info_tag.setYear(year_val)
-                                utils.log(f"INFOTAG: Successfully set year via setYear(): {year_val}", "INFO")
-                        except (ValueError, TypeError) as e:
-                            utils.log(f"INFOTAG: Failed to convert year value '{value}': {str(e)}", "WARNING")
-                    else:
-                        utils.log(f"INFOTAG: setYear() not available in Kodi v{kodi_version}", "DEBUG")
-                elif key in ['rating'] and isinstance(value, (int, float, str)):
-                    # Rating handling - setRating() doesn't exist in Kodi v19
-                    utils.log(f"INFOTAG: Attempting to set rating: {value} (Kodi v{kodi_version})", "INFO")
-                    if kodi_version >= 20 and hasattr(info_tag, 'setRating'):
-                        try:
-                            rating_val = float(value) if value else 0.0
-                            info_tag.setRating(rating_val)
-                            utils.log(f"INFOTAG: Successfully set rating via setRating(): {rating_val}", "INFO")
-                        except (ValueError, TypeError) as e:
-                            utils.log(f"INFOTAG: Failed to convert rating value '{value}': {str(e)}", "WARNING")
-                    else:
-                        utils.log(f"INFOTAG: setRating() not available in Kodi v{kodi_version}", "DEBUG")
-                elif key in ['votes'] and isinstance(value, (int, str)):
-                    # Votes handling - setVotes() doesn't exist in Kodi v19
-                    utils.log(f"INFOTAG: Attempting to set votes: {value} (Kodi v{kodi_version})", "INFO")
-                    if kodi_version >= 20 and hasattr(info_tag, 'setVotes'):
-                        try:
-                            votes_val = int(value) if value else 0
-                            if votes_val > 0:
-                                info_tag.setVotes(votes_val)
-                                utils.log(f"INFOTAG: Successfully set votes via setVotes(): {votes_val}", "INFO")
-                        except (ValueError, TypeError) as e:
-                            utils.log(f"INFOTAG: Failed to convert votes value '{value}': {str(e)}", "WARNING")
-                    else:
-                        utils.log(f"INFOTAG: setVotes() not available in Kodi v{kodi_version}", "DEBUG")
+                # Handle special cases for v20+
+                if key == 'year' and isinstance(value, (int, str)):
+                    if hasattr(info_tag, 'setYear'):
+                        year_val = int(value) if value else 0
+                        if year_val > 0:
+                            info_tag.setYear(year_val)
+                            infotag_success = True
+                elif key == 'rating' and isinstance(value, (int, float, str)):
+                    if hasattr(info_tag, 'setRating'):
+                        info_tag.setRating(float(value))
+                        infotag_success = True
+                elif key == 'votes' and isinstance(value, (int, str)):
+                    if hasattr(info_tag, 'setVotes'):
+                        votes_val = int(value) if value else 0
+                        if votes_val > 0:
+                            info_tag.setVotes(votes_val)
+                            infotag_success = True
                 elif key == 'cast' and isinstance(value, list):
-                    # Cast handling - setCast() doesn't exist in Kodi v19
-                    utils.log(f"INFOTAG: Attempting to set cast: {len(value)} cast members (Kodi v{kodi_version})", "INFO")
-                    if kodi_version >= 20 and hasattr(info_tag, 'setCast'):
-                        try:
-                            info_tag.setCast(value)
-                            utils.log(f"INFOTAG: Successfully set cast via setCast(): {len(value)} members", "INFO")
-                        except Exception as e:
-                            utils.log(f"INFOTAG: Failed to set cast via setCast(): {str(e)}", "ERROR")
-                    else:
-                        utils.log(f"INFOTAG: setCast() not available in Kodi v{kodi_version}", "DEBUG")
+                    if hasattr(info_tag, 'setCast'):
+                        info_tag.setCast(value)
+                        infotag_success = True
                 elif hasattr(info_tag, f'set{key.capitalize()}'):
                     # Generic setter (e.g., setTitle, setPlot, etc.)
-                    setter_name = f'set{key.capitalize()}'
-                    utils.log(f"INFOTAG: Attempting to set {key} via {setter_name}(): value length {len(str(value))}", "INFO")
-                    try:
-                        setter = getattr(info_tag, setter_name)
-                        setter(str(value))
-                        if key == 'plot':
-                            utils.log(f"INFOTAG: Successfully set plot via {setter_name}() - length: {len(str(value))}", "INFO")
-                        else:
-                            utils.log(f"INFOTAG: Successfully set {key} via {setter_name}()", "INFO")
-                    except Exception as e:
-                        utils.log(f"INFOTAG: Failed to set {key} via {setter_name}(): {str(e)}", "ERROR")
-                else:
-                    utils.log(f"INFOTAG: No setter method found for key '{key}' (set{key.capitalize()})", "WARNING")
+                    setter = getattr(info_tag, f'set{key.capitalize()}')
+                    setter(str(value))
+                    infotag_success = True
+                    if key == 'plot':
+                        utils.log(f"Successfully set plot via InfoTag - length: {len(str(value))}", "INFO")
 
             except Exception as e:
-                # Log but don't fail - continue with other properties
-                utils.log(f"INFOTAG: Outer exception setting property {key}: {str(e)}", "ERROR")
+                utils.log(f"InfoTag setter failed for {key}: {str(e)}", "WARNING")
+
+        if infotag_success:
+            utils.log("InfoTag methods successful for v20+", "INFO")
+        else:
+            utils.log("No InfoTag methods succeeded, falling back to setInfo", "WARNING")
+            raise Exception("InfoTag methods failed")
 
     except Exception as e:
-        # If InfoTag fails completely, fall back to the old setInfo method
-        utils.log(f"Error setting InfoTag, falling back to setInfo: {str(e)}", "ERROR")
+        # Fall back to setInfo for v20+ if InfoTag fails
+        utils.log(f"InfoTag failed for v20+, falling back to setInfo: {str(e)}", "WARNING")
         try:
             # Clean up info_dict for setInfo compatibility
             clean_info = {}
             for key, value in info_dict.items():
-                if value:
-                    # Handle cast specially for setInfo
-                    if key == 'cast' and isinstance(value, list):
-                        # Convert cast list to simple list of actor names for setInfo
-                        try:
-                            if all(isinstance(actor, dict) for actor in value):
-                                clean_info[key] = [actor.get('name', '') for actor in value if actor.get('name')]
-                            else:
-                                clean_info[key] = [str(actor) for actor in value]
-                        except Exception:
-                            pass  # Skip cast if conversion fails
-                    else:
-                        clean_info[key] = value
+                if not value:
+                    continue
+                    
+                if key == 'cast' and isinstance(value, list):
+                    try:
+                        if all(isinstance(actor, dict) for actor in value):
+                            clean_info[key] = [actor.get('name', '') for actor in value if actor.get('name')]
+                        else:
+                            clean_info[key] = [str(actor) for actor in value]
+                    except Exception:
+                        pass
+                elif key in ['country', 'director', 'genre', 'studio'] and isinstance(value, list):
+                    clean_info[key] = ' / '.join(str(item) for item in value if item)
+                else:
+                    clean_info[key] = value
 
-            utils.log(f"Using setInfo fallback with {len(clean_info)} properties", "INFO")
-            if 'plot' in clean_info:
-                plot_preview = str(clean_info['plot'])[:100] + "..." if len(str(clean_info['plot'])) > 100 else str(clean_info['plot'])
-                utils.log(f"setInfo fallback plot: '{plot_preview}' (length: {len(str(clean_info['plot']))})", "INFO")
-            
             list_item.setInfo(content_type, clean_info)
-            utils.log("setInfo fallback completed successfully", "INFO")
+            utils.log("setInfo fallback completed successfully for v20+", "INFO")
         except Exception as fallback_error:
             utils.log(f"Fallback setInfo also failed: {str(fallback_error)}", "ERROR")
     
