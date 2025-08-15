@@ -242,33 +242,33 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
 
         if infotag_success_count > 0:
             # Handle resume data with version-appropriate methods
-        resume_data = info_dict.get('resume', {})
-        if isinstance(resume_data, dict) and any(resume_data.values()):
-            try:
-                position = float(resume_data.get('position', 0))
-                total = float(resume_data.get('total', 0))
-                
-                if position > 0:
-                    try:
-                        if hasattr(info_tag, 'setResumePoint'):
-                            info_tag.setResumePoint(position, total)
-                            utils.log(f"V20+ setResumePoint successful: {position}s of {total}s", "DEBUG")
-                        else:
-                            # Fallback to property method
+            resume_data = info_dict.get('resume', {})
+            if isinstance(resume_data, dict) and any(resume_data.values()):
+                try:
+                    position = float(resume_data.get('position', 0))
+                    total = float(resume_data.get('total', 0))
+                    
+                    if position > 0:
+                        try:
+                            if hasattr(info_tag, 'setResumePoint'):
+                                info_tag.setResumePoint(position, total)
+                                utils.log(f"V20+ setResumePoint successful: {position}s of {total}s", "DEBUG")
+                            else:
+                                # Fallback to property method
+                                list_item.setProperty('resumetime', str(position))
+                                if total > 0:
+                                    list_item.setProperty('totaltime', str(total))
+                                utils.log(f"V20+ resume fallback to properties: {position}s of {total}s", "DEBUG")
+                        except Exception as resume_error:
+                            # Final fallback to property method
                             list_item.setProperty('resumetime', str(position))
                             if total > 0:
                                 list_item.setProperty('totaltime', str(total))
-                            utils.log(f"V20+ resume fallback to properties: {position}s of {total}s", "DEBUG")
-                    except Exception as resume_error:
-                        # Final fallback to property method
-                        list_item.setProperty('resumetime', str(position))
-                        if total > 0:
-                            list_item.setProperty('totaltime', str(total))
-                        utils.log(f"V20+ resume error fallback: {str(resume_error)}", "WARNING")
-            except (ValueError, TypeError) as resume_convert_error:
-                utils.log(f"V20+ resume data conversion failed: {str(resume_convert_error)}", "WARNING")
+                            utils.log(f"V20+ resume error fallback: {str(resume_error)}", "WARNING")
+                except (ValueError, TypeError) as resume_convert_error:
+                    utils.log(f"V20+ resume data conversion failed: {str(resume_convert_error)}", "WARNING")
 
-        utils.log(f"V20+ InfoTag methods successful: {infotag_success_count} properties set", "INFO")
+            utils.log(f"V20+ InfoTag methods successful: {infotag_success_count} properties set", "INFO")
         else:
             utils.log("V20+ No InfoTag methods succeeded, falling back to setInfo", "WARNING")
             raise Exception(f"All V20+ InfoTag methods failed")
