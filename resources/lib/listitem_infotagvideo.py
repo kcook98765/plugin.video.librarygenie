@@ -44,7 +44,19 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
         utils.log("Invalid or empty info_dict provided to set_info_tag", "WARNING")
         return
 
+    title = info_dict.get('title', 'Unknown')
+    plot = info_dict.get('plot', '')
+    utils.log(f"=== SET_INFO_TAG START for '{title}' ===", "INFO")
+    utils.log(f"Info dict has {len(info_dict)} keys: {list(info_dict.keys())}", "DEBUG")
+    
+    if plot:
+        plot_preview = str(plot)[:100] + "..." if len(str(plot)) > 100 else str(plot)
+        utils.log(f"Plot to be set: '{plot_preview}' (length: {len(str(plot))})", "INFO")
+    else:
+        utils.log("No plot to be set", "WARNING")
+
     kodi_version = get_kodi_version()
+    utils.log(f"Using Kodi version: {kodi_version}", "DEBUG")
 
     try:
         # Get the InfoTag for the specified content type
@@ -112,7 +124,11 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                     try:
                         setter = getattr(info_tag, f'set{key.capitalize()}')
                         setter(str(value))
-                    except Exception:
+                        if key == 'plot':
+                            utils.log(f"Successfully set plot via InfoTag.setPlot() - length: {len(str(value))}", "INFO")
+                    except Exception as e:
+                        if key == 'plot':
+                            utils.log(f"Failed to set plot via InfoTag.setPlot(): {str(e)}", "ERROR")
                         pass
 
             except Exception as e:
@@ -140,9 +156,17 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                     else:
                         clean_info[key] = value
 
+            utils.log(f"Using setInfo fallback with {len(clean_info)} properties", "INFO")
+            if 'plot' in clean_info:
+                plot_preview = str(clean_info['plot'])[:100] + "..." if len(str(clean_info['plot'])) > 100 else str(clean_info['plot'])
+                utils.log(f"setInfo fallback plot: '{plot_preview}' (length: {len(str(clean_info['plot']))})", "INFO")
+            
             list_item.setInfo(content_type, clean_info)
+            utils.log("setInfo fallback completed successfully", "INFO")
         except Exception as fallback_error:
             utils.log(f"Fallback setInfo also failed: {str(fallback_error)}", "ERROR")
+    
+    utils.log(f"=== SET_INFO_TAG COMPLETE for '{title}' ===", "INFO")
 
 
 def set_art(list_item: ListItem, raw_art: Dict[str, str]) -> None:

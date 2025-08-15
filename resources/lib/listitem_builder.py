@@ -150,7 +150,17 @@ class ListItemBuilder:
         if not isinstance(media_info, dict):
             media_info = {}
 
-        # Detailed logging available for debugging when needed
+        # LOG INCOMING MEDIA_INFO
+        utils.log(f"=== BUILD_VIDEO_ITEM START for '{media_info.get('title', 'Unknown')}' ===", "INFO")
+        utils.log(f"Raw media_info keys: {list(media_info.keys())}", "DEBUG")
+        
+        # Log plot specifically
+        plot_value = media_info.get('plot', '')
+        if plot_value:
+            plot_preview = str(plot_value)[:100] + "..." if len(str(plot_value)) > 100 else str(plot_value)
+            utils.log(f"Raw plot from media_info: '{plot_preview}' (length: {len(str(plot_value))})", "INFO")
+        else:
+            utils.log("No plot found in media_info", "WARNING")
 
         # Create ListItem with proper string title (remove emoji characters)
         title = str(media_info.get('title', ''))
@@ -335,13 +345,16 @@ class ListItemBuilder:
                 info_dict['cast'] = []
 
         # LOG PROCESSED INFO_DICT BEFORE SETTING
-        # utils.log(f"=== INFO_DICT TO BE SET START ===", "INFO")
-        # for key, value in info_dict.items():
-        #     if key == 'cast' and isinstance(value, list):
-        #         utils.log(f"  {key}: [{len(value)} cast members]", "INFO")
-        #     else:
-        #         utils.log(f"  {key}: {value}", "INFO")
-        # utils.log("=== INFO_DICT TO BE SET END ===", "INFO")
+        utils.log(f"=== INFO_DICT TO BE SET START for '{title}' ===", "INFO")
+        for key, value in info_dict.items():
+            if key == 'cast' and isinstance(value, list):
+                utils.log(f"  {key}: [{len(value)} cast members]", "INFO")
+            elif key == 'plot':
+                plot_preview = str(value)[:100] + "..." if len(str(value)) > 100 else str(value)
+                utils.log(f"  {key}: '{plot_preview}' (length: {len(str(value))})", "INFO")
+            else:
+                utils.log(f"  {key}: {value}", "INFO")
+        utils.log("=== INFO_DICT TO BE SET END ===", "INFO")
 
         # Use the specialized set_info_tag function that handles Kodi version compatibility
         set_info_tag(list_item, info_dict, 'video')
@@ -400,11 +413,23 @@ class ListItemBuilder:
             list_item.setPath(play_url)
 
         # LOG FINAL LISTITEM STATUS
-        # utils.log(f"=== FINAL LISTITEM STATUS FOR {title} ===", "INFO")
-        # utils.log(f"ListItem Label: {list_item.getLabel()}", "INFO")
-        # utils.log(f"ListItem Path: {list_item.getPath()}", "INFO")
-        # utils.log(f"IsPlayable Property: {list_item.getProperty('IsPlayable')}", "INFO")
-        # utils.log("=== LISTITEM BUILD COMPLETED ===", "INFO")
+        utils.log(f"=== FINAL LISTITEM STATUS FOR {title} ===", "INFO")
+        utils.log(f"ListItem Label: {list_item.getLabel()}", "INFO")
+        utils.log(f"ListItem Path: {list_item.getPath()}", "INFO")
+        utils.log(f"IsPlayable Property: {list_item.getProperty('IsPlayable')}", "INFO")
+        
+        # Check if InfoTag was set properly by reading it back
+        try:
+            video_info = list_item.getVideoInfoTag()
+            if hasattr(video_info, 'getPlot'):
+                actual_plot = video_info.getPlot()
+                utils.log(f"InfoTag Plot verification: '{actual_plot[:100]}...' (length: {len(actual_plot)})" if len(actual_plot) > 100 else f"InfoTag Plot verification: '{actual_plot}'", "INFO")
+            else:
+                utils.log("InfoTag does not have getPlot method (v19 limitation)", "WARNING")
+        except Exception as e:
+            utils.log(f"Error reading InfoTag plot back: {str(e)}", "ERROR")
+        
+        utils.log("=== LISTITEM BUILD COMPLETED ===", "INFO")
 
         return list_item
 
