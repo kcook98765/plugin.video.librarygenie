@@ -320,7 +320,9 @@ def find_similar_movies(params):
         similar_manager = SimilarMoviesManager()
         similar_manager.show_similar_movies_dialog(imdb_id, movie_title)
 
-        # Plugin execution will end naturally after navigation
+        # IMPORTANT: This is a RunPlugin action - no directory listing needed
+        # The navigation is handled by the similar movies manager
+        utils.log("Similar movies action completed - plugin execution ending", "DEBUG")
 
     except Exception as e:
         utils.log(f"Error in find_similar_movies: {str(e)}", "ERROR")
