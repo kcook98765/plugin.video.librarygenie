@@ -395,7 +395,7 @@ class ListItemBuilder:
                 else:
                     # v19 - use deprecated methods
                     ListItemBuilder._add_stream_info_deprecated(li, stream_details)
-            except Exception as e:
+            except Exception:
                 pass
 
         # Set content properties
