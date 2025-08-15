@@ -439,7 +439,6 @@ class ListItemBuilder:
             plot: Plot/description text for the item
         """
         from resources.lib.addon_ref import get_addon
-        from resources.lib import utils
         addon = get_addon()
         addon_path = addon.getAddonInfo("path")
         media = f"{addon_path}/resources/media"
@@ -498,9 +497,6 @@ class ListItemBuilder:
                     resolution = stream.get('resolution', '')
                     aspect_ratio = stream.get('aspect_ratio', '')
                     lang = stream.get('language', '')
-
-                    # Construct a string that might be interpretable by skins/players
-                    stream_str = f"Video: Codec({codec}), Res({resolution}), Aspect({aspect_ratio}), Lang({lang})"
                     # Using generic properties as specific ones are deprecated
                     list_item.setProperty('VideoCodec', codec)
                     list_item.setProperty('VideoResolution', resolution)
