@@ -1,7 +1,5 @@
-import xbmc
 import xbmcgui
 import json
-import time
 from resources.lib import utils
 from resources.lib.jsonrpc_manager import JSONRPC
 from resources.lib.remote_api_client import RemoteAPIClient
