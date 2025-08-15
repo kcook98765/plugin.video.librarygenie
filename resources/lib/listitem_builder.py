@@ -7,7 +7,7 @@ import json
 import xbmcgui
 from resources.lib.listitem_infotagvideo import set_info_tag, set_art
 from resources.lib import utils
-from typing import Dict
+
 from urllib.parse import quote, urlparse, quote_plus
 
 __all__ = ['set_info_tag', 'set_art']
