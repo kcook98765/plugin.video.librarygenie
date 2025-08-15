@@ -235,6 +235,26 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                 utils.log(f"V20+ InfoTag processing failed for {key}: {str(property_error)}", "WARNING")
 
         if infotag_success_count > 0:
+            # Handle cast separately using setInfo fallback since InfoTag setCast has compatibility issues
+            cast_data = info_dict.get('cast', [])
+            if cast_data and isinstance(cast_data, list):
+                try:
+                    utils.log(f"V20+ InfoTag succeeded but cast needs setInfo fallback for {len(cast_data)} actors", "DEBUG")
+                    # Convert cast list to simple list of actor names for setInfo
+                    cast_names = []
+                    if all(isinstance(actor, dict) for actor in cast_data):
+                        cast_names = [actor.get('name', '') for actor in cast_data if actor.get('name')]
+                    else:
+                        cast_names = [str(actor) for actor in cast_data]
+                    
+                    if cast_names:
+                        # Use setInfo specifically for cast data
+                        cast_info = {'cast': cast_names}
+                        list_item.setInfo(content_type, cast_info)
+                        utils.log(f"V20+ Cast set via setInfo fallback: {len(cast_names)} actors", "DEBUG")
+                except Exception as cast_fallback_error:
+                    utils.log(f"V20+ Cast setInfo fallback failed: {str(cast_fallback_error)}", "WARNING")
+
             # Handle resume data with version-appropriate methods
             resume_data = info_dict.get('resume', {})
             if isinstance(resume_data, dict) and any(resume_data.values()):
