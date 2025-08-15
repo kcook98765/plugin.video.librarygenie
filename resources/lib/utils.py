@@ -85,14 +85,34 @@ def is_debug_enabled():
     except Exception:
         return False
 
+# Global cache for Kodi version to avoid repeated detection
+_KODI_VERSION_CACHE = None
+
 def get_kodi_version():
-    """Get the major version number of the current Kodi installation"""
+    """Get the major version number of the current Kodi installation with caching"""
+    global _KODI_VERSION_CACHE
+    
+    if _KODI_VERSION_CACHE is not None:
+        return _KODI_VERSION_CACHE
+    
     try:
         import xbmc
         version_info = xbmc.getInfoLabel("System.BuildVersion")
-        return int(version_info.split('.')[0])
-    except Exception:
-        return 21  # Default to latest if detection fails
+        _KODI_VERSION_CACHE = int(version_info.split('.')[0])
+        log(f"Detected and cached Kodi version: {_KODI_VERSION_CACHE}", "INFO")
+        return _KODI_VERSION_CACHE
+    except Exception as e:
+        _KODI_VERSION_CACHE = 21  # Default to latest if detection fails
+        log(f"Could not detect Kodi version, defaulting to v{_KODI_VERSION_CACHE}: {str(e)}", "WARNING")
+        return _KODI_VERSION_CACHE
+
+def is_kodi_v19():
+    """Check if running on Kodi v19 (Matrix)"""
+    return get_kodi_version() == 19
+
+def is_kodi_v20_plus():
+    """Check if running on Kodi v20 or higher (Nexus+)"""
+    return get_kodi_version() >= 20
 
 def setup_remote_api():
     """Launch remote API setup wizard"""

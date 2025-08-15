@@ -134,14 +134,14 @@ class JSONRPC:
         # Craft version-specific JSON-RPC query
         filter_obj = {"or": or_groups}
         limits = {"start": int(start), "end": int(start + max(limit, len(or_groups) + 10))}
-        
+
         utils.log(f"DEBUG: Crafting OR-based batch query for Kodi v{kodi_version} with {len(or_groups)} title-year pairs", "DEBUG")
         utils.log(f"DEBUG: Requesting {len(props)} comprehensive properties: {props[:5]}..." if len(props) > 5 else f"DEBUG: Requesting properties: {props}", "DEBUG")
         utils.log(f"DEBUG: Filter object: {filter_obj}", "DEBUG")
-        
+
         # Execute the JSON-RPC query with proper error handling
         result = self._getmovies_with_backoff(properties=props, filter_obj=filter_obj, limits=limits)
-        
+
         # Check for errors - log them but don't fallback
         if 'error' in result:
             error_msg = result.get('error', {}).get('message', 'Unknown error')
@@ -156,7 +156,7 @@ class JSONRPC:
             utils.log(f"ERROR: Unexpected JSON-RPC response format for Kodi v{kodi_version}", "ERROR")
             return {"result": {"movies": []}}
 
-    
+
 
     _instance = None
 
@@ -323,17 +323,16 @@ class JSONRPC:
             'properties': properties
         })
 
-    def find_movie_by_imdb(self, imdb_id):
+    def find_movie_by_imdb(self, imdb_id, properties=None):
         """Find a movie in Kodi library by IMDb ID with v19 compatibility"""
         try:
             utils.log(f"DEBUG: Starting JSONRPC lookup for IMDB ID: {imdb_id}", "DEBUG")
-            kodi_version = self._get_kodi_version()
-
+            
             # Get version-compatible properties
-            properties = self._get_version_compatible_properties()
+            properties = properties or self._get_version_compatible_properties()
 
             # v19 has limited filter support, so always fetch all movies and filter manually
-            if kodi_version < 20:
+            if utils.is_kodi_v19():
                 utils.log("DEBUG: Using v19 compatible search (manual filtering)", "DEBUG")
                 return self._find_movie_by_imdb_v19(imdb_id, properties)
 
@@ -343,7 +342,7 @@ class JSONRPC:
                 {
                     'filter': {
                         'field': 'uniqueid',
-                        'operator': 'is', 
+                        'operator': 'is',
                         'value': imdb_id
                     }
                 },
@@ -478,13 +477,13 @@ class JSONRPC:
         "premiered","uniqueid"
     ]
 
-    def search_movies(self, filter_obj: Dict[str, Any]) -> Dict[str, Any]:
+    def search_movies(self, filter_obj: Dict[str, Any], properties=None) -> Dict[str, Any]:
         """Search movies with v19 compatibility"""
-        kodi_version = self._get_kodi_version()
-        properties = self._get_version_compatible_properties()
+        # Get version-compatible properties
+        properties = properties or self._get_version_compatible_properties()
 
         # v19 may not support complex filters
-        if kodi_version < 20:
+        if utils.is_kodi_v19():
             utils.log("DEBUG: Using v19 compatible movie search", "DEBUG")
             return self._search_movies_v19(filter_obj, properties)
 
@@ -502,7 +501,7 @@ class JSONRPC:
     def _search_movies_v19(self, filter_obj: Dict[str, Any], properties):
         """v19-compatible movie search with manual filtering"""
         try:
-            # Get all movies first 
+            # Get all movies first
             all_movies = self.execute("VideoLibrary.GetMovies", {
                 "properties": properties
             })
@@ -549,29 +548,17 @@ class JSONRPC:
 
     def get_comprehensive_properties(self):
         """Get maximum possible property set for current Kodi version with intelligent backoff"""
-        kodi_version = self._get_kodi_version()
+        # v20+ comprehensive property set - includes all available properties
+        # v19 comprehensive property set - includes all v19-compatible properties
+        return [
+            "title", "genre", "year", "rating", "director", "trailer", "tagline", "plot",
+            "plotoutline", "originaltitle", "lastplayed", "playcount", "writer", "studio",
+            "mpaa", "cast", "country", "imdbnumber", "runtime", "set", "showlink",
+            "streamdetails", "top250", "votes", "fanart", "thumbnail", "file", "sorttitle",
+            "resume", "setid", "dateadded", "tag", "art", "userrating", "ratings",
+            "premiered", "uniqueid"
+        ]
 
-        if kodi_version >= 20:
-            # v20+ comprehensive property set - includes all available properties
-            return [
-                "title", "genre", "year", "rating", "director", "trailer", "tagline", "plot",
-                "plotoutline", "originaltitle", "lastplayed", "playcount", "writer", "studio",
-                "mpaa", "cast", "country", "imdbnumber", "runtime", "set", "showlink",
-                "streamdetails", "top250", "votes", "fanart", "thumbnail", "file", "sorttitle",
-                "resume", "setid", "dateadded", "tag", "art", "userrating", "ratings",
-                "premiered", "uniqueid"
-            ]
-        else:
-            # v19 comprehensive property set - includes all v19-compatible properties
-            return [
-                "title", "genre", "year", "rating", "director", "trailer", "tagline", "plot",
-                "plotoutline", "originaltitle", "lastplayed", "playcount", "writer", "studio",
-                "mpaa", "cast", "country", "imdbnumber", "runtime", "set", "showlink",
-                "streamdetails", "top250", "votes", "fanart", "thumbnail", "file", "sorttitle",
-                "resume", "setid", "dateadded", "tag", "art", "userrating", "ratings",
-                "premiered"
-                # Note: 'uniqueid' is excluded for v19 as it can cause issues
-            ]
 
     def get_movies_with_comprehensive_data(self, start=0, limit=50):
         """Get movies with maximum possible metadata using intelligent backoff"""

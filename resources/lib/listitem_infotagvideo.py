@@ -25,20 +25,12 @@ __all__ = ['set_info_tag', 'set_art']
 #            utils.log("ListItem InfoTagVideo module initialized", "INFO")
 #            ListItemInfoTagVideo._initialized = True
 
-def get_kodi_version() -> int:
-    """
-    Get the major version number of the current Kodi installation.
-    Minimum supported version: Kodi 19 (Matrix)
-    """
-    version_info = xbmc.getInfoLabel("System.BuildVersion")
-    return int(version_info.split('.')[0])
-
 """InfoTag compatibility helper for Kodi 19+ only - No support for Kodi 18 and below"""
 
 def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'video') -> None:
     """
     Set InfoTag for Kodi 19+ with proper error handling and fallback.
-    Minimum supported version: Kodi 19 (Matrix)
+    Uses centralized version detection for optimal performance.
     """
     if not isinstance(info_dict, dict) or not info_dict:
         utils.log("Invalid or empty info_dict provided to set_info_tag", "WARNING")
@@ -55,11 +47,11 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
     else:
         utils.log("No plot to be set", "WARNING")
 
-    kodi_version = get_kodi_version()
-    utils.log(f"Using Kodi version: {kodi_version}", "DEBUG")
+    # Use centralized version detection
+    utils.log(f"Using cached Kodi version: {utils.get_kodi_version()}", "DEBUG")
 
     # For Kodi v19, use setInfo directly since InfoTag setters are unreliable
-    if kodi_version < 20:
+    if utils.is_kodi_v19():
         utils.log("Using setInfo method for Kodi v19", "INFO")
         try:
             # Clean up info_dict for setInfo compatibility
@@ -100,7 +92,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
         utils.log(f"=== SET_INFO_TAG COMPLETE for '{title}' ===", "INFO")
         return
 
-    # For Kodi v20+, try InfoTag methods first
+    # For Kodi v20+, try InfoTag methods first with enhanced error handling
     try:
         # Get the InfoTag for the specified content type
         if content_type == 'video':
@@ -111,96 +103,137 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
             utils.log(f"Unsupported content type: {content_type}", "WARNING")
             return
 
-        # Set mediatype for Kodi 20+
-        mediatype = info_dict.get('mediatype')
-        if mediatype and hasattr(info_tag, 'setMediaType'):
+        utils.log(f"V20+ InfoTag object obtained: {type(info_tag)}", "DEBUG")
+
+        # V20+ InfoTag method mapping with validation
+        infotag_methods = {
+            'title': 'setTitle',
+            'plot': 'setPlot',
+            'year': 'setYear',
+            'rating': 'setRating',
+            'votes': 'setVotes',
+            'runtime': 'setDuration',
+            'duration': 'setDuration',
+            'tagline': 'setTagline',
+            'originaltitle': 'setOriginalTitle',
+            'director': 'setDirectors',
+            'writer': 'setWriters',
+            'genre': 'setGenres',
+            'studio': 'setStudios',
+            'country': 'setCountries',
+            'mpaa': 'setMpaa',
+            'premiered': 'setPremiered',
+            'dateadded': 'setDateAdded',
+            'imdbnumber': 'setIMDBNumber',
+            'trailer': 'setTrailer'
+        }
+
+        # Set mediatype first for V20+
+        mediatype = info_dict.get('mediatype', 'movie')
+        if hasattr(info_tag, 'setMediaType'):
             try:
                 info_tag.setMediaType(mediatype)
                 utils.log(f"Successfully set mediatype: {mediatype}", "DEBUG")
             except Exception as e:
-                utils.log(f"Error setting mediatype: {str(e)}", "DEBUG")
+                utils.log(f"V20+ setMediaType failed: {str(e)}", "WARNING")
 
-        # Set other properties using InfoTag methods
-        infotag_success = False
+        # Process each property with improved V20+ handling
+        infotag_success_count = 0
+        
         for key, value in info_dict.items():
-            if key == 'mediatype' or not value:  # Skip mediatype (handled above) and empty values
+            if key == 'mediatype' or not value:
                 continue
 
             try:
-                # Handle special cases for v20+
-                if key == 'year' and isinstance(value, (int, str)):
-                    if hasattr(info_tag, 'setYear'):
-                        year_val = int(value) if value else 0
-                        if year_val > 0:
-                            info_tag.setYear(year_val)
-                            infotag_success = True
-                elif key == 'rating' and isinstance(value, (int, float, str)):
-                    if hasattr(info_tag, 'setRating'):
-                        info_tag.setRating(float(value))
-                        infotag_success = True
-                elif key == 'votes' and isinstance(value, (int, str)):
-                    if hasattr(info_tag, 'setVotes'):
-                        votes_val = int(value) if value else 0
-                        if votes_val > 0:
-                            info_tag.setVotes(votes_val)
-                            infotag_success = True
-                elif key == 'cast' and isinstance(value, list):
+                # Special handling for complex data types
+                if key == 'cast' and isinstance(value, list):
                     if hasattr(info_tag, 'setCast'):
-                        # For v20+, convert cast list to proper Actor objects if needed
                         try:
-                            # Check if we have dict-style cast data
+                            # V20+ expects specific Actor object format
                             if value and isinstance(value[0], dict):
-                                # Convert to simple list format for InfoTag
-                                actor_list = []
-                                for actor in value:
-                                    if isinstance(actor, dict) and actor.get('name'):
-                                        # Create simple actor entry
-                                        actor_list.append({
-                                            'name': actor['name'],
-                                            'role': actor.get('role', ''),
-                                            'thumbnail': actor.get('thumbnail', '')
-                                        })
-                                info_tag.setCast(actor_list)
-                            else:
-                                # Already in simple format
+                                # Already in proper format
                                 info_tag.setCast(value)
-                            infotag_success = True
+                            else:
+                                # Convert simple list to proper format
+                                cast_list = [{'name': str(actor), 'role': ''} for actor in value if actor]
+                                info_tag.setCast(cast_list)
+                            infotag_success_count += 1
+                            utils.log(f"V20+ setCast successful with {len(value)} actors", "DEBUG")
                         except Exception as cast_error:
-                            utils.log(f"Cast conversion failed: {str(cast_error)}", "WARNING")
-                elif key == 'duration' and isinstance(value, (int, str)):
-                    if hasattr(info_tag, 'setDuration'):
+                            utils.log(f"V20+ setCast failed: {str(cast_error)}", "WARNING")
+                
+                elif key in ['year', 'runtime', 'duration', 'votes'] and isinstance(value, (int, str)):
+                    # Integer properties
+                    method_name = infotag_methods.get(key)
+                    if method_name and hasattr(info_tag, method_name):
                         try:
-                            # Convert to integer for v20+ InfoTag
-                            duration_val = int(value) if value else 0
-                            info_tag.setDuration(duration_val)
-                            infotag_success = True
-                        except (ValueError, TypeError) as e:
-                            utils.log(f"Duration conversion failed: {str(e)}", "WARNING")
-                elif hasattr(info_tag, f'set{key.capitalize()}'):
-                    # Generic setter (e.g., setTitle, setPlot, etc.)
-                    setter = getattr(info_tag, f'set{key.capitalize()}')
-                    # Handle special types that need conversion
-                    if key in ['country', 'director', 'genre', 'studio'] and isinstance(value, list):
-                        # Convert lists to strings for InfoTag setters
-                        setter(' / '.join(str(item) for item in value if item))
-                    else:
-                        setter(str(value))
-                    infotag_success = True
-                    if key == 'plot':
-                        utils.log(f"Successfully set plot via InfoTag - length: {len(str(value))}", "INFO")
+                            int_value = int(value) if value else 0
+                            if int_value > 0:
+                                getattr(info_tag, method_name)(int_value)
+                                infotag_success_count += 1
+                                utils.log(f"V20+ {method_name} set to {int_value}", "DEBUG")
+                        except (ValueError, TypeError) as convert_error:
+                            utils.log(f"V20+ {method_name} conversion failed: {str(convert_error)}", "WARNING")
 
-            except Exception as e:
-                utils.log(f"InfoTag setter failed for {key}: {str(e)}", "WARNING")
+                elif key == 'rating' and isinstance(value, (int, float, str)):
+                    # Float rating property
+                    if hasattr(info_tag, 'setRating'):
+                        try:
+                            float_value = float(value)
+                            info_tag.setRating(float_value)
+                            infotag_success_count += 1
+                            utils.log(f"V20+ setRating set to {float_value}", "DEBUG")
+                        except (ValueError, TypeError) as rating_error:
+                            utils.log(f"V20+ setRating failed: {str(rating_error)}", "WARNING")
 
-        if infotag_success:
-            utils.log("InfoTag methods successful for v20+", "INFO")
+                elif key in ['director', 'writer', 'genre', 'studio', 'country']:
+                    # List properties that need special handling
+                    method_name = infotag_methods.get(key)
+                    if method_name and hasattr(info_tag, method_name):
+                        try:
+                            if isinstance(value, list):
+                                # V20+ expects list format for these methods
+                                clean_list = [str(item) for item in value if item]
+                                if clean_list:
+                                    getattr(info_tag, method_name)(clean_list)
+                                    infotag_success_count += 1
+                                    utils.log(f"V20+ {method_name} set with {len(clean_list)} items", "DEBUG")
+                            else:
+                                # Convert string to list
+                                items = [item.strip() for item in str(value).split('/') if item.strip()]
+                                if items:
+                                    getattr(info_tag, method_name)(items)
+                                    infotag_success_count += 1
+                                    utils.log(f"V20+ {method_name} set from string", "DEBUG")
+                        except Exception as list_error:
+                            utils.log(f"V20+ {method_name} failed: {str(list_error)}", "WARNING")
+
+                else:
+                    # String properties
+                    method_name = infotag_methods.get(key)
+                    if method_name and hasattr(info_tag, method_name):
+                        try:
+                            getattr(info_tag, method_name)(str(value))
+                            infotag_success_count += 1
+                            if key == 'plot':
+                                utils.log(f"V20+ setPlot successful - length: {len(str(value))}", "INFO")
+                            else:
+                                utils.log(f"V20+ {method_name} set successfully", "DEBUG")
+                        except Exception as string_error:
+                            utils.log(f"V20+ {method_name} failed: {str(string_error)}", "WARNING")
+
+            except Exception as property_error:
+                utils.log(f"V20+ InfoTag processing failed for {key}: {str(property_error)}", "WARNING")
+
+        if infotag_success_count > 0:
+            utils.log(f"V20+ InfoTag methods successful: {infotag_success_count} properties set", "INFO")
         else:
-            utils.log("No InfoTag methods succeeded, falling back to setInfo", "WARNING")
-            raise Exception("InfoTag methods failed")
+            utils.log("V20+ No InfoTag methods succeeded, falling back to setInfo", "WARNING")
+            raise Exception(f"All V20+ InfoTag methods failed")
 
     except Exception as e:
-        # Fall back to setInfo for v20+ if InfoTag fails
-        utils.log(f"InfoTag failed for v20+, falling back to setInfo: {str(e)}", "WARNING")
+        # Enhanced fallback to setInfo for v20+ if InfoTag fails
+        utils.log(f"V20+ InfoTag failed, falling back to setInfo: {str(e)}", "WARNING")
         try:
             # Clean up info_dict for setInfo compatibility
             clean_info = {}
