@@ -66,11 +66,10 @@ def add_options_header_item(ctx: dict, handle: int):
         li = xbmcgui.ListItem(label="[B]Options & Tools[/B]")
         utils.log(f"Created ListItem with label: {li.getLabel()}", "INFO")
 
-        # Set info dictionary and log it
+        # Set info dictionary and log it - NO mediatype to avoid video info dialog
         info_dict = {
             'title': 'Options & Tools',
-            'plot': 'Access list management tools, search options, and addon settings.',
-            'mediatype': 'video'
+            'plot': 'Access list management tools, search options, and addon settings.'
         }
         utils.log(f"=== SETTING INFO WITH DICT: {info_dict} ===", "INFO")
         li.setInfo('video', info_dict)
@@ -117,7 +116,7 @@ def add_options_header_item(ctx: dict, handle: int):
         utils.log("=== FINAL LISTITEM PROPERTIES ===", "INFO")
         utils.log(f"ListItem label: {li.getLabel()}", "INFO")
         utils.log(f"ListItem path (if any): {li.getPath()}", "INFO")
-        utils.log(f"IsFolder will be set to: False", "INFO")
+        utils.log(f"IsFolder will be set to: True", "INFO")
         
         # Try to get back the info that was set
         try:
@@ -127,9 +126,9 @@ def add_options_header_item(ctx: dict, handle: int):
         except Exception as info_e:
             utils.log(f"Could not read back video info: {str(info_e)}", "DEBUG")
 
-        # Add as non-folder item so Kodi uses RunPlugin instead of trying to render directory
-        utils.log(f"=== ADDING TO DIRECTORY: handle={handle}, url={url}, isFolder=False ===", "INFO")
-        xbmcplugin.addDirectoryItem(handle, url, li, isFolder=False)
+        # Add as folder item for proper navigation (prevents video info dialog)
+        utils.log(f"=== ADDING TO DIRECTORY: handle={handle}, url={url}, isFolder=True ===", "INFO")
+        xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
         utils.log("Successfully added Options & Tools item to directory", "INFO")
         utils.log("=== OPTIONS & TOOLS LISTITEM BUILD COMPLETE ===", "INFO")
 
@@ -191,6 +190,8 @@ def build_root_directory(handle: int):
     except Exception as e:
         utils.log(f"Error populating root directory with lists/folders: {str(e)}", "ERROR")
 
+    # Set content type to 'files' for menu navigation (not 'movies')
+    xbmcplugin.setContent(handle, 'files')
     xbmcplugin.endOfDirectory(handle)
 
 def show_empty_directory(handle: int, message="No items to display."):
