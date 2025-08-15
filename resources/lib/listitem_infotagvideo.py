@@ -108,7 +108,9 @@ def _set_full_cast(list_item: ListItem, cast_list: list) -> bool:
                     simple_cast.append(actor['name'])
 
         if simple_cast:
-            list_item.setInfo('video', {'cast': simple_cast})
+            # Convert cast list to string format for setInfo compatibility
+            cast_str = ' / '.join([f"{actor[0]} ({actor[1]})" if isinstance(actor, tuple) and len(actor) > 1 else str(actor) for actor in simple_cast])
+            list_item.setInfo('video', {'cast': cast_str})
             utils.log(f"Fallback setInfo cast successful: {len(simple_cast)} actors (no images)", "WARNING")
             return False
     except Exception as e:
@@ -124,11 +126,6 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
     if not isinstance(info_dict, dict) or not info_dict:
         utils.log("Invalid or empty info_dict provided to set_info_tag", "WARNING")
         return
-
-    title = info_dict.get('title', 'Unknown')
-
-    # Handle plot information
-    plot = info_dict.get('plot', '')
 
     # Use centralized version detection
     utils.log(f"Using cached Kodi version: {utils.get_kodi_version()}", "DEBUG")
