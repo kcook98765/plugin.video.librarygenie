@@ -330,10 +330,47 @@ class ListItemBuilder:
                 if not isinstance(cast, list):
                     cast = []
 
-                info_dict['cast'] = cast
+                # Cast handling with enhanced image support - OPTIMIZED for performance
+                limited_cast = cast[:10] if len(cast) > 10 else cast
+                utils.log(f"Setting cast for {len(limited_cast)} actors (limited from {len(cast)} for performance)", "DEBUG")
 
-            except Exception:
-                info_dict['cast'] = []
+                # Format cast data with thumbnail support
+                formatted_cast = []
+                for actor in limited_cast:
+                    if isinstance(actor, dict):
+                        actor_info = {
+                            'name': actor.get('name', ''),
+                            'role': actor.get('role', ''),
+                            'thumbnail': actor.get('thumbnail', '')
+                        }
+                        formatted_cast.append(actor_info)
+
+                if formatted_cast:
+                    if utils.is_kodi_v20_plus():
+                        # Try using InfoTagVideo.setCast() for v20+
+                        try:
+                            info_tag_video = li.getVideoInfoTag() # Ensure info_tag_video is defined here
+                            if hasattr(info_tag_video, 'setCast'):
+                                info_tag_video.setCast(formatted_cast)
+                                utils.log(f"v20+ InfoTagVideo.setCast() successful: {len(formatted_cast)} actors with images", "DEBUG")
+                            else:
+                                # Fallback to deprecated method if setCast is not available
+                                li.setCast(formatted_cast)
+                                utils.log(f"v20+ InfoTagVideo.setCast() not found, falling back to ListItem.setCast()", "WARNING")
+                                utils.log(f"v19/v20 ListItem.setCast() fallback successful: {len(formatted_cast)} actors with images (deprecated)", "DEBUG")
+                        except Exception as e:
+                            utils.log(f"v20+ InfoTagVideo.setCast() failed: {str(e)}, falling back to ListItem.setCast()", "WARNING")
+                            # Fallback to deprecated method
+                            li.setCast(formatted_cast)
+                            utils.log(f"v19/v20 ListItem.setCast() fallback successful: {len(formatted_cast)} actors with images (deprecated)", "DEBUG")
+                    else:
+                        # v19 and below - use deprecated method
+                        li.setCast(formatted_cast)
+                        utils.log(f"v19 ListItem.setCast() successful: {len(formatted_cast)} actors with images (deprecated)", "DEBUG")
+
+            except Exception as e:
+                utils.log(f"Error setting cast information: {str(e)}", "ERROR")
+
 
         # Process plot information
         if media_info.get('plot'):
