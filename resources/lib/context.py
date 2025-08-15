@@ -1,9 +1,6 @@
 import sys
 import xbmcgui
 import xbmcaddon
-# Import required modules using absolute imports
-from resources.lib.kodi_helper import KodiHelper
-from resources.lib.addon_ref import get_addon
 import xbmcvfs
 translatePath = xbmcvfs.translatePath
 
@@ -14,6 +11,21 @@ ADDON_PATH = translatePath(ADDON.getAddonInfo("path"))
 # Ensure the addon root directory is in the Python path for imports to work
 if ADDON_PATH not in sys.path:
     sys.path.insert(0, ADDON_PATH)
+
+# Import required modules after path setup
+try:
+    from resources.lib.kodi_helper import KodiHelper
+    from resources.lib.addon_ref import get_addon
+except ImportError as e:
+    import xbmc
+    xbmc.log(f"LibraryGenie Context: Import error - {str(e)}", xbmc.LOGERROR)
+    # Try alternative import method
+    import os
+    lib_path = os.path.join(ADDON_PATH, 'resources', 'lib')
+    if lib_path not in sys.path:
+        sys.path.insert(0, lib_path)
+    from kodi_helper import KodiHelper
+    from addon_ref import get_addon
 
 def main():
     """Main entry point for context menu actions"""
