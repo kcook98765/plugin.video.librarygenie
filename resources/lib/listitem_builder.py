@@ -150,42 +150,11 @@ class ListItemBuilder:
         if not isinstance(media_info, dict):
             media_info = {}
 
-        # LOG INCOMING MEDIA_INFO COMPREHENSIVELY
-        utils.log(f"=== BUILD_VIDEO_ITEM COMPREHENSIVE START for '{media_info.get('title', 'Unknown')}' ===", "INFO")
-        utils.log(f"Raw media_info keys: {list(media_info.keys())}", "INFO")
-        utils.log(f"Raw media_info type: {type(media_info)}", "INFO")
-
-        # Log ALL fields comprehensively
-        for key, value in media_info.items():
-            if key in ['plot', 'cast', 'art']:
-                # Special handling for verbose fields
-                if key == 'plot':
-                    plot_str = str(value) if value else ''
-                    utils.log(f"RAW {key}: '{plot_str[:100]}...' (length: {len(plot_str)})" if len(plot_str) > 100 else f"RAW {key}: '{plot_str}'", "INFO")
-                elif key == 'cast':
-                    cast_str = str(value) if value else ''
-                    utils.log(f"RAW {key}: '{cast_str[:100]}...' (length: {len(cast_str)})" if len(cast_str) > 100 else f"RAW {key}: '{cast_str}'", "INFO")
-                elif key == 'art':
-                    art_str = str(value) if value else ''
-                    utils.log(f"RAW {key}: '{art_str[:100]}...' (length: {len(art_str)})" if len(art_str) > 100 else f"RAW {key}: '{art_str}'", "INFO")
-            else:
-                utils.log(f"RAW {key}: {value}", "INFO")
-
-        # Verify plot specifically with multiple checks
-        plot_checks = [
-            ("direct_plot", media_info.get('plot', '')),
-            ("info_plot", media_info.get('info', {}).get('plot', '')),
-            ("nested_plot", media_info.get('plot', '') or media_info.get('info', {}).get('plot', ''))
-        ]
-
-        for check_name, check_value in plot_checks:
-            if check_value:
-                utils.log(f"PLOT CHECK {check_name}: Found plot (length: {len(str(check_value))})", "INFO")
-            else:
-                utils.log(f"PLOT CHECK {check_name}: No plot found", "WARNING")
+        # Basic logging for build process
+        title = str(media_info.get('title', 'Unknown'))
+        utils.log(f"Building ListItem for: {title}", "DEBUG")
 
         # Create ListItem with proper string title (remove emoji characters)
-        title = str(media_info.get('title', ''))
         title = ListItemBuilder._clean_title(title)
 
         # Apply color coding based on search score only for Search History lists
@@ -366,17 +335,9 @@ class ListItemBuilder:
             except Exception as e:
                 info_dict['cast'] = []
 
-        # LOG PROCESSED INFO_DICT BEFORE SETTING
-        utils.log(f"=== INFO_DICT TO BE SET START for '{title}' ===", "INFO")
-        for key, value in info_dict.items():
-            if key == 'cast' and isinstance(value, list):
-                utils.log(f"  {key}: [{len(value)} cast members]", "INFO")
-            elif key == 'plot':
-                plot_preview = str(value)[:100] + "..." if len(str(value)) > 100 else str(value)
-                utils.log(f"  {key}: '{plot_preview}' (length: {len(str(value))})", "INFO")
-            else:
-                utils.log(f"  {key}: {value}", "INFO")
-        utils.log("=== INFO_DICT TO BE SET END ===", "INFO")
+        # Log key info for debugging if needed
+        if media_info.get('plot'):
+            utils.log(f"Setting plot for {title} (length: {len(str(media_info.get('plot')))})", "DEBUG")
 
         # Use the specialized set_info_tag function that handles Kodi version compatibility
         set_info_tag(list_item, info_dict, 'video')
@@ -458,33 +419,15 @@ class ListItemBuilder:
         # Add context menu to ListItem
         list_item.addContextMenuItems(context_menu_items, replaceItems=False)
 
-        # Debug Information dialog properties
-        utils.log(f"ListItem properties for Information dialog - DBID: {list_item.getProperty('DBID')}, MediaType: {list_item.getProperty('MediaType')}", "DEBUG")
-        utils.log("Added Information context menu item", "DEBUG")
+        
 
         # Try to get play URL from different possible locations
         play_url = media_info.get('info', {}).get('play') or media_info.get('play') or media_info.get('file')
         if play_url:
             list_item.setPath(play_url)
 
-        # LOG FINAL LISTITEM STATUS
-        utils.log(f"=== FINAL LISTITEM STATUS FOR {title} ===", "INFO")
-        utils.log(f"ListItem Label: {list_item.getLabel()}", "INFO")
-        utils.log(f"ListItem Path: {list_item.getPath()}", "INFO")
-        utils.log(f"IsPlayable Property: {list_item.getProperty('IsPlayable')}", "INFO")
-
-        # Check if InfoTag was set properly by reading it back
-        try:
-            video_info = list_item.getVideoInfoTag()
-            if hasattr(video_info, 'getPlot'):
-                actual_plot = video_info.getPlot()
-                utils.log(f"InfoTag Plot verification: '{actual_plot[:100]}...' (length: {len(actual_plot)})" if len(actual_plot) > 100 else f"InfoTag Plot verification: '{actual_plot}'", "INFO")
-            else:
-                utils.log("InfoTag does not have getPlot method (v19 limitation)", "WARNING")
-        except Exception as e:
-            utils.log(f"Error reading InfoTag plot back: {str(e)}", "ERROR")
-
-        utils.log("=== LISTITEM BUILD COMPLETED ===", "INFO")
+        # Basic completion logging
+        utils.log(f"ListItem built successfully for: {title}", "DEBUG")
 
         return list_item
 

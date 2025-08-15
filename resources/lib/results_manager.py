@@ -28,26 +28,8 @@ class ResultsManager(Singleton):
             list_items = self.query_manager.fetch_list_items_with_details(list_id)
             utils.log(f"Found {len(list_items)} items in list {list_id}", "DEBUG")
 
-            # Log comprehensive details for each item
-            for i, item in enumerate(list_items):
-                utils.log(f"=== ITEM {i+1} RAW DATABASE DETAILS ===", "INFO")
-                utils.log(f"Item ID: {item.get('id', 'N/A')}", "INFO")
-                utils.log(f"Title: {item.get('title', 'N/A')}", "INFO")
-                utils.log(f"Year: {item.get('year', 'N/A')}", "INFO")
-                utils.log(f"Plot length: {len(str(item.get('plot', '')))}", "INFO")
-                utils.log(f"Plot preview: {str(item.get('plot', ''))[:100]}..." if len(str(item.get('plot', ''))) > 100 else f"Plot: {item.get('plot', 'N/A')}", "INFO")
-                utils.log(f"Genre: {item.get('genre', 'N/A')}", "INFO")
-                utils.log(f"Director: {item.get('director', 'N/A')}", "INFO")
-                utils.log(f"Cast: {item.get('cast', 'N/A')}", "INFO")
-                utils.log(f"Rating: {item.get('rating', 'N/A')}", "INFO")
-                utils.log(f"Runtime: {item.get('duration', 'N/A')}", "INFO")
-                utils.log(f"IMDb Number: {item.get('imdbnumber', 'N/A')}", "INFO")
-                utils.log(f"Poster: {item.get('poster', 'N/A')}", "INFO")
-                utils.log(f"Fanart: {item.get('fanart', 'N/A')}", "INFO")
-                utils.log(f"Art: {item.get('art', 'N/A')}", "INFO")
-                utils.log(f"Source: {item.get('source', 'N/A')}", "INFO")
-                utils.log(f"All keys: {list(item.keys())}", "DEBUG")
-                utils.log("=== END RAW DATABASE DETAILS ===", "INFO")
+            # Log summary of items being processed
+            utils.log(f"Processing {len(list_items)} items for list display", "DEBUG")
 
             rows = list_items # Renamed for consistency with original logic
             external, refs = [], []

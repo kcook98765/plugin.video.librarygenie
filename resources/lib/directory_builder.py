@@ -50,21 +50,15 @@ def add_context_menu_for_item(li: xbmcgui.ListItem, item_type: str, **ids):
 def add_options_header_item(ctx: dict, handle: int):
     """Add the options and tools header item as a non-folder RunPlugin item"""
     try:
-        utils.log("=== OPTIONS & TOOLS LISTITEM BUILD START ===", "INFO")
-        utils.log(f"Input context: {ctx}", "INFO")
-        utils.log(f"Input handle: {handle}", "INFO")
-
         # Check if navigation is in progress - skip adding options header during navigation
         navigating = xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.Navigating)")
-        utils.log(f"Navigation in progress check: {navigating}", "INFO")
         if navigating == "true":
             utils.log("Navigation in progress, skipping options header item", "DEBUG")
             return
 
         # Create list item for options as non-folder
-        utils.log("=== CREATING ListItem INSTANCE ===", "INFO")
         li = xbmcgui.ListItem(label="[B]Options & Tools[/B]")
-        utils.log(f"Created ListItem with label: {li.getLabel()}", "INFO")
+        utils.log("Adding Options & Tools header item", "DEBUG")
 
         # For Kodi v19, avoid setting video info entirely to prevent video info dialog
         from resources.lib import utils as utils_module

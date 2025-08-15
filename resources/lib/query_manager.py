@@ -270,24 +270,8 @@ class QueryManager(Singleton):
             items = [dict(row) for row in rows]
             utils.log(f"Fetched {len(items)} items for list {list_id}", "DEBUG")
 
-            # Log comprehensive database fetch details
-            for i, item in enumerate(items):
-                utils.log(f"=== DATABASE FETCH ITEM {i+1} DETAILS ===", "INFO")
-                utils.log(f"Database ID: {item.get('id', 'N/A')}", "INFO")
-                utils.log(f"Title from DB: {item.get('title', 'N/A')}", "INFO")
-                plot_from_db = item.get('plot', '')
-                if plot_from_db:
-                    utils.log(f"Plot from DB (length {len(str(plot_from_db))}): {str(plot_from_db)[:150]}..." if len(str(plot_from_db)) > 150 else f"Plot from DB: {plot_from_db}", "INFO")
-                else:
-                    utils.log("Plot from DB: EMPTY/NULL", "WARNING")
-                utils.log(f"Genre from DB: {item.get('genre', 'N/A')}", "INFO")
-                utils.log(f"Director from DB: {item.get('director', 'N/A')}", "INFO")
-                utils.log(f"Year from DB: {item.get('year', 'N/A')}", "INFO")
-                utils.log(f"Rating from DB: {item.get('rating', 'N/A')}", "INFO")
-                utils.log(f"Runtime from DB: {item.get('duration', 'N/A')}", "INFO")
-                utils.log(f"Cast from DB: {str(item.get('cast', ''))[:100]}..." if len(str(item.get('cast', ''))) > 100 else f"Cast from DB: {item.get('cast', 'N/A')}", "INFO")
-                utils.log(f"Poster from DB: {item.get('poster', 'N/A')}", "INFO")
-                utils.log(f"Fanart from DB: {item.get('fanart', 'N/A')}", "INFO")
+            # Log database fetch summary
+            utils.log(f"Fetched {len(items)} items from database", "DEBUG")
                 utils.log(f"Art JSON from DB: {str(item.get('art', ''))[:100]}..." if len(str(item.get('art', ''))) > 100 else f"Art from DB: {item.get('art', 'N/A')}", "INFO")
                 utils.log(f"Source from DB: {item.get('source', 'N/A')}", "INFO")
                 utils.log(f"Media Type from DB: {item.get('media_type', 'N/A')}", "INFO")

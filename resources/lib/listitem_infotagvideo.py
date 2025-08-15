@@ -31,38 +31,38 @@ __all__ = ['set_info_tag', 'set_art']
 def _set_full_cast(list_item: ListItem, cast_list: list) -> bool:
     """
     Version-agnostic cast setter optimized for Kodi v21+ with proper InfoTagVideo.setCast() priority.
-    
+
     Args:
         list_item: The ListItem to set cast on
         cast_list: List of cast dicts with 'name', 'role', 'thumbnail', 'order' keys
-        
+
     Returns:
         bool: True if cast was set with image support, False if fallback was used
     """
     if not cast_list:
         return False
-        
+
     # Normalize inputs (avoid None values)
     norm = []
     for actor in cast_list:
         if isinstance(actor, dict):
             norm.append({
                 'name': (actor.get('name') or '').strip(),
-                'role': (actor.get('role') or '').strip(), 
+                'role': (actor.get('role') or '').strip(),
                 'thumbnail': (actor.get('thumbnail') or '').strip(),
                 'order': int(actor.get('order') or 0),
             })
-    
+
     if not norm:
         return False
-        
+
     utils.log(f"Setting cast for {len(norm)} actors with image support", "DEBUG")
-    
+
     # 1) Priority path for v21+: InfoTagVideo.setCast() with Actor objects
     try:
         import xbmcgui
         info = list_item.getVideoInfoTag()
-        
+
         # Enhanced v21+ detection - check Kodi version directly
         if utils.get_kodi_version() >= 21 and hasattr(info, 'setCast') and hasattr(xbmcgui, 'Actor'):
             actors = []
@@ -71,7 +71,7 @@ def _set_full_cast(list_item: ListItem, cast_list: list) -> bool:
                     try:
                         actor_obj = xbmcgui.Actor(
                             name=str(actor['name']),
-                            role=str(actor['role']), 
+                            role=str(actor['role']),
                             order=int(actor['order']),
                             thumbnail=str(actor['thumbnail']) if actor['thumbnail'] else ""
                         )
@@ -79,24 +79,24 @@ def _set_full_cast(list_item: ListItem, cast_list: list) -> bool:
                     except Exception as actor_error:
                         utils.log(f"Failed to create Actor object for {actor['name']}: {str(actor_error)}", "DEBUG")
                         continue
-            
+
             if actors:
                 info.setCast(actors)  # v21+ preferred InfoTagVideo method
                 utils.log(f"v21+ InfoTagVideo.setCast() successful: {len(actors)} actors with images", "DEBUG")
                 return True
     except Exception as e:
         utils.log(f"v21+ InfoTagVideo.setCast() failed: {str(e)}", "DEBUG")
-        
+
     # 2) Fallback for v19/v20: ListItem.setCast(list-of-dicts) - now deprecated in v21
     try:
         if hasattr(list_item, 'setCast'):
             # v19/v20 method: accepts dicts with name/role/thumbnail/order
             list_item.setCast(norm)
-            utils.log(f"v19/v20 ListItem.setCast() fallback successful: {len(norm)} actors with images (deprecated)", "DEBUG")  
+            utils.log(f"v19/v20 ListItem.setCast() fallback successful: {len(norm)} actors with images (deprecated)", "DEBUG")
             return True
     except Exception as e:
         utils.log(f"v19/v20 ListItem.setCast() fallback failed: {str(e)}", "DEBUG")
-        
+
     # 3) Last resort: names/roles only via setInfo (no images)
     try:
         simple_cast = []
@@ -106,14 +106,14 @@ def _set_full_cast(list_item: ListItem, cast_list: list) -> bool:
                     simple_cast.append((actor['name'], actor['role']))
                 else:
                     simple_cast.append(actor['name'])
-        
+
         if simple_cast:
             list_item.setInfo('video', {'cast': simple_cast})
             utils.log(f"Fallback setInfo cast successful: {len(simple_cast)} actors (no images)", "WARNING")
             return False
     except Exception as e:
         utils.log(f"All cast methods failed: {str(e)}", "ERROR")
-        
+
     return False
 
 def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'video') -> None:
@@ -171,7 +171,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
             kodi_id = info_dict.get('kodi_id') or info_dict.get('movieid') or info_dict.get('id')
             file_path = info_dict.get('file', '')
             is_playable = file_path and not file_path.startswith('plugin://') and info_dict.get('mediatype') == 'movie'
-            
+
             if kodi_id and is_playable:
                 try:
                     clean_info['dbid'] = int(kodi_id)
@@ -180,7 +180,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                     pass
             elif kodi_id:
                 utils.log(f"Skipped DBID for non-playable item to prevent v19 Information dialog: {kodi_id} (file: {file_path})", "DEBUG")
-            
+
             utils.log(f"Using setInfo with {len(clean_info)} properties for v19", "INFO")
             if 'plot' in clean_info:
                 plot_preview = str(clean_info['plot'])[:100] + "..." if len(str(clean_info['plot'])) > 100 else str(clean_info['plot'])
@@ -408,8 +408,6 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                     utils.log(f"v20+ fallback resume data conversion failed: {str(resume_error)}", "WARNING")
         except Exception as fallback_error:
             utils.log(f"Fallback setInfo also failed: {str(fallback_error)}", "ERROR")
-
-    utils.log(f"=== SET_INFO_TAG COMPLETE for '{title}' ===", "INFO")
 
 
 def set_art(list_item: ListItem, raw_art: Dict[str, str]) -> None:
