@@ -127,11 +127,6 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
         utils.log("Invalid or empty info_dict provided to set_info_tag", "WARNING")
         return
 
-    title = info_dict.get('title', 'Unknown')
-
-    # Handle plot information
-    plot = info_dict.get('plot', '')
-
     # Use centralized version detection
     utils.log(f"Using cached Kodi version: {utils.get_kodi_version()}", "DEBUG")
 
