@@ -16,147 +16,6 @@ class JSONRPC:
         except Exception:
             return None
 
-    def _getmovies_with_backoff(self, properties=None, filter_obj=None, limits=None):
-        """Call VideoLibrary.GetMovies while removing unsupported properties on-the-fly."""
-        props = list(properties or [])
-        # 'movieid' must NOT be in the properties list; it's implicit
-        props = [p for p in props if p != 'movieid']
-
-        # Build the payload with correct structure
-        payload = {"properties": props}
-
-        # Add filter if provided - ensure it's a proper dict structure
-        if filter_obj and isinstance(filter_obj, dict):
-            payload["filter"] = filter_obj
-
-        # Add limits if provided - ensure proper integer types
-        if limits and isinstance(limits, dict):
-            payload["limits"] = {
-                "start": int(limits.get("start", 0)),
-                "end": int(limits.get("end", 50))
-            }
-
-        for _ in range(len(props) + 1):
-            resp = self.execute("VideoLibrary.GetMovies", payload)
-            if not isinstance(resp, dict) or 'error' not in resp:
-                return resp
-            idx = self._extract_invalid_prop_index(resp)
-            if idx is None:
-                return resp
-            if 0 <= idx < len(payload.get('properties', [])):
-                bad = payload['properties'][idx]
-                try:
-                    from resources.lib import utils
-                    utils.log(f"JSONRPC backoff: removing unsupported property '{bad}'", "WARNING")
-                except Exception:
-                    pass
-                del payload['properties'][idx]
-            else:
-                return resp
-        return resp
-
-    def get_movies_compat(self, properties=None, filter_obj=None, start=0, limit=50):
-        """Compatibility wrapper around GetMovies with filters and property backoff."""
-        limits = {"start": int(start), "end": int(start + limit)}
-        return self._getmovies_with_backoff(properties=properties, filter_obj=filter_obj, limits=limits)
-
-    def get_movie_by_title_year(self, title, year):
-        """Resolve a movie via Title+Year using compatible GetMovies calls, then upgrade to details."""
-        if not title:
-            return None
-        base_props = ["title", "year", "imdbnumber", "uniqueid", "file", "art"]
-        # 1) Exact AND filter
-        filt = {"and": [
-            {"field": "title", "operator": "is", "value": title},
-            {"field": "year",  "operator": "is", "value": str(year or 0)}
-        ]}
-        resp = self.get_movies_compat(properties=base_props, filter_obj=filt, start=0, limit=5) or {}
-        movies = (resp.get('result') or {}).get('movies') or []
-        if movies:
-            mid = movies[0].get('movieid')
-            if mid is not None:
-                det = self.get_movie_details(mid) or {}
-                return (det.get('result') or {}).get('moviedetails') or movies[0]
-            return movies[0]
-        # 2) Title exact, choose closest year
-        resp2 = self.get_movies_compat(properties=base_props, filter_obj={"field":"title","operator":"is","value":title}, start=0, limit=25) or {}
-        candidates = (resp2.get('result') or {}).get('movies') or []
-        if not candidates:
-            # 3) Title contains
-            resp3 = self.get_movies_compat(properties=base_props, filter_obj={"field":"title","operator":"contains","value":title}, start=0, limit=25) or {}
-            candidates = (resp3.get('result') or {}).get('movies') or []
-        if not candidates:
-            return None
-        ty = int(year or 0)
-        best = None
-        for m in candidates:
-            y = int(m.get('year') or 0)
-            if ty and y == ty:
-                best = m; break
-            if ty and abs(y - ty) <= 1 and best is None:
-                best = m
-        best = best or candidates[0]
-        mid = best.get('movieid')
-        if mid is not None:
-            det = self.get_movie_details(mid) or {}
-            return (det.get('result') or {}).get('moviedetails') or best
-        return best
-
-    def get_movies_by_title_year_batch(self, pairs, properties=None, start=0, limit=500):
-        """
-        Resolve many movies in one VideoLibrary.GetMovies using an OR of (title AND year) groups.
-        `pairs`: iterable of dicts like {"title": "...", "year": 2024}
-        Returns the raw JSON-RPC response (same shape as GetMovies).
-        Crafts version-specific JSON-RPC queries - no fallback to manual filtering.
-        """
-        if not pairs:
-            return {"result": {"movies": []}}
-
-        kodi_version = self._get_kodi_version()
-        props = properties or self.get_comprehensive_properties()
-
-        # Build OR filter groups
-        or_groups = []
-        for p in pairs:
-            t = (p.get("title") or "").strip()
-            y = int(p.get("year") or 0)
-            if not t:
-                continue
-            and_group = [{"field": "title", "operator": "is", "value": t}]
-            # Only add year rule if >0; otherwise title-only match
-            if y > 0:
-                and_group.append({"field": "year", "operator": "is", "value": str(y)})
-            or_groups.append({"and": and_group})
-
-        if not or_groups:
-            return {"result": {"movies": []}}
-
-        # Craft version-specific JSON-RPC query
-        filter_obj = {"or": or_groups}
-        limits = {"start": int(start), "end": int(start + max(limit, len(or_groups) + 10))}
-
-        # Create OR-based batch query
-        # Request comprehensive properties
-        # Apply filter criteria
-
-        # Execute the JSON-RPC query with proper error handling
-        result = self._getmovies_with_backoff(properties=props, filter_obj=filter_obj, limits=limits)
-
-        # Check for errors - log them but don't fallback
-        if 'error' in result:
-            error_msg = result.get('error', {}).get('message', 'Unknown error')
-            utils.log(f"ERROR: OR-based batch query failed for Kodi v{kodi_version}: {error_msg}", "ERROR")
-            utils.log(f"ERROR: Failed query filter: {filter_obj}", "ERROR")
-            return {"result": {"movies": []}}
-        elif 'result' in result:
-            # Batch query completed
-            return result
-        else:
-            utils.log(f"ERROR: Unexpected JSON-RPC response format for Kodi v{kodi_version}", "ERROR")
-            return {"result": {"movies": []}}
-
-
-
     _instance = None
 
     def __new__(cls):
@@ -559,13 +418,77 @@ class JSONRPC:
         ]
 
 
-    def get_movies_with_comprehensive_data(self, start=0, limit=50):
-        properties = self.get_comprehensive_properties()
-        return self._getmovies_with_backoff(
-            properties=properties,
-            limits={"start": start, "end": start + limit}
-        )
+    
 
     def get_movie_details_comprehensive(self, movie_id):
         properties = self.get_comprehensive_properties()
         return self.get_movie_details(movie_id, properties=properties)
+
+    def get_movies_by_title_year_batch(self, title_year_pairs):
+        """Batch lookup movies by title and year pairs with v19 compatibility"""
+        if not title_year_pairs:
+            return {"result": {"movies": []}}
+
+        try:
+            # For batch lookup, we need to get all movies and filter manually
+            # This ensures compatibility across all Kodi versions
+            utils.log(f"Batch lookup for {len(title_year_pairs)} title/year pairs", "DEBUG")
+            
+            # Get all movies with comprehensive properties
+            response = self.execute('VideoLibrary.GetMovies', {
+                'properties': self.get_comprehensive_properties()
+            })
+            
+            if 'result' not in response or 'movies' not in response['result']:
+                utils.log("No movies found in batch lookup response", "DEBUG")
+                return {"result": {"movies": []}}
+
+            all_movies = response['result']['movies']
+            matched_movies = []
+
+            # Create a set of normalized (title, year) pairs to search for
+            search_pairs = set()
+            for pair in title_year_pairs:
+                title = (pair.get('title') or '').strip().lower()
+                try:
+                    year = int(pair.get('year') or 0)
+                except (ValueError, TypeError):
+                    year = 0
+                if title:  # Only add if we have a title
+                    search_pairs.add((title, year))
+
+            utils.log(f"Searching for {len(search_pairs)} unique title/year combinations", "DEBUG")
+
+            # Match movies against our search criteria
+            for movie in all_movies:
+                movie_title = (movie.get('title') or '').strip().lower()
+                try:
+                    movie_year = int(movie.get('year') or 0)
+                except (ValueError, TypeError):
+                    movie_year = 0
+
+                # Check for exact match first
+                if (movie_title, movie_year) in search_pairs:
+                    matched_movies.append(movie)
+                    continue
+
+                # Check for title-only match if year is 0 in search
+                if (movie_title, 0) in search_pairs:
+                    matched_movies.append(movie)
+
+            utils.log(f"Batch lookup found {len(matched_movies)} matches", "DEBUG")
+
+            return {
+                "result": {
+                    "movies": matched_movies,
+                    "limits": {
+                        "start": 0,
+                        "end": len(matched_movies),
+                        "total": len(matched_movies)
+                    }
+                }
+            }
+
+        except Exception as e:
+            utils.log(f"Error in get_movies_by_title_year_batch: {str(e)}", "ERROR")
+            return {"result": {"movies": []}}
