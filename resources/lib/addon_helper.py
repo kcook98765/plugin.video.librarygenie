@@ -125,6 +125,7 @@ def run_addon():
             kodi_helper = KodiHelper()
             item_info = kodi_helper.get_focused_item_details()
             if item_info:
+                from resources.lib.window_main import MainWindow
                 window = MainWindow(item_info)
                 utils.log("MainWindow instance created", "DEBUG")
                 window.doModal()
