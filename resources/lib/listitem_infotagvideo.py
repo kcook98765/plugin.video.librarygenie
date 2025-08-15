@@ -30,7 +30,7 @@ __all__ = ['set_info_tag', 'set_art']
 
 def _set_full_cast(list_item: ListItem, cast_list: list) -> bool:
     """
-    Version-agnostic cast setter that preserves actor images across all Kodi versions v19+.
+    Version-agnostic cast setter optimized for Kodi v21+ with proper InfoTagVideo.setCast() priority.
     
     Args:
         list_item: The ListItem to set cast on
@@ -58,38 +58,40 @@ def _set_full_cast(list_item: ListItem, cast_list: list) -> bool:
         
     utils.log(f"Setting cast for {len(norm)} actors with image support", "DEBUG")
     
-    # 1) Best path: v20+ Actor API with xbmcgui.Actor objects
+    # 1) Priority path for v21+: InfoTagVideo.setCast() with Actor objects
     try:
         import xbmcgui
         info = list_item.getVideoInfoTag()
         
-        if hasattr(xbmcgui, 'Actor') and hasattr(info, 'setCast'):
+        # Check for v21+ InfoTagVideo.setCast() method first
+        if hasattr(info, 'setCast') and hasattr(xbmcgui, 'Actor'):
             actors = []
             for actor in norm:
                 if actor['name']:  # Only add actors with names
-                    actors.append(xbmcgui.Actor(
+                    actor_obj = xbmcgui.Actor(
                         name=actor['name'],
                         role=actor['role'], 
                         order=actor['order'],
                         thumbnail=actor['thumbnail']
-                    ))
+                    )
+                    actors.append(actor_obj)
             
             if actors:
-                info.setCast(actors)  # Kodi v20+ preferred call
-                utils.log(f"v20+ Actor API successful: {len(actors)} actors with images", "DEBUG")
+                info.setCast(actors)  # v21+ preferred InfoTagVideo method
+                utils.log(f"v21+ InfoTagVideo.setCast() successful: {len(actors)} actors with images", "DEBUG")
                 return True
     except Exception as e:
-        utils.log(f"v20+ Actor API failed: {str(e)}", "DEBUG")
+        utils.log(f"v21+ InfoTagVideo.setCast() failed: {str(e)}", "DEBUG")
         
-    # 2) v19 path (and v20+ compatibility): ListItem.setCast(list-of-dicts) 
+    # 2) Fallback for v19/v20: ListItem.setCast(list-of-dicts) - now deprecated in v21
     try:
         if hasattr(list_item, 'setCast'):
-            # v19 docs: accepts dicts with name/role/thumbnail/order
+            # v19/v20 method: accepts dicts with name/role/thumbnail/order
             list_item.setCast(norm)
-            utils.log(f"v19 ListItem.setCast successful: {len(norm)} actors with images", "DEBUG")  
+            utils.log(f"v19/v20 ListItem.setCast() fallback successful: {len(norm)} actors with images (deprecated)", "DEBUG")  
             return True
     except Exception as e:
-        utils.log(f"v19 ListItem.setCast failed: {str(e)}", "DEBUG")
+        utils.log(f"v19/v20 ListItem.setCast() fallback failed: {str(e)}", "DEBUG")
         
     # 3) Last resort: names/roles only via setInfo (no images)
     try:
