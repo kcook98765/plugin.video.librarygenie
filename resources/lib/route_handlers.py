@@ -4,6 +4,8 @@ import xbmcgui
 from resources.lib import utils
 from resources.lib.config_manager import Config
 from resources.lib.database_manager import DatabaseManager
+import sys
+import xbmcplugin
 
 def play_movie(params):
     """Play a movie from Kodi library using movieid"""
@@ -387,163 +389,34 @@ def do_search(params):
         xbmcgui.Dialog().notification('LibraryGenie', 'Search error', xbmcgui.NOTIFICATION_ERROR)
 
 def browse_list(params):
-    """Browse a list of search results or folder contents"""
+    """Browse items in a specific list - delegate to main.py implementation"""
     try:
-        utils.log(f"[BROWSE LIST] Starting browse_list with params: {params}", "INFO")
+        utils.log(f"[BROWSE LIST HANDLER] Routing to main.browse_list implementation", "INFO")
         list_id = params.get('list_id', [None])[0]
-        view = params.get('view', ['list'])[0]
-
-        utils.log(f"[BROWSE LIST] Extracted list_id: {list_id}, view: {view}", "DEBUG")
 
         if not list_id:
-            utils.log("[BROWSE LIST] ERROR: No list_id provided for browse_list", "ERROR")
+            utils.log("[BROWSE LIST HANDLER] ERROR: No list_id provided", "ERROR")
+            # Import here to avoid circular imports
+            import xbmcplugin
+            import sys
+            xbmcplugin.endOfDirectory(int(sys.argv[1]), succeeded=False)
             return
 
-        try:
-            list_id = int(list_id)
-            utils.log(f"[BROWSE LIST] Converted list_id to integer: {list_id}", "DEBUG")
-        except (ValueError, TypeError) as e:
-            utils.log(f"[BROWSE LIST] ERROR: Invalid list_id format '{list_id}': {str(e)}", "ERROR")
-            return
-
-        # Add protection against attempting to browse protected lists (e.g., search history)
-        config = Config()
-        db_manager = DatabaseManager(config.db_path)
-        if db_manager.is_list_protected(list_id):
-            utils.log(f"[BROWSE LIST] ERROR: Attempted to browse protected list (ID: {list_id})", "ERROR")
-            xbmcgui.Dialog().notification('LibraryGenie', 'Cannot browse protected list', xbmcgui.NOTIFICATION_ERROR)
-            return
-
-        # Fetch list details
-        list_details = db_manager.fetch_list_details(list_id)
-        if not list_details:
-            utils.log(f"[BROWSE LIST] ERROR: List with ID {list_id} not found", "ERROR")
-            xbmcgui.Dialog().notification('LibraryGenie', 'List not found', xbmcgui.NOTIFICATION_ERROR)
-            return
-
-        list_name = list_details['name']
-        list_type = list_details['type']
-        parent_folder_id = list_details.get('folder_id') # This could be None for root
-
-        utils.log(f"[BROWSE LIST] Browsing list: '{list_name}' (ID: {list_id}, Type: {list_type}, FolderID: {parent_folder_id})", "INFO")
-
-        # Get items for the list
-        items = db_manager.get_list_items(list_id)
-        utils.log(f"[BROWSE LIST] Found {len(items)} items in list '{list_name}'", "INFO")
-
-        # Prepare items for Kodi listitem
-        listitems = []
-        for item_data in items:
-            listitem = xbmcgui.ListItem(label=item_data['title'])
-            listitem.setInfo('video', {
-                'title': item_data['title'],
-                'year': item_data['year'],
-                'plot': item_data['plot'],
-                'rating': item_data['rating'],
-                'genre': item_data['genre']
-            })
-            # Add context menu items
-            cm = []
-            # Play movie
-            cm.append(('Play', f'XBMC.RunPlugin({utils.build_plugin_url({"action": "play_movie", "movieid": item_data["kodi_id"]})})'))
-            # Show details for non-library items
-            if item_data['source'] != 'library':
-                cm.append(('Show Details', f'XBMC.RunPlugin({utils.build_plugin_url({"action": "show_item_details", "item_id": item_data["media_id"], "title": utils.url_encode_string(item_data["title"])})})'))
-            # Remove from list
-            cm.append(('Remove from list', f'XBMC.RunPlugin({utils.build_plugin_url({"action": "remove_from_list", "list_id": list_id, "movie_id": item_data["media_id"]})})'))
-            # Find similar movies
-            if item_data.get('imdbnumber'):
-                cm.append(('Find Similar Movies', f'XBMC.RunPlugin({utils.build_plugin_url({"action": "find_similar_movies", "imdb_id": item_data["imdbnumber"], "title": utils.url_encode_string(item_data["title"])})})'))
-
-            listitem.addContextMenuItems(cm)
-
-            # Set the playable item (for playback action)
-            if item_data.get('kodi_id'):
-                listitem.setProperty('IsPlayable', 'true')
-                # If we want to play directly, we need to set the path
-                # However, using Player.Open via JSON-RPC is preferred for better integration.
-                # For now, we'll just set the property.
-
-            # Add to the list of listitems
-            listitems.append((utils.build_plugin_url({"action": "play_movie", "movieid": item_data.get('kodi_id')}), listitem, item_data['is_folder']))
-
-        # Set content and view mode
-        content_type = "movies" # Default to movies
-        if list_type == 'folder':
-            content_type = "files" # Or "tvshows", "seasons" depending on content
-            listitem.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
-        elif list_type == 'search':
-            content_type = "movies"
-
-        xbmcplugin.setContent(int(sys.argv[1]), content_type)
-
-        # Set the list of items for Kodi
-        utils.log(f"[BROWSE LIST] Setting directory with {len(listitems)} items.", "INFO")
-        xbmcplugin.addDirectoryItems(int(sys.argv[1]), listitems, len(listitems))
-
-        # Set the window properties for the GUI
-        # This is where the original crash might have happened if the list was malformed or processing failed
-
-        # Add folder navigation if applicable
-        if parent_folder_id is not None:
-            # Add a "Go Up" item to navigate to the parent folder
-            parent_folder_details = db_manager.fetch_folder_by_id(parent_folder_id)
-            if parent_folder_details:
-                parent_folder_name = parent_folder_details['name']
-                # Use a special icon for folders
-                parent_folder_label = f".. ({parent_folder_name})"
-                parent_listitem = xbmcgui.ListItem(label=parent_folder_label)
-                parent_listitem.setArt({'icon': 'DefaultFolderBack.png', 'thumb': 'DefaultFolderBack.png'})
-                parent_listitem.setProperty('IsFolder', 'true') # Important for navigation
-
-                # Context menu for parent folder
-                cm_parent = []
-                cm_parent.append(('Rename Folder', f'XBMC.RunPlugin({utils.build_plugin_url({"action": "rename_folder", "folder_id": parent_folder_id})})'))
-                parent_listitem.addContextMenuItems(cm_parent)
-
-                # The action to go up
-                go_up_action_url = utils.build_plugin_url({"action": "browse_folder", "folder_id": parent_folder_id})
-                xbmcplugin.addDirectoryItem(int(sys.argv[1]), go_up_action_url, parent_listitem, isFolder=True)
-            else:
-                utils.log(f"[BROWSE LIST] WARN: Parent folder details not found for ID {parent_folder_id}", "WARNING")
-
-
-        # Add context menu for the list itself (e.g., rename, delete, move)
-        list_cm = []
-        # Add context menu for renaming if it's not a protected list
-        if not db_manager.is_list_protected(list_id):
-            list_cm.append(('Rename List', f'XBMC.RunPlugin({utils.build_plugin_url({"action": "rename_list", "list_id": list_id})})'))
-            list_cm.append(('Move List', f'XBMC.RunPlugin({utils.build_plugin_url({"action": "move_list", "list_id": list_id})})'))
-            list_cm.append(('Delete List', f'XBMC.RunPlugin({utils.build_plugin_url({"action": "delete_list", "list_id": list_id})})'))
-
-        # Add context menu for creating new lists/folders within the current context
-        if parent_folder_id is not None: # If inside a folder, add option to create list there
-             list_cm.append(('Create New List Here', f'XBMC.RunPlugin({utils.build_plugin_url({"action": "create_list", "folder_id": parent_folder_id})})'))
-        elif parent_folder_id is None and list_type == 'folder': # If viewing root folder contents, allow creating lists in root
-             list_cm.append(('Create New List in Root', f'XBMC.RunPlugin({utils.build_plugin_url({"action": "create_list", "folder_id": None})})'))
-
-
-        # Set the context menu for the directory itself
-        if list_cm:
-             xbmcplugin.addSortMethod(int(sys.argv[1]), xbmcplugin.SORT_METHOD_LABEL_ASC) # Enable sorting by label
-             xbmcplugin.addDirectoryItem(int(sys.argv[1]), '', xbmcgui.ListItem(label='Options'), isFolder=False) # Dummy item for context menu
-             xbmcgui.Window(10000).currentItem.addContextMenuItems(list_cm) # Apply context menu to the current list item which is the directory itself
-
-
-        # Finalize the directory listing
-        xbmcplugin.endOfDirectory(int(sys.argv[1]), succeeded=True, cacheToDisc=False)
-        utils.log(f"[BROWSE LIST] Successfully finished browsing list '{list_name}'", "INFO")
+        # Call the main browse_list function which has proper plugin handling
+        from main import browse_list as main_browse_list
+        main_browse_list(list_id)
 
     except Exception as e:
-        utils.log(f"[BROWSE LIST] ERROR: Exception occurred - {str(e)}", "ERROR")
+        utils.log(f"[BROWSE LIST HANDLER] ERROR: {str(e)}", "ERROR")
         import traceback
-        utils.log(f"[BROWSE LIST] Traceback: {traceback.format_exc()}", "ERROR")
-        xbmcgui.Dialog().notification('LibraryGenie', f'Error browsing list: {str(e)}', xbmcgui.NOTIFICATION_ERROR)
-        # Ensure plugin ends even on error
+        utils.log(f"[BROWSE LIST HANDLER] Traceback: {traceback.format_exc()}", "ERROR")
+        # Ensure plugin ends gracefully
         import xbmcplugin
         import sys
-        xbmcplugin.endOfDirectory(int(sys.argv[1]), succeeded=False, cacheToDisc=False)
-
+        try:
+            xbmcplugin.endOfDirectory(int(sys.argv[1]), succeeded=False)
+        except:
+            pass
 
 def browse_folder(params):
     """Browse the contents of a specific folder"""
