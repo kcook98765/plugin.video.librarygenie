@@ -64,15 +64,17 @@ class SimilarMoviesManager:
             )
 
     def _is_movie_uploaded(self, imdb_id):
-        """Check if movie exists in uploaded collection via remote API"""
+        """Check if movie exists in uploaded collection via local database"""
         try:
-            # Get user's movie list to check if this IMDb ID is uploaded
-            movie_list = self.remote_client.get_movie_list(per_page=1000)
-            if not movie_list or not movie_list.get('success'):
-                return False
+            # Check if this IMDb ID exists in the local media_items table with source='lib'
+            # This table is populated when movies are uploaded to the server
+            condition = f"imdbnumber = '{imdb_id}' AND source = 'lib'"
+            results = self.db_manager.fetch_data('media_items', condition)
             
-            uploaded_movies = movie_list.get('movies', [])
-            return imdb_id in uploaded_movies
+            is_uploaded = len(results) > 0
+            utils.log(f"Movie {imdb_id} upload status: {is_uploaded}", "DEBUG")
+            return is_uploaded
+            
         except Exception as e:
             utils.log(f"Error checking if movie is uploaded: {str(e)}", "ERROR")
             return False
