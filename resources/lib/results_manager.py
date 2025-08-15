@@ -196,10 +196,6 @@ class ResultsManager(Singleton):
             # Sort external items by search score as well if they have scores
             external_sorted = sorted(external, key=lambda x: x.get('search_score', 0), reverse=True)
             for item in external_sorted:
-
-            # Sort external items by search score as well if they have scores
-            external_sorted = sorted(external, key=lambda x: x.get('search_score', 0), reverse=True)
-            for item in external_sorted:
                 from resources.lib.listitem_builder import ListItemBuilder
                 list_item = ListItemBuilder.build_video_item(item, is_search_history=is_search_history)
                 resolved_items_for_list.append((list_item, item.get('file', ''), item))
