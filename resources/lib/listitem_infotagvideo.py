@@ -146,12 +146,45 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                             infotag_success = True
                 elif key == 'cast' and isinstance(value, list):
                     if hasattr(info_tag, 'setCast'):
-                        info_tag.setCast(value)
-                        infotag_success = True
+                        # For v20+, convert cast list to proper Actor objects if needed
+                        try:
+                            # Check if we have dict-style cast data
+                            if value and isinstance(value[0], dict):
+                                # Convert to simple list format for InfoTag
+                                actor_list = []
+                                for actor in value:
+                                    if isinstance(actor, dict) and actor.get('name'):
+                                        # Create simple actor entry
+                                        actor_list.append({
+                                            'name': actor['name'],
+                                            'role': actor.get('role', ''),
+                                            'thumbnail': actor.get('thumbnail', '')
+                                        })
+                                info_tag.setCast(actor_list)
+                            else:
+                                # Already in simple format
+                                info_tag.setCast(value)
+                            infotag_success = True
+                        except Exception as cast_error:
+                            utils.log(f"Cast conversion failed: {str(cast_error)}", "WARNING")
+                elif key == 'duration' and isinstance(value, (int, str)):
+                    if hasattr(info_tag, 'setDuration'):
+                        try:
+                            # Convert to integer for v20+ InfoTag
+                            duration_val = int(value) if value else 0
+                            info_tag.setDuration(duration_val)
+                            infotag_success = True
+                        except (ValueError, TypeError) as e:
+                            utils.log(f"Duration conversion failed: {str(e)}", "WARNING")
                 elif hasattr(info_tag, f'set{key.capitalize()}'):
                     # Generic setter (e.g., setTitle, setPlot, etc.)
                     setter = getattr(info_tag, f'set{key.capitalize()}')
-                    setter(str(value))
+                    # Handle special types that need conversion
+                    if key in ['country', 'director', 'genre', 'studio'] and isinstance(value, list):
+                        # Convert lists to strings for InfoTag setters
+                        setter(' / '.join(str(item) for item in value if item))
+                    else:
+                        setter(str(value))
                     infotag_success = True
                     if key == 'plot':
                         utils.log(f"Successfully set plot via InfoTag - length: {len(str(value))}", "INFO")

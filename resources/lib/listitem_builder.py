@@ -154,7 +154,7 @@ class ListItemBuilder:
         utils.log(f"=== BUILD_VIDEO_ITEM COMPREHENSIVE START for '{media_info.get('title', 'Unknown')}' ===", "INFO")
         utils.log(f"Raw media_info keys: {list(media_info.keys())}", "INFO")
         utils.log(f"Raw media_info type: {type(media_info)}", "INFO")
-        
+
         # Log ALL fields comprehensively
         for key, value in media_info.items():
             if key in ['plot', 'cast', 'art']:
@@ -170,14 +170,14 @@ class ListItemBuilder:
                     utils.log(f"RAW {key}: '{art_str[:100]}...' (length: {len(art_str)})" if len(art_str) > 100 else f"RAW {key}: '{art_str}'", "INFO")
             else:
                 utils.log(f"RAW {key}: {value}", "INFO")
-        
+
         # Verify plot specifically with multiple checks
         plot_checks = [
             ("direct_plot", media_info.get('plot', '')),
             ("info_plot", media_info.get('info', {}).get('plot', '')),
             ("nested_plot", media_info.get('plot', '') or media_info.get('info', {}).get('plot', ''))
         ]
-        
+
         for check_name, check_value in plot_checks:
             if check_value:
                 utils.log(f"PLOT CHECK {check_name}: Found plot (length: {len(str(check_value))})", "INFO")
@@ -381,50 +381,72 @@ class ListItemBuilder:
         # Use the specialized set_info_tag function that handles Kodi version compatibility
         set_info_tag(list_item, info_dict, 'video')
 
-        # Set resume point from different possible sources
-        resume_data = media_info.get('resume')
-        if resume_data and isinstance(resume_data, dict):
-            # Handle Kodi's resume structure: {"position": float, "total": float}
-            if 'position' in resume_data and 'total' in resume_data:
-                list_item.setProperty('ResumeTime', str(resume_data['position']))
-                list_item.setProperty('TotalTime', str(resume_data['total']))
-        elif 'resumetime' in media_info and 'totaltime' in media_info:
-            # Handle legacy format
-            list_item.setProperty('ResumeTime', str(media_info['resumetime']))
-            list_item.setProperty('TotalTime', str(media_info['totaltime']))
+        # Handle resume data with v20+ compatibility
+        resume_data = media_info.get('resume', {})
+        if isinstance(resume_data, dict) and any(resume_data.values()):
+            try:
+                position = float(resume_data.get('position', 0))
+                total = float(resume_data.get('total', 0))
 
-        # Handle stream details for video/audio information
-        streamdetails = media_info.get('streamdetails')
-        if streamdetails and isinstance(streamdetails, dict):
-            # Set video stream properties
-            video_streams = streamdetails.get('video', [])
-            if video_streams and len(video_streams) > 0:
-                video = video_streams[0]  # Use first video stream
-                stream_info = {}
-                if 'width' in video:
-                    stream_info['width'] = int(video['width'])
-                if 'height' in video:
-                    stream_info['height'] = int(video['height'])
-                if 'codec' in video:
-                    stream_info['codec'] = str(video['codec'])
-                if 'duration' in video:
-                    stream_info['duration'] = int(video['duration'])
-                if stream_info:
-                    list_item.addStreamInfo('video', stream_info)
-            
-            # Set audio stream properties
-            audio_streams = streamdetails.get('audio', [])
-            if audio_streams and len(audio_streams) > 0:
-                audio = audio_streams[0]  # Use first audio stream
-                stream_info = {}
-                if 'codec' in audio:
-                    stream_info['codec'] = str(audio['codec'])
-                if 'language' in audio:
-                    stream_info['language'] = str(audio['language'])
-                if 'channels' in audio:
-                    stream_info['channels'] = int(audio['channels'])
-                if stream_info:
-                    list_item.addStreamInfo('audio', stream_info)
+                if position > 0:
+                    kodi_version = utils.get_kodi_version() if hasattr(utils, 'get_kodi_version') else 21
+                    if kodi_version >= 20:
+                        # Use v20+ InfoTag method to avoid deprecation warnings
+                        try:
+                            info_tag = list_item.getVideoInfoTag()
+                            if hasattr(info_tag, 'setResumePoint'):
+                                info_tag.setResumePoint(position, total)
+                            else:
+                                # Fallback to deprecated method
+                                list_item.setProperty('resumetime', str(position))
+                                if total > 0:
+                                    list_item.setProperty('totaltime', str(total))
+                        except Exception:
+                            # Fallback to deprecated method
+                            list_item.setProperty('resumetime', str(position))
+                            if total > 0:
+                                list_item.setProperty('totaltime', str(total))
+                    else:
+                        # v19 - use deprecated methods
+                        list_item.setProperty('resumetime', str(position))
+                        if total > 0:
+                            list_item.setProperty('totaltime', str(total))
+            except (ValueError, TypeError):
+                pass
+
+
+        # Handle stream details with v20+ compatibility
+        stream_details = media_info.get('streamdetails', {})
+        if isinstance(stream_details, dict):
+            try:
+                kodi_version = utils.get_kodi_version() if hasattr(utils, 'get_kodi_version') else 21
+                if kodi_version >= 20:
+                    # Use v20+ InfoTag methods to avoid deprecation warnings
+                    try:
+                        info_tag = list_item.getVideoInfoTag()
+
+                        if stream_details.get('video') and hasattr(info_tag, 'addVideoStream'):
+                            for video_stream in stream_details['video']:
+                                if isinstance(video_stream, dict):
+                                    info_tag.addVideoStream(video_stream)
+
+                        if stream_details.get('audio') and hasattr(info_tag, 'addAudioStream'):
+                            for audio_stream in stream_details['audio']:
+                                if isinstance(audio_stream, dict):
+                                    info_tag.addAudioStream(audio_stream)
+
+                        if stream_details.get('subtitle') and hasattr(info_tag, 'addSubtitleStream'):
+                            for subtitle_stream in stream_details['subtitle']:
+                                if isinstance(subtitle_stream, dict):
+                                    info_tag.addSubtitleStream(subtitle_stream)
+                    except Exception:
+                        # Fallback to deprecated methods
+                        self._add_stream_info_deprecated(list_item, stream_details)
+                else:
+                    # v19 - use deprecated methods
+                    self._add_stream_info_deprecated(list_item, stream_details)
+            except Exception as e:
+                pass
 
         # Set content properties
         list_item.setProperty('IsPlayable', 'true')
@@ -439,7 +461,7 @@ class ListItemBuilder:
         utils.log(f"ListItem Label: {list_item.getLabel()}", "INFO")
         utils.log(f"ListItem Path: {list_item.getPath()}", "INFO")
         utils.log(f"IsPlayable Property: {list_item.getProperty('IsPlayable')}", "INFO")
-        
+
         # Check if InfoTag was set properly by reading it back
         try:
             video_info = list_item.getVideoInfoTag()
@@ -450,7 +472,7 @@ class ListItemBuilder:
                 utils.log("InfoTag does not have getPlot method (v19 limitation)", "WARNING")
         except Exception as e:
             utils.log(f"Error reading InfoTag plot back: {str(e)}", "ERROR")
-        
+
         utils.log("=== LISTITEM BUILD COMPLETED ===", "INFO")
 
         return list_item

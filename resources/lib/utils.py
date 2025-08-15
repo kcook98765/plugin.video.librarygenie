@@ -39,7 +39,7 @@ def log(message, level=None):
             "Executing JSONRPC method:",
             "Inserted into media_items, got ID:"
         ]
-        
+
         # Allow JSON-RPC request logging to always show through
         if message.startswith("JSONRPC Request"):
             pass  # Don't filter these out
@@ -61,7 +61,6 @@ def log(message, level=None):
     # Always use INFO level but include original level in message
     xbmc.log(f"LibraryGenie [{level}]: {message}", xbmc.LOGINFO)
 
-
 def show_notification(title, message, icon=xbmcgui.NOTIFICATION_INFO, time=5000):
     xbmcgui.Dialog().notification(title, message, icon, time)
 
@@ -78,12 +77,22 @@ def show_dialog_input(heading, default=""):
     return xbmcgui.Dialog().input(heading, default).strip()
 
 def is_debug_enabled():
-    """Check if debug logging is enabled in addon settings"""
+    """Check if debug logging is enabled for the addon"""
     try:
-        from .addon_ref import get_addon
-        return get_addon().getSetting('debug_logging') == 'true'
+        from resources.lib.settings_manager import SettingsManager
+        settings_manager = SettingsManager()
+        return settings_manager.get_bool_setting('debug_mode', default=False)
     except Exception:
-        return True
+        return False
+
+def get_kodi_version():
+    """Get the major version number of the current Kodi installation"""
+    try:
+        import xbmc
+        version_info = xbmc.getInfoLabel("System.BuildVersion")
+        return int(version_info.split('.')[0])
+    except Exception:
+        return 21  # Default to latest if detection fails
 
 def setup_remote_api():
     """Launch remote API setup wizard"""
