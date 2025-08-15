@@ -108,8 +108,8 @@ class RemoteAPIClient:
             try:
                 error_body = e.read().decode('utf-8')
                 utils.log(f"Error response body: {error_body}", "ERROR")
-            except:
-                pass
+            except Exception as read_error:
+                utils.log(f"Could not read error response body: {str(read_error)}", "WARNING")
             return False
         except urllib.error.URLError as e:
             utils.log(f"URL/Network error during pairing: {str(e)}", "ERROR")
