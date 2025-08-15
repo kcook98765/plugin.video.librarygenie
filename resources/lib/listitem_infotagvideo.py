@@ -180,12 +180,25 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                 if key == 'cast' and isinstance(value, list):
                     if hasattr(info_tag, 'setCast'):
                         try:
-                            # V20+ setCast requires Actor objects, but has compatibility issues
-                            # For now, skip setCast and let fallback handle cast via setInfo
-                            utils.log(f"V20+ setCast skipped due to API compatibility issues with {len(value)} actors", "DEBUG")
-                            # Note: Cast will be handled by fallback setInfo if InfoTag fails completely
+                            # V20+ setCast with Actor objects for full cast details including images
+                            import xbmcgui
+                            actors = []
+                            for actor_data in value:
+                                if isinstance(actor_data, dict):
+                                    name = actor_data.get('name', '')
+                                    role = actor_data.get('role', '')
+                                    thumbnail = actor_data.get('thumbnail', '')
+
+                                    if name:
+                                        actor = xbmcgui.Actor(name, role, thumbnail if thumbnail else '')
+                                        actors.append(actor)
+
+                            if actors:
+                                info_tag.setCast(actors)
+                                infotag_success_count += 1
+                                utils.log(f"V20+ setCast successful with {len(actors)} actors (with images)", "DEBUG")
                         except Exception as cast_error:
-                            utils.log(f"V20+ setCast failed: {str(cast_error)}", "WARNING")
+                            utils.log(f"V20+ setCast failed: {str(cast_error)}, falling back to setInfo", "WARNING")
 
                 elif key in ['year', 'runtime', 'duration', 'votes'] and isinstance(value, (int, str)):
                     # Integer properties
@@ -256,7 +269,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
             if cast_data and isinstance(cast_data, list):
                 try:
                     utils.log(f"V20+ InfoTag succeeded but cast needs setInfo fallback for {len(cast_data)} actors", "DEBUG")
-                    
+
                     # Try multiple cast formats for maximum compatibility
                     if all(isinstance(actor, dict) for actor in cast_data):
                         # First attempt: Kodi tuple format (name, role)
@@ -270,13 +283,13 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                                         cast_tuples.append((name, role))
                                     else:
                                         cast_tuples.append(name)
-                            
+
                             cast_info = {'cast': cast_tuples}
                             list_item.setInfo(content_type, cast_info)
                             utils.log(f"V20+ Cast set via setInfo with tuples: {len(cast_tuples)} actors", "DEBUG")
                         except Exception as tuple_error:
                             utils.log(f"V20+ Tuple format failed: {str(tuple_error)}", "DEBUG")
-                            
+
                             # Second attempt: Simple names list
                             try:
                                 cast_names = [actor.get('name', '') for actor in cast_data if actor.get('name')]
@@ -293,7 +306,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                             cast_info = {'cast': cast_names}
                             list_item.setInfo(content_type, cast_info)
                             utils.log(f"V20+ Cast set via setInfo fallback (string list): {len(cast_names)} actors", "DEBUG")
-                        
+
                 except Exception as cast_fallback_error:
                     utils.log(f"V20+ Cast setInfo fallback failed: {str(cast_fallback_error)}", "WARNING")
 
