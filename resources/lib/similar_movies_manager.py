@@ -46,7 +46,7 @@ class SimilarMoviesManager:
                     'LibraryGenie', 
                     f'Found {len(results)} similar movies'
                 )
-                # Navigate to the search results list
+                # Navigate to the search results list with proper replacement
                 from resources.lib.url_builder import build_plugin_url
                 import xbmc
                 list_url = build_plugin_url({
@@ -55,7 +55,11 @@ class SimilarMoviesManager:
                     'view': 'list'
                 })
                 utils.log(f"Navigating to similar movies results: {list_url}", "DEBUG")
-                xbmc.executebuiltin(f'Container.Update({list_url},return)')
+                
+                # Use replace and add a small delay to ensure clean navigation
+                xbmc.sleep(100)
+                xbmc.executebuiltin(f'Container.Update({list_url},replace)')
+                xbmc.sleep(50)
             else:
                 xbmcgui.Dialog().notification(
                     'LibraryGenie', 

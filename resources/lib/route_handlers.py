@@ -319,12 +319,21 @@ def find_similar_movies(params):
         from resources.lib.similar_movies_manager import SimilarMoviesManager
         similar_manager = SimilarMoviesManager()
         similar_manager.show_similar_movies_dialog(imdb_id, movie_title)
+        
+        # Explicitly end the plugin execution to prevent re-triggering
+        import xbmcplugin
+        import sys
+        xbmcplugin.endOfDirectory(int(sys.argv[1]), succeeded=True, cacheToDisc=False)
 
     except Exception as e:
         utils.log(f"Error in find_similar_movies: {str(e)}", "ERROR")
         import traceback
         utils.log(f"find_similar_movies traceback: {traceback.format_exc()}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Error finding similar movies', xbmcgui.NOTIFICATION_ERROR)
+        # End plugin execution even on error
+        import xbmcplugin
+        import sys
+        xbmcplugin.endOfDirectory(int(sys.argv[1]), succeeded=False, cacheToDisc=False)
 
 def do_search(params):
     q = xbmcgui.Dialog().input('Search movies', type=xbmcgui.INPUT_ALPHANUM)
