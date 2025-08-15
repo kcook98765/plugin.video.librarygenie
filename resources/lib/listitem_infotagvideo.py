@@ -77,13 +77,15 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                     # Cast requires special handling
                     info_tag.setCast(value)
                 elif key in ['year'] and isinstance(value, (int, str)):
-                    # Year handling
-                    try:
-                        year_val = int(value) if value else 0
-                        if year_val > 0:
-                            info_tag.setYear(year_val)
-                    except (ValueError, TypeError):
-                        pass
+                    # Year handling - setYear() doesn't exist in Kodi v19
+                    # Skip year for InfoTag in v19, let setInfo fallback handle it
+                    if kodi_version >= 20 and hasattr(info_tag, 'setYear'):
+                        try:
+                            year_val = int(value) if value else 0
+                            if year_val > 0:
+                                info_tag.setYear(year_val)
+                        except (ValueError, TypeError):
+                            pass
                 elif key in ['rating'] and isinstance(value, (int, float, str)):
                     # Rating handling
                     try:
