@@ -81,7 +81,6 @@ class DatabaseManager(Singleton):
                 query = f"SELECT * FROM {table} WHERE {condition}"
             else:
                 query = f"SELECT * FROM {table}"
-
             self._execute_with_retry(self.cursor.execute, query)
             rows = self.cursor.fetchall()
 
