@@ -240,18 +240,30 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
             if cast_data and isinstance(cast_data, list):
                 try:
                     utils.log(f"V20+ InfoTag succeeded but cast needs setInfo fallback for {len(cast_data)} actors", "DEBUG")
-                    # Convert cast list to simple list of actor names for setInfo
-                    cast_names = []
-                    if all(isinstance(actor, dict) for actor in cast_data):
-                        cast_names = [actor.get('name', '') for actor in cast_data if actor.get('name')]
-                    else:
-                        cast_names = [str(actor) for actor in cast_data]
                     
-                    if cast_names:
-                        # Use setInfo specifically for cast data
-                        cast_info = {'cast': cast_names}
-                        list_item.setInfo(content_type, cast_info)
-                        utils.log(f"V20+ Cast set via setInfo fallback: {len(cast_names)} actors", "DEBUG")
+                    # Try to preserve full cast details first (roles, thumbnails, etc.)
+                    if all(isinstance(actor, dict) for actor in cast_data):
+                        # Attempt full cast data with setInfo (roles and thumbnails)
+                        try:
+                            cast_info = {'cast': cast_data}
+                            list_item.setInfo(content_type, cast_info)
+                            utils.log(f"V20+ Cast set via setInfo fallback with full details: {len(cast_data)} actors", "DEBUG")
+                        except Exception as full_cast_error:
+                            # Fallback to names only if full details fail
+                            utils.log(f"V20+ Full cast details failed, using names only: {str(full_cast_error)}", "DEBUG")
+                            cast_names = [actor.get('name', '') for actor in cast_data if actor.get('name')]
+                            if cast_names:
+                                cast_info = {'cast': cast_names}
+                                list_item.setInfo(content_type, cast_info)
+                                utils.log(f"V20+ Cast set via setInfo fallback (names only): {len(cast_names)} actors", "DEBUG")
+                    else:
+                        # Handle simple string list
+                        cast_names = [str(actor) for actor in cast_data]
+                        if cast_names:
+                            cast_info = {'cast': cast_names}
+                            list_item.setInfo(content_type, cast_info)
+                            utils.log(f"V20+ Cast set via setInfo fallback (string list): {len(cast_names)} actors", "DEBUG")
+                        
                 except Exception as cast_fallback_error:
                     utils.log(f"V20+ Cast setInfo fallback failed: {str(cast_fallback_error)}", "WARNING")
 
