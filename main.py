@@ -3,7 +3,6 @@ import os
 import sys
 import urllib.parse # Import urllib.parse
 import xbmc
-import xbmcaddon
 import xbmcgui
 import xbmcplugin
 from urllib.parse import urlencode, parse_qs
@@ -298,128 +297,19 @@ def browse_list(list_id):
                 utils.log(f"Item processing traceback: {traceback.format_exc()}", "ERROR")
 
         utils.log(f"Successfully added {items_added} items ({playable_count} playable, {non_playable_count} non-playable)", "INFO")
+        utils.log("=== BROWSE_LIST ACTION COMPLETE for list_id={} ===".format(list_id), "INFO")
 
-        # Check if this is a search results list with scores to preserve order
-        has_scores = False
-        for item in display_items:
-            # Handle both tuple (li, file, media) and dict formats
-            if isinstance(item, tuple) and len(item) >= 3:
-                media_dict = item[2]  # Third element is the metadata dict
-            elif isinstance(item, dict):
-                media_dict = item
-            else:
-                media_dict = {}
+        # End the directory to tell Kodi we're done
+        xbmcplugin.endOfDirectory(handle, succeeded=True, cacheToDisc=False)
 
-            if media_dict.get('search_score', 0) > 0:
-                has_scores = True
-                break
-
-        # Always enable sort methods so users can override the default order
-        xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_LABEL)
-        xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_TITLE)
-        xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
-        xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_GENRE)
-        xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
-        xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_DATEADDED)
-
-        if has_scores:
-            # For search results, add unsorted method to preserve score order as default
-            xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)
-
-        xbmcplugin.endOfDirectory(handle, succeeded=True, cacheToDisc=False, updateListing=True)
-        utils.log(f"=== BROWSE_LIST ACTION COMPLETE for list_id={list_id} ===", "INFO")
     except Exception as e:
-        utils.log(f"Error in browse_list: {e}", "ERROR")
+        utils.log(f"Error in browse_list action: {str(e)}", "ERROR")
         import traceback
         utils.log(f"browse_list traceback: {traceback.format_exc()}", "ERROR")
-        # Show error item
-        from resources.lib.listitem_builder import ListItemBuilder
-        error_li = ListItemBuilder.build_folder_item(f"Error loading list: {str(e)}", is_folder=False)
-        xbmcplugin.addDirectoryItem(handle, "", error_li, False)
-        xbmcplugin.endOfDirectory(handle, succeeded=False)
+        # Show error notification and end directory
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error loading list', xbmcgui.NOTIFICATION_ERROR)
+        xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
 
-def router(params):
-    """Route requests to appropriate handlers"""
-
-    # Clean up any stuck navigation flags at router entry
-    nav_manager.cleanup_stuck_navigation()
-
-    # Check for deferred option execution from RunScript
-    if len(sys.argv) >= 3 and sys.argv[1] == 'deferred_option':
-        utils.log("=== HANDLING DEFERRED OPTION EXECUTION FROM MAIN ===", "DEBUG")
-        try:
-            option_index = int(sys.argv[2])
-            # Retrieve stored folder context
-            folder_context_str = xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.DeferredFolderContext)")
-            folder_context = None
-            if folder_context_str and folder_context_str != "None":
-                try:
-                    folder_context = int(folder_context_str)
-                except ValueError:
-                    pass
-            # Clear the property
-            xbmc.executebuiltin("ClearProperty(LibraryGenie.DeferredFolderContext,Home)")
-            options_manager.execute_deferred_option(option_index, folder_context)
-        except Exception as e:
-            utils.log(f"Error in deferred option execution: {str(e)}", "ERROR")
-        return
-
-    # Check if paramstr is valid and not empty before parsing
-    if not params:
-        utils.log("Received empty paramstr, building root directory.", "WARNING")
-        nav_manager.clear_navigation_flags()
-        build_root_directory(ADDON_HANDLE)
-        return
-
-    # Parse parameters using the new utility - handle both string and dict inputs
-    if isinstance(params, str):
-        q = parse_params(params)
-    elif isinstance(params, dict):
-        q = params
-    else:
-        utils.log(f"Unexpected params type: {type(params)}, treating as empty", "WARNING")
-        q = {}
-
-    action = q.get("action", [""])[0] if isinstance(q.get("action", [""]), list) else q.get("action", "")
-
-    utils.log(f"Action determined: {action}", "DEBUG")
-
-    if action == "search":
-        utils.log("Handling search action", "DEBUG")
-        try:
-            from resources.lib.window_search import SearchWindow
-            search_window = SearchWindow()
-            search_window.doModal()
-
-            # Check if we need to navigate after search
-            target_url = search_window.get_target_url()
-            if target_url:
-                utils.log(f"Navigating to search results: {target_url}", "DEBUG")
-                nav_manager.navigate_to_url(target_url, replace=False)
-        except Exception as e:
-            utils.log(f"Error in search action: {str(e)}", "ERROR")
-            xbmcgui.Dialog().notification("LibraryGenie", "Search failed", xbmcgui.NOTIFICATION_ERROR)
-    elif action == 'setup_remote_api':
-        utils.log("Handling setup_remote_api action", "DEBUG")
-        try:
-            from resources.lib.remote_api_setup import run_setup
-            run_setup()
-        except Exception as e:
-            utils.log(f"Error in setup_remote_api action: {str(e)}", "ERROR")
-            xbmcgui.Dialog().notification("LibraryGenie", "Failed to setup Remote API", xbmcgui.NOTIFICATION_ERROR)
-    elif action == 'browse_folder':
-        utils.log("Handling browse_folder action", "DEBUG")
-        try:
-            folder_id = q.get('folder_id', [None])[0]
-            if folder_id:
-                nav_manager.set_navigation_in_progress(False)
-                browse_folder(q) # Pass the parsed params to browse_folder
-            else:
-                utils.log("Missing folder_id for browse_folder action, returning to root.", "WARNING")
-                build_root_directory(ADDON_HANDLE)
-        except Exception as e:
-            utils.log(f"Error in browse_folder action: {str(e)}", "ERROR")
-            xbmcgui.Dialog().notification("LibraryGenie", "Error browsing folder", xbmcgui.NOTIFICATION_ERROR)
     elif action == 'show_options':
         utils.log("Routing to options action", "DEBUG")
         # Check if we're in the middle of navigation to prevent dialog conflicts
