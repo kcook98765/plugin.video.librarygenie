@@ -489,7 +489,7 @@ def router(params):
     elif action == 'do_search':
         do_search(params)
     elif action == 'find_similar_movies':
-        find_similar_movies(params)
+        find_similar_movies(q)
     else:
         # Default: build root directory if action is not recognized or empty
         utils.log(f"Unrecognized action '{action}' or no action specified, building root directory.", "DEBUG")
