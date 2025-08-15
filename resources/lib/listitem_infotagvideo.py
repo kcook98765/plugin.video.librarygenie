@@ -62,14 +62,30 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
 
                 # Handle special data types for setInfo
                 if key == 'cast' and isinstance(value, list):
-                    # Convert cast list to simple list of actor names for setInfo
+                    # Try multiple cast conversion formats for setInfo compatibility
                     try:
                         if all(isinstance(actor, dict) for actor in value):
-                            clean_info[key] = [actor.get('name', '') for actor in value if actor.get('name')]
+                            # First try: Kodi tuple format (name, role)
+                            try:
+                                cast_tuples = []
+                                for actor in value:
+                                    name = actor.get('name', '')
+                                    role = actor.get('role', '')
+                                    if name:
+                                        if role:
+                                            cast_tuples.append((name, role))
+                                        else:
+                                            cast_tuples.append(name)
+                                clean_info[key] = cast_tuples
+                                utils.log(f"Cast converted to tuple format: {len(cast_tuples)} actors", "DEBUG")
+                            except Exception as tuple_error:
+                                # Second try: Simple name list
+                                utils.log(f"Tuple format failed, trying names only: {str(tuple_error)}", "DEBUG")
+                                clean_info[key] = [actor.get('name', '') for actor in value if actor.get('name')]
                         else:
                             clean_info[key] = [str(actor) for actor in value]
                     except Exception:
-                        pass  # Skip cast if conversion fails
+                        pass  # Skip cast if all conversion attempts fail
                 elif key in ['country', 'director', 'genre', 'studio'] and isinstance(value, list):
                     # Convert lists to comma-separated strings for setInfo
                     clean_info[key] = ' / '.join(str(item) for item in value if item)
@@ -241,21 +257,35 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                 try:
                     utils.log(f"V20+ InfoTag succeeded but cast needs setInfo fallback for {len(cast_data)} actors", "DEBUG")
                     
-                    # Try to preserve full cast details first (roles, thumbnails, etc.)
+                    # Try multiple cast formats for maximum compatibility
                     if all(isinstance(actor, dict) for actor in cast_data):
-                        # Attempt full cast data with setInfo (roles and thumbnails)
+                        # First attempt: Kodi tuple format (name, role)
                         try:
-                            cast_info = {'cast': cast_data}
+                            cast_tuples = []
+                            for actor in cast_data:
+                                name = actor.get('name', '')
+                                role = actor.get('role', '')
+                                if name:
+                                    if role:
+                                        cast_tuples.append((name, role))
+                                    else:
+                                        cast_tuples.append(name)
+                            
+                            cast_info = {'cast': cast_tuples}
                             list_item.setInfo(content_type, cast_info)
-                            utils.log(f"V20+ Cast set via setInfo fallback with full details: {len(cast_data)} actors", "DEBUG")
-                        except Exception as full_cast_error:
-                            # Fallback to names only if full details fail
-                            utils.log(f"V20+ Full cast details failed, using names only: {str(full_cast_error)}", "DEBUG")
-                            cast_names = [actor.get('name', '') for actor in cast_data if actor.get('name')]
-                            if cast_names:
-                                cast_info = {'cast': cast_names}
-                                list_item.setInfo(content_type, cast_info)
-                                utils.log(f"V20+ Cast set via setInfo fallback (names only): {len(cast_names)} actors", "DEBUG")
+                            utils.log(f"V20+ Cast set via setInfo with tuples: {len(cast_tuples)} actors", "DEBUG")
+                        except Exception as tuple_error:
+                            utils.log(f"V20+ Tuple format failed: {str(tuple_error)}", "DEBUG")
+                            
+                            # Second attempt: Simple names list
+                            try:
+                                cast_names = [actor.get('name', '') for actor in cast_data if actor.get('name')]
+                                if cast_names:
+                                    cast_info = {'cast': cast_names}
+                                    list_item.setInfo(content_type, cast_info)
+                                    utils.log(f"V20+ Cast set via setInfo (names only): {len(cast_names)} actors", "DEBUG")
+                            except Exception as names_error:
+                                utils.log(f"V20+ Names format also failed: {str(names_error)}", "DEBUG")
                     else:
                         # Handle simple string list
                         cast_names = [str(actor) for actor in cast_data]
@@ -312,7 +342,22 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                 if key == 'cast' and isinstance(value, list):
                     try:
                         if all(isinstance(actor, dict) for actor in value):
-                            clean_info[key] = [actor.get('name', '') for actor in value if actor.get('name')]
+                            # Try tuple format first for v20+ setInfo fallback
+                            try:
+                                cast_tuples = []
+                                for actor in value:
+                                    name = actor.get('name', '')
+                                    role = actor.get('role', '')
+                                    if name:
+                                        if role:
+                                            cast_tuples.append((name, role))
+                                        else:
+                                            cast_tuples.append(name)
+                                clean_info[key] = cast_tuples
+                                utils.log(f"Fallback cast converted to tuple format: {len(cast_tuples)} actors", "DEBUG")
+                            except Exception:
+                                # Fall back to names only
+                                clean_info[key] = [actor.get('name', '') for actor in value if actor.get('name')]
                         else:
                             clean_info[key] = [str(actor) for actor in value]
                     except Exception:
