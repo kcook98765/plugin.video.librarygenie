@@ -513,9 +513,8 @@ class JSONRPC:
                 return {"result": {"movies": []}}
 
         except Exception as e:
-            utils.log(f"Error in OR filter lookup: {str(e)}", "DEBUG")
-            # Fallback to original method for compatibility
-            return self._get_movies_by_title_year_batch_fallback(title_year_pairs)
+            utils.log(f"Error in OR filter lookup: {str(e)}", "ERROR")
+            return {"result": {"movies": []}}
 
     def _get_movies_by_title_year_batch_fallback(self, title_year_pairs):
         """Fallback batch lookup method (original implementation)"""
