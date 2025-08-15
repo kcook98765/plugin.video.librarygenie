@@ -108,7 +108,9 @@ def _set_full_cast(list_item: ListItem, cast_list: list) -> bool:
                     simple_cast.append(actor['name'])
 
         if simple_cast:
-            list_item.setInfo('video', {'cast': simple_cast})
+            # Convert cast list to string format for setInfo compatibility
+            cast_str = ' / '.join([f"{actor[0]} ({actor[1]})" if isinstance(actor, tuple) and len(actor) > 1 else str(actor) for actor in simple_cast])
+            list_item.setInfo('video', {'cast': cast_str})
             utils.log(f"Fallback setInfo cast successful: {len(simple_cast)} actors (no images)", "WARNING")
             return False
     except Exception as e:
