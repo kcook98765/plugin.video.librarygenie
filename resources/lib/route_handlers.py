@@ -73,6 +73,7 @@ def show_item_details(params):
 
         # Try to get more details about the item
         details_text = f"Title: {title}\n"
+        details_text += f"Source: External addon/non-library item\n"
 
         if item_id and str(item_id).isdigit():
             try:
@@ -113,8 +114,18 @@ def create_list(params):
         config = Config()
         db_manager = DatabaseManager(config.db_path)
 
-        # Create in root folder for now
-        list_id = db_manager.create_list(name, None)
+        # Get folder_id from params, default to None (root)
+        folder_id = params.get('folder_id')
+        
+        if folder_id and isinstance(folder_id, list):
+            folder_id = folder_id[0]
+        
+        if folder_id and str(folder_id).isdigit():
+            folder_id = int(folder_id)
+        else:
+            folder_id = None
+        utils.log(f"Creating list '{name}' in folder_id: {folder_id}", "DEBUG")
+        list_id = db_manager.create_list(name, folder_id)
         utils.log("=== CREATE_LIST: ABOUT TO SHOW SUCCESS NOTIFICATION ===", "DEBUG")
         xbmcgui.Dialog().notification('LibraryGenie', 'List created')
         utils.log("=== CREATE_LIST: SUCCESS NOTIFICATION CLOSED ===", "DEBUG")
@@ -206,14 +217,17 @@ def move_list(params):
         all_folders = db_manager.fetch_all_folders()
         search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
         
-        # Filter out Search History folder and build options
+        # Filter out Search History folder and folders that would exceed depth limit
         folder_options = ["📁 Root (No folder)"]
         folder_ids = [None]  # Root folder represented as None
         
         for folder in all_folders:
             if folder['id'] != search_history_folder_id:
-                # Build folder path for display
-                folder_path = folder['name']
+                # Check if moving to this folder would exceed depth limit
+                folder_depth = db_manager.get_folder_depth(folder['id'])
+                if folder_depth < config.max_folder_depth:
+                    # Build folder path for display
+                    folder_path = folder['name']
                 current_folder = folder
                 while current_folder.get('parent_id'):
                     parent_folder = db_manager.fetch_folder_by_id(current_folder['parent_id'])

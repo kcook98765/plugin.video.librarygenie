@@ -36,6 +36,7 @@ def authenticate_with_code():
         
         # Make the API call
         log(f"Sending verification request to: {verify_url}", "INFO")
+        log(f"Verifying code: {code[:2]}***{code[-1:]}", "DEBUG")
         
         with urllib.request.urlopen(req) as response:
             response_data = json.loads(response.read().decode('utf-8'))

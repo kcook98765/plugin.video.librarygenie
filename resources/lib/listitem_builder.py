@@ -9,7 +9,8 @@ import xbmc
 from resources.lib import utils
 from resources.lib.listitem_infotagvideo import set_info_tag, set_art
 from typing import Dict
-from urllib.parse import quote, urlparse
+from urllib.parse import quote, urlparse, quote_plus
+import os
 
 
 __all__ = ['set_info_tag', 'set_art']
@@ -89,6 +90,33 @@ def _normalize_art_dict(art: dict, use_fallbacks: bool = False) -> dict:
 
 class ListItemBuilder:
 
+    # Color map for score indication (AARRGGBB format) - bleached/lighter versions
+    SCORE_COLORS = {
+        "green":  "FF7BC99A",  # High scores (7.0+) - lighter green
+        "yellow": "FFF0DC8A",  # Good scores (6.0-6.9) - lighter yellow
+        "orange": "FFF4BC7B",  # Average scores (5.0-5.9) - lighter orange
+        "red":    "FFECA9A7",  # Low scores (below 5.0) - lighter red
+    }
+
+    @staticmethod
+    def _get_score_bucket(score: float) -> str:
+        """Map score to color bucket"""
+        if score >= 7.0:
+            return "green"
+        elif score >= 6.0:
+            return "yellow"
+        elif score >= 5.0:
+            return "orange"
+        else:
+            return "red"
+
+    @staticmethod
+    def _colorize_title_by_score(title: str, score: float) -> str:
+        """Apply Kodi color formatting to title based on score"""
+        color_bucket = ListItemBuilder._get_score_bucket(score)
+        color_hex = ListItemBuilder.SCORE_COLORS[color_bucket]
+        return f"[COLOR {color_hex}]{title}[/COLOR]"
+
     @staticmethod
     def _clean_title(title):
         """Remove emoji characters and other problematic Unicode that Kodi can't render"""
@@ -118,25 +146,28 @@ class ListItemBuilder:
         return cleaned
 
     @staticmethod
-    def build_video_item(media_info):
+    def build_video_item(media_info, is_search_history=False):
         """Build a complete video ListItem with all available metadata"""
         if not isinstance(media_info, dict):
             media_info = {}
 
-        # Detailed logging available for debugging when needed
+        # Basic info extraction
+        title = str(media_info.get('title', 'Unknown'))
+
 
         # Create ListItem with proper string title (remove emoji characters)
-        title = str(media_info.get('title', ''))
-        title = ListItemBuilder._clean_title(title)
+        formatted_title = ListItemBuilder._clean_title(title)
 
-        # Append search score to title if score exists
+        # Apply color coding based on search score only for Search History lists
         search_score = media_info.get('search_score')
-        if search_score and search_score > 0:
-            title = f"{title} ({search_score:.2f})"
+        if is_search_history and search_score and search_score > 0:
+            # Color the title based on score without showing the numeric value
+            formatted_title = ListItemBuilder._colorize_title_by_score(formatted_title, search_score)
 
-        list_item = xbmcgui.ListItem(label=title)
+        # Create the ListItem
+        li = xbmcgui.ListItem(label=formatted_title)
 
-        
+
 
         # Prepare artwork dictionary
         art_dict = {}
@@ -186,12 +217,13 @@ class ListItemBuilder:
 
         # Use the specialized set_art function with improved normalization and fallbacks
         art_dict = _normalize_art_dict(art_dict, use_fallbacks=True)
+        # Set art from art_dict
         if art_dict:
-            set_art(list_item, art_dict)
+            set_art(li, art_dict)
 
         # Create info dictionary for InfoTag
         info_dict = {
-            'title': title,
+            'title': formatted_title,
             'plot': media_info.get('plot', ''),
             'tagline': media_info.get('tagline', ''),
             'country': media_info.get('country', ''),
@@ -229,6 +261,63 @@ class ListItemBuilder:
             except (ValueError, TypeError):
                 pass
 
+        # Handle runtime/duration
+        if media_info.get('runtime'):
+            try:
+                info_dict['duration'] = int(media_info['runtime'])
+            except (ValueError, TypeError):
+                pass
+
+        # Handle user rating
+        if media_info.get('userrating'):
+            try:
+                info_dict['userrating'] = float(media_info['userrating'])
+            except (ValueError, TypeError):
+                pass
+
+        # Handle top250 ranking
+        if media_info.get('top250'):
+            try:
+                info_dict['top250'] = int(media_info['top250'])
+            except (ValueError, TypeError):
+                pass
+
+        # Handle playcount
+        if media_info.get('playcount'):
+            try:
+                info_dict['playcount'] = int(media_info['playcount'])
+            except (ValueError, TypeError):
+                pass
+
+        # Handle date fields
+        for date_field in ['dateadded', 'lastplayed', 'premiered']:
+            if media_info.get(date_field):
+                info_dict[date_field] = str(media_info[date_field])
+
+        # Handle set information
+        if media_info.get('set'):
+            info_dict['set'] = str(media_info['set'])
+        if media_info.get('setid'):
+            try:
+                info_dict['setid'] = int(media_info['setid'])
+            except (ValueError, TypeError):
+                pass
+
+        # Handle multiple ratings (v19+)
+        if media_info.get('ratings') and isinstance(media_info['ratings'], dict):
+            # Use the default rating or first available rating
+            for rating_source in ['default', 'imdb', 'themoviedb', 'thetvdb']:
+                if rating_source in media_info['ratings']:
+                    rating_data = media_info['ratings'][rating_source]
+                    if isinstance(rating_data, dict) and 'rating' in rating_data:
+                        try:
+                            info_dict['rating'] = float(rating_data['rating'])
+                            if 'votes' in rating_data:
+                                info_dict['votes'] = int(rating_data['votes'])
+                        except (ValueError, TypeError):
+                            pass
+                        break
+
         # Handle cast data
         cast = media_info.get('cast', [])
         if cast:
@@ -249,39 +338,96 @@ class ListItemBuilder:
             except Exception as e:
                 info_dict['cast'] = []
 
-        # LOG PROCESSED INFO_DICT BEFORE SETTING
-        # utils.log("=== INFO_DICT TO BE SET START ===", "INFO")
-        # for key, value in info_dict.items():
-        #     if key == 'cast' and isinstance(value, list):
-        #         utils.log(f"  {key}: [{len(value)} cast members]", "INFO")
-        #     else:
-        #         utils.log(f"  {key}: {value}", "INFO")
-        # utils.log("=== INFO_DICT TO BE SET END ===", "INFO")
+        # Process plot information
+        if media_info.get('plot'):
+            pass
 
         # Use the specialized set_info_tag function that handles Kodi version compatibility
-        set_info_tag(list_item, info_dict, 'video')
+        set_info_tag(li, info_dict, 'video')
 
-        # Set resume point if available
-        if 'resumetime' in media_info and 'totaltime' in media_info:
-            list_item.setProperty('ResumeTime', str(media_info['resumetime']))
-            list_item.setProperty('TotalTime', str(media_info['totaltime']))
+        # Handle resume data with v20+ compatibility
+        resume_data = media_info.get('resume', {})
+        if isinstance(resume_data, dict) and any(resume_data.values()):
+            try:
+                position = float(resume_data.get('position', 0))
+                total = float(resume_data.get('total', 0))
+
+                if position > 0:
+                    if utils.is_kodi_v20_plus():
+                        # Use v20+ InfoTag method to avoid deprecation warnings
+                        try:
+                            info_tag = li.getVideoInfoTag()
+                            if hasattr(info_tag, 'setResumePoint'):
+                                info_tag.setResumePoint(position, total)
+                            else:
+                                # Fallback to deprecated method
+                                li.setProperty('resumetime', str(position))
+                                if total > 0:
+                                    li.setProperty('totaltime', str(total))
+                        except Exception:
+                            # Fallback to deprecated method
+                            li.setProperty('resumetime', str(position))
+                            if total > 0:
+                                li.setProperty('totaltime', str(total))
+                    else:
+                        # v19 - use deprecated methods
+                        li.setProperty('resumetime', str(position))
+                        if total > 0:
+                            li.setProperty('totaltime', str(total))
+            except (ValueError, TypeError):
+                pass
+
+
+        # Handle stream details with v20+ compatibility
+        stream_details = media_info.get('streamdetails', {})
+        if isinstance(stream_details, dict):
+            try:
+                if utils.is_kodi_v20_plus():
+                    # Use v20+ InfoTag methods to avoid deprecation warnings
+                    try:
+                        info_tag = li.getVideoInfoTag()
+                        # Skip stream detail methods as they are not reliably handled by v20+ InfoTag
+                        # Use property fallback instead
+                        _add_stream_info_deprecated(li, stream_details)
+                    except Exception:
+                        # Fallback to deprecated methods
+                        _add_stream_info_deprecated(li, stream_details)
+                else:
+                    # v19 - use deprecated methods
+                    _add_stream_info_deprecated(li, stream_details)
+            except Exception as e:
+                pass
 
         # Set content properties
-        list_item.setProperty('IsPlayable', 'true')
+        li.setProperty('IsPlayable', 'true')
+
+        # Set DBID for Kodi Information dialog support
+        kodi_id = media_info.get('kodi_id') or media_info.get('movieid') or media_info.get('id')
+        if kodi_id:
+            li.setProperty('DBID', str(kodi_id))
+
+        # Set MediaType property for Kodi recognition
+        media_type = info_dict.get('mediatype', 'movie')
+        li.setProperty('MediaType', media_type)
+
+        # Add Information context menu item
+        context_menu_items = []
+        # Original line: context_menu_items.append(('Show Details', f'RunPlugin(plugin://script.librarygenie/?action=show_item_details&title={quote(title)}&item_id={media_info.get("id", "")})')))
+        # Updated line:
+        context_menu_items.append(('Show Details', f'RunPlugin(plugin://script.librarygenie/?action=show_item_details&title={quote_plus(formatted_title)}&item_id={media_info.get("id", "")})'))
+        context_menu_items.append(('Information', 'Action(Info)'))
+
+        # Add context menu to ListItem
+        li.addContextMenuItems(context_menu_items, replaceItems=False)
+
+
 
         # Try to get play URL from different possible locations
         play_url = media_info.get('info', {}).get('play') or media_info.get('play') or media_info.get('file')
         if play_url:
-            list_item.setPath(play_url)
+            li.setPath(play_url)
 
-        # LOG FINAL LISTITEM STATUS
-        # utils.log(f"=== FINAL LISTITEM STATUS FOR {title} ===", "INFO")
-        # utils.log(f"ListItem Label: {list_item.getLabel()}", "INFO")
-        # utils.log(f"ListItem Path: {list_item.getPath()}", "INFO")
-        # utils.log(f"IsPlayable Property: {list_item.getProperty('IsPlayable')}", "INFO")
-        # utils.log("=== LISTITEM BUILD COMPLETED ===", "INFO")
-
-        return list_item
+        return li
 
     @staticmethod
     def build_folder_item(name, is_folder=True, item_type='folder', plot=''):
@@ -294,12 +440,14 @@ class ListItemBuilder:
             plot: Plot/description text for the item
         """
         from resources.lib.addon_ref import get_addon
+        from resources.lib import utils
         addon = get_addon()
         addon_path = addon.getAddonInfo("path")
         media = f"{addon_path}/resources/media"
 
-        # Clean the name to remove emoji characters
+        # Clean the title to remove emoji and get base name
         clean_name = ListItemBuilder._clean_title(name)
+
         list_item = xbmcgui.ListItem(label=clean_name)
         list_item.setIsFolder(is_folder)
 
@@ -334,3 +482,52 @@ class ListItemBuilder:
     def add_context_menu(list_item, menu_items):
         """Add context menu items to ListItem"""
         list_item.addContextMenuItems(menu_items, replaceItems=True)
+
+    @staticmethod
+    def _add_stream_info_deprecated(list_item, stream_details):
+        """Adds stream details using deprecated methods for compatibility with older Kodi versions."""
+        # This method is a fallback for versions where setVideoStream, setAudioStream, setSubtitleStream are deprecated
+        # or not available. It aims to set properties that might be recognized by older Kodi clients or skins.
+        video_streams = stream_details.get('video', [])
+        audio_streams = stream_details.get('audio', [])
+        subtitle_streams = stream_details.get('subtitle', [])
+
+        if video_streams:
+            for stream in video_streams:
+                if isinstance(stream, dict):
+                    codec = stream.get('codec', '')
+                    resolution = stream.get('resolution', '')
+                    aspect_ratio = stream.get('aspect_ratio', '')
+                    lang = stream.get('language', '')
+
+                    # Construct a string that might be interpretable by skins/players
+                    stream_str = f"Video: Codec({codec}), Res({resolution}), Aspect({aspect_ratio}), Lang({lang})"
+                    # Using generic properties as specific ones are deprecated
+                    list_item.setProperty('VideoCodec', codec)
+                    list_item.setProperty('VideoResolution', resolution)
+                    list_item.setProperty('VideoAspectRatio', aspect_ratio)
+                    list_item.setProperty('VideoLanguage', lang)
+
+        if audio_streams:
+            for stream in audio_streams:
+                if isinstance(stream, dict):
+                    codec = stream.get('codec', '')
+                    channels = stream.get('channels', '')
+                    language = stream.get('language', '')
+                    bitrate = stream.get('bitrate', '')
+
+                    list_item.setProperty('AudioCodec', codec)
+                    list_item.setProperty('AudioChannels', str(channels))
+                    list_item.setProperty('AudioLanguage', language)
+                    list_item.setProperty('AudioBitrate', str(bitrate))
+
+        if subtitle_streams:
+            for stream in subtitle_streams:
+                if isinstance(stream, dict):
+                    language = stream.get('language', '')
+                    codec = stream.get('codec', '')
+                    forced = stream.get('forced', False)
+
+                    list_item.setProperty('SubtitleLanguage', language)
+                    list_item.setProperty('SubtitleCodec', codec)
+                    list_item.setProperty('SubtitleForced', str(forced).lower())

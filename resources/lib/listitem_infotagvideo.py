@@ -25,179 +25,376 @@ __all__ = ['set_info_tag', 'set_art']
 #            utils.log("ListItem InfoTagVideo module initialized", "INFO")
 #            ListItemInfoTagVideo._initialized = True
 
-def get_kodi_version() -> int:
-    """
-    Get the major version number of the current Kodi installation.
-    Minimum supported version: Kodi 19 (Matrix)
-    """
-    version_info = xbmc.getInfoLabel("System.BuildVersion")
-    return int(version_info.split('.')[0])
-
 """InfoTag compatibility helper for Kodi 19+ only - No support for Kodi 18 and below"""
 
-def set_info_tag(listitem, infolabels, tag_type='video'):
+
+def _set_full_cast(list_item: ListItem, cast_list: list) -> bool:
     """
-    Universal setter for InfoTag - REQUIRES KODI 19+ (Matrix and above)
-    This addon does not support Kodi 18 (Leia) or earlier versions
+    Version-agnostic cast setter optimized for Kodi v21+ with proper InfoTagVideo.setCast() priority.
+
+    Args:
+        list_item: The ListItem to set cast on
+        cast_list: List of cast dicts with 'name', 'role', 'thumbnail', 'order' keys
+
+    Returns:
+        bool: True if cast was set with image support, False if fallback was used
     """
+    if not cast_list:
+        return False
 
-    kodi_version = get_kodi_version()
-    # utils.log(f"Detected Kodi version: {kodi_version}, setting info for: {infolabels.get('title', 'Unknown')}", "DEBUG")
+    # Normalize inputs (avoid None values)
+    norm = []
+    for actor in cast_list:
+        if isinstance(actor, dict):
+            norm.append({
+                'name': (actor.get('name') or '').strip(),
+                'role': (actor.get('role') or '').strip(),
+                'thumbnail': (actor.get('thumbnail') or '').strip(),
+                'order': int(actor.get('order') or 0),
+            })
 
-    # Minimum version check - only support Kodi 19+
-    if kodi_version < 19:
-        utils.log(f"UNSUPPORTED KODI VERSION: {kodi_version}. This addon requires Kodi 19 (Matrix) or higher.", "ERROR")
-        # Still attempt to set basic info for graceful degradation
-        listitem.setInfo(tag_type, infolabels)
-        return
+    if not norm:
+        return False
 
-    # For non-video types, fall back to setInfo (but still require Kodi 19+)
-    if tag_type != 'video':
-        # utils.log("Using setInfo for non-video content type", "DEBUG")
-        listitem.setInfo(tag_type, infolabels)
-        return
+    utils.log(f"Setting cast for {len(norm)} actors with image support", "DEBUG")
 
+    # 1) Priority path for v21+: InfoTagVideo.setCast() with Actor objects
     try:
-        # Get video info tag - available in Kodi 18+
-        info_tag = listitem.getVideoInfoTag()
+        import xbmcgui
+        info = list_item.getVideoInfoTag()
 
-        # Set mediatype first - this is crucial for proper display
-        mediatype = str(infolabels.get('mediatype', 'movie')).lower()
-        if mediatype not in ['movie', 'tvshow', 'season', 'episode', 'musicvideo']:
-            mediatype = 'movie'
-        info_tag.setMediaType(mediatype)
-        # utils.log(f"Set mediatype to: {mediatype}", "DEBUG")
-
-        # Set basic string properties
-        if infolabels.get('title'): 
-            info_tag.setTitle(str(infolabels['title']))
-        if infolabels.get('plot'):
-            info_tag.setPlot(str(infolabels['plot']))
-        if infolabels.get('tagline'):
-            info_tag.setTagLine(str(infolabels['tagline']))
-        if infolabels.get('mpaa'):
-            info_tag.setMpaa(str(infolabels['mpaa']))
-        if infolabels.get('premiered'):
-            info_tag.setPremiered(str(infolabels['premiered']))
-
-        # Set list-based properties (convert single strings to lists)
-        if infolabels.get('genre'):
-            genres = [str(infolabels['genre'])] if isinstance(infolabels['genre'], str) else infolabels['genre']
-            info_tag.setGenres(genres)
-        if infolabels.get('country'):
-            countries = [str(infolabels['country'])] if isinstance(infolabels['country'], str) else infolabels['country']
-            info_tag.setCountries(countries)
-        if infolabels.get('director'):
-            directors = [str(infolabels['director'])] if isinstance(infolabels['director'], str) else infolabels['director']
-            info_tag.setDirectors(directors)
-        if infolabels.get('studio'):
-            studios = [str(infolabels['studio'])] if isinstance(infolabels['studio'], str) else infolabels['studio']
-            info_tag.setStudios(studios)
-        if infolabels.get('writer'):
-            writers = [str(infolabels['writer'])] if isinstance(infolabels['writer'], str) else infolabels['writer']
-            info_tag.setWriters(writers)
-
-        # Set numeric properties with error handling
-        if infolabels.get('year'):
-            try:
-                year = int(infolabels['year'])
-                if 1800 <= year <= 2100:  # Sanity check
-                    info_tag.setYear(year)
-            except (ValueError, TypeError):
-                utils.log(f"Invalid year value: {infolabels.get('year')}", "WARNING")
-
-        if infolabels.get('rating'):
-            try:
-                rating = float(infolabels['rating'])
-                if 0 <= rating <= 10:  # Sanity check
-                    info_tag.setRating(rating)
-            except (ValueError, TypeError):
-                utils.log(f"Invalid rating value: {infolabels.get('rating')}", "WARNING")
-
-        if infolabels.get('votes'):
-            try:
-                votes = int(infolabels['votes'])
-                if votes >= 0:  # Sanity check
-                    info_tag.setVotes(votes)
-            except (ValueError, TypeError):
-                utils.log(f"Invalid votes value: {infolabels.get('votes')}", "WARNING")
-
-        if infolabels.get('duration'):
-            try:
-                duration = int(infolabels['duration'])
-                if duration > 0:
-                    info_tag.setDuration(duration)
-            except (ValueError, TypeError):
-                utils.log(f"Invalid duration value: {infolabels.get('duration')}", "WARNING")
-
-        # Handle cast - Kodi 19+ only (no legacy support for older versions)
-        if infolabels.get('cast'):
-            cast = infolabels['cast']
-            if isinstance(cast, str):
-                try:
-                    cast = json.loads(cast)
-                except json.JSONDecodeError:
-                    utils.log("Failed to parse cast JSON", "WARNING")
-                    cast = []
-
-            if cast and isinstance(cast, list):
-                if kodi_version >= 20:
-                    # For Kodi 20+, try to use Actor class if available
+        # Enhanced v21+ detection - check Kodi version directly
+        if utils.get_kodi_version() >= 21 and hasattr(info, 'setCast') and hasattr(xbmcgui, 'Actor'):
+            actors = []
+            for actor in norm:
+                if actor['name']:  # Only add actors with names
                     try:
-                        from xbmc import Actor
-                        actors = []
-                        for item in cast:
-                            if isinstance(item, dict):
-                                actor = Actor(
-                                    name=str(item.get('name', '')),
-                                    role=str(item.get('role', '')),
-                                    order=int(item.get('order', 0)),
-                                    thumbnail=str(item.get('thumbnail', ''))
-                                )
-                                actors.append(actor)
-                        if actors:
-                            info_tag.setCast(actors)
-                            # utils.log(f"Set cast with {len(actors)} actors using Actor class", "DEBUG")
-                    except (ImportError, Exception) as e:
-                        utils.log(f"Failed to use Actor class, falling back to dictionary format: {str(e)}", "WARNING")
-                        # Fall back to dictionary format for Kodi 19+
-                        legacy_cast = []
-                        for item in cast:
-                            if isinstance(item, dict):
-                                legacy_cast.append({
-                                    'name': str(item.get('name', '')),
-                                    'role': str(item.get('role', '')),
-                                    'order': int(item.get('order', 0)),
-                                    'thumbnail': str(item.get('thumbnail', ''))
-                                })
-                        if legacy_cast:
-                            info_tag.setCast(legacy_cast)
-                            # utils.log(f"Set cast with {len(legacy_cast)} actors using dictionary format", "DEBUG")
-                else:
-                    # For Kodi 19, use dictionary format (minimum supported version)
-                    legacy_cast = []
-                    for item in cast:
-                        if isinstance(item, dict):
-                            legacy_cast.append({
-                                'name': str(item.get('name', '')),
-                                'role': str(item.get('role', '')),
-                                'order': int(item.get('order', 0)),
-                                'thumbnail': str(item.get('thumbnail', ''))
-                            })
-                    if legacy_cast:
-                        info_tag.setCast(legacy_cast)
-                        # utils.log(f"Set cast with {len(legacy_cast)} actors using dictionary format for Kodi 19", "DEBUG")
+                        actor_obj = xbmcgui.Actor(
+                            name=str(actor['name']),
+                            role=str(actor['role']),
+                            order=int(actor['order']),
+                            thumbnail=str(actor['thumbnail']) if actor['thumbnail'] else ""
+                        )
+                        actors.append(actor_obj)
+                    except Exception as actor_error:
+                        utils.log(f"Failed to create Actor object for {actor['name']}: {str(actor_error)}", "DEBUG")
+                        continue
 
-        # utils.log(f"Successfully set InfoTag for: {infolabels.get('title', 'Unknown')}", "DEBUG")
+            if actors:
+                info.setCast(actors)  # v21+ preferred InfoTagVideo method
+                utils.log(f"v21+ InfoTagVideo.setCast() successful: {len(actors)} actors with images", "DEBUG")
+                return True
+    except Exception as e:
+        utils.log(f"v21+ InfoTagVideo.setCast() failed: {str(e)}", "DEBUG")
+
+    # 2) Fallback for v19/v20: ListItem.setCast(list-of-dicts) - now deprecated in v21
+    try:
+        if hasattr(list_item, 'setCast'):
+            # v19/v20 method: accepts dicts with name/role/thumbnail/order
+            list_item.setCast(norm)
+            utils.log(f"v19/v20 ListItem.setCast() fallback successful: {len(norm)} actors with images (deprecated)", "DEBUG")
+            return True
+    except Exception as e:
+        utils.log(f"v19/v20 ListItem.setCast() fallback failed: {str(e)}", "DEBUG")
+
+    # 3) Last resort: names/roles only via setInfo (no images)
+    try:
+        simple_cast = []
+        for actor in norm:
+            if actor['name']:
+                if actor['role']:
+                    simple_cast.append((actor['name'], actor['role']))
+                else:
+                    simple_cast.append(actor['name'])
+
+        if simple_cast:
+            list_item.setInfo('video', {'cast': simple_cast})
+            utils.log(f"Fallback setInfo cast successful: {len(simple_cast)} actors (no images)", "WARNING")
+            return False
+    except Exception as e:
+        utils.log(f"All cast methods failed: {str(e)}", "ERROR")
+
+    return False
+
+def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'video') -> None:
+    """
+    Set InfoTag for Kodi 19+ with proper error handling and fallback.
+    Uses centralized version detection for optimal performance.
+    """
+    if not isinstance(info_dict, dict) or not info_dict:
+        utils.log("Invalid or empty info_dict provided to set_info_tag", "WARNING")
+        return
+
+    title = info_dict.get('title', 'Unknown')
+
+    # Handle plot information
+    plot = info_dict.get('plot', '')
+
+    # Use centralized version detection
+    utils.log(f"Using cached Kodi version: {utils.get_kodi_version()}", "DEBUG")
+
+    # For Kodi v19, use setInfo directly since InfoTag setters are unreliable
+    if utils.is_kodi_v19():
+        try:
+            # Clean up info_dict for setInfo compatibility
+            clean_info = {}
+            for key, value in info_dict.items():
+                if not value:  # Skip empty values
+                    continue
+
+                # Handle cast with v19 ListItem.setCast() which supports thumbnails
+                if key == 'cast' and isinstance(value, list):
+                    cast_success = _set_full_cast(list_item, value)
+                    if cast_success:
+                        utils.log(f"V19 cast set successfully with images: {len(value)} actors", "DEBUG")
+                    else:
+                        utils.log("V19 cast set without images (fallback used)", "DEBUG")
+                    continue  # Don't add cast to clean_info since it's handled separately
+                elif key in ['country', 'director', 'genre', 'studio'] and isinstance(value, list):
+                    # Convert lists to comma-separated strings for setInfo
+                    clean_info[key] = ' / '.join(str(item) for item in value if item)
+                elif key == 'mediatype':
+                    # Skip mediatype for v19 setInfo
+                    continue
+                else:
+                    clean_info[key] = value
+
+            # Skip DBID for v19 non-playable items to prevent Information dialog conflicts
+            # Only add DBID for actual playable library movies, not for options/folder items
+            kodi_id = info_dict.get('kodi_id') or info_dict.get('movieid') or info_dict.get('id')
+            file_path = info_dict.get('file', '')
+            is_playable = file_path and not file_path.startswith('plugin://') and info_dict.get('mediatype') == 'movie'
+
+            if kodi_id and is_playable:
+                try:
+                    clean_info['dbid'] = int(kodi_id)
+                    utils.log(f"Added DBID to setInfo for playable library movie: {kodi_id}", "DEBUG")
+                except (ValueError, TypeError):
+                    pass
+            elif kodi_id:
+                utils.log(f"Skipped DBID for non-playable item to prevent v19 Information dialog: {kodi_id} (file: {file_path})", "DEBUG")
+
+            list_item.setInfo(content_type, clean_info)
+
+            # Handle resume data for v19 using properties (setInfo doesn't support resume)
+            resume_data = info_dict.get('resume', {})
+            if isinstance(resume_data, dict) and any(resume_data.values()):
+                try:
+                    position = float(resume_data.get('position', 0))
+                    total = float(resume_data.get('total', 0))
+
+                    if position > 0:
+                        list_item.setProperty('resumetime', str(position))
+                        if total > 0:
+                            list_item.setProperty('totaltime', str(total))
+                        utils.log(f"v19 resume properties set: {position}s of {total}s", "DEBUG")
+                except (ValueError, TypeError) as resume_error:
+                    utils.log(f"v19 resume data conversion failed: {str(resume_error)}", "WARNING")
+        except Exception as setinfo_error:
+            utils.log(f"setInfo failed for v19: {str(setinfo_error)}", "ERROR")
+
+        return
+
+    # For Kodi v20+, try InfoTag methods first with enhanced error handling
+    try:
+        # Get the InfoTag for the specified content type
+        if content_type == 'video':
+            info_tag = list_item.getVideoInfoTag()
+        elif content_type == 'music':
+            info_tag = list_item.getMusicInfoTag()
+        else:
+            utils.log(f"Unsupported content type: {content_type}", "WARNING")
+            return
+
+        utils.log(f"V20+ InfoTag object obtained: {type(info_tag)}", "DEBUG")
+
+        # V20+ InfoTag method mapping with validation
+        infotag_methods = {
+            'title': 'setTitle',
+            'plot': 'setPlot',
+            'year': 'setYear',
+            'rating': 'setRating',
+            'votes': 'setVotes',
+            'runtime': 'setDuration',
+            'duration': 'setDuration',
+            'tagline': 'setTagline',
+            'originaltitle': 'setOriginalTitle',
+            'director': 'setDirectors',
+            'writer': 'setWriters',
+            'genre': 'setGenres',
+            'studio': 'setStudios',
+            'country': 'setCountries',
+            'mpaa': 'setMpaa',
+            'premiered': 'setPremiered',
+            'dateadded': 'setDateAdded',
+            'imdbnumber': 'setIMDBNumber',
+            'trailer': 'setTrailer'
+        }
+
+        # Set mediatype first for V20+
+        mediatype = info_dict.get('mediatype', 'movie')
+        if hasattr(info_tag, 'setMediaType'):
+            try:
+                info_tag.setMediaType(mediatype)
+                # Set mediatype
+            except Exception as e:
+                utils.log(f"V20+ setMediaType failed: {str(e)}", "WARNING")
+
+        # Process each property with improved V20+ handling
+        infotag_success_count = 0
+
+        for key, value in info_dict.items():
+            if key == 'mediatype' or not value:
+                continue
+
+            try:
+                # Special handling for cast with version-agnostic approach
+                if key == 'cast' and isinstance(value, list):
+                    cast_success = _set_full_cast(list_item, value)
+                    if cast_success:
+                        infotag_success_count += 1
+                        # Cast set successfully
+                    else:
+                        utils.log("V20+ cast set without images (fallback used)", "DEBUG")
+
+                elif key in ['year', 'runtime', 'duration', 'votes'] and isinstance(value, (int, str)):
+                    # Integer properties
+                    method_name = infotag_methods.get(key)
+                    if method_name and hasattr(info_tag, method_name):
+                        try:
+                            int_value = int(value) if value else 0
+                            if int_value > 0:
+                                getattr(info_tag, method_name)(int_value)
+                                infotag_success_count += 1
+                                # numeric_fields[key][1](int_value)
+                        except (ValueError, TypeError) as convert_error:
+                            utils.log(f"V20+ {method_name} conversion failed: {str(convert_error)}", "WARNING")
+
+                elif key == 'rating' and isinstance(value, (int, float, str)):
+                    # Float rating property
+                    if hasattr(info_tag, 'setRating'):
+                        try:
+                            float_value = float(value)
+                            info_tag.setRating(float_value)
+                            infotag_success_count += 1
+                            # numeric_fields[key][1](float_value)
+                        except (ValueError, TypeError) as rating_error:
+                            utils.log(f"V20+ setRating failed: {str(rating_error)}", "WARNING")
+
+                elif key in ['director', 'writer', 'genre', 'studio', 'country']:
+                    # List properties that need special handling
+                    method_name = infotag_methods.get(key)
+                    if method_name and hasattr(info_tag, method_name):
+                        try:
+                            if isinstance(value, list):
+                                # V20+ expects list format for these methods
+                                clean_list = [str(item) for item in value if item]
+                                if clean_list:
+                                    getattr(info_tag, method_name)(clean_list)
+                                    infotag_success_count += 1
+                                    # string_list_fields[key][1](clean_list)
+                            else:
+                                # Convert string to list
+                                items = [item.strip() for item in str(value).split('/') if item.strip()]
+                                if items:
+                                    getattr(info_tag, method_name)(items)
+                                    infotag_success_count += 1
+                                    # string_list_fields[key][1](items)
+                        except Exception as list_error:
+                            utils.log(f"V20+ {method_name} failed: {str(list_error)}", "WARNING")
+
+                else:
+                    # String properties
+                    method_name = infotag_methods.get(key)
+                    if method_name and hasattr(info_tag, method_name):
+                        try:
+                            getattr(info_tag, method_name)(str(value))
+                            infotag_success_count += 1
+                            if key == 'plot':
+                                # Plot set successfully
+                                pass
+                            else:
+                                # string_list_fields[key][1](str(value))
+                                pass
+                        except Exception as string_error:
+                            utils.log(f"V20+ {method_name} failed: {str(string_error)}", "WARNING")
+
+            except Exception as property_error:
+                utils.log(f"V20+ InfoTag processing failed for {key}: {str(property_error)}", "WARNING")
+
+        if infotag_success_count > 0:
+            # Handle resume data with version-appropriate methods
+            resume_data = info_dict.get('resume', {})
+            if isinstance(resume_data, dict) and any(resume_data.values()):
+                try:
+                    position = float(resume_data.get('position', 0))
+                    total = float(resume_data.get('total', 0))
+
+                    if position > 0:
+                        try:
+                            if hasattr(info_tag, 'setResumePoint'):
+                                info_tag.setResumePoint(position, total)
+                                utils.log(f"V20+ setResumePoint successful: {position}s of {total}s", "DEBUG")
+                            else:
+                                # Fallback to property method
+                                list_item.setProperty('resumetime', str(position))
+                                if total > 0:
+                                    list_item.setProperty('totaltime', str(total))
+                                utils.log(f"V20+ resume fallback to properties: {position}s of {total}s", "DEBUG")
+                        except Exception as resume_error:
+                            # Final fallback to property method
+                            list_item.setProperty('resumetime', str(position))
+                            if total > 0:
+                                list_item.setProperty('totaltime', str(total))
+                            utils.log(f"V20+ resume error fallback: {str(resume_error)}", "WARNING")
+                except (ValueError, TypeError) as resume_convert_error:
+                    utils.log(f"V20+ resume data conversion failed: {str(resume_convert_error)}", "WARNING")
+
+            # InfoTag methods completed
+        else:
+            utils.log("V20+ No InfoTag methods succeeded, falling back to setInfo", "WARNING")
+            raise Exception(f"All V20+ InfoTag methods failed")
 
     except Exception as e:
-        utils.log(f"Error setting InfoTag, falling back to setInfo: {str(e)}", "ERROR")
-        # Fallback to setInfo (still requires Kodi 19+ for this addon)
-        listitem.setInfo(tag_type, infolabels)
+        # Enhanced fallback to setInfo for v20+ if InfoTag fails
+        utils.log(f"V20+ InfoTag failed, falling back to setInfo: {str(e)}", "WARNING")
+        try:
+            # Clean up info_dict for setInfo compatibility
+            clean_info = {}
+            for key, value in info_dict.items():
+                if not value:
+                    continue
+
+                # Cast is handled separately by _set_full_cast function
+                if key == 'cast' and isinstance(value, list):
+                    cast_success = _set_full_cast(list_item, value)
+                    utils.log(f"Fallback cast handling: {'success' if cast_success else 'no images'}", "DEBUG")
+                    continue  # Skip adding to clean_info
+                elif key in ['country', 'director', 'genre', 'studio'] and isinstance(value, list):
+                    clean_info[key] = ' / '.join(str(item) for item in value if item)
+                else:
+                    clean_info[key] = value
+
+            list_item.setInfo(content_type, clean_info)
+
+            # Handle resume data for v20+ setInfo fallback using properties
+            resume_data = info_dict.get('resume', {})
+            if isinstance(resume_data, dict) and any(resume_data.values()):
+                try:
+                    position = float(resume_data.get('position', 0))
+                    total = float(resume_data.get('total', 0))
+
+                    if position > 0:
+                        list_item.setProperty('resumetime', str(position))
+                        if total > 0:
+                            list_item.setProperty('totaltime', str(total))
+                        utils.log(f"v20+ fallback resume properties set: {position}s of {total}s", "DEBUG")
+                except (ValueError, TypeError) as resume_error:
+                    utils.log(f"v20+ fallback resume data conversion failed: {str(resume_error)}", "WARNING")
+        except Exception as fallback_error:
+            utils.log(f"Fallback setInfo also failed: {str(fallback_error)}", "ERROR")
 
 
 def set_art(list_item: ListItem, raw_art: Dict[str, str]) -> None:
-    # utils.log("Setting art for ListItem", "DEBUG")
     art = {art_type: raw_url for art_type, raw_url in raw_art.items()}
     list_item.setArt(art)
-    # utils.log(f"Art types set: {', '.join(art.keys())}", "DEBUG")

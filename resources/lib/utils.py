@@ -33,17 +33,20 @@ def log(message, level=None):
     if isinstance(message, str):
         spam_patterns = [
             "Executing SQL:",
-            "DEBUG: JSONRPC request:",
             "DEBUG: JSONRPC response:",
             "JSONRPC VideoLibrary.GetMovies completed",
             "JSONRPC GetMovies success: Got",
             "Executing JSONRPC method:",
             "Inserted into media_items, got ID:"
         ]
-        
-        for pattern in spam_patterns:
-            if message.startswith(pattern) and level == 'DEBUG':
-                return
+
+        # Allow JSON-RPC request logging to always show through
+        if message.startswith("JSONRPC Request"):
+            pass  # Don't filter these out
+        else:
+            for pattern in spam_patterns:
+                if message.startswith(pattern) and level == 'DEBUG':
+                    return
 
     # Truncate cast data in JSON responses
     if isinstance(message, str):
@@ -57,7 +60,6 @@ def log(message, level=None):
 
     # Always use INFO level but include original level in message
     xbmc.log(f"LibraryGenie [{level}]: {message}", xbmc.LOGINFO)
-
 
 def show_notification(title, message, icon=xbmcgui.NOTIFICATION_INFO, time=5000):
     xbmcgui.Dialog().notification(title, message, icon, time)
@@ -75,12 +77,42 @@ def show_dialog_input(heading, default=""):
     return xbmcgui.Dialog().input(heading, default).strip()
 
 def is_debug_enabled():
-    """Check if debug logging is enabled in addon settings"""
+    """Check if debug logging is enabled for the addon"""
     try:
-        from .addon_ref import get_addon
-        return get_addon().getSetting('debug_logging') == 'true'
+        from resources.lib.settings_manager import SettingsManager
+        settings_manager = SettingsManager()
+        return settings_manager.get_bool_setting('debug_mode', default=False)
     except Exception:
-        return True
+        return False
+
+# Global cache for Kodi version to avoid repeated detection
+_KODI_VERSION_CACHE = None
+
+def get_kodi_version():
+    """Get the major version number of the current Kodi installation with caching"""
+    global _KODI_VERSION_CACHE
+    
+    if _KODI_VERSION_CACHE is not None:
+        return _KODI_VERSION_CACHE
+    
+    try:
+        import xbmc
+        version_info = xbmc.getInfoLabel("System.BuildVersion")
+        _KODI_VERSION_CACHE = int(version_info.split('.')[0])
+        log(f"Detected and cached Kodi version: {_KODI_VERSION_CACHE}", "INFO")
+        return _KODI_VERSION_CACHE
+    except Exception as e:
+        _KODI_VERSION_CACHE = 21  # Default to latest if detection fails
+        log(f"Could not detect Kodi version, defaulting to v{_KODI_VERSION_CACHE}: {str(e)}", "WARNING")
+        return _KODI_VERSION_CACHE
+
+def is_kodi_v19():
+    """Check if running on Kodi v19 (Matrix)"""
+    return get_kodi_version() == 19
+
+def is_kodi_v20_plus():
+    """Check if running on Kodi v20 or higher (Nexus+)"""
+    return get_kodi_version() >= 20
 
 def setup_remote_api():
     """Launch remote API setup wizard"""

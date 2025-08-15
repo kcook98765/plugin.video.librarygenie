@@ -74,18 +74,48 @@ class DatabaseManager(Singleton):
         query_manager = QueryManager(self.db_path)
         return query_manager.fetch_lists_direct(folder_id)
 
+    def fetch_data(self, table, condition=None):
+        """Generic method to fetch data from a table"""
+        try:
+            if condition:
+                query = f"SELECT * FROM {table} WHERE {condition}"
+            else:
+                query = f"SELECT * FROM {table}"
+            
+            self._execute_with_retry(self.cursor.execute, query)
+            rows = self.cursor.fetchall()
+            
+            # Get column names
+            columns = [description[0] for description in self.cursor.description]
+            
+            # Convert rows to list of dictionaries
+            result = []
+            for row in rows:
+                result.append(dict(zip(columns, row)))
+            
+            return result
+        except Exception as e:
+            utils.log(f"Error fetching data from {table}: {str(e)}", "ERROR")
+            return []
+
+    def get_folder_id_by_name(self, folder_name):
+
+        """Get folder ID by name"""
+        try:
+            folders = self.fetch_data('folders', f"name = '{folder_name}'")
+            if folders and len(folders) > 0:
+                return folders[0]['id']
+            return None
+        except Exception as e:
+            utils.log(f"Error getting folder ID by name '{folder_name}': {str(e)}", "ERROR")
+            return None
+
     def get_folder_depth(self, folder_id):
         from resources.lib.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         return query_manager.get_folder_depth(folder_id)
 
     def insert_folder(self, name, parent_id=None):
-        if parent_id is not None:
-            current_depth = self.get_folder_depth(parent_id)
-            max_depth = self.config.max_folder_depth - 1  # -1 because we're adding a new level
-            if current_depth >= max_depth:
-                raise ValueError(f"Maximum folder depth of {self.config.max_folder_depth} exceeded")
-
         from resources.lib.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         query_manager.insert_folder_direct(name, parent_id)
@@ -294,6 +324,20 @@ class DatabaseManager(Singleton):
         query_manager = QueryManager(self.db_path)
         return query_manager.fetch_all_folders()
 
+    def fetch_lists_by_folder(self, folder_id):
+        """Fetch all lists in a specific folder"""
+        try:
+            if folder_id is None:
+                condition = "folder_id IS NULL"
+            else:
+                condition = f"folder_id = {folder_id}"
+            
+            lists = self.fetch_data('lists', condition)
+            return lists if lists else []
+        except Exception as e:
+            utils.log(f"Error fetching lists by folder {folder_id}: {str(e)}", "ERROR")
+            return []
+
     def fetch_all_lists(self):
         from resources.lib.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
@@ -315,23 +359,11 @@ class DatabaseManager(Singleton):
         query_manager = QueryManager(self.db_path)
         query_manager.update_folder_name(folder_id, new_name)
 
-    def update_folder_parent(self, folder_id, new_parent_id):
+    def update_folder_parent(self, folder_id, new_parent_id, override_depth_check=False):
         from resources.lib.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
 
         if new_parent_id is not None:
-            # Get the depth of the subtree being moved
-            subtree_depth = query_manager.get_subtree_depth(folder_id)
-
-            # Get the depth at the new location
-            target_depth = query_manager.get_folder_depth(new_parent_id)
-
-            # Calculate total depth after move
-            total_depth = target_depth + subtree_depth + 1
-
-            if total_depth > self.config.max_folder_depth:
-                raise ValueError(f"Moving folder would exceed maximum depth of {self.config.max_folder_depth}")
-
             # Check if move would create a cycle
             temp_parent = new_parent_id
             while temp_parent is not None:
@@ -339,6 +371,20 @@ class DatabaseManager(Singleton):
                     raise ValueError("Cannot move folder: would create a cycle")
                 folder = query_manager.fetch_folder_by_id(temp_parent)
                 temp_parent = folder['parent_id'] if folder else None
+
+            # Check depth limit unless overridden
+            if not override_depth_check:
+                # Get the depth of the subtree being moved
+                subtree_depth = query_manager.get_subtree_depth(folder_id)
+
+                # Get the depth at the new location
+                target_depth = query_manager.get_folder_depth(new_parent_id)
+
+                # Calculate total depth after move
+                total_depth = target_depth + subtree_depth + 1
+
+                if total_depth > self.config.max_folder_depth:
+                    raise ValueError(f"Moving folder would exceed maximum depth of {self.config.max_folder_depth}")
 
         query_manager.update_folder_parent(folder_id, new_parent_id)
 
@@ -570,9 +616,6 @@ class DatabaseManager(Singleton):
         from resources.lib.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
 
-        # Ensure protected column exists in lists table
-        self._ensure_protected_column()
-
         search_history_folder_name = "Search History"
 
         # Check if the folder already exists
@@ -590,16 +633,9 @@ class DatabaseManager(Singleton):
         else:
             utils.log(f"'{search_history_folder_name}' folder already exists.", "INFO")
 
-    def _ensure_protected_column(self):
-        """Ensure the protected column exists in the lists table"""
-        try:
-            # Check if protected column exists
-            self._execute_with_retry(self.cursor.execute, "SELECT protected FROM lists LIMIT 1")
-        except sqlite3.OperationalError:
-            # Column doesn't exist, add it
-            utils.log("Adding protected column to lists table", "INFO")
-            self._execute_with_retry(self.cursor.execute, "ALTER TABLE lists ADD COLUMN protected INTEGER DEFAULT 0")
-            self.connection.commit()
+    
+
+    
 
     def add_search_history(self, query, results):
         """Adds the search results to the 'Search History' folder as a new list. Returns the list ID."""
@@ -631,7 +667,10 @@ class DatabaseManager(Singleton):
             'name': list_name,
             'folder_id': search_history_folder_id
         }
-        utils.log(f"Creating search history list: {final_list_data}", "DEBUG")
+        utils.log("=== SAVING LIST TITLE TO DATABASE ===", "INFO")
+        utils.log(f"List title being saved: '{list_name}'", "INFO")
+        utils.log(f"Full list data: {final_list_data}", "DEBUG")
+        utils.log("=== END SAVING LIST TITLE ===", "INFO")
         final_list_id = self.insert_data('lists', final_list_data)
         utils.log(f"Created search history list with ID: {final_list_id}", "DEBUG")
 
@@ -712,12 +751,12 @@ class DatabaseManager(Singleton):
                         query_manager.insert_list_item(list_item_data)
                     else:
                         utils.log(f"Failed to insert media item for: {item_data.get('imdbnumber', 'N/A')}", "ERROR")
-                utils.log(f"=== SEARCH HISTORY SAVE COMPLETE ===", "INFO")
+                utils.log("=== SEARCH HISTORY SAVE COMPLETE ===", "INFO")
                 utils.log(f"List Name: '{list_name}'", "INFO")
                 utils.log(f"List ID: {final_list_id}", "INFO")
                 utils.log(f"Items Saved: {len(media_items_to_insert)}", "INFO")
                 utils.log(f"Query: '{query}'", "INFO")
-                utils.log(f"=== END SEARCH HISTORY SAVE ===", "INFO")
+                utils.log("=== END SEARCH HISTORY SAVE ===", "INFO")
                 return final_list_id
             else:
                 utils.log(f"No valid media items to save for search query '{query}'.", "WARNING")
@@ -738,9 +777,13 @@ class DatabaseManager(Singleton):
     def ensure_folder_exists(self, folder_name, parent_folder_id=None):
         """Ensure a folder exists, create if not found"""
         try:
-            # Check if folder already exists - use 'parent' instead of 'parent_folder_id'
-            query = "SELECT id FROM folders WHERE name = ? AND parent = ?"
-            result = self.fetch_data(query, (folder_name, parent_folder_id))
+            # Check if folder already exists using proper column name
+            if parent_folder_id is None:
+                condition = f"name = '{folder_name}' AND parent_id IS NULL"
+            else:
+                condition = f"name = '{folder_name}' AND parent_id = {parent_folder_id}"
+            
+            result = self.fetch_data('folders', condition)
 
             if result:
                 utils.log(f"'{folder_name}' folder already exists.", "INFO")
@@ -750,7 +793,7 @@ class DatabaseManager(Singleton):
                 utils.log(f"Creating '{folder_name}' folder.", "INFO")
                 folder_data = {
                     'name': folder_name,
-                    'parent': parent_folder_id
+                    'parent_id': parent_folder_id
                 }
                 folder_id = self.insert_data('folders', folder_data)
                 utils.log(f"'{folder_name}' folder created with ID: {folder_id}", "INFO")

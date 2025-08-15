@@ -254,23 +254,28 @@ class QueryManager(Singleton):
         return result[0]['COUNT(*)'] if result else 0
 
     def fetch_list_items_with_details(self, list_id: int) -> List[Dict[str, Any]]:
-        """Fetch list items with media details, ordered by search score (highest first)"""
+        """Fetch list items with full media details"""
         query = """
-            SELECT 
-                m.*,
-                li.id as list_item_id
+            SELECT mi.*
             FROM list_items li
-            JOIN media_items m ON li.media_item_id = m.id
+            JOIN media_items mi ON li.media_item_id = mi.id
             WHERE li.list_id = ?
-            ORDER BY 
-                CASE 
-                    WHEN m.search_score IS NOT NULL AND m.search_score > 0 
-                    THEN m.search_score 
-                    ELSE 0 
-                END DESC,
-                m.title ASC
+            ORDER BY mi.title COLLATE NOCASE
         """
-        return self.execute_query(query, (list_id,))
+
+        conn_info = self._get_connection()
+        try:
+            cursor = conn_info['connection'].execute(query, (list_id,))
+            rows = cursor.fetchall()
+            items = [dict(row) for row in rows]
+            utils.log(f"Fetched {len(items)} items for list {list_id}", "DEBUG")
+
+            # Log database fetch summary
+            utils.log(f"Fetched {len(items)} items from database", "DEBUG")
+
+            return items
+        finally:
+            self._release_connection(conn_info)
 
     def fetch_lists_with_item_status(self, item_id: int) -> List[Dict[str, Any]]:
         """Fetch lists with item status"""
@@ -317,13 +322,36 @@ class QueryManager(Singleton):
         return result[0]['max_depth'] if result and result[0]['max_depth'] is not None else 0
 
     def get_folder_by_name(self, folder_name: str) -> Optional[Dict[str, Any]]:
-        query = """
-            SELECT id, name, parent_id
-            FROM folders
-            WHERE name = ?
-        """
-        result = self.execute_query(query, (folder_name,), fetch_all=False)
+        """Get folder by name"""
+        query = "SELECT id, name, parent_id FROM folders WHERE name = ?"
+        result = self.execute_query(query, (folder_name,))
         return result[0] if result else None
+
+    def get_folder_id_by_name(self, folder_name: str) -> Optional[int]:
+        """Get folder ID by name"""
+        query = "SELECT id FROM folders WHERE name = ?"
+        result = self.execute_query(query, (folder_name,))
+        return result[0]['id'] if result else None
+
+    def is_search_history(self, list_id):
+        """Check if a list is in the Search History folder"""
+        try:
+            # Get the list data
+            list_data = self.fetch_list_by_id(list_id)
+            if not list_data:
+                return False
+
+            # Get the Search History folder ID
+            search_history_folder_id = self.get_folder_id_by_name("Search History")
+            if not search_history_folder_id:
+                return False
+
+            # Check if the list's folder_id matches the Search History folder
+            return list_data.get('folder_id') == search_history_folder_id
+        except Exception as e:
+            from resources.lib import utils
+            utils.log(f"Error checking if list is search history: {str(e)}", "ERROR")
+            return False
 
     def insert_folder(self, name: str, parent_id: Optional[int] = None) -> int:
         query = """
@@ -461,20 +489,14 @@ class QueryManager(Singleton):
     def update_folder_parent(self, folder_id: int, new_parent_id: Optional[int]) -> None:
         conn_info = self._get_connection()
         try:
-            utils.log(f"Starting folder parent update. FolderID={folder_id}, NewParentID={new_parent_id}", "DEBUG")
-
             # Get current state
             cursor = conn_info['connection'].cursor()
             cursor.execute("SELECT * FROM folders WHERE id = ?", (folder_id,))
             before_state = cursor.fetchone()
-            utils.log(f"Current folder state - ID:{folder_id}, State:{dict(before_state)}", "DEBUG")
 
             # Convert string 'None' to Python None
             if isinstance(new_parent_id, str) and new_parent_id == 'None':
                 new_parent_id = None
-
-            # Verify input parameters
-            utils.log(f"Validating parameters - FolderID type:{type(folder_id)}, NewParentID type:{type(new_parent_id) if new_parent_id is not None else 'None'}", "DEBUG")
 
             # Construct query based on new parent
             if new_parent_id is None:
@@ -484,7 +506,6 @@ class QueryManager(Singleton):
                     WHERE id = ?
                 """
                 params = (folder_id,)
-                utils.log("Using NULL parent query", "DEBUG")
             else:
                 query = """
                     UPDATE folders 
@@ -492,24 +513,19 @@ class QueryManager(Singleton):
                     WHERE id = ?
                 """
                 params = (new_parent_id, folder_id)
-                utils.log("Using specific parent query", "DEBUG")
 
-            utils.log(f"Executing SQL - Query:{query.strip()}, Params:{params}", "DEBUG")
             cursor.execute(query, params)
 
             # Commit the change
-            utils.log("Committing transaction", "DEBUG")
             conn_info['connection'].commit()
 
             # Verify the update
             cursor.execute("SELECT * FROM folders WHERE id = ?", (folder_id,))
             after_state = cursor.fetchone()
-            utils.log(f"Updated folder state - ID:{folder_id}, State:{dict(after_state)}", "DEBUG")
 
             # Validate result
             expected_parent = new_parent_id if new_parent_id is not None else None
             actual_parent = after_state['parent_id']
-            utils.log(f"Validation - Expected parent:{expected_parent}, Actual parent:{actual_parent}", "DEBUG")
 
             if actual_parent != expected_parent:
                 utils.log(f"WARNING: Parent ID mismatch - Expected:{expected_parent}, Got:{actual_parent}", "WARNING")
@@ -675,7 +691,7 @@ class QueryManager(Singleton):
         # Extract field names from config
         field_names = [field.split()[0] for field in Config.FIELDS]
         media_data = {key: data[key] for key in field_names if key in data}
-        
+
         # Ensure search_score is included if present in input data
         if 'search_score' in data and 'search_score' not in media_data:
             media_data['search_score'] = data['search_score']
@@ -895,10 +911,10 @@ class QueryManager(Singleton):
             )""",
             """CREATE TABLE IF NOT EXISTS lists (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
                 folder_id INTEGER,
-                name TEXT UNIQUE,
-                query TEXT,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                protected INTEGER DEFAULT 0,
+                FOREIGN KEY (folder_id) REFERENCES folders (id)
             )""",
             f"""CREATE TABLE IF NOT EXISTS media_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -949,7 +965,7 @@ class QueryManager(Singleton):
                 utils.log(f"Executing SQL: {create_sql}", "DEBUG")
                 cursor.execute(create_sql)
             conn_info['connection'].commit()
-            
+
             # Add migration for search_score column if it doesn't exist
             try:
                 cursor.execute("SELECT search_score FROM media_items LIMIT 1")
@@ -958,7 +974,7 @@ class QueryManager(Singleton):
                 utils.log("Adding search_score column to media_items table", "INFO")
                 cursor.execute("ALTER TABLE media_items ADD COLUMN search_score REAL")
                 conn_info['connection'].commit()
-                
+
         finally:
             self._release_connection(conn_info)
 

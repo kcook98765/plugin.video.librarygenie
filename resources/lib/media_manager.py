@@ -10,7 +10,7 @@ class MediaManager:
         self.jsonrpc = JSONRPC()
         from resources.lib.query_manager import QueryManager
         self.query_manager = QueryManager(Config().db_path)
-        
+
     def sync_library(self) -> bool:
         """Sync the Kodi library with our database"""
         return self.query_manager.sync_manager.sync_library_movies()
@@ -52,7 +52,7 @@ class MediaManager:
                 if not poster_url:
                     poster_url = details.get('thumbnail', '')
                     utils.log(f"Poster fallback to thumbnail: {poster_url}", "DEBUG")
-                
+
                 # Ensure art dictionary has all required fields
                 art_dict = {
                     'poster': poster_url,
@@ -60,7 +60,7 @@ class MediaManager:
                     'icon': poster_url,
                     'fanart': art_dict.get('fanart', '')
                 }
-                
+
                 media_info = {
                     'kodi_id': kodi_id,
                     'title': details.get('title', ''),
@@ -78,6 +78,12 @@ class MediaManager:
                     'duration': details.get('runtime', ''),
                     'type': media_type
                 }
+                
+                # Assuming ListItemBuilder is imported and available in this scope
+                from resources.lib.listitem_builder import ListItemBuilder
+                movie_data = media_info
+                list_item = ListItemBuilder.build_video_item(movie_data, is_search_history=False)
+
 
         # Fallback to current method for non-library items
         utils.log("Using fallback method for non-library item", "DEBUG")
@@ -97,7 +103,13 @@ class MediaManager:
             'duration': xbmc.getInfoLabel('ListItem.Duration'),
             'type': media_type
         }
+        
+        # Assuming ListItemBuilder is imported and available in this scope
+        from resources.lib.listitem_builder import ListItemBuilder
+        list_item = ListItemBuilder.build_video_item(info, is_search_history=False)
+        
         return {k: v for k, v in info.items() if v}
+
 
     def get_cast_info(self):
         """Get cast information for current media"""
