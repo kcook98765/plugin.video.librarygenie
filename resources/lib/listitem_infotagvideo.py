@@ -126,8 +126,6 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
         return
 
     title = info_dict.get('title', 'Unknown')
-    utils.log(f"=== SET_INFO_TAG START for '{title}' ===", "INFO")
-    utils.log(f"Info dict has {len(info_dict)} keys: {list(info_dict.keys())}", "DEBUG")
 
     # Handle plot information
     plot = info_dict.get('plot', '')
@@ -202,7 +200,6 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
         except Exception as setinfo_error:
             utils.log(f"setInfo failed for v19: {str(setinfo_error)}", "ERROR")
 
-        utils.log(f"=== SET_INFO_TAG COMPLETE for '{title}' ===", "INFO")
         return
 
     # For Kodi v20+, try InfoTag methods first with enhanced error handling
