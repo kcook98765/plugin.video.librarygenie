@@ -744,7 +744,7 @@ class QueryManager(Singleton):
         finally:
             self._release_connection(conn_info)
 
-    def upsert_reference_media_item(self, imdb_id: str, kodi_id: int = None, source: str = 'lib') -> int:
+    def upsert_reference_media_item(self, imdb_id: str, kodi_id: Optional[int] = None, source: str = 'lib') -> int:
         """Ensure a minimal media_items row exists for a library/provider item.
         Only identifiers are stored. Returns media_items.id.
         """
