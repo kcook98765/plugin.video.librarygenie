@@ -25,12 +25,27 @@ class ResultsManager(Singleton):
         start_time = time.time()
         try:
             utils.log(f"[LIST BUILD] Starting build_display_items_for_list for list_id={list_id}", "INFO")
+            utils.log(f"[LIST BUILD] Memory check - About to fetch list items", "DEBUG")
 
             # Get list items with full details
             fetch_start = time.time()
-            list_items = self.query_manager.fetch_list_items_with_details(list_id)
+            try:
+                list_items = self.query_manager.fetch_list_items_with_details(list_id)
+                utils.log(f"[LIST BUILD] Successfully fetched list items from database", "DEBUG")
+            except Exception as fetch_error:
+                utils.log(f"[LIST BUILD] CRITICAL: Database fetch failed: {str(fetch_error)}", "ERROR")
+                import traceback
+                utils.log(f"[LIST BUILD] Database fetch traceback: {traceback.format_exc()}", "ERROR")
+                return []
+                
             fetch_time = time.time() - fetch_start
             utils.log(f"[LIST BUILD] Fetched {len(list_items)} items in {fetch_time:.3f}s", "INFO")
+            
+            if not list_items:
+                utils.log(f"[LIST BUILD] WARNING: No items found for list_id {list_id}", "WARNING")
+                return []
+            
+            utils.log(f"[LIST BUILD] Memory check - About to process {len(list_items)} items", "DEBUG")
 
             # Log summary of items being processed
             utils.log(f"Processing {len(list_items)} items for list display", "DEBUG")

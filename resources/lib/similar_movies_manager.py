@@ -80,14 +80,26 @@ class SimilarMoviesManager:
                     'list_id': list_id,
                     'view': 'list'
                 })
-                utils.log(f"[SIMILARITY TIMING] Navigating to results: {list_url}", "DEBUG")
+                utils.log(f"[SIMILARITY NAV] Built navigation URL: {list_url}", "INFO")
+                utils.log(f"[SIMILARITY NAV] About to execute Container.Update with replace", "INFO")
                 
-                # Use replace and add a small delay to ensure clean navigation
-                xbmc.sleep(100)
-                xbmc.executebuiltin(f'Container.Update({list_url},replace)')
-                xbmc.sleep(50)
-                nav_time = time.time() - nav_start
-                utils.log(f"[SIMILARITY TIMING] Navigation completed in {nav_time:.3f}s", "DEBUG")
+                try:
+                    # Use replace and add a small delay to ensure clean navigation
+                    utils.log(f"[SIMILARITY NAV] Sleep 100ms before navigation", "DEBUG")
+                    xbmc.sleep(100)
+                    utils.log(f"[SIMILARITY NAV] Executing Container.Update command", "INFO")
+                    xbmc.executebuiltin(f'Container.Update({list_url},replace)')
+                    utils.log(f"[SIMILARITY NAV] Container.Update command executed successfully", "INFO")
+                    utils.log(f"[SIMILARITY NAV] Sleep 50ms after navigation", "DEBUG")
+                    xbmc.sleep(50)
+                    nav_time = time.time() - nav_start
+                    utils.log(f"[SIMILARITY NAV] Navigation sequence completed in {nav_time:.3f}s", "INFO")
+                except Exception as nav_error:
+                    nav_time = time.time() - nav_start
+                    utils.log(f"[SIMILARITY NAV] Navigation failed after {nav_time:.3f}s: {str(nav_error)}", "ERROR")
+                    import traceback
+                    utils.log(f"[SIMILARITY NAV] Navigation exception traceback: {traceback.format_exc()}", "ERROR")
+                    raise nav_error
             else:
                 utils.log(f"[SIMILARITY TIMING] Save failed after {save_time:.3f}s", "ERROR")
                 xbmcgui.Dialog().notification(
