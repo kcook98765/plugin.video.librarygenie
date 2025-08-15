@@ -425,14 +425,37 @@ class JSONRPC:
         return self.get_movie_details(movie_id, properties=properties)
 
     def get_movies_by_title_year_batch(self, title_year_pairs):
-        """Batch lookup movies by title and year pairs with v19 compatibility"""
+        """Optimized lookup using individual searches instead of fetching entire library"""
         if not title_year_pairs:
             return {"result": {"movies": []}}
 
         try:
-            # For batch lookup, we need to get all movies and filter manually
-            # This ensures compatibility across all Kodi versions
-            utils.log(f"Batch lookup for {len(title_year_pairs)} title/year pairs", "DEBUG")
+            utils.log(f"Optimized batch lookup for {len(title_year_pairs)} title/year pairs", "DEBUG")
+            
+            matched_movies = []
+            properties = self.get_comprehensive_properties()
+
+            # Use individual searches for better performance
+            for pair in title_year_pairs:
+                title = (pair.get('title') or '').strip()
+                year = pair.get('year') or 0
+                
+                if not title:
+                    continue
+
+                try:
+                    # Search by title first
+                    search_filter = {
+                        'field': 'title',
+
+
+    def _get_movies_by_title_year_batch_fallback(self, title_year_pairs):
+        """Fallback batch lookup method (original implementation)"""
+        if not title_year_pairs:
+            return {"result": {"movies": []}}
+
+        try:
+            utils.log(f"Using fallback batch lookup for {len(title_year_pairs)} title/year pairs", "DEBUG")
             
             # Get all movies with comprehensive properties
             response = self.execute('VideoLibrary.GetMovies', {
@@ -440,7 +463,7 @@ class JSONRPC:
             })
             
             if 'result' not in response or 'movies' not in response['result']:
-                utils.log("No movies found in batch lookup response", "DEBUG")
+                utils.log("No movies found in fallback batch lookup response", "DEBUG")
                 return {"result": {"movies": []}}
 
             all_movies = response['result']['movies']
@@ -476,7 +499,7 @@ class JSONRPC:
                 if (movie_title, 0) in search_pairs:
                     matched_movies.append(movie)
 
-            utils.log(f"Batch lookup found {len(matched_movies)} matches", "DEBUG")
+            utils.log(f"Fallback batch lookup found {len(matched_movies)} matches", "DEBUG")
 
             return {
                 "result": {
@@ -490,5 +513,49 @@ class JSONRPC:
             }
 
         except Exception as e:
-            utils.log(f"Error in get_movies_by_title_year_batch: {str(e)}", "ERROR")
+            utils.log(f"Error in fallback batch lookup: {str(e)}", "ERROR")
             return {"result": {"movies": []}}
+
+                        'operator': 'is',
+                        'value': title
+                    }
+                    
+                    response = self.execute('VideoLibrary.GetMovies', {
+                        'properties': properties,
+                        'filter': search_filter
+                    })
+                    
+                    if 'result' in response and 'movies' in response['result']:
+                        movies = response['result']['movies']
+                        
+                        # Filter by year if specified
+                        if year and str(year).isdigit():
+                            year_int = int(year)
+                            movies = [m for m in movies if m.get('year') == year_int]
+                        
+                        # Add matches (avoid duplicates)
+                        for movie in movies:
+                            if not any(existing.get('movieid') == movie.get('movieid') for existing in matched_movies):
+                                matched_movies.append(movie)
+                                
+                except Exception as e:
+                    utils.log(f"Individual search failed for '{title}' ({year}): {str(e)}", "DEBUG")
+                    continue
+
+            utils.log(f"Optimized batch lookup found {len(matched_movies)} matches", "DEBUG")
+
+            return {
+                "result": {
+                    "movies": matched_movies,
+                    "limits": {
+                        "start": 0,
+                        "end": len(matched_movies),
+                        "total": len(matched_movies)
+                    }
+                }
+            }
+
+        except Exception as e:
+            utils.log(f"Error in optimized batch lookup: {str(e)}", "ERROR")
+            # Fallback to original method for compatibility
+            return self._get_movies_by_title_year_batch_fallback(title_year_pairs)
