@@ -107,7 +107,7 @@ class JSONRPC:
         Resolve many movies in one VideoLibrary.GetMovies using an OR of (title AND year) groups.
         `pairs`: iterable of dicts like {"title": "...", "year": 2024}
         Returns the raw JSON-RPC response (same shape as GetMovies).
-        v19 compatibility: Attempts OR query first, falls back to manual filtering if it fails.
+        Crafts version-specific JSON-RPC queries - no fallback to manual filtering.
         """
         if not pairs:
             return {"result": {"movies": []}}
@@ -115,7 +115,7 @@ class JSONRPC:
         kodi_version = self._get_kodi_version()
         props = properties or self._get_version_compatible_properties()
 
-        # Build OR filter for all versions - try advanced filter first
+        # Build OR filter groups
         or_groups = []
         for p in pairs:
             t = (p.get("title") or "").strip()
@@ -131,137 +131,31 @@ class JSONRPC:
         if not or_groups:
             return {"result": {"movies": []}}
 
-        # Try OR-based batch query first (for all Kodi versions)
-        try:
-            filter_obj = {"or": or_groups}
-            limits = {"start": int(start), "end": int(start + max(limit, len(or_groups) + 10))}
-            
-            utils.log(f"DEBUG: Attempting OR-based batch query with {len(or_groups)} title-year pairs", "DEBUG")
-            result = self._getmovies_with_backoff(properties=props, filter_obj=filter_obj, limits=limits)
-
-            # Check if we got valid results
-            if 'error' not in result and 'result' in result:
-                utils.log(f"DEBUG: OR-based batch query successful, found {len((result.get('result') or {}).get('movies', []))} movies", "DEBUG")
-                return result
-            else:
-                utils.log(f"DEBUG: OR-based batch query failed with error, falling back to manual filtering", "DEBUG")
-        except Exception as e:
-            utils.log(f"DEBUG: OR-based batch query exception: {str(e)}, falling back to manual filtering", "DEBUG")
-
-        # Fallback to version-specific manual filtering
-        if kodi_version < 20:
-            utils.log("DEBUG: Using v19 compatible manual filtering fallback", "DEBUG")
-            return self._get_movies_by_title_year_batch_v19(pairs, props, start, limit)
+        # Craft version-specific JSON-RPC query
+        filter_obj = {"or": or_groups}
+        limits = {"start": int(start), "end": int(start + max(limit, len(or_groups) + 10))}
+        
+        utils.log(f"DEBUG: Crafting OR-based batch query for Kodi v{kodi_version} with {len(or_groups)} title-year pairs", "DEBUG")
+        utils.log(f"DEBUG: Filter object: {filter_obj}", "DEBUG")
+        
+        # Execute the JSON-RPC query with proper error handling
+        result = self._getmovies_with_backoff(properties=props, filter_obj=filter_obj, limits=limits)
+        
+        # Check for errors - log them but don't fallback
+        if 'error' in result:
+            error_msg = result.get('error', {}).get('message', 'Unknown error')
+            utils.log(f"ERROR: OR-based batch query failed for Kodi v{kodi_version}: {error_msg}", "ERROR")
+            utils.log(f"ERROR: Failed query filter: {filter_obj}", "ERROR")
+            return {"result": {"movies": []}}
+        elif 'result' in result:
+            movies_found = len((result.get('result') or {}).get('movies', []))
+            utils.log(f"DEBUG: OR-based batch query successful for Kodi v{kodi_version}, found {movies_found} movies", "DEBUG")
+            return result
         else:
-            utils.log("DEBUG: Using v20+ manual filtering fallback", "DEBUG")
-            return self._get_movies_by_title_year_batch_manual(pairs, props, start, limit)
-
-    def _get_movies_by_title_year_batch_v19(self, pairs, properties, start, limit):
-        """v19-specific batch search using manual filtering"""
-        try:
-            # Get all movies first
-            all_movies_response = self.execute('VideoLibrary.GetMovies', {
-                'properties': properties,
-                'limits': {'start': 0, 'end': 10000}  # Get more movies for manual filtering
-            })
-
-            if 'result' not in all_movies_response or 'movies' not in all_movies_response['result']:
-                return {"result": {"movies": []}}
-
-            all_movies = all_movies_response['result']['movies']
-            matched_movies = []
-
-            # Create lookup for faster matching
-            title_year_pairs = set()
-            for p in pairs:
-                title = (p.get("title") or "").strip().lower()
-                year = int(p.get("year") or 0)
-                if title:
-                    title_year_pairs.add((title, year))
-
-            # Manual filtering
-            for movie in all_movies:
-                movie_title = (movie.get('title') or '').strip().lower()
-                movie_year = int(movie.get('year') or 0)
-
-                # Check for exact matches
-                if (movie_title, movie_year) in title_year_pairs:
-                    matched_movies.append(movie)
-                # Also check title-only matches if year is 0 in search
-                elif movie_title and (movie_title, 0) in title_year_pairs:
-                    matched_movies.append(movie)
-
-            # Apply pagination
-            start_idx = max(0, start)
-            end_idx = start_idx + limit
-            paginated_movies = matched_movies[start_idx:end_idx]
-
-            utils.log(f"DEBUG: v19 batch search found {len(matched_movies)} total matches, returning {len(paginated_movies)}", "DEBUG")
-
-            return {
-                "result": {
-                    "movies": paginated_movies,
-                    "limits": {
-                        "start": start,
-                        "end": start + len(paginated_movies),
-                        "total": len(matched_movies)
-                    }
-                }
-            }
-
-        except Exception as e:
-            utils.log(f"ERROR: v19 batch search failed: {str(e)}", "ERROR")
+            utils.log(f"ERROR: Unexpected JSON-RPC response format for Kodi v{kodi_version}", "ERROR")
             return {"result": {"movies": []}}
 
-    def _get_movies_by_title_year_batch_manual(self, pairs, properties, start, limit):
-        """Manual batch search fallback for all versions"""
-        try:
-            # Get all movies
-            response = self.execute('VideoLibrary.GetMovies', {
-                'properties': properties
-            })
-
-            if 'result' not in response or 'movies' not in response['result']:
-                return {"result": {"movies": []}}
-
-            all_movies = response['result']['movies']
-            matched_movies = []
-
-            # Create lookup set for faster matching
-            search_criteria = set()
-            for p in pairs:
-                title = (p.get("title") or "").strip().lower()
-                year = int(p.get("year") or 0)
-                if title:
-                    search_criteria.add((title, year))
-
-            # Filter movies
-            for movie in all_movies:
-                movie_title = (movie.get('title') or '').strip().lower()
-                movie_year = int(movie.get('year') or 0)
-
-                if (movie_title, movie_year) in search_criteria or (movie_title, 0) in search_criteria:
-                    matched_movies.append(movie)
-
-            # Apply pagination
-            start_idx = max(0, start)
-            end_idx = start_idx + limit
-            paginated_movies = matched_movies[start_idx:end_idx]
-
-            return {
-                "result": {
-                    "movies": paginated_movies,
-                    "limits": {
-                        "start": start,
-                        "end": start + len(paginated_movies),
-                        "total": len(matched_movies)
-                    }
-                }
-            }
-
-        except Exception as e:
-            utils.log(f"ERROR: Manual batch search failed: {str(e)}", "ERROR")
-            return {"result": {"movies": []}}
+    
 
     _instance = None
 
