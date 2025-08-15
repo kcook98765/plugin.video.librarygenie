@@ -98,17 +98,7 @@ class DatabaseManager(Singleton):
             utils.log(f"Error fetching data from {table}: {str(e)}", "ERROR")
             return []
 
-    def get_folder_id_by_name(self, folder_name):
-
-        """Get folder ID by name"""
-        try:
-            folders = self.fetch_data('folders', f"name = '{folder_name}'")
-            if folders and len(folders) > 0:
-                return folders[0]['id']
-            return None
-        except Exception as e:
-            utils.log(f"Error getting folder ID by name '{folder_name}': {str(e)}", "ERROR")
-            return None
+    
 
     def get_folder_depth(self, folder_id):
         from resources.lib.query_manager import QueryManager
