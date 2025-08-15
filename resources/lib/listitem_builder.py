@@ -153,7 +153,7 @@ class ListItemBuilder:
 
         # Basic info extraction
         title = str(media_info.get('title', 'Unknown'))
-        
+
 
         # Create ListItem with proper string title (remove emoji characters)
         formatted_title = ListItemBuilder._clean_title(title)
@@ -217,6 +217,7 @@ class ListItemBuilder:
 
         # Use the specialized set_art function with improved normalization and fallbacks
         art_dict = _normalize_art_dict(art_dict, use_fallbacks=True)
+        # Set art from art_dict
         if art_dict:
             set_art(li, art_dict)
 

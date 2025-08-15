@@ -135,7 +135,6 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
 
     # For Kodi v19, use setInfo directly since InfoTag setters are unreliable
     if utils.is_kodi_v19():
-        utils.log("Using setInfo method for Kodi v19", "INFO")
         try:
             # Clean up info_dict for setInfo compatibility
             clean_info = {}
@@ -175,13 +174,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
             elif kodi_id:
                 utils.log(f"Skipped DBID for non-playable item to prevent v19 Information dialog: {kodi_id} (file: {file_path})", "DEBUG")
 
-            utils.log(f"Using setInfo with {len(clean_info)} properties for v19", "INFO")
-            if 'plot' in clean_info:
-                plot_preview = str(clean_info['plot'])[:100] + "..." if len(str(clean_info['plot'])) > 100 else str(clean_info['plot'])
-                utils.log(f"setInfo plot: '{plot_preview}' (length: {len(str(clean_info['plot']))})", "INFO")
-
             list_item.setInfo(content_type, clean_info)
-            utils.log("setInfo completed successfully for v19", "INFO")
 
             # Handle resume data for v19 using properties (setInfo doesn't support resume)
             resume_data = info_dict.get('resume', {})
@@ -383,7 +376,6 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                     clean_info[key] = value
 
             list_item.setInfo(content_type, clean_info)
-            utils.log("setInfo fallback completed successfully for v20+", "INFO")
 
             # Handle resume data for v20+ setInfo fallback using properties
             resume_data = info_dict.get('resume', {})
