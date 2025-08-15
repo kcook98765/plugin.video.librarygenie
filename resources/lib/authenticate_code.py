@@ -2,6 +2,7 @@
 import json
 import urllib.request
 import urllib.parse
+import urllib.error
 import xbmc
 import xbmcgui
 from resources.lib.addon_ref import get_addon
