@@ -81,36 +81,39 @@ class SimilarMoviesManager:
     def _show_facet_selection_dialog(self, movie_title):
         """Show dialog for user to select which facets to include"""
         try:
+            # Create custom dialog for facet selection
             dialog = xbmcgui.Dialog()
             
-            # Use individual yes/no dialogs for each facet - more reliable in Kodi
-            facet_questions = [
-                ('include_plot', 'Include plot/story similarity?'),
-                ('include_mood', 'Include mood/tone similarity?'),
-                ('include_themes', 'Include themes/subtext similarity?'),
-                ('include_genre', 'Include genre/tropes similarity?')
+            # Show info about what we're doing - fix: dialog.ok() only takes 2 arguments
+            dialog.ok(
+                'Find Similar Movies',
+                f'Finding movies similar to: {movie_title}\n\nSelect which aspects to compare:'
+            )
+            
+            # Facet options
+            facet_options = [
+                'Plot similarity',
+                'Mood/tone similarity', 
+                'Themes/subtext similarity',
+                'Genre/tropes similarity'
             ]
             
-            facets = {}
-            selected_count = 0
+            # Let user select multiple facets
+            selected_indices = dialog.multiselect(
+                'Select similarity facets:',
+                facet_options
+            )
             
-            # Ask about each facet individually
-            for facet_key, question in facet_questions:
-                response = dialog.yesno(
-                    f'Similar to: {movie_title}',
-                    question
-                )
-                facets[facet_key] = response
-                if response:
-                    selected_count += 1
+            if not selected_indices:
+                return None  # User cancelled
             
-            # Ensure at least one facet is selected
-            if selected_count == 0:
-                dialog.ok(
-                    'Find Similar Movies',
-                    'At least one similarity aspect must be selected.'
-                )
-                return None
+            # Build facets dict
+            facets = {
+                'include_plot': 0 in selected_indices,
+                'include_mood': 1 in selected_indices,
+                'include_themes': 2 in selected_indices,
+                'include_genre': 3 in selected_indices
+            }
             
             utils.log(f"User selected facets: {facets}", "DEBUG")
             return facets
