@@ -335,7 +335,7 @@ class ListItemBuilder:
 
                 info_dict['cast'] = cast
 
-            except Exception as e:
+            except Exception:
                 info_dict['cast'] = []
 
         # Process plot information
