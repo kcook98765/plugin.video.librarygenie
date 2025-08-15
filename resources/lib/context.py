@@ -1,6 +1,4 @@
-import os
 import sys
-import xbmc
 import xbmcgui
 import xbmcaddon
 # Import required modules using absolute imports
