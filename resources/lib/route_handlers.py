@@ -227,17 +227,17 @@ def move_list(params):
                 if folder_depth < config.max_folder_depth:
                     # Build folder path for display
                     folder_path = folder['name']
-                current_folder = folder
-                while current_folder.get('parent_id'):
-                    parent_folder = db_manager.fetch_folder_by_id(current_folder['parent_id'])
-                    if parent_folder and parent_folder['id'] != search_history_folder_id:
-                        folder_path = f"{parent_folder['name']} > {folder_path}"
-                        current_folder = parent_folder
-                    else:
-                        break
-                
-                folder_options.append(f"{folder_path}")
-                folder_ids.append(folder['id'])
+                    current_folder = folder
+                    while current_folder.get('parent_id'):
+                        parent_folder = db_manager.fetch_folder_by_id(current_folder['parent_id'])
+                        if parent_folder and parent_folder['id'] != search_history_folder_id:
+                            folder_path = f"{parent_folder['name']} > {folder_path}"
+                            current_folder = parent_folder
+                        else:
+                            break
+                    
+                    folder_options.append(f"{folder_path}")
+                    folder_ids.append(folder['id'])
         
         # Show folder selection dialog
         selected_index = xbmcgui.Dialog().select(
