@@ -310,6 +310,32 @@ def browse_list(list_id):
         xbmcgui.Dialog().notification('LibraryGenie', 'Error loading list', xbmcgui.NOTIFICATION_ERROR)
         xbmcplugin.endOfDirectory(handle, succeeded=False, cacheToDisc=False)
 
+def router(query_string):
+    """Enhanced router with proper navigation management"""
+    global options_manager, nav_manager
+
+    utils.log(f"=== ROUTER CALLED with query_string: {query_string} ===", "DEBUG")
+    q = parse_params(query_string)
+    action = q.get('action', [None])[0]
+    utils.log(f"=== ROUTER ACTION: {action} ===", "DEBUG")
+
+    # Route to appropriate handlers
+    if action == 'browse_folder':
+        utils.log("Routing to browse_folder action", "DEBUG")
+        browse_folder(q)
+        return
+    elif action == 'browse_list':
+        list_id = q.get('list_id', [None])[0]
+        if list_id:
+            # Set proper content for list view
+            xbmcplugin.setPluginCategory(ADDON_HANDLE, "Search Results")
+            xbmcplugin.setContent(ADDON_HANDLE, "movies")
+            nav_manager.set_navigation_in_progress(False)
+            browse_list(list_id)
+        else:
+            utils.log("No list_id provided for browse_list action", "WARNING")
+            show_empty_directory(ADDON_HANDLE)
+        return
     elif action == 'show_options':
         utils.log("Routing to options action", "DEBUG")
         # Check if we're in the middle of navigation to prevent dialog conflicts
@@ -360,24 +386,12 @@ def browse_list(list_id):
         utils.log("Routing to play_movie action", "DEBUG")
         play_movie(q)
         return
-    elif action == 'browse_list':
-        list_id = q.get('list_id', [None])[0]
-        if list_id:
-            # Set proper content for list view
-            xbmcplugin.setPluginCategory(ADDON_HANDLE, "Search Results")
-            xbmcplugin.setContent(ADDON_HANDLE, "movies")
-            nav_manager.set_navigation_in_progress(False)
-            browse_list(list_id)
-        else:
-            utils.log("No list_id provided for browse_list action", "WARNING")
-            show_empty_directory(ADDON_HANDLE)
-        return
     elif action == 'separator':
         # Do nothing for separator items
         utils.log("Received separator action, doing nothing.", "DEBUG")
         pass
     elif action == 'do_search':
-        do_search(params)
+        do_search(q)
     elif action == 'find_similar_movies':
         find_similar_movies(q)
     else:
