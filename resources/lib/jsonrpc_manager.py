@@ -425,7 +425,7 @@ class JSONRPC:
         return self.get_movie_details(movie_id, properties=properties)
 
     def get_movies_by_title_year_batch(self, title_year_pairs):
-        """Optimized lookup using individual searches for title-year combinations"""
+        """Optimized lookup using OR filter for title-year combinations"""
         if not title_year_pairs:
             return {"result": {"movies": []}}
 
@@ -433,61 +433,70 @@ class JSONRPC:
             utils.log(f"Optimized batch lookup for {len(title_year_pairs)} title/year pairs", "DEBUG")
             
             properties = self.get_comprehensive_properties()
-            matched_movies = []
             
-            # Use individual searches instead of complex OR filter (Kodi API limitation)
+            # Build OR filter for all title-year combinations using correct Kodi syntax
+            or_conditions = []
             for pair in title_year_pairs:
                 title = (pair.get('title') or '').strip()
                 year = pair.get('year') or 0
-                
+
                 if not title:
                     continue
 
-                try:
-                    # Search by title first
-                    search_filter = {
+                if year and str(year).isdigit():
+                    # AND condition for both title and year
+                    and_condition = {
+                        'and': [
+                            {
+                                'field': 'title',
+                                'operator': 'is',
+                                'value': title
+                            },
+                            {
+                                'field': 'year',
+                                'operator': 'is',
+                                'value': int(year)
+                            }
+                        ]
+                    }
+                    or_conditions.append(and_condition)
+                else:
+                    # Just title condition
+                    title_condition = {
                         'field': 'title',
                         'operator': 'is',
                         'value': title
                     }
-                    
-                    response = self.execute('VideoLibrary.GetMovies', {
-                        'properties': properties,
-                        'filter': search_filter
-                    })
-                    
-                    if 'result' in response and 'movies' in response['result']:
-                        movies = response['result']['movies']
-                        
-                        # Filter by year if specified
-                        if year and str(year).isdigit():
-                            year_int = int(year)
-                            movies = [m for m in movies if m.get('year') == year_int]
-                        
-                        # Add matches (avoid duplicates)
-                        for movie in movies:
-                            if not any(existing.get('movieid') == movie.get('movieid') for existing in matched_movies):
-                                matched_movies.append(movie)
-                                
-                except Exception as e:
-                    utils.log(f"Individual search failed for '{title}' ({year}): {str(e)}", "DEBUG")
-                    continue
+                    or_conditions.append(title_condition)
 
-            utils.log(f"Optimized individual searches found {len(matched_movies)} matches", "DEBUG")
+            if not or_conditions:
+                return {"result": {"movies": []}}
 
-            return {
-                "result": {
-                    "movies": matched_movies,
-                    "limits": {
-                        "start": 0,
-                        "end": len(matched_movies),
-                        "total": len(matched_movies)
-                    }
+            # Create the OR filter using correct Kodi JSON-RPC syntax
+            if len(or_conditions) == 1:
+                search_filter = or_conditions[0]
+            else:
+                search_filter = {
+                    'or': or_conditions
                 }
-            }
+
+            utils.log(f"Using OR filter with {len(or_conditions)} conditions", "DEBUG")
+
+            response = self.execute('VideoLibrary.GetMovies', {
+                'properties': properties,
+                'filter': search_filter
+            })
+            
+            if 'result' in response and 'movies' in response['result']:
+                movies = response['result']['movies']
+                utils.log(f"OR filter found {len(movies)} matches", "DEBUG")
+                return response
+            else:
+                utils.log("No movies found in OR filter response", "DEBUG")
+                return {"result": {"movies": []}}
 
         except Exception as e:
-            utils.log(f"Error in optimized batch lookup: {str(e)}", "DEBUG")
+            utils.log(f"Error in OR filter lookup: {str(e)}", "DEBUG")
             # Fallback to original method for compatibility
             return self._get_movies_by_title_year_batch_fallback(title_year_pairs)
 
