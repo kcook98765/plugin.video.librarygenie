@@ -73,10 +73,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
 
             try:
                 # Handle special cases
-                if key == 'cast' and isinstance(value, list):
-                    # Cast requires special handling
-                    info_tag.setCast(value)
-                elif key in ['year'] and isinstance(value, (int, str)):
+                if key in ['year'] and isinstance(value, (int, str)):
                     # Year handling - setYear() doesn't exist in Kodi v19
                     # Skip year for InfoTag in v19, let setInfo fallback handle it
                     if kodi_version >= 20 and hasattr(info_tag, 'setYear'):
@@ -87,24 +84,36 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                         except (ValueError, TypeError):
                             pass
                 elif key in ['rating'] and isinstance(value, (int, float, str)):
-                    # Rating handling
-                    try:
-                        rating_val = float(value) if value else 0.0
-                        info_tag.setRating(rating_val)
-                    except (ValueError, TypeError):
-                        pass
+                    # Rating handling - setRating() doesn't exist in Kodi v19
+                    if kodi_version >= 20 and hasattr(info_tag, 'setRating'):
+                        try:
+                            rating_val = float(value) if value else 0.0
+                            info_tag.setRating(rating_val)
+                        except (ValueError, TypeError):
+                            pass
                 elif key in ['votes'] and isinstance(value, (int, str)):
-                    # Votes handling
-                    try:
-                        votes_val = int(value) if value else 0
-                        if votes_val > 0:
-                            info_tag.setVotes(votes_val)
-                    except (ValueError, TypeError):
-                        pass
+                    # Votes handling - setVotes() doesn't exist in Kodi v19
+                    if kodi_version >= 20 and hasattr(info_tag, 'setVotes'):
+                        try:
+                            votes_val = int(value) if value else 0
+                            if votes_val > 0:
+                                info_tag.setVotes(votes_val)
+                        except (ValueError, TypeError):
+                            pass
+                elif key == 'cast' and isinstance(value, list):
+                    # Cast handling - setCast() doesn't exist in Kodi v19
+                    if kodi_version >= 20 and hasattr(info_tag, 'setCast'):
+                        try:
+                            info_tag.setCast(value)
+                        except Exception:
+                            pass
                 elif hasattr(info_tag, f'set{key.capitalize()}'):
                     # Generic setter (e.g., setTitle, setPlot, etc.)
-                    setter = getattr(info_tag, f'set{key.capitalize()}')
-                    setter(str(value))
+                    try:
+                        setter = getattr(info_tag, f'set{key.capitalize()}')
+                        setter(str(value))
+                    except Exception:
+                        pass
 
             except Exception as e:
                 # Log but don't fail - continue with other properties
@@ -117,9 +126,19 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
             # Clean up info_dict for setInfo compatibility
             clean_info = {}
             for key, value in info_dict.items():
-                if value and key != 'cast':  # setInfo doesn't handle cast well
-                    # For Kodi v19, include mediatype in setInfo since InfoTag.setMediaType doesn't exist
-                    clean_info[key] = value
+                if value:
+                    # Handle cast specially for setInfo
+                    if key == 'cast' and isinstance(value, list):
+                        # Convert cast list to simple list of actor names for setInfo
+                        try:
+                            if all(isinstance(actor, dict) for actor in value):
+                                clean_info[key] = [actor.get('name', '') for actor in value if actor.get('name')]
+                            else:
+                                clean_info[key] = [str(actor) for actor in value]
+                        except Exception:
+                            pass  # Skip cast if conversion fails
+                    else:
+                        clean_info[key] = value
 
             list_item.setInfo(content_type, clean_info)
         except Exception as fallback_error:
