@@ -113,16 +113,7 @@ class ResultsManager(Singleton):
 
             # Rebuild resolved list in the original refs order (already sorted by search score from query)
             resolved_items_for_list = []
-            total_items = len(rows)
-            
-            # Process in smaller batches to prevent UI freezing
-            batch_size = 10
-            for batch_start in range(0, total_items, batch_size):
-                batch_end = min(batch_start + batch_size, total_items)
-                utils.log(f"Processing items {batch_start+1}-{batch_end} of {total_items}", "DEBUG")
-                
-                for i in range(batch_start, batch_end):
-                    r = rows[i] # Use original 'rows' to get 'id' and 'source' for unmatched items
+            for i, r in enumerate(rows): # Use original 'rows' to get 'id' and 'source' for unmatched items
                 ref_title = r.get("title", "") # Get title from original row if available
                 ref_year = r.get("year", 0) # Get year from original row if available
                 ref_imdb = r.get("imdbnumber", "") # Get imdbnumber from original row if available
@@ -177,6 +168,11 @@ class ResultsManager(Singleton):
                     from resources.lib.listitem_builder import ListItemBuilder
                     list_item = ListItemBuilder.build_video_item(resolved_item, is_search_history=is_search_history)
                     resolved_items_for_list.append((list_item, resolved_item.get('file', ''), resolved_item))
+
+
+            # Sort external items by search score as well if they have scores
+            external_sorted = sorted(external, key=lambda x: x.get('search_score', 0), reverse=True)
+            for item in external_sorted:
 
             # Sort external items by search score as well if they have scores
             external_sorted = sorted(external, key=lambda x: x.get('search_score', 0), reverse=True)
