@@ -116,7 +116,7 @@ def add_options_header_item(ctx: dict, handle: int):
         utils.log("=== FINAL LISTITEM PROPERTIES ===", "INFO")
         utils.log(f"ListItem label: {li.getLabel()}", "INFO")
         utils.log(f"ListItem path (if any): {li.getPath()}", "INFO")
-        utils.log(f"IsFolder will be set to: True", "INFO")
+        utils.log(f"IsFolder will be set to: False", "INFO")
         
         # Try to get back the info that was set
         try:
@@ -126,9 +126,9 @@ def add_options_header_item(ctx: dict, handle: int):
         except Exception as info_e:
             utils.log(f"Could not read back video info: {str(info_e)}", "DEBUG")
 
-        # Add as folder item for proper navigation (prevents video info dialog)
-        utils.log(f"=== ADDING TO DIRECTORY: handle={handle}, url={url}, isFolder=True ===", "INFO")
-        xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
+        # Add as non-folder item for RunPlugin behavior (no mediatype prevents video info dialog)
+        utils.log(f"=== ADDING TO DIRECTORY: handle={handle}, url={url}, isFolder=False ===", "INFO")
+        xbmcplugin.addDirectoryItem(handle, url, li, isFolder=False)
         utils.log("Successfully added Options & Tools item to directory", "INFO")
         utils.log("=== OPTIONS & TOOLS LISTITEM BUILD COMPLETE ===", "INFO")
 
