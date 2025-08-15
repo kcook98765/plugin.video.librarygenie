@@ -156,6 +156,9 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                 elif key in ['country', 'director', 'genre', 'studio'] and isinstance(value, list):
                     # Convert lists to comma-separated strings for setInfo
                     clean_info[key] = ' / '.join(str(item) for item in value if item)
+                elif key == 'mediatype':
+                    # Skip mediatype for v19 setInfo
+                    continue
                 else:
                     clean_info[key] = value
 
