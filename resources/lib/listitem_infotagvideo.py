@@ -27,6 +27,89 @@ __all__ = ['set_info_tag', 'set_art']
 
 """InfoTag compatibility helper for Kodi 19+ only - No support for Kodi 18 and below"""
 
+
+def _set_full_cast(list_item: ListItem, cast_list: list) -> bool:
+    """
+    Version-agnostic cast setter that preserves actor images across all Kodi versions v19+.
+    
+    Args:
+        list_item: The ListItem to set cast on
+        cast_list: List of cast dicts with 'name', 'role', 'thumbnail', 'order' keys
+        
+    Returns:
+        bool: True if cast was set with image support, False if fallback was used
+    """
+    if not cast_list:
+        return False
+        
+    # Normalize inputs (avoid None values)
+    norm = []
+    for actor in cast_list:
+        if isinstance(actor, dict):
+            norm.append({
+                'name': (actor.get('name') or '').strip(),
+                'role': (actor.get('role') or '').strip(), 
+                'thumbnail': (actor.get('thumbnail') or '').strip(),
+                'order': int(actor.get('order') or 0),
+            })
+    
+    if not norm:
+        return False
+        
+    utils.log(f"Setting cast for {len(norm)} actors with image support", "DEBUG")
+    
+    # 1) Best path: v20+ Actor API with xbmcgui.Actor objects
+    try:
+        import xbmcgui
+        info = list_item.getVideoInfoTag()
+        
+        if hasattr(xbmcgui, 'Actor') and hasattr(info, 'setCast'):
+            actors = []
+            for actor in norm:
+                if actor['name']:  # Only add actors with names
+                    actors.append(xbmcgui.Actor(
+                        name=actor['name'],
+                        role=actor['role'], 
+                        order=actor['order'],
+                        thumbnail=actor['thumbnail']
+                    ))
+            
+            if actors:
+                info.setCast(actors)  # Kodi v20+ preferred call
+                utils.log(f"v20+ Actor API successful: {len(actors)} actors with images", "DEBUG")
+                return True
+    except Exception as e:
+        utils.log(f"v20+ Actor API failed: {str(e)}", "DEBUG")
+        
+    # 2) v19 path (and v20+ compatibility): ListItem.setCast(list-of-dicts) 
+    try:
+        if hasattr(list_item, 'setCast'):
+            # v19 docs: accepts dicts with name/role/thumbnail/order
+            list_item.setCast(norm)
+            utils.log(f"v19 ListItem.setCast successful: {len(norm)} actors with images", "DEBUG")  
+            return True
+    except Exception as e:
+        utils.log(f"v19 ListItem.setCast failed: {str(e)}", "DEBUG")
+        
+    # 3) Last resort: names/roles only via setInfo (no images)
+    try:
+        simple_cast = []
+        for actor in norm:
+            if actor['name']:
+                if actor['role']:
+                    simple_cast.append((actor['name'], actor['role']))
+                else:
+                    simple_cast.append(actor['name'])
+        
+        if simple_cast:
+            list_item.setInfo('video', {'cast': simple_cast})
+            utils.log(f"Fallback setInfo cast successful: {len(simple_cast)} actors (no images)", "WARNING")
+            return False
+    except Exception as e:
+        utils.log(f"All cast methods failed: {str(e)}", "ERROR")
+        
+    return False
+
 def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'video') -> None:
     """
     Set InfoTag for Kodi 19+ with proper error handling and fallback.
@@ -60,32 +143,14 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                 if not value:  # Skip empty values
                     continue
 
-                # Handle special data types for setInfo
+                # Handle cast with v19 ListItem.setCast() which supports thumbnails
                 if key == 'cast' and isinstance(value, list):
-                    # Try multiple cast conversion formats for setInfo compatibility
-                    try:
-                        if all(isinstance(actor, dict) for actor in value):
-                            # First try: Kodi tuple format (name, role)
-                            try:
-                                cast_tuples = []
-                                for actor in value:
-                                    name = actor.get('name', '')
-                                    role = actor.get('role', '')
-                                    if name:
-                                        if role:
-                                            cast_tuples.append((name, role))
-                                        else:
-                                            cast_tuples.append(name)
-                                clean_info[key] = cast_tuples
-                                utils.log(f"Cast converted to tuple format: {len(cast_tuples)} actors", "DEBUG")
-                            except Exception as tuple_error:
-                                # Second try: Simple name list
-                                utils.log(f"Tuple format failed, trying names only: {str(tuple_error)}", "DEBUG")
-                                clean_info[key] = [actor.get('name', '') for actor in value if actor.get('name')]
-                        else:
-                            clean_info[key] = [str(actor) for actor in value]
-                    except Exception:
-                        pass  # Skip cast if all conversion attempts fail
+                    cast_success = _set_full_cast(list_item, value)
+                    if cast_success:
+                        utils.log(f"V19 cast set successfully with images: {len(value)} actors", "DEBUG")
+                    else:
+                        utils.log("V19 cast set without images (fallback used)", "DEBUG")
+                    continue  # Don't add cast to clean_info since it's handled separately
                 elif key in ['country', 'director', 'genre', 'studio'] and isinstance(value, list):
                     # Convert lists to comma-separated strings for setInfo
                     clean_info[key] = ' / '.join(str(item) for item in value if item)
@@ -176,36 +241,14 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                 continue
 
             try:
-                # Special handling for complex data types
+                # Special handling for cast with version-agnostic approach
                 if key == 'cast' and isinstance(value, list):
-                    if hasattr(info_tag, 'setCast'):
-                        try:
-                            # V20+ setCast with Actor objects for full cast details including images
-                            import xbmcgui
-                            
-                            # Check if Actor class is available (Kodi v21+)
-                            if hasattr(xbmcgui, 'Actor'):
-                                actors = []
-                                for actor_data in value:
-                                    if isinstance(actor_data, dict):
-                                        name = actor_data.get('name', '')
-                                        role = actor_data.get('role', '')
-                                        thumbnail = actor_data.get('thumbnail', '')
-
-                                        if name:
-                                            actor = xbmcgui.Actor(name, role, thumbnail if thumbnail else '')
-                                            actors.append(actor)
-
-                                if actors:
-                                    info_tag.setCast(actors)
-                                    infotag_success_count += 1
-                                    utils.log(f"V20+ setCast successful with {len(actors)} actors (with images)", "DEBUG")
-                                else:
-                                    utils.log("V20+ No valid actors found for setCast", "DEBUG")
-                            else:
-                                utils.log("V20+ xbmcgui.Actor not available, skipping setCast (cast images not supported)", "DEBUG")
-                        except Exception as cast_error:
-                            utils.log(f"V20+ setCast failed: {str(cast_error)}, falling back to setInfo", "WARNING")
+                    cast_success = _set_full_cast(list_item, value)
+                    if cast_success:
+                        infotag_success_count += 1
+                        utils.log(f"V20+ cast set successfully with images: {len(value)} actors", "DEBUG")
+                    else:
+                        utils.log("V20+ cast set without images (fallback used)", "DEBUG")
 
                 elif key in ['year', 'runtime', 'duration', 'votes'] and isinstance(value, (int, str)):
                     # Integer properties
@@ -271,51 +314,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                 utils.log(f"V20+ InfoTag processing failed for {key}: {str(property_error)}", "WARNING")
 
         if infotag_success_count > 0:
-            # Handle cast separately using setInfo fallback since InfoTag setCast has compatibility issues
-            cast_data = info_dict.get('cast', [])
-            if cast_data and isinstance(cast_data, list):
-                try:
-                    utils.log(f"V20+ InfoTag succeeded but cast needs setInfo fallback for {len(cast_data)} actors", "DEBUG")
-
-                    # Try multiple cast formats for maximum compatibility
-                    if all(isinstance(actor, dict) for actor in cast_data):
-                        # First attempt: Kodi tuple format (name, role)
-                        try:
-                            cast_tuples = []
-                            for actor in cast_data:
-                                name = actor.get('name', '')
-                                role = actor.get('role', '')
-                                if name:
-                                    if role:
-                                        cast_tuples.append((name, role))
-                                    else:
-                                        cast_tuples.append(name)
-
-                            cast_info = {'cast': cast_tuples}
-                            list_item.setInfo(content_type, cast_info)
-                            utils.log(f"V20+ Cast set via setInfo with tuples: {len(cast_tuples)} actors", "DEBUG")
-                        except Exception as tuple_error:
-                            utils.log(f"V20+ Tuple format failed: {str(tuple_error)}", "DEBUG")
-
-                            # Second attempt: Simple names list
-                            try:
-                                cast_names = [actor.get('name', '') for actor in cast_data if actor.get('name')]
-                                if cast_names:
-                                    cast_info = {'cast': cast_names}
-                                    list_item.setInfo(content_type, cast_info)
-                                    utils.log(f"V20+ Cast set via setInfo (names only): {len(cast_names)} actors", "DEBUG")
-                            except Exception as names_error:
-                                utils.log(f"V20+ Names format also failed: {str(names_error)}", "DEBUG")
-                    else:
-                        # Handle simple string list
-                        cast_names = [str(actor) for actor in cast_data]
-                        if cast_names:
-                            cast_info = {'cast': cast_names}
-                            list_item.setInfo(content_type, cast_info)
-                            utils.log(f"V20+ Cast set via setInfo fallback (string list): {len(cast_names)} actors", "DEBUG")
-
-                except Exception as cast_fallback_error:
-                    utils.log(f"V20+ Cast setInfo fallback failed: {str(cast_fallback_error)}", "WARNING")
+            # Cast is handled separately by _set_full_cast function
 
             # Handle resume data with version-appropriate methods
             resume_data = info_dict.get('resume', {})
@@ -359,29 +358,11 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                 if not value:
                     continue
 
+                # Cast is handled separately by _set_full_cast function
                 if key == 'cast' and isinstance(value, list):
-                    try:
-                        if all(isinstance(actor, dict) for actor in value):
-                            # Try tuple format first for v20+ setInfo fallback
-                            try:
-                                cast_tuples = []
-                                for actor in value:
-                                    name = actor.get('name', '')
-                                    role = actor.get('role', '')
-                                    if name:
-                                        if role:
-                                            cast_tuples.append((name, role))
-                                        else:
-                                            cast_tuples.append(name)
-                                clean_info[key] = cast_tuples
-                                utils.log(f"Fallback cast converted to tuple format: {len(cast_tuples)} actors", "DEBUG")
-                            except Exception:
-                                # Fall back to names only
-                                clean_info[key] = [actor.get('name', '') for actor in value if actor.get('name')]
-                        else:
-                            clean_info[key] = [str(actor) for actor in value]
-                    except Exception:
-                        pass
+                    cast_success = _set_full_cast(list_item, value)
+                    utils.log(f"Fallback cast handling: {'success' if cast_success else 'no images'}", "DEBUG")
+                    continue  # Skip adding to clean_info
                 elif key in ['country', 'director', 'genre', 'studio'] and isinstance(value, list):
                     clean_info[key] = ' / '.join(str(item) for item in value if item)
                 else:
