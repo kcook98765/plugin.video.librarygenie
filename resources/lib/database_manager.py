@@ -81,24 +81,24 @@ class DatabaseManager(Singleton):
                 query = f"SELECT * FROM {table} WHERE {condition}"
             else:
                 query = f"SELECT * FROM {table}"
-            
+
             self._execute_with_retry(self.cursor.execute, query)
             rows = self.cursor.fetchall()
-            
+
             # Get column names
             columns = [description[0] for description in self.cursor.description]
-            
+
             # Convert rows to list of dictionaries
             result = []
             for row in rows:
                 result.append(dict(zip(columns, row)))
-            
+
             return result
         except Exception as e:
             utils.log(f"Error fetching data from {table}: {str(e)}", "ERROR")
             return []
 
-    
+
 
     def get_folder_depth(self, folder_id):
         from resources.lib.query_manager import QueryManager
@@ -167,13 +167,13 @@ class DatabaseManager(Singleton):
             self.connection.commit()
 
             utils.log(f"Bulk inserted {len(data_list)} records into {table}", "DEBUG")
-            
+
             # Handle case where lastrowid is None (when INSERT OR IGNORE doesn't insert any rows)
             lastrowid = self.cursor.lastrowid
             if lastrowid is None:
                 utils.log(f"No rows inserted into {table}. Possible conflict or ignore situation.", "WARNING")
                 return []
-            
+
             return [lastrowid - len(data_list) + i + 1 for i in range(len(data_list))]
 
         except Exception as e:
@@ -258,13 +258,6 @@ class DatabaseManager(Singleton):
         self._execute_with_retry(self.cursor.execute, query, tuple(data.values()))
         self.connection.commit()
 
-    def update_data(self, table, data, condition):
-        columns = ', '.join(f'{col} = ?' for col in data)
-        query = f'UPDATE {table} SET {columns} WHERE {condition}'
-        utils.log(f"Executing SQL: {query} with data={data}", "DEBUG")
-        self._execute_with_retry(self.cursor.execute, query, tuple(data.values()))
-        self.connection.commit()
-
     def is_list_protected(self, list_id):
         """Check if a list is protected from modification"""
         from resources.lib.query_manager import QueryManager
@@ -328,7 +321,7 @@ class DatabaseManager(Singleton):
                 condition = "folder_id IS NULL"
             else:
                 condition = f"folder_id = {folder_id}"
-            
+
             lists = self.fetch_data('lists', condition)
             return lists if lists else []
         except Exception as e:
@@ -630,9 +623,9 @@ class DatabaseManager(Singleton):
         else:
             utils.log(f"'{search_history_folder_name}' folder already exists.", "INFO")
 
-    
 
-    
+
+
 
     def add_search_history(self, query, results):
         """Adds the search results to the 'Search History' folder as a new list. Returns the list ID."""
@@ -779,7 +772,7 @@ class DatabaseManager(Singleton):
                 condition = f"name = '{folder_name}' AND parent_id IS NULL"
             else:
                 condition = f"name = '{folder_name}' AND parent_id = {parent_folder_id}"
-            
+
             result = self.fetch_data('folders', condition)
 
             if result:
