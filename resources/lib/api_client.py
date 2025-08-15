@@ -1,9 +1,3 @@
-import xbmcgui
-import xbmcaddon
-import json
-import urllib.request
-import urllib.parse
-import xbmc
 from .database_manager import DatabaseManager
 from .config_manager import Config
 from . import utils
