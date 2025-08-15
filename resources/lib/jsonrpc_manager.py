@@ -107,7 +107,7 @@ class JSONRPC:
         Resolve many movies in one VideoLibrary.GetMovies using an OR of (title AND year) groups.
         `pairs`: iterable of dicts like {"title": "...", "year": 2024}
         Returns the raw JSON-RPC response (same shape as GetMovies).
-        v19 compatibility: Falls back to manual filtering if complex filters fail.
+        v19 compatibility: Attempts OR query first, falls back to manual filtering if it fails.
         """
         if not pairs:
             return {"result": {"movies": []}}
@@ -115,12 +115,7 @@ class JSONRPC:
         kodi_version = self._get_kodi_version()
         props = properties or self._get_version_compatible_properties()
 
-        # v19 may not support complex boolean filters, use manual filtering
-        if kodi_version < 20:
-            utils.log("DEBUG: Using v19 compatible batch search (manual filtering)", "DEBUG")
-            return self._get_movies_by_title_year_batch_v19(pairs, props, start, limit)
-
-        # v20+ can try advanced filters first
+        # Build OR filter for all versions - try advanced filter first
         or_groups = []
         for p in pairs:
             t = (p.get("title") or "").strip()
@@ -136,20 +131,30 @@ class JSONRPC:
         if not or_groups:
             return {"result": {"movies": []}}
 
+        # Try OR-based batch query first (for all Kodi versions)
         try:
-            # Try advanced filter first
             filter_obj = {"or": or_groups}
             limits = {"start": int(start), "end": int(start + max(limit, len(or_groups) + 10))}
+            
+            utils.log(f"DEBUG: Attempting OR-based batch query with {len(or_groups)} title-year pairs", "DEBUG")
             result = self._getmovies_with_backoff(properties=props, filter_obj=filter_obj, limits=limits)
 
-            # Check if we got results or errors
+            # Check if we got valid results
             if 'error' not in result and 'result' in result:
+                utils.log(f"DEBUG: OR-based batch query successful, found {len((result.get('result') or {}).get('movies', []))} movies", "DEBUG")
                 return result
+            else:
+                utils.log(f"DEBUG: OR-based batch query failed with error, falling back to manual filtering", "DEBUG")
         except Exception as e:
-            utils.log(f"DEBUG: Advanced filter failed, using manual filtering: {str(e)}", "DEBUG")
+            utils.log(f"DEBUG: OR-based batch query exception: {str(e)}, falling back to manual filtering", "DEBUG")
 
-        # Fallback to manual filtering
-        return self._get_movies_by_title_year_batch_manual(pairs, props, start, limit)
+        # Fallback to version-specific manual filtering
+        if kodi_version < 20:
+            utils.log("DEBUG: Using v19 compatible manual filtering fallback", "DEBUG")
+            return self._get_movies_by_title_year_batch_v19(pairs, props, start, limit)
+        else:
+            utils.log("DEBUG: Using v20+ manual filtering fallback", "DEBUG")
+            return self._get_movies_by_title_year_batch_manual(pairs, props, start, limit)
 
     def _get_movies_by_title_year_batch_v19(self, pairs, properties, start, limit):
         """v19-specific batch search using manual filtering"""
