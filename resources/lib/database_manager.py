@@ -99,6 +99,7 @@ class DatabaseManager(Singleton):
             return []
 
     def get_folder_id_by_name(self, folder_name):
+
         """Get folder ID by name"""
         try:
             folders = self.fetch_data('folders', f"name = '{folder_name}'")
@@ -666,10 +667,10 @@ class DatabaseManager(Singleton):
             'name': list_name,
             'folder_id': search_history_folder_id
         }
-        utils.log(f"=== SAVING LIST TITLE TO DATABASE ===", "INFO")
+        utils.log("=== SAVING LIST TITLE TO DATABASE ===", "INFO")
         utils.log(f"List title being saved: '{list_name}'", "INFO")
         utils.log(f"Full list data: {final_list_data}", "DEBUG")
-        utils.log(f"=== END SAVING LIST TITLE ===", "INFO")
+        utils.log("=== END SAVING LIST TITLE ===", "INFO")
         final_list_id = self.insert_data('lists', final_list_data)
         utils.log(f"Created search history list with ID: {final_list_id}", "DEBUG")
 
@@ -750,12 +751,12 @@ class DatabaseManager(Singleton):
                         query_manager.insert_list_item(list_item_data)
                     else:
                         utils.log(f"Failed to insert media item for: {item_data.get('imdbnumber', 'N/A')}", "ERROR")
-                utils.log(f"=== SEARCH HISTORY SAVE COMPLETE ===", "INFO")
+                utils.log("=== SEARCH HISTORY SAVE COMPLETE ===", "INFO")
                 utils.log(f"List Name: '{list_name}'", "INFO")
                 utils.log(f"List ID: {final_list_id}", "INFO")
                 utils.log(f"Items Saved: {len(media_items_to_insert)}", "INFO")
                 utils.log(f"Query: '{query}'", "INFO")
-                utils.log(f"=== END SEARCH HISTORY SAVE ===", "INFO")
+                utils.log("=== END SEARCH HISTORY SAVE ===", "INFO")
                 return final_list_id
             else:
                 utils.log(f"No valid media items to save for search query '{query}'.", "WARNING")
