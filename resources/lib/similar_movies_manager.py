@@ -55,7 +55,7 @@ class SimilarMoviesManager:
                     'view': 'list'
                 })
                 utils.log(f"Navigating to similar movies results: {list_url}", "DEBUG")
-                xbmc.executebuiltin(f'Container.Update({list_url})')
+                xbmc.executebuiltin(f'Container.Update({list_url},return)')
             else:
                 xbmcgui.Dialog().notification(
                     'LibraryGenie', 
