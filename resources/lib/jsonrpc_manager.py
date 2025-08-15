@@ -135,9 +135,9 @@ class JSONRPC:
         filter_obj = {"or": or_groups}
         limits = {"start": int(start), "end": int(start + max(limit, len(or_groups) + 10))}
 
-        utils.log(f"DEBUG: Crafting OR-based batch query for Kodi v{kodi_version} with {len(or_groups)} title-year pairs", "DEBUG")
-        utils.log(f"DEBUG: Requesting {len(props)} comprehensive properties: {props[:5]}..." if len(props) > 5 else f"DEBUG: Requesting properties: {props}", "DEBUG")
-        utils.log(f"DEBUG: Filter object: {filter_obj}", "DEBUG")
+        # Create OR-based batch query
+        # Request comprehensive properties
+        # Apply filter criteria
 
         # Execute the JSON-RPC query with proper error handling
         result = self._getmovies_with_backoff(properties=props, filter_obj=filter_obj, limits=limits)
@@ -150,7 +150,7 @@ class JSONRPC:
             return {"result": {"movies": []}}
         elif 'result' in result:
             movies_found = len((result.get('result') or {}).get('movies', []))
-            utils.log(f"DEBUG: OR-based batch query successful for Kodi v{kodi_version}, found {movies_found} movies", "DEBUG")
+            # Batch query completed
             return result
         else:
             utils.log(f"ERROR: Unexpected JSON-RPC response format for Kodi v{kodi_version}", "ERROR")
@@ -167,17 +167,17 @@ class JSONRPC:
         return cls._instance
 
     def execute(self, method, params):
-        query = {
+        request_data = {
             "jsonrpc": "2.0",
             "method": method,
             "params": params,
             "id": 1
         }
-        query_json = json.dumps(query)
+        query_json = json.dumps(request_data)
 
         # Log all JSON-RPC requests
         utils.log(f"JSONRPC Request: {method}", "INFO")
-        utils.log(f"JSONRPC Request Details: {query_json}", "DEBUG")
+        # Send JSONRPC request
 
         response = xbmc.executeJSONRPC(query_json)
         parsed_response = json.loads(response)
@@ -327,11 +327,11 @@ class JSONRPC:
         """Find a movie in Kodi library by IMDb ID with v19 compatibility"""
         try:
             utils.log(f"DEBUG: Starting JSONRPC lookup for IMDB ID: {imdb_id}", "DEBUG")
-            
+
             # Get version-compatible properties
             properties = properties or self._get_version_compatible_properties()
 
-            # v19 has limited filter support, so always fetch all movies and filter manually
+            # v19 may not support complex filters, so always fetch all movies and filter manually
             if utils.is_kodi_v19():
                 utils.log("DEBUG: Using v19 compatible search (manual filtering)", "DEBUG")
                 return self._find_movie_by_imdb_v19(imdb_id, properties)
@@ -561,7 +561,6 @@ class JSONRPC:
 
 
     def get_movies_with_comprehensive_data(self, start=0, limit=50):
-        """Get movies with maximum possible metadata using intelligent backoff"""
         properties = self.get_comprehensive_properties()
         return self._getmovies_with_backoff(
             properties=properties,
@@ -569,6 +568,5 @@ class JSONRPC:
         )
 
     def get_movie_details_comprehensive(self, movie_id):
-        """Get comprehensive movie details with all available metadata"""
         properties = self.get_comprehensive_properties()
         return self.get_movie_details(movie_id, properties=properties)

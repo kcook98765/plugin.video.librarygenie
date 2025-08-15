@@ -126,15 +126,11 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
         return
 
     title = info_dict.get('title', 'Unknown')
-    plot = info_dict.get('plot', '')
     utils.log(f"=== SET_INFO_TAG START for '{title}' ===", "INFO")
     utils.log(f"Info dict has {len(info_dict)} keys: {list(info_dict.keys())}", "DEBUG")
 
-    if plot:
-        plot_preview = str(plot)[:100] + "..." if len(str(plot)) > 100 else str(plot)
-        utils.log(f"Plot to be set: '{plot_preview}' (length: {len(str(plot))})", "INFO")
-    else:
-        utils.log("No plot to be set", "WARNING")
+    # Handle plot information
+    plot = info_dict.get('plot', '')
 
     # Use centralized version detection
     utils.log(f"Using cached Kodi version: {utils.get_kodi_version()}", "DEBUG")
@@ -160,9 +156,6 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                 elif key in ['country', 'director', 'genre', 'studio'] and isinstance(value, list):
                     # Convert lists to comma-separated strings for setInfo
                     clean_info[key] = ' / '.join(str(item) for item in value if item)
-                elif key == 'mediatype':
-                    # Skip mediatype for v19 setInfo
-                    continue
                 else:
                     clean_info[key] = value
 
@@ -250,7 +243,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
         if hasattr(info_tag, 'setMediaType'):
             try:
                 info_tag.setMediaType(mediatype)
-                utils.log(f"Successfully set mediatype: {mediatype}", "DEBUG")
+                # Set mediatype
             except Exception as e:
                 utils.log(f"V20+ setMediaType failed: {str(e)}", "WARNING")
 
@@ -267,7 +260,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                     cast_success = _set_full_cast(list_item, value)
                     if cast_success:
                         infotag_success_count += 1
-                        utils.log(f"V20+ cast set successfully with images: {len(value)} actors", "DEBUG")
+                        # Cast set successfully
                     else:
                         utils.log("V20+ cast set without images (fallback used)", "DEBUG")
 
@@ -280,7 +273,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                             if int_value > 0:
                                 getattr(info_tag, method_name)(int_value)
                                 infotag_success_count += 1
-                                utils.log(f"V20+ {method_name} set to {int_value}", "DEBUG")
+                                # numeric_fields[key][1](int_value)
                         except (ValueError, TypeError) as convert_error:
                             utils.log(f"V20+ {method_name} conversion failed: {str(convert_error)}", "WARNING")
 
@@ -291,7 +284,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                             float_value = float(value)
                             info_tag.setRating(float_value)
                             infotag_success_count += 1
-                            utils.log(f"V20+ setRating set to {float_value}", "DEBUG")
+                            # numeric_fields[key][1](float_value)
                         except (ValueError, TypeError) as rating_error:
                             utils.log(f"V20+ setRating failed: {str(rating_error)}", "WARNING")
 
@@ -306,14 +299,14 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                                 if clean_list:
                                     getattr(info_tag, method_name)(clean_list)
                                     infotag_success_count += 1
-                                    utils.log(f"V20+ {method_name} set with {len(clean_list)} items", "DEBUG")
+                                    # string_list_fields[key][1](clean_list)
                             else:
                                 # Convert string to list
                                 items = [item.strip() for item in str(value).split('/') if item.strip()]
                                 if items:
                                     getattr(info_tag, method_name)(items)
                                     infotag_success_count += 1
-                                    utils.log(f"V20+ {method_name} set from string", "DEBUG")
+                                    # string_list_fields[key][1](items)
                         except Exception as list_error:
                             utils.log(f"V20+ {method_name} failed: {str(list_error)}", "WARNING")
 
@@ -325,9 +318,11 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                             getattr(info_tag, method_name)(str(value))
                             infotag_success_count += 1
                             if key == 'plot':
-                                utils.log(f"V20+ setPlot successful - length: {len(str(value))}", "INFO")
+                                # Plot set successfully
+                                pass
                             else:
-                                utils.log(f"V20+ {method_name} set successfully", "DEBUG")
+                                # string_list_fields[key][1](str(value))
+                                pass
                         except Exception as string_error:
                             utils.log(f"V20+ {method_name} failed: {str(string_error)}", "WARNING")
 
@@ -335,8 +330,6 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                 utils.log(f"V20+ InfoTag processing failed for {key}: {str(property_error)}", "WARNING")
 
         if infotag_success_count > 0:
-            # Cast is handled separately by _set_full_cast function
-
             # Handle resume data with version-appropriate methods
             resume_data = info_dict.get('resume', {})
             if isinstance(resume_data, dict) and any(resume_data.values()):
@@ -364,7 +357,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                 except (ValueError, TypeError) as resume_convert_error:
                     utils.log(f"V20+ resume data conversion failed: {str(resume_convert_error)}", "WARNING")
 
-            utils.log(f"V20+ InfoTag methods successful: {infotag_success_count} properties set", "INFO")
+            # InfoTag methods completed
         else:
             utils.log("V20+ No InfoTag methods succeeded, falling back to setInfo", "WARNING")
             raise Exception(f"All V20+ InfoTag methods failed")

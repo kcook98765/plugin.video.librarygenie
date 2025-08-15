@@ -151,7 +151,7 @@ class ListItemBuilder:
         if not isinstance(media_info, dict):
             media_info = {}
 
-        # Basic logging for build process
+        # Basic info extraction
         title = str(media_info.get('title', 'Unknown'))
         
 
@@ -337,9 +337,9 @@ class ListItemBuilder:
             except Exception as e:
                 info_dict['cast'] = []
 
-        # Log key info for debugging if needed
+        # Process plot information
         if media_info.get('plot'):
-            pass # utils.log(f"Setting plot for {title} (length: {len(str(media_info.get('plot')))})", "DEBUG")
+            pass
 
         # Use the specialized set_info_tag function that handles Kodi version compatibility
         set_info_tag(li, info_dict, 'video')
