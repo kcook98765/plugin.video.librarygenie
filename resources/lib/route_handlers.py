@@ -2,7 +2,6 @@
 """Route handlers for LibraryGenie plugin actions"""
 import xbmc
 import xbmcgui
-import xbmcplugin
 from resources.lib import utils
 from resources.lib.config_manager import Config
 from resources.lib.database_manager import DatabaseManager
@@ -218,7 +217,7 @@ def move_list(params):
         search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
         
         # Filter out Search History folder and folders that would exceed depth limit
-        folder_options = ["📁 Root (No folder)"]
+        folder_options = ["Root (No folder)"]
         folder_ids = [None]  # Root folder represented as None
         
         for folder in all_folders:
@@ -237,7 +236,7 @@ def move_list(params):
                     else:
                         break
                 
-                folder_options.append(f"📁 {folder_path}")
+                folder_options.append(f"{folder_path}")
                 folder_ids.append(folder['id'])
         
         # Show folder selection dialog
