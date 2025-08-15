@@ -62,9 +62,10 @@ def main():
         # If nothing selected (selected == -1), do nothing
 
     except Exception as e:
-        xbmc.log(f"LibraryGenie: Context menu error: {str(e)}", xbmc.LOGERROR)
+        from resources.lib import utils
+        utils.log(f"Context menu error: {str(e)}", "ERROR")
         import traceback
-        xbmc.log(f"LibraryGenie: Traceback: {traceback.format_exc()}", xbmc.LOGERROR)
+        utils.log(f"Traceback: {traceback.format_exc()}", "ERROR")
         xbmcgui.Dialog().notification("LibraryGenie", f"Error: {str(e)}", xbmcgui.NOTIFICATION_ERROR, 5000)
 
 if __name__ == '__main__':
