@@ -388,13 +388,13 @@ class ListItemBuilder:
                         info_tag = li.getVideoInfoTag()
                         # Skip stream detail methods as they are not reliably handled by v20+ InfoTag
                         # Use property fallback instead
-                        _add_stream_info_deprecated(li, stream_details)
+                        ListItemBuilder._add_stream_info_deprecated(li, stream_details)
                     except Exception:
                         # Fallback to deprecated methods
-                        _add_stream_info_deprecated(li, stream_details)
+                        ListItemBuilder._add_stream_info_deprecated(li, stream_details)
                 else:
                     # v19 - use deprecated methods
-                    _add_stream_info_deprecated(li, stream_details)
+                    ListItemBuilder._add_stream_info_deprecated(li, stream_details)
             except Exception as e:
                 pass
 
