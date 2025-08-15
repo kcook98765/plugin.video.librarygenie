@@ -113,7 +113,7 @@ class JSONRPC:
             return {"result": {"movies": []}}
 
         kodi_version = self._get_kodi_version()
-        props = properties or self._get_version_compatible_properties()
+        props = properties or self.get_comprehensive_properties()
 
         # Build OR filter groups
         or_groups = []
@@ -136,6 +136,7 @@ class JSONRPC:
         limits = {"start": int(start), "end": int(start + max(limit, len(or_groups) + 10))}
         
         utils.log(f"DEBUG: Crafting OR-based batch query for Kodi v{kodi_version} with {len(or_groups)} title-year pairs", "DEBUG")
+        utils.log(f"DEBUG: Requesting {len(props)} comprehensive properties: {props[:5]}..." if len(props) > 5 else f"DEBUG: Requesting properties: {props}", "DEBUG")
         utils.log(f"DEBUG: Filter object: {filter_obj}", "DEBUG")
         
         # Execute the JSON-RPC query with proper error handling
