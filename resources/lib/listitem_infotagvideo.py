@@ -396,7 +396,5 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
 
 
 def set_art(list_item: ListItem, raw_art: Dict[str, str]) -> None:
-    # utils.log("Setting art for ListItem", "DEBUG")
     art = {art_type: raw_url for art_type, raw_url in raw_art.items()}
     list_item.setArt(art)
-    # utils.log(f"Art types set: {', '.join(art.keys())}", "DEBUG")

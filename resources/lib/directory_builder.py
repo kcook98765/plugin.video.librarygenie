@@ -75,14 +75,12 @@ def add_options_header_item(ctx: dict, handle: int):
             utils.log("Successfully called li.setInfo('video', info_dict)", "INFO")
 
         # Set custom icon for Options & Tools
-        utils.log("=== SETTING UP ARTWORK ===", "INFO")
+        
         from resources.lib.addon_ref import get_addon
         addon = get_addon()
         addon_path = addon.getAddonInfo("path")
         icon_path = f"{addon_path}/resources/media/icon.jpg"
-        utils.log(f"Addon path: {addon_path}", "INFO")
-        utils.log(f"Icon path: {icon_path}", "INFO")
-
+        
         art_dict = {
             'icon': icon_path,
             'thumb': icon_path,
@@ -116,7 +114,7 @@ def add_options_header_item(ctx: dict, handle: int):
         utils.log(f"ListItem label: {li.getLabel()}", "INFO")
         utils.log(f"ListItem path (if any): {li.getPath()}", "INFO")
         utils.log(f"IsFolder will be set to: False", "INFO")
-        
+
         from resources.lib import utils as utils_module
         if utils_module.is_kodi_v19():
             utils.log("Kodi v19: No video info set to prevent dialog conflicts", "INFO")
