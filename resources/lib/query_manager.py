@@ -272,12 +272,6 @@ class QueryManager(Singleton):
 
             # Log database fetch summary
             utils.log(f"Fetched {len(items)} items from database", "DEBUG")
-                utils.log(f"Art JSON from DB: {str(item.get('art', ''))[:100]}..." if len(str(item.get('art', ''))) > 100 else f"Art from DB: {item.get('art', 'N/A')}", "INFO")
-                utils.log(f"Source from DB: {item.get('source', 'N/A')}", "INFO")
-                utils.log(f"Media Type from DB: {item.get('media_type', 'N/A')}", "INFO")
-                utils.log(f"IMDb Number from DB: {item.get('imdbnumber', 'N/A')}", "INFO")
-                utils.log(f"All DB columns: {list(item.keys())}", "DEBUG")
-                utils.log("=== END DATABASE FETCH DETAILS ===", "INFO")
 
             return items
         finally:
