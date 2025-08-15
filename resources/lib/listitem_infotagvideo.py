@@ -63,18 +63,22 @@ def _set_full_cast(list_item: ListItem, cast_list: list) -> bool:
         import xbmcgui
         info = list_item.getVideoInfoTag()
         
-        # Check for v21+ InfoTagVideo.setCast() method first
-        if hasattr(info, 'setCast') and hasattr(xbmcgui, 'Actor'):
+        # Enhanced v21+ detection - check Kodi version directly
+        if utils.get_kodi_version() >= 21 and hasattr(info, 'setCast') and hasattr(xbmcgui, 'Actor'):
             actors = []
             for actor in norm:
                 if actor['name']:  # Only add actors with names
-                    actor_obj = xbmcgui.Actor(
-                        name=actor['name'],
-                        role=actor['role'], 
-                        order=actor['order'],
-                        thumbnail=actor['thumbnail']
-                    )
-                    actors.append(actor_obj)
+                    try:
+                        actor_obj = xbmcgui.Actor(
+                            name=str(actor['name']),
+                            role=str(actor['role']), 
+                            order=int(actor['order']),
+                            thumbnail=str(actor['thumbnail']) if actor['thumbnail'] else ""
+                        )
+                        actors.append(actor_obj)
+                    except Exception as actor_error:
+                        utils.log(f"Failed to create Actor object for {actor['name']}: {str(actor_error)}", "DEBUG")
+                        continue
             
             if actors:
                 info.setCast(actors)  # v21+ preferred InfoTagVideo method
