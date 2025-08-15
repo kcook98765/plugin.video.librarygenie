@@ -256,6 +256,31 @@ class IMDbUploadManager:
                             if imdb_id and imdb_id.startswith('tt') and len(imdb_id) > 2:
                                 movie['imdbnumber'] = imdb_id
                                 valid_movies.append(movie)
+                                
+                                # Create movie_data for individual insert
+                                movie_data = {
+                                    'kodi_id': movie.get('movieid', 0),
+                                    'title': movie.get('title', ''),
+                                    'year': movie.get('year', 0),
+                                    'imdbnumber': imdb_id,
+                                    'source': 'lib',
+                                    'play': movie.get('file', ''),
+                                    'poster': movie.get('art', {}).get('poster', '') if movie.get('art') else '',
+                                    'fanart': movie.get('art', {}).get('fanart', '') if movie.get('art') else '',
+                                    'plot': movie.get('plot', ''),
+                                    'rating': float(movie.get('rating', 0)),
+                                    'votes': int(movie.get('votes', 0)),
+                                    'duration': int(movie.get('runtime', 0)),
+                                    'mpaa': movie.get('mpaa', ''),
+                                    'genre': ','.join(movie.get('genre', [])) if isinstance(movie.get('genre'), list) else movie.get('genre', ''),
+                                    'director': ','.join(movie.get('director', [])) if isinstance(movie.get('director'), list) else movie.get('director', ''),
+                                    'studio': ','.join(movie.get('studio', [])) if isinstance(movie.get('studio'), list) else movie.get('studio', ''),
+                                    'country': ','.join(movie.get('country', [])) if isinstance(movie.get('country'), list) else movie.get('country', ''),
+                                    'writer': ','.join(movie.get('writer', [])) if isinstance(movie.get('writer'), list) else movie.get('writer', ''),
+                                    'cast': json.dumps(movie.get('cast', [])),
+                                    'art': json.dumps(movie.get('art', {}))
+                                }
+                                
                                 # Individual insert as fallback
                                 db_manager.insert_data('media_items', movie_data)
                                 stored_count += 1
