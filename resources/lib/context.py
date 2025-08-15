@@ -6,12 +6,8 @@ import xbmcaddon
 # Import required modules using absolute imports
 from resources.lib.kodi_helper import KodiHelper
 from resources.lib.addon_ref import get_addon
-try:
-    import xbmcvfs
-    translatePath = xbmcvfs.translatePath
-except Exception:
-    import xbmc
-    translatePath = xbmc.translatePath
+import xbmcvfs
+translatePath = xbmcvfs.translatePath
 
 # Get addon and setup paths
 ADDON = xbmcaddon.Addon()
