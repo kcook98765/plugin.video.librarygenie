@@ -438,6 +438,18 @@ class ListItemBuilder:
 
         # Set content properties
         list_item.setProperty('IsPlayable', 'true')
+        
+        # Set DBID for Kodi Information dialog support
+        kodi_id = media_info.get('kodi_id') or media_info.get('movieid') or media_info.get('id')
+        if kodi_id:
+            list_item.setProperty('DBID', str(kodi_id))
+        
+        # Set MediaType property for Kodi recognition
+        media_type = info_dict.get('mediatype', 'movie')
+        list_item.setProperty('MediaType', media_type)
+        
+        # Debug Information dialog properties
+        utils.log(f"ListItem properties for Information dialog - DBID: {list_item.getProperty('DBID')}, MediaType: {list_item.getProperty('MediaType')}", "DEBUG")
 
         # Try to get play URL from different possible locations
         play_url = media_info.get('info', {}).get('play') or media_info.get('play') or media_info.get('file')

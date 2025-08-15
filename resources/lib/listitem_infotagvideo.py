@@ -160,6 +160,15 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                 else:
                     clean_info[key] = value
 
+            # Add DBID to clean_info if available for v19 Information dialog support
+            kodi_id = info_dict.get('kodi_id') or info_dict.get('movieid') or info_dict.get('id')
+            if kodi_id:
+                try:
+                    clean_info['dbid'] = int(kodi_id)
+                    utils.log(f"Added DBID to setInfo: {kodi_id}", "DEBUG")
+                except (ValueError, TypeError):
+                    pass
+            
             utils.log(f"Using setInfo with {len(clean_info)} properties for v19", "INFO")
             if 'plot' in clean_info:
                 plot_preview = str(clean_info['plot'])[:100] + "..." if len(str(clean_info['plot'])) > 100 else str(clean_info['plot'])
