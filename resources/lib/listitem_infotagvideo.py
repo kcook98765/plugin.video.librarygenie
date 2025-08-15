@@ -182,21 +182,28 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                         try:
                             # V20+ setCast with Actor objects for full cast details including images
                             import xbmcgui
-                            actors = []
-                            for actor_data in value:
-                                if isinstance(actor_data, dict):
-                                    name = actor_data.get('name', '')
-                                    role = actor_data.get('role', '')
-                                    thumbnail = actor_data.get('thumbnail', '')
+                            
+                            # Check if Actor class is available (Kodi v21+)
+                            if hasattr(xbmcgui, 'Actor'):
+                                actors = []
+                                for actor_data in value:
+                                    if isinstance(actor_data, dict):
+                                        name = actor_data.get('name', '')
+                                        role = actor_data.get('role', '')
+                                        thumbnail = actor_data.get('thumbnail', '')
 
-                                    if name:
-                                        actor = xbmcgui.Actor(name, role, thumbnail if thumbnail else '')
-                                        actors.append(actor)
+                                        if name:
+                                            actor = xbmcgui.Actor(name, role, thumbnail if thumbnail else '')
+                                            actors.append(actor)
 
-                            if actors:
-                                info_tag.setCast(actors)
-                                infotag_success_count += 1
-                                utils.log(f"V20+ setCast successful with {len(actors)} actors (with images)", "DEBUG")
+                                if actors:
+                                    info_tag.setCast(actors)
+                                    infotag_success_count += 1
+                                    utils.log(f"V20+ setCast successful with {len(actors)} actors (with images)", "DEBUG")
+                                else:
+                                    utils.log("V20+ No valid actors found for setCast", "DEBUG")
+                            else:
+                                utils.log("V20+ xbmcgui.Actor not available, skipping setCast (cast images not supported)", "DEBUG")
                         except Exception as cast_error:
                             utils.log(f"V20+ setCast failed: {str(cast_error)}, falling back to setInfo", "WARNING")
 
