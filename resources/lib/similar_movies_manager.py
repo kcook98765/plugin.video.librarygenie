@@ -84,11 +84,10 @@ class SimilarMoviesManager:
             # Create custom dialog for facet selection
             dialog = xbmcgui.Dialog()
             
-            # Show info about what we're doing
+            # Show info about what we're doing - fix: dialog.ok() only takes 2 arguments
             dialog.ok(
                 'Find Similar Movies',
-                f'Finding movies similar to: {movie_title}',
-                'Select which aspects to compare:'
+                f'Finding movies similar to: {movie_title}\n\nSelect which aspects to compare:'
             )
             
             # Facet options
