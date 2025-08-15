@@ -277,7 +277,6 @@ class RemoteAPIClient:
 
         upload_id = session['upload_id']
         max_chunk = session['max_chunk']
-        effective_chunk_size = min(chunk_size, max_chunk)
 
         # Step 2: Upload chunks
         failed_chunks = []
