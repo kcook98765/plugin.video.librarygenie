@@ -98,8 +98,8 @@ def run_addon():
             action = params.get('action', [None])[0]
             utils.log(f"Parsed URL params - args: '{args}', action: '{action}'", "DEBUG")
 
-        # Check if launched from context menu or directly
-        listitem_context = (len(sys.argv) > 1 and sys.argv[1] == '-1') or action == 'show_main_window'
+        # Check if launched from context menu only (exclude show_main_window which has its own handler)
+        listitem_context = (len(sys.argv) > 1 and sys.argv[1] == '-1') and action != 'show_main_window'
         utils.log(f"Launch context analysis - Args: {sys.argv}, Action: {action}, Is Context: {listitem_context}", "DEBUG")
 
         # Initialize config and database
