@@ -448,8 +448,16 @@ class ListItemBuilder:
         media_type = info_dict.get('mediatype', 'movie')
         list_item.setProperty('MediaType', media_type)
         
+        # Add Information context menu item
+        context_menu_items = []
+        context_menu_items.append(('Information', 'Action(Info)'))
+        
+        # Add context menu to ListItem
+        list_item.addContextMenuItems(context_menu_items, replaceItems=False)
+        
         # Debug Information dialog properties
         utils.log(f"ListItem properties for Information dialog - DBID: {list_item.getProperty('DBID')}, MediaType: {list_item.getProperty('MediaType')}", "DEBUG")
+        utils.log("Added Information context menu item", "DEBUG")
 
         # Try to get play URL from different possible locations
         play_url = media_info.get('info', {}).get('play') or media_info.get('play') or media_info.get('file')
