@@ -299,6 +299,34 @@ def refresh_movie(params):
         utils.log(f"Error refreshing movie: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Refresh failed')
 
+def find_similar_movies(params):
+    """Find movies similar to the selected movie"""
+    try:
+        # Extract parameters
+        imdb_id = params.get('imdb_id', [None])[0] if params.get('imdb_id') else None
+        movie_title = params.get('title', ['Unknown Movie'])[0] if params.get('title') else 'Unknown Movie'
+        
+        if not imdb_id:
+            xbmcgui.Dialog().notification('LibraryGenie', 'No IMDb ID found for this movie', xbmcgui.NOTIFICATION_ERROR)
+            return
+        
+        # Decode URL-encoded title if needed
+        import urllib.parse
+        movie_title = urllib.parse.unquote_plus(movie_title)
+        
+        utils.log(f"Finding similar movies for '{movie_title}' (IMDb: {imdb_id})", "INFO")
+        
+        # Use the similar movies manager
+        from resources.lib.similar_movies_manager import SimilarMoviesManager
+        similar_manager = SimilarMoviesManager()
+        similar_manager.show_similar_movies_dialog(imdb_id, movie_title)
+        
+    except Exception as e:
+        utils.log(f"Error in find_similar_movies: {str(e)}", "ERROR")
+        import traceback
+        utils.log(f"find_similar_movies traceback: {traceback.format_exc()}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error finding similar movies', xbmcgui.NOTIFICATION_ERROR)
+
 def do_search(params):
     q = xbmcgui.Dialog().input('Search movies', type=xbmcgui.INPUT_ALPHANUM)
     if not q:

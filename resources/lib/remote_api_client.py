@@ -153,6 +153,31 @@ class RemoteAPIClient:
             utils.log(f"Error searching movies: {str(e)}", "ERROR")
             return []
 
+    def find_similar_movies(self, reference_imdb_id, facets):
+        """Find movies similar to a reference movie based on selected facets"""
+        if not self.api_key:
+            utils.log("Remote API not configured", "WARNING")
+            return []
+
+        try:
+            data = {
+                'reference_imdb_id': reference_imdb_id,
+                **facets
+            }
+            
+            response = self._make_request('POST', '/similar_to', data)
+
+            if response and response.get('success'):
+                return response.get('results', [])
+            else:
+                error_msg = response.get('error', 'Unknown error') if response else 'No response'
+                utils.log(f"Similar movies request failed: {error_msg}", "ERROR")
+                return []
+
+        except Exception as e:
+            utils.log(f"Error finding similar movies: {str(e)}", "ERROR")
+            return []
+
     def get_library_hash(self):
         """Get collection fingerprints for delta sync"""
         result = self._make_request('GET', '/library/hash')

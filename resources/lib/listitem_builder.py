@@ -414,6 +414,16 @@ class ListItemBuilder:
         context_menu_items.append(('Show Details', f'RunPlugin(plugin://script.librarygenie/?action=show_item_details&title={quote_plus(formatted_title)}&item_id={media_info.get("id", "")})'))
         context_menu_items.append(('Information', 'Action(Info)'))
 
+        # Similar movies option for items with IMDb IDs
+        imdb_id = media_info.get('imdbnumber', '')
+        if imdb_id and imdb_id.startswith('tt'):
+            import urllib.parse
+            encoded_title = urllib.parse.quote_plus(title)
+            context_menu_items.append((
+                'Find Similar Movies',
+                f'RunPlugin({utils.build_url({"action": "find_similar_movies", "imdb_id": imdb_id, "title": encoded_title})})'
+            ))
+
         # Add context menu to ListItem
         li.addContextMenuItems(context_menu_items, replaceItems=False)
 

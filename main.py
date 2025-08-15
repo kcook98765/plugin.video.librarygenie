@@ -33,7 +33,7 @@ from resources.lib.database_manager import DatabaseManager
 from resources.lib import utils
 from resources.lib.route_handlers import (
     play_movie, show_item_details, create_list, rename_list, delete_list,
-    remove_from_list, rename_folder, refresh_movie, do_search, move_list
+    remove_from_list, rename_folder, refresh_movie, do_search, move_list, find_similar_movies
 )
 from resources.lib.listitem_builder import ListItemBuilder
 
@@ -309,7 +309,7 @@ def browse_list(list_id):
                 media_dict = item
             else:
                 media_dict = {}
-            
+
             if media_dict.get('search_score', 0) > 0:
                 has_scores = True
                 break
@@ -486,6 +486,10 @@ def router(params):
         # Do nothing for separator items
         utils.log("Received separator action, doing nothing.", "DEBUG")
         pass
+    elif action == 'do_search':
+        route_handlers.do_search(params)
+    elif action == 'find_similar_movies':
+        route_handlers.find_similar_movies(params)
     else:
         # Default: build root directory if action is not recognized or empty
         utils.log(f"Unrecognized action '{action}' or no action specified, building root directory.", "DEBUG")
