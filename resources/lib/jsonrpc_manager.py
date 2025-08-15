@@ -434,8 +434,8 @@ class JSONRPC:
             
             properties = self.get_comprehensive_properties()
             
-            # Build OR filter for all title-year combinations using correct Kodi syntax
-            or_conditions = []
+            # Build OR filter for all title-year combinations using proper Kodi JSON-RPC syntax
+            filter_conditions = []
             for pair in title_year_pairs:
                 title = (pair.get('title') or '').strip()
                 year = pair.get('year') or 0
@@ -444,40 +444,56 @@ class JSONRPC:
                     continue
 
                 if year and str(year).isdigit():
-                    # AND condition for both title and year
-                    and_condition = {
-                        'and': [
-                            {
-                                'field': 'title',
-                                'operator': 'is',
-                                'value': title
-                            },
-                            {
-                                'field': 'year',
-                                'operator': 'is',
-                                'value': int(year)
-                            }
-                        ]
-                    }
-                    or_conditions.append(and_condition)
+                    # AND condition for both title and year - use proper Kodi syntax
+                    and_condition = [
+                        {
+                            'field': 'title',
+                            'operator': 'is',
+                            'value': title
+                        },
+                        {
+                            'field': 'year',
+                            'operator': 'is',
+                            'value': int(year)
+                        }
+                    ]
+                    filter_conditions.append(and_condition)
                 else:
-                    # Just title condition
-                    title_condition = {
-                        'field': 'title',
-                        'operator': 'is',
-                        'value': title
-                    }
-                    or_conditions.append(title_condition)
+                    # Just title condition - wrap in array for consistency
+                    title_condition = [
+                        {
+                            'field': 'title',
+                            'operator': 'is',
+                            'value': title
+                        }
+                    ]
+                    filter_conditions.append(title_condition)
 
-            if not or_conditions:
+            if not filter_conditions:
                 return {"result": {"movies": []}}
 
-            # Create the OR filter using correct Kodi JSON-RPC syntax
-            if len(or_conditions) == 1:
-                search_filter = or_conditions[0]
+            # Create the proper Kodi JSON-RPC filter structure
+            if len(filter_conditions) == 1:
+                # Single condition - use AND if multiple fields, single field if one
+                if len(filter_conditions[0]) == 1:
+                    search_filter = filter_conditions[0][0]
+                else:
+                    search_filter = {
+                        'and': filter_conditions[0]
+                    }
             else:
+                # Multiple conditions - use OR with AND subconditions
+                or_list = []
+                for condition_group in filter_conditions:
+                    if len(condition_group) == 1:
+                        or_list.append(condition_group[0])
+                    else:
+                        or_list.append({
+                            'and': condition_group
+                        })
+                
                 search_filter = {
-                    'or': or_conditions
+                    'or': or_list
                 }
 
             utils.log(f"Using OR filter with {len(or_conditions)} conditions", "DEBUG")
