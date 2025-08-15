@@ -487,9 +487,9 @@ def router(params):
         utils.log("Received separator action, doing nothing.", "DEBUG")
         pass
     elif action == 'do_search':
-        route_handlers.do_search(params)
+        do_search(params)
     elif action == 'find_similar_movies':
-        route_handlers.find_similar_movies(params)
+        find_similar_movies(params)
     else:
         # Default: build root directory if action is not recognized or empty
         utils.log(f"Unrecognized action '{action}' or no action specified, building root directory.", "DEBUG")
