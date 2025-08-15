@@ -496,7 +496,7 @@ class JSONRPC:
                     'or': or_list
                 }
 
-            utils.log(f"Using OR filter with {len(or_conditions)} conditions", "DEBUG")
+            utils.log(f"Using OR filter with {len(filter_conditions)} conditions", "DEBUG")
 
             response = self.execute('VideoLibrary.GetMovies', {
                 'properties': properties,
