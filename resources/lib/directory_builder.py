@@ -50,33 +50,52 @@ def add_context_menu_for_item(li: xbmcgui.ListItem, item_type: str, **ids):
 def add_options_header_item(ctx: dict, handle: int):
     """Add the options and tools header item as a non-folder RunPlugin item"""
     try:
+        utils.log("=== OPTIONS & TOOLS LISTITEM BUILD START ===", "INFO")
+        utils.log(f"Input context: {ctx}", "INFO")
+        utils.log(f"Input handle: {handle}", "INFO")
+
         # Check if navigation is in progress - skip adding options header during navigation
         navigating = xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.Navigating)")
+        utils.log(f"Navigation in progress check: {navigating}", "INFO")
         if navigating == "true":
             utils.log("Navigation in progress, skipping options header item", "DEBUG")
             return
 
         # Create list item for options as non-folder
+        utils.log("=== CREATING ListItem INSTANCE ===", "INFO")
         li = xbmcgui.ListItem(label="[B]Options & Tools[/B]")
-        li.setInfo('video', {
+        utils.log(f"Created ListItem with label: {li.getLabel()}", "INFO")
+
+        # Set info dictionary and log it
+        info_dict = {
             'title': 'Options & Tools',
             'plot': 'Access list management tools, search options, and addon settings.',
             'mediatype': 'video'
-        })
+        }
+        utils.log(f"=== SETTING INFO WITH DICT: {info_dict} ===", "INFO")
+        li.setInfo('video', info_dict)
+        utils.log("Successfully called li.setInfo('video', info_dict)", "INFO")
 
         # Set custom icon for Options & Tools
+        utils.log("=== SETTING UP ARTWORK ===", "INFO")
         from resources.lib.addon_ref import get_addon
         addon = get_addon()
         addon_path = addon.getAddonInfo("path")
         icon_path = f"{addon_path}/resources/media/icon.jpg"
+        utils.log(f"Addon path: {addon_path}", "INFO")
+        utils.log(f"Icon path: {icon_path}", "INFO")
 
-        li.setArt({
+        art_dict = {
             'icon': icon_path,
             'thumb': icon_path,
             'poster': icon_path
-        })
+        }
+        utils.log(f"=== SETTING ART WITH DICT: {art_dict} ===", "INFO")
+        li.setArt(art_dict)
+        utils.log("Successfully called li.setArt(art_dict)", "INFO")
 
         # Build URL with current context using centralized URL builder
+        utils.log("=== BUILDING URL ===", "INFO")
         url_params = {
             'action': 'show_options',
             'view': ctx.get('view'),
@@ -85,18 +104,39 @@ def add_options_header_item(ctx: dict, handle: int):
         # Only include list_id/folder_id if they exist
         if ctx.get('list_id'):
             url_params['list_id'] = ctx['list_id']
+            utils.log(f"Added list_id to URL params: {ctx['list_id']}", "INFO")
         if ctx.get('folder_id'):
             url_params['folder_id'] = ctx['folder_id']
+            utils.log(f"Added folder_id to URL params: {ctx['folder_id']}", "INFO")
 
-        utils.log(f"FOLDER_CONTEXT_DEBUG: Building options URL with params: {url_params}", "DEBUG")
+        utils.log(f"FOLDER_CONTEXT_DEBUG: Building options URL with params: {url_params}", "INFO")
         url = build_plugin_url(url_params)
-        utils.log(f"FOLDER_CONTEXT_DEBUG: Built options URL: {url}", "DEBUG")
+        utils.log(f"FOLDER_CONTEXT_DEBUG: Built options URL: {url}", "INFO")
+
+        # Log ListItem properties before adding to directory
+        utils.log("=== FINAL LISTITEM PROPERTIES ===", "INFO")
+        utils.log(f"ListItem label: {li.getLabel()}", "INFO")
+        utils.log(f"ListItem path (if any): {li.getPath()}", "INFO")
+        utils.log(f"IsFolder will be set to: False", "INFO")
+        
+        # Try to get back the info that was set
+        try:
+            # This might not work on all Kodi versions but let's try
+            utils.log("Attempting to read back video info...", "INFO")
+            # Note: getVideoInfoTag() may not be fully populated until after directory processing
+        except Exception as info_e:
+            utils.log(f"Could not read back video info: {str(info_e)}", "DEBUG")
 
         # Add as non-folder item so Kodi uses RunPlugin instead of trying to render directory
+        utils.log(f"=== ADDING TO DIRECTORY: handle={handle}, url={url}, isFolder=False ===", "INFO")
         xbmcplugin.addDirectoryItem(handle, url, li, isFolder=False)
+        utils.log("Successfully added Options & Tools item to directory", "INFO")
+        utils.log("=== OPTIONS & TOOLS LISTITEM BUILD COMPLETE ===", "INFO")
 
     except Exception as e:
-        utils.log(f"Error adding options header: {str(e)}", "ERROR")
+        utils.log(f"=== ERROR IN OPTIONS & TOOLS LISTITEM BUILD: {str(e)} ===", "ERROR")
+        import traceback
+        utils.log(f"Full traceback: {traceback.format_exc()}", "ERROR")
 
 def build_root_directory(handle: int):
     """Build the root directory with search option"""
