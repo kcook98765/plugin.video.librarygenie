@@ -236,7 +236,7 @@ def move_list(params):
                         else:
                             break
                     
-                    folder_options.append(f"{folder_path}")
+                    folder_options.append(folder_path)
                     folder_ids.append(folder['id'])
         
         # Show folder selection dialog
