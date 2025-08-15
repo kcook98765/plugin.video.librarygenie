@@ -423,20 +423,10 @@ class ListItemBuilder:
                     try:
                         info_tag = list_item.getVideoInfoTag()
 
-                        if stream_details.get('video') and hasattr(info_tag, 'addVideoStream'):
-                            for video_stream in stream_details['video']:
-                                if isinstance(video_stream, dict):
-                                    info_tag.addVideoStream(video_stream)
-
-                        if stream_details.get('audio') and hasattr(info_tag, 'addAudioStream'):
-                            for audio_stream in stream_details['audio']:
-                                if isinstance(audio_stream, dict):
-                                    info_tag.addAudioStream(audio_stream)
-
-                        if stream_details.get('subtitle') and hasattr(info_tag, 'addSubtitleStream'):
-                            for subtitle_stream in stream_details['subtitle']:
-                                if isinstance(subtitle_stream, dict):
-                                    info_tag.addSubtitleStream(subtitle_stream)
+                        # V20+ stream methods have compatibility issues with dict format
+                        # Skip InfoTag stream methods and use property fallback instead
+                        utils.log("V20+ InfoTag stream methods skipped due to API compatibility issues", "DEBUG")
+                        self._add_stream_info_deprecated(list_item, stream_details)
                     except Exception:
                         # Fallback to deprecated methods
                         self._add_stream_info_deprecated(list_item, stream_details)

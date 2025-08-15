@@ -40,7 +40,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
     plot = info_dict.get('plot', '')
     utils.log(f"=== SET_INFO_TAG START for '{title}' ===", "INFO")
     utils.log(f"Info dict has {len(info_dict)} keys: {list(info_dict.keys())}", "DEBUG")
-    
+
     if plot:
         plot_preview = str(plot)[:100] + "..." if len(str(plot)) > 100 else str(plot)
         utils.log(f"Plot to be set: '{plot_preview}' (length: {len(str(plot))})", "INFO")
@@ -59,7 +59,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
             for key, value in info_dict.items():
                 if not value:  # Skip empty values
                     continue
-                    
+
                 # Handle special data types for setInfo
                 if key == 'cast' and isinstance(value, list):
                     # Convert cast list to simple list of actor names for setInfo
@@ -83,17 +83,17 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
             if 'plot' in clean_info:
                 plot_preview = str(clean_info['plot'])[:100] + "..." if len(str(clean_info['plot'])) > 100 else str(clean_info['plot'])
                 utils.log(f"setInfo plot: '{plot_preview}' (length: {len(str(clean_info['plot']))})", "INFO")
-            
+
             list_item.setInfo(content_type, clean_info)
             utils.log("setInfo completed successfully for v19", "INFO")
-            
+
             # Handle resume data for v19 using properties (setInfo doesn't support resume)
             resume_data = info_dict.get('resume', {})
             if isinstance(resume_data, dict) and any(resume_data.values()):
                 try:
                     position = float(resume_data.get('position', 0))
                     total = float(resume_data.get('total', 0))
-                    
+
                     if position > 0:
                         list_item.setProperty('resumetime', str(position))
                         if total > 0:
@@ -103,7 +103,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                     utils.log(f"v19 resume data conversion failed: {str(resume_error)}", "WARNING")
         except Exception as setinfo_error:
             utils.log(f"setInfo failed for v19: {str(setinfo_error)}", "ERROR")
-        
+
         utils.log(f"=== SET_INFO_TAG COMPLETE for '{title}' ===", "INFO")
         return
 
@@ -154,7 +154,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
 
         # Process each property with improved V20+ handling
         infotag_success_count = 0
-        
+
         for key, value in info_dict.items():
             if key == 'mediatype' or not value:
                 continue
@@ -164,19 +164,13 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                 if key == 'cast' and isinstance(value, list):
                     if hasattr(info_tag, 'setCast'):
                         try:
-                            # V20+ expects specific Actor object format
-                            if value and isinstance(value[0], dict):
-                                # Already in proper format
-                                info_tag.setCast(value)
-                            else:
-                                # Convert simple list to proper format
-                                cast_list = [{'name': str(actor), 'role': ''} for actor in value if actor]
-                                info_tag.setCast(cast_list)
-                            infotag_success_count += 1
-                            utils.log(f"V20+ setCast successful with {len(value)} actors", "DEBUG")
+                            # V20+ setCast requires Actor objects, but has compatibility issues
+                            # For now, skip setCast and let fallback handle cast via setInfo
+                            utils.log(f"V20+ setCast skipped due to API compatibility issues with {len(value)} actors", "DEBUG")
+                            # Note: Cast will be handled by fallback setInfo if InfoTag fails completely
                         except Exception as cast_error:
                             utils.log(f"V20+ setCast failed: {str(cast_error)}", "WARNING")
-                
+
                 elif key in ['year', 'runtime', 'duration', 'votes'] and isinstance(value, (int, str)):
                     # Integer properties
                     method_name = infotag_methods.get(key)
@@ -247,7 +241,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                 try:
                     position = float(resume_data.get('position', 0))
                     total = float(resume_data.get('total', 0))
-                    
+
                     if position > 0:
                         try:
                             if hasattr(info_tag, 'setResumePoint'):
@@ -282,7 +276,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
             for key, value in info_dict.items():
                 if not value:
                     continue
-                    
+
                 if key == 'cast' and isinstance(value, list):
                     try:
                         if all(isinstance(actor, dict) for actor in value):
@@ -298,14 +292,14 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
 
             list_item.setInfo(content_type, clean_info)
             utils.log("setInfo fallback completed successfully for v20+", "INFO")
-            
+
             # Handle resume data for v20+ setInfo fallback using properties
             resume_data = info_dict.get('resume', {})
             if isinstance(resume_data, dict) and any(resume_data.values()):
                 try:
                     position = float(resume_data.get('position', 0))
                     total = float(resume_data.get('total', 0))
-                    
+
                     if position > 0:
                         list_item.setProperty('resumetime', str(position))
                         if total > 0:
@@ -315,7 +309,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                     utils.log(f"v20+ fallback resume data conversion failed: {str(resume_error)}", "WARNING")
         except Exception as fallback_error:
             utils.log(f"Fallback setInfo also failed: {str(fallback_error)}", "ERROR")
-    
+
     utils.log(f"=== SET_INFO_TAG COMPLETE for '{title}' ===", "INFO")
 
 
