@@ -46,8 +46,16 @@ class SimilarMoviesManager:
                     'LibraryGenie', 
                     f'Found {len(results)} similar movies'
                 )
-                # Refresh container to show new search results
-                xbmc.executebuiltin('Container.Refresh')
+                # Navigate to the search results list
+                from resources.lib.url_builder import build_plugin_url
+                import xbmc
+                list_url = build_plugin_url({
+                    'action': 'browse_list',
+                    'list_id': list_id,
+                    'view': 'list'
+                })
+                utils.log(f"Navigating to similar movies results: {list_url}", "DEBUG")
+                xbmc.executebuiltin(f'Container.Update({list_url})')
             else:
                 xbmcgui.Dialog().notification(
                     'LibraryGenie', 
