@@ -66,14 +66,19 @@ def add_options_header_item(ctx: dict, handle: int):
         li = xbmcgui.ListItem(label="[B]Options & Tools[/B]")
         utils.log(f"Created ListItem with label: {li.getLabel()}", "INFO")
 
-        # Set info dictionary and log it - NO mediatype to avoid video info dialog
-        info_dict = {
-            'title': 'Options & Tools',
-            'plot': 'Access list management tools, search options, and addon settings.'
-        }
-        utils.log(f"=== SETTING INFO WITH DICT: {info_dict} ===", "INFO")
-        li.setInfo('video', info_dict)
-        utils.log("Successfully called li.setInfo('video', info_dict)", "INFO")
+        # For Kodi v19, avoid setting video info entirely to prevent video info dialog
+        from resources.lib import utils as utils_module
+        if utils_module.is_kodi_v19():
+            utils.log("Kodi v19 detected - skipping video info to prevent dialog issues", "INFO")
+        else:
+            # Set info dictionary for v20+ - NO mediatype to avoid video info dialog
+            info_dict = {
+                'title': 'Options & Tools',
+                'plot': 'Access list management tools, search options, and addon settings.'
+            }
+            utils.log(f"=== SETTING INFO WITH DICT: {info_dict} ===", "INFO")
+            li.setInfo('video', info_dict)
+            utils.log("Successfully called li.setInfo('video', info_dict)", "INFO")
 
         # Set custom icon for Options & Tools
         utils.log("=== SETTING UP ARTWORK ===", "INFO")
@@ -118,13 +123,15 @@ def add_options_header_item(ctx: dict, handle: int):
         utils.log(f"ListItem path (if any): {li.getPath()}", "INFO")
         utils.log(f"IsFolder will be set to: False", "INFO")
         
-        # Try to get back the info that was set
-        try:
-            # This might not work on all Kodi versions but let's try
-            utils.log("Attempting to read back video info...", "INFO")
-            # Note: getVideoInfoTag() may not be fully populated until after directory processing
-        except Exception as info_e:
-            utils.log(f"Could not read back video info: {str(info_e)}", "DEBUG")
+        from resources.lib import utils as utils_module
+        if utils_module.is_kodi_v19():
+            utils.log("Kodi v19: No video info set to prevent dialog conflicts", "INFO")
+        else:
+            # Try to get back the info that was set for v20+
+            try:
+                utils.log("Attempting to read back video info (v20+)...", "INFO")
+            except Exception as info_e:
+                utils.log(f"Could not read back video info: {str(info_e)}", "DEBUG")
 
         # Add as non-folder item for RunPlugin behavior (no mediatype prevents video info dialog)
         utils.log(f"=== ADDING TO DIRECTORY: handle={handle}, url={url}, isFolder=False ===", "INFO")
