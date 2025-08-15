@@ -111,7 +111,7 @@ def add_options_header_item(ctx: dict, handle: int):
         utils.log("=== FINAL LISTITEM PROPERTIES ===", "INFO")
         utils.log(f"ListItem label: {li.getLabel()}", "INFO")
         utils.log(f"ListItem path (if any): {li.getPath()}", "INFO")
-        utils.log(f"IsFolder will be set to: False", "INFO")
+        utils.log("IsFolder will be set to: False", "INFO")
 
         from resources.lib import utils as utils_module
         if utils_module.is_kodi_v19():

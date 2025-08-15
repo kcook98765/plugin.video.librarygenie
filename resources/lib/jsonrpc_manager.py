@@ -149,7 +149,6 @@ class JSONRPC:
             utils.log(f"ERROR: Failed query filter: {filter_obj}", "ERROR")
             return {"result": {"movies": []}}
         elif 'result' in result:
-            movies_found = len((result.get('result') or {}).get('movies', []))
             # Batch query completed
             return result
         else:
