@@ -260,7 +260,7 @@ class QueryManager(Singleton):
             FROM list_items li
             JOIN media_items mi ON li.media_item_id = mi.id
             WHERE li.list_id = ?
-            ORDER BY li.position ASC
+            ORDER BY mi.title COLLATE NOCASE
         """
 
         conn_info = self._get_connection()
