@@ -418,10 +418,11 @@ class ListItemBuilder:
         imdb_id = media_info.get('imdbnumber', '')
         if imdb_id and imdb_id.startswith('tt'):
             import urllib.parse
+            from resources.lib.url_builder import build_plugin_url
             encoded_title = urllib.parse.quote_plus(title)
             context_menu_items.append((
                 'Find Similar Movies',
-                f'RunPlugin({utils.build_url({"action": "find_similar_movies", "imdb_id": imdb_id, "title": encoded_title})})'
+                f'RunPlugin({build_plugin_url({"action": "find_similar_movies", "imdb_id": imdb_id, "title": encoded_title})})'
             ))
 
         # Add context menu to ListItem
