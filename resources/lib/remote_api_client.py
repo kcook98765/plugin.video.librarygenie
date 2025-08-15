@@ -4,7 +4,6 @@ import urllib.parse
 import urllib.error
 import hashlib
 import time
-import random
 import uuid
 from resources.lib import utils
 from resources.lib.config_manager import get_config
@@ -276,7 +275,6 @@ class RemoteAPIClient:
             return {'success': False, 'error': 'Failed to start batch session'}
 
         upload_id = session['upload_id']
-        max_chunk = session['max_chunk']
 
         # Step 2: Upload chunks
         failed_chunks = []
