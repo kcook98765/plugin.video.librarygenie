@@ -240,11 +240,9 @@ def move_list(params):
                     folder_ids.append(folder['id'])
         
         # Show folder selection dialog
-        from typing import List
-        folder_options_typed: List[str] = folder_options
         selected_index = xbmcgui.Dialog().select(
             f"Move list '{list_info['name']}' to:",
-            folder_options_typed
+            folder_options
         )
         
         if selected_index == -1:  # User cancelled
