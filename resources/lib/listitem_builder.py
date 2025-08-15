@@ -6,7 +6,6 @@ This module does not support Kodi 18 (Leia) or earlier versions
 import json
 import xbmcgui
 import xbmc
-from resources.lib import utils
 from resources.lib.listitem_infotagvideo import set_info_tag, set_art
 from typing import Dict
 from urllib.parse import quote, urlparse, quote_plus
