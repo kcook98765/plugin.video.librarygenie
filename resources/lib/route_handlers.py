@@ -73,6 +73,7 @@ def show_item_details(params):
 
         # Try to get more details about the item
         details_text = f"Title: {title}\n"
+        details_text += f"Source: External addon/non-library item\n"
 
         if item_id and str(item_id).isdigit():
             try:

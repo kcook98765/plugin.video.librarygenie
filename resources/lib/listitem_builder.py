@@ -9,7 +9,7 @@ import xbmc
 from resources.lib import utils
 from resources.lib.listitem_infotagvideo import set_info_tag, set_art
 from typing import Dict
-from urllib.parse import quote, urlparse
+from urllib.parse import quote, urlparse, quote_plus
 
 
 __all__ = ['set_info_tag', 'set_art']
@@ -438,23 +438,26 @@ class ListItemBuilder:
 
         # Set content properties
         list_item.setProperty('IsPlayable', 'true')
-        
+
         # Set DBID for Kodi Information dialog support
         kodi_id = media_info.get('kodi_id') or media_info.get('movieid') or media_info.get('id')
         if kodi_id:
             list_item.setProperty('DBID', str(kodi_id))
-        
+
         # Set MediaType property for Kodi recognition
         media_type = info_dict.get('mediatype', 'movie')
         list_item.setProperty('MediaType', media_type)
-        
+
         # Add Information context menu item
         context_menu_items = []
+        # Original line: context_menu_items.append(('Show Details', f'RunPlugin(plugin://script.librarygenie/?action=show_item_details&title={quote(title)}&item_id={media_info.get("id", "")})')))
+        # Updated line:
+        context_menu_items.append(('Show Details', f'RunPlugin(plugin://script.librarygenie/?action=show_item_details&title={quote_plus(title)}&item_id={media_info.get("id", "")})'))
         context_menu_items.append(('Information', 'Action(Info)'))
-        
+
         # Add context menu to ListItem
         list_item.addContextMenuItems(context_menu_items, replaceItems=False)
-        
+
         # Debug Information dialog properties
         utils.log(f"ListItem properties for Information dialog - DBID: {list_item.getProperty('DBID')}, MediaType: {list_item.getProperty('MediaType')}", "DEBUG")
         utils.log("Added Information context menu item", "DEBUG")
