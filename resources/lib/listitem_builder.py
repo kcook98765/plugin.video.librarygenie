@@ -183,7 +183,7 @@ class ListItemBuilder:
                     poster_url = url
                     break
             except Exception:
-                # utils.log(f"Error getting poster URL: {str(e)}", "ERROR")
+                
                 continue
 
         # Handle art data from different sources

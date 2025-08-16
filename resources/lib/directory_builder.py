@@ -107,32 +107,11 @@ def add_options_header_item(ctx: dict, handle: int):
         url = build_plugin_url(url_params)
         utils.log(f"FOLDER_CONTEXT_DEBUG: Built options URL: {url}", "INFO")
 
-        # Log ListItem properties before adding to directory
-        utils.log("=== FINAL LISTITEM PROPERTIES ===", "INFO")
-        utils.log(f"ListItem label: {li.getLabel()}", "INFO")
-        utils.log(f"ListItem path (if any): {li.getPath()}", "INFO")
-        utils.log("IsFolder will be set to: False", "INFO")
-
-        from resources.lib import utils as utils_module
-        if utils_module.is_kodi_v19():
-            utils.log("Kodi v19: No video info set to prevent dialog conflicts", "INFO")
-        else:
-            # Try to get back the info that was set for v20+
-            try:
-                utils.log("Attempting to read back video info (v20+)...", "INFO")
-            except Exception as info_e:
-                utils.log(f"Could not read back video info: {str(info_e)}", "DEBUG")
-
-        # Add as non-folder item for RunPlugin behavior (no mediatype prevents video info dialog)
-        utils.log(f"=== ADDING TO DIRECTORY: handle={handle}, url={url}, isFolder=False ===", "INFO")
+        # Add as non-folder item for RunPlugin behavior
         xbmcplugin.addDirectoryItem(handle, url, li, isFolder=False)
-        utils.log("Successfully added Options & Tools item to directory", "INFO")
-        utils.log("=== OPTIONS & TOOLS LISTITEM BUILD COMPLETE ===", "INFO")
 
     except Exception as e:
-        utils.log(f"=== ERROR IN OPTIONS & TOOLS LISTITEM BUILD: {str(e)} ===", "ERROR")
-        import traceback
-        utils.log(f"Full traceback: {traceback.format_exc()}", "ERROR")
+        utils.log(f"Error in Options & Tools ListItem build: {str(e)}", "ERROR")
 
 def build_root_directory(handle: int):
     """Build the root directory with search option"""

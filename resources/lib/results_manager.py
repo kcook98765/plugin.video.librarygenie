@@ -22,14 +22,8 @@ class ResultsManager(Singleton):
     def build_display_items_for_list(self, list_id: int):
         """Build display items for a specific list with comprehensive metadata"""
         try:
-            utils.log(f"DEBUG: Calling build_display_items_for_list for list_id={list_id}", "DEBUG")
-
             # Get list items with full details
             list_items = self.query_manager.fetch_list_items_with_details(list_id)
-            utils.log(f"Found {len(list_items)} items in list {list_id}", "DEBUG")
-
-            # Log summary of items being processed
-            utils.log(f"Processing {len(list_items)} items for list display", "DEBUG")
 
             rows = list_items # Renamed for consistency with original logic
             external, refs = [], []

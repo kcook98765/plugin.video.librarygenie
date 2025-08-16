@@ -201,27 +201,12 @@ def browse_list(list_id):
         xbmcplugin.setPluginCategory(handle, f"Search Results")
 
         # Use policy-aware resolver
-        utils.log(f"Creating ResultsManager for list resolution", "DEBUG")
         rm = ResultsManager()
-        utils.log(f"Calling build_display_items_for_list for list_id={list_id}", "DEBUG")
         display_items = rm.build_display_items_for_list(list_id)
-        utils.log(f"Resolved {len(display_items)} display items for list {list_id}", "INFO")
 
         if not display_items:
-            utils.log(f"No display items found for list {list_id} - checking database directly", "WARNING")
-            # Check if list exists and has items
-            db_manager = DatabaseManager(config.db_path)
-            list_info = db_manager.fetch_list_by_id(list_id)
-            if list_info:
-                utils.log(f"List {list_id} exists: {list_info.get('name', 'Unknown')}", "DEBUG")
-                raw_items = query_manager.fetch_list_items_with_details(list_id)
-                utils.log(f"Raw list items count: {len(raw_items) if raw_items else 0}", "DEBUG")
-                if raw_items:
-                    utils.log(f"First raw item: {raw_items[0]}", "DEBUG")
-            else:
-                utils.log(f"List {list_id} does not exist in database", "ERROR")
-
-        utils.log(f"Processing {len(display_items)} display items", "DEBUG")
+            utils.log(f"No display items found for list {list_id}", "WARNING")
+            return
         items_added = 0
         playable_count = 0
         non_playable_count = 0

@@ -268,11 +268,6 @@ class QueryManager(Singleton):
             cursor = conn_info['connection'].execute(query, (list_id,))
             rows = cursor.fetchall()
             items = [dict(row) for row in rows]
-            utils.log(f"Fetched {len(items)} items for list {list_id}", "DEBUG")
-
-            # Log database fetch summary
-            utils.log(f"Fetched {len(items)} items from database", "DEBUG")
-
             return items
         finally:
             self._release_connection(conn_info)
