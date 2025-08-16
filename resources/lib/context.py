@@ -43,63 +43,22 @@ def main():
         addon_id = addon.getAddonInfo("id")
 
         # Create menu options - check if we have IMDb ID for similarity
-        # Enhanced IMDb ID detection for v19 compatibility
-        imdb_id = None
-
-        # Try multiple sources for IMDb ID, starting with our custom property
-        imdb_candidates = [
-            xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)'),  # Our custom property first
-            xbmc.getInfoLabel('ListItem.IMDBNumber'),
-            xbmc.getInfoLabel('ListItem.UniqueID(imdb)'),
-            item_info.get('imdbnumber', ''),
-            item_info.get('uniqueid', {}).get('imdb', '') if isinstance(item_info.get('uniqueid'), dict) else ''
-        ]
-
-        # Also check if we have a valid DBID and can get the IMDb ID via JSON-RPC
-        db_id = xbmc.getInfoLabel('ListItem.DBID')
-
-        # Special handling for LibraryGenie plugin items - extract movieid from URL
-        file_path = xbmc.getInfoLabel('ListItem.FileNameAndPath')
-        if not db_id and file_path and 'plugin.video.librarygenie' in file_path and 'movieid=' in file_path:
-            try:
-                import re
-                match = re.search(r'movieid=(\d+)', file_path)
-                if match:
-                    db_id = match.group(1)
-                    xbmc.log(f"LibraryGenie: Context menu extracted movieid from plugin URL: {db_id}", xbmc.LOGINFO)
-            except Exception as e:
-                xbmc.log(f"LibraryGenie: Context menu movieid extraction failed: {str(e)}", xbmc.LOGWARNING)
-
-        if db_id and not any(candidate and str(candidate).startswith('tt') for candidate in imdb_candidates):
-            try:
-                from resources.lib.jsonrpc_manager import JSONRPC
-                jsonrpc = JSONRPC()
-                response = jsonrpc.execute('VideoLibrary.GetMovieDetails', {
-                    'movieid': int(db_id),
-                    'properties': ['uniqueid', 'imdbnumber']
-                })
-                movie_details = response.get('result', {}).get('moviedetails', {})
-
-                # Check uniqueid.imdb first (real IMDb ID)
-                uniqueid = movie_details.get('uniqueid', {})
-                if isinstance(uniqueid, dict) and 'imdb' in uniqueid:
-                    imdb_candidates.append(uniqueid['imdb'])
-                    xbmc.log(f"LibraryGenie: Context menu JSON-RPC found uniqueid.imdb: {uniqueid['imdb']}", xbmc.LOGINFO)
-
-                # Also check imdbnumber field as fallback
-                imdbnumber = movie_details.get('imdbnumber', '')
-                if imdbnumber and imdbnumber.startswith('tt'):
-                    imdb_candidates.append(imdbnumber)
-                    xbmc.log(f"LibraryGenie: Context menu JSON-RPC found imdbnumber: {imdbnumber}", xbmc.LOGINFO)
-
-            except Exception as e:
-                xbmc.log(f"LibraryGenie: Context menu JSON-RPC lookup failed: {str(e)}", xbmc.LOGWARNING)
-
-        for candidate in imdb_candidates:
-            if candidate and str(candidate).startswith('tt'):
-                imdb_id = candidate
-                xbmc.log(f"LibraryGenie: Context menu found IMDb ID: {imdb_id}", xbmc.LOGINFO)
-                break
+        # Get IMDb ID from our custom ListItem property (set by listitem_builder.py)
+        imdb_id = xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)')
+        
+        # Simple fallback for non-LibraryGenie items
+        if not imdb_id:
+            fallback_candidates = [
+                xbmc.getInfoLabel('ListItem.IMDBNumber'),
+                xbmc.getInfoLabel('ListItem.UniqueID(imdb)')
+            ]
+            for candidate in fallback_candidates:
+                if candidate and str(candidate).startswith('tt'):
+                    imdb_id = candidate
+                    break
+        
+        if imdb_id:
+            xbmc.log(f"LibraryGenie: Context menu found IMDb ID: {imdb_id}", xbmc.LOGINFO)
 
         options = []
 
@@ -129,18 +88,9 @@ def main():
             clean_title = item_info.get('title', 'Unknown').replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
             year = item_info.get('year', '')
 
-            # Make sure we still have the IMDb ID at this point
-            current_imdb_id = imdb_id
-            if not current_imdb_id:
-                # Try to get it again from the candidates
-                for candidate in imdb_candidates:
-                    if candidate and str(candidate).startswith('tt'):
-                        current_imdb_id = candidate
-                        break
+            xbmc.log(f"LibraryGenie [DEBUG]: Similarity search - Title: {clean_title}, Year: {year}, IMDb: {imdb_id}", xbmc.LOGDEBUG)
 
-            xbmc.log(f"LibraryGenie [DEBUG]: Similarity search - Title: {clean_title}, Year: {year}, IMDb: {current_imdb_id}", xbmc.LOGDEBUG)
-
-            if not current_imdb_id or not str(current_imdb_id).startswith('tt'):
+            if not imdb_id or not str(imdb_id).startswith('tt'):
                 xbmc.log("LibraryGenie [WARNING]: Similarity search failed - no valid IMDb ID found", xbmc.LOGWARNING)
                 dialog.notification("LibraryGenie", "No valid IMDb ID found for similarity search", xbmcgui.NOTIFICATION_WARNING, 3000)
                 return
@@ -148,7 +98,7 @@ def main():
             # Use RunPlugin to trigger similarity search
             from urllib.parse import quote_plus
             encoded_title = quote_plus(clean_title)
-            similarity_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=find_similar&imdb_id={current_imdb_id}&title={encoded_title})'
+            similarity_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=find_similar&imdb_id={imdb_id}&title={encoded_title})'
             xbmc.executebuiltin(similarity_url)
 
         elif selected_option == "Search Movies...":  # Search Movies - use direct search instead of plugin URL

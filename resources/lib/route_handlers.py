@@ -383,19 +383,22 @@ def find_similar_movies_from_context(params):
         # Get focused item info from Kodi
         import xbmc
         
-        # Try multiple sources for IMDb ID including our custom property
-        imdb_candidates = [
-            xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)'),  # Our custom property first
-            xbmc.getInfoLabel('ListItem.IMDBNumber'),
-            xbmc.getInfoLabel('ListItem.UniqueID(imdb)')
-        ]
+        # Get IMDb ID from our custom property (set by listitem_builder.py)
+        imdb_id = xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)')
         
-        imdb_id = None
-        for candidate in imdb_candidates:
-            if candidate and candidate.startswith('tt'):
-                imdb_id = candidate
-                utils.log(f"Similarity search found IMDb ID: {imdb_id} from source", "INFO")
-                break
+        # Simple fallback for non-LibraryGenie items
+        if not imdb_id:
+            fallback_candidates = [
+                xbmc.getInfoLabel('ListItem.IMDBNumber'),
+                xbmc.getInfoLabel('ListItem.UniqueID(imdb)')
+            ]
+            for candidate in fallback_candidates:
+                if candidate and str(candidate).startswith('tt'):
+                    imdb_id = candidate
+                    break
+        
+        if imdb_id:
+            utils.log(f"Similarity search found IMDb ID: {imdb_id}", "INFO")
                 
         title = xbmc.getInfoLabel('ListItem.Title')
         year = xbmc.getInfoLabel('ListItem.Year')
