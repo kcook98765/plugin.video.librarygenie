@@ -4,6 +4,7 @@ import xbmcgui
 from resources.lib import utils
 from resources.lib.config_manager import Config
 from resources.lib.database_manager import DatabaseManager
+import json # Added for json.loads
 
 def play_movie(params):
     """Play a movie from Kodi library using movieid"""
@@ -400,163 +401,111 @@ def find_similar_movies_from_context(params):
         xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERROR)
 
 def _perform_similarity_search(imdb_id, title):
-    """Shared similarity search logic"""
+    """Perform the actual similarity search and create list"""
     try:
+        from resources.lib.remote_api_client import RemoteAPIClient
+        from resources.lib.config_manager import Config
+        from resources.lib.query_manager import QueryManager
+
         config = Config()
 
-        # Get user's facet preferences or use defaults
-        saved_facets = config.get_setting('similarity_facets') or '["Plot", "Mood/tone"]'
-        import json
+        # Get user preferences for similarity facets
+        similarity_facets = config.get_setting('similarity_facets', '["Plot", "Mood/tone"]')
         try:
-            default_selections = json.loads(saved_facets)
+            facets_list = json.loads(similarity_facets)
         except:
-            default_selections = ["Plot", "Mood/tone"]
+            facets_list = ["Plot", "Mood/tone"]
 
-        # Show facet selection dialog
-        facet_options = ["Plot", "Mood/tone", "Themes/subtext", "Genre/tropes"]
-        preselect = [i for i, option in enumerate(facet_options) if option in default_selections]
-
-        selected_indices = xbmcgui.Dialog().multiselect(
-            'Select similarity aspects:',
-            facet_options,
-            preselect=preselect
-        )
-
-        if selected_indices is None or len(selected_indices) == 0:
-            return  # User cancelled or selected nothing
-
-        # Build facet configuration
-        selected_facets = [facet_options[i] for i in selected_indices]
-        facet_config = {
-            'include_plot': 'Plot' in selected_facets,
-            'include_mood': 'Mood/tone' in selected_facets,
-            'include_themes': 'Themes/subtext' in selected_facets,
-            'include_genre': 'Genre/tropes' in selected_facets
+        # Convert to API parameters
+        facet_params = {
+            'plot': 'Plot' in facets_list,
+            'mood': 'Mood/tone' in facets_list,
+            'themes': 'Themes' in facets_list,
+            'genre': 'Genre' in facets_list
         }
 
-        # Save user's selection for next time
-        config.set_setting('similarity_facets', json.dumps(selected_facets))
+        utils.log(f"Making similarity request for {imdb_id} with facets: plot={facet_params['plot']}, mood={facet_params['mood']}, themes={facet_params['themes']}, genre={facet_params['genre']}", "DEBUG")
 
-        # Show progress dialog with version compatibility
-        progress = xbmcgui.DialogProgress()
+        # Make API request
+        client = RemoteAPIClient()
+        similar_movies = client.find_similar_movies(imdb_id, facet_params)
 
-        # DialogProgress.create() consistently uses 2 arguments across all Kodi versions
-        progress.create('LibraryGenie', 'Finding similar movies...')
+        if not similar_movies:
+            xbmcgui.Dialog().ok('LibraryGenie', 'No similar movies found.')
+            return
 
-        try:
-            # Call similarity API
-            from resources.lib.remote_api_client import RemoteAPIClient
-            api_client = RemoteAPIClient(config)
+        utils.log(f"Found {len(similar_movies)} similar movies", "INFO")
+        utils.log(f"=== SIMILARITY_SEARCH: Raw API response sample (first 3): {similar_movies[:3]} ===", "DEBUG")
 
-            similar_imdb_ids = api_client.find_similar_movies(
-                imdb_id,
-                **facet_config
-            )
+        # Create list name with facet description
+        facet_names = [name for name, enabled in zip(['Plot', 'Mood/tone', 'Themes', 'Genre'], 
+                                                    [facet_params['plot'], facet_params['mood'], 
+                                                     facet_params['themes'], facet_params['genre']]) 
+                      if enabled]
+        facet_desc = ' + '.join(facet_names)
 
-            # Update progress
-            progress.update(60, 'Processing results...')
+        # Get search history folder
+        query_manager = QueryManager(config.db_path)
+        search_folder = query_manager.ensure_search_history_folder()
 
-            if not similar_imdb_ids:
-                progress.close()
-                xbmcgui.Dialog().ok('LibraryGenie', 'No similar movies were found.')
-                return
+        # Create unique list name
+        base_name = f"Similar to {title} ({facet_desc})"
+        list_name = query_manager.get_unique_list_name(base_name, search_folder['id'])
+        utils.log(f"=== SIMILARITY_SEARCH: Creating list '{list_name}' in folder {search_folder['id']} ===", "DEBUG")
 
-            # Create results list
-            db_manager = DatabaseManager(config.db_path)
+        # Create the list
+        new_list = query_manager.create_list(list_name, search_folder['id'])
+        if not new_list:
+            xbmcgui.Dialog().ok('LibraryGenie', 'Failed to create similarity list.')
+            return
 
-            # Create "Search History" folder if it doesn't exist
-            search_folder_id = db_manager.ensure_folder_exists("Search History", None)
+        utils.log(f"=== SIMILARITY_SEARCH: Created list with ID {new_list['id']} ===", "DEBUG")
 
-            # Create list name with facets - make unique if needed
-            facet_names = " + ".join(selected_facets)
-            base_list_name = f"Similar to {title} ({facet_names})"
+        # Insert movies into the list
+        for i, movie_data in enumerate(similar_movies):
+            imdb = movie_data.get('imdb_id', '')
+            score = movie_data.get('score', 0)
 
-            # Check if list name already exists and create unique name
-            counter = 1
-            list_name = base_list_name
-            while db_manager.get_list_id_by_name(list_name):
-                list_name = f"{base_list_name} (#{counter})"
-                counter += 1
+            utils.log(f"=== SIMILARITY_SEARCH: Processing movie {i+1}/{len(similar_movies)}: {imdb} (score: {score}) ===", "DEBUG")
 
-            progress.update(80, f'Saving {len(similar_imdb_ids)} results...')
+            # Create media item data structure
+            media_item = {
+                'kodi_id': 0,  # Will be resolved later
+                'title': f"Similar Movie {imdb}",  # Placeholder title
+                'year': 0,     # Will be resolved later  
+                'imdbnumber': imdb,
+                'source': 'similarity',
+                'plot': f"Similar movie (IMDb: {imdb})",
+                'rating': 0.0,
+                'search_score': score,
+                'play': f"similarity://{imdb}"
+            }
 
-            # Create the list
-            list_id = db_manager.create_list(list_name, search_folder_id)
+            # Add all the other fields that might be expected
+            for field in ['genre', 'director', 'writer', 'studio', 'mpaa', 'cast', 'country', 
+                         'runtime', 'tagline', 'plotoutline', 'originaltitle', 'sorttitle', 'set', 
+                         'setid', 'top250', 'votes', 'trailer', 'dateadded', 'tag', 'userrating', 
+                         'lastplayed', 'playcount', 'file', 'fanart', 'thumbnail', 'art', 
+                         'streamdetails', 'showlink', 'resume', 'ratings', 'uniqueid', 'premiered']:
+                media_item[field] = ''
 
-            # Add similar movies to the list
-            for imdb_id in similar_imdb_ids:
-                # Insert media item with minimal info - use insert_media_item method directly
-                media_data = {
-                    'kodi_id': 0,  # No Kodi ID for similarity results
-                    'title': f'Similar Movie {imdb_id}',  # Temporary title
-                    'year': 0,
-                    'imdbnumber': imdb_id,
-                    'source': 'similarity',
-                    'plot': f'Similar movie (IMDb: {imdb_id})',
-                    'rating': 0.0,
-                    'genre': '',
-                    'director': '',
-                    'writer': '',
-                    'studio': '',
-                    'mpaa': '',
-                    'cast': '',
-                    'country': '',
-                    'runtime': 0,
-                    'tagline': '',
-                    'plotoutline': '',
-                    'originaltitle': '',
-                    'sorttitle': '',
-                    'set': '',
-                    'setid': 0,
-                    'top250': 0,
-                    'votes': '0',
-                    'trailer': '',
-                    'dateadded': '',
-                    'tag': '',
-                    'userrating': 0,
-                    'lastplayed': '',
-                    'playcount': 0,
-                    'file': '',
-                    'fanart': '',
-                    'thumbnail': '',
-                    'art': '{}',  # Valid JSON for art field
-                    'streamdetails': '',
-                    'showlink': '',
-                    'resume': '',
-                    'ratings': '',
-                    'uniqueid': '',
-                    'premiered': '',
-                    'play': f'similarity://{imdb_id}'  # Add play field for similarity results
-                }
+            utils.log(f"=== SIMILARITY_SEARCH: Built media_item keys: {list(media_item.keys())} ===", "DEBUG")
+            utils.log(f"=== SIMILARITY_SEARCH: Built media_item sample: {dict(list(media_item.items())[:5])} ===", "DEBUG")
 
-                # Use query_manager to insert media item properly
-                media_id = db_manager.query_manager.insert_media_item(media_data)
+            # Insert the media item and add to list
+            utils.log(f"=== SIMILARITY_SEARCH: Inserting media item {i+1} into list {new_list['id']} ===", "DEBUG")
+            result = query_manager.insert_media_item_and_add_to_list(new_list['id'], media_item)
+            utils.log(f"=== SIMILARITY_SEARCH: Insert result for item {i+1}: {result} ===", "DEBUG")
 
-                # Link to list
-                db_manager.insert_data('list_items', {
-                    'list_id': list_id,
-                    'media_id': media_id
-                })
+        utils.log(f"=== SIMILARITY_SEARCH: Finished inserting {len(similar_movies)} movies into list {new_list['id']} ===", "DEBUG")
 
-            progress.close()
+        # Show confirmation
+        xbmcgui.Dialog().notification('LibraryGenie', f'Created similarity list with {len(similar_movies)} movies', xbmcgui.NOTIFICATION_INFO)
 
-            # Navigate to results
-            from main import _plugin_url
-            result_url = _plugin_url({
-                'action': 'browse_list',
-                'list_id': str(list_id),
-                'view': 'list'
-            })
-
-            utils.log(f"Navigating to similarity results: {result_url}", "DEBUG")
-            xbmc.executebuiltin(f'Container.Update({result_url},replace)')
-
-        finally:
-            if progress:
-                progress.close()
+        utils.log(f"=== SIMILARITY_SEARCH: Similarity search complete - list ID: {new_list['id']} ===", "INFO")
 
     except Exception as e:
-        utils.log(f"Error in _perform_similarity_search: {str(e)}", "ERROR")
+        utils.log(f"Error in similarity search: {str(e)}", "ERROR")
         import traceback
         utils.log(f"Similarity search traceback: {traceback.format_exc()}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search failed', xbmcgui.NOTIFICATION_ERROR)

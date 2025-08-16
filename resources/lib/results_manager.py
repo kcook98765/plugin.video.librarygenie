@@ -51,6 +51,7 @@ class ResultsManager(Singleton):
 
                 # Try to get title/year from imdb_exports first
                 if imdb:
+                    utils.log(f"=== TITLE_YEAR_LOOKUP: Looking up IMDB {imdb} in imdb_exports ===", "DEBUG")
                     try:
                         q = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
                         hit = self.query_manager.execute_query(q, (imdb,)) or []
@@ -58,11 +59,11 @@ class ResultsManager(Singleton):
                             rec = hit[0]
                             title = (rec.get('title') if isinstance(rec, dict) else rec[0]) or ''
                             year = int((rec.get('year') if isinstance(rec, dict) else rec[1]) or 0)
-                            # utils.log(f"Found in imdb_exports: {title} ({year}) for IMDB {imdb}", "DEBUG")
+                            utils.log(f"=== TITLE_YEAR_LOOKUP: Found in imdb_exports: {title} ({year}) for IMDB {imdb} ===", "DEBUG")
                         else:
-                            utils.log(f"No imdb_exports entry found for IMDB {imdb}", "DEBUG")
+                            utils.log(f"=== TITLE_YEAR_LOOKUP: No imdb_exports entry found for IMDB {imdb} ===", "DEBUG")
                     except Exception as e:
-                        utils.log(f"Error querying imdb_exports for {imdb}: {str(e)}", "ERROR")
+                        utils.log(f"=== TITLE_YEAR_LOOKUP: Error querying imdb_exports for {imdb}: {str(e)} ===", "ERROR")
 
                 # Fallback to stored data if imdb lookup failed
                 if not title:
