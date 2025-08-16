@@ -140,8 +140,21 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                 elif key == 'mediatype':
                     # Skip mediatype for v19 setInfo
                     continue
+                elif key == 'uniqueid':
+                    # Handle uniqueid for v19 - setInfo expects it as a dict but may not handle it properly
+                    # Skip for setInfo and handle separately
+                    continue
                 else:
                     clean_info[key] = value
+            
+            # Handle uniqueid separately for v19 compatibility
+            uniqueid_data = info_dict.get('uniqueid')
+            if uniqueid_data and isinstance(uniqueid_data, dict):
+                imdb_id = uniqueid_data.get('imdb')
+                if imdb_id and str(imdb_id).startswith('tt'):
+                    # Ensure imdbnumber is set for v19 compatibility
+                    clean_info['imdbnumber'] = str(imdb_id)
+                    utils.log(f"Set imdbnumber for v19 compatibility: {imdb_id}", "DEBUG")
 
             # Skip DBID for v19 non-playable items to prevent Information dialog conflicts
             # Only add DBID for actual playable library movies, not for options/folder items

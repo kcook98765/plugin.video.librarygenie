@@ -339,14 +339,21 @@ class ListItemBuilder:
         if media_info.get('plot'):
             pass
 
-        # Add IMDb ID to info_dict if available
+        # Add IMDb ID to info_dict if available - version-aware handling
         imdb_from_media = (media_info.get('imdbnumber', '') or 
                           media_info.get('uniqueid', {}).get('imdb', '') if isinstance(media_info.get('uniqueid'), dict) else '' or
                           media_info.get('info', {}).get('imdbnumber', '') or
                           media_info.get('imdb_id', ''))
         
         if imdb_from_media and str(imdb_from_media).startswith('tt'):
-            info_dict['imdbnumber'] = str(imdb_from_media)
+            imdb_id = str(imdb_from_media)
+            info_dict['imdbnumber'] = imdb_id
+            
+            # For Kodi v19+, also set uniqueid properly
+            if not info_dict.get('uniqueid'):
+                info_dict['uniqueid'] = {'imdb': imdb_id}
+            elif isinstance(info_dict.get('uniqueid'), dict):
+                info_dict['uniqueid']['imdb'] = imdb_id
         
         # Use the specialized set_info_tag function that handles Kodi version compatibility
         set_info_tag(li, info_dict, 'video')
@@ -447,10 +454,11 @@ class ListItemBuilder:
             li.setPath(play_url)
 
         # Store IMDb ID as a property on the ListItem itself for context menu access
-        imdb_id = media_info.get('imdbnumber', '')
-        if imdb_id and imdb_id.startswith('tt'):
-            li.setProperty('LibraryGenie.IMDbID', imdb_id)
-            utils.log(f"Set ListItem property LibraryGenie.IMDbID = {imdb_id} for {title}", "DEBUG")
+        # Use the same IMDb ID we processed above for consistency
+        final_imdb_id = info_dict.get('imdbnumber', '')
+        if final_imdb_id and str(final_imdb_id).startswith('tt'):
+            li.setProperty('LibraryGenie.IMDbID', str(final_imdb_id))
+            utils.log(f"Set ListItem property LibraryGenie.IMDbID = {final_imdb_id} for {title}", "DEBUG")
 
         return li
 
