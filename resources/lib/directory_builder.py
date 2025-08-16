@@ -30,12 +30,17 @@ def add_context_menu_for_item(li: xbmcgui.ListItem, item_type: str, **ids):
     elif item_type == 'movie':
         list_id = ids.get('list_id', '')
         movie_id = ids.get('movie_id', '')
-        cm += [
-            ('Remove movie from list',
-             f'RunPlugin({build_plugin_url({"action":"remove_from_list","list_id":list_id,"movie_id":movie_id})})'),
-            ('Refresh metadata',
-             f'RunPlugin({build_plugin_url({"action":"refresh_movie","movie_id":movie_id})})'),
-        ]
+        # Ensure we have both required IDs for remove action
+        if movie_id and list_id:
+            cm += [
+                ('Remove movie from list',
+                 f'RunPlugin({build_plugin_url({"action":"remove_from_list","list_id":list_id,"movie_id":movie_id})})'),
+            ]
+        if movie_id:
+            cm += [
+                ('Refresh metadata',
+                 f'RunPlugin({build_plugin_url({"action":"refresh_movie","movie_id":movie_id})})'),
+            ]
     elif item_type == 'folder':
         folder_id = ids.get('folder_id', '') # Changed from 'folder' to 'folder_id' for consistency
         if folder_id:
