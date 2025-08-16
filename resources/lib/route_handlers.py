@@ -479,19 +479,52 @@ def _perform_similarity_search(imdb_id, title):
             
             # Add similar movies to the list
             for imdb_id in similar_imdb_ids:
-                # Insert media item with minimal info
-                db_manager.insert_data('media_items', {
-                    'title': '',  # Will be resolved by results_manager
+                # Insert media item with minimal info - use insert_media_item method directly
+                media_data = {
+                    'title': f'Similar Movie {imdb_id}',  # Temporary title
                     'year': 0,
                     'imdbnumber': imdb_id,
                     'source': 'similarity',
                     'plot': f'Similar movie (IMDb: {imdb_id})',
                     'rating': 0.0,
-                    'genre': ''
-                })
+                    'genre': '',
+                    'director': '',
+                    'writer': '',
+                    'studio': '',
+                    'mpaa': '',
+                    'cast': '',
+                    'country': '',
+                    'runtime': 0,
+                    'tagline': '',
+                    'plotoutline': '',
+                    'originaltitle': '',
+                    'sorttitle': '',
+                    'set': '',
+                    'setid': 0,
+                    'top250': 0,
+                    'votes': '0',
+                    'trailer': '',
+                    'dateadded': '',
+                    'tag': '',
+                    'userrating': 0,
+                    'lastplayed': '',
+                    'playcount': 0,
+                    'file': '',
+                    'fanart': '',
+                    'thumbnail': '',
+                    'art': '',
+                    'streamdetails': '',
+                    'showlink': '',
+                    'resume': '',
+                    'ratings': '',
+                    'uniqueid': '',
+                    'premiered': ''
+                }
+                
+                # Use query_manager to insert media item properly
+                media_id = db_manager.query_manager.insert_media_item(media_data)
                 
                 # Link to list
-                media_id = db_manager.cursor.lastrowid
                 db_manager.insert_data('list_items', {
                     'list_id': list_id,
                     'media_id': media_id
