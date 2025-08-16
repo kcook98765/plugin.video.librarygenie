@@ -219,8 +219,7 @@ def remove_from_list(params):
         # Show confirmation dialog
         if not xbmcgui.Dialog().yesno(
             'Remove from List', 
-            f'Remove "{media_title}" from "{list_name}"?',
-            'This action cannot be undone.'
+            f'Remove "{media_title}" from "{list_name}"?\n\nThis action cannot be undone.'
         ):
             utils.log("User cancelled removal from list", "DEBUG")
             return
