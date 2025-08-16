@@ -430,6 +430,12 @@ def _perform_similarity_search(imdb_id, title):
         query_manager = QueryManager(config.db_path)
         search_folder = query_manager.ensure_search_history_folder()
 
+        # Check if search folder was created successfully
+        if search_folder is None:
+            utils.log("Failed to ensure search history folder. Cannot proceed.", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'Failed to find/create necessary folder', xbmcgui.NOTIFICATION_ERROR)
+            return
+
         # Create unique list name
         base_name = f"Similar to {title} ({facet_desc})"
         list_name = query_manager.get_unique_list_name(base_name, search_folder['id'])
