@@ -177,18 +177,46 @@ def delete_list(params):
 def remove_from_list(params):
     list_id = params.get('list_id', [None])[0]
     movie_id = params.get('movie_id', [None])[0]
-    if not (list_id and movie_id):
+    
+    utils.log(f"remove_from_list called with list_id={list_id}, movie_id={movie_id}", "DEBUG")
+    
+    if not list_id:
+        utils.log("remove_from_list: Missing list_id parameter", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error: Missing list ID', xbmcgui.NOTIFICATION_ERROR)
         return
+        
+    if not movie_id:
+        utils.log("remove_from_list: Missing movie_id parameter", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error: Missing movie ID', xbmcgui.NOTIFICATION_ERROR)
+        return
+        
     try:
         config = Config()
         db_manager = DatabaseManager(config.db_path)
 
-        db_manager.delete_data('list_items', f"list_id = {list_id} AND media_id = {movie_id}")
-        xbmcgui.Dialog().notification('LibraryGenie', 'Removed from list')
+        # Check if the item exists before trying to delete
+        check_query = f"SELECT COUNT(*) as count FROM list_items WHERE list_id = {list_id} AND media_id = {movie_id}"
+        result = db_manager.cursor.execute(check_query).fetchone()
+        item_count = result[0] if result else 0
+        
+        if item_count == 0:
+            utils.log(f"Item not found in list: list_id={list_id}, movie_id={movie_id}", "WARNING")
+            xbmcgui.Dialog().notification('LibraryGenie', 'Item not found in list', xbmcgui.NOTIFICATION_WARNING)
+        else:
+            db_manager.delete_data('list_items', f"list_id = {list_id} AND media_id = {movie_id}")
+            utils.log(f"Successfully removed item from list: list_id={list_id}, movie_id={movie_id}", "INFO")
+            xbmcgui.Dialog().notification('LibraryGenie', 'Removed from list')
+            
+        # Always refresh the container regardless of success/failure
         xbmc.executebuiltin('Container.Refresh')
+        
     except Exception as e:
         utils.log(f"Error removing from list: {str(e)}", "ERROR")
-        xbmcgui.Dialog().notification('LibraryGenie', 'Failed to remove')
+        import traceback
+        utils.log(f"remove_from_list traceback: {traceback.format_exc()}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Failed to remove', xbmcgui.NOTIFICATION_ERROR)
+        # Still refresh container to ensure UI is updated
+        xbmc.executebuiltin('Container.Refresh')
 
 def move_list(params):
     """Move a list to a different folder or root"""
