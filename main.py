@@ -345,6 +345,27 @@ def router(paramstring):
             utils.log(f"Error in deferred option execution: {str(e)}", "ERROR")
         return
 
+    # Handle plugin routing
+    if len(sys.argv) > 1:
+        if 'action=search_movies' in sys.argv[1]:
+            from resources.lib.window_search import WindowSearch
+            window_search = WindowSearch()
+            window_search.run()
+            return
+        elif 'action=refresh_metadata' in sys.argv[1]:
+            from resources.lib.route_handlers import handle_refresh_metadata
+            handle_refresh_metadata()
+            return
+        elif 'action=authenticate' in sys.argv[1]:
+            from resources.lib.authenticate_code import run_authenticate_code
+            run_authenticate_code()
+            return
+        elif 'import_from_shortlist' in sys.argv:
+            # Handle import from shortlist action
+            from resources.lib.shortlist_importer import import_from_shortlist
+            import_from_shortlist()
+            return
+
     # Check if paramstr is valid and not empty before parsing
     if not params:
         utils.log("Received empty paramstr, building root directory.", "WARNING")
@@ -521,10 +542,25 @@ def main():
             return
 
         # Handle plugin routing
-        if len(sys.argv) >= 3:
-            utils.log("Plugin routing detected", "DEBUG")
-            router(sys.argv[2])
-            return
+        if len(sys.argv) > 1:
+            if 'action=search_movies' in sys.argv[1]:
+                from resources.lib.window_search import WindowSearch
+                window_search = WindowSearch()
+                window_search.run()
+                return
+            elif 'action=refresh_metadata' in sys.argv[1]:
+                from resources.lib.route_handlers import handle_refresh_metadata
+                handle_refresh_metadata()
+                return
+            elif 'action=authenticate' in sys.argv[1]:
+                from resources.lib.authenticate_code import run_authenticate_code
+                run_authenticate_code()
+                return
+            elif 'import_from_shortlist' in sys.argv:
+                # Handle import from shortlist action
+                from resources.lib.shortlist_importer import import_from_shortlist
+                import_from_shortlist()
+                return
 
         # Fallback: Run the addon helper if no other conditions met
         utils.log("No specific action detected, running default addon helper.", "DEBUG")
