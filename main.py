@@ -471,6 +471,8 @@ def router(paramstring):
         route_handlers.find_similar_movies_from_plugin(params)
     elif action == 'add_to_list_from_context':
         route_handlers.add_to_list_from_context(params)
+    elif action == 'add_to_list':
+        route_handlers.add_to_list(params)
     else:
         # Default: build root directory if action is not recognized or empty
         utils.log(f"Unrecognized action '{action}' or no action specified, building root directory.", "DEBUG")

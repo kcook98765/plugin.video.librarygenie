@@ -393,6 +393,141 @@ def find_similar_movies_from_plugin(params):
         utils.log(f"Error in find_similar_movies_from_plugin: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERROR)
 
+def add_to_list(params):
+    """Handler for adding items to lists from context menu - simplified version"""
+    try:
+        # Extract parameters
+        title = params.get('title', ['Unknown'])[0] if params.get('title') else 'Unknown'
+        item_id = params.get('item_id', [None])[0] if params.get('item_id') else None
+        
+        # URL decode the title
+        import urllib.parse
+        title = urllib.parse.unquote_plus(title)
+        
+        utils.log(f"add_to_list called with title='{title}', item_id='{item_id}'", "DEBUG")
+        
+        # For items coming from context menu without full media info, we need to get it from Kodi
+        # Use xbmc.getInfoLabel to get current focused item info
+        import xbmc
+        
+        # Try to get IMDb ID from focused item
+        imdb_id = None
+        year = ""
+        
+        # Try multiple sources for IMDb ID
+        imdb_candidates = [
+            xbmc.getInfoLabel('ListItem.IMDBNumber'),
+            xbmc.getInfoLabel('ListItem.UniqueID(imdb)'),
+            xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)')
+        ]
+        
+        for candidate in imdb_candidates:
+            if candidate and str(candidate).startswith('tt'):
+                imdb_id = candidate
+                break
+        
+        # Get year
+        year_str = xbmc.getInfoLabel('ListItem.Year')
+        if year_str and year_str.isdigit():
+            year = year_str
+        
+        utils.log(f"Extracted from Kodi - Title: {title}, Year: {year}, IMDb: {imdb_id}", "DEBUG")
+        
+        if not imdb_id or not imdb_id.startswith('tt'):
+            xbmcgui.Dialog().ok('LibraryGenie', "This item doesn't have a valid IMDb ID.")
+            return
+        
+        # Create media item object
+        media_item = {
+            'title': title,
+            'year': int(year) if year and year.isdigit() else 0,
+            'imdbnumber': imdb_id,
+            'media_type': 'movie',
+            'source': 'context_menu'
+        }
+        
+        # Use database manager to handle the add to list functionality
+        from resources.lib.config_manager import Config
+        from resources.lib.database_manager import DatabaseManager
+        
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+        
+        # Get all available lists for user selection
+        all_lists = db_manager.fetch_all_lists()
+        
+        if not all_lists:
+            xbmcgui.Dialog().ok('LibraryGenie', 'No lists found. Create a list first.')
+            return
+        
+        # Create list selection options
+        list_options = []
+        list_ids = []
+        
+        for list_item in all_lists:
+            # Get folder path for display
+            folder_path = ""
+            if list_item.get('folder_id'):
+                folder = db_manager.fetch_folder_by_id(list_item['folder_id'])
+                if folder:
+                    folder_path = f"[{folder['name']}] "
+            
+            list_options.append(f"{folder_path}{list_item['name']}")
+            list_ids.append(list_item['id'])
+        
+        # Show list selection dialog
+        selected_index = xbmcgui.Dialog().select(
+            f"Add '{title}' to list:",
+            list_options
+        )
+        
+        if selected_index == -1:  # User cancelled
+            utils.log("User cancelled list selection", "DEBUG")
+            return
+        
+        selected_list_id = list_ids[selected_index]
+        
+        # Create or find the media item
+        existing_media = db_manager.fetch_data('media_items', f"imdbnumber = '{imdb_id}'")
+        
+        if existing_media:
+            media_id = existing_media[0]['id']
+            utils.log(f"Found existing media item with ID: {media_id}", "DEBUG")
+        else:
+            # Insert new media item
+            media_id = db_manager.insert_data('media_items', media_item)
+            utils.log(f"Created new media item with ID: {media_id}", "DEBUG")
+        
+        # Check if already in list
+        existing_list_item = db_manager.fetch_data('list_items', f"list_id = {selected_list_id} AND media_item_id = {media_id}")
+        
+        if existing_list_item:
+            xbmcgui.Dialog().notification('LibraryGenie', f'"{title}" is already in that list', xbmcgui.NOTIFICATION_INFO, 3000)
+        else:
+            # Add to list
+            try:
+                list_item_data = {
+                    'list_id': selected_list_id,
+                    'media_item_id': media_id
+                }
+                columns = ', '.join(list_item_data.keys())
+                placeholders = ', '.join(['?' for _ in list_item_data])
+                query = f'INSERT INTO list_items ({columns}) VALUES ({placeholders})'
+                
+                db_manager._execute_with_retry(db_manager.cursor.execute, query, tuple(list_item_data.values()))
+                db_manager.connection.commit()
+                
+                utils.log(f"Successfully added item to list: list_id={selected_list_id}, media_item_id={media_id}", "DEBUG")
+                xbmcgui.Dialog().notification('LibraryGenie', f'Added "{title}" to list', xbmcgui.NOTIFICATION_INFO, 3000)
+                
+            except Exception as insert_error:
+                utils.log(f"Error inserting list item: {str(insert_error)}", "ERROR")
+                xbmcgui.Dialog().notification('LibraryGenie', 'Error adding to list', xbmcgui.NOTIFICATION_ERROR, 3000)
+    
+    except Exception as e:
+        utils.log(f"Error in add_to_list: {str(e)}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error adding to list', xbmcgui.NOTIFICATION_ERROR, 3000)
+
 def add_to_list_from_context(params):
     """Handler for adding a movie to a list from native Kodi context menu"""
     try:
