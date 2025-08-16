@@ -27,7 +27,7 @@
       <menu id="kodi.core.main">
         <item library="resources/lib/context.py">
             <label>LibraryGenie</label>
-            <visible>true</visible>
+            <visible>!String.StartsWith(Container.FolderPath,plugin://plugin.video.librarygenie)</visible>
         </item>
       </menu>
     </extension>
