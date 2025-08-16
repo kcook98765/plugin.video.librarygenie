@@ -506,34 +506,55 @@ def _perform_similarity_search(imdb_id, title):
         utils.log(f"=== SIMILARITY_SEARCH: Converted to {len(search_results)} search results ===", "DEBUG")
 
         if search_results:
-            # Step 2: Use the results_manager to properly handle the search results
-            # This will look up titles/years and create proper media items
-            utils.log(f"=== SIMILARITY_SEARCH: Using results_manager to process search results ===", "DEBUG")
+            # Step 2: Create media items for each search result following the search pattern
+            utils.log(f"=== SIMILARITY_SEARCH: Creating media items for {len(search_results)} results ===", "DEBUG")
             
-            from resources.lib.results_manager import ResultsManager
-            
-            results_manager = ResultsManager()
-            
-            # Convert search results to the format expected by add_search_history
-            formatted_results = {
-                'results': [{'imdb_id': result['imdbnumber'], 'score': result['search_score']} for result in search_results],
-                'query': f"Similar to {title} ({facet_desc})",
-                'success': True
-            }
-            
-            utils.log(f"=== SIMILARITY_SEARCH: Calling add_search_history with {len(formatted_results['results'])} results ===", "DEBUG")
-            
-            # Use the existing add_search_history method which handles:
-            # - IMDb ID to title/year lookup
-            # - JSON-RPC batch requests for library matching
-            # - Proper media_item creation with full metadata
-            try:
-                results_manager.add_search_history(formatted_results, new_list['id'])
-                utils.log(f"=== SIMILARITY_SEARCH: Successfully added search history to list {new_list['id']} ===", "DEBUG")
-            except Exception as e:
-                utils.log(f"=== SIMILARITY_SEARCH: Error in add_search_history: {str(e)} ===", "ERROR")
-                import traceback
-                utils.log(f"=== SIMILARITY_SEARCH: add_search_history traceback: {traceback.format_exc()} ===", "ERROR")
+            for i, result in enumerate(search_results):
+                imdb_id = result['imdbnumber']
+                search_score = result.get('search_score', 0)
+                
+                utils.log(f"=== SIMILARITY_SEARCH: Processing result {i+1}/{len(search_results)}: {imdb_id} (score: {search_score}) ===", "DEBUG")
+                
+                # Look up title and year from imdb_exports if available
+                title_lookup = ''
+                year_lookup = 0
+                
+                try:
+                    lookup_query = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
+                    lookup_result = query_manager.execute_query(lookup_query, (imdb_id,))
+                    if lookup_result:
+                        title_lookup = lookup_result[0].get('title', '')
+                        year_lookup = int(lookup_result[0].get('year', 0) or 0)
+                        utils.log(f"=== SIMILARITY_SEARCH: Found title/year for {imdb_id}: '{title_lookup}' ({year_lookup}) ===", "DEBUG")
+                    else:
+                        utils.log(f"=== SIMILARITY_SEARCH: No imdb_exports entry for {imdb_id} ===", "DEBUG")
+                except Exception as e:
+                    utils.log(f"=== SIMILARITY_SEARCH: Error looking up title/year for {imdb_id}: {str(e)} ===", "ERROR")
+                
+                # Create media item with available data
+                media_item_data = {
+                    'kodi_id': 0,
+                    'title': title_lookup or f'IMDB: {imdb_id}',
+                    'year': year_lookup,
+                    'imdbnumber': imdb_id,
+                    'source': 'search',
+                    'plot': '',
+                    'rating': 0.0,
+                    'search_score': search_score,
+                    'media_type': 'movie'
+                }
+                
+                utils.log(f"=== SIMILARITY_SEARCH: Creating media item: title='{media_item_data['title']}', year={media_item_data['year']}, imdb={imdb_id} ===", "DEBUG")
+                
+                # Insert media item and add to list
+                try:
+                    success = query_manager.insert_media_item_and_add_to_list(new_list['id'], media_item_data)
+                    if success:
+                        utils.log(f"=== SIMILARITY_SEARCH: Successfully added {imdb_id} to list ===", "DEBUG")
+                    else:
+                        utils.log(f"=== SIMILARITY_SEARCH: Failed to add {imdb_id} to list ===", "ERROR")
+                except Exception as e:
+                    utils.log(f"=== SIMILARITY_SEARCH: Error adding {imdb_id} to list: {str(e)} ===", "ERROR")
 
         utils.log(f"=== SIMILARITY_SEARCH: Finished processing {len(search_results)} movies into list {new_list['id']} ===", "DEBUG")
 
