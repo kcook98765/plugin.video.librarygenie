@@ -63,7 +63,7 @@ class JSONRPC:
                             utils.log(f"First movie sample keys: {list(first_movie.keys())}", "DEBUG")
                             utils.log(f"First movie title: {first_movie.get('title', 'N/A')}", "DEBUG")
 
-                            
+
                     elif 'moviedetails' in result:
                         movie = result['moviedetails']
                         utils.log(f"Movie details keys: {list(movie.keys())}", "DEBUG")
@@ -193,8 +193,8 @@ class JSONRPC:
             if total_estimated is None and total > 0:
                 total_estimated = total
 
-            # Log summary every 500 movies or in debug mode
-            if start % 500 == 0 or len(movies) < limit or utils.is_debug_enabled():
+            # Log summary only every 500 movies to reduce spam
+            if start % 500 == 0:
                 utils.log(f"JSONRPC GetMovies batch: Got {len(movies)} movies (start={start}, total={total})", "DEBUG")
 
             if not movies:
