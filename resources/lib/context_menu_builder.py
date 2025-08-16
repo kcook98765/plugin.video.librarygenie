@@ -70,13 +70,12 @@ class ContextMenuBuilder:
         # Add to List - always available
         context_menu_items.append(('Add to List...', f'RunPlugin(plugin://plugin.video.librarygenie/?action=add_to_list&title={quote_plus(formatted_title)}&item_id={item_id})'))
 
-        # Remove from List - only when viewing list contents
-        current_list_id = context.get('current_list_id')
-        if current_list_id:
-            # Use media_id from media_info, which should be available when viewing list contents
-            media_id = media_info.get('media_id') or media_info.get('id') or media_info.get('kodi_id') or media_info.get('movieid')
+        # Remove from List - only when viewing list contents (using embedded data)
+        viewing_list_id = media_info.get('_viewing_list_id')
+        if viewing_list_id:
+            media_id = media_info.get('media_id')
             if media_id:
-                context_menu_items.append(('Remove from List', f'RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={current_list_id}&media_id={media_id})'))
+                context_menu_items.append(('Remove from List', f'RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={viewing_list_id}&media_id={media_id})'))
 
         # Refresh Metadata - always available
         context_menu_items.append(('Refresh Metadata', f'RunPlugin(plugin://plugin.video.librarygenie/?action=refresh_metadata&title={quote_plus(formatted_title)}&item_id={item_id})'))

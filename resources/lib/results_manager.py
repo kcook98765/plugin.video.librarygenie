@@ -170,6 +170,11 @@ class ResultsManager(Singleton):
                     # Preserve search score from original item for sorting
                     meta['search_score'] = processed_ref.get('search_score', 0)
                     meta['list_item_id'] = r.get('list_item_id') # from original row
+                    
+                    # Add context for list viewing and removal
+                    meta['_viewing_list_id'] = list_id
+                    meta['media_id'] = r.get('id') or r.get('media_id') or meta.get('movieid')
+                    
                     from resources.lib.listitem_builder import ListItemBuilder
                     list_item = ListItemBuilder.build_video_item(meta, is_search_history=is_search_history)
                     resolved_items_for_list.append((list_item, meta.get('file', ''), meta))
@@ -189,7 +194,9 @@ class ResultsManager(Singleton):
                         'cast': [],
                         'art': {},
                         'search_score': processed_ref.get('search_score', 0),
-                        'list_item_id': r.get('list_item_id') # from original row
+                        'list_item_id': r.get('list_item_id'), # from original row
+                        '_viewing_list_id': list_id,
+                        'media_id': r.get('id') or r.get('media_id')
                     }
                     from resources.lib.listitem_builder import ListItemBuilder
                     list_item = ListItemBuilder.build_video_item(resolved_item, is_search_history=is_search_history)
@@ -199,6 +206,10 @@ class ResultsManager(Singleton):
             # Sort external items by search score as well if they have scores
             external_sorted = sorted(external, key=lambda x: x.get('search_score', 0), reverse=True)
             for item in external_sorted:
+                # Add context for list viewing and removal
+                item['_viewing_list_id'] = list_id
+                item['media_id'] = item.get('id') or item.get('media_id')
+                
                 from resources.lib.listitem_builder import ListItemBuilder
                 list_item = ListItemBuilder.build_video_item(item, is_search_history=is_search_history)
                 resolved_items_for_list.append((list_item, item.get('file', ''), item))
