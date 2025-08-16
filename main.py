@@ -26,7 +26,7 @@ from resources.lib.database_manager import DatabaseManager
 from resources.lib import utils
 from resources.lib.route_handlers import (
     play_movie, show_item_details, create_list, rename_list, delete_list,
-    remove_from_list, rename_folder, refresh_movie, do_search, move_list
+    remove_from_list, rename_folder, refresh_movie, move_list
 )
 from resources.lib.listitem_builder import ListItemBuilder
 from resources.lib import route_handlers
@@ -411,11 +411,6 @@ def router(paramstring):
             return
         options_manager.show_options_menu(q)
         # IMPORTANT: Do NOT call endOfDirectory() here - this is a RunPlugin action
-        return
-    elif action == 'search_movies':
-        utils.log("Routing to search_movies action", "DEBUG")
-        nav_manager.set_navigation_in_progress(True)
-        do_search(q)
         return
     elif action == 'create_list':
         utils.log("Routing to create_list action", "DEBUG")
