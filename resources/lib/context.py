@@ -46,8 +46,9 @@ def main():
         # Enhanced IMDb ID detection for v19 compatibility
         imdb_id = None
         
-        # Try multiple sources for IMDb ID
+        # Try multiple sources for IMDb ID, starting with our custom property
         imdb_candidates = [
+            xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)'),  # Our custom property first
             xbmc.getInfoLabel('ListItem.IMDBNumber'),
             xbmc.getInfoLabel('ListItem.UniqueID(imdb)'),
             item_info.get('imdbnumber', ''),

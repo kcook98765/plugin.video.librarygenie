@@ -419,7 +419,7 @@ class ListItemBuilder:
                    media_info.get('uniqueid', {}).get('imdb', '') if isinstance(media_info.get('uniqueid'), dict) else '' or
                    media_info.get('info', {}).get('imdbnumber', '') or
                    media_info.get('imdb_id', ''))
-        
+
         if imdb_id and str(imdb_id).startswith('tt'):
             encoded_title = quote_plus(str(media_info.get('title', 'Unknown')))
             context_menu_items.append(('Find Similar Movies...', f'RunPlugin(plugin://plugin.video.librarygenie/?action=find_similar&imdb_id={imdb_id}&title={encoded_title})'))
@@ -436,6 +436,13 @@ class ListItemBuilder:
         play_url = media_info.get('info', {}).get('play') or media_info.get('play') or media_info.get('file')
         if play_url:
             li.setPath(play_url)
+
+        # Store IMDb ID as a property on the ListItem itself for context menu access
+        imdb_id = media_info.get('imdbnumber', '')
+        if imdb_id and imdb_id.startswith('tt'):
+            li.setProperty('LibraryGenie.IMDbID', imdb_id)
+            from resources.lib import utils
+            utils.log(f"Set ListItem property LibraryGenie.IMDbID = {imdb_id} for {title}", "DEBUG")
 
         return li
 
