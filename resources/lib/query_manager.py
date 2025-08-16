@@ -348,6 +348,31 @@ class QueryManager(Singleton):
             utils.log(f"Error checking if list is search history: {str(e)}", "ERROR")
             return False
 
+    def ensure_search_history_folder(self):
+        """Ensure the Search History folder exists and return it"""
+        folder_name = "Search History"
+        
+        # Try to get existing folder
+        folder = self.get_folder_by_name(folder_name)
+        if folder:
+            utils.log(f"Found existing Search History folder with ID: {folder['id']}", "DEBUG")
+            return folder
+        
+        # Create the folder if it doesn't exist
+        utils.log("Creating Search History folder", "DEBUG")
+        folder_id = self.insert_folder(folder_name, None)  # Root level folder
+        
+        if folder_id:
+            utils.log(f"Created Search History folder with ID: {folder_id}", "DEBUG")
+            return {
+                'id': folder_id,
+                'name': folder_name,
+                'parent_id': None
+            }
+        else:
+            utils.log("Failed to create Search History folder", "ERROR")
+            return None
+
     def insert_folder(self, name: str, parent_id: Optional[int] = None) -> int:
         query = """
             INSERT INTO folders (name, parent_id)
@@ -361,6 +386,75 @@ class QueryManager(Singleton):
             return cursor.lastrowid
         finally:
             self._release_connection(conn_info)
+
+    def create_list(self, name: str, folder_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+        """Create a new list and return its details"""
+        query = """
+            INSERT INTO lists (name, folder_id)
+            VALUES (?, ?)
+        """
+        conn_info = self._get_connection()
+        try:
+            cursor = conn_info['connection'].cursor()
+            cursor.execute(query, (name, folder_id))
+            conn_info['connection'].commit()
+            list_id = cursor.lastrowid
+            
+            if list_id:
+                utils.log(f"Created list '{name}' with ID: {list_id} in folder: {folder_id}", "DEBUG")
+                return {
+                    'id': list_id,
+                    'name': name,
+                    'folder_id': folder_id
+                }
+            return None
+        finally:
+            self._release_connection(conn_info)
+
+    def get_unique_list_name(self, base_name: str, folder_id: Optional[int] = None) -> str:
+        """Generate a unique list name by appending numbers if needed"""
+        # Check if the base name is available
+        existing_lists = self.get_lists(folder_id)
+        existing_names = {list_item['name'].lower() for list_item in existing_lists}
+        
+        if base_name.lower() not in existing_names:
+            return base_name
+        
+        # Find a unique name by appending numbers
+        counter = 1
+        while True:
+            new_name = f"{base_name} ({counter})"
+            if new_name.lower() not in existing_names:
+                return new_name
+            counter += 1
+
+    def insert_media_item_and_add_to_list(self, list_id: int, media_data: Dict[str, Any]) -> bool:
+        """Insert a media item and add it to a list in one operation"""
+        try:
+            utils.log(f"=== INSERT_MEDIA_ITEM_AND_ADD_TO_LIST: Starting for list_id {list_id} ===", "DEBUG")
+            
+            # Insert the media item
+            media_item_id = self.insert_media_item(media_data)
+            if not media_item_id:
+                utils.log(f"=== INSERT_MEDIA_ITEM_AND_ADD_TO_LIST: Failed to insert media item ===", "ERROR")
+                return False
+            
+            utils.log(f"=== INSERT_MEDIA_ITEM_AND_ADD_TO_LIST: Inserted media item with ID: {media_item_id} ===", "DEBUG")
+            
+            # Add to the list
+            list_item_data = {
+                'list_id': list_id,
+                'media_item_id': media_item_id
+            }
+            
+            self.insert_list_item(list_item_data)
+            utils.log(f"=== INSERT_MEDIA_ITEM_AND_ADD_TO_LIST: Added media item {media_item_id} to list {list_id} ===", "DEBUG")
+            
+            return True
+            
+        except Exception as e:
+            utils.log(f"=== INSERT_MEDIA_ITEM_AND_ADD_TO_LIST: Error: {str(e)} ===", "ERROR")
+            return False
 
     def update_folder_name(self, folder_id: int, new_name: str) -> None:
         query = """
