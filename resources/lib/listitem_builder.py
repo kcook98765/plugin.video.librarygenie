@@ -448,6 +448,7 @@ class ListItemBuilder:
         # If this item is from a list view, ensure we have the list context
         if media_info.get('_viewing_list_id'):
             context['current_list_id'] = media_info['_viewing_list_id']
+            utils.log(f"Setting context for list viewing: list_id={media_info['_viewing_list_id']}, media_id={media_info.get('media_id')}", "DEBUG")
         
         # Get context menu items from centralized builder
         context_menu_items = context_builder.build_video_context_menu(media_info, context)
