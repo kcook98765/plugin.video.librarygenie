@@ -409,12 +409,33 @@ def _perform_similarity_search(imdb_id, title):
 
         config = Config()
 
-        # Get user preferences for similarity facets
-        similarity_facets = config.get_setting('similarity_facets', '["Plot", "Mood/tone"]')
-        try:
-            facets_list = json.loads(similarity_facets)
-        except:
-            facets_list = ["Plot", "Mood/tone"]
+        # Show facet selection dialog
+        available_facets = ["Plot", "Mood/tone", "Themes", "Genre"]
+        facet_descriptions = [
+            "Plot - Story structure and narrative elements",
+            "Mood/tone - Emotional atmosphere and feel",
+            "Themes - Underlying messages and concepts", 
+            "Genre - Movie categories and tropes"
+        ]
+
+        utils.log(f"=== SIMILARITY_SEARCH: Showing facet selection dialog ===", "DEBUG")
+        
+        # Show multi-select dialog for facets
+        selected_indices = xbmcgui.Dialog().multiselect(
+            f"Select similarity aspects for '{title}':",
+            facet_descriptions
+        )
+
+        if selected_indices is None or len(selected_indices) == 0:
+            utils.log("User cancelled facet selection or selected no facets", "DEBUG")
+            return
+
+        # Convert selections to facet list
+        facets_list = [available_facets[i] for i in selected_indices]
+        utils.log(f"User selected facets: {facets_list}", "DEBUG")
+
+        # Save user's selection for future use
+        config.set_setting('similarity_facets', json.dumps(facets_list))
 
         # Convert to API parameters
         facet_params = {
