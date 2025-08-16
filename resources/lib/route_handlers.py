@@ -176,36 +176,52 @@ def delete_list(params):
 
 def remove_from_list(params):
     list_id = params.get('list_id', [None])[0]
-    movie_id = params.get('movie_id', [None])[0]
+    media_id = params.get('media_id', [None])[0] or params.get('movie_id', [None])[0]  # Support both parameter names
     
-    utils.log(f"remove_from_list called with list_id={list_id}, movie_id={movie_id}", "DEBUG")
+    utils.log(f"remove_from_list called with list_id={list_id}, media_id={media_id}", "DEBUG")
     
     if not list_id:
         utils.log("remove_from_list: Missing list_id parameter", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Error: Missing list ID', xbmcgui.NOTIFICATION_ERROR)
         return
         
-    if not movie_id:
-        utils.log("remove_from_list: Missing movie_id parameter", "ERROR")
-        xbmcgui.Dialog().notification('LibraryGenie', 'Error: Missing movie ID', xbmcgui.NOTIFICATION_ERROR)
+    if not media_id:
+        utils.log("remove_from_list: Missing media_id parameter", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error: Missing media ID', xbmcgui.NOTIFICATION_ERROR)
         return
         
     try:
         config = Config()
         db_manager = DatabaseManager(config.db_path)
 
+        # Get list name and media title for confirmation dialog
+        list_info = db_manager.fetch_list_by_id(list_id)
+        list_name = list_info.get('name', 'Unknown List') if list_info else 'Unknown List'
+        
+        media_info = db_manager.fetch_media_by_id(media_id)
+        media_title = media_info.get('title', 'Unknown Movie') if media_info else 'Unknown Movie'
+        
+        # Show confirmation dialog
+        if not xbmcgui.Dialog().yesno(
+            'Remove from List', 
+            f'Remove "{media_title}" from "{list_name}"?',
+            'This action cannot be undone.'
+        ):
+            utils.log("User cancelled removal from list", "DEBUG")
+            return
+
         # Check if the item exists before trying to delete
-        check_query = f"SELECT COUNT(*) as count FROM list_items WHERE list_id = {list_id} AND media_id = {movie_id}"
+        check_query = f"SELECT COUNT(*) as count FROM list_items WHERE list_id = {list_id} AND media_id = {media_id}"
         result = db_manager.cursor.execute(check_query).fetchone()
         item_count = result[0] if result else 0
         
         if item_count == 0:
-            utils.log(f"Item not found in list: list_id={list_id}, movie_id={movie_id}", "WARNING")
+            utils.log(f"Item not found in list: list_id={list_id}, media_id={media_id}", "WARNING")
             xbmcgui.Dialog().notification('LibraryGenie', 'Item not found in list', xbmcgui.NOTIFICATION_WARNING)
         else:
-            db_manager.delete_data('list_items', f"list_id = {list_id} AND media_id = {movie_id}")
-            utils.log(f"Successfully removed item from list: list_id={list_id}, movie_id={movie_id}", "INFO")
-            xbmcgui.Dialog().notification('LibraryGenie', 'Removed from list')
+            db_manager.delete_data('list_items', f"list_id = {list_id} AND media_id = {media_id}")
+            utils.log(f"Successfully removed item from list: list_id={list_id}, media_id={media_id}", "INFO")
+            xbmcgui.Dialog().notification('LibraryGenie', f'Removed "{media_title}" from list')
             
         # Always refresh the container regardless of success/failure
         xbmc.executebuiltin('Container.Refresh')
@@ -214,7 +230,7 @@ def remove_from_list(params):
         utils.log(f"Error removing from list: {str(e)}", "ERROR")
         import traceback
         utils.log(f"remove_from_list traceback: {traceback.format_exc()}", "ERROR")
-        xbmcgui.Dialog().notification('LibraryGenie', 'Failed to remove', xbmcgui.NOTIFICATION_ERROR)
+        xbmcgui.Dialog().notification('LibraryGenie', 'Failed to remove from list', xbmcgui.NOTIFICATION_ERROR)
         # Still refresh container to ensure UI is updated
         xbmc.executebuiltin('Container.Refresh')
 

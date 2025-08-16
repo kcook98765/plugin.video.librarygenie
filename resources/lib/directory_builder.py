@@ -18,17 +18,17 @@ def add_context_menu_for_item(li: xbmcgui.ListItem, item_type: str, **ids):
     """
     from resources.lib.context_menu_builder import get_context_menu_builder
     context_builder = get_context_menu_builder()
-    
+
     cm = []
     if item_type == 'list':
         list_info = {'list_id': ids.get('list_id', '')}
         cm = context_builder.build_list_context_menu(list_info, ids.get('context', {}))
-        
+
     elif item_type == 'movie':
         media_info = ids.get('media_info', {})
         context_info = ids.get('context', {})
         cm = context_builder.build_video_context_menu(media_info, context_info)
-        
+
     elif item_type == 'folder':
         folder_info = {'folder_id': ids.get('folder_id', '')}
         cm = context_builder.build_folder_context_menu(folder_info, ids.get('context', {}))
@@ -64,12 +64,12 @@ def add_options_header_item(ctx: dict, handle: int):
             utils.log("Successfully called li.setInfo('video', info_dict)", "INFO")
 
         # Set custom icon for Options & Tools
-        
+
         from resources.lib.addon_ref import get_addon
         addon = get_addon()
         addon_path = addon.getAddonInfo("path")
         icon_path = f"{addon_path}/resources/media/icon.jpg"
-        
+
         art_dict = {
             'icon': icon_path,
             'thumb': icon_path,
