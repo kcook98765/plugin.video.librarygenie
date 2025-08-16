@@ -75,6 +75,53 @@ class NavigationManager:
         self.set_navigation_in_progress(False)
         utils.log("=== NAVIGATION COMPLETED ===", "DEBUG")
 
+    def navigate_to_list_delayed(self, list_id, delay_seconds=2.0):
+        """Navigate to a list with delayed execution for modal cleanup"""
+        try:
+            from resources.lib.addon_ref import get_addon
+            from urllib.parse import urlencode
+            import threading
+            import time
+
+            def delayed_navigate():
+                try:
+                    # Wait for modal cleanup
+                    time.sleep(delay_seconds)
+                    
+                    utils.log(f"=== DELAYED_LIST_NAVIGATION: Starting navigation to list {list_id} ===", "DEBUG")
+                    
+                    # Build plugin URL
+                    addon = get_addon()
+                    addon_id = addon.getAddonInfo("id")
+                    params = urlencode({'action': 'browse_list', 'list_id': str(list_id)})
+                    target_url = f"plugin://{addon_id}/?{params}"
+                    
+                    # Clear any lingering modal states
+                    xbmc.executebuiltin("ClearProperty(LibraryGenie.SearchModalActive,Home)")
+                    xbmc.executebuiltin("Dialog.Close(all,true)")
+                    
+                    # Brief wait for cleanup
+                    time.sleep(0.5)
+                    
+                    # Navigate using Container.Update
+                    utils.log(f"=== DELAYED_LIST_NAVIGATION: Navigating to: {target_url} ===", "DEBUG")
+                    xbmc.executebuiltin(f'Container.Update({target_url})')
+                    
+                    utils.log(f"=== DELAYED_LIST_NAVIGATION: Navigation completed for list {list_id} ===", "DEBUG")
+                    
+                except Exception as e:
+                    utils.log(f"Error in delayed list navigation: {str(e)}", "ERROR")
+                    import traceback
+                    utils.log(f"Delayed list navigation traceback: {traceback.format_exc()}", "ERROR")
+            
+            # Start navigation in background thread
+            nav_thread = threading.Thread(target=delayed_navigate)
+            nav_thread.daemon = True
+            nav_thread.start()
+            
+        except Exception as e:
+            utils.log(f"Error scheduling delayed list navigation: {str(e)}", "ERROR")
+
 # Global navigation manager instance
 _nav_manager = None
 

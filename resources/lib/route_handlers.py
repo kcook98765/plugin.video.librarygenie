@@ -5,6 +5,7 @@ from resources.lib import utils
 from resources.lib.config_manager import Config
 from resources.lib.database_manager import DatabaseManager
 import json # Added for json.loads
+import threading
 
 def play_movie(params):
     """Play a movie from Kodi library using movieid"""
@@ -525,9 +526,20 @@ def _perform_similarity_search(imdb_id, title):
 
         utils.log(f"=== SIMILARITY_SEARCH: Finished processing {len(search_results)} movies into list {new_list['id']} ===", "DEBUG")
 
-        # Show confirmation
+        # Show confirmation and store target URL for delayed navigation
         xbmcgui.Dialog().notification('LibraryGenie', f'Created similarity list with {len(similar_movies)} movies', xbmcgui.NOTIFICATION_INFO)
 
+        # Store target URL for delayed navigation after modal closes
+        target_url = _build_plugin_url({
+            'action': 'browse_list',
+            'list_id': new_list['id'],
+        })
+        
+        if target_url:
+            utils.log(f"=== SIMILARITY_SEARCH: Stored target URL for delayed navigation: {target_url} ===", "DEBUG")
+            # Use delayed navigation similar to SearchWindow pattern
+            _schedule_delayed_navigation(target_url)
+        
         utils.log(f"=== SIMILARITY_SEARCH: Similarity search complete - list ID: {new_list['id']} ===", "INFO")
 
     except Exception as e:
@@ -535,3 +547,60 @@ def _perform_similarity_search(imdb_id, title):
         import traceback
         utils.log(f"Similarity search traceback: {traceback.format_exc()}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search failed', xbmcgui.NOTIFICATION_ERROR)
+
+
+def _build_plugin_url(params):
+    """Build a clean plugin URL with proper encoding"""
+    try:
+        from urllib.parse import urlencode
+        from resources.lib.addon_ref import get_addon
+
+        addon = get_addon()
+        addon_id = addon.getAddonInfo("id")
+        base_url = f"plugin://{addon_id}/"
+
+        # Clean params - only include non-empty values
+        cleaned_params = {k: str(v) for k, v in params.items() if v not in (None, '', False)}
+
+        if cleaned_params:
+            query_string = urlencode(cleaned_params)
+            return f"{base_url}?{query_string}"
+        else:
+            return base_url
+
+    except Exception as e:
+        utils.log(f"Error building URL: {str(e)}", "ERROR")
+        return None
+
+def _schedule_delayed_navigation(target_url):
+    """Schedule delayed navigation after modal cleanup"""
+    def delayed_navigate():
+        try:
+            # Wait for modal cleanup
+            import time
+            time.sleep(2.0)  # Give time for notification and modal cleanup
+            
+            utils.log(f"=== DELAYED_NAVIGATION: Starting navigation to: {target_url} ===", "DEBUG")
+            
+            # Clear any lingering modal states
+            xbmc.executebuiltin("ClearProperty(LibraryGenie.SearchModalActive,Home)")
+            xbmc.executebuiltin("Dialog.Close(all,true)")
+            
+            # Brief wait for cleanup
+            time.sleep(0.5)
+            
+            # Navigate using Container.Update for reliable plugin navigation
+            utils.log(f"=== DELAYED_NAVIGATION: Using Container.Update to navigate ===", "DEBUG")
+            xbmc.executebuiltin(f'Container.Update({target_url})')
+            
+            utils.log(f"=== DELAYED_NAVIGATION: Navigation completed ===", "DEBUG")
+            
+        except Exception as e:
+            utils.log(f"Error in delayed navigation: {str(e)}", "ERROR")
+            import traceback
+            utils.log(f"Delayed navigation traceback: {traceback.format_exc()}", "ERROR")
+    
+    # Start navigation in background thread
+    nav_thread = threading.Thread(target=delayed_navigate)
+    nav_thread.daemon = True
+    nav_thread.start()
