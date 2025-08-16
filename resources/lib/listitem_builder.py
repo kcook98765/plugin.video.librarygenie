@@ -467,7 +467,7 @@ class ListItemBuilder:
 
         if imdb_id and str(imdb_id).startswith('tt'):
             encoded_title = quote_plus(str(media_info.get('title', 'Unknown')))
-            context_menu_items.append(('Find Similar Movies...', f'RunPlugin(plugin://plugin.video.librarygenie/?action=find_similar&imdb_id={imdb_id}&title={encoded_title})'))
+            context_menu_items.append(('Find Similar Movies...', f'RunPlugin(plugin://plugin.video.librarygenie/?action=find_similar_from_plugin&imdb_id={imdb_id}&title={encoded_title})'))
 
         # Add context menu to ListItem with v19 compatibility fix
         if utils.is_kodi_v19():

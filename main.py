@@ -465,11 +465,11 @@ def router(paramstring):
         utils.log("Received separator action, doing nothing.", "DEBUG")
         pass
     elif action == 'find_similar':
-        utils.log("Handling find_similar action", "DEBUG")
-        route_handlers.find_similar_movies(q)
-    elif action == 'find_similar_from_context':
-        utils.log("Handling find_similar_from_context action", "DEBUG")
-        route_handlers.find_similar_movies_from_context(q)
+        from resources.lib.route_handlers import find_similar_movies
+        find_similar_movies(params)
+    elif action == 'find_similar_from_plugin':
+        from resources.lib.route_handlers import find_similar_movies_from_plugin
+        find_similar_movies_from_plugin(params)
     else:
         # Default: build root directory if action is not recognized or empty
         utils.log(f"Unrecognized action '{action}' or no action specified, building root directory.", "DEBUG")

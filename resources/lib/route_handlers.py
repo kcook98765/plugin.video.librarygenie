@@ -292,7 +292,7 @@ def rename_folder(params):
 
 
 def find_similar_movies(params):
-    """Handler for similarity search from plugin ListItems"""
+    """Handler for similarity search from native Kodi context menu (via context.py)"""
     try:
         # Extract parameters
         imdb_id = params.get('imdb_id', [None])[0] if params.get('imdb_id') else None
@@ -306,11 +306,33 @@ def find_similar_movies(params):
         import urllib.parse
         title = urllib.parse.unquote_plus(title)
 
-        # Perform similarity search
-        _perform_similarity_search(imdb_id, title, from_context_menu=False)
+        # This action is triggered from context.py (native context menu), so use context menu navigation
+        _perform_similarity_search(imdb_id, title, from_context_menu=True)
 
     except Exception as e:
         utils.log(f"Error in find_similar_movies: {str(e)}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERROR)
+
+def find_similar_movies_from_plugin(params):
+    """Handler for similarity search from plugin ListItems (context menu items added by listitem_builder.py)"""
+    try:
+        # Extract parameters
+        imdb_id = params.get('imdb_id', [None])[0] if params.get('imdb_id') else None
+        title = params.get('title', ['Unknown'])[0] if params.get('title') else 'Unknown'
+
+        if not imdb_id or not imdb_id.startswith('tt'):
+            xbmcgui.Dialog().ok('LibraryGenie', "This item doesn't have a valid IMDb ID.")
+            return
+
+        # URL decode the title
+        import urllib.parse
+        title = urllib.parse.unquote_plus(title)
+
+        # This is from plugin context items, so use plugin navigation
+        _perform_similarity_search(imdb_id, title, from_context_menu=False)
+
+    except Exception as e:
+        utils.log(f"Error in find_similar_movies_from_plugin: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERROR)
 
 def find_similar_movies_from_context(params):
