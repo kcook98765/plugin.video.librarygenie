@@ -54,9 +54,28 @@ def main():
             item_info.get('uniqueid', {}).get('imdb', '') if isinstance(item_info.get('uniqueid'), dict) else ''
         ]
         
+        # Also check if we have a valid DBID and can get the IMDb ID via JSON-RPC
+        db_id = xbmc.getInfoLabel('ListItem.DBID')
+        if db_id and not any(candidate and str(candidate).startswith('tt') for candidate in imdb_candidates):
+            try:
+                from resources.lib.jsonrpc_manager import JSONRPC
+                jsonrpc = JSONRPC()
+                response = jsonrpc.execute('VideoLibrary.GetMovieDetails', {
+                    'movieid': int(db_id),
+                    'properties': ['uniqueid']
+                })
+                movie_details = response.get('result', {}).get('moviedetails', {})
+                uniqueid = movie_details.get('uniqueid', {})
+                if isinstance(uniqueid, dict) and 'imdb' in uniqueid:
+                    imdb_candidates.append(uniqueid['imdb'])
+                xbmc.log(f"LibraryGenie: Context menu JSON-RPC lookup found IMDb: {uniqueid.get('imdb', 'None')}", xbmc.LOGINFO)
+            except Exception as e:
+                xbmc.log(f"LibraryGenie: Context menu JSON-RPC lookup failed: {str(e)}", xbmc.LOGWARNING)
+        
         for candidate in imdb_candidates:
             if candidate and str(candidate).startswith('tt'):
                 imdb_id = candidate
+                xbmc.log(f"LibraryGenie: Context menu found IMDb ID: {imdb_id}", xbmc.LOGINFO)
                 break
         
         options = []
