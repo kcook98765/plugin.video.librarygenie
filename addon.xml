@@ -23,13 +23,6 @@
             <screenshot>resources/media/landscape.jpg</screenshot>
         </assets>
     </extension>
-    <extension point="kodi.context.item">
-      <menu id="kodi.core.main">
-        <item library="resources/lib/context.py">
-            <label>LibraryGenie</label>
-            <visible>true</visible>
-        </item>
-      </menu>
-    </extension>
+    
   
 </addon>
