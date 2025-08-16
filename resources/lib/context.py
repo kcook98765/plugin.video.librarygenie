@@ -62,27 +62,48 @@ def main():
         # Information - always available  
         options.append("Information")
 
-        # Check if we're currently viewing a list (to offer Remove option)
+        # Check if we're currently viewing a LibraryGenie list (to offer Remove option)
         current_container_path = xbmc.getInfoLabel('Container.FolderPath')
         viewing_list_id = None
-        if 'browse_list' in current_container_path and 'list_id=' in current_container_path:
+        is_librarygenie_list = False
+        
+        if 'browse_list' in current_container_path and 'list_id=' in current_container_path and 'plugin.video.librarygenie' in current_container_path:
             try:
                 import re
                 match = re.search(r'list_id=(\d+)', current_container_path)
                 if match:
-                    viewing_list_id = match.group(1)
-                    xbmc.log(f"LibraryGenie: Detected viewing list_id: {viewing_list_id}", xbmc.LOGDEBUG)
+                    extracted_list_id = match.group(1)
+                    xbmc.log(f"LibraryGenie: Detected potential list_id: {extracted_list_id}", xbmc.LOGDEBUG)
+                    
+                    # Verify this list exists in our database
+                    try:
+                        from resources.lib.config_manager import Config
+                        from resources.lib.database_manager import DatabaseManager
+                        
+                        config = Config()
+                        db_manager = DatabaseManager(config.db_path)
+                        list_data = db_manager.fetch_list_by_id(extracted_list_id)
+                        
+                        if list_data:
+                            viewing_list_id = extracted_list_id
+                            is_librarygenie_list = True
+                            xbmc.log(f"LibraryGenie: Confirmed viewing LibraryGenie list_id: {viewing_list_id}", xbmc.LOGDEBUG)
+                        else:
+                            xbmc.log(f"LibraryGenie: List {extracted_list_id} not found in database - not a LibraryGenie list", xbmc.LOGDEBUG)
+                    except Exception as db_error:
+                        xbmc.log(f"LibraryGenie: Error verifying list in database: {str(db_error)}", xbmc.LOGDEBUG)
+                        
             except Exception as e:
                 xbmc.log(f"LibraryGenie: Error extracting list_id: {str(e)}", xbmc.LOGDEBUG)
 
         # Add movie to a list - available when IMDb ID is detected
         if imdb_id and str(imdb_id).startswith('tt'):
-            if viewing_list_id:
-                # If viewing a list, offer Remove option first
+            if viewing_list_id and is_librarygenie_list:
+                # If viewing a LibraryGenie list, offer Remove option first
                 options.append("Remove from List...")
                 options.append("Add to Another List...")
             else:
-                # If not viewing a list, offer Add option
+                # If not viewing a LibraryGenie list, offer Add option
                 options.append("Add to List...")
 
         # Find Similar Movies - only if authenticated AND has valid IMDb ID
