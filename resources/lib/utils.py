@@ -45,7 +45,14 @@ def log(message, level=None):
             "Found matching processed_ref",
             "Lookup keys - exact:",
             "Found 1 candidates, meta exists:",
-            "Found Kodi match - title:"
+            "Found Kodi match - title:",
+            "=== SIMILARITY_SEARCH: Processing result",
+            "=== SIMILARITY_SEARCH: Found title/year for",
+            "=== SIMILARITY_SEARCH: Creating media item:",
+            "=== SIMILARITY_SEARCH: Successfully added",
+            "=== INSERT_MEDIA_ITEM_AND_ADD_TO_LIST:",
+            "=== TITLE_YEAR_LOOKUP: Looking up IMDB",
+            "=== TITLE_YEAR_LOOKUP: Found in imdb_exports:"
         ]
 
         # Allow JSON-RPC request logging to always show through
