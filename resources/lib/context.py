@@ -132,8 +132,24 @@ def main():
                 xbmc.log(f"LibraryGenie: Context search error: {str(search_error)}", xbmc.LOGERROR)
 
         elif selected_option == "Search History":  # Search History
-            url = f"plugin://{addon_id}/?action=browse_folder&folder_name=Search History"
-            xbmc.executebuiltin(f'ActivateWindow(videos,{url})')
+            # Get the Search History folder ID
+            try:
+                from resources.lib.config_manager import Config
+                from resources.lib.database_manager import DatabaseManager
+                
+                config = Config()
+                db_manager = DatabaseManager(config.db_path)
+                search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
+                
+                if search_history_folder_id:
+                    url = f"plugin://{addon_id}/?action=browse_folder&folder_id={search_history_folder_id}&view=folder"
+                    xbmc.executebuiltin(f'ActivateWindow(videos,{url})')
+                else:
+                    xbmcgui.Dialog().notification("LibraryGenie", "Search History folder not found", xbmcgui.NOTIFICATION_WARNING, 3000)
+                    
+            except Exception as e:
+                utils.log(f"Error accessing Search History: {str(e)}", "ERROR")
+                xbmcgui.Dialog().notification("LibraryGenie", "Error accessing Search History", xbmcgui.NOTIFICATION_ERROR, 3000)
         elif selected_option == "Settings":  # Settings
             xbmc.executebuiltin(f'Addon.OpenSettings({addon_id})')
         # If nothing selected (selected == -1), do nothing
