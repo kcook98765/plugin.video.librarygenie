@@ -299,62 +299,6 @@ def refresh_movie(params):
         utils.log(f"Error refreshing movie: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Refresh failed')
 
-def do_search(params):
-    q = xbmcgui.Dialog().input('Search movies', type=xbmcgui.INPUT_ALPHANUM)
-    if not q:
-        return
-    # Hand off to existing search functionality
-    try:
-        from resources.lib.window_search import SearchWindow
-        from resources.lib.remote_api_client import RemoteAPIClient
-
-        config = Config()
-        api_client = RemoteAPIClient()
-
-        # Perform the search
-        results = api_client.search_movies(q)
-        if results and isinstance(results, dict) and results.get('success'):
-            # Create a search results list
-            db_manager = DatabaseManager(config.db_path)
-
-            # Create "Search History" folder if it doesn't exist
-            search_folder_id = db_manager.ensure_folder_exists("Search History", None)
-
-            # Create a new list for this search
-            import datetime
-            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-            list_name = f"Search: {q} ({timestamp})"
-            list_id = db_manager.create_list(list_name, search_folder_id)
-
-            # Add results to the list
-            movies = results.get('results', [])
-            for movie in movies:
-                db_manager.insert_data('media_items', {
-                    'title': movie.get('title', ''),
-                    'year': movie.get('year', 0),
-                    'imdbnumber': movie.get('imdb_id', ''),
-                    'source': 'search',
-                    'plot': movie.get('plot', ''),
-                    'rating': float(movie.get('rating', 0)),
-                    'genre': movie.get('genre', '')
-                })
-                # Link to list
-                media_id = db_manager.cursor.lastrowid
-                db_manager.insert_data('list_items', {
-                    'list_id': list_id,
-                    'media_id': media_id
-                })
-
-            xbmcgui.Dialog().notification('LibraryGenie', f'Found {len(movies)} results')
-            # Navigate to the results
-            from main import _plugin_url
-            xbmc.executebuiltin(f'Container.Update({_plugin_url({"action":"browse_list","list_id":list_id,"view":"list"})})')
-        else:
-            xbmcgui.Dialog().notification('LibraryGenie', 'Search failed', xbmcgui.NOTIFICATION_ERROR)
-    except Exception as e:
-        utils.log(f"Error in search: {str(e)}", "ERROR")
-        xbmcgui.Dialog().notification('LibraryGenie', 'Search error', xbmcgui.NOTIFICATION_ERROR)
-
 def find_similar_movies(params):
     """Handler for similarity search from plugin ListItems"""
     try:
