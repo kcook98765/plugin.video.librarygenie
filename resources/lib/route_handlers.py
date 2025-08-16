@@ -482,7 +482,11 @@ def _perform_similarity_search(imdb_id, title):
 
         utils.log(f"=== SIMILARITY_SEARCH: Created list with ID {new_list['id']} ===", "DEBUG")
 
-        # Insert movies into the list
+        # Process similar movies following the same flow as regular search
+        utils.log(f"=== SIMILARITY_SEARCH: Processing {len(similar_movies)} IMDb IDs ===", "DEBUG")
+
+        # Step 1: Convert IMDb IDs to format expected by search results
+        search_results = []
         for i, movie_data in enumerate(similar_movies):
             # Handle both string format (just IMDb ID) and object format
             if isinstance(movie_data, str):
@@ -492,38 +496,44 @@ def _perform_similarity_search(imdb_id, title):
                 imdb = movie_data.get('imdb_id', '')
                 score = movie_data.get('score', 0)
 
-            utils.log(f"=== SIMILARITY_SEARCH: Processing movie {i+1}/{len(similar_movies)}: {imdb} (score: {score}) ===", "DEBUG")
+            if imdb and imdb.startswith('tt'):
+                search_results.append({
+                    'imdbnumber': imdb,
+                    'score': score,
+                    'search_score': score
+                })
 
-            # Create media item data structure
-            media_item = {
-                'kodi_id': 0,  # Will be resolved later
-                'title': f"Similar Movie {imdb}",  # Placeholder title
-                'year': 0,     # Will be resolved later  
-                'imdbnumber': imdb,
-                'source': 'similarity',
-                'plot': f"Similar movie (IMDb: {imdb})",
-                'rating': 0.0,
-                'search_score': score,
-                'play': f"similarity://{imdb}"
-            }
+        utils.log(f"=== SIMILARITY_SEARCH: Converted to {len(search_results)} search results ===", "DEBUG")
 
-            # Add all the other fields that might be expected
-            for field in ['genre', 'director', 'writer', 'studio', 'mpaa', 'cast', 'country', 
-                         'runtime', 'tagline', 'plotoutline', 'originaltitle', 'sorttitle', 'set', 
-                         'setid', 'top250', 'votes', 'trailer', 'dateadded', 'tag', 'userrating', 
-                         'lastplayed', 'playcount', 'file', 'fanart', 'thumbnail', 'art', 
-                         'streamdetails', 'showlink', 'resume', 'ratings', 'uniqueid', 'premiered']:
-                media_item[field] = ''
+        if search_results:
+            # Step 2: Use the existing add_search_history method which follows proper flow:
+            # - Looks up titles/years from imdb_exports 
+            # - Creates media_items with proper data
+            # - Links them to the list
+            utils.log(f"=== SIMILARITY_SEARCH: Adding search results to list {new_list['id']} ===", "DEBUG")
+            
+            # Add the results using the same method as regular search
+            for result in search_results:
+                # Insert into media_items table with minimal data (will be resolved during display)
+                media_item_data = {
+                    'kodi_id': 0,
+                    'title': '',  # Will be resolved from imdb_exports or JSONRPC
+                    'year': 0,    # Will be resolved from imdb_exports or JSONRPC
+                    'imdbnumber': result['imdbnumber'],
+                    'source': 'similarity',
+                    'plot': '',
+                    'rating': 0.0,
+                    'search_score': result['search_score']
+                }
+                
+                # Insert media item
+                media_id = query_manager.insert_media_item(media_item_data)
+                
+                if media_id:
+                    # Link to list
+                    query_manager.add_item_to_list(new_list['id'], media_id)
 
-            utils.log(f"=== SIMILARITY_SEARCH: Built media_item keys: {list(media_item.keys())} ===", "DEBUG")
-            utils.log(f"=== SIMILARITY_SEARCH: Built media_item sample: {dict(list(media_item.items())[:5])} ===", "DEBUG")
-
-            # Insert the media item and add to list
-            utils.log(f"=== SIMILARITY_SEARCH: Inserting media item {i+1} into list {new_list['id']} ===", "DEBUG")
-            result = query_manager.insert_media_item_and_add_to_list(new_list['id'], media_item)
-            utils.log(f"=== SIMILARITY_SEARCH: Insert result for item {i+1}: {result} ===", "DEBUG")
-
-        utils.log(f"=== SIMILARITY_SEARCH: Finished inserting {len(similar_movies)} movies into list {new_list['id']} ===", "DEBUG")
+        utils.log(f"=== SIMILARITY_SEARCH: Finished processing {len(search_results)} movies into list {new_list['id']} ===", "DEBUG")
 
         # Show confirmation
         xbmcgui.Dialog().notification('LibraryGenie', f'Created similarity list with {len(similar_movies)} movies', xbmcgui.NOTIFICATION_INFO)
