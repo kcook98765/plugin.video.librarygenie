@@ -840,10 +840,14 @@ class QueryManager(Singleton):
         utils.log(f"=== INSERT_MEDIA_ITEM: Final media_data keys: {list(media_data.keys())}", "DEBUG")
         utils.log(f"=== INSERT_MEDIA_ITEM: Final media_data values sample: {list(media_data.values())[:5]}", "DEBUG")
 
-        # Insert media item
+        # Insert media item - use REPLACE for search results to ensure they get inserted
         columns = ', '.join(media_data.keys())
         placeholders = ', '.join('?' for _ in media_data)
-        query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
+        
+        if media_data.get('source') == 'search':
+            query = f'INSERT OR REPLACE INTO media_items ({columns}) VALUES ({placeholders})'
+        else:
+            query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
         
         utils.log(f"=== INSERT_MEDIA_ITEM: SQL Query: {query}", "DEBUG")
         utils.log(f"=== INSERT_MEDIA_ITEM: SQL Parameters count: {len(media_data.values())}", "DEBUG")
@@ -856,24 +860,47 @@ class QueryManager(Singleton):
             conn_info['connection'].commit()
             utils.log(f"=== INSERT_MEDIA_ITEM: Query executed successfully", "DEBUG")
 
-            # Get the media item ID
-            lookup_kodi_id = media_data.get('kodi_id', 0)
-            lookup_play = media_data.get('play', '')
-            utils.log(f"=== INSERT_MEDIA_ITEM: Looking up inserted item with kodi_id={lookup_kodi_id}, play='{lookup_play}'", "DEBUG")
-            
-            cursor.execute(
-                "SELECT id FROM media_items WHERE kodi_id = ? AND play = ?",
-                (lookup_kodi_id, lookup_play)
-            )
-            result = cursor.fetchone()
-            
-            if result:
-                inserted_id = result[0]
-                utils.log(f"=== INSERT_MEDIA_ITEM: Successfully inserted with ID: {inserted_id}", "DEBUG")
-                return inserted_id
+            # For search results, use a more specific unique identifier
+            if media_data.get('source') == 'search' and media_data.get('imdbnumber'):
+                # Look up by IMDb ID and source for search results
+                cursor.execute(
+                    "SELECT id FROM media_items WHERE imdbnumber = ? AND source = ?",
+                    (media_data.get('imdbnumber'), 'search')
+                )
+                result = cursor.fetchone()
+                
+                if result:
+                    inserted_id = result[0]
+                    utils.log(f"=== INSERT_MEDIA_ITEM: Found existing search record with ID: {inserted_id}", "DEBUG")
+                    return inserted_id
+                else:
+                    # Try to get the last inserted row ID
+                    inserted_id = cursor.lastrowid
+                    if inserted_id and inserted_id > 0:
+                        utils.log(f"=== INSERT_MEDIA_ITEM: Successfully inserted with ID: {inserted_id}", "DEBUG")
+                        return inserted_id
+                    else:
+                        utils.log(f"=== INSERT_MEDIA_ITEM: WARNING - Could not determine inserted record ID", "WARNING")
+                        return None
             else:
-                utils.log(f"=== INSERT_MEDIA_ITEM: WARNING - Could not find inserted record", "WARNING")
-                return None
+                # Original lookup logic for non-search items
+                lookup_kodi_id = media_data.get('kodi_id', 0)
+                lookup_play = media_data.get('play', '')
+                utils.log(f"=== INSERT_MEDIA_ITEM: Looking up inserted item with kodi_id={lookup_kodi_id}, play='{lookup_play}'", "DEBUG")
+                
+                cursor.execute(
+                    "SELECT id FROM media_items WHERE kodi_id = ? AND play = ?",
+                    (lookup_kodi_id, lookup_play)
+                )
+                result = cursor.fetchone()
+                
+                if result:
+                    inserted_id = result[0]
+                    utils.log(f"=== INSERT_MEDIA_ITEM: Successfully inserted with ID: {inserted_id}", "DEBUG")
+                    return inserted_id
+                else:
+                    utils.log(f"=== INSERT_MEDIA_ITEM: WARNING - Could not find inserted record", "WARNING")
+                    return None
                 
         except Exception as e:
             utils.log(f"=== INSERT_MEDIA_ITEM: SQL Error: {str(e)}", "ERROR")
