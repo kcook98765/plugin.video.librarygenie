@@ -62,7 +62,7 @@ class JSONRPC:
                             first_movie = result['movies'][0]
                             utils.log(f"First movie sample keys: {list(first_movie.keys())}", "DEBUG")
                             utils.log(f"First movie title: {first_movie.get('title', 'N/A')}", "DEBUG")
-                            
+
                             # Detailed IMDb ID logging
                             imdbnumber = first_movie.get('imdbnumber', '')
                             uniqueid = first_movie.get('uniqueid', {})
@@ -76,7 +76,7 @@ class JSONRPC:
                         movie = result['moviedetails']
                         utils.log(f"Movie details keys: {list(movie.keys())}", "DEBUG")
                         utils.log(f"Movie title: {movie.get('title', 'N/A')}", "DEBUG")
-                        
+
                         # Detailed IMDb ID logging for movie details
                         imdbnumber = movie.get('imdbnumber', '')
                         uniqueid = movie.get('uniqueid', {})
@@ -328,9 +328,9 @@ class JSONRPC:
                             fallback_str = str(fallback_id).strip()
                             if fallback_str.startswith('tt'):
                                 imdb_id_found = fallback_str
-                            elif fallback_str.isdigit() and len(fallback_str) >= 4:
-                                # Convert numeric IMDb ID to tt format (pad with zeros to 7 digits)
-                                imdb_id_found = f"tt{fallback_str.zfill(7)}"
+                            elif fallback_str.isdigit():
+                                # Reject numeric IDs - do not convert to tt format
+                                utils.log(f"DEBUG: v19 search - rejecting numeric ID '{fallback_str}' - not converting to IMDb format", "DEBUG")
 
                     # Clean up IMDb ID format
                     if imdb_id_found:
