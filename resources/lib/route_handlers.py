@@ -443,7 +443,7 @@ def add_to_list_from_context(params):
             utils.log(f"Created new media item with ID: {media_id}", "DEBUG")
         
         # Check if already in list
-        existing_list_item = db_manager.fetch_data('list_items', f"list_id = {selected_list_id} AND media_id = {media_id}")
+        existing_list_item = db_manager.fetch_data('list_items', f"list_id = {selected_list_id} AND media_item_id = {media_id}")
         
         if existing_list_item:
             xbmcgui.Dialog().notification('LibraryGenie', f'"{title}" is already in that list', xbmcgui.NOTIFICATION_INFO, 3000)
@@ -451,7 +451,7 @@ def add_to_list_from_context(params):
             # Add to list
             db_manager.insert_data('list_items', {
                 'list_id': selected_list_id,
-                'media_id': media_id
+                'media_item_id': media_id
             })
             xbmcgui.Dialog().notification('LibraryGenie', f'Added "{title}" to list', xbmcgui.NOTIFICATION_INFO, 3000)
 
