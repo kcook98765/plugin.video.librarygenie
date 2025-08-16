@@ -840,7 +840,45 @@ class DatabaseManager(Singleton):
 
     def create_media_item(self, media_data):
         """Create a media item and return its ID"""
-        return self.insert_data('media_items', media_data)
+        query = """
+        INSERT INTO media_items (
+            title, year, rating, plot, plotoutline, duration, file_url, art_data, source, media_type,
+            genre, director, writer, cast, studio, country, tagline, trailer, mpaa, votes,
+            premiered, dateadded, imdbnumber, kodi_id, in_kodi_library
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        values = (
+            media_data.get('title', ''),
+            media_data.get('year', 0),
+            media_data.get('rating', 0.0),
+            media_data.get('plot', ''),
+            media_data.get('plotoutline', ''),
+            media_data.get('duration', 0),
+            media_data.get('file_url', ''),
+            media_data.get('art_data', '{}'),
+            media_data.get('source', ''),
+            media_data.get('media_type', 'movie'),
+            media_data.get('genre', ''),
+            media_data.get('director', ''),
+            media_data.get('writer', ''),
+            media_data.get('cast', '[]'),
+            media_data.get('studio', ''),
+            media_data.get('country', ''),
+            media_data.get('tagline', ''),
+            media_data.get('trailer', ''),
+            media_data.get('mpaa', ''),
+            media_data.get('votes', 0),
+            media_data.get('premiered', ''),
+            media_data.get('dateadded', ''),
+            media_data.get('imdbnumber', ''),
+            media_data.get('kodi_id', 0),
+            media_data.get('in_kodi_library', False)
+        )
+
+        self.cursor.execute(query, values)
+        self.connection.commit()
+        return self.cursor.lastrowid
 
     def add_media_to_list(self, list_id, media_id, position=None):
         """Add existing media item to a list"""

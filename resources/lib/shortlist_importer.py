@@ -190,16 +190,107 @@ class ShortlistImporter:
         # Delete the folder itself
         self.db_manager.delete_data('folders', f"id = {folder_id}")
     
+    def _enhance_item_with_kodi_data(self, item):
+        """Try to match item with Kodi library and enhance with complete data"""
+        from resources.lib.jsonrpc_manager import JSONRPC
+        
+        title = item.get('title', '').strip()
+        year = item.get('year')
+        
+        if not title:
+            return item
+        
+        try:
+            jsonrpc = JSONRPC()
+            utils.log(f"Checking Kodi library for: {title} ({year})", "DEBUG")
+            
+            # Try to find movie in Kodi library by title and year
+            filter_obj = {
+                'field': 'title',
+                'operator': 'is', 
+                'value': title
+            }
+            
+            # Add year filter if available
+            if year and str(year).isdigit():
+                filter_obj = {
+                    'and': [
+                        {'field': 'title', 'operator': 'is', 'value': title},
+                        {'field': 'year', 'operator': 'is', 'value': str(year)}
+                    ]
+                }
+            
+            response = jsonrpc.search_movies(filter_obj)
+            
+            if 'result' in response and 'movies' in response['result']:
+                movies = response['result']['movies']
+                
+                if movies:
+                    # Found match in Kodi library - get comprehensive details
+                    kodi_movie = movies[0]  # Take first match
+                    movie_id = kodi_movie.get('movieid')
+                    
+                    if movie_id:
+                        utils.log(f"Found Kodi library match for '{title}' - getting full details", "DEBUG")
+                        
+                        # Get comprehensive movie details
+                        details_response = jsonrpc.get_movie_details_comprehensive(movie_id)
+                        
+                        if 'result' in details_response and 'moviedetails' in details_response['result']:
+                            full_details = details_response['result']['moviedetails']
+                            
+                            # Enhance item with complete Kodi data
+                            enhanced_item = {
+                                'title': full_details.get('title', item.get('title', '')),
+                                'year': full_details.get('year', item.get('year', 0)),
+                                'rating': full_details.get('rating', item.get('rating', 0.0)),
+                                'plot': full_details.get('plot', item.get('plot', '')),
+                                'plotoutline': full_details.get('plotoutline', item.get('plotoutline', '')),
+                                'duration': full_details.get('runtime', item.get('duration', 0)),
+                                'file': full_details.get('file', item.get('file', '')),
+                                'art': full_details.get('art', item.get('art', {})),
+                                'position': item.get('position', 0),
+                                'genre': ' / '.join(full_details.get('genre', [])) if full_details.get('genre') else '',
+                                'director': ' / '.join(full_details.get('director', [])) if full_details.get('director') else '',
+                                'writer': ' / '.join(full_details.get('writer', [])) if full_details.get('writer') else '',
+                                'cast': json.dumps(full_details.get('cast', [])),
+                                'studio': ' / '.join(full_details.get('studio', [])) if full_details.get('studio') else '',
+                                'country': ' / '.join(full_details.get('country', [])) if full_details.get('country') else '',
+                                'tagline': full_details.get('tagline', ''),
+                                'trailer': full_details.get('trailer', ''),
+                                'mpaa': full_details.get('mpaa', ''),
+                                'votes': full_details.get('votes', 0),
+                                'premiered': full_details.get('premiered', ''),
+                                'dateadded': full_details.get('dateadded', ''),
+                                'imdbnumber': full_details.get('imdbnumber', ''),
+                                'uniqueid': full_details.get('uniqueid', {}),
+                                'kodi_id': movie_id,
+                                'in_kodi_library': True
+                            }
+                            
+                            utils.log(f"Enhanced '{title}' with complete Kodi library data", "INFO")
+                            return enhanced_item
+            
+            # No match found in Kodi library - use original Shortlist data
+            utils.log(f"No Kodi library match found for '{title}' - using Shortlist data", "DEBUG")
+            item['in_kodi_library'] = False
+            return item
+            
+        except Exception as e:
+            utils.log(f"Error checking Kodi library for '{title}': {str(e)}", "ERROR")
+            item['in_kodi_library'] = False
+            return item
+
     def import_to_librarygenie(self, shortlist_data, progress_callback=None):
-        """Import scraped Shortlist data into LibraryGenie"""
-        utils.log("Starting import to LibraryGenie", "INFO")
+        """Import scraped Shortlist data into LibraryGenie with Kodi library enhancement"""
+        utils.log("Starting import to LibraryGenie with Kodi library matching", "INFO")
         
         try:
             # Clear existing imported data first
             self.clear_imported_data()
             
             if progress_callback:
-                progress_callback.update(85, "Creating Imported Lists folder...")
+                progress_callback.update(10, "Creating Imported Lists folder...")
             
             # Create or get "Imported Lists" folder at root level
             imported_folder_id = self.db_manager.get_folder_id_by_name("Imported Lists")
@@ -208,15 +299,18 @@ class ShortlistImporter:
                 utils.log("Created 'Imported Lists' folder", "INFO")
             
             total_lists = len(shortlist_data)
+            total_items = sum(len(list_data["items"]) for list_data in shortlist_data)
             imported_lists = 0
+            processed_items = 0
+            kodi_matches = 0
             
             for list_data in shortlist_data:
                 list_name = list_data["name"]
                 items = list_data["items"]
                 
                 if progress_callback:
-                    progress = 85 + int((imported_lists / total_lists) * 10)
-                    progress_callback.update(progress, f"Importing list: {list_name}")
+                    progress = 10 + int((imported_lists / total_lists) * 80)
+                    progress_callback.update(progress, f"Processing list: {list_name}")
                     if progress_callback.iscanceled():
                         return False
                 
@@ -224,36 +318,66 @@ class ShortlistImporter:
                 list_id = self.db_manager.create_list(list_name, imported_folder_id)
                 utils.log(f"Created list: {list_name} (ID: {list_id})", "DEBUG")
                 
-                # Add items to the list
+                # Process items with Kodi library enhancement
                 for item in items:
                     try:
-                        # Create media item entry
+                        if progress_callback:
+                            item_progress = 10 + int((processed_items / total_items) * 80)
+                            progress_callback.update(item_progress, f"Enhancing: {item.get('title', 'Unknown')}")
+                            if progress_callback.iscanceled():
+                                return False
+                        
+                        # Enhance item with Kodi library data if available
+                        enhanced_item = self._enhance_item_with_kodi_data(item)
+                        
+                        if enhanced_item.get('in_kodi_library'):
+                            kodi_matches += 1
+                        
+                        # Create comprehensive media item entry
                         media_data = {
-                            'title': item.get('title', 'Unknown'),
-                            'year': item.get('year') or 0,
-                            'rating': item.get('rating') or 0.0,
-                            'plot': item.get('plot', ''),
-                            'plotoutline': item.get('plotoutline', ''),
-                            'duration': item.get('duration') or 0,
-                            'file_url': item.get('file', ''),
-                            'art_data': json.dumps(item.get('art', {})),
+                            'title': enhanced_item.get('title', 'Unknown'),
+                            'year': enhanced_item.get('year') or 0,
+                            'rating': enhanced_item.get('rating') or 0.0,
+                            'plot': enhanced_item.get('plot', ''),
+                            'plotoutline': enhanced_item.get('plotoutline', ''),
+                            'duration': enhanced_item.get('duration') or 0,
+                            'file_url': enhanced_item.get('file', ''),
+                            'art_data': json.dumps(enhanced_item.get('art', {})),
                             'source': 'shortlist_import',
-                            'media_type': 'movie'  # Assume movies for now
+                            'media_type': 'movie',
+                            'genre': enhanced_item.get('genre', ''),
+                            'director': enhanced_item.get('director', ''),
+                            'writer': enhanced_item.get('writer', ''),
+                            'cast': enhanced_item.get('cast', '[]'),
+                            'studio': enhanced_item.get('studio', ''),
+                            'country': enhanced_item.get('country', ''),
+                            'tagline': enhanced_item.get('tagline', ''),
+                            'trailer': enhanced_item.get('trailer', ''),
+                            'mpaa': enhanced_item.get('mpaa', ''),
+                            'votes': enhanced_item.get('votes', 0),
+                            'premiered': enhanced_item.get('premiered', ''),
+                            'dateadded': enhanced_item.get('dateadded', ''),
+                            'imdbnumber': enhanced_item.get('imdbnumber', ''),
+                            'kodi_id': enhanced_item.get('kodi_id', 0),
+                            'in_kodi_library': enhanced_item.get('in_kodi_library', False)
                         }
                         
                         media_id = self.db_manager.create_media_item(media_data)
                         
                         # Add to list
-                        self.db_manager.add_media_to_list(list_id, media_id, item.get('position', 0))
+                        self.db_manager.add_media_to_list(list_id, media_id, enhanced_item.get('position', 0))
+                        
+                        processed_items += 1
                         
                     except Exception as e:
                         utils.log(f"Error importing item {item.get('title', 'Unknown')}: {str(e)}", "ERROR")
+                        processed_items += 1
                         continue
                 
                 imported_lists += 1
                 utils.log(f"Imported list '{list_name}' with {len(items)} items", "INFO")
             
-            utils.log(f"Successfully imported {imported_lists} lists from Shortlist", "INFO")
+            utils.log(f"Successfully imported {imported_lists} lists with {kodi_matches}/{total_items} Kodi library matches", "INFO")
             return True
             
         except Exception as e:
@@ -302,9 +426,13 @@ class ShortlistImporter:
             progress.close()
             
             if success:
+                # Calculate enhancement statistics for user feedback
+                total_items = sum(len(list_data["items"]) for list_data in shortlist_data)
+                
                 xbmcgui.Dialog().ok(
                     "Import Complete",
                     f"Successfully imported {len(shortlist_data)} lists from Shortlist.\n\n"
+                    f"Items enhanced with Kodi library data where available.\n\n"
                     "You can find them under 'Imported Lists' in your LibraryGenie root folder."
                 )
                 # Refresh the container to show new data
