@@ -463,8 +463,13 @@ def _perform_similarity_search(imdb_id, title):
 
         # Insert movies into the list
         for i, movie_data in enumerate(similar_movies):
-            imdb = movie_data.get('imdb_id', '')
-            score = movie_data.get('score', 0)
+            # Handle both string format (just IMDb ID) and object format
+            if isinstance(movie_data, str):
+                imdb = movie_data
+                score = len(similar_movies) - i  # Use reverse index as score for ordering
+            else:
+                imdb = movie_data.get('imdb_id', '')
+                score = movie_data.get('score', 0)
 
             utils.log(f"=== SIMILARITY_SEARCH: Processing movie {i+1}/{len(similar_movies)}: {imdb} (score: {score}) ===", "DEBUG")
 
