@@ -22,14 +22,24 @@ class ResultsManager(Singleton):
     def build_display_items_for_list(self, list_id: int):
         """Build display items for a specific list with comprehensive metadata"""
         try:
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Starting for list_id {list_id} ===", "DEBUG")
+            
             # Get list items with full details
             list_items = self.query_manager.fetch_list_items_with_details(list_id)
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Retrieved {len(list_items)} list items ===", "DEBUG")
+            
+            if list_items:
+                # Log sample of first item
+                first_item = list_items[0]
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: First item keys: {list(first_item.keys())} ===", "DEBUG")
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: First item sample data: {dict(list(first_item.items())[:5])} ===", "DEBUG")
 
             rows = list_items # Renamed for consistency with original logic
             external, refs = [], []
 
             # Determine if this list is part of the search history
             is_search_history = self.query_manager.is_search_history(list_id)
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Is search history: {is_search_history} ===", "DEBUG")
 
             for r in rows:
                 src = (r.get('source') or '').lower()
@@ -81,11 +91,21 @@ class ResultsManager(Singleton):
 
             # ---- Batch resolve via one JSON-RPC call using OR of (title AND year) ----
             batch_pairs = [{"title": r.get("title"), "year": r.get("year")} for r in refs]
-            utils.log(f"Batch lookup pairs: {batch_pairs[:3]}..." if len(batch_pairs) > 3 else f"Batch lookup pairs: {batch_pairs}", "DEBUG")
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Batch lookup pairs count: {len(batch_pairs)} ===", "DEBUG")
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: First 3 batch pairs: {batch_pairs[:3]} ===", "DEBUG")
 
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Calling get_movies_by_title_year_batch ===", "DEBUG")
             batch_resp = self.jsonrpc.get_movies_by_title_year_batch(batch_pairs) or {}
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Batch response keys: {list(batch_resp.keys()) if batch_resp else 'None'} ===", "DEBUG")
+            
             batch_movies = (batch_resp.get("result") or {}).get("movies") or []
-            utils.log(f"JSON-RPC returned {len(batch_movies)} movies from batch lookup", "DEBUG")
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: JSON-RPC returned {len(batch_movies)} movies from batch lookup ===", "DEBUG")
+            
+            if batch_movies:
+                # Log sample of first returned movie
+                first_movie = batch_movies[0]
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: First returned movie keys: {list(first_movie.keys())} ===", "DEBUG")
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: First movie title/year: {first_movie.get('title')}/{first_movie.get('year')} ===", "DEBUG")
 
             # Build a simple matcher key: (normalized_title, year_int)
             def _key(t, y):
@@ -107,25 +127,36 @@ class ResultsManager(Singleton):
 
             # Rebuild resolved list in the original refs order (already sorted by search score from query)
             resolved_items_for_list = []
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Starting movie matching for {len(rows)} items ===", "DEBUG")
+            
             for i, r in enumerate(rows): # Use original 'rows' to get 'id' and 'source' for unmatched items
                 ref_title = r.get("title", "") # Get title from original row if available
                 ref_year = r.get("year", 0) # Get year from original row if available
                 ref_imdb = r.get("imdbnumber", "") # Get imdbnumber from original row if available
+                
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: ref_title='{ref_title}', ref_year={ref_year}, ref_imdb='{ref_imdb}' ===", "DEBUG")
 
                 # Find the corresponding processed ref data
                 processed_ref = next((ref for ref in refs if ref.get('imdb') == ref_imdb and ref.get('title') == ref_title and ref.get('year') == ref_year), None)
                 if not processed_ref:
                     # Fallback if processed_ref is somehow not found, use original row data
                     processed_ref = {'title': ref_title, 'year': ref_year, 'imdb': ref_imdb, 'search_score': r.get('search_score', 0)}
-
+                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Using fallback processed_ref ===", "WARNING")
+                else:
+                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Found matching processed_ref ===", "DEBUG")
 
                 k_exact = _key(processed_ref.get("title"), processed_ref.get("year"))
                 k_title = _key(processed_ref.get("title"), 0)
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Lookup keys - exact: {k_exact}, title: {k_title} ===", "DEBUG")
+                
                 cand = (idx_ty.get(k_exact) or idx_t.get(k_title) or [])
                 meta = cand[0] if cand else None
+                
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Found {len(cand)} candidates, meta exists: {meta is not None} ===", "DEBUG")
 
                 resolved_item = None
                 if meta:
+                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Found Kodi match - title: {meta.get('title')}, movieid: {meta.get('movieid')} ===", "DEBUG")
                     # Found in Kodi library via JSON-RPC
                     cast = meta.get('cast') or []
                     if isinstance(cast, list):

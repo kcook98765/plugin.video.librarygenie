@@ -33,18 +33,52 @@ class JSONRPC:
         }
         query_json = json.dumps(request_data)
 
-        # Log all JSON-RPC requests
-        utils.log(f"JSONRPC Request: {method}", "INFO")
+        # Log all JSON-RPC requests with details
+        utils.log(f"=== JSONRPC REQUEST: {method} ===", "DEBUG")
+        utils.log(f"Request params: {params}", "DEBUG")
+        utils.log(f"Full request JSON: {query_json}", "DEBUG")
+
         # Send JSONRPC request
-
         response = xbmc.executeJSONRPC(query_json)
+        
+        # Log raw response
+        utils.log(f"=== JSONRPC RESPONSE RAW: {method} ===", "DEBUG")
+        utils.log(f"Raw response length: {len(response)} chars", "DEBUG")
+        
         parsed_response = json.loads(response)
-
-        # Only log errors with full details
+        
+        # Log parsed response details
+        utils.log(f"=== JSONRPC RESPONSE PARSED: {method} ===", "DEBUG")
+        if 'result' in parsed_response:
+            result = parsed_response['result']
+            if isinstance(result, dict):
+                utils.log(f"Response result keys: {list(result.keys())}", "DEBUG")
+                # Log movie count for movie-related methods
+                if method in ['VideoLibrary.GetMovies', 'VideoLibrary.GetMovieDetails']:
+                    if 'movies' in result:
+                        utils.log(f"Movies returned: {len(result['movies'])}", "DEBUG")
+                        if result['movies']:
+                            # Log first movie sample
+                            first_movie = result['movies'][0]
+                            utils.log(f"First movie sample keys: {list(first_movie.keys())}", "DEBUG")
+                            utils.log(f"First movie title: {first_movie.get('title', 'N/A')}", "DEBUG")
+                            utils.log(f"First movie IMDB: {first_movie.get('imdbnumber', 'N/A')}", "DEBUG")
+                    elif 'moviedetails' in result:
+                        movie = result['moviedetails']
+                        utils.log(f"Movie details keys: {list(movie.keys())}", "DEBUG")
+                        utils.log(f"Movie title: {movie.get('title', 'N/A')}", "DEBUG")
+                        utils.log(f"Movie IMDB: {movie.get('imdbnumber', 'N/A')}", "DEBUG")
+            else:
+                utils.log(f"Response result type: {type(result)}", "DEBUG")
+        
+        # Log errors with full details
         if 'error' in parsed_response:
-            utils.log(f"JSONRPC {method} failed: {parsed_response['error'].get('message', 'Unknown error')}", "ERROR")
+            utils.log(f"=== JSONRPC ERROR: {method} ===", "ERROR")
+            utils.log(f"Error message: {parsed_response['error'].get('message', 'Unknown error')}", "ERROR")
             utils.log(f"Full error response: {parsed_response}", "ERROR")
             utils.log(f"Failed request: {query_json}", "ERROR")
+        else:
+            utils.log(f"=== JSONRPC SUCCESS: {method} ===", "DEBUG")
 
         return parsed_response
 

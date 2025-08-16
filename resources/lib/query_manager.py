@@ -681,18 +681,37 @@ class QueryManager(Singleton):
 
     def insert_media_item(self, data: Dict[str, Any]) -> Optional[int]:
         """Insert a media item and return its ID"""
+        utils.log(f"=== INSERT_MEDIA_ITEM: Starting with data keys: {list(data.keys())}", "DEBUG")
+        utils.log(f"=== INSERT_MEDIA_ITEM: Input data sample: {dict(list(data.items())[:5])}", "DEBUG")
+        
         # Extract field names from config
         field_names = [field.split()[0] for field in Config.FIELDS]
-        media_data = {key: data[key] for key in field_names if key in data}
+        utils.log(f"=== INSERT_MEDIA_ITEM: Available field names: {field_names}", "DEBUG")
+        
+        # Filter out None values and empty strings to prevent SQL issues
+        filtered_data = {}
+        for key in field_names:
+            if key in data:
+                value = data[key]
+                if value is not None and value != '':
+                    filtered_data[key] = value
+                else:
+                    utils.log(f"=== INSERT_MEDIA_ITEM: Skipping None/empty field {key} with value: {value}", "DEBUG")
+        
+        media_data = filtered_data
+        utils.log(f"=== INSERT_MEDIA_ITEM: Filtered media_data keys: {list(media_data.keys())}", "DEBUG")
 
         # Ensure search_score is included if present in input data
         if 'search_score' in data and 'search_score' not in media_data:
             media_data['search_score'] = data['search_score']
+            utils.log(f"=== INSERT_MEDIA_ITEM: Added search_score: {data['search_score']}", "DEBUG")
 
         # Process art data
         if 'art' in data:
             try:
                 art_dict = data['art']
+                utils.log(f"=== INSERT_MEDIA_ITEM: Processing art data: {type(art_dict)} - {art_dict}", "DEBUG")
+                
                 if isinstance(art_dict, str):
                     art_dict = json.loads(art_dict)
                 elif not isinstance(art_dict, dict):
@@ -714,27 +733,59 @@ class QueryManager(Singleton):
                         'poster': poster_url,
                         'thumbnail': poster_url
                     })
+                    utils.log(f"=== INSERT_MEDIA_ITEM: Updated art data in media_data", "DEBUG")
             except Exception as e:
-                utils.log(f"Error processing art data: {str(e)}", "ERROR")
+                utils.log(f"=== INSERT_MEDIA_ITEM: Error processing art data: {str(e)}", "ERROR")
+
+        # Validate media_data before building query
+        if not media_data:
+            utils.log("=== INSERT_MEDIA_ITEM: ERROR - No valid media data to insert", "ERROR")
+            return None
+            
+        # Log final media_data
+        utils.log(f"=== INSERT_MEDIA_ITEM: Final media_data keys: {list(media_data.keys())}", "DEBUG")
+        utils.log(f"=== INSERT_MEDIA_ITEM: Final media_data values sample: {list(media_data.values())[:5]}", "DEBUG")
 
         # Insert media item
         columns = ', '.join(media_data.keys())
         placeholders = ', '.join('?' for _ in media_data)
         query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
+        
+        utils.log(f"=== INSERT_MEDIA_ITEM: SQL Query: {query}", "DEBUG")
+        utils.log(f"=== INSERT_MEDIA_ITEM: SQL Parameters count: {len(media_data.values())}", "DEBUG")
 
         conn_info = self._get_connection()
         try:
             cursor = conn_info['connection'].cursor()
+            utils.log(f"=== INSERT_MEDIA_ITEM: Executing query with {len(tuple(media_data.values()))} parameters", "DEBUG")
             cursor.execute(query, tuple(media_data.values()))
             conn_info['connection'].commit()
+            utils.log(f"=== INSERT_MEDIA_ITEM: Query executed successfully", "DEBUG")
 
             # Get the media item ID
+            lookup_kodi_id = media_data.get('kodi_id', 0)
+            lookup_play = media_data.get('play', '')
+            utils.log(f"=== INSERT_MEDIA_ITEM: Looking up inserted item with kodi_id={lookup_kodi_id}, play='{lookup_play}'", "DEBUG")
+            
             cursor.execute(
                 "SELECT id FROM media_items WHERE kodi_id = ? AND play = ?",
-                (media_data['kodi_id'], media_data['play'])
+                (lookup_kodi_id, lookup_play)
             )
             result = cursor.fetchone()
-            return result[0] if result else None
+            
+            if result:
+                inserted_id = result[0]
+                utils.log(f"=== INSERT_MEDIA_ITEM: Successfully inserted with ID: {inserted_id}", "DEBUG")
+                return inserted_id
+            else:
+                utils.log(f"=== INSERT_MEDIA_ITEM: WARNING - Could not find inserted record", "WARNING")
+                return None
+                
+        except Exception as e:
+            utils.log(f"=== INSERT_MEDIA_ITEM: SQL Error: {str(e)}", "ERROR")
+            utils.log(f"=== INSERT_MEDIA_ITEM: Failed query: {query}", "ERROR")
+            utils.log(f"=== INSERT_MEDIA_ITEM: Failed parameters: {tuple(media_data.values())}", "ERROR")
+            raise
         finally:
             self._release_connection(conn_info)
 
