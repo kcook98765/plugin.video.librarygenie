@@ -414,14 +414,23 @@ class ListItemBuilder:
         context_menu_items.append(('Show Details', f'RunPlugin(plugin://script.librarygenie/?action=show_item_details&title={quote_plus(formatted_title)}&item_id={media_info.get("id", "")})'))
         context_menu_items.append(('Information', 'Action(Info)'))
 
-        # Add similarity context menu to video items
-        imdb_id = media_info.get('imdbnumber', '')
-        if imdb_id and imdb_id.startswith('tt'):
+        # Add similarity context menu to video items - enhanced IMDb ID detection for v19
+        imdb_id = (media_info.get('imdbnumber', '') or 
+                   media_info.get('uniqueid', {}).get('imdb', '') if isinstance(media_info.get('uniqueid'), dict) else '' or
+                   media_info.get('info', {}).get('imdbnumber', '') or
+                   media_info.get('imdb_id', ''))
+        
+        if imdb_id and str(imdb_id).startswith('tt'):
             encoded_title = quote_plus(str(media_info.get('title', 'Unknown')))
             context_menu_items.append(('Find Similar Movies...', f'RunPlugin(plugin://plugin.video.librarygenie/?action=find_similar&imdb_id={imdb_id}&title={encoded_title})'))
 
-        # Add context menu to ListItem using v19+ compatible method
-        li.addContextMenuItems(context_menu_items, replaceItems=False)
+        # Add context menu to ListItem with v19 compatibility fix
+        if utils.is_kodi_v19():
+            # v19 requires replaceItems=True for reliable context menu display
+            li.addContextMenuItems(context_menu_items, replaceItems=True)
+        else:
+            # v20+ can use replaceItems=False to preserve existing items
+            li.addContextMenuItems(context_menu_items, replaceItems=False)
 
         # Try to get play URL from different possible locations
         play_url = media_info.get('info', {}).get('play') or media_info.get('play') or media_info.get('file')
