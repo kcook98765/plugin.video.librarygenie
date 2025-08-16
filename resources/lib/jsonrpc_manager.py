@@ -58,16 +58,34 @@ class JSONRPC:
                     if 'movies' in result:
                         utils.log(f"Movies returned: {len(result['movies'])}", "DEBUG")
                         if result['movies']:
-                            # Log first movie sample
+                            # Log first movie sample with detailed IMDb analysis
                             first_movie = result['movies'][0]
                             utils.log(f"First movie sample keys: {list(first_movie.keys())}", "DEBUG")
                             utils.log(f"First movie title: {first_movie.get('title', 'N/A')}", "DEBUG")
-                            utils.log(f"First movie IMDB: {first_movie.get('imdbnumber', 'N/A')}", "DEBUG")
+                            
+                            # Detailed IMDb ID logging
+                            imdbnumber = first_movie.get('imdbnumber', '')
+                            uniqueid = first_movie.get('uniqueid', {})
+                            utils.log(f"=== IMDB_TRACE: JSONRPC GetMovies sample ===", "INFO")
+                            utils.log(f"IMDB_TRACE: imdbnumber field = '{imdbnumber}' (type: {type(imdbnumber)})", "INFO")
+                            utils.log(f"IMDB_TRACE: uniqueid field = {uniqueid} (type: {type(uniqueid)})", "INFO")
+                            if isinstance(uniqueid, dict):
+                                utils.log(f"IMDB_TRACE: uniqueid.imdb = '{uniqueid.get('imdb', 'NOT_FOUND')}'", "INFO")
+                            utils.log(f"=== END IMDB_TRACE ===", "INFO")
                     elif 'moviedetails' in result:
                         movie = result['moviedetails']
                         utils.log(f"Movie details keys: {list(movie.keys())}", "DEBUG")
                         utils.log(f"Movie title: {movie.get('title', 'N/A')}", "DEBUG")
-                        utils.log(f"Movie IMDB: {movie.get('imdbnumber', 'N/A')}", "DEBUG")
+                        
+                        # Detailed IMDb ID logging for movie details
+                        imdbnumber = movie.get('imdbnumber', '')
+                        uniqueid = movie.get('uniqueid', {})
+                        utils.log(f"=== IMDB_TRACE: JSONRPC GetMovieDetails ===", "INFO")
+                        utils.log(f"IMDB_TRACE: imdbnumber field = '{imdbnumber}' (type: {type(imdbnumber)})", "INFO")
+                        utils.log(f"IMDB_TRACE: uniqueid field = {uniqueid} (type: {type(uniqueid)})", "INFO")
+                        if isinstance(uniqueid, dict):
+                            utils.log(f"IMDB_TRACE: uniqueid.imdb = '{uniqueid.get('imdb', 'NOT_FOUND')}'", "INFO")
+                        utils.log(f"=== END IMDB_TRACE ===", "INFO")
             else:
                 utils.log(f"Response result type: {type(result)}", "DEBUG")
 

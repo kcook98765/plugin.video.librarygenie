@@ -339,21 +339,39 @@ class ListItemBuilder:
         if media_info.get('plot'):
             pass
 
-        # Add IMDb ID to info_dict if available - version-aware handling
-        imdb_from_media = (media_info.get('imdbnumber', '') or 
-                          media_info.get('uniqueid', {}).get('imdb', '') if isinstance(media_info.get('uniqueid'), dict) else '' or
-                          media_info.get('info', {}).get('imdbnumber', '') or
-                          media_info.get('imdb_id', ''))
+        # Add IMDb ID to info_dict if available - version-aware handling with detailed logging
+        utils.log(f"=== IMDB_TRACE: ListItem building for '{title}' ===", "INFO")
+        
+        # Log all possible IMDb sources
+        source1 = media_info.get('imdbnumber', '')
+        source2 = media_info.get('uniqueid', {}).get('imdb', '') if isinstance(media_info.get('uniqueid'), dict) else ''
+        source3 = media_info.get('info', {}).get('imdbnumber', '') if media_info.get('info') else ''
+        source4 = media_info.get('imdb_id', '')
+        
+        utils.log(f"IMDB_TRACE: media_info.imdbnumber = '{source1}'", "INFO")
+        utils.log(f"IMDB_TRACE: media_info.uniqueid.imdb = '{source2}'", "INFO")
+        utils.log(f"IMDB_TRACE: media_info.info.imdbnumber = '{source3}'", "INFO")
+        utils.log(f"IMDB_TRACE: media_info.imdb_id = '{source4}'", "INFO")
+        
+        imdb_from_media = (source1 or source2 or source3 or source4)
+        utils.log(f"IMDB_TRACE: Final extracted IMDb = '{imdb_from_media}'", "INFO")
 
         if imdb_from_media and str(imdb_from_media).startswith('tt'):
             imdb_id = str(imdb_from_media)
+            utils.log(f"IMDB_TRACE: Setting info_dict imdbnumber = '{imdb_id}'", "INFO")
             info_dict['imdbnumber'] = imdb_id
 
             # For Kodi v19+, also set uniqueid properly
             if not info_dict.get('uniqueid'):
                 info_dict['uniqueid'] = {'imdb': imdb_id}
+                utils.log(f"IMDB_TRACE: Created new uniqueid dict with imdb = '{imdb_id}'", "INFO")
             elif isinstance(info_dict.get('uniqueid'), dict):
                 info_dict['uniqueid']['imdb'] = imdb_id
+                utils.log(f"IMDB_TRACE: Updated existing uniqueid.imdb = '{imdb_id}'", "INFO")
+        else:
+            utils.log(f"IMDB_TRACE: No valid IMDb ID found or doesn't start with 'tt'", "INFO")
+        
+        utils.log(f"=== END IMDB_TRACE for ListItem '{title}' ===", "INFO")
 
         # Use the specialized set_info_tag function that handles Kodi version compatibility
         set_info_tag(li, info_dict, 'video')
@@ -456,14 +474,19 @@ class ListItemBuilder:
         # Store IMDb ID as a property on the ListItem itself for context menu access
         # Use the same IMDb ID we processed above for consistency
         final_imdb_id = info_dict.get('imdbnumber', '')
+        utils.log(f"=== IMDB_TRACE: Setting ListItem properties for '{title}' ===", "INFO")
+        utils.log(f"IMDB_TRACE: final_imdb_id from info_dict = '{final_imdb_id}'", "INFO")
+        
         if final_imdb_id and str(final_imdb_id).startswith('tt'):
             # Set multiple properties for maximum compatibility
             li.setProperty('LibraryGenie.IMDbID', str(final_imdb_id))
             li.setProperty('imdb_id', str(final_imdb_id))  # Additional fallback property
             li.setProperty('imdbnumber', str(final_imdb_id))  # Additional fallback property
-            utils.log(f"Set ListItem IMDb properties = {final_imdb_id} for {title}", "DEBUG")
+            utils.log(f"IMDB_TRACE: Set all ListItem properties = '{final_imdb_id}' for '{title}'", "INFO")
         else:
-            utils.log(f"No valid IMDb ID found for {title} - cannot set properties", "DEBUG")
+            utils.log(f"IMDB_TRACE: No valid IMDb ID found for '{title}' - cannot set properties", "INFO")
+        
+        utils.log(f"=== END IMDB_TRACE: ListItem properties for '{title}' ===", "INFO")
 
         return li
 
