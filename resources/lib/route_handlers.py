@@ -177,19 +177,19 @@ def delete_list(params):
 def remove_from_list(params):
     list_id = params.get('list_id', [None])[0]
     media_id = params.get('media_id', [None])[0] or params.get('movie_id', [None])[0]  # Support both parameter names
-    
+
     utils.log(f"remove_from_list called with list_id={list_id}, media_id={media_id}", "DEBUG")
-    
+
     if not list_id:
         utils.log("remove_from_list: Missing list_id parameter", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Error: Missing list ID', xbmcgui.NOTIFICATION_ERROR)
         return
-        
+
     if not media_id:
         utils.log("remove_from_list: Missing media_id parameter", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Error: Missing media ID', xbmcgui.NOTIFICATION_ERROR)
         return
-        
+
     try:
         config = Config()
         db_manager = DatabaseManager(config.db_path)
@@ -197,13 +197,13 @@ def remove_from_list(params):
         # Get list name and media title for confirmation dialog
         list_info = db_manager.fetch_list_by_id(list_id)
         list_name = list_info.get('name', 'Unknown List') if list_info else 'Unknown List'
-        
+
         # Get media info from the list_items table with media_items join
         try:
             query = """
-                SELECT m.title, m.year 
-                FROM list_items li 
-                JOIN media_items m ON li.media_item_id = m.id 
+                SELECT m.title, m.year
+                FROM list_items li
+                JOIN media_items m ON li.media_item_id = m.id
                 WHERE li.list_id = ? AND m.id = ?
             """
             db_manager.cursor.execute(query, (list_id, media_id))
@@ -215,10 +215,10 @@ def remove_from_list(params):
         except Exception as e:
             utils.log(f"Error fetching media title: {str(e)}", "WARNING")
             media_title = 'Unknown Movie'
-        
+
         # Show confirmation dialog
         if not xbmcgui.Dialog().yesno(
-            'Remove from List', 
+            'Remove from List',
             f'Remove "{media_title}" from "{list_name}"?\n\nThis action cannot be undone.'
         ):
             utils.log("User cancelled removal from list", "DEBUG")
@@ -228,7 +228,7 @@ def remove_from_list(params):
         check_query = f"SELECT COUNT(*) as count FROM list_items WHERE list_id = {list_id} AND media_item_id = {media_id}"
         result = db_manager.cursor.execute(check_query).fetchone()
         item_count = result[0] if result else 0
-        
+
         if item_count == 0:
             utils.log(f"Item not found in list: list_id={list_id}, media_item_id={media_id}", "WARNING")
             xbmcgui.Dialog().notification('LibraryGenie', 'Item not found in list', xbmcgui.NOTIFICATION_WARNING)
@@ -236,10 +236,10 @@ def remove_from_list(params):
             db_manager.delete_data('list_items', f"list_id = {list_id} AND media_item_id = {media_id}")
             utils.log(f"Successfully removed item from list: list_id={list_id}, media_item_id={media_id}", "INFO")
             xbmcgui.Dialog().notification('LibraryGenie', f'Removed "{media_title}" from list')
-            
+
         # Always refresh the container regardless of success/failure
         xbmc.executebuiltin('Container.Refresh')
-        
+
     except Exception as e:
         utils.log(f"Error removing from list: {str(e)}", "ERROR")
         import traceback
@@ -399,44 +399,44 @@ def add_to_list(params):
         # Extract parameters
         title = params.get('title', ['Unknown'])[0] if params.get('title') else 'Unknown'
         item_id = params.get('item_id', [None])[0] if params.get('item_id') else None
-        
+
         # URL decode the title
         import urllib.parse
         title = urllib.parse.unquote_plus(title)
-        
+
         utils.log(f"add_to_list called with title='{title}', item_id='{item_id}'", "DEBUG")
-        
+
         # For items coming from context menu without full media info, we need to get it from Kodi
         # Use xbmc.getInfoLabel to get current focused item info
         import xbmc
-        
+
         # Try to get IMDb ID from focused item
         imdb_id = None
         year = ""
-        
+
         # Try multiple sources for IMDb ID
         imdb_candidates = [
             xbmc.getInfoLabel('ListItem.IMDBNumber'),
             xbmc.getInfoLabel('ListItem.UniqueID(imdb)'),
             xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)')
         ]
-        
+
         for candidate in imdb_candidates:
             if candidate and str(candidate).startswith('tt'):
                 imdb_id = candidate
                 break
-        
+
         # Get year
         year_str = xbmc.getInfoLabel('ListItem.Year')
         if year_str and year_str.isdigit():
             year = year_str
-        
+
         utils.log(f"Extracted from Kodi - Title: {title}, Year: {year}, IMDb: {imdb_id}", "DEBUG")
-        
+
         if not imdb_id or not imdb_id.startswith('tt'):
             xbmcgui.Dialog().ok('LibraryGenie', "This item doesn't have a valid IMDb ID.")
             return
-        
+
         # Create media item object
         media_item = {
             'title': title,
@@ -445,51 +445,72 @@ def add_to_list(params):
             'media_type': 'movie',
             'source': 'context_menu'
         }
-        
+
         # Use database manager to handle the add to list functionality
         from resources.lib.config_manager import Config
         from resources.lib.database_manager import DatabaseManager
-        
+
         config = Config()
         db_manager = DatabaseManager(config.db_path)
-        
+
         # Get all available lists for user selection
         all_lists = db_manager.fetch_all_lists()
-        
-        if not all_lists:
-            xbmcgui.Dialog().ok('LibraryGenie', 'No lists found. Create a list first.')
-            return
-        
-        # Create list selection options
-        list_options = []
-        list_ids = []
-        
+
+        # Get Search History folder ID to exclude its lists
+        search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
+
+        # Filter out Search History lists
+        filtered_lists = []
         for list_item in all_lists:
+            if list_item.get('folder_id') != search_history_folder_id:
+                filtered_lists.append(list_item)
+
+        # Create list selection options with "New List" at top
+        list_options = ["📝 Create New List"]
+        list_ids = [None]  # None indicates "create new list"
+
+        for list_item in filtered_lists:
             # Get folder path for display
             folder_path = ""
             if list_item.get('folder_id'):
                 folder = db_manager.fetch_folder_by_id(list_item['folder_id'])
                 if folder:
                     folder_path = f"[{folder['name']}] "
-            
+
             list_options.append(f"{folder_path}{list_item['name']}")
             list_ids.append(list_item['id'])
-        
+
         # Show list selection dialog
         selected_index = xbmcgui.Dialog().select(
             f"Add '{title}' to list:",
             list_options
         )
-        
+
         if selected_index == -1:  # User cancelled
             utils.log("User cancelled list selection", "DEBUG")
             return
-        
+
         selected_list_id = list_ids[selected_index]
-        
+
+        # Handle "Create New List" option
+        if selected_list_id is None:
+            new_list_name = xbmcgui.Dialog().input('New list name', type=xbmcgui.INPUT_ALPHANUM)
+            if not new_list_name:
+                utils.log("User cancelled new list creation", "DEBUG")
+                return
+
+            # Create new list at root level (folder_id=None)
+            selected_list_id = db_manager.create_list(new_list_name, None)
+            if not selected_list_id:
+                xbmcgui.Dialog().notification('LibraryGenie', 'Failed to create new list', xbmcgui.NOTIFICATION_ERROR)
+                return
+
+            utils.log(f"Created new list '{new_list_name}' with ID: {selected_list_id}", "DEBUG")
+
+
         # Create or find the media item
         existing_media = db_manager.fetch_data('media_items', f"imdbnumber = '{imdb_id}'")
-        
+
         if existing_media:
             media_id = existing_media[0]['id']
             utils.log(f"Found existing media item with ID: {media_id}", "DEBUG")
@@ -497,10 +518,10 @@ def add_to_list(params):
             # Insert new media item
             media_id = db_manager.insert_data('media_items', media_item)
             utils.log(f"Created new media item with ID: {media_id}", "DEBUG")
-        
+
         # Check if already in list
         existing_list_item = db_manager.fetch_data('list_items', f"list_id = {selected_list_id} AND media_item_id = {media_id}")
-        
+
         if existing_list_item:
             xbmcgui.Dialog().notification('LibraryGenie', f'"{title}" is already in that list', xbmcgui.NOTIFICATION_INFO, 3000)
         else:
@@ -513,17 +534,17 @@ def add_to_list(params):
                 columns = ', '.join(list_item_data.keys())
                 placeholders = ', '.join(['?' for _ in list_item_data])
                 query = f'INSERT INTO list_items ({columns}) VALUES ({placeholders})'
-                
+
                 db_manager._execute_with_retry(db_manager.cursor.execute, query, tuple(list_item_data.values()))
                 db_manager.connection.commit()
-                
+
                 utils.log(f"Successfully added item to list: list_id={selected_list_id}, media_item_id={media_id}", "DEBUG")
                 xbmcgui.Dialog().notification('LibraryGenie', f'Added "{title}" to list', xbmcgui.NOTIFICATION_INFO, 3000)
-                
+
             except Exception as insert_error:
                 utils.log(f"Error inserting list item: {str(insert_error)}", "ERROR")
                 xbmcgui.Dialog().notification('LibraryGenie', 'Error adding to list', xbmcgui.NOTIFICATION_ERROR, 3000)
-    
+
     except Exception as e:
         utils.log(f"Error in add_to_list: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Error adding to list', xbmcgui.NOTIFICATION_ERROR, 3000)
@@ -558,47 +579,68 @@ def add_to_list_from_context(params):
         # Use the database manager to handle the add to list functionality
         from resources.lib.config_manager import Config
         from resources.lib.database_manager import DatabaseManager
-        
+
         config = Config()
         db_manager = DatabaseManager(config.db_path)
-        
+
         # Get all available lists for user selection
         all_lists = db_manager.fetch_all_lists()
-        
-        if not all_lists:
-            xbmcgui.Dialog().ok('LibraryGenie', 'No lists found. Create a list first.')
-            return
-        
-        # Create list selection options
-        list_options = []
-        list_ids = []
-        
+
+        # Get Search History folder ID to exclude its lists
+        search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
+
+        # Filter out Search History lists
+        filtered_lists = []
         for list_item in all_lists:
+            if list_item.get('folder_id') != search_history_folder_id:
+                filtered_lists.append(list_item)
+
+        # Create list selection options with "New List" at top
+        list_options = ["📝 Create New List"]
+        list_ids = [None]  # None indicates "create new list"
+
+        for list_item in filtered_lists:
             # Get folder path for display
             folder_path = ""
             if list_item.get('folder_id'):
                 folder = db_manager.fetch_folder_by_id(list_item['folder_id'])
                 if folder:
                     folder_path = f"[{folder['name']}] "
-            
+
             list_options.append(f"{folder_path}{list_item['name']}")
             list_ids.append(list_item['id'])
-        
+
         # Show list selection dialog
         selected_index = xbmcgui.Dialog().select(
             f"Add '{title}' to list:",
             list_options
         )
-        
+
         if selected_index == -1:  # User cancelled
             utils.log("User cancelled list selection", "DEBUG")
             return
-        
+
         selected_list_id = list_ids[selected_index]
-        
+
+        # Handle "Create New List" option
+        if selected_list_id is None:
+            new_list_name = xbmcgui.Dialog().input('New list name', type=xbmcgui.INPUT_ALPHANUM)
+            if not new_list_name:
+                utils.log("User cancelled new list creation", "DEBUG")
+                return
+
+            # Create new list at root level (folder_id=None)
+            selected_list_id = db_manager.create_list(new_list_name, None)
+            if not selected_list_id:
+                xbmcgui.Dialog().notification('LibraryGenie', 'Failed to create new list', xbmcgui.NOTIFICATION_ERROR)
+                return
+
+            utils.log(f"Created new list '{new_list_name}' with ID: {selected_list_id}", "DEBUG")
+
+
         # Create or find the media item
         existing_media = db_manager.fetch_data('media_items', f"imdbnumber = '{imdb_id}'")
-        
+
         if existing_media:
             media_id = existing_media[0]['id']
             utils.log(f"Found existing media item with ID: {media_id}", "DEBUG")
@@ -606,10 +648,10 @@ def add_to_list_from_context(params):
             # Insert new media item
             media_id = db_manager.insert_data('media_items', media_item)
             utils.log(f"Created new media item with ID: {media_id}", "DEBUG")
-        
+
         # Check if already in list
         existing_list_item = db_manager.fetch_data('list_items', f"list_id = {selected_list_id} AND media_item_id = {media_id}")
-        
+
         if existing_list_item:
             xbmcgui.Dialog().notification('LibraryGenie', f'"{title}" is already in that list', xbmcgui.NOTIFICATION_INFO, 3000)
         else:
@@ -622,13 +664,13 @@ def add_to_list_from_context(params):
                 columns = ', '.join(list_item_data.keys())
                 placeholders = ', '.join(['?' for _ in list_item_data])
                 query = f'INSERT INTO list_items ({columns}) VALUES ({placeholders})'
-                
+
                 db_manager._execute_with_retry(db_manager.cursor.execute, query, tuple(list_item_data.values()))
                 db_manager.connection.commit()
-                
+
                 utils.log(f"Successfully added item to list: list_id={selected_list_id}, media_item_id={media_id}", "DEBUG")
                 xbmcgui.Dialog().notification('LibraryGenie', f'Added "{title}" to list', xbmcgui.NOTIFICATION_INFO, 3000)
-                
+
             except Exception as insert_error:
                 utils.log(f"Error inserting list item: {str(insert_error)}", "ERROR")
                 xbmcgui.Dialog().notification('LibraryGenie', 'Error adding to list', xbmcgui.NOTIFICATION_ERROR, 3000)
