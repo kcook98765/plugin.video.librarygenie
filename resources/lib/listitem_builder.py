@@ -339,6 +339,15 @@ class ListItemBuilder:
         if media_info.get('plot'):
             pass
 
+        # Add IMDb ID to info_dict if available
+        imdb_from_media = (media_info.get('imdbnumber', '') or 
+                          media_info.get('uniqueid', {}).get('imdb', '') if isinstance(media_info.get('uniqueid'), dict) else '' or
+                          media_info.get('info', {}).get('imdbnumber', '') or
+                          media_info.get('imdb_id', ''))
+        
+        if imdb_from_media and str(imdb_from_media).startswith('tt'):
+            info_dict['imdbnumber'] = str(imdb_from_media)
+        
         # Use the specialized set_info_tag function that handles Kodi version compatibility
         set_info_tag(li, info_dict, 'video')
 
