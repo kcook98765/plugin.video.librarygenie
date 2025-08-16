@@ -55,10 +55,6 @@ def main():
         if selected == 0:  # Search Movies - use direct search instead of plugin URL
             # Import here to avoid circular imports
             from resources.lib.window_search import SearchWindow
-            from resources.lib.navigation_manager import get_navigation_manager
-            
-            # Set context flag to indicate this is from context menu
-            xbmc.executebuiltin("SetProperty(LibraryGenie.ContextSearch,true,Home)")
             
             try:
                 # Perform search directly
@@ -68,16 +64,14 @@ def main():
                 # Check if we have a target URL to navigate to
                 target_url = search_window.get_target_url()
                 if target_url:
-                    # Use navigation manager for proper flow control
-                    nav_manager = get_navigation_manager()
-                    xbmc.sleep(200)  # Brief delay to let modal close properly
-                    nav_manager.navigate_to_url(target_url, replace=True)
+                    xbmc.log(f"LibraryGenie: Context menu navigation to: {target_url}", xbmc.LOGINFO)
+                    # Give time for modal to fully close
+                    xbmc.sleep(300)
+                    # Use ActivateWindow for more reliable navigation from context menu
+                    xbmc.executebuiltin(f'ActivateWindow(videos,"{target_url}",return)')
                     
             except Exception as search_error:
                 xbmc.log(f"LibraryGenie: Context search error: {str(search_error)}", xbmc.LOGERROR)
-            finally:
-                # Always clear the context flag
-                xbmc.executebuiltin("ClearProperty(LibraryGenie.ContextSearch,Home)")
                 
         elif selected == 1:  # Search History
             url = f"plugin://{addon_id}/?action=browse_folder&folder_name=Search History"
