@@ -288,16 +288,7 @@ def rename_folder(params):
         utils.log(f"Error renaming folder: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Rename failed')
 
-def refresh_movie(params):
-    movie_id = params.get('movie_id', [None])[0]
-    if not movie_id:
-        return
-    try:
-        # Placeholder for movie metadata refresh
-        xbmcgui.Dialog().notification('LibraryGenie', 'Movie metadata refreshed')
-    except Exception as e:
-        utils.log(f"Error refreshing movie: {str(e)}", "ERROR")
-        xbmcgui.Dialog().notification('LibraryGenie', 'Refresh failed')
+
 
 def find_similar_movies(params):
     """Handler for similarity search from plugin ListItems"""
