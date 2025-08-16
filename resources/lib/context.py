@@ -46,16 +46,30 @@ def main():
         # Get IMDb ID from our custom ListItem property (set by listitem_builder.py)
         imdb_id = xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)')
         
-        # Simple fallback for non-LibraryGenie items
+        # Enhanced fallback for non-LibraryGenie items and v19 compatibility
         if not imdb_id:
             fallback_candidates = [
                 xbmc.getInfoLabel('ListItem.IMDBNumber'),
-                xbmc.getInfoLabel('ListItem.UniqueID(imdb)')
+                xbmc.getInfoLabel('ListItem.UniqueID(imdb)'),
+                # Try getting from item_info if available
+                item_info.get('imdbnumber', ''),
+                item_info.get('uniqueid', {}).get('imdb', '') if isinstance(item_info.get('uniqueid'), dict) else ''
             ]
+            
+            # Also try to extract from the kodi_helper
+            try:
+                helper_imdb = kodi_helper.get_imdb_from_item()
+                if helper_imdb:
+                    fallback_candidates.append(helper_imdb)
+            except Exception as e:
+                xbmc.log(f"LibraryGenie: Error getting IMDb from helper: {str(e)}", xbmc.LOGDEBUG)
+            
             for candidate in fallback_candidates:
                 if candidate and str(candidate).startswith('tt'):
                     imdb_id = candidate
                     break
+        
+        xbmc.log(f"LibraryGenie: Context menu IMDb ID detection - Property: {xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)')}, IMDBNumber: {xbmc.getInfoLabel('ListItem.IMDBNumber')}, UniqueID: {xbmc.getInfoLabel('ListItem.UniqueID(imdb)')}, Final: {imdb_id}", xbmc.LOGDEBUG)
         
         if imdb_id:
             xbmc.log(f"LibraryGenie: Context menu found IMDb ID: {imdb_id}", xbmc.LOGINFO)

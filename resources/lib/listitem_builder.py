@@ -457,8 +457,13 @@ class ListItemBuilder:
         # Use the same IMDb ID we processed above for consistency
         final_imdb_id = info_dict.get('imdbnumber', '')
         if final_imdb_id and str(final_imdb_id).startswith('tt'):
+            # Set multiple properties for maximum compatibility
             li.setProperty('LibraryGenie.IMDbID', str(final_imdb_id))
-            utils.log(f"Set ListItem property LibraryGenie.IMDbID = {final_imdb_id} for {title}", "DEBUG")
+            li.setProperty('imdb_id', str(final_imdb_id))  # Additional fallback property
+            li.setProperty('imdbnumber', str(final_imdb_id))  # Additional fallback property
+            utils.log(f"Set ListItem IMDb properties = {final_imdb_id} for {title}", "DEBUG")
+        else:
+            utils.log(f"No valid IMDb ID found for {title} - cannot set properties", "DEBUG")
 
         return li
 
