@@ -461,8 +461,6 @@ class KodiHelper:
     def get_imdb_from_item(self):
         """Extract IMDb ID from the currently focused item using multiple methods"""
         try:
-            utils.log(f"=== IMDB_TRACE: KodiHelper.get_imdb_from_item() ===", "INFO")
-            
             # Try multiple InfoLabel approaches
             imdb_candidates = [
                 ('LibraryGenie.IMDbID', xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)')),
@@ -473,9 +471,7 @@ class KodiHelper:
             ]
 
             for source_name, candidate in imdb_candidates:
-                utils.log(f"IMDB_TRACE: {source_name} = '{candidate}'", "INFO")
                 if candidate and str(candidate).startswith('tt'):
-                    utils.log(f"IMDB_TRACE: Found valid IMDb from {source_name} = '{candidate}'", "INFO")
                     return candidate
 
             # Try getting from DBID if it's a library item
@@ -492,24 +488,17 @@ class KodiHelper:
 
                     if 'result' in response and 'moviedetails' in response['result']:
                         details = response['result']['moviedetails']
-
-                        utils.log(f"IMDB_TRACE: DBID lookup details keys: {list(details.keys())}", "INFO")
                         
                         # Try imdbnumber first
                         imdb_from_details = details.get('imdbnumber', '')
-                        utils.log(f"IMDB_TRACE: DBID imdbnumber = '{imdb_from_details}'", "INFO")
                         if imdb_from_details and str(imdb_from_details).startswith('tt'):
-                            utils.log(f"IMDB_TRACE: DBID returning imdbnumber = '{imdb_from_details}'", "INFO")
                             return imdb_from_details
 
                         # Try uniqueid
                         uniqueid = details.get('uniqueid', {})
-                        utils.log(f"IMDB_TRACE: DBID uniqueid = {uniqueid}", "INFO")
                         if isinstance(uniqueid, dict) and 'imdb' in uniqueid:
                             imdb_from_uniqueid = uniqueid['imdb']
-                            utils.log(f"IMDB_TRACE: DBID uniqueid.imdb = '{imdb_from_uniqueid}'", "INFO")
                             if imdb_from_uniqueid and str(imdb_from_uniqueid).startswith('tt'):
-                                utils.log(f"IMDB_TRACE: DBID returning uniqueid.imdb = '{imdb_from_uniqueid}'", "INFO")
                                 return imdb_from_uniqueid
 
                 except Exception as e:

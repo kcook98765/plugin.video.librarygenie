@@ -339,51 +339,32 @@ class ListItemBuilder:
         if media_info.get('plot'):
             pass
 
-        # Add IMDb ID to info_dict if available - version-aware handling with detailed logging
-        utils.log(f"=== IMDB_TRACE: ListItem building for '{title}' ===", "INFO")
-        
-        # Log all possible IMDb sources
+        # Add IMDb ID to info_dict if available - version-aware handling
         source1 = media_info.get('imdbnumber', '')
         source2 = media_info.get('uniqueid', {}).get('imdb', '') if isinstance(media_info.get('uniqueid'), dict) else ''
         source3 = media_info.get('info', {}).get('imdbnumber', '') if media_info.get('info') else ''
         source4 = media_info.get('imdb_id', '')
         
-        utils.log(f"IMDB_TRACE: media_info.imdbnumber = '{source1}'", "INFO")
-        utils.log(f"IMDB_TRACE: media_info.uniqueid.imdb = '{source2}'", "INFO")
-        utils.log(f"IMDB_TRACE: media_info.info.imdbnumber = '{source3}'", "INFO")
-        utils.log(f"IMDB_TRACE: media_info.imdb_id = '{source4}'", "INFO")
-        
         # Prioritize uniqueid.imdb over other sources for v19 compatibility
         final_imdb_id = ''
         if source2 and str(source2).startswith('tt'):  # uniqueid.imdb
             final_imdb_id = source2
-            utils.log(f"IMDB_TRACE: Using uniqueid.imdb = '{final_imdb_id}'", "INFO")
         else:
             # Fallback to other sources, but only if they start with 'tt'
             for source_name, source_value in [('imdbnumber', source1), ('info.imdbnumber', source3), ('imdb_id', source4)]:
                 if source_value and str(source_value).startswith('tt'):
                     final_imdb_id = source_value
-                    utils.log(f"IMDB_TRACE: Using fallback {source_name} = '{final_imdb_id}'", "INFO")
                     break
-        
-        utils.log(f"IMDB_TRACE: Final extracted IMDb = '{final_imdb_id}'", "INFO")
 
         if final_imdb_id and str(final_imdb_id).startswith('tt'):
             imdb_id = str(final_imdb_id)
-            utils.log(f"IMDB_TRACE: Setting info_dict imdbnumber = '{imdb_id}'", "INFO")
             info_dict['imdbnumber'] = imdb_id
 
             # For Kodi v19+, also set uniqueid properly
             if not info_dict.get('uniqueid'):
                 info_dict['uniqueid'] = {'imdb': imdb_id}
-                utils.log(f"IMDB_TRACE: Created new uniqueid dict with imdb = '{imdb_id}'", "INFO")
             elif isinstance(info_dict.get('uniqueid'), dict):
                 info_dict['uniqueid']['imdb'] = imdb_id
-                utils.log(f"IMDB_TRACE: Updated existing uniqueid.imdb = '{imdb_id}'", "INFO")
-        else:
-            utils.log(f"IMDB_TRACE: No valid IMDb ID found or doesn't start with 'tt'", "INFO")
-        
-        utils.log(f"=== END IMDB_TRACE for ListItem '{title}' ===", "INFO")
 
         # Use the specialized set_info_tag function that handles Kodi version compatibility
         set_info_tag(li, info_dict, 'video')

@@ -40,65 +40,36 @@ class IMDbUploadManager:
                         if progress_dialog.iscanceled():
                             return []
 
-                # Handle both v19 and v20+ IMDb ID extraction with detailed logging
-                movie_title = movie.get('title', 'Unknown')
-                utils.log(f"=== IMDB_TRACE: Processing movie '{movie_title}' ===", "INFO")
-
-                # Log raw source data
-                raw_imdbnumber = movie.get('imdbnumber', '')
-                raw_uniqueid = movie.get('uniqueid', {})
-                utils.log(f"IMDB_TRACE: Raw imdbnumber = '{raw_imdbnumber}' (type: {type(raw_imdbnumber)})", "INFO")
-                utils.log(f"IMDB_TRACE: Raw uniqueid = {raw_uniqueid} (type: {type(raw_uniqueid)})", "INFO")
-
-                # In v19, imdbnumber often contains TMDB ID, so prioritize uniqueid.imdb
+                # Handle both v19 and v20+ IMDb ID extraction
                 imdb_id = ''
-                extraction_source = 'none'
 
                 # First try uniqueid.imdb (most reliable in both v19 and v20+)
                 if 'uniqueid' in movie:
                     uniqueid = movie.get('uniqueid', {})
                     if isinstance(uniqueid, dict):
                         uniqueid_imdb = uniqueid.get('imdb', '')
-                        utils.log(f"IMDB_TRACE: uniqueid.imdb = '{uniqueid_imdb}'", "INFO")
                         if uniqueid_imdb:
                             imdb_id = uniqueid_imdb
-                            extraction_source = 'uniqueid.imdb'
 
                 # Fallback to imdbnumber only if uniqueid.imdb is not available
                 if not imdb_id:
                     fallback_id = movie.get('imdbnumber', '')
-                    utils.log(f"IMDB_TRACE: Trying fallback imdbnumber = '{fallback_id}'", "INFO")
                     # Only use imdbnumber if it's a valid IMDb ID (starts with tt)
                     if fallback_id and str(fallback_id).strip().startswith('tt'):
                         imdb_id = str(fallback_id).strip()
-                        extraction_source = 'imdbnumber'
-                        utils.log(f"IMDB_TRACE: Using imdbnumber fallback = '{imdb_id}'", "INFO")
-                    elif fallback_id:
-                        fallback_str = str(fallback_id).strip()
-                        if fallback_str.isdigit():
-                            utils.log(f"IMDB_TRACE: Rejecting numeric imdbnumber '{fallback_id}' - NOT converting to IMDb format", "INFO")
-                        else:
-                            utils.log(f"IMDB_TRACE: Rejecting invalid imdbnumber '{fallback_id}' - not a valid IMDb ID (must start with 'tt')", "INFO")
 
                 # Clean up IMDb ID format
                 if imdb_id:
-                    original_imdb = imdb_id
                     imdb_id = str(imdb_id).strip()
-                    utils.log(f"IMDB_TRACE: After strip: '{original_imdb}' -> '{imdb_id}'", "INFO")
 
                     # Remove common prefixes that might be present
                     if imdb_id.startswith('imdb://'):
                         imdb_id = imdb_id[7:]
-                        utils.log(f"IMDB_TRACE: Removed imdb:// prefix -> '{imdb_id}'", "INFO")
                     elif imdb_id.startswith('http'):
                         # Extract tt number from URLs
                         import re
                         match = re.search(r'tt\d+', imdb_id)
                         imdb_id = match.group(0) if match else ''
-                        utils.log(f"IMDB_TRACE: Extracted from URL -> '{imdb_id}'", "INFO")
-
-                utils.log(f"IMDB_TRACE: Final IMDb ID = '{imdb_id}' (source: {extraction_source})", "INFO")
-                utils.log(f"=== END IMDB_TRACE for '{movie_title}' ===", "INFO")
 
                 if imdb_id and imdb_id.startswith('tt') and len(imdb_id) > 2:
                     # Ensure we have the IMDB ID in the right field

@@ -707,9 +707,6 @@ class DatabaseManager(Singleton):
                 # Store search data with title/year from imdb_exports if available
                 plot_text = f"Search result for '{query}' - Score: {score_display}"
                 if imdb_id:
-                    # Log IMDb ID validation
-                    if not str(imdb_id).startswith('tt'):
-                        utils.log(f"=== IMDB_TRACE: WARNING - Invalid IMDb ID format '{imdb_id}' - should start with 'tt' ===", "WARNING")
                     plot_text += f" - IMDb: {imdb_id}"
 
                 media_item_data = {
