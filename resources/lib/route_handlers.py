@@ -242,7 +242,7 @@ def move_list(params):
         # Show folder selection dialog
         selected_index = xbmcgui.Dialog().select(
             f"Move list '{list_info['name']}' to:",
-            folder_options
+            list(folder_options)
         )
 
         if selected_index == -1:  # User cancelled
@@ -443,7 +443,7 @@ def _perform_similarity_search(imdb_id, title):
         # Show multi-select dialog for facets
         selected_indices = xbmcgui.Dialog().multiselect(
             f"Select similarity aspects for '{title}':",
-            facet_descriptions
+            list(facet_descriptions)
         )
 
         if selected_indices is None or len(selected_indices) == 0:
