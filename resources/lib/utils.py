@@ -93,7 +93,6 @@ def get_kodi_version():
     global _KODI_VERSION_CACHE
     
     if _KODI_VERSION_CACHE is not None:
-        log(f"Using cached Kodi version: {_KODI_VERSION_CACHE}", "DEBUG")
         return _KODI_VERSION_CACHE
     
     try:
