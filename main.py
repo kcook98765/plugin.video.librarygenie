@@ -280,7 +280,7 @@ def browse_list(list_id):
                 media_dict = {}
 
             search_score = media_dict.get('search_score', 0)
-                if search_score is not None and search_score > 0:
+            if search_score is not None and search_score > 0:
                 has_scores = True
                 break
 
