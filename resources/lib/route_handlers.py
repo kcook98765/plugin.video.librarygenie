@@ -361,7 +361,50 @@ def find_similar_movies_from_plugin(params):
 
     except Exception as e:
         utils.log(f"Error in find_similar_movies_from_plugin: {str(e)}", "ERROR")
-        xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERROR)
+        xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERR
+
+def add_to_list_from_context(params):
+    """Handler for adding a movie to a list from native Kodi context menu"""
+    try:
+        # Extract parameters
+        title = params.get('title', ['Unknown'])[0] if params.get('title') else 'Unknown'
+        imdb_id = params.get('imdb_id', [None])[0] if params.get('imdb_id') else None
+        year = params.get('year', [''])[0] if params.get('year') else ''
+
+        # URL decode the title
+        import urllib.parse
+        title = urllib.parse.unquote_plus(title)
+
+        utils.log(f"Add to list from context - Title: {title}, Year: {year}, IMDb: {imdb_id}", "DEBUG")
+
+        if not imdb_id or not imdb_id.startswith('tt'):
+            xbmcgui.Dialog().ok('LibraryGenie', "This item doesn't have a valid IMDb ID.")
+            return
+
+        # Create a media item object with the available information
+        media_item = {
+            'title': title,
+            'year': int(year) if year and year.isdigit() else 0,
+            'imdbnumber': imdb_id,
+            'media_type': 'movie',
+            'source': 'context_menu'
+        }
+
+        # Use the existing add_to_list functionality
+        from resources.lib.folder_list_manager import FolderListManager
+        folder_list_manager = FolderListManager()
+        
+        # Show list selection dialog and add the item
+        success = folder_list_manager.add_media_to_list_interactive(media_item)
+        
+        if success:
+            xbmcgui.Dialog().notification('LibraryGenie', f'Added "{title}" to list', xbmcgui.NOTIFICATION_INFO, 3000)
+        else:
+            utils.log("User cancelled list selection", "DEBUG")
+
+    except Exception as e:
+        utils.log(f"Error in add_to_list_from_context: {str(e)}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error adding to list', xbmcgui.NOTIFICATION_ERROR, 3000)OR)
 
 def find_similar_movies_from_context(params):
     """Handler for similarity search from native Kodi context menu"""

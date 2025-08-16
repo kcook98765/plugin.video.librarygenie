@@ -56,6 +56,10 @@ def main():
         context_builder = get_context_menu_builder()
         is_authenticated = context_builder._is_authenticated()
 
+        # Add movie to a list - available when IMDb ID is detected
+        if imdb_id and str(imdb_id).startswith('tt'):
+            options.append("Add movie to a list...")
+
         # Find Similar Movies - only if authenticated AND has valid IMDb ID
         if imdb_id and str(imdb_id).startswith('tt'):
             if is_authenticated:
@@ -86,7 +90,23 @@ def main():
 
         selected_option = options[selected]
 
-        if "Find Similar Movies..." in selected_option:
+        if selected_option == "Add movie to a list...":
+            # Handle adding movie to list
+            try:
+                # Get the clean title without color formatting
+                clean_title = title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
+                
+                # Use RunPlugin to trigger add_to_list action
+                from urllib.parse import quote_plus
+                encoded_title = quote_plus(clean_title)
+                add_to_list_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=add_to_list_from_context&title={encoded_title}&imdb_id={imdb_id}&year={year})'
+                xbmc.executebuiltin(add_to_list_url)
+                
+            except Exception as add_error:
+                xbmc.log(f"LibraryGenie: Error adding movie to list: {str(add_error)}", xbmc.LOGERROR)
+                xbmcgui.Dialog().notification("LibraryGenie", "Error adding movie to list", xbmcgui.NOTIFICATION_ERROR, 3000)
+
+        elif "Find Similar Movies..." in selected_option:
             if "(Requires Authentication)" in selected_option:
                 dialog.notification("LibraryGenie", "Please configure API settings first", xbmcgui.NOTIFICATION_WARNING, 3000)
                 return
