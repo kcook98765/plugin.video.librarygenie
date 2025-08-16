@@ -837,3 +837,31 @@ class DatabaseManager(Singleton):
         except Exception as e:
             utils.log(f"Error updating data in {table}: {str(e)}", "ERROR")
             return False
+
+    def create_media_item(self, media_data):
+        """Create a media item and return its ID"""
+        return self.insert_data('media_items', media_data)
+
+    def add_media_to_list(self, list_id, media_id, position=None):
+        """Add existing media item to a list"""
+        link_data = {
+            'list_id': list_id,
+            'media_id': media_id
+        }
+        if position is not None:
+            link_data['position'] = position
+
+        return self.insert_data('list_media', link_data)
+
+    def add_media_to_list_legacy(self, list_id, media_data):
+        """Legacy method: Add media item to a list (creates media item first)"""
+        # Insert into media_items table
+        media_id = self.insert_data('media_items', media_data)
+
+        # Link to list
+        self.insert_data('list_media', {
+            'list_id': list_id,
+            'media_id': media_id
+        })
+
+        return media_id

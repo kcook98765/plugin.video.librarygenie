@@ -22,4 +22,8 @@
         <setting id="upload_library_full" type="action" label="Upload Full Library (Replace)" action="RunScript(plugin.video.librarygenie,upload_library_full)" />
         <setting id="upload_status" type="action" label="View Upload Status" action="RunScript(plugin.video.librarygenie,upload_status)" />
     </category>
+    
+    <category label="Import Tools">
+        <setting id="import_from_shortlist" type="action" label="Import From Shortlist" action="RunScript(plugin.video.librarygenie,import_from_shortlist)" visible="eq(-1,true)" enable="System.HasAddon(plugin.program.shortlist)" />
+    </category>
 </settings>
