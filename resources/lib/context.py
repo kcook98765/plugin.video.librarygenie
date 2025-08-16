@@ -167,10 +167,11 @@ def main():
             xbmc.executebuiltin("Action(Info)")
         elif selected_option == "Debug IMDB":
             # Import here to avoid circular imports
-            from resources.lib.route_handlers import debug_imdb_info
+            from resources.lib.debug_manager import DebugManager
 
             try:
-                debug_imdb_info({'imdb_id': [imdb_id] if imdb_id else []})
+                debug_manager = DebugManager()
+                debug_manager.debug_imdb_info({'imdb_id': [imdb_id] if imdb_id else []})
             except Exception as debug_error:
                 xbmc.log(f"LibraryGenie: Debug IMDB error: {str(debug_error)}", xbmc.LOGERROR)
 
