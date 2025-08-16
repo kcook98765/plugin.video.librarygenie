@@ -26,7 +26,7 @@ class DatabaseSyncManager:
 
             # Get existing entries
             existing_movies = self.query_manager.execute_query(
-                "SELECT movieid, file_path, file_name FROM movies_reference WHERE source = 'Lib'"
+                "SELECT movieid, file_path, file_name, nonexistent_column FROM movies_reference WHERE source = 'Lib'"
             )
             existing_movie_ids = {movie['movieid'] for movie in existing_movies}
 
