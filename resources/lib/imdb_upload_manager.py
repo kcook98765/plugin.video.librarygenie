@@ -40,42 +40,42 @@ class IMDbUploadManager:
                         if progress_dialog.iscanceled():
                             return []
 
-                # Handle both v19 and v20+ IMDb ID extraction
+                # Prioritized IMDb ID extraction based on version compatibility
                 imdb_id = ''
 
-                # First try uniqueid.imdb (most reliable in both v19 and v20+)
-                if 'uniqueid' in movie:
-                    uniqueid = movie.get('uniqueid', {})
-                    if isinstance(uniqueid, dict):
-                        uniqueid_imdb = uniqueid.get('imdb', '')
-                        if uniqueid_imdb:
-                            imdb_id = uniqueid_imdb
+                # Method 1: uniqueid.imdb (most reliable for both v19 and v20+)
+                if 'uniqueid' in movie and isinstance(movie.get('uniqueid'), dict):
+                    uniqueid_imdb = movie.get('uniqueid', {}).get('imdb', '')
+                    if uniqueid_imdb and str(uniqueid_imdb).startswith('tt'):
+                        imdb_id = str(uniqueid_imdb).strip()
 
-                # Fallback to imdbnumber only if uniqueid.imdb is not available
+                # Method 2: imdbnumber fallback (only for v20+ or when it contains valid tt format)
                 if not imdb_id:
                     fallback_id = movie.get('imdbnumber', '')
-                    # Only use imdbnumber if it's a valid IMDb ID (starts with tt)
-                    if fallback_id and str(fallback_id).strip().startswith('tt'):
-                        imdb_id = str(fallback_id).strip()
+                    if fallback_id:
+                        fallback_str = str(fallback_id).strip()
+                        # Only accept if it's a proper IMDb ID format (starts with tt)
+                        if fallback_str.startswith('tt') and len(fallback_str) > 2:
+                            imdb_id = fallback_str
 
-                # Clean up IMDb ID format
+                # Clean IMDb ID if found
                 if imdb_id:
-                    imdb_id = str(imdb_id).strip()
-
-                    # Remove common prefixes that might be present
+                    # Remove URL prefixes if present
                     if imdb_id.startswith('imdb://'):
                         imdb_id = imdb_id[7:]
-                    elif imdb_id.startswith('http'):
-                        # Extract tt number from URLs
+                    elif 'imdb.com' in imdb_id:
                         import re
                         match = re.search(r'tt\d+', imdb_id)
                         imdb_id = match.group(0) if match else ''
 
+                # Validate and store
                 if imdb_id and imdb_id.startswith('tt') and len(imdb_id) > 2:
-                    # Ensure we have the IMDB ID in the right field
                     movie['imdbnumber'] = imdb_id
                     valid_movies.append(movie)
-                    utils.log(f"Found valid IMDb ID for '{movie.get('title', 'Unknown')}': {imdb_id}", "DEBUG")
+                    
+                    # Log only for first movie to avoid spam
+                    if len(valid_movies) == 1:
+                        utils.log(f"IMDb extraction method working - first valid ID: '{imdb_id}' for '{movie.get('title', 'Unknown')}'", "INFO")
 
             if progress_dialog:
                 progress_dialog.update(100, f"Found {len(valid_movies)} movies with valid IMDb IDs")

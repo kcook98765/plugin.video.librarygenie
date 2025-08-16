@@ -303,26 +303,19 @@ class JSONRPC:
                 utils.log(f"DEBUG: v19 search - got {len(movies)} total movies", "DEBUG")
 
                 for movie in movies:
-                    # Handle both v19 and v20+ IMDb ID extraction
-                    # In v19, imdbnumber often contains TMDB ID, so prioritize uniqueid.imdb
+                    # Streamlined IMDb ID extraction prioritizing most reliable methods
                     imdb_id_found = ''
 
-                    # First try uniqueid.imdb (most reliable in both v19 and v20+)
-                    if 'uniqueid' in movie:
-                        uniqueid = movie.get('uniqueid', {})
-                        if isinstance(uniqueid, dict):
-                            imdb_id_found = uniqueid.get('imdb', '')
+                    # Primary method: uniqueid.imdb (works consistently across versions)
+                    if 'uniqueid' in movie and isinstance(movie.get('uniqueid'), dict):
+                        imdb_id_found = movie.get('uniqueid', {}).get('imdb', '')
 
-                    # Fallback to imdbnumber - handle both tt format and numeric format
+                    # Secondary method: imdbnumber (only if it's valid tt format)
                     if not imdb_id_found:
                         fallback_id = movie.get('imdbnumber', '')
-                        if fallback_id:
-                            fallback_str = str(fallback_id).strip()
-                            if fallback_str.startswith('tt'):
-                                imdb_id_found = fallback_str
-                            elif fallback_str.isdigit():
-                                # Reject numeric IDs - do not convert to tt format
-                                utils.log(f"DEBUG: v19 search - rejecting numeric ID '{fallback_str}' - not converting to IMDb format", "DEBUG")
+                        if fallback_id and str(fallback_id).strip().startswith('tt'):
+                            imdb_id_found = str(fallback_id).strip()
+                        # Note: Numeric IDs are ignored as they're typically TMDB IDs in v19
 
                     # Clean up IMDb ID format
                     if imdb_id_found:

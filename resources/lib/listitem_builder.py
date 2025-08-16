@@ -95,6 +95,9 @@ class ListItemBuilder:
         "red":    "FFECA9A7",  # Low scores (below 5.0) - lighter red
     }
 
+    # Class variable to track if we've logged IMDB_TRACE info
+    _imdb_trace_logged = False
+
     @staticmethod
     def _get_score_bucket(score: float) -> str:
         """Map score to color bucket"""
@@ -344,7 +347,7 @@ class ListItemBuilder:
         source2 = media_info.get('uniqueid', {}).get('imdb', '') if isinstance(media_info.get('uniqueid'), dict) else ''
         source3 = media_info.get('info', {}).get('imdbnumber', '') if media_info.get('info') else ''
         source4 = media_info.get('imdb_id', '')
-        
+
         # Prioritize uniqueid.imdb over other sources for v19 compatibility
         final_imdb_id = ''
         if source2 and str(source2).startswith('tt'):  # uniqueid.imdb
@@ -357,14 +360,13 @@ class ListItemBuilder:
                     break
 
         if final_imdb_id and str(final_imdb_id).startswith('tt'):
-            imdb_id = str(final_imdb_id)
-            info_dict['imdbnumber'] = imdb_id
+            info_dict['imdbnumber'] = final_imdb_id
 
             # For Kodi v19+, also set uniqueid properly
             if not info_dict.get('uniqueid'):
-                info_dict['uniqueid'] = {'imdb': imdb_id}
+                info_dict['uniqueid'] = {'imdb': final_imdb_id}
             elif isinstance(info_dict.get('uniqueid'), dict):
-                info_dict['uniqueid']['imdb'] = imdb_id
+                info_dict['uniqueid']['imdb'] = final_imdb_id
 
         # Use the specialized set_info_tag function that handles Kodi version compatibility
         set_info_tag(li, info_dict, 'video')
@@ -444,13 +446,13 @@ class ListItemBuilder:
         # Add similarity context menu to video items - enhanced IMDb ID detection for v19
         # Prioritize uniqueid.imdb over imdbnumber since v19 often has TMDB ID in imdbnumber
         imdb_id = ''
-        
+
         # First try uniqueid.imdb (most reliable for actual IMDb IDs)
         if isinstance(media_info.get('uniqueid'), dict):
             uniqueid_imdb = media_info.get('uniqueid', {}).get('imdb', '')
             if uniqueid_imdb and str(uniqueid_imdb).startswith('tt'):
                 imdb_id = uniqueid_imdb
-        
+
         # Fallback to other sources only if uniqueid.imdb not found
         if not imdb_id:
             candidates = [
@@ -483,19 +485,26 @@ class ListItemBuilder:
         # Store IMDb ID as a property on the ListItem itself for context menu access
         # Use the same IMDb ID we processed above for consistency
         final_imdb_id = info_dict.get('imdbnumber', '')
-        utils.log(f"=== IMDB_TRACE: Setting ListItem properties for '{title}' ===", "INFO")
-        utils.log(f"IMDB_TRACE: final_imdb_id from info_dict = '{final_imdb_id}'", "INFO")
-        
+        if not ListItemBuilder._imdb_trace_logged:
+            utils.log(f"=== IMDB_TRACE: Setting ListItem properties for '{title}' (first movie only) ===", "INFO")
+            utils.log(f"IMDB_TRACE: final_imdb_id from info_dict = '{final_imdb_id}'", "INFO")
+            ListItemBuilder._imdb_trace_logged = True
+
         if final_imdb_id and str(final_imdb_id).startswith('tt'):
             # Set multiple properties for maximum compatibility
             li.setProperty('LibraryGenie.IMDbID', str(final_imdb_id))
             li.setProperty('imdb_id', str(final_imdb_id))  # Additional fallback property
             li.setProperty('imdbnumber', str(final_imdb_id))  # Additional fallback property
-            utils.log(f"IMDB_TRACE: Set all ListItem properties = '{final_imdb_id}' for '{title}'", "INFO")
+            if not ListItemBuilder._imdb_trace_logged or ListItemBuilder._imdb_trace_logged:
+                # Log only for first movie
+                pass
         else:
-            utils.log(f"IMDB_TRACE: No valid IMDb ID found for '{title}' - cannot set properties", "INFO")
-        
-        utils.log(f"=== END IMDB_TRACE: ListItem properties for '{title}' ===", "INFO")
+            if not hasattr(ListItemBuilder, '_imdb_trace_logged') or not ListItemBuilder._imdb_trace_logged:
+                utils.log(f"IMDB_TRACE: No valid IMDb ID found for '{title}' - cannot set properties", "INFO")
+
+        if not hasattr(ListItemBuilder, '_trace_end_logged'):
+            utils.log(f"=== END IMDB_TRACE: ListItem properties for '{title}' (first movie only) ===", "INFO")
+            ListItemBuilder._trace_end_logged = True
 
         return li
 
