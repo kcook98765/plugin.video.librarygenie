@@ -16,6 +16,9 @@ class DatabaseManager(Singleton):
             self._connect()
             self.setup_database()
             self.ensure_search_history_folder()
+            # Initialize query_manager for direct access
+            from resources.lib.query_manager import QueryManager
+            self._query_manager = QueryManager(self.db_path)
             self._initialized = True
 
     def _connect(self):
@@ -38,6 +41,14 @@ class DatabaseManager(Singleton):
         except Exception as e:
             utils.log(f"Database connection error: {str(e)}", "ERROR")
             raise
+
+    @property
+    def query_manager(self):
+        """Access to QueryManager instance"""
+        if not hasattr(self, '_query_manager'):
+            from resources.lib.query_manager import QueryManager
+            self._query_manager = QueryManager(self.db_path)
+        return self._query_manager
 
     def _execute_with_retry(self, func, *args, **kwargs):
         retries = 10  # Increase retry count
