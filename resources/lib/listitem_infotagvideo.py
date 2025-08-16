@@ -8,23 +8,6 @@ from resources.lib import utils
 
 __all__ = ['set_info_tag', 'set_art']
 
-# confirming via testing the following can be removed
-# Initialize logging
-#utils.log("ListItem InfoTagVideo module initialized", "INFO")
-# class ListItemInfoTagVideo:
-#    _instance = None
-#    _initialized = False
-
-#    def __new__(cls):
-#        if cls._instance is None:
-#            cls._instance = super(ListItemInfoTagVideo, cls).__new__(cls)
-#        return cls._instance
-
-#    def __init__(self):
-#        if not ListItemInfoTagVideo._initialized:
-#            utils.log("ListItem InfoTagVideo module initialized", "INFO")
-#            ListItemInfoTagVideo._initialized = True
-
 """InfoTag compatibility helper for Kodi 19+ only - No support for Kodi 18 and below"""
 
 
