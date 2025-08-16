@@ -22,7 +22,6 @@ class ResultsManager(Singleton):
     def build_display_items_for_list(self, list_id: int):
         """Build display items for a specific list with comprehensive metadata"""
         try:
-            from resources.lib import utils
             utils.log(f"=== BUILD_DISPLAY_ITEMS: Starting for list_id {list_id} ===", "DEBUG")
 
             # Get list items with full details
@@ -96,7 +95,7 @@ class ResultsManager(Singleton):
             utils.log(f"=== BUILD_DISPLAY_ITEMS: Batch lookup pairs count: {len(batch_pairs)} ===", "DEBUG")
             utils.log(f"=== BUILD_DISPLAY_ITEMS: First 3 batch pairs: {batch_pairs[:3]} ===", "DEBUG")
 
-            utils.log(f"=== BUILD_DISPLAY_ITEMS: Calling get_movies_by_title_year_batch ===", "DEBUG")
+            utils.log("=== BUILD_DISPLAY_ITEMS: Calling get_movies_by_title_year_batch ===", "DEBUG")
             batch_resp = self.jsonrpc.get_movies_by_title_year_batch(batch_pairs) or {}
             utils.log(f"=== BUILD_DISPLAY_ITEMS: Batch response keys: {list(batch_resp.keys()) if batch_resp else 'None'} ===", "DEBUG")
 
