@@ -31,6 +31,9 @@ __all__ = ['set_info_tag', 'set_art']
 def _set_full_cast(list_item: ListItem, cast_list: list) -> bool:
     """
     Version-agnostic cast setter optimized for Kodi v21+ with proper InfoTagVideo.setCast() priority.
+    
+    NOTE: This function does NOT artificially limit cast size - Kodi can handle full cast lists.
+    Any performance issues should be handled by the calling code or user preferences, not hardcoded limits.
 
     Args:
         list_item: The ListItem to set cast on
@@ -42,7 +45,7 @@ def _set_full_cast(list_item: ListItem, cast_list: list) -> bool:
     if not cast_list:
         return False
 
-    # Normalize inputs (avoid None values)
+    # Normalize inputs (avoid None values) - process ALL cast members, no artificial limits
     norm = []
     for actor in cast_list:
         if isinstance(actor, dict):
@@ -195,15 +198,14 @@ def set_info_tag(list_item, info_dict, content_type='video'):
                 if 'mediatype' in info_dict and info_dict['mediatype']:
                     info_tag.setMediaType(str(info_dict['mediatype']))
 
-                # Handle cast with proper format for v20+ and size limits
+                # Handle cast with proper format for v20+ - NO artificial size limits
                 if 'cast' in info_dict and info_dict['cast']:
                     cast_list = info_dict['cast']
                     if isinstance(cast_list, list) and len(cast_list) > 0:
-                        # Limit cast size to prevent crashes
-                        if len(cast_list) > 15:
-                            cast_list = cast_list[:15]
-                            utils.log(f"Truncated cast list to 15 entries to prevent crashes", "DEBUG")
-
+                        # DO NOT artificially limit cast size - let Kodi handle full cast lists
+                        # If performance becomes an issue, it should be handled by user preferences
+                        # or calling code, not hardcoded limits in the ListItem builder
+                        
                         utils.log(f"Setting cast for {len(cast_list)} actors with image support", "DEBUG")
 
                         # Try v20+ InfoTag.setCast method first
@@ -240,14 +242,12 @@ def set_info_tag(list_item, info_dict, content_type='video'):
             # Kodi v19 - use deprecated setInfo method
             utils.log("Using deprecated setInfo for v19 compatibility", "DEBUG")
 
-            # Handle cast for v19 (deprecated method) with size limits
+            # Handle cast for v19 (deprecated method) - NO artificial size limits
             if 'cast' in info_dict and info_dict['cast']:
                 cast_list = info_dict['cast']
                 if isinstance(cast_list, list) and len(cast_list) > 0:
-                    # Limit cast size to prevent crashes
-                    if len(cast_list) > 15:
-                        cast_list = cast_list[:15]
-                        utils.log(f"Truncated cast list to 15 entries to prevent crashes", "DEBUG")
+                    # DO NOT artificially limit cast size - Kodi v19 can handle full cast lists
+                    # Performance concerns should be addressed by user preferences, not hardcoded limits
 
                     try:
                         list_item.setCast(cast_list)

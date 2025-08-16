@@ -315,7 +315,7 @@ class ListItemBuilder:
                             pass
                         break
 
-        # Handle cast data with memory optimization
+        # Handle cast data - DO NOT artificially limit cast size
         cast = media_info.get('cast', [])
         if cast:
             try:
@@ -326,14 +326,16 @@ class ListItemBuilder:
                     except json.JSONDecodeError:
                         cast = []
 
-                # Ensure cast is a list and limit size to prevent crashes
+                # Ensure cast is a list - process ALL cast members without artificial limits
                 if not isinstance(cast, list):
                     cast = []
                 
-                # Limit cast to first 20 entries to prevent memory issues
-                if len(cast) > 20:
-                    cast = cast[:20]
-                    utils.log(f"Truncated cast list from {len(media_info.get('cast', []))} to 20 entries", "DEBUG")
+                # IMPORTANT: Do NOT limit cast size here - Kodi can handle full cast lists
+                # If performance becomes an issue, it should be handled by:
+                # 1. User preferences/settings
+                # 2. Database query limits
+                # 3. Source data filtering
+                # NOT by hardcoded limits in the ListItem builder
 
                 info_dict['cast'] = cast
 
