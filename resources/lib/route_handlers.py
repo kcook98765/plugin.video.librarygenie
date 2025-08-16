@@ -404,7 +404,13 @@ def _perform_similarity_search(imdb_id, title):
 
         # Make API request
         client = RemoteAPIClient()
-        similar_movies = client.find_similar_movies(imdb_id, facet_params)
+        similar_movies = client.find_similar_movies(
+            imdb_id,
+            include_plot=facet_params['plot'],
+            include_mood=facet_params['mood'],
+            include_themes=facet_params['themes'],
+            include_genre=facet_params['genre']
+        )
 
         if not similar_movies:
             xbmcgui.Dialog().ok('LibraryGenie', 'No similar movies found.')
