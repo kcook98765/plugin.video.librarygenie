@@ -309,7 +309,7 @@ def browse_list(list_id):
                 media_dict = item
             else:
                 media_dict = {}
-            
+
             if media_dict.get('search_score', 0) > 0:
                 has_scores = True
                 break
@@ -388,6 +388,8 @@ def router(params):
         utils.log("Handling search action", "DEBUG")
         try:
             from resources.lib.window_search import SearchWindow
+            from resources.lib.navigation_manager import get_navigation_manager
+
             search_window = SearchWindow()
             search_window.doModal()
 
@@ -395,6 +397,7 @@ def router(params):
             target_url = search_window.get_target_url()
             if target_url:
                 utils.log(f"Navigating to search results: {target_url}", "DEBUG")
+                nav_manager = get_navigation_manager()
                 nav_manager.navigate_to_url(target_url, replace=False)
         except Exception as e:
             utils.log(f"Error in search action: {str(e)}", "ERROR")
