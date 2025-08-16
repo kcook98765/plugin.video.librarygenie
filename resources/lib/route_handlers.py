@@ -440,7 +440,7 @@ def _perform_similarity_search(imdb_id, title):
         
         # Show progress dialog
         progress = xbmcgui.DialogProgress()
-        progress.create('LibraryGenie', 'Finding similar movies...', 'Calling similarity service...')
+        progress.create('LibraryGenie', 'Finding similar movies...')
         
         try:
             # Call similarity API
