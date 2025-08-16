@@ -27,7 +27,7 @@
       <menu id="kodi.core.main">
         <item library="resources/lib/context.py">
             <label>LibraryGenie</label>
-            <visible>[String.IsEqual(ListItem.DBTYPE,movie)] + [!String.IsEmpty(ListItem.DBID)]</visible>
+            <visible>[String.IsEqual(ListItem.DBTYPE,movie)]</visible>
         </item>
       </menu>
     </extension>
