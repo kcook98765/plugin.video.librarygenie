@@ -58,7 +58,12 @@ class ContextMenuBuilder:
         # Always available items
         title = media_info.get('title', 'Unknown')
         formatted_title = self._clean_title(title)
-        item_id = media_info.get("id", "")
+        
+        # Try multiple possible ID fields
+        item_id = (media_info.get("id", "") or 
+                  media_info.get("kodi_id", "") or 
+                  media_info.get("movieid", "") or 
+                  media_info.get("media_id", "") or "")
         
         context_menu_items.append(('Show Details', f'RunPlugin(plugin://plugin.video.librarygenie/?action=show_item_details&title={quote_plus(formatted_title)}&item_id={item_id})'))
         context_menu_items.append(('Information', 'Action(Info)'))
