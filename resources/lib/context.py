@@ -1,19 +1,20 @@
 import sys
 import xbmcgui
 import xbmcaddon
-# Import required modules using absolute imports
-from resources.lib.kodi_helper import KodiHelper
-from resources.lib.addon_ref import get_addon
 import xbmcvfs
 translatePath = xbmcvfs.translatePath
 
-# Get addon and setup paths
+# Get addon and setup paths FIRST
 ADDON = xbmcaddon.Addon()
 ADDON_PATH = translatePath(ADDON.getAddonInfo("path"))
 
 # Ensure the addon root directory is in the Python path for imports to work
 if ADDON_PATH not in sys.path:
     sys.path.insert(0, ADDON_PATH)
+
+# Import required modules AFTER setting up the path
+from resources.lib.kodi_helper import KodiHelper
+from resources.lib.addon_ref import get_addon
 
 def main():
     """Main entry point for context menu actions"""
@@ -26,38 +27,97 @@ def main():
             xbmc.log("LibraryGenie: Failed to get addon instance", xbmc.LOGERROR)
             return
 
-        # Get the current item's information
-        kodi_helper = KodiHelper()
-        item_info = kodi_helper.get_focused_item_details()
-
-        if not item_info:
-            xbmc.log("LibraryGenie: No item information found", xbmc.LOGWARNING)
-            xbmcgui.Dialog().notification("LibraryGenie", "No item selected", xbmcgui.NOTIFICATION_WARNING, 2000)
-            return
-
-        xbmc.log(f"LibraryGenie: Got item info for: {item_info.get('title', 'Unknown')}", xbmc.LOGINFO)
+        # Get basic item information that's available in context
+        title = xbmc.getInfoLabel('ListItem.Title')
+        year = xbmc.getInfoLabel('ListItem.Year')
+        
+        xbmc.log(f"LibraryGenie: Context menu for: {title} ({year})", xbmc.LOGINFO)
 
         # Show context menu options
         addon = get_addon()
         addon_id = addon.getAddonInfo("id")
 
-        # Create menu options
-        options = [
-            "Search Movies...",
-            "Search History",
-            "Settings"
+        # Create menu options - check if we have IMDb ID for similarity
+        # Get IMDb ID from available InfoLabels (context menu has limited access)
+        imdb_candidates = [
+            xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)'),
+            xbmc.getInfoLabel('ListItem.IMDBNumber'),
+            xbmc.getInfoLabel('ListItem.UniqueID(imdb)')
         ]
-
-        # Show dialog to select option
-        selected = xbmcgui.Dialog().contextmenu(options)
         
-        if selected == 0:  # Search Movies
-            url = f"plugin://{addon_id}/?action=search"
-            xbmc.executebuiltin(f'ActivateWindow(videos,{url})')
-        elif selected == 1:  # Search History
+        imdb_id = None
+        for candidate in imdb_candidates:
+            if candidate and str(candidate).startswith('tt'):
+                imdb_id = candidate
+                break
+        
+        xbmc.log(f"LibraryGenie: Context menu IMDb ID: {imdb_id}", xbmc.LOGDEBUG)
+
+        options = []
+
+        if imdb_id and str(imdb_id).startswith('tt'):
+            options.append("Find Similar Movies...")
+
+        options.extend([
+            "Search Movies...",
+            "Search History", 
+            "Settings"
+        ])
+
+        if len(options) == 0:
+            return
+
+        # Show selection dialog
+        dialog = xbmcgui.Dialog()
+        selected = dialog.select("LibraryGenie Options", options)
+
+        if selected == -1:  # User cancelled
+            return
+
+        selected_option = options[selected]
+
+        if selected_option == "Find Similar Movies...":
+            # Get the clean title without color formatting
+            clean_title = title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
+
+            xbmc.log(f"LibraryGenie [DEBUG]: Similarity search - Title: {clean_title}, Year: {year}, IMDb: {imdb_id}", xbmc.LOGDEBUG)
+
+            if not imdb_id or not str(imdb_id).startswith('tt'):
+                xbmc.log("LibraryGenie [WARNING]: Similarity search failed - no valid IMDb ID found", xbmc.LOGWARNING)
+                dialog.notification("LibraryGenie", "No valid IMDb ID found for similarity search", xbmcgui.NOTIFICATION_WARNING, 3000)
+                return
+
+            # Use RunPlugin to trigger similarity search
+            from urllib.parse import quote_plus
+            encoded_title = quote_plus(clean_title)
+            similarity_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=find_similar&imdb_id={imdb_id}&title={encoded_title})'
+            xbmc.executebuiltin(similarity_url)
+
+        elif selected_option == "Search Movies...":  # Search Movies - use direct search instead of plugin URL
+            # Import here to avoid circular imports
+            from resources.lib.window_search import SearchWindow
+
+            try:
+                # Perform search directly
+                search_window = SearchWindow("LibraryGenie Search")
+                search_window.doModal()
+
+                # Check if we have a target URL to navigate to
+                target_url = search_window.get_target_url()
+                if target_url:
+                    xbmc.log(f"LibraryGenie: Context menu navigation to: {target_url}", xbmc.LOGINFO)
+                    # Give time for modal to fully close
+                    xbmc.sleep(300)
+                    # Use ActivateWindow for more reliable navigation from context menu
+                    xbmc.executebuiltin(f'ActivateWindow(videos,"{target_url}",return)')
+
+            except Exception as search_error:
+                xbmc.log(f"LibraryGenie: Context search error: {str(search_error)}", xbmc.LOGERROR)
+
+        elif selected_option == "Search History":  # Search History
             url = f"plugin://{addon_id}/?action=browse_folder&folder_name=Search History"
             xbmc.executebuiltin(f'ActivateWindow(videos,{url})')
-        elif selected == 2:  # Settings
+        elif selected_option == "Settings":  # Settings
             xbmc.executebuiltin(f'Addon.OpenSettings({addon_id})')
         # If nothing selected (selected == -1), do nothing
 

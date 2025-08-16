@@ -319,7 +319,7 @@ class KodiHelper:
             media_type = xbmc.getInfoLabel('ListItem.DBTYPE')
             key = 'movieid' if media_type == 'movie' else 'episodeid'
             method = 'VideoLibrary.GetMovieDetails' if media_type == 'movie' else 'VideoLibrary.GetEpisodeDetails'
-            
+
             if media_type == 'movie':
                 # Use comprehensive properties for movies
                 properties = self.jsonrpc.get_comprehensive_properties()
@@ -331,7 +331,7 @@ class KodiHelper:
                     'showtitle', 'cast', 'streamdetails', 'lastplayed', 'fanart',
                     'thumbnail', 'file', 'resume', 'tvshowid', 'dateadded', 'uniqueid', 'art'
                 ]
-            
+
             params = {
                 'properties': properties,
                 key: int(db_id)  # dynamically assign the correct key
@@ -363,6 +363,13 @@ class KodiHelper:
             details['file'] = xbmc.getInfoLabel('ListItem.FileNameAndPath')
             details['kodi_id'] = int(db_id)  # Ensure dbid is included
             details['play'] = details['file']  # Set the play field to a valid value
+
+            # Ensure IMDb ID is properly extracted for v19 compatibility
+            if not details.get('imdbnumber') or not str(details.get('imdbnumber')).startswith('tt'):
+                # Try to get IMDb ID from uniqueid field
+                uniqueid = details.get('uniqueid', {})
+                if isinstance(uniqueid, dict) and 'imdb' in uniqueid:
+                    details['imdbnumber'] = uniqueid['imdb']
 
             return details
 
@@ -450,3 +457,79 @@ class KodiHelper:
         except Exception as e:
             utils.log(f"Error getting cast info: {str(e)}", "ERROR")
             return "[]"
+
+    def get_imdb_from_item(self):
+        """Extract IMDb ID from the currently focused item using multiple methods"""
+        try:
+            utils.log(f"=== IMDB_TRACE: KodiHelper.get_imdb_from_item() ===", "INFO")
+            
+            # Try multiple InfoLabel approaches
+            imdb_candidates = [
+                ('LibraryGenie.IMDbID', xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)')),
+                ('ListItem.IMDBNumber', xbmc.getInfoLabel('ListItem.IMDBNumber')),
+                ('ListItem.UniqueID(imdb)', xbmc.getInfoLabel('ListItem.UniqueID(imdb)')),
+                ('ListItem.Property(imdb_id)', xbmc.getInfoLabel('ListItem.Property(imdb_id)')),
+                ('ListItem.Property(imdbnumber)', xbmc.getInfoLabel('ListItem.Property(imdbnumber)'))
+            ]
+
+            for source_name, candidate in imdb_candidates:
+                utils.log(f"IMDB_TRACE: {source_name} = '{candidate}'", "INFO")
+                if candidate and str(candidate).startswith('tt'):
+                    utils.log(f"IMDB_TRACE: Found valid IMDb from {source_name} = '{candidate}'", "INFO")
+                    return candidate
+
+            # Try getting from DBID if it's a library item
+            dbid = xbmc.getInfoLabel('ListItem.DBID')
+            if dbid and dbid.isdigit():
+                try:
+                    # Use JSON-RPC to get movie details including IMDb ID
+                    from resources.lib.jsonrpc_manager import JSONRPC
+                    jsonrpc = JSONRPC()
+                    response = jsonrpc.execute('VideoLibrary.GetMovieDetails', {
+                        'movieid': int(dbid),
+                        'properties': ['imdbnumber', 'uniqueid']
+                    })
+
+                    if 'result' in response and 'moviedetails' in response['result']:
+                        details = response['result']['moviedetails']
+
+                        utils.log(f"IMDB_TRACE: DBID lookup details keys: {list(details.keys())}", "INFO")
+                        
+                        # Try imdbnumber first
+                        imdb_from_details = details.get('imdbnumber', '')
+                        utils.log(f"IMDB_TRACE: DBID imdbnumber = '{imdb_from_details}'", "INFO")
+                        if imdb_from_details and str(imdb_from_details).startswith('tt'):
+                            utils.log(f"IMDB_TRACE: DBID returning imdbnumber = '{imdb_from_details}'", "INFO")
+                            return imdb_from_details
+
+                        # Try uniqueid
+                        uniqueid = details.get('uniqueid', {})
+                        utils.log(f"IMDB_TRACE: DBID uniqueid = {uniqueid}", "INFO")
+                        if isinstance(uniqueid, dict) and 'imdb' in uniqueid:
+                            imdb_from_uniqueid = uniqueid['imdb']
+                            utils.log(f"IMDB_TRACE: DBID uniqueid.imdb = '{imdb_from_uniqueid}'", "INFO")
+                            if imdb_from_uniqueid and str(imdb_from_uniqueid).startswith('tt'):
+                                utils.log(f"IMDB_TRACE: DBID returning uniqueid.imdb = '{imdb_from_uniqueid}'", "INFO")
+                                return imdb_from_uniqueid
+
+                except Exception as e:
+                    xbmc.log(f"LibraryGenie: Error getting IMDb from DBID: {str(e)}", xbmc.LOGDEBUG)
+
+            return None
+
+        except Exception as e:
+            xbmc.log(f"LibraryGenie: Error in get_imdb_from_item: {str(e)}", xbmc.LOGDEBUG)
+            return None
+
+    def get_playable_url(self, item_info):
+        """Get a playable URL from item information"""
+        if not item_info:
+            return None
+            
+        # Try to get URL from different possible fields
+        for field in ['play', 'file', 'path', 'stream_url']:
+            url = item_info.get(field)
+            if url and str(url).strip():
+                return str(url).strip()
+                
+        return None

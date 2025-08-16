@@ -33,18 +33,70 @@ class JSONRPC:
         }
         query_json = json.dumps(request_data)
 
-        # Log all JSON-RPC requests
-        utils.log(f"JSONRPC Request: {method}", "INFO")
-        # Send JSONRPC request
+        # Log all JSON-RPC requests with details
+        utils.log(f"=== JSONRPC REQUEST: {method} ===", "DEBUG")
+        utils.log(f"Request params: {params}", "DEBUG")
+        utils.log(f"Full request JSON: {query_json}", "DEBUG")
 
+        # Send JSONRPC request
         response = xbmc.executeJSONRPC(query_json)
+
+        # Log raw response
+        utils.log(f"=== JSONRPC RESPONSE RAW: {method} ===", "DEBUG")
+        utils.log(f"Raw response length: {len(response)} chars", "DEBUG")
+
         parsed_response = json.loads(response)
 
-        # Only log errors with full details
+        # Log parsed response details
+        utils.log(f"=== JSONRPC RESPONSE PARSED: {method} ===", "DEBUG")
+        if 'result' in parsed_response:
+            result = parsed_response['result']
+            if isinstance(result, dict):
+                utils.log(f"Response result keys: {list(result.keys())}", "DEBUG")
+                # Log movie count for movie-related methods
+                if method in ['VideoLibrary.GetMovies', 'VideoLibrary.GetMovieDetails']:
+                    if 'movies' in result:
+                        utils.log(f"Movies returned: {len(result['movies'])}", "DEBUG")
+                        if result['movies']:
+                            # Log first movie sample with detailed IMDb analysis
+                            first_movie = result['movies'][0]
+                            utils.log(f"First movie sample keys: {list(first_movie.keys())}", "DEBUG")
+                            utils.log(f"First movie title: {first_movie.get('title', 'N/A')}", "DEBUG")
+
+                            # Detailed IMDb ID logging
+                            imdbnumber = first_movie.get('imdbnumber', '')
+                            uniqueid = first_movie.get('uniqueid', {})
+                            utils.log(f"=== IMDB_TRACE: JSONRPC GetMovies sample ===", "INFO")
+                            utils.log(f"IMDB_TRACE: imdbnumber field = '{imdbnumber}' (type: {type(imdbnumber)})", "INFO")
+                            utils.log(f"IMDB_TRACE: uniqueid field = {uniqueid} (type: {type(uniqueid)})", "INFO")
+                            if isinstance(uniqueid, dict):
+                                utils.log(f"IMDB_TRACE: uniqueid.imdb = '{uniqueid.get('imdb', 'NOT_FOUND')}'", "INFO")
+                            utils.log(f"=== END IMDB_TRACE ===", "INFO")
+                    elif 'moviedetails' in result:
+                        movie = result['moviedetails']
+                        utils.log(f"Movie details keys: {list(movie.keys())}", "DEBUG")
+                        utils.log(f"Movie title: {movie.get('title', 'N/A')}", "DEBUG")
+
+                        # Detailed IMDb ID logging for movie details
+                        imdbnumber = movie.get('imdbnumber', '')
+                        uniqueid = movie.get('uniqueid', {})
+                        utils.log(f"=== IMDB_TRACE: JSONRPC GetMovieDetails ===", "INFO")
+                        utils.log(f"IMDB_TRACE: imdbnumber field = '{imdbnumber}' (type: {type(imdbnumber)})", "INFO")
+                        utils.log(f"IMDB_TRACE: uniqueid field = {uniqueid} (type: {type(uniqueid)})", "INFO")
+                        if isinstance(uniqueid, dict):
+                            utils.log(f"IMDB_TRACE: uniqueid.imdb = '{uniqueid.get('imdb', 'NOT_FOUND')}'", "INFO")
+                        utils.log(f"=== END IMDB_TRACE ===", "INFO")
+            else:
+                utils.log(f"Response result type: {type(result)}", "DEBUG")
+
+        # Log errors with full details
         if 'error' in parsed_response:
-            utils.log(f"JSONRPC {method} failed: {parsed_response['error'].get('message', 'Unknown error')}", "ERROR")
+            utils.log(f"=== JSONRPC ERROR: {method} ===", "ERROR")
+            utils.log(f"Error message: {parsed_response['error'].get('message', 'Unknown error')}", "ERROR")
             utils.log(f"Full error response: {parsed_response}", "ERROR")
             utils.log(f"Failed request: {query_json}", "ERROR")
+        else:
+            utils.log(f"=== JSONRPC SUCCESS: {method} ===", "DEBUG")
 
         return parsed_response
 
@@ -259,21 +311,40 @@ class JSONRPC:
                 utils.log(f"DEBUG: v19 search - got {len(movies)} total movies", "DEBUG")
 
                 for movie in movies:
-                    # Check imdbnumber field (contains TMDB ID in v19)
-                    movie_imdb_number = movie.get('imdbnumber', '')
+                    # Handle both v19 and v20+ IMDb ID extraction
+                    # In v19, imdbnumber often contains TMDB ID, so prioritize uniqueid.imdb
+                    imdb_id_found = ''
 
-                    # Check uniqueid.imdb if available (contains real IMDb ID in v19)
-                    uniqueid = movie.get('uniqueid', {})
-                    movie_imdb_unique = uniqueid.get('imdb', '') if isinstance(uniqueid, dict) else ''
+                    # First try uniqueid.imdb (most reliable in both v19 and v20+)
+                    if 'uniqueid' in movie:
+                        uniqueid = movie.get('uniqueid', {})
+                        if isinstance(uniqueid, dict):
+                            imdb_id_found = uniqueid.get('imdb', '')
 
-                    # Priority: uniqueid.imdb first (real IMDb ID), then imdbnumber if it starts with 'tt'
-                    movie_imdb = None
-                    if movie_imdb_unique and movie_imdb_unique.startswith('tt'):
-                        movie_imdb = movie_imdb_unique
-                    elif movie_imdb_number and movie_imdb_number.startswith('tt'):
-                        movie_imdb = movie_imdb_number
+                    # Fallback to imdbnumber - handle both tt format and numeric format
+                    if not imdb_id_found:
+                        fallback_id = movie.get('imdbnumber', '')
+                        if fallback_id:
+                            fallback_str = str(fallback_id).strip()
+                            if fallback_str.startswith('tt'):
+                                imdb_id_found = fallback_str
+                            elif fallback_str.isdigit():
+                                # Reject numeric IDs - do not convert to tt format
+                                utils.log(f"DEBUG: v19 search - rejecting numeric ID '{fallback_str}' - not converting to IMDb format", "DEBUG")
 
-                    if movie_imdb == imdb_id:
+                    # Clean up IMDb ID format
+                    if imdb_id_found:
+                        imdb_id_found = str(imdb_id_found).strip()
+                        # Remove common prefixes that might be present
+                        if imdb_id_found.startswith('imdb://'):
+                            imdb_id_found = imdb_id_found[7:]
+                        elif imdb_id_found.startswith('http'):
+                            # Extract tt number from URLs
+                            import re
+                            match = re.search(r'tt\d+', imdb_id_found)
+                            imdb_id_found = match.group(0) if match else ''
+
+                    if imdb_id_found == imdb_id:
                         utils.log(f"DEBUG: v19 found match for IMDB ID: {imdb_id} -> {movie.get('title', 'N/A')}", "DEBUG")
                         return {
                             'title': movie.get('title', ''),
@@ -418,77 +489,116 @@ class JSONRPC:
         ]
 
 
-    
+
 
     def get_movie_details_comprehensive(self, movie_id):
         properties = self.get_comprehensive_properties()
         return self.get_movie_details(movie_id, properties=properties)
 
     def get_movies_by_title_year_batch(self, title_year_pairs):
-        """Batch lookup movies by title and year pairs with v19 compatibility"""
+        """Optimized lookup using OR filter for title-year combinations"""
         if not title_year_pairs:
             return {"result": {"movies": []}}
 
         try:
-            # For batch lookup, we need to get all movies and filter manually
-            # This ensures compatibility across all Kodi versions
-            utils.log(f"Batch lookup for {len(title_year_pairs)} title/year pairs", "DEBUG")
-            
-            # Get all movies with comprehensive properties
-            response = self.execute('VideoLibrary.GetMovies', {
-                'properties': self.get_comprehensive_properties()
-            })
-            
-            if 'result' not in response or 'movies' not in response['result']:
-                utils.log("No movies found in batch lookup response", "DEBUG")
-                return {"result": {"movies": []}}
+            utils.log(f"=== BATCH JSON-RPC: Starting batch lookup for {len(title_year_pairs)} title/year pairs ===", "INFO")
 
-            all_movies = response['result']['movies']
-            matched_movies = []
+            # Log sample of what we're looking for
+            sample_pairs = title_year_pairs[:3]
+            for i, pair in enumerate(sample_pairs):
+                utils.log(f"BATCH JSON-RPC: Sample {i+1}: '{pair.get('title', 'N/A')}' ({pair.get('year', 'N/A')})", "INFO")
+            if len(title_year_pairs) > 3:
+                utils.log(f"BATCH JSON-RPC: ... and {len(title_year_pairs) - 3} more", "INFO")
 
-            # Create a set of normalized (title, year) pairs to search for
-            search_pairs = set()
+            properties = self.get_comprehensive_properties()
+
+            # Build OR filter for all title-year combinations using proper Kodi JSON-RPC syntax
+            filter_conditions = []
             for pair in title_year_pairs:
-                title = (pair.get('title') or '').strip().lower()
-                try:
-                    year = int(pair.get('year') or 0)
-                except (ValueError, TypeError):
-                    year = 0
-                if title:  # Only add if we have a title
-                    search_pairs.add((title, year))
+                title = (pair.get('title') or '').strip()
+                year = pair.get('year') or 0
 
-            utils.log(f"Searching for {len(search_pairs)} unique title/year combinations", "DEBUG")
-
-            # Match movies against our search criteria
-            for movie in all_movies:
-                movie_title = (movie.get('title') or '').strip().lower()
-                try:
-                    movie_year = int(movie.get('year') or 0)
-                except (ValueError, TypeError):
-                    movie_year = 0
-
-                # Check for exact match first
-                if (movie_title, movie_year) in search_pairs:
-                    matched_movies.append(movie)
+                if not title:
                     continue
 
-                # Check for title-only match if year is 0 in search
-                if (movie_title, 0) in search_pairs:
-                    matched_movies.append(movie)
+                if year and str(year).isdigit():
+                    # AND condition for both title and year - use proper Kodi syntax
+                    # NOTE: All values must be strings for Kodi JSON-RPC
+                    and_condition = [
+                        {
+                            'field': 'title',
+                            'operator': 'is',
+                            'value': title
+                        },
+                        {
+                            'field': 'year',
+                            'operator': 'is',
+                            'value': str(year)
+                        }
+                    ]
+                    filter_conditions.append(and_condition)
+                else:
+                    # Just title condition - wrap in array for consistency
+                    title_condition = [
+                        {
+                            'field': 'title',
+                            'operator': 'is',
+                            'value': title
+                        }
+                    ]
+                    filter_conditions.append(title_condition)
 
-            utils.log(f"Batch lookup found {len(matched_movies)} matches", "DEBUG")
+            if not filter_conditions:
+                utils.log("BATCH JSON-RPC: No valid filter conditions created", "WARNING")
+                return {"result": {"movies": []}}
 
-            return {
-                "result": {
-                    "movies": matched_movies,
-                    "limits": {
-                        "start": 0,
-                        "end": len(matched_movies),
-                        "total": len(matched_movies)
+            # Create the proper Kodi JSON-RPC filter structure
+            if len(filter_conditions) == 1:
+                # Single condition - use AND if multiple fields, single field if one
+                if len(filter_conditions[0]) == 1:
+                    search_filter = filter_conditions[0][0]
+                else:
+                    search_filter = {
+                        'and': filter_conditions[0]
                     }
+            else:
+                # Multiple conditions - use OR with AND subconditions
+                or_list = []
+                for condition_group in filter_conditions:
+                    if len(condition_group) == 1:
+                        or_list.append(condition_group[0])
+                    else:
+                        or_list.append({
+                            'and': condition_group
+                        })
+
+                search_filter = {
+                    'or': or_list
                 }
-            }
+
+            utils.log(f"BATCH JSON-RPC: Built OR filter with {len(filter_conditions)} conditions", "INFO")
+            utils.log(f"BATCH JSON-RPC: Making single JSONRPC call to VideoLibrary.GetMovies", "INFO")
+
+            response = self.execute('VideoLibrary.GetMovies', {
+                'properties': properties,
+                'filter': search_filter
+            })
+
+            if 'result' in response and 'movies' in response['result']:
+                movies = response['result']['movies']
+                utils.log(f"=== BATCH JSON-RPC: SUCCESS - Found {len(movies)} matches from single call ===", "INFO")
+
+                # Log sample matches
+                for i, movie in enumerate(movies[:3]):
+                    utils.log(f"BATCH JSON-RPC: Match {i+1}: '{movie.get('title', 'N/A')}' ({movie.get('year', 'N/A')})", "INFO")
+                if len(movies) > 3:
+                    utils.log(f"BATCH JSON-RPC: ... and {len(movies) - 3} more matches", "INFO")
+
+                return response
+            else:
+                utils.log("BATCH JSON-RPC: No movies found in response", "INFO")
+                return {"result": {"movies": []}}
 
         except Exception as e:
-            utils.log(f"Error in get_movies_by_title_year_batch: {str(e)}", "ERROR")
+            utils.log(f"=== BATCH JSON-RPC: ERROR - {str(e)} ===", "ERROR")
             return {"result": {"movies": []}}

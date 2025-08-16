@@ -6,7 +6,6 @@ from .jsonrpc_manager import JSONRPC
 
 class MediaManager:
     def __init__(self):
-        from resources.lib.jsonrpc_manager import JSONRPC
         self.jsonrpc = JSONRPC()
         from resources.lib.query_manager import QueryManager
         self.query_manager = QueryManager(Config().db_path)

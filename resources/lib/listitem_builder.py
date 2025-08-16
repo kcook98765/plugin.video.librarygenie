@@ -183,7 +183,7 @@ class ListItemBuilder:
                     poster_url = url
                     break
             except Exception:
-                # utils.log(f"Error getting poster URL: {str(e)}", "ERROR")
+
                 continue
 
         # Handle art data from different sources
@@ -339,6 +339,52 @@ class ListItemBuilder:
         if media_info.get('plot'):
             pass
 
+        # Add IMDb ID to info_dict if available - version-aware handling with detailed logging
+        utils.log(f"=== IMDB_TRACE: ListItem building for '{title}' ===", "INFO")
+        
+        # Log all possible IMDb sources
+        source1 = media_info.get('imdbnumber', '')
+        source2 = media_info.get('uniqueid', {}).get('imdb', '') if isinstance(media_info.get('uniqueid'), dict) else ''
+        source3 = media_info.get('info', {}).get('imdbnumber', '') if media_info.get('info') else ''
+        source4 = media_info.get('imdb_id', '')
+        
+        utils.log(f"IMDB_TRACE: media_info.imdbnumber = '{source1}'", "INFO")
+        utils.log(f"IMDB_TRACE: media_info.uniqueid.imdb = '{source2}'", "INFO")
+        utils.log(f"IMDB_TRACE: media_info.info.imdbnumber = '{source3}'", "INFO")
+        utils.log(f"IMDB_TRACE: media_info.imdb_id = '{source4}'", "INFO")
+        
+        # Prioritize uniqueid.imdb over other sources for v19 compatibility
+        final_imdb_id = ''
+        if source2 and str(source2).startswith('tt'):  # uniqueid.imdb
+            final_imdb_id = source2
+            utils.log(f"IMDB_TRACE: Using uniqueid.imdb = '{final_imdb_id}'", "INFO")
+        else:
+            # Fallback to other sources, but only if they start with 'tt'
+            for source_name, source_value in [('imdbnumber', source1), ('info.imdbnumber', source3), ('imdb_id', source4)]:
+                if source_value and str(source_value).startswith('tt'):
+                    final_imdb_id = source_value
+                    utils.log(f"IMDB_TRACE: Using fallback {source_name} = '{final_imdb_id}'", "INFO")
+                    break
+        
+        utils.log(f"IMDB_TRACE: Final extracted IMDb = '{final_imdb_id}'", "INFO")
+
+        if final_imdb_id and str(final_imdb_id).startswith('tt'):
+            imdb_id = str(final_imdb_id)
+            utils.log(f"IMDB_TRACE: Setting info_dict imdbnumber = '{imdb_id}'", "INFO")
+            info_dict['imdbnumber'] = imdb_id
+
+            # For Kodi v19+, also set uniqueid properly
+            if not info_dict.get('uniqueid'):
+                info_dict['uniqueid'] = {'imdb': imdb_id}
+                utils.log(f"IMDB_TRACE: Created new uniqueid dict with imdb = '{imdb_id}'", "INFO")
+            elif isinstance(info_dict.get('uniqueid'), dict):
+                info_dict['uniqueid']['imdb'] = imdb_id
+                utils.log(f"IMDB_TRACE: Updated existing uniqueid.imdb = '{imdb_id}'", "INFO")
+        else:
+            utils.log(f"IMDB_TRACE: No valid IMDb ID found or doesn't start with 'tt'", "INFO")
+        
+        utils.log(f"=== END IMDB_TRACE for ListItem '{title}' ===", "INFO")
+
         # Use the specialized set_info_tag function that handles Kodi version compatibility
         set_info_tag(li, info_dict, 'video')
 
@@ -414,15 +460,61 @@ class ListItemBuilder:
         context_menu_items.append(('Show Details', f'RunPlugin(plugin://script.librarygenie/?action=show_item_details&title={quote_plus(formatted_title)}&item_id={media_info.get("id", "")})'))
         context_menu_items.append(('Information', 'Action(Info)'))
 
-        # Add context menu to ListItem
-        li.addContextMenuItems(context_menu_items, replaceItems=False)
+        # Add similarity context menu to video items - enhanced IMDb ID detection for v19
+        # Prioritize uniqueid.imdb over imdbnumber since v19 often has TMDB ID in imdbnumber
+        imdb_id = ''
+        
+        # First try uniqueid.imdb (most reliable for actual IMDb IDs)
+        if isinstance(media_info.get('uniqueid'), dict):
+            uniqueid_imdb = media_info.get('uniqueid', {}).get('imdb', '')
+            if uniqueid_imdb and str(uniqueid_imdb).startswith('tt'):
+                imdb_id = uniqueid_imdb
+        
+        # Fallback to other sources only if uniqueid.imdb not found
+        if not imdb_id:
+            candidates = [
+                media_info.get('imdbnumber', ''),
+                media_info.get('info', {}).get('imdbnumber', '') if media_info.get('info') else '',
+                media_info.get('imdb_id', '')
+            ]
+            for candidate in candidates:
+                if candidate and str(candidate).startswith('tt'):
+                    imdb_id = candidate
+                    break
 
+        if imdb_id and str(imdb_id).startswith('tt'):
+            encoded_title = quote_plus(str(media_info.get('title', 'Unknown')))
+            context_menu_items.append(('Find Similar Movies...', f'RunPlugin(plugin://plugin.video.librarygenie/?action=find_similar&imdb_id={imdb_id}&title={encoded_title})'))
 
+        # Add context menu to ListItem with v19 compatibility fix
+        if utils.is_kodi_v19():
+            # v19 requires replaceItems=True for reliable context menu display
+            li.addContextMenuItems(context_menu_items, replaceItems=True)
+        else:
+            # v20+ can use replaceItems=False to preserve existing items
+            li.addContextMenuItems(context_menu_items, replaceItems=False)
 
         # Try to get play URL from different possible locations
         play_url = media_info.get('info', {}).get('play') or media_info.get('play') or media_info.get('file')
         if play_url:
             li.setPath(play_url)
+
+        # Store IMDb ID as a property on the ListItem itself for context menu access
+        # Use the same IMDb ID we processed above for consistency
+        final_imdb_id = info_dict.get('imdbnumber', '')
+        utils.log(f"=== IMDB_TRACE: Setting ListItem properties for '{title}' ===", "INFO")
+        utils.log(f"IMDB_TRACE: final_imdb_id from info_dict = '{final_imdb_id}'", "INFO")
+        
+        if final_imdb_id and str(final_imdb_id).startswith('tt'):
+            # Set multiple properties for maximum compatibility
+            li.setProperty('LibraryGenie.IMDbID', str(final_imdb_id))
+            li.setProperty('imdb_id', str(final_imdb_id))  # Additional fallback property
+            li.setProperty('imdbnumber', str(final_imdb_id))  # Additional fallback property
+            utils.log(f"IMDB_TRACE: Set all ListItem properties = '{final_imdb_id}' for '{title}'", "INFO")
+        else:
+            utils.log(f"IMDB_TRACE: No valid IMDb ID found for '{title}' - cannot set properties", "INFO")
+        
+        utils.log(f"=== END IMDB_TRACE: ListItem properties for '{title}' ===", "INFO")
 
         return li
 

@@ -3,7 +3,6 @@ import json
 import urllib.request
 import urllib.parse
 import urllib.error
-import xbmc
 import xbmcgui
 from resources.lib.addon_ref import get_addon
 from resources.lib.utils import log, show_notification, show_dialog_ok
@@ -48,7 +47,6 @@ def authenticate_with_code():
             # Extract the authentication data
             auth_token = response_data.get('auth_token')
             username = response_data.get('username')
-            user_id = response_data.get('user_id')
             
             if auth_token and username:
                 # Store the authentication data in addon settings

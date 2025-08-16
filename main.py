@@ -10,13 +10,6 @@ from urllib.parse import urlencode, parse_qs
 from urllib.parse import quote_plus, urlparse # Import urlparse
 import time # Import time module
 
-# Add addon directory to Python path
-addon_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(addon_dir)
-
-ADDON_HANDLE = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else -1
-PLUGIN_URL = sys.argv[0] if len(sys.argv) > 0 else ""
-
 # Import new modules
 from resources.lib.url_builder import build_plugin_url, parse_params, detect_context
 from resources.lib.options_manager import OptionsManager
@@ -36,6 +29,16 @@ from resources.lib.route_handlers import (
     remove_from_list, rename_folder, refresh_movie, do_search, move_list
 )
 from resources.lib.listitem_builder import ListItemBuilder
+from resources.lib import route_handlers
+
+
+# Add addon directory to Python path
+addon_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(addon_dir)
+
+ADDON_HANDLE = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else -1
+PLUGIN_URL = sys.argv[0] if len(sys.argv) > 0 else ""
+
 
 # Global variable to track initialization
 _initialized = False
@@ -81,24 +84,6 @@ def run_search_flow():
 def run_search(params):
     """Legacy function - redirect to new flow"""
     run_search_flow()
-
-def run_browse(params):
-    """Launch the browse lists interface"""
-    utils.log("Browse action triggered", "DEBUG")
-    try:
-        from resources.lib.window_main import MainWindow
-        # Create dummy item info for browse mode
-        item_info = {
-            'title': 'Browse Mode',
-            'plot': 'Browse your movie lists and folders',
-            'is_playable': False,
-            'kodi_id': 0
-        }
-        main_window = MainWindow(item_info, "LibraryGenie - Browse Lists")
-        main_window.doModal()
-        del main_window
-    except Exception as e:
-        utils.log(f"Error launching browse window: {str(e)}", "ERROR")
 
 def browse_folder(params):
     """Browse a folder and display its contents"""
@@ -180,7 +165,6 @@ def browse_list(list_id):
     from resources.lib.query_manager import QueryManager
 
     addon = get_addon()
-    addon_id = addon.getAddonInfo("id")
     handle = int(sys.argv[1])
 
     utils.log(f"=== BROWSE_LIST FUNCTION CALLED with list_id={list_id}, handle={handle} ===", "INFO")
@@ -201,27 +185,12 @@ def browse_list(list_id):
         xbmcplugin.setPluginCategory(handle, f"Search Results")
 
         # Use policy-aware resolver
-        utils.log(f"Creating ResultsManager for list resolution", "DEBUG")
         rm = ResultsManager()
-        utils.log(f"Calling build_display_items_for_list for list_id={list_id}", "DEBUG")
         display_items = rm.build_display_items_for_list(list_id)
-        utils.log(f"Resolved {len(display_items)} display items for list {list_id}", "INFO")
 
         if not display_items:
-            utils.log(f"No display items found for list {list_id} - checking database directly", "WARNING")
-            # Check if list exists and has items
-            db_manager = DatabaseManager(config.db_path)
-            list_info = db_manager.fetch_list_by_id(list_id)
-            if list_info:
-                utils.log(f"List {list_id} exists: {list_info.get('name', 'Unknown')}", "DEBUG")
-                raw_items = query_manager.fetch_list_items_with_details(list_id)
-                utils.log(f"Raw list items count: {len(raw_items) if raw_items else 0}", "DEBUG")
-                if raw_items:
-                    utils.log(f"First raw item: {raw_items[0]}", "DEBUG")
-            else:
-                utils.log(f"List {list_id} does not exist in database", "ERROR")
-
-        utils.log(f"Processing {len(display_items)} display items", "DEBUG")
+            utils.log(f"No display items found for list {list_id}", "WARNING")
+            return
         items_added = 0
         playable_count = 0
         non_playable_count = 0
@@ -309,7 +278,7 @@ def browse_list(list_id):
                 media_dict = item
             else:
                 media_dict = {}
-            
+
             if media_dict.get('search_score', 0) > 0:
                 has_scores = True
                 break
@@ -338,11 +307,22 @@ def browse_list(list_id):
         xbmcplugin.addDirectoryItem(handle, "", error_li, False)
         xbmcplugin.endOfDirectory(handle, succeeded=False)
 
-def router(params):
-    """Route requests to appropriate handlers"""
+def router(paramstring):
+    """Main router function to handle different actions"""
+    utils.log(f"Router called with: {paramstring}", "DEBUG")
 
-    # Clean up any stuck navigation flags at router entry
+    # Initialize navigation manager first
+    from resources.lib.navigation_manager import get_navigation_manager
+    nav_manager = get_navigation_manager()
+
+    params = parse_params(paramstring)
+    action = params.get('action', [None])[0]
+
+    # Cleanup any stuck navigation states first
     nav_manager.cleanup_stuck_navigation()
+
+    utils.log(f"Parsed action: {action}", "DEBUG")
+    utils.log(f"All params: {params}", "DEBUG")
 
     # Check for deferred option execution from RunScript
     if len(sys.argv) >= 3 and sys.argv[1] == 'deferred_option':
@@ -388,6 +368,8 @@ def router(params):
         utils.log("Handling search action", "DEBUG")
         try:
             from resources.lib.window_search import SearchWindow
+            from resources.lib.navigation_manager import get_navigation_manager
+
             search_window = SearchWindow()
             search_window.doModal()
 
@@ -395,6 +377,7 @@ def router(params):
             target_url = search_window.get_target_url()
             if target_url:
                 utils.log(f"Navigating to search results: {target_url}", "DEBUG")
+                nav_manager = get_navigation_manager()
                 nav_manager.navigate_to_url(target_url, replace=False)
         except Exception as e:
             utils.log(f"Error in search action: {str(e)}", "ERROR")
@@ -486,6 +469,12 @@ def router(params):
         # Do nothing for separator items
         utils.log("Received separator action, doing nothing.", "DEBUG")
         pass
+    elif action == 'find_similar':
+        utils.log("Handling find_similar action", "DEBUG")
+        route_handlers.find_similar_movies(q)
+    elif action == 'find_similar_from_context':
+        utils.log("Handling find_similar_from_context action", "DEBUG")
+        route_handlers.find_similar_movies_from_context(q)
     else:
         # Default: build root directory if action is not recognized or empty
         utils.log(f"Unrecognized action '{action}' or no action specified, building root directory.", "DEBUG")
@@ -530,23 +519,6 @@ def main():
                 options_manager.execute_deferred_option(option_index, folder_context)
             except Exception as e:
                 utils.log(f"Error in deferred option execution: {str(e)}", "ERROR")
-            return
-
-        # Check if this is a program addon launch (direct launch without context)
-        if len(sys.argv) == 1 or (len(sys.argv) >= 2 and ('action=program' in str(sys.argv[1]) or 'action=program' in str(sys.argv))):
-            utils.log("Program addon launch detected - showing main window", "DEBUG")
-            from resources.lib.window_main import MainWindow
-
-            # Create empty item info for program launch
-            item_info = {
-                'title': 'LibraryGenie Browser',
-                'is_playable': False,
-                'kodi_id': 0
-            }
-
-            main_window = MainWindow(item_info, "LibraryGenie - Browse Lists")
-            main_window.doModal()
-            del main_window
             return
 
         # Handle plugin routing

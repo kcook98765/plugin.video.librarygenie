@@ -8,23 +8,6 @@ from resources.lib import utils
 
 __all__ = ['set_info_tag', 'set_art']
 
-# confirming via testing the following can be removed
-# Initialize logging
-#utils.log("ListItem InfoTagVideo module initialized", "INFO")
-# class ListItemInfoTagVideo:
-#    _instance = None
-#    _initialized = False
-
-#    def __new__(cls):
-#        if cls._instance is None:
-#            cls._instance = super(ListItemInfoTagVideo, cls).__new__(cls)
-#        return cls._instance
-
-#    def __init__(self):
-#        if not ListItemInfoTagVideo._initialized:
-#            utils.log("ListItem InfoTagVideo module initialized", "INFO")
-#            ListItemInfoTagVideo._initialized = True
-
 """InfoTag compatibility helper for Kodi 19+ only - No support for Kodi 18 and below"""
 
 
@@ -56,8 +39,6 @@ def _set_full_cast(list_item: ListItem, cast_list: list) -> bool:
     if not norm:
         return False
 
-    utils.log(f"Setting cast for {len(norm)} actors with image support", "DEBUG")
-
     # 1) Priority path for v21+: InfoTagVideo.setCast() with Actor objects
     try:
         import xbmcgui
@@ -76,26 +57,23 @@ def _set_full_cast(list_item: ListItem, cast_list: list) -> bool:
                             thumbnail=str(actor['thumbnail']) if actor['thumbnail'] else ""
                         )
                         actors.append(actor_obj)
-                    except Exception as actor_error:
-                        utils.log(f"Failed to create Actor object for {actor['name']}: {str(actor_error)}", "DEBUG")
+                    except Exception:
                         continue
 
             if actors:
                 info.setCast(actors)  # v21+ preferred InfoTagVideo method
-                utils.log(f"v21+ InfoTagVideo.setCast() successful: {len(actors)} actors with images", "DEBUG")
                 return True
-    except Exception as e:
-        utils.log(f"v21+ InfoTagVideo.setCast() failed: {str(e)}", "DEBUG")
+    except Exception:
+        pass
 
     # 2) Fallback for v19/v20: ListItem.setCast(list-of-dicts) - now deprecated in v21
     try:
         if hasattr(list_item, 'setCast'):
             # v19/v20 method: accepts dicts with name/role/thumbnail/order
             list_item.setCast(norm)
-            utils.log(f"v19/v20 ListItem.setCast() fallback successful: {len(norm)} actors with images (deprecated)", "DEBUG")
             return True
-    except Exception as e:
-        utils.log(f"v19/v20 ListItem.setCast() fallback failed: {str(e)}", "DEBUG")
+    except Exception:
+        pass
 
     # 3) Last resort: names/roles only via setInfo (no images)
     try:
@@ -111,10 +89,9 @@ def _set_full_cast(list_item: ListItem, cast_list: list) -> bool:
             # Convert cast list to string format for setInfo compatibility
             cast_str = ' / '.join([f"{actor[0]} ({actor[1]})" if isinstance(actor, tuple) and len(actor) > 1 else str(actor) for actor in simple_cast])
             list_item.setInfo('video', {'cast': cast_str})
-            utils.log(f"Fallback setInfo cast successful: {len(simple_cast)} actors (no images)", "WARNING")
             return False
-    except Exception as e:
-        utils.log(f"All cast methods failed: {str(e)}", "ERROR")
+    except Exception:
+        pass
 
     return False
 
@@ -127,9 +104,6 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
         utils.log("Invalid or empty info_dict provided to set_info_tag", "WARNING")
         return
 
-    # Use centralized version detection
-    utils.log(f"Using cached Kodi version: {utils.get_kodi_version()}", "DEBUG")
-
     # For Kodi v19, use setInfo directly since InfoTag setters are unreliable
     if utils.is_kodi_v19():
         try:
@@ -141,11 +115,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
 
                 # Handle cast with v19 ListItem.setCast() which supports thumbnails
                 if key == 'cast' and isinstance(value, list):
-                    cast_success = _set_full_cast(list_item, value)
-                    if cast_success:
-                        utils.log(f"V19 cast set successfully with images: {len(value)} actors", "DEBUG")
-                    else:
-                        utils.log("V19 cast set without images (fallback used)", "DEBUG")
+                    _set_full_cast(list_item, value)
                     continue  # Don't add cast to clean_info since it's handled separately
                 elif key in ['country', 'director', 'genre', 'studio'] and isinstance(value, list):
                     # Convert lists to comma-separated strings for setInfo
@@ -153,8 +123,21 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                 elif key == 'mediatype':
                     # Skip mediatype for v19 setInfo
                     continue
+                elif key == 'uniqueid':
+                    # Handle uniqueid for v19 - setInfo expects it as a dict but may not handle it properly
+                    # Skip for setInfo and handle separately
+                    continue
                 else:
                     clean_info[key] = value
+            
+            # Handle uniqueid separately for v19 compatibility
+            uniqueid_data = info_dict.get('uniqueid')
+            if uniqueid_data and isinstance(uniqueid_data, dict):
+                imdb_id = uniqueid_data.get('imdb')
+                if imdb_id and str(imdb_id).startswith('tt'):
+                    # Ensure imdbnumber is set for v19 compatibility
+                    clean_info['imdbnumber'] = str(imdb_id)
+                    utils.log(f"Set imdbnumber for v19 compatibility: {imdb_id}", "DEBUG")
 
             # Skip DBID for v19 non-playable items to prevent Information dialog conflicts
             # Only add DBID for actual playable library movies, not for options/folder items
@@ -195,15 +178,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
     # For Kodi v20+, try InfoTag methods first with enhanced error handling
     try:
         # Get the InfoTag for the specified content type
-        if content_type == 'video':
-            info_tag = list_item.getVideoInfoTag()
-        elif content_type == 'music':
-            info_tag = list_item.getMusicInfoTag()
-        else:
-            utils.log(f"Unsupported content type: {content_type}", "WARNING")
-            return
-
-        utils.log(f"V20+ InfoTag object obtained: {type(info_tag)}", "DEBUG")
+        info_tag = list_item.getVideoInfoTag()
 
         # V20+ InfoTag method mapping with validation
         infotag_methods = {
@@ -350,7 +325,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
             # InfoTag methods completed
         else:
             utils.log("V20+ No InfoTag methods succeeded, falling back to setInfo", "WARNING")
-            raise Exception(f"All V20+ InfoTag methods failed")
+            raise Exception("All V20+ InfoTag methods failed")
 
     except Exception as e:
         # Enhanced fallback to setInfo for v20+ if InfoTag fails
