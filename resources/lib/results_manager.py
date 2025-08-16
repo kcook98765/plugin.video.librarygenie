@@ -23,11 +23,11 @@ class ResultsManager(Singleton):
         """Build display items for a specific list with comprehensive metadata"""
         try:
             utils.log(f"=== BUILD_DISPLAY_ITEMS: Starting for list_id {list_id} ===", "DEBUG")
-            
+
             # Get list items with full details
             list_items = self.query_manager.fetch_list_items_with_details(list_id)
             utils.log(f"=== BUILD_DISPLAY_ITEMS: Retrieved {len(list_items)} list items ===", "DEBUG")
-            
+
             if list_items:
                 # Log sample of first item
                 first_item = list_items[0]
@@ -98,10 +98,10 @@ class ResultsManager(Singleton):
             utils.log(f"=== BUILD_DISPLAY_ITEMS: Calling get_movies_by_title_year_batch ===", "DEBUG")
             batch_resp = self.jsonrpc.get_movies_by_title_year_batch(batch_pairs) or {}
             utils.log(f"=== BUILD_DISPLAY_ITEMS: Batch response keys: {list(batch_resp.keys()) if batch_resp else 'None'} ===", "DEBUG")
-            
+
             batch_movies = (batch_resp.get("result") or {}).get("movies") or []
             utils.log(f"=== BUILD_DISPLAY_ITEMS: JSON-RPC returned {len(batch_movies)} movies from batch lookup ===", "DEBUG")
-            
+
             if batch_movies:
                 # Log sample of first returned movie
                 first_movie = batch_movies[0]
@@ -129,12 +129,12 @@ class ResultsManager(Singleton):
             # Rebuild resolved list in the original refs order (already sorted by search score from query)
             resolved_items_for_list = []
             utils.log(f"=== BUILD_DISPLAY_ITEMS: Starting movie matching for {len(rows)} items ===", "DEBUG")
-            
+
             for i, r in enumerate(rows): # Use original 'rows' to get 'id' and 'source' for unmatched items
                 ref_title = r.get("title", "") # Get title from original row if available
                 ref_year = r.get("year", 0) # Get year from original row if available
                 ref_imdb = r.get("imdbnumber", "") # Get imdbnumber from original row if available
-                
+
                 utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: ref_title='{ref_title}', ref_year={ref_year}, ref_imdb='{ref_imdb}' ===", "DEBUG")
 
                 # Find the corresponding processed ref data
@@ -149,10 +149,10 @@ class ResultsManager(Singleton):
                 k_exact = _key(processed_ref.get("title"), processed_ref.get("year"))
                 k_title = _key(processed_ref.get("title"), 0)
                 utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Lookup keys - exact: {k_exact}, title: {k_title} ===", "DEBUG")
-                
+
                 cand = (idx_ty.get(k_exact) or idx_t.get(k_title) or [])
                 meta = cand[0] if cand else None
-                
+
                 utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Found {len(cand)} candidates, meta exists: {meta is not None} ===", "DEBUG")
 
                 resolved_item = None

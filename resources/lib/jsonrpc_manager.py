@@ -464,7 +464,14 @@ class JSONRPC:
             return {"result": {"movies": []}}
 
         try:
-            utils.log(f"Optimized batch lookup for {len(title_year_pairs)} title/year pairs", "DEBUG")
+            utils.log(f"=== BATCH JSON-RPC: Starting batch lookup for {len(title_year_pairs)} title/year pairs ===", "INFO")
+            
+            # Log sample of what we're looking for
+            sample_pairs = title_year_pairs[:3]
+            for i, pair in enumerate(sample_pairs):
+                utils.log(f"BATCH JSON-RPC: Sample {i+1}: '{pair.get('title', 'N/A')}' ({pair.get('year', 'N/A')})", "INFO")
+            if len(title_year_pairs) > 3:
+                utils.log(f"BATCH JSON-RPC: ... and {len(title_year_pairs) - 3} more", "INFO")
             
             properties = self.get_comprehensive_properties()
             
@@ -505,6 +512,7 @@ class JSONRPC:
                     filter_conditions.append(title_condition)
 
             if not filter_conditions:
+                utils.log("BATCH JSON-RPC: No valid filter conditions created", "WARNING")
                 return {"result": {"movies": []}}
 
             # Create the proper Kodi JSON-RPC filter structure
@@ -531,7 +539,8 @@ class JSONRPC:
                     'or': or_list
                 }
 
-            utils.log(f"Using OR filter with {len(filter_conditions)} conditions", "DEBUG")
+            utils.log(f"BATCH JSON-RPC: Built OR filter with {len(filter_conditions)} conditions", "INFO")
+            utils.log(f"BATCH JSON-RPC: Making single JSONRPC call to VideoLibrary.GetMovies", "INFO")
 
             response = self.execute('VideoLibrary.GetMovies', {
                 'properties': properties,
@@ -540,14 +549,21 @@ class JSONRPC:
             
             if 'result' in response and 'movies' in response['result']:
                 movies = response['result']['movies']
-                utils.log(f"OR filter found {len(movies)} matches", "DEBUG")
+                utils.log(f"=== BATCH JSON-RPC: SUCCESS - Found {len(movies)} matches from single call ===", "INFO")
+                
+                # Log sample matches
+                for i, movie in enumerate(movies[:3]):
+                    utils.log(f"BATCH JSON-RPC: Match {i+1}: '{movie.get('title', 'N/A')}' ({movie.get('year', 'N/A')})", "INFO")
+                if len(movies) > 3:
+                    utils.log(f"BATCH JSON-RPC: ... and {len(movies) - 3} more matches", "INFO")
+                
                 return response
             else:
-                utils.log("No movies found in OR filter response", "DEBUG")
+                utils.log("BATCH JSON-RPC: No movies found in response", "INFO")
                 return {"result": {"movies": []}}
 
         except Exception as e:
-            utils.log(f"Error in OR filter lookup: {str(e)}", "ERROR")
+            utils.log(f"=== BATCH JSON-RPC: ERROR - {str(e)} ===", "ERROR")
             return {"result": {"movies": []}}
 
     
