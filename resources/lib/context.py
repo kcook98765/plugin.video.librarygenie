@@ -43,10 +43,25 @@ def main():
         addon_id = addon.getAddonInfo("id")
 
         # Create menu options - check if we have IMDb ID for similarity
-        imdb_id = xbmc.getInfoLabel('ListItem.IMDBNumber')
+        # Enhanced IMDb ID detection for v19 compatibility
+        imdb_id = None
+        
+        # Try multiple sources for IMDb ID
+        imdb_candidates = [
+            xbmc.getInfoLabel('ListItem.IMDBNumber'),
+            xbmc.getInfoLabel('ListItem.UniqueID(imdb)'),
+            item_info.get('imdbnumber', ''),
+            item_info.get('uniqueid', {}).get('imdb', '') if isinstance(item_info.get('uniqueid'), dict) else ''
+        ]
+        
+        for candidate in imdb_candidates:
+            if candidate and str(candidate).startswith('tt'):
+                imdb_id = candidate
+                break
+        
         options = []
         
-        if imdb_id and imdb_id.startswith('tt'):
+        if imdb_id and str(imdb_id).startswith('tt'):
             options.append("Find Similar Movies...")
         
         options.extend([

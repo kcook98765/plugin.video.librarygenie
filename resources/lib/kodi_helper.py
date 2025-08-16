@@ -363,6 +363,13 @@ class KodiHelper:
             details['file'] = xbmc.getInfoLabel('ListItem.FileNameAndPath')
             details['kodi_id'] = int(db_id)  # Ensure dbid is included
             details['play'] = details['file']  # Set the play field to a valid value
+            
+            # Ensure IMDb ID is properly extracted for v19 compatibility
+            if not details.get('imdbnumber') or not str(details.get('imdbnumber')).startswith('tt'):
+                # Try to get IMDb ID from uniqueid field
+                uniqueid = details.get('uniqueid', {})
+                if isinstance(uniqueid, dict) and 'imdb' in uniqueid:
+                    details['imdbnumber'] = uniqueid['imdb']
 
             return details
 
