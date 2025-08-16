@@ -56,9 +56,15 @@ def main():
         context_builder = get_context_menu_builder()
         is_authenticated = context_builder._is_authenticated()
 
+        # Show Details - always available
+        options.append("Show Details")
+        
+        # Information - always available  
+        options.append("Information")
+
         # Add movie to a list - available when IMDb ID is detected
         if imdb_id and str(imdb_id).startswith('tt'):
-            options.append("Add movie to a list...")
+            options.append("Add to List...")
 
         # Find Similar Movies - only if authenticated AND has valid IMDb ID
         if imdb_id and str(imdb_id).startswith('tt'):
@@ -66,6 +72,9 @@ def main():
                 options.append("Find Similar Movies...")
             else:
                 options.append("Find Similar Movies... (Requires Authentication)")
+
+        # Refresh Metadata - always available
+        options.append("Refresh Metadata")
 
         # Search Movies - only if authenticated
         if is_authenticated:
@@ -90,21 +99,70 @@ def main():
 
         selected_option = options[selected]
 
-        if selected_option == "Add movie to a list...":
+        if selected_option == "Show Details":
+            # Show item details
+            try:
+                # Get the clean title without color formatting
+                clean_title = title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
+                
+                # Get item ID from various sources
+                item_id = (xbmc.getInfoLabel('ListItem.DBID') or 
+                          xbmc.getInfoLabel('ListItem.Property(movieid)') or 
+                          xbmc.getInfoLabel('ListItem.Property(id)') or "")
+                
+                from urllib.parse import quote_plus
+                encoded_title = quote_plus(clean_title)
+                details_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=show_item_details&title={encoded_title}&item_id={item_id})'
+                xbmc.executebuiltin(details_url)
+                
+            except Exception as details_error:
+                xbmc.log(f"LibraryGenie: Error showing details: {str(details_error)}", xbmc.LOGERROR)
+                xbmcgui.Dialog().notification("LibraryGenie", "Error showing details", xbmcgui.NOTIFICATION_ERROR, 3000)
+
+        elif selected_option == "Information":
+            # Show Kodi information dialog
+            xbmc.executebuiltin('Action(Info)')
+
+        elif selected_option == "Add to List...":
             # Handle adding movie to list
             try:
                 # Get the clean title without color formatting
                 clean_title = title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
                 
+                # Get item ID from various sources
+                item_id = (xbmc.getInfoLabel('ListItem.DBID') or 
+                          xbmc.getInfoLabel('ListItem.Property(movieid)') or 
+                          xbmc.getInfoLabel('ListItem.Property(id)') or "")
+                
                 # Use RunPlugin to trigger add_to_list action
                 from urllib.parse import quote_plus
                 encoded_title = quote_plus(clean_title)
-                add_to_list_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=add_to_list_from_context&title={encoded_title}&imdb_id={imdb_id}&year={year})'
+                add_to_list_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=add_to_list&title={encoded_title}&item_id={item_id})'
                 xbmc.executebuiltin(add_to_list_url)
                 
             except Exception as add_error:
                 xbmc.log(f"LibraryGenie: Error adding movie to list: {str(add_error)}", xbmc.LOGERROR)
                 xbmcgui.Dialog().notification("LibraryGenie", "Error adding movie to list", xbmcgui.NOTIFICATION_ERROR, 3000)
+
+        elif selected_option == "Refresh Metadata":
+            # Refresh metadata
+            try:
+                # Get the clean title without color formatting
+                clean_title = title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
+                
+                # Get item ID from various sources
+                item_id = (xbmc.getInfoLabel('ListItem.DBID') or 
+                          xbmc.getInfoLabel('ListItem.Property(movieid)') or 
+                          xbmc.getInfoLabel('ListItem.Property(id)') or "")
+                
+                from urllib.parse import quote_plus
+                encoded_title = quote_plus(clean_title)
+                refresh_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=refresh_metadata&title={encoded_title}&item_id={item_id})'
+                xbmc.executebuiltin(refresh_url)
+                
+            except Exception as refresh_error:
+                xbmc.log(f"LibraryGenie: Error refreshing metadata: {str(refresh_error)}", xbmc.LOGERROR)
+                xbmcgui.Dialog().notification("LibraryGenie", "Error refreshing metadata", xbmcgui.NOTIFICATION_ERROR, 3000)
 
         elif "Find Similar Movies..." in selected_option:
             if "(Requires Authentication)" in selected_option:
