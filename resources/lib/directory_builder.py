@@ -32,10 +32,6 @@ def add_context_menu_for_item(li: xbmcgui.ListItem, item_type: str, **ids):
     elif item_type == 'folder':
         folder_info = {'folder_id': ids.get('folder_id', '')}
         cm = context_builder.build_folder_context_menu(folder_info, ids.get('context', {}))
-            cm += [
-                ('Rename folder',
-                 f'RunPlugin({build_plugin_url({"action":"rename_folder","folder_id":folder_id})})'), # Changed 'folder' to 'folder_id'
-            ]
     if cm:
         li.addContextMenuItems(cm, replaceItems=False)
     return li
