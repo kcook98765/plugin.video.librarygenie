@@ -506,32 +506,34 @@ def _perform_similarity_search(imdb_id, title):
         utils.log(f"=== SIMILARITY_SEARCH: Converted to {len(search_results)} search results ===", "DEBUG")
 
         if search_results:
-            # Step 2: Use the existing add_search_history method which follows proper flow:
-            # - Looks up titles/years from imdb_exports 
-            # - Creates media_items with proper data
-            # - Links them to the list
-            utils.log(f"=== SIMILARITY_SEARCH: Adding search results to list {new_list['id']} ===", "DEBUG")
+            # Step 2: Use the results_manager to properly handle the search results
+            # This will look up titles/years and create proper media items
+            utils.log(f"=== SIMILARITY_SEARCH: Using results_manager to process search results ===", "DEBUG")
             
-            # Add the results using the same method as regular search
-            for result in search_results:
-                # Insert into media_items table with minimal data (will be resolved during display)
-                media_item_data = {
-                    'kodi_id': 0,
-                    'title': '',  # Will be resolved from imdb_exports or JSONRPC
-                    'year': 0,    # Will be resolved from imdb_exports or JSONRPC
-                    'imdbnumber': result['imdbnumber'],
-                    'source': 'similarity',
-                    'plot': '',
-                    'rating': 0.0,
-                    'search_score': result['search_score']
-                }
-                
-                # Insert media item
-                media_id = query_manager.insert_media_item(media_item_data)
-                
-                if media_id:
-                    # Link to list
-                    query_manager.add_item_to_list(new_list['id'], media_id)
+            from resources.lib.results_manager import ResultsManager
+            
+            results_manager = ResultsManager()
+            
+            # Convert search results to the format expected by add_search_history
+            formatted_results = {
+                'results': [{'imdb_id': result['imdbnumber'], 'score': result['search_score']} for result in search_results],
+                'query': f"Similar to {title} ({facet_desc})",
+                'success': True
+            }
+            
+            utils.log(f"=== SIMILARITY_SEARCH: Calling add_search_history with {len(formatted_results['results'])} results ===", "DEBUG")
+            
+            # Use the existing add_search_history method which handles:
+            # - IMDb ID to title/year lookup
+            # - JSON-RPC batch requests for library matching
+            # - Proper media_item creation with full metadata
+            try:
+                results_manager.add_search_history(formatted_results, new_list['id'])
+                utils.log(f"=== SIMILARITY_SEARCH: Successfully added search history to list {new_list['id']} ===", "DEBUG")
+            except Exception as e:
+                utils.log(f"=== SIMILARITY_SEARCH: Error in add_search_history: {str(e)} ===", "ERROR")
+                import traceback
+                utils.log(f"=== SIMILARITY_SEARCH: add_search_history traceback: {traceback.format_exc()} ===", "ERROR")
 
         utils.log(f"=== SIMILARITY_SEARCH: Finished processing {len(search_results)} movies into list {new_list['id']} ===", "DEBUG")
 
