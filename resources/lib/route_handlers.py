@@ -313,7 +313,7 @@ def do_search(params):
 
         # Perform the search
         results = api_client.search_movies(q)
-        if results and results.get('success'):
+        if results and isinstance(results, dict) and results.get('success'):
             # Create a search results list
             db_manager = DatabaseManager(config.db_path)
 
