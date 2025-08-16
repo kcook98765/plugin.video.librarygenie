@@ -325,7 +325,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
             # InfoTag methods completed
         else:
             utils.log("V20+ No InfoTag methods succeeded, falling back to setInfo", "WARNING")
-            raise Exception(f"All V20+ InfoTag methods failed")
+            raise Exception("All V20+ InfoTag methods failed")
 
     except Exception as e:
         # Enhanced fallback to setInfo for v20+ if InfoTag fails
