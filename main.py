@@ -338,11 +338,22 @@ def browse_list(list_id):
         xbmcplugin.addDirectoryItem(handle, "", error_li, False)
         xbmcplugin.endOfDirectory(handle, succeeded=False)
 
-def router(params):
-    """Route requests to appropriate handlers"""
+def router(paramstring):
+    """Main router function to handle different actions"""
+    utils.log(f"Router called with: {paramstring}", "DEBUG")
 
-    # Clean up any stuck navigation flags at router entry
+    # Initialize navigation manager first
+    from resources.lib.navigation_manager import get_navigation_manager
+    nav_manager = get_navigation_manager()
+
+    params = parse_params(paramstring)
+    action = params.get('action', [None])[0]
+
+    # Cleanup any stuck navigation states first
     nav_manager.cleanup_stuck_navigation()
+
+    utils.log(f"Parsed action: {action}", "DEBUG")
+    utils.log(f"All params: {params}", "DEBUG")
 
     # Check for deferred option execution from RunScript
     if len(sys.argv) >= 3 and sys.argv[1] == 'deferred_option':
