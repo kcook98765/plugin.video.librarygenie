@@ -13,7 +13,7 @@ class DatabaseSyncManager:
 
     def setup_tables(self):
         """Create necessary tables for movie reference and addon metadata"""
-        self.query_manager.setup_movies_reference_table()
+        self.query_manager.setup_movies_reference_table_broken()
 
     def sync_library_movies(self) -> bool:
         """Sync movies from Kodi library to movies_reference table"""
