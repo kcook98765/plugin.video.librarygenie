@@ -60,7 +60,7 @@ class ContextMenuBuilder:
         formatted_title = self._clean_title(title)
         item_id = media_info.get("id", "")
         
-        context_menu_items.append(('Show Details', f'RunPlugin(plugin://script.librarygenie/?action=show_item_details&title={quote_plus(formatted_title)}&item_id={item_id})'))
+        context_menu_items.append(('Show Details', f'RunPlugin(plugin://plugin.video.librarygenie/?action=show_item_details&title={quote_plus(formatted_title)}&item_id={item_id})'))
         context_menu_items.append(('Information', 'Action(Info)'))
         
         # Add to List - always available
