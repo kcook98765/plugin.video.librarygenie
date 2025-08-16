@@ -198,8 +198,23 @@ def remove_from_list(params):
         list_info = db_manager.fetch_list_by_id(list_id)
         list_name = list_info.get('name', 'Unknown List') if list_info else 'Unknown List'
         
-        media_info = db_manager.fetch_media_by_id(media_id)
-        media_title = media_info.get('title', 'Unknown Movie') if media_info else 'Unknown Movie'
+        # Get media info from the list_items table with media_items join
+        try:
+            query = """
+                SELECT m.title, m.year 
+                FROM list_items li 
+                JOIN media_items m ON li.media_item_id = m.id 
+                WHERE li.list_id = ? AND m.id = ?
+            """
+            db_manager.cursor.execute(query, (list_id, media_id))
+            media_result = db_manager.cursor.fetchone()
+            if media_result:
+                media_title = media_result[0] or 'Unknown Movie'
+            else:
+                media_title = 'Unknown Movie'
+        except Exception as e:
+            utils.log(f"Error fetching media title: {str(e)}", "WARNING")
+            media_title = 'Unknown Movie'
         
         # Show confirmation dialog
         if not xbmcgui.Dialog().yesno(
@@ -211,16 +226,16 @@ def remove_from_list(params):
             return
 
         # Check if the item exists before trying to delete
-        check_query = f"SELECT COUNT(*) as count FROM list_items WHERE list_id = {list_id} AND media_id = {media_id}"
+        check_query = f"SELECT COUNT(*) as count FROM list_items WHERE list_id = {list_id} AND media_item_id = {media_id}"
         result = db_manager.cursor.execute(check_query).fetchone()
         item_count = result[0] if result else 0
         
         if item_count == 0:
-            utils.log(f"Item not found in list: list_id={list_id}, media_id={media_id}", "WARNING")
+            utils.log(f"Item not found in list: list_id={list_id}, media_item_id={media_id}", "WARNING")
             xbmcgui.Dialog().notification('LibraryGenie', 'Item not found in list', xbmcgui.NOTIFICATION_WARNING)
         else:
-            db_manager.delete_data('list_items', f"list_id = {list_id} AND media_id = {media_id}")
-            utils.log(f"Successfully removed item from list: list_id={list_id}, media_id={media_id}", "INFO")
+            db_manager.delete_data('list_items', f"list_id = {list_id} AND media_item_id = {media_id}")
+            utils.log(f"Successfully removed item from list: list_id={list_id}, media_item_id={media_id}", "INFO")
             xbmcgui.Dialog().notification('LibraryGenie', f'Removed "{media_title}" from list')
             
         # Always refresh the container regardless of success/failure
