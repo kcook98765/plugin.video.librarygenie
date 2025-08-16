@@ -340,10 +340,10 @@ def find_similar_movies_from_context(params):
     try:
         # Get focused item info from Kodi
         import xbmc
-        
+
         # Get IMDb ID from our custom property (set by listitem_builder.py)
         imdb_id = xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)')
-        
+
         # Simple fallback for non-LibraryGenie items
         if not imdb_id:
             fallback_candidates = [
@@ -354,13 +354,13 @@ def find_similar_movies_from_context(params):
                 if candidate and str(candidate).startswith('tt'):
                     imdb_id = candidate
                     break
-        
+
         if imdb_id:
             utils.log(f"Similarity search found IMDb ID: {imdb_id}", "INFO")
-                
+
         title = xbmc.getInfoLabel('ListItem.Title')
         year = xbmc.getInfoLabel('ListItem.Year')
-        
+
         utils.log(f"Similarity search - Title: {title}, Year: {year}, IMDb: {imdb_id}", "DEBUG")
 
         if not imdb_id or not imdb_id.startswith('tt'):
@@ -392,16 +392,28 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
         facet_descriptions = [
             "Plot - Story structure and narrative elements",
             "Mood/tone - Emotional atmosphere and feel",
-            "Themes - Underlying messages and concepts", 
+            "Themes - Underlying messages and concepts",
             "Genre - Movie categories and tropes"
         ]
 
         utils.log(f"=== SIMILARITY_SEARCH: Showing facet selection dialog ===", "DEBUG")
-        
-        # Show multi-select dialog for facets
+
+        # Load previously selected facets if available
+        cached_facets_str = config.get_setting('similarity_facets')
+        preselected_indices = []
+        if cached_facets_str:
+            try:
+                cached_facets = json.loads(cached_facets_str)
+                preselected_indices = [available_facets.index(facet) for facet in cached_facets if facet in available_facets]
+                utils.log(f"Loaded cached facets: {cached_facets}, preselected indices: {preselected_indices}", "DEBUG")
+            except (json.JSONDecodeError, ValueError) as e:
+                utils.log(f"Error loading cached facets: {e}", "WARNING")
+
+        # Show multi-select dialog for facets with preselection
         selected_indices = xbmcgui.Dialog().multiselect(
             f"Select similarity aspects for '{title}':",
-            list(facet_descriptions)
+            list(facet_descriptions),
+            preselect=preselected_indices
         )
 
         if selected_indices is None or len(selected_indices) == 0:
@@ -443,9 +455,9 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
         utils.log(f"=== SIMILARITY_SEARCH: Raw API response sample (first 3): {similar_movies[:3]} ===", "DEBUG")
 
         # Create list name with facet description
-        facet_names = [name for name, enabled in zip(['Plot', 'Mood/tone', 'Themes', 'Genre'], 
-                                                    [facet_params['plot'], facet_params['mood'], 
-                                                     facet_params['themes'], facet_params['genre']]) 
+        facet_names = [name for name, enabled in zip(['Plot', 'Mood/tone', 'Themes', 'Genre'],
+                                                    [facet_params['plot'], facet_params['mood'],
+                                                     facet_params['themes'], facet_params['genre']])
                       if enabled]
         facet_desc = ' + '.join(facet_names)
 
@@ -498,17 +510,17 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
         if search_results:
             # Step 2: Create media items for each search result following the search pattern
             utils.log(f"=== SIMILARITY_SEARCH: Creating media items for {len(search_results)} results ===", "DEBUG")
-            
+
             for i, result in enumerate(search_results):
                 imdb_id = result['imdbnumber']
                 search_score = result.get('search_score', 0)
-                
+
                 utils.log(f"=== SIMILARITY_SEARCH: Processing result {i+1}/{len(search_results)}: {imdb_id} (score: {search_score}) ===", "DEBUG")
-                
+
                 # Look up title and year from imdb_exports if available
                 title_lookup = ''
                 year_lookup = 0
-                
+
                 try:
                     lookup_query = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
                     lookup_result = query_manager.execute_query(lookup_query, (imdb_id,))
@@ -520,7 +532,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
                         utils.log(f"=== SIMILARITY_SEARCH: No imdb_exports entry for {imdb_id} ===", "DEBUG")
                 except Exception as e:
                     utils.log(f"=== SIMILARITY_SEARCH: Error looking up title/year for {imdb_id}: {str(e)} ===", "ERROR")
-                
+
                 # Create media item with available data
                 media_item_data = {
                     'kodi_id': 0,
@@ -533,9 +545,9 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
                     'search_score': search_score,
                     'media_type': 'movie'
                 }
-                
+
                 utils.log(f"=== SIMILARITY_SEARCH: Creating media item: title='{media_item_data['title']}', year={media_item_data['year']}, imdb={imdb_id} ===", "DEBUG")
-                
+
                 # Insert media item and add to list
                 try:
                     success = query_manager.insert_media_item_and_add_to_list(new_list['id'], media_item_data)
@@ -557,19 +569,19 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
                 'action': 'browse_list',
                 'list_id': new_list['id'],
             })
-            
+
             if target_url:
                 utils.log(f"=== SIMILARITY_SEARCH: Using ActivateWindow navigation from context menu: {target_url} ===", "DEBUG")
                 # Use ActivateWindow for context menu navigation
                 import threading
                 import time
-                
+
                 def delayed_activate():
                     time.sleep(1.5)  # Wait for notification to show
                     utils.log(f"=== CONTEXT_MENU_NAVIGATION: Activating window: {target_url} ===", "DEBUG")
                     xbmc.executebuiltin(f'ActivateWindow(videos,"{target_url}",return)')
                     utils.log(f"=== CONTEXT_MENU_NAVIGATION: ActivateWindow completed ===", "DEBUG")
-                
+
                 nav_thread = threading.Thread(target=delayed_activate)
                 nav_thread.daemon = True
                 nav_thread.start()
@@ -579,12 +591,12 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
                 'action': 'browse_list',
                 'list_id': new_list['id'],
             })
-            
+
             if target_url:
                 utils.log(f"=== SIMILARITY_SEARCH: Using Container.Update navigation from plugin: {target_url} ===", "DEBUG")
                 # Use delayed navigation similar to SearchWindow pattern
                 _schedule_delayed_navigation(target_url)
-        
+
         utils.log(f"=== SIMILARITY_SEARCH: Similarity search complete - list ID: {new_list['id']} ===", "INFO")
 
     except Exception as e:
@@ -624,27 +636,27 @@ def _schedule_delayed_navigation(target_url):
             # Wait for modal cleanup
             import time
             time.sleep(2.0)  # Give time for notification and modal cleanup
-            
+
             utils.log(f"=== DELAYED_NAVIGATION: Starting navigation to: {target_url} ===", "DEBUG")
-            
+
             # Clear any lingering modal states
             xbmc.executebuiltin("ClearProperty(LibraryGenie.SearchModalActive,Home)")
             xbmc.executebuiltin("Dialog.Close(all,true)")
-            
+
             # Brief wait for cleanup
             time.sleep(0.5)
-            
+
             # Navigate using Container.Update for reliable plugin navigation
             utils.log(f"=== DELAYED_NAVIGATION: Using Container.Update to navigate ===", "DEBUG")
             xbmc.executebuiltin(f'Container.Update({target_url})')
-            
+
             utils.log(f"=== DELAYED_NAVIGATION: Navigation completed ===", "DEBUG")
-            
+
         except Exception as e:
             utils.log(f"Error in delayed navigation: {str(e)}", "ERROR")
             import traceback
             utils.log(f"Delayed navigation traceback: {traceback.format_exc()}", "ERROR")
-    
+
     # Start navigation in background thread
     nav_thread = threading.Thread(target=delayed_navigate)
     nav_thread.daemon = True
