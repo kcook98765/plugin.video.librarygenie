@@ -390,17 +390,70 @@ def add_to_list_from_context(params):
             'source': 'context_menu'
         }
 
-        # Use the existing add_to_list functionality
-        from resources.lib.folder_list_manager import FolderListManager
-        folder_list_manager = FolderListManager()
+        # Use the database manager to handle the add to list functionality
+        from resources.lib.config_manager import Config
+        from resources.lib.database_manager import DatabaseManager
         
-        # Show list selection dialog and add the item
-        success = folder_list_manager.add_media_to_list_interactive(media_item)
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
         
-        if success:
-            xbmcgui.Dialog().notification('LibraryGenie', f'Added "{title}" to list', xbmcgui.NOTIFICATION_INFO, 3000)
-        else:
+        # Get all available lists for user selection
+        all_lists = db_manager.fetch_all_lists()
+        
+        if not all_lists:
+            xbmcgui.Dialog().ok('LibraryGenie', 'No lists found. Create a list first.')
+            return
+        
+        # Create list selection options
+        list_options = []
+        list_ids = []
+        
+        for list_item in all_lists:
+            # Get folder path for display
+            folder_path = ""
+            if list_item.get('folder_id'):
+                folder = db_manager.fetch_folder_by_id(list_item['folder_id'])
+                if folder:
+                    folder_path = f"[{folder['name']}] "
+            
+            list_options.append(f"{folder_path}{list_item['name']}")
+            list_ids.append(list_item['id'])
+        
+        # Show list selection dialog
+        selected_index = xbmcgui.Dialog().select(
+            f"Add '{title}' to list:",
+            list_options
+        )
+        
+        if selected_index == -1:  # User cancelled
             utils.log("User cancelled list selection", "DEBUG")
+            return
+        
+        selected_list_id = list_ids[selected_index]
+        
+        # Create or find the media item
+        existing_media = db_manager.fetch_data('media_items', f"imdbnumber = '{imdb_id}'")
+        
+        if existing_media:
+            media_id = existing_media[0]['id']
+            utils.log(f"Found existing media item with ID: {media_id}", "DEBUG")
+        else:
+            # Insert new media item
+            media_id = db_manager.insert_data('media_items', media_item)
+            utils.log(f"Created new media item with ID: {media_id}", "DEBUG")
+        
+        # Check if already in list
+        existing_list_item = db_manager.fetch_data('list_items', f"list_id = {selected_list_id} AND media_id = {media_id}")
+        
+        if existing_list_item:
+            xbmcgui.Dialog().notification('LibraryGenie', f'"{title}" is already in that list', xbmcgui.NOTIFICATION_INFO, 3000)
+        else:
+            # Add to list
+            db_manager.insert_data('list_items', {
+                'list_id': selected_list_id,
+                'media_id': media_id
+            })
+            xbmcgui.Dialog().notification('LibraryGenie', f'Added "{title}" to list', xbmcgui.NOTIFICATION_INFO, 3000)
 
     except Exception as e:
         utils.log(f"Error in add_to_list_from_context: {str(e)}", "ERROR")
