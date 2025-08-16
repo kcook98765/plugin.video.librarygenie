@@ -52,7 +52,16 @@ def log(message, level=None):
             "=== SIMILARITY_SEARCH: Successfully added",
             "=== INSERT_MEDIA_ITEM_AND_ADD_TO_LIST:",
             "=== TITLE_YEAR_LOOKUP: Looking up IMDB",
-            "=== TITLE_YEAR_LOOKUP: Found in imdb_exports:"
+            "=== TITLE_YEAR_LOOKUP: Found in imdb_exports:",
+            "=== BUILD_DISPLAY_ITEMS: First returned movie keys:",
+            "First movie sample keys:",
+            "=== JSONRPC REQUEST: VideoLibrary.GetMovies ===",
+            "Request params:",
+            "Full request JSON:",
+            "=== JSONRPC RESPONSE RAW: VideoLibrary.GetMovies ===",
+            "Raw response length:",
+            "=== JSONRPC RESPONSE PARSED: VideoLibrary.GetMovies ===",
+            "Response result keys:"
         ]
 
         # Allow JSON-RPC request logging to always show through
