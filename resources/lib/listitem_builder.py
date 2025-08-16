@@ -441,7 +441,6 @@ class ListItemBuilder:
         imdb_id = media_info.get('imdbnumber', '')
         if imdb_id and imdb_id.startswith('tt'):
             li.setProperty('LibraryGenie.IMDbID', imdb_id)
-            from resources.lib import utils
             utils.log(f"Set ListItem property LibraryGenie.IMDbID = {imdb_id} for {title}", "DEBUG")
 
         return li
