@@ -39,7 +39,13 @@ def log(message, level=None):
             "Executing JSONRPC method:",
             "Inserted into media_items, got ID:",
             "Gathering cast information",
-            "Cast member"
+            "Cast member",
+            "=== BUILD_DISPLAY_ITEMS: Item",
+            "Set imdbnumber for v19 compatibility:",
+            "Found matching processed_ref",
+            "Lookup keys - exact:",
+            "Found 1 candidates, meta exists:",
+            "Found Kodi match - title:"
         ]
 
         # Allow JSON-RPC request logging to always show through
