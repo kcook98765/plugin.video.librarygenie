@@ -32,6 +32,23 @@ def main():
         year = xbmc.getInfoLabel('ListItem.Year')
         
         xbmc.log(f"LibraryGenie: Context menu for: {title} ({year})", xbmc.LOGINFO)
+        
+        # Debug: Log all potentially useful InfoLabels for troubleshooting
+        debug_labels = [
+            'ListItem.DBID',
+            'ListItem.IMDBNumber', 
+            'ListItem.UniqueID(imdb)',
+            'ListItem.Property(imdb_id)',
+            'ListItem.Property(IMDbID)',
+            'ListItem.Property(uniqueid.imdb)',
+            'ListItem.Property(LibraryGenie.IMDbID)',
+        ]
+        
+        xbmc.log("LibraryGenie: Available InfoLabels in context menu:", xbmc.LOGDEBUG)
+        for label in debug_labels:
+            value = xbmc.getInfoLabel(label)
+            if value:
+                xbmc.log(f"  {label}: {value}", xbmc.LOGDEBUG)
 
         # Show context menu options
         addon = get_addon()
@@ -39,19 +56,63 @@ def main():
 
         # Create menu options - check if we have IMDb ID for similarity
         # Get IMDb ID from available InfoLabels (context menu has limited access)
+        # Enhanced detection for Kodi v19 compatibility
         imdb_candidates = [
             xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)'),
+            xbmc.getInfoLabel('ListItem.UniqueID(imdb)'),
             xbmc.getInfoLabel('ListItem.IMDBNumber'),
-            xbmc.getInfoLabel('ListItem.UniqueID(imdb)')
+            xbmc.getInfoLabel('ListItem.Property(imdb_id)'),
+            xbmc.getInfoLabel('ListItem.Property(IMDbID)'),
+            # Additional v19-specific locations
+            xbmc.getInfoLabel('ListItem.Property(uniqueid.imdb)'),
+            xbmc.getInfoLabel('ListItem.DBID'),  # For library items, we can try to resolve via JSONRPC
         ]
         
         imdb_id = None
-        for candidate in imdb_candidates:
+        db_id = None
+        
+        # First pass: look for direct IMDb IDs
+        for candidate in imdb_candidates[:-1]:  # Exclude DBID from this pass
             if candidate and str(candidate).startswith('tt'):
                 imdb_id = candidate
+                xbmc.log(f"LibraryGenie: Found direct IMDb ID: {imdb_id}", xbmc.LOGDEBUG)
                 break
         
-        xbmc.log(f"LibraryGenie: Context menu IMDb ID: {imdb_id}", xbmc.LOGDEBUG)
+        # Second pass: if no direct IMDb ID, try resolving via DBID for library items
+        if not imdb_id:
+            db_id = xbmc.getInfoLabel('ListItem.DBID')
+            if db_id and db_id.isdigit():
+                try:
+                    # Use JSONRPC to get more details for library items
+                    import json
+                    json_query = {
+                        "jsonrpc": "2.0",
+                        "method": "VideoLibrary.GetMovieDetails",
+                        "params": {
+                            "movieid": int(db_id),
+                            "properties": ["imdbnumber", "uniqueid"]
+                        },
+                        "id": 1
+                    }
+                    response = xbmc.executeJSONRPC(json.dumps(json_query))
+                    result = json.loads(response)
+                    
+                    if 'result' in result and 'moviedetails' in result['result']:
+                        movie_details = result['result']['moviedetails']
+                        
+                        # Check uniqueid first (more reliable)
+                        uniqueid = movie_details.get('uniqueid', {})
+                        if isinstance(uniqueid, dict) and uniqueid.get('imdb', '').startswith('tt'):
+                            imdb_id = uniqueid['imdb']
+                            xbmc.log(f"LibraryGenie: Found IMDb ID via JSONRPC uniqueid: {imdb_id}", xbmc.LOGDEBUG)
+                        elif movie_details.get('imdbnumber', '').startswith('tt'):
+                            imdb_id = movie_details['imdbnumber']
+                            xbmc.log(f"LibraryGenie: Found IMDb ID via JSONRPC imdbnumber: {imdb_id}", xbmc.LOGDEBUG)
+                            
+                except Exception as e:
+                    xbmc.log(f"LibraryGenie: Error resolving IMDb ID via JSONRPC: {str(e)}", xbmc.LOGDEBUG)
+        
+        xbmc.log(f"LibraryGenie: Final IMDb ID detection result: {imdb_id} (from DBID: {db_id})", xbmc.LOGDEBUG)
 
         options = []
 
