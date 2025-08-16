@@ -27,7 +27,7 @@
       <menu id="kodi.core.main">
         <item library="resources/lib/context.py">
             <label>LibraryGenie</label>
-            <visible>!String.IsEmpty(ListItem.IMDBNumber) + String.StartsWith(ListItem.IMDBNumber,tt)</visible>
+            <visible>true</visible>
         </item>
       </menu>
     </extension>

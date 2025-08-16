@@ -1,6 +1,9 @@
 import sys
 import xbmcgui
 import xbmcaddon
+# Import required modules using absolute imports
+from resources.lib.kodi_helper import KodiHelper
+from resources.lib.addon_ref import get_addon
 import xbmcvfs
 translatePath = xbmcvfs.translatePath
 
@@ -11,21 +14,6 @@ ADDON_PATH = translatePath(ADDON.getAddonInfo("path"))
 # Ensure the addon root directory is in the Python path for imports to work
 if ADDON_PATH not in sys.path:
     sys.path.insert(0, ADDON_PATH)
-
-# Import required modules after path setup
-try:
-    from resources.lib.kodi_helper import KodiHelper
-    from resources.lib.addon_ref import get_addon
-except ImportError as e:
-    import xbmc
-    xbmc.log(f"LibraryGenie Context: Import error - {str(e)}", xbmc.LOGERROR)
-    # Try alternative import method
-    import os
-    lib_path = os.path.join(ADDON_PATH, 'resources', 'lib')
-    if lib_path not in sys.path:
-        sys.path.insert(0, lib_path)
-    from kodi_helper import KodiHelper
-    from addon_ref import get_addon
 
 def main():
     """Main entry point for context menu actions"""
@@ -59,31 +47,17 @@ def main():
             "Search History",
             "Settings"
         ]
-        
-        # Add "Find Similar Movies" option if item has IMDb ID
-        imdb_id = item_info.get('imdbnumber', '')
-        if imdb_id and imdb_id.startswith('tt'):
-            options.insert(0, "Find Similar Movies")
 
         # Show dialog to select option
         selected = xbmcgui.Dialog().contextmenu(options)
         
-        # Check if "Find Similar Movies" is available
-        has_similar_option = (imdb_id and imdb_id.startswith('tt'))
-        
-        if selected == 0 and has_similar_option:  # Find Similar Movies
-            import urllib.parse
-            title = item_info.get('title', 'Unknown Movie')
-            encoded_title = urllib.parse.quote_plus(title)
-            url = f"plugin://{addon_id}/?action=find_similar_movies&imdb_id={imdb_id}&title={encoded_title}"
-            xbmc.executebuiltin(f'ActivateWindow(videos,{url})')
-        elif selected == (1 if has_similar_option else 0):  # Search Movies
+        if selected == 0:  # Search Movies
             url = f"plugin://{addon_id}/?action=search"
             xbmc.executebuiltin(f'ActivateWindow(videos,{url})')
-        elif selected == (2 if has_similar_option else 1):  # Search History
+        elif selected == 1:  # Search History
             url = f"plugin://{addon_id}/?action=browse_folder&folder_name=Search History"
             xbmc.executebuiltin(f'ActivateWindow(videos,{url})')
-        elif selected == (3 if has_similar_option else 2):  # Settings
+        elif selected == 2:  # Settings
             xbmc.executebuiltin(f'Addon.OpenSettings({addon_id})')
         # If nothing selected (selected == -1), do nothing
 

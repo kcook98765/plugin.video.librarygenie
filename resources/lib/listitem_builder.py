@@ -315,7 +315,7 @@ class ListItemBuilder:
                             pass
                         break
 
-        # Handle cast data - DO NOT artificially limit cast size
+        # Handle cast data
         cast = media_info.get('cast', [])
         if cast:
             try:
@@ -326,23 +326,14 @@ class ListItemBuilder:
                     except json.JSONDecodeError:
                         cast = []
 
-                # Ensure cast is a list - process ALL cast members without artificial limits
+                # Ensure cast is a list
                 if not isinstance(cast, list):
                     cast = []
 
-                # IMPORTANT: Do NOT limit cast size here - Kodi can handle full cast lists
-                # If performance becomes an issue, it should be handled by:
-                # 1. User preferences/settings
-                # 2. Database query limits
-                # 3. Source data filtering
-                # NOT by hardcoded limits in the ListItem builder
-
                 info_dict['cast'] = cast
 
-            except Exception as e:
-                utils.log(f"Error processing cast data: {str(e)}", "WARNING")
+            except Exception:
                 info_dict['cast'] = []
-
 
         # Process plot information
         if media_info.get('plot'):
@@ -422,17 +413,6 @@ class ListItemBuilder:
         # Updated line:
         context_menu_items.append(('Show Details', f'RunPlugin(plugin://script.librarygenie/?action=show_item_details&title={quote_plus(formatted_title)}&item_id={media_info.get("id", "")})'))
         context_menu_items.append(('Information', 'Action(Info)'))
-
-        # Similar movies option for items with IMDb IDs
-        imdb_id = media_info.get('imdbnumber', '')
-        if imdb_id and imdb_id.startswith('tt'):
-            import urllib.parse
-            from resources.lib.url_builder import build_plugin_url
-            encoded_title = urllib.parse.quote_plus(title)
-            context_menu_items.append((
-                'Find Similar Movies',
-                f'RunPlugin({build_plugin_url({"action": "find_similar_movies", "imdb_id": imdb_id, "title": encoded_title})})'
-            ))
 
         # Add context menu to ListItem
         li.addContextMenuItems(context_menu_items, replaceItems=False)

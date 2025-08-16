@@ -16,10 +16,7 @@ class RemoteAPIClient:
 
     def _make_request(self, method, endpoint, data=None, headers=None):
         """Make HTTP request to the API"""
-        import time
-        
         if not self.base_url or not self.api_key:
-            utils.log(f"[HTTP] Missing configuration - base_url: {bool(self.base_url)}, api_key: {bool(self.api_key)}", "ERROR")
             return None
 
         url = f"{self.base_url.rstrip('/')}{endpoint}"
@@ -31,16 +28,11 @@ class RemoteAPIClient:
         if headers:
             request_headers.update(headers)
 
-        utils.log(f"[HTTP] Starting {method} request to {url}", "DEBUG")
-        start_time = time.time()
-
         try:
             # Create request object
-            setup_start = time.time()
             if data:
                 json_data = json.dumps(data).encode('utf-8')
                 request = urllib.request.Request(url, data=json_data)
-                utils.log(f"[HTTP] Request payload size: {len(json_data)} bytes", "DEBUG")
             else:
                 request = urllib.request.Request(url)
 
@@ -51,50 +43,19 @@ class RemoteAPIClient:
             # Set method for non-GET requests
             if method in ['PUT', 'POST', 'DELETE']:
                 request.get_method = lambda: method
-            
-            setup_time = time.time() - setup_start
-            utils.log(f"[HTTP] Request setup completed in {setup_time:.3f}s", "DEBUG")
 
             # Make request
-            network_start = time.time()
             response = urllib.request.urlopen(request, timeout=30)
-            network_time = time.time() - network_start
-            utils.log(f"[HTTP] Network request completed in {network_time:.3f}s", "DEBUG")
 
             if response.getcode() == 200:
-                parse_start = time.time()
                 response_data = response.read().decode('utf-8')
-                parsed_response = json.loads(response_data)
-                parse_time = time.time() - parse_start
-                
-                total_time = time.time() - start_time
-                utils.log(f"[HTTP] Response parsing completed in {parse_time:.3f}s", "DEBUG")
-                utils.log(f"[HTTP] Total request time: {total_time:.3f}s (setup: {setup_time:.3f}s, network: {network_time:.3f}s, parse: {parse_time:.3f}s)", "INFO")
-                utils.log(f"[HTTP] Response size: {len(response_data)} characters", "DEBUG")
-                
-                return parsed_response
+                return json.loads(response_data)
             else:
-                total_time = time.time() - start_time
-                utils.log(f"[HTTP] Request failed after {total_time:.3f}s with status {response.getcode()}", "ERROR")
+                utils.log(f"API request failed: {response.getcode()}", "ERROR")
                 return None
 
-        except urllib.error.HTTPError as e:
-            total_time = time.time() - start_time
-            utils.log(f"[HTTP] HTTP error after {total_time:.3f}s - Code: {e.code}, Reason: {e.reason}", "ERROR")
-            return None
-        except urllib.error.URLError as e:
-            total_time = time.time() - start_time
-            utils.log(f"[HTTP] URL/Network error after {total_time:.3f}s: {str(e)}", "ERROR")
-            return None
-        except json.JSONDecodeError as e:
-            total_time = time.time() - start_time
-            utils.log(f"[HTTP] JSON decode error after {total_time:.3f}s: {str(e)}", "ERROR")
-            return None
         except Exception as e:
-            total_time = time.time() - start_time
-            utils.log(f"[HTTP] Unexpected error after {total_time:.3f}s: {str(e)}", "ERROR")
-            import traceback
-            utils.log(f"[HTTP] Request exception traceback: {traceback.format_exc()}", "ERROR")
+            utils.log(f"API request error: {str(e)}", "ERROR")
             return None
 
     def exchange_pairing_code(self, pairing_code):
@@ -190,31 +151,6 @@ class RemoteAPIClient:
 
         except Exception as e:
             utils.log(f"Error searching movies: {str(e)}", "ERROR")
-            return []
-
-    def find_similar_movies(self, reference_imdb_id, facets):
-        """Find movies similar to a reference movie based on selected facets"""
-        if not self.api_key:
-            utils.log("Remote API not configured", "WARNING")
-            return []
-
-        try:
-            data = {
-                'reference_imdb_id': reference_imdb_id,
-                **facets
-            }
-            
-            response = self._make_request('POST', '/similar_to', data)
-
-            if response and response.get('success'):
-                return response.get('results', [])
-            else:
-                error_msg = response.get('error', 'Unknown error') if response else 'No response'
-                utils.log(f"Similar movies request failed: {error_msg}", "ERROR")
-                return []
-
-        except Exception as e:
-            utils.log(f"Error finding similar movies: {str(e)}", "ERROR")
             return []
 
     def get_library_hash(self):
