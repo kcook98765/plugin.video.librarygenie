@@ -12,38 +12,26 @@ from resources.lib.listitem_builder import ListItemBuilder
 
 def add_context_menu_for_item(li: xbmcgui.ListItem, item_type: str, **ids):
     """
-    Attach context actions per item type.
+    Attach context actions per item type using centralized context menu builder.
     item_type: 'list' | 'movie' | 'folder'
-    ids may include: list_id, movie_id, folder
+    ids may include: list_id, movie_id, folder_id
     """
+    from resources.lib.context_menu_builder import get_context_menu_builder
+    context_builder = get_context_menu_builder()
+    
     cm = []
     if item_type == 'list':
-        list_id = ids.get('list_id', '')
-        cm += [
-            ('Rename list',
-             f'RunPlugin({build_plugin_url({"action":"rename_list","list_id":list_id})})'),
-            ('Move list',
-             f'RunPlugin({build_plugin_url({"action":"move_list","list_id":list_id})})'),
-            ('Delete list',
-             f'RunPlugin({build_plugin_url({"action":"delete_list","list_id":list_id})})'),
-        ]
+        list_info = {'list_id': ids.get('list_id', '')}
+        cm = context_builder.build_list_context_menu(list_info, ids.get('context', {}))
+        
     elif item_type == 'movie':
-        list_id = ids.get('list_id', '')
-        movie_id = ids.get('movie_id', '')
-        # Ensure we have both required IDs for remove action
-        if movie_id and list_id:
-            cm += [
-                ('Remove movie from list',
-                 f'RunPlugin({build_plugin_url({"action":"remove_from_list","list_id":list_id,"movie_id":movie_id})})'),
-            ]
-        if movie_id:
-            cm += [
-                ('Refresh metadata',
-                 f'RunPlugin({build_plugin_url({"action":"refresh_movie","movie_id":movie_id})})'),
-            ]
+        media_info = ids.get('media_info', {})
+        context_info = ids.get('context', {})
+        cm = context_builder.build_video_context_menu(media_info, context_info)
+        
     elif item_type == 'folder':
-        folder_id = ids.get('folder_id', '') # Changed from 'folder' to 'folder_id' for consistency
-        if folder_id:
+        folder_info = {'folder_id': ids.get('folder_id', '')}
+        cm = context_builder.build_folder_context_menu(folder_info, ids.get('context', {}))
             cm += [
                 ('Rename folder',
                  f'RunPlugin({build_plugin_url({"action":"rename_folder","folder_id":folder_id})})'), # Changed 'folder' to 'folder_id'

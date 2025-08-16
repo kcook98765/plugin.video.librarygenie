@@ -31,12 +31,5 @@
         </item>
       </menu>
     </extension>
-  <extension point="kodi.context.item">
-    <menu id="kodi.core.main">
-      <item library="context.py">
-        <label>32001</label>
-        <visible>!String.IsEmpty(ListItem.IMDBNumber) + String.StartsWith(ListItem.IMDBNumber,tt)</visible>
-      </item>
-    </menu>
-  </extension>
+  
 </addon>

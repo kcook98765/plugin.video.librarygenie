@@ -436,38 +436,17 @@ class ListItemBuilder:
         media_type = info_dict.get('mediatype', 'movie')
         li.setProperty('MediaType', media_type)
 
-        # Add Information context menu item
-        context_menu_items = []
-        # Original line: context_menu_items.append(('Show Details', f'RunPlugin(plugin://script.librarygenie/?action=show_item_details&title={quote(title)}&item_id={media_info.get("id", "")})')))
-        # Updated line:
-        context_menu_items.append(('Show Details', f'RunPlugin(plugin://script.librarygenie/?action=show_item_details&title={quote_plus(formatted_title)}&item_id={media_info.get("id", "")})'))
-        context_menu_items.append(('Information', 'Action(Info)'))
-
-        # Add similarity context menu to video items - enhanced IMDb ID detection for v19
-        # Prioritize uniqueid.imdb over imdbnumber since v19 often has TMDB ID in imdbnumber
-        imdb_id = ''
-
-        # First try uniqueid.imdb (most reliable for actual IMDb IDs)
-        if isinstance(media_info.get('uniqueid'), dict):
-            uniqueid_imdb = media_info.get('uniqueid', {}).get('imdb', '')
-            if uniqueid_imdb and str(uniqueid_imdb).startswith('tt'):
-                imdb_id = uniqueid_imdb
-
-        # Fallback to other sources only if uniqueid.imdb not found
-        if not imdb_id:
-            candidates = [
-                media_info.get('imdbnumber', ''),
-                media_info.get('info', {}).get('imdbnumber', '') if media_info.get('info') else '',
-                media_info.get('imdb_id', '')
-            ]
-            for candidate in candidates:
-                if candidate and str(candidate).startswith('tt'):
-                    imdb_id = candidate
-                    break
-
-        if imdb_id and str(imdb_id).startswith('tt'):
-            encoded_title = quote_plus(str(media_info.get('title', 'Unknown')))
-            context_menu_items.append(('Find Similar Movies...', f'RunPlugin(plugin://plugin.video.librarygenie/?action=find_similar_from_plugin&imdb_id={imdb_id}&title={encoded_title})'))
+        # Use centralized context menu builder
+        from resources.lib.context_menu_builder import get_context_menu_builder
+        context_builder = get_context_menu_builder()
+        
+        # Build context based on available information
+        context = {}
+        if hasattr(media_info, '_context_info'):
+            context = media_info._context_info
+        
+        # Get context menu items from centralized builder
+        context_menu_items = context_builder.build_video_context_menu(media_info, context)
 
         # Add context menu to ListItem with v19 compatibility fix
         if utils.is_kodi_v19():

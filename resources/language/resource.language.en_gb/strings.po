@@ -83,3 +83,43 @@ msgstr ""
 msgctxt "#32001"
 msgid "Find Similar Movies..."
 msgstr ""
+
+msgctxt "#32002"
+msgid "Add to List..."
+msgstr ""
+
+msgctxt "#32003"
+msgid "Remove from List"
+msgstr ""
+
+msgctxt "#32004"
+msgid "Refresh Metadata"
+msgstr ""
+
+msgctxt "#32005"
+msgid "Rename List"
+msgstr ""
+
+msgctxt "#32006"
+msgid "Move List"
+msgstr ""
+
+msgctxt "#32007"
+msgid "Delete List"
+msgstr ""
+
+msgctxt "#32008"
+msgid "Export List"
+msgstr ""
+
+msgctxt "#32009"
+msgid "Rename Folder"
+msgstr ""
+
+msgctxt "#32010"
+msgid "Move Folder"
+msgstr ""
+
+msgctxt "#32011"
+msgid "Delete Folder"
+msgstr ""

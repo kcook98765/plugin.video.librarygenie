@@ -51,11 +51,25 @@ def main():
 
         options = []
 
+        # Check authentication before adding API-dependent options
+        from resources.lib.context_menu_builder import get_context_menu_builder
+        context_builder = get_context_menu_builder()
+        is_authenticated = context_builder._is_authenticated()
+
+        # Find Similar Movies - only if authenticated AND has valid IMDb ID
         if imdb_id and str(imdb_id).startswith('tt'):
-            options.append("Find Similar Movies...")
+            if is_authenticated:
+                options.append("Find Similar Movies...")
+            else:
+                options.append("Find Similar Movies... (Requires Authentication)")
+
+        # Search Movies - only if authenticated
+        if is_authenticated:
+            options.append("Search Movies...")
+        else:
+            options.append("Search Movies... (Requires Authentication)")
 
         options.extend([
-            "Search Movies...",
             "Search History", 
             "Settings"
         ])
@@ -72,7 +86,11 @@ def main():
 
         selected_option = options[selected]
 
-        if selected_option == "Find Similar Movies...":
+        if "Find Similar Movies..." in selected_option:
+            if "(Requires Authentication)" in selected_option:
+                dialog.notification("LibraryGenie", "Please configure API settings first", xbmcgui.NOTIFICATION_WARNING, 3000)
+                return
+                
             # Get the clean title without color formatting
             clean_title = title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
 
@@ -89,7 +107,10 @@ def main():
             similarity_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=find_similar&imdb_id={imdb_id}&title={encoded_title})'
             xbmc.executebuiltin(similarity_url)
 
-        elif selected_option == "Search Movies...":  # Search Movies - use direct search instead of plugin URL
+        elif "Search Movies..." in selected_option:  # Search Movies - use direct search instead of plugin URL
+            if "(Requires Authentication)" in selected_option:
+                dialog.notification("LibraryGenie", "Please configure API settings first", xbmcgui.NOTIFICATION_WARNING, 3000)
+                return
             # Import here to avoid circular imports
             from resources.lib.window_search import SearchWindow
 
