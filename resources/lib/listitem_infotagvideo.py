@@ -56,8 +56,6 @@ def _set_full_cast(list_item: ListItem, cast_list: list) -> bool:
     if not norm:
         return False
 
-    utils.log(f"Setting cast for {len(norm)} actors with image support", "DEBUG")
-
     # 1) Priority path for v21+: InfoTagVideo.setCast() with Actor objects
     try:
         import xbmcgui
@@ -76,26 +74,23 @@ def _set_full_cast(list_item: ListItem, cast_list: list) -> bool:
                             thumbnail=str(actor['thumbnail']) if actor['thumbnail'] else ""
                         )
                         actors.append(actor_obj)
-                    except Exception as actor_error:
-                        utils.log(f"Failed to create Actor object for {actor['name']}: {str(actor_error)}", "DEBUG")
+                    except Exception:
                         continue
 
             if actors:
                 info.setCast(actors)  # v21+ preferred InfoTagVideo method
-                utils.log(f"v21+ InfoTagVideo.setCast() successful: {len(actors)} actors with images", "DEBUG")
                 return True
-    except Exception as e:
-        utils.log(f"v21+ InfoTagVideo.setCast() failed: {str(e)}", "DEBUG")
+    except Exception:
+        pass
 
     # 2) Fallback for v19/v20: ListItem.setCast(list-of-dicts) - now deprecated in v21
     try:
         if hasattr(list_item, 'setCast'):
             # v19/v20 method: accepts dicts with name/role/thumbnail/order
             list_item.setCast(norm)
-            utils.log(f"v19/v20 ListItem.setCast() fallback successful: {len(norm)} actors with images (deprecated)", "DEBUG")
             return True
-    except Exception as e:
-        utils.log(f"v19/v20 ListItem.setCast() fallback failed: {str(e)}", "DEBUG")
+    except Exception:
+        pass
 
     # 3) Last resort: names/roles only via setInfo (no images)
     try:
@@ -111,10 +106,9 @@ def _set_full_cast(list_item: ListItem, cast_list: list) -> bool:
             # Convert cast list to string format for setInfo compatibility
             cast_str = ' / '.join([f"{actor[0]} ({actor[1]})" if isinstance(actor, tuple) and len(actor) > 1 else str(actor) for actor in simple_cast])
             list_item.setInfo('video', {'cast': cast_str})
-            utils.log(f"Fallback setInfo cast successful: {len(simple_cast)} actors (no images)", "WARNING")
             return False
-    except Exception as e:
-        utils.log(f"All cast methods failed: {str(e)}", "ERROR")
+    except Exception:
+        pass
 
     return False
 
@@ -192,8 +186,6 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
     try:
         # Get the InfoTag for the specified content type
         info_tag = list_item.getVideoInfoTag()
-        
-        utils.log(f"V20+ InfoTag object obtained: {type(info_tag)}", "DEBUG")
 
         # V20+ InfoTag method mapping with validation
         infotag_methods = {
