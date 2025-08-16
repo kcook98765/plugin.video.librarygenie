@@ -307,7 +307,7 @@ def find_similar_movies(params):
         title = urllib.parse.unquote_plus(title)
 
         # Perform similarity search
-        _perform_similarity_search(imdb_id, title)
+        _perform_similarity_search(imdb_id, title, from_context_menu=False)
 
     except Exception as e:
         utils.log(f"Error in find_similar_movies: {str(e)}", "ERROR")
@@ -349,14 +349,14 @@ def find_similar_movies_from_context(params):
         # Use title with year if available
         display_title = f"{title} ({year})" if year and year != '0' else title
 
-        # Perform similarity search
-        _perform_similarity_search(imdb_id, display_title)
+        # Perform similarity search with context menu flag
+        _perform_similarity_search(imdb_id, display_title, from_context_menu=True)
 
     except Exception as e:
         utils.log(f"Error in find_similar_movies_from_context: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERROR)
 
-def _perform_similarity_search(imdb_id, title):
+def _perform_similarity_search(imdb_id, title, from_context_menu=False):
     """Perform the actual similarity search and create list"""
     try:
         from resources.lib.remote_api_client import RemoteAPIClient
@@ -526,19 +526,42 @@ def _perform_similarity_search(imdb_id, title):
 
         utils.log(f"=== SIMILARITY_SEARCH: Finished processing {len(search_results)} movies into list {new_list['id']} ===", "DEBUG")
 
-        # Show confirmation and store target URL for delayed navigation
+        # Show confirmation and navigate based on context
         xbmcgui.Dialog().notification('LibraryGenie', f'Created similarity list with {len(similar_movies)} movies', xbmcgui.NOTIFICATION_INFO)
 
-        # Store target URL for delayed navigation after modal closes
-        target_url = _build_plugin_url({
-            'action': 'browse_list',
-            'list_id': new_list['id'],
-        })
-        
-        if target_url:
-            utils.log(f"=== SIMILARITY_SEARCH: Stored target URL for delayed navigation: {target_url} ===", "DEBUG")
-            # Use delayed navigation similar to SearchWindow pattern
-            _schedule_delayed_navigation(target_url)
+        if from_context_menu:
+            # For context menu execution, use ActivateWindow for more reliable navigation
+            target_url = _build_plugin_url({
+                'action': 'browse_list',
+                'list_id': new_list['id'],
+            })
+            
+            if target_url:
+                utils.log(f"=== SIMILARITY_SEARCH: Using ActivateWindow navigation from context menu: {target_url} ===", "DEBUG")
+                # Use ActivateWindow for context menu navigation
+                import threading
+                import time
+                
+                def delayed_activate():
+                    time.sleep(1.5)  # Wait for notification to show
+                    utils.log(f"=== CONTEXT_MENU_NAVIGATION: Activating window: {target_url} ===", "DEBUG")
+                    xbmc.executebuiltin(f'ActivateWindow(videos,"{target_url}",return)')
+                    utils.log(f"=== CONTEXT_MENU_NAVIGATION: ActivateWindow completed ===", "DEBUG")
+                
+                nav_thread = threading.Thread(target=delayed_activate)
+                nav_thread.daemon = True
+                nav_thread.start()
+        else:
+            # For plugin execution, use Container.Update
+            target_url = _build_plugin_url({
+                'action': 'browse_list',
+                'list_id': new_list['id'],
+            })
+            
+            if target_url:
+                utils.log(f"=== SIMILARITY_SEARCH: Using Container.Update navigation from plugin: {target_url} ===", "DEBUG")
+                # Use delayed navigation similar to SearchWindow pattern
+                _schedule_delayed_navigation(target_url)
         
         utils.log(f"=== SIMILARITY_SEARCH: Similarity search complete - list ID: {new_list['id']} ===", "INFO")
 
