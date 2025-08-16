@@ -42,17 +42,31 @@ def main():
         addon = get_addon()
         addon_id = addon.getAddonInfo("id")
 
-        # Create menu options
-        options = [
+        # Create menu options - check if we have IMDb ID for similarity
+        imdb_id = xbmc.getInfoLabel('ListItem.IMDBNumber')
+        options = []
+        
+        if imdb_id and imdb_id.startswith('tt'):
+            options.append("Find Similar Movies...")
+        
+        options.extend([
             "Search Movies...",
-            "Search History",
+            "Search History", 
             "Settings"
-        ]
+        ])
 
         # Show dialog to select option
         selected = xbmcgui.Dialog().contextmenu(options)
         
-        if selected == 0:  # Search Movies - use direct search instead of plugin URL
+        # Adjust indices based on whether similarity option is present
+        similarity_offset = 1 if imdb_id and imdb_id.startswith('tt') else 0
+        
+        if selected == 0 and similarity_offset:  # Find Similar Movies
+            # Import and call similarity handler directly
+            from resources.lib.route_handlers import find_similar_movies_from_context
+            find_similar_movies_from_context({})
+            
+        elif selected == (0 + similarity_offset):  # Search Movies - use direct search instead of plugin URL
             # Import here to avoid circular imports
             from resources.lib.window_search import SearchWindow
             
@@ -73,10 +87,10 @@ def main():
             except Exception as search_error:
                 xbmc.log(f"LibraryGenie: Context search error: {str(search_error)}", xbmc.LOGERROR)
                 
-        elif selected == 1:  # Search History
+        elif selected == (1 + similarity_offset):  # Search History
             url = f"plugin://{addon_id}/?action=browse_folder&folder_name=Search History"
             xbmc.executebuiltin(f'ActivateWindow(videos,{url})')
-        elif selected == 2:  # Settings
+        elif selected == (2 + similarity_offset):  # Settings
             xbmc.executebuiltin(f'Addon.OpenSettings({addon_id})')
         # If nothing selected (selected == -1), do nothing
 

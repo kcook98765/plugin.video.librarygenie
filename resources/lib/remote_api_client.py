@@ -379,3 +379,52 @@ class RemoteAPIClient:
     def full_sync_movies(self, movies, progress_callback=None):
         """Upload movies using full sync mode (authoritative replacement)"""
         return self._chunked_movie_upload(movies, mode='replace', progress_callback=progress_callback)
+
+    def find_similar_movies(self, reference_imdb_id, include_plot=False, include_mood=False, include_themes=False, include_genre=False, limit=50):
+        """Find movies similar to a reference movie using the /similar_to endpoint"""
+        try:
+            # Validate at least one facet is selected
+            if not any([include_plot, include_mood, include_themes, include_genre]):
+                utils.log("No facets selected for similarity search", "ERROR")
+                return []
+
+            # Make request to public /similar_to endpoint (no auth required)
+            url = f"{self.base_url.rstrip('/')}/similar_to"
+            headers = {'Content-Type': 'application/json'}
+            
+            data = {
+                'reference_imdb_id': reference_imdb_id,
+                'include_plot': include_plot,
+                'include_mood': include_mood,
+                'include_themes': include_themes,
+                'include_genre': include_genre
+            }
+
+            utils.log(f"Making similarity request for {reference_imdb_id} with facets: plot={include_plot}, mood={include_mood}, themes={include_themes}, genre={include_genre}", "DEBUG")
+
+            # Create request without authentication (public endpoint)
+            json_data = json.dumps(data).encode('utf-8')
+            request = urllib.request.Request(url, data=json_data, headers=headers)
+            request.get_method = lambda: 'POST'
+
+            # Make request with timeout
+            response = urllib.request.urlopen(request, timeout=15)
+
+            if response.getcode() == 200:
+                response_data = response.read().decode('utf-8')
+                result = json.loads(response_data)
+                
+                if result.get('success'):
+                    similar_movies = result.get('results', [])
+                    utils.log(f"Found {len(similar_movies)} similar movies", "INFO")
+                    return similar_movies
+                else:
+                    utils.log(f"Similarity search failed: {result.get('error', 'Unknown error')}", "ERROR")
+                    return []
+            else:
+                utils.log(f"Similarity API request failed: {response.getcode()}", "ERROR")
+                return []
+
+        except Exception as e:
+            utils.log(f"Error in similarity search: {str(e)}", "ERROR")
+            return []
