@@ -62,9 +62,28 @@ def main():
         # Information - always available  
         options.append("Information")
 
+        # Check if we're currently viewing a list (to offer Remove option)
+        current_container_path = xbmc.getInfoLabel('Container.FolderPath')
+        viewing_list_id = None
+        if 'browse_list' in current_container_path and 'list_id=' in current_container_path:
+            try:
+                import re
+                match = re.search(r'list_id=(\d+)', current_container_path)
+                if match:
+                    viewing_list_id = match.group(1)
+                    xbmc.log(f"LibraryGenie: Detected viewing list_id: {viewing_list_id}", xbmc.LOGDEBUG)
+            except Exception as e:
+                xbmc.log(f"LibraryGenie: Error extracting list_id: {str(e)}", xbmc.LOGDEBUG)
+
         # Add movie to a list - available when IMDb ID is detected
         if imdb_id and str(imdb_id).startswith('tt'):
-            options.append("Add to List...")
+            if viewing_list_id:
+                # If viewing a list, offer Remove option first
+                options.append("Remove from List...")
+                options.append("Add to Another List...")
+            else:
+                # If not viewing a list, offer Add option
+                options.append("Add to List...")
 
         # Find Similar Movies - only if authenticated AND has valid IMDb ID
         if imdb_id and str(imdb_id).startswith('tt'):
@@ -123,11 +142,46 @@ def main():
             # Show Kodi information dialog
             xbmc.executebuiltin('Action(Info)')
 
-        elif selected_option == "Add to List...":
+        elif selected_option == "Remove from List...":
+            # Handle removing movie from current list
+            try:
+                # Get the clean title without color formatting
+                clean_title = title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
+                clean_title = clean_title.replace('[COLOR FFF0DC8A]', '').replace('[/COLOR]', '')
+                clean_title = clean_title.replace('[COLOR FFF4BC7B]', '').replace('[/COLOR]', '')
+                clean_title = clean_title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
+                
+                # Get media_id from ListItem properties (set by listitem_builder)
+                media_id = xbmc.getInfoLabel('ListItem.Property(media_id)')
+                if not media_id:
+                    # Fallback to other ID sources
+                    media_id = (xbmc.getInfoLabel('ListItem.DBID') or 
+                              xbmc.getInfoLabel('ListItem.Property(movieid)') or 
+                              xbmc.getInfoLabel('ListItem.Property(id)') or "")
+                
+                xbmc.log(f"LibraryGenie: Remove from list - Title: {clean_title}, List ID: {viewing_list_id}, Media ID: {media_id}", xbmc.LOGDEBUG)
+                
+                if viewing_list_id and media_id:
+                    # Use RunPlugin to trigger remove_from_list action
+                    from urllib.parse import quote_plus
+                    encoded_title = quote_plus(clean_title)
+                    remove_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={viewing_list_id}&media_id={media_id})'
+                    xbmc.executebuiltin(remove_url)
+                else:
+                    xbmcgui.Dialog().notification("LibraryGenie", "Cannot determine list or media ID", xbmcgui.NOTIFICATION_WARNING, 3000)
+                
+            except Exception as remove_error:
+                xbmc.log(f"LibraryGenie: Error removing movie from list: {str(remove_error)}", xbmc.LOGERROR)
+                xbmcgui.Dialog().notification("LibraryGenie", "Error removing movie from list", xbmcgui.NOTIFICATION_ERROR, 3000)
+
+        elif selected_option in ["Add to List...", "Add to Another List..."]:
             # Handle adding movie to list
             try:
                 # Get the clean title without color formatting
                 clean_title = title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
+                clean_title = clean_title.replace('[COLOR FFF0DC8A]', '').replace('[/COLOR]', '')
+                clean_title = clean_title.replace('[COLOR FFF4BC7B]', '').replace('[/COLOR]', '')
+                clean_title = clean_title.replace('[COLOR FFECA9A7]', '').replace('[/COLOR]', '')
                 
                 # Get item ID from various sources
                 item_id = (xbmc.getInfoLabel('ListItem.DBID') or 

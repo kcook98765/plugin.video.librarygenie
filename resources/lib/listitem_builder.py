@@ -430,6 +430,11 @@ class ListItemBuilder:
         # Set LibraryGenie marker to exclude from native context menu
         li.setProperty('LibraryGenie.Item', 'true')
 
+        # Set media_id for context menu access (used for removing from lists)
+        media_id = media_info.get('media_id') or media_info.get('id')
+        if media_id:
+            li.setProperty('media_id', str(media_id))
+
         # Set DBID for Kodi Information dialog support
         kodi_id = media_info.get('kodi_id') or media_info.get('movieid') or media_info.get('id')
         if kodi_id:
