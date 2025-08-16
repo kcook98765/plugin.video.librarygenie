@@ -441,16 +441,8 @@ def _perform_similarity_search(imdb_id, title):
         # Show progress dialog with version compatibility
         progress = xbmcgui.DialogProgress()
         
-        # Kodi v19+ compatibility for DialogProgress.create()
-        from resources.lib.utils import get_kodi_version
-        kodi_version = get_kodi_version()
-        
-        if kodi_version >= 20:
-            # v20+ supports 3 arguments: heading, message, line3
-            progress.create('LibraryGenie', 'Finding similar movies...', '')
-        else:
-            # v19 only supports 2 arguments: heading, message
-            progress.create('LibraryGenie', 'Finding similar movies...')
+        # DialogProgress.create() consistently uses 2 arguments across all Kodi versions
+        progress.create('LibraryGenie', 'Finding similar movies...')
         
         try:
             # Call similarity API
@@ -462,11 +454,8 @@ def _perform_similarity_search(imdb_id, title):
                 **facet_config
             )
             
-            # Version-aware progress updates
-            if kodi_version >= 20:
-                progress.update(60, 'Processing results...', '')
-            else:
-                progress.update(60, 'Processing results...')
+            # Update progress
+            progress.update(60, 'Processing results...')
             
             if not similar_imdb_ids:
                 progress.close()
@@ -483,10 +472,7 @@ def _perform_similarity_search(imdb_id, title):
             facet_names = " + ".join(selected_facets)
             list_name = f"Similar to {title} ({facet_names})"
             
-            if kodi_version >= 20:
-                progress.update(80, f'Saving {len(similar_imdb_ids)} results...', '')
-            else:
-                progress.update(80, f'Saving {len(similar_imdb_ids)} results...')
+            progress.update(80, f'Saving {len(similar_imdb_ids)} results...')
             
             # Create the list
             list_id = db_manager.create_list(list_name, search_folder_id)
