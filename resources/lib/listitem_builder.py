@@ -344,17 +344,17 @@ class ListItemBuilder:
                           media_info.get('uniqueid', {}).get('imdb', '') if isinstance(media_info.get('uniqueid'), dict) else '' or
                           media_info.get('info', {}).get('imdbnumber', '') or
                           media_info.get('imdb_id', ''))
-        
+
         if imdb_from_media and str(imdb_from_media).startswith('tt'):
             imdb_id = str(imdb_from_media)
             info_dict['imdbnumber'] = imdb_id
-            
+
             # For Kodi v19+, also set uniqueid properly
             if not info_dict.get('uniqueid'):
                 info_dict['uniqueid'] = {'imdb': imdb_id}
             elif isinstance(info_dict.get('uniqueid'), dict):
                 info_dict['uniqueid']['imdb'] = imdb_id
-        
+
         # Use the specialized set_info_tag function that handles Kodi version compatibility
         set_info_tag(li, info_dict, 'video')
 
