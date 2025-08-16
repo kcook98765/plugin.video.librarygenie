@@ -75,7 +75,12 @@ class ContextMenuBuilder:
         if viewing_list_id:
             media_id = media_info.get('media_id')
             if media_id:
+                utils.log(f"Adding 'Remove from List' context menu item: list_id={viewing_list_id}, media_id={media_id}", "DEBUG")
                 context_menu_items.append(('Remove from List', f'RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={viewing_list_id}&media_id={media_id})'))
+            else:
+                utils.log(f"Cannot add 'Remove from List' - missing media_id for list_id={viewing_list_id}", "DEBUG")
+        else:
+            utils.log("Cannot add 'Remove from List' - not viewing list contents", "DEBUG")
 
         # Refresh Metadata - always available
         context_menu_items.append(('Refresh Metadata', f'RunPlugin(plugin://plugin.video.librarygenie/?action=refresh_metadata&title={quote_plus(formatted_title)}&item_id={item_id})'))
