@@ -361,7 +361,7 @@ def find_similar_movies_from_plugin(params):
 
     except Exception as e:
         utils.log(f"Error in find_similar_movies_from_plugin: {str(e)}", "ERROR")
-        xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERR
+        xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERROR)
 
 def add_to_list_from_context(params):
     """Handler for adding a movie to a list from native Kodi context menu"""
@@ -404,7 +404,7 @@ def add_to_list_from_context(params):
 
     except Exception as e:
         utils.log(f"Error in add_to_list_from_context: {str(e)}", "ERROR")
-        xbmcgui.Dialog().notification('LibraryGenie', 'Error adding to list', xbmcgui.NOTIFICATION_ERROR, 3000)OR)
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error adding to list', xbmcgui.NOTIFICATION_ERROR, 3000)
 
 def find_similar_movies_from_context(params):
     """Handler for similarity search from native Kodi context menu"""
