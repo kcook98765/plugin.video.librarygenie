@@ -351,17 +351,17 @@ class QueryManager(Singleton):
     def ensure_search_history_folder(self):
         """Ensure the Search History folder exists and return it"""
         folder_name = "Search History"
-        
+
         # Try to get existing folder
         folder = self.get_folder_by_name(folder_name)
         if folder:
             utils.log(f"Found existing Search History folder with ID: {folder['id']}", "DEBUG")
             return folder
-        
+
         # Create the folder if it doesn't exist
         utils.log("Creating Search History folder", "DEBUG")
         folder_id = self.insert_folder(folder_name, None)  # Root level folder
-        
+
         if folder_id:
             utils.log(f"Created Search History folder with ID: {folder_id}", "DEBUG")
             return {
@@ -399,7 +399,7 @@ class QueryManager(Singleton):
             cursor.execute(query, (name, folder_id))
             conn_info['connection'].commit()
             list_id = cursor.lastrowid
-            
+
             if list_id:
                 utils.log(f"Created list '{name}' with ID: {list_id} in folder: {folder_id}", "DEBUG")
                 return {
@@ -416,10 +416,10 @@ class QueryManager(Singleton):
         # Check if the base name is available
         existing_lists = self.get_lists(folder_id)
         existing_names = {list_item['name'].lower() for list_item in existing_lists}
-        
+
         if base_name.lower() not in existing_names:
             return base_name
-        
+
         # Find a unique name by appending numbers
         counter = 1
         while True:
@@ -432,26 +432,26 @@ class QueryManager(Singleton):
         """Insert a media item and add it to a list in one operation"""
         try:
             utils.log(f"=== INSERT_MEDIA_ITEM_AND_ADD_TO_LIST: Starting for list_id {list_id} ===", "DEBUG")
-            
+
             # Insert the media item
             media_item_id = self.insert_media_item(media_data)
             if not media_item_id:
                 utils.log(f"=== INSERT_MEDIA_ITEM_AND_ADD_TO_LIST: Failed to insert media item ===", "ERROR")
                 return False
-            
+
             utils.log(f"=== INSERT_MEDIA_ITEM_AND_ADD_TO_LIST: Inserted media item with ID: {media_item_id} ===", "DEBUG")
-            
+
             # Add to the list
             list_item_data = {
                 'list_id': list_id,
                 'media_item_id': media_item_id
             }
-            
+
             self.insert_list_item(list_item_data)
             utils.log(f"=== INSERT_MEDIA_ITEM_AND_ADD_TO_LIST: Added media item {media_item_id} to list {list_id} ===", "DEBUG")
-            
+
             return True
-            
+
         except Exception as e:
             utils.log(f"=== INSERT_MEDIA_ITEM_AND_ADD_TO_LIST: Error: {str(e)} ===", "ERROR")
             return False
@@ -777,11 +777,11 @@ class QueryManager(Singleton):
         """Insert a media item and return its ID"""
         utils.log(f"=== INSERT_MEDIA_ITEM: Starting with data keys: {list(data.keys())}", "DEBUG")
         utils.log(f"=== INSERT_MEDIA_ITEM: Input data sample: {dict(list(data.items())[:5])}", "DEBUG")
-        
+
         # Extract field names from config
         field_names = [field.split()[0] for field in Config.FIELDS]
         utils.log(f"=== INSERT_MEDIA_ITEM: Available field names: {field_names}", "DEBUG")
-        
+
         # Filter out None values and empty strings to prevent SQL issues
         filtered_data = {}
         for key in field_names:
@@ -791,7 +791,7 @@ class QueryManager(Singleton):
                     filtered_data[key] = value
                 else:
                     utils.log(f"=== INSERT_MEDIA_ITEM: Skipping None/empty field {key} with value: {value}", "DEBUG")
-        
+
         media_data = filtered_data
         utils.log(f"=== INSERT_MEDIA_ITEM: Filtered media_data keys: {list(media_data.keys())}", "DEBUG")
 
@@ -805,7 +805,7 @@ class QueryManager(Singleton):
             try:
                 art_dict = data['art']
                 utils.log(f"=== INSERT_MEDIA_ITEM: Processing art data: {type(art_dict)} - {art_dict}", "DEBUG")
-                
+
                 if isinstance(art_dict, str):
                     art_dict = json.loads(art_dict)
                 elif not isinstance(art_dict, dict):
@@ -835,7 +835,7 @@ class QueryManager(Singleton):
         if not media_data:
             utils.log("=== INSERT_MEDIA_ITEM: ERROR - No valid media data to insert", "ERROR")
             return None
-            
+
         # Log final media_data
         utils.log(f"=== INSERT_MEDIA_ITEM: Final media_data keys: {list(media_data.keys())}", "DEBUG")
         utils.log(f"=== INSERT_MEDIA_ITEM: Final media_data values sample: {list(media_data.values())[:5]}", "DEBUG")
@@ -843,12 +843,12 @@ class QueryManager(Singleton):
         # Insert media item - use REPLACE for search results to ensure they get inserted
         columns = ', '.join(media_data.keys())
         placeholders = ', '.join('?' for _ in media_data)
-        
+
         if media_data.get('source') == 'search':
             query = f'INSERT OR REPLACE INTO media_items ({columns}) VALUES ({placeholders})'
         else:
             query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
-        
+
         utils.log(f"=== INSERT_MEDIA_ITEM: SQL Query: {query}", "DEBUG")
         utils.log(f"=== INSERT_MEDIA_ITEM: SQL Parameters count: {len(media_data.values())}", "DEBUG")
 
@@ -868,40 +868,34 @@ class QueryManager(Singleton):
                     (media_data.get('imdbnumber'), 'search')
                 )
                 result = cursor.fetchone()
-                
+
                 if result:
-                    inserted_id = result[0]
-                    utils.log(f"=== INSERT_MEDIA_ITEM: Found existing search record with ID: {inserted_id}", "DEBUG")
-                    return inserted_id
+                    return result[0]
                 else:
                     # Try to get the last inserted row ID
                     inserted_id = cursor.lastrowid
                     if inserted_id and inserted_id > 0:
-                        utils.log(f"=== INSERT_MEDIA_ITEM: Successfully inserted with ID: {inserted_id}", "DEBUG")
                         return inserted_id
                     else:
-                        utils.log(f"=== INSERT_MEDIA_ITEM: WARNING - Could not determine inserted record ID", "WARNING")
+                        utils.log("INSERT_MEDIA_ITEM: Could not determine inserted record ID", "WARNING")
                         return None
             else:
                 # Original lookup logic for non-search items
                 lookup_kodi_id = media_data.get('kodi_id', 0)
                 lookup_play = media_data.get('play', '')
-                utils.log(f"=== INSERT_MEDIA_ITEM: Looking up inserted item with kodi_id={lookup_kodi_id}, play='{lookup_play}'", "DEBUG")
-                
+
                 cursor.execute(
                     "SELECT id FROM media_items WHERE kodi_id = ? AND play = ?",
                     (lookup_kodi_id, lookup_play)
                 )
                 result = cursor.fetchone()
-                
+
                 if result:
-                    inserted_id = result[0]
-                    utils.log(f"=== INSERT_MEDIA_ITEM: Successfully inserted with ID: {inserted_id}", "DEBUG")
-                    return inserted_id
+                    return result[0]
                 else:
-                    utils.log(f"=== INSERT_MEDIA_ITEM: WARNING - Could not find inserted record", "WARNING")
+                    utils.log("INSERT_MEDIA_ITEM: Could not find inserted record", "WARNING")
                     return None
-                
+
         except Exception as e:
             utils.log(f"=== INSERT_MEDIA_ITEM: SQL Error: {str(e)}", "ERROR")
             utils.log(f"=== INSERT_MEDIA_ITEM: Failed query: {query}", "ERROR")
