@@ -329,7 +329,7 @@ class ListItemBuilder:
                 # Ensure cast is a list - process ALL cast members without artificial limits
                 if not isinstance(cast, list):
                     cast = []
-                
+
                 # IMPORTANT: Do NOT limit cast size here - Kodi can handle full cast lists
                 # If performance becomes an issue, it should be handled by:
                 # 1. User preferences/settings
