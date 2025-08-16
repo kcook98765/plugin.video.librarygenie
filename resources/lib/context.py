@@ -56,19 +56,41 @@ def main():
         
         # Also check if we have a valid DBID and can get the IMDb ID via JSON-RPC
         db_id = xbmc.getInfoLabel('ListItem.DBID')
+        
+        # Special handling for LibraryGenie plugin items - extract movieid from URL
+        file_path = xbmc.getInfoLabel('ListItem.FileNameAndPath')
+        if not db_id and file_path and 'plugin.video.librarygenie' in file_path and 'movieid=' in file_path:
+            try:
+                import re
+                match = re.search(r'movieid=(\d+)', file_path)
+                if match:
+                    db_id = match.group(1)
+                    xbmc.log(f"LibraryGenie: Context menu extracted movieid from plugin URL: {db_id}", xbmc.LOGINFO)
+            except Exception as e:
+                xbmc.log(f"LibraryGenie: Context menu movieid extraction failed: {str(e)}", xbmc.LOGWARNING)
+        
         if db_id and not any(candidate and str(candidate).startswith('tt') for candidate in imdb_candidates):
             try:
                 from resources.lib.jsonrpc_manager import JSONRPC
                 jsonrpc = JSONRPC()
                 response = jsonrpc.execute('VideoLibrary.GetMovieDetails', {
                     'movieid': int(db_id),
-                    'properties': ['uniqueid']
+                    'properties': ['uniqueid', 'imdbnumber']
                 })
                 movie_details = response.get('result', {}).get('moviedetails', {})
+                
+                # Check uniqueid.imdb first (real IMDb ID)
                 uniqueid = movie_details.get('uniqueid', {})
                 if isinstance(uniqueid, dict) and 'imdb' in uniqueid:
                     imdb_candidates.append(uniqueid['imdb'])
-                xbmc.log(f"LibraryGenie: Context menu JSON-RPC lookup found IMDb: {uniqueid.get('imdb', 'None')}", xbmc.LOGINFO)
+                    xbmc.log(f"LibraryGenie: Context menu JSON-RPC found uniqueid.imdb: {uniqueid['imdb']}", xbmc.LOGINFO)
+                
+                # Also check imdbnumber field as fallback
+                imdbnumber = movie_details.get('imdbnumber', '')
+                if imdbnumber and imdbnumber.startswith('tt'):
+                    imdb_candidates.append(imdbnumber)
+                    xbmc.log(f"LibraryGenie: Context menu JSON-RPC found imdbnumber: {imdbnumber}", xbmc.LOGINFO)
+                
             except Exception as e:
                 xbmc.log(f"LibraryGenie: Context menu JSON-RPC lookup failed: {str(e)}", xbmc.LOGWARNING)
         
