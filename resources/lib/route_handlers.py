@@ -317,6 +317,11 @@ def find_similar_movies(params):
 
         utils.log(f"Finding similar movies for '{movie_title}' (IMDb: {imdb_id})", "INFO")
 
+        # Clear any existing navigation states before starting
+        from resources.lib.navigation_manager import get_navigation_manager
+        nav_manager = get_navigation_manager()
+        nav_manager.cleanup_stuck_navigation()
+
         # Use the similar movies manager
         from resources.lib.similar_movies_manager import SimilarMoviesManager
         similar_manager = SimilarMoviesManager()
@@ -330,6 +335,12 @@ def find_similar_movies(params):
         utils.log(f"Error in find_similar_movies: {str(e)}", "ERROR")
         import traceback
         utils.log(f"find_similar_movies traceback: {traceback.format_exc()}", "ERROR")
+        
+        # Clear navigation state on error to prevent UI hanging
+        from resources.lib.navigation_manager import get_navigation_manager
+        nav_manager = get_navigation_manager()
+        nav_manager.clear_navigation_flags()
+        
         xbmcgui.Dialog().notification('LibraryGenie', 'Error finding similar movies', xbmcgui.NOTIFICATION_ERROR)
 
 def do_search(params):

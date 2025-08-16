@@ -71,27 +71,33 @@ class SimilarMoviesManager:
                     'LibraryGenie', 
                     f'Found {len(results)} similar movies'
                 )
-                # Navigate to the search results list with proper replacement
+                # Navigate to the search results list with proper state management
                 nav_start = time.time()
                 from resources.lib.url_builder import build_plugin_url
+                from resources.lib.navigation_manager import get_navigation_manager
                 import xbmc
+                
+                # Clear any stuck navigation states before proceeding
+                nav_manager = get_navigation_manager()
+                nav_manager.cleanup_stuck_navigation(5.0)  # Clean up any navigation stuck > 5 seconds
+                
                 list_url = build_plugin_url({
                     'action': 'browse_list',
                     'list_id': list_id,
                     'view': 'list'
                 })
                 utils.log(f"[SIMILARITY NAV] Built navigation URL: {list_url}", "INFO")
-                utils.log(f"[SIMILARITY NAV] About to execute Container.Update with replace", "INFO")
+                utils.log(f"[SIMILARITY NAV] About to execute navigation with state management", "INFO")
                 
                 try:
-                    # Use replace and add a small delay to ensure clean navigation
-                    utils.log(f"[SIMILARITY NAV] Sleep 100ms before navigation", "DEBUG")
-                    xbmc.sleep(100)
-                    utils.log(f"[SIMILARITY NAV] Executing Container.Update command", "INFO")
-                    xbmc.executebuiltin(f'Container.Update({list_url},replace)')
-                    utils.log(f"[SIMILARITY NAV] Container.Update command executed successfully", "INFO")
-                    utils.log(f"[SIMILARITY NAV] Sleep 50ms after navigation", "DEBUG")
-                    xbmc.sleep(50)
+                    # Clear any existing modal/dialog states
+                    utils.log(f"[SIMILARITY NAV] Clearing modal states", "DEBUG")
+                    nav_manager.set_search_modal_active(False)
+                    
+                    # Use navigation manager for proper state handling
+                    utils.log(f"[SIMILARITY NAV] Executing managed navigation", "INFO")
+                    nav_manager.navigate_to_url(list_url, replace=True)
+                    
                     nav_time = time.time() - nav_start
                     utils.log(f"[SIMILARITY NAV] Navigation sequence completed in {nav_time:.3f}s", "INFO")
                 except Exception as nav_error:
@@ -99,6 +105,9 @@ class SimilarMoviesManager:
                     utils.log(f"[SIMILARITY NAV] Navigation failed after {nav_time:.3f}s: {str(nav_error)}", "ERROR")
                     import traceback
                     utils.log(f"[SIMILARITY NAV] Navigation exception traceback: {traceback.format_exc()}", "ERROR")
+                    
+                    # Ensure navigation state is cleared on error
+                    nav_manager.clear_navigation_flags()
                     raise nav_error
             else:
                 utils.log(f"[SIMILARITY TIMING] Save failed after {save_time:.3f}s", "ERROR")
@@ -163,7 +172,13 @@ class SimilarMoviesManager:
                 facet_options
             )
             
+            # Ensure dialog is properly closed and UI settles
+            del dialog
+            import xbmc
+            xbmc.sleep(100)  # Allow UI to settle after dialog closes
+            
             if not selected_indices:
+                utils.log("User cancelled facet selection", "DEBUG")
                 return None  # User cancelled
             
             # Build facets dict
