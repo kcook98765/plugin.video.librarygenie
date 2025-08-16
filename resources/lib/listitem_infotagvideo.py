@@ -141,11 +141,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
 
                 # Handle cast with v19 ListItem.setCast() which supports thumbnails
                 if key == 'cast' and isinstance(value, list):
-                    cast_success = _set_full_cast(list_item, value)
-                    if cast_success:
-                        utils.log(f"V19 cast set successfully with images: {len(value)} actors", "DEBUG")
-                    else:
-                        utils.log("V19 cast set without images (fallback used)", "DEBUG")
+                    _set_full_cast(list_item, value)
                     continue  # Don't add cast to clean_info since it's handled separately
                 elif key in ['country', 'director', 'genre', 'studio'] and isinstance(value, list):
                     # Convert lists to comma-separated strings for setInfo
@@ -195,14 +191,8 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
     # For Kodi v20+, try InfoTag methods first with enhanced error handling
     try:
         # Get the InfoTag for the specified content type
-        if content_type == 'video':
-            info_tag = list_item.getVideoInfoTag()
-        elif content_type == 'music':
-            info_tag = list_item.getMusicInfoTag()
-        else:
-            utils.log(f"Unsupported content type: {content_type}", "WARNING")
-            return
-
+        info_tag = list_item.getVideoInfoTag()
+        
         utils.log(f"V20+ InfoTag object obtained: {type(info_tag)}", "DEBUG")
 
         # V20+ InfoTag method mapping with validation
