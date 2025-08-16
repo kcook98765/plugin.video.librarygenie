@@ -79,7 +79,7 @@ def show_dialog_input(heading, default=""):
 def is_debug_enabled():
     """Check if debug logging is enabled for the addon"""
     try:
-        from resources.lib.settings_manager import SettingsManager
+        from .addon_ref import get_addon
         settings_manager = SettingsManager()
         return settings_manager.get_bool_setting('debug_mode', default=False)
     except Exception:
@@ -91,10 +91,10 @@ _KODI_VERSION_CACHE = None
 def get_kodi_version():
     """Get the major version number of the current Kodi installation with caching"""
     global _KODI_VERSION_CACHE
-    
+
     if _KODI_VERSION_CACHE is not None:
         return _KODI_VERSION_CACHE
-    
+
     try:
         import xbmc
         version_info = xbmc.getInfoLabel("System.BuildVersion")
