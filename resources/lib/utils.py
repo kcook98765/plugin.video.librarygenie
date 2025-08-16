@@ -83,7 +83,7 @@ def is_debug_enabled():
     try:
         from resources.lib.settings_manager import SettingsManager
         settings_manager = SettingsManager()
-        return settings_manager.get_bool_setting('debug_mode', default=False)
+        return settings_manager.get_setting('debug_mode', default='false') == 'true'
     except Exception:
         return False
 
