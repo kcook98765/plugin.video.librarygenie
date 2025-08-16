@@ -353,11 +353,23 @@ class ListItemBuilder:
         utils.log(f"IMDB_TRACE: media_info.info.imdbnumber = '{source3}'", "INFO")
         utils.log(f"IMDB_TRACE: media_info.imdb_id = '{source4}'", "INFO")
         
-        imdb_from_media = (source1 or source2 or source3 or source4)
-        utils.log(f"IMDB_TRACE: Final extracted IMDb = '{imdb_from_media}'", "INFO")
+        # Prioritize uniqueid.imdb over other sources for v19 compatibility
+        final_imdb_id = ''
+        if source2 and str(source2).startswith('tt'):  # uniqueid.imdb
+            final_imdb_id = source2
+            utils.log(f"IMDB_TRACE: Using uniqueid.imdb = '{final_imdb_id}'", "INFO")
+        else:
+            # Fallback to other sources, but only if they start with 'tt'
+            for source_name, source_value in [('imdbnumber', source1), ('info.imdbnumber', source3), ('imdb_id', source4)]:
+                if source_value and str(source_value).startswith('tt'):
+                    final_imdb_id = source_value
+                    utils.log(f"IMDB_TRACE: Using fallback {source_name} = '{final_imdb_id}'", "INFO")
+                    break
+        
+        utils.log(f"IMDB_TRACE: Final extracted IMDb = '{final_imdb_id}'", "INFO")
 
-        if imdb_from_media and str(imdb_from_media).startswith('tt'):
-            imdb_id = str(imdb_from_media)
+        if final_imdb_id and str(final_imdb_id).startswith('tt'):
+            imdb_id = str(final_imdb_id)
             utils.log(f"IMDB_TRACE: Setting info_dict imdbnumber = '{imdb_id}'", "INFO")
             info_dict['imdbnumber'] = imdb_id
 
@@ -449,10 +461,26 @@ class ListItemBuilder:
         context_menu_items.append(('Information', 'Action(Info)'))
 
         # Add similarity context menu to video items - enhanced IMDb ID detection for v19
-        imdb_id = (media_info.get('imdbnumber', '') or 
-                   media_info.get('uniqueid', {}).get('imdb', '') if isinstance(media_info.get('uniqueid'), dict) else '' or
-                   media_info.get('info', {}).get('imdbnumber', '') or
-                   media_info.get('imdb_id', ''))
+        # Prioritize uniqueid.imdb over imdbnumber since v19 often has TMDB ID in imdbnumber
+        imdb_id = ''
+        
+        # First try uniqueid.imdb (most reliable for actual IMDb IDs)
+        if isinstance(media_info.get('uniqueid'), dict):
+            uniqueid_imdb = media_info.get('uniqueid', {}).get('imdb', '')
+            if uniqueid_imdb and str(uniqueid_imdb).startswith('tt'):
+                imdb_id = uniqueid_imdb
+        
+        # Fallback to other sources only if uniqueid.imdb not found
+        if not imdb_id:
+            candidates = [
+                media_info.get('imdbnumber', ''),
+                media_info.get('info', {}).get('imdbnumber', '') if media_info.get('info') else '',
+                media_info.get('imdb_id', '')
+            ]
+            for candidate in candidates:
+                if candidate and str(candidate).startswith('tt'):
+                    imdb_id = candidate
+                    break
 
         if imdb_id and str(imdb_id).startswith('tt'):
             encoded_title = quote_plus(str(media_info.get('title', 'Unknown')))
