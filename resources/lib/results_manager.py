@@ -22,7 +22,6 @@ class ResultsManager(Singleton):
     def build_display_items_for_list(self, list_id: int):
         """Build display items for a specific list with comprehensive metadata"""
         try:
-            from resources.lib import utils
             utils.log(f"=== BUILD_DISPLAY_ITEMS: Starting for list_id {list_id} ===", "DEBUG")
 
             # Get list items with full details
