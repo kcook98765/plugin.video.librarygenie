@@ -37,7 +37,9 @@ def log(message, level=None):
             "JSONRPC VideoLibrary.GetMovies completed",
             "JSONRPC GetMovies success: Got",
             "Executing JSONRPC method:",
-            "Inserted into media_items, got ID:"
+            "Inserted into media_items, got ID:",
+            "Gathering cast information",
+            "Cast member"
         ]
 
         # Allow JSON-RPC request logging to always show through
