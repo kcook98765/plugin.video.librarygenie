@@ -487,6 +487,7 @@ def _perform_similarity_search(imdb_id, title):
             for imdb_id in similar_imdb_ids:
                 # Insert media item with minimal info - use insert_media_item method directly
                 media_data = {
+                    'kodi_id': 0,  # No Kodi ID for similarity results
                     'title': f'Similar Movie {imdb_id}',  # Temporary title
                     'year': 0,
                     'imdbnumber': imdb_id,
@@ -518,13 +519,14 @@ def _perform_similarity_search(imdb_id, title):
                     'file': '',
                     'fanart': '',
                     'thumbnail': '',
-                    'art': '',
+                    'art': '{}',  # Valid JSON for art field
                     'streamdetails': '',
                     'showlink': '',
                     'resume': '',
                     'ratings': '',
                     'uniqueid': '',
-                    'premiered': ''
+                    'premiered': '',
+                    'play': f'similarity://{imdb_id}'  # Add play field for similarity results
                 }
 
                 # Use query_manager to insert media item properly
