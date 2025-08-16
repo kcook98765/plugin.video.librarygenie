@@ -27,7 +27,7 @@
       <menu id="kodi.core.main">
         <item library="resources/lib/context.py">
             <label>LibraryGenie</label>
-            <visible>[!String.StartsWith(Container.FolderPath,plugin://plugin.video.librarygenie)] + [String.IsEqual(ListItem.DBTYPE,movie)] + [!String.IsEmpty(ListItem.DBID)]</visible>
+            <visible>[!String.StartsWith(Container.FolderPath,plugin://plugin.video.librarygenie)] + [String.IsEmpty(ListItem.Property(LibraryGenie.Item))] + [String.IsEqual(ListItem.DBTYPE,movie)] + [!String.IsEmpty(ListItem.DBID)]</visible>
         </item>
       </menu>
     </extension>

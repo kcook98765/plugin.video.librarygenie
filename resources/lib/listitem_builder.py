@@ -426,6 +426,9 @@ class ListItemBuilder:
 
         # Set content properties
         li.setProperty('IsPlayable', 'true')
+        
+        # Set LibraryGenie marker to exclude from native context menu
+        li.setProperty('LibraryGenie.Item', 'true')
 
         # Set DBID for Kodi Information dialog support
         kodi_id = media_info.get('kodi_id') or media_info.get('movieid') or media_info.get('id')
