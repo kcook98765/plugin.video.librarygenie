@@ -315,7 +315,7 @@ class ListItemBuilder:
                             pass
                         break
 
-        # Handle cast data
+        # Handle cast data with memory optimization
         cast = media_info.get('cast', [])
         if cast:
             try:
@@ -326,13 +326,19 @@ class ListItemBuilder:
                     except json.JSONDecodeError:
                         cast = []
 
-                # Ensure cast is a list
+                # Ensure cast is a list and limit size to prevent crashes
                 if not isinstance(cast, list):
                     cast = []
+                
+                # Limit cast to first 20 entries to prevent memory issues
+                if len(cast) > 20:
+                    cast = cast[:20]
+                    utils.log(f"Truncated cast list from {len(media_info.get('cast', []))} to 20 entries", "DEBUG")
 
                 info_dict['cast'] = cast
 
-            except Exception:
+            except Exception as e:
+                utils.log(f"Error processing cast data: {str(e)}", "WARNING")
                 info_dict['cast'] = []
 
 
