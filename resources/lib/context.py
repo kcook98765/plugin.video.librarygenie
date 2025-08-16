@@ -27,52 +27,31 @@ def main():
             xbmc.log("LibraryGenie: Failed to get addon instance", xbmc.LOGERROR)
             return
 
-        # Get the current item's information
-        kodi_helper = KodiHelper()
-        item_info = kodi_helper.get_focused_item_details()
-
-        if not item_info:
-            xbmc.log("LibraryGenie: No item information found", xbmc.LOGWARNING)
-            xbmcgui.Dialog().notification("LibraryGenie", "No item selected", xbmcgui.NOTIFICATION_WARNING, 2000)
-            return
-
-        xbmc.log(f"LibraryGenie: Got item info for: {item_info.get('title', 'Unknown')}", xbmc.LOGINFO)
+        # Get basic item information that's available in context
+        title = xbmc.getInfoLabel('ListItem.Title')
+        year = xbmc.getInfoLabel('ListItem.Year')
+        
+        xbmc.log(f"LibraryGenie: Context menu for: {title} ({year})", xbmc.LOGINFO)
 
         # Show context menu options
         addon = get_addon()
         addon_id = addon.getAddonInfo("id")
 
         # Create menu options - check if we have IMDb ID for similarity
-        # Get IMDb ID from our custom ListItem property (set by listitem_builder.py)
-        imdb_id = xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)')
+        # Get IMDb ID from available InfoLabels (context menu has limited access)
+        imdb_candidates = [
+            xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)'),
+            xbmc.getInfoLabel('ListItem.IMDBNumber'),
+            xbmc.getInfoLabel('ListItem.UniqueID(imdb)')
+        ]
         
-        # Enhanced fallback for non-LibraryGenie items and v19 compatibility
-        if not imdb_id:
-            fallback_candidates = [
-                xbmc.getInfoLabel('ListItem.IMDBNumber'),
-                xbmc.getInfoLabel('ListItem.UniqueID(imdb)'),
-                # Try getting from item_info if available
-                item_info.get('imdbnumber', ''),
-                item_info.get('uniqueid', {}).get('imdb', '') if isinstance(item_info.get('uniqueid'), dict) else ''
-            ]
-            
-            # Also try to extract from the kodi_helper
-            try:
-                helper_imdb = kodi_helper.get_imdb_from_item()
-                if helper_imdb:
-                    fallback_candidates.append(helper_imdb)
-            except Exception as e:
-                xbmc.log(f"LibraryGenie: Error getting IMDb from helper: {str(e)}", xbmc.LOGDEBUG)
-            
-            for candidate in fallback_candidates:
-                if candidate and str(candidate).startswith('tt'):
-                    imdb_id = candidate
-                    break
+        imdb_id = None
+        for candidate in imdb_candidates:
+            if candidate and str(candidate).startswith('tt'):
+                imdb_id = candidate
+                break
         
-        xbmc.log(f"LibraryGenie: Context menu IMDb ID detection - Property: {xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)')}, IMDBNumber: {xbmc.getInfoLabel('ListItem.IMDBNumber')}, UniqueID: {xbmc.getInfoLabel('ListItem.UniqueID(imdb)')}, Final: {imdb_id}", xbmc.LOGDEBUG)
-        
-        if imdb_id:
-            xbmc.log(f"LibraryGenie: Context menu found IMDb ID: {imdb_id}", xbmc.LOGINFO)
+        xbmc.log(f"LibraryGenie: Context menu IMDb ID: {imdb_id}", xbmc.LOGDEBUG)
 
         options = []
 
@@ -99,8 +78,7 @@ def main():
 
         if selected_option == "Find Similar Movies...":
             # Get the clean title without color formatting
-            clean_title = item_info.get('title', 'Unknown').replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
-            year = item_info.get('year', '')
+            clean_title = title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
 
             xbmc.log(f"LibraryGenie [DEBUG]: Similarity search - Title: {clean_title}, Year: {year}, IMDb: {imdb_id}", xbmc.LOGDEBUG)
 
