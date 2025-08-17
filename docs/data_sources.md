@@ -23,25 +23,27 @@ LibraryGenie uses a `source` field in the `media_items` table to categorize cont
 2. **Library References**: Created via `QueryManager.insert_media_item()`
 3. **Display**: Full metadata retrieved from Kodi when displaying library items
 
-### 2. Search (`search`) - AI-Powered Search Results
+### 2. Search Results - AI-Powered Search Results
 
 **Purpose**: Search results from AI-powered semantic search with relevance scoring.
 
 **Characteristics**:
+- Stored with `source = 'lib'` but distinguished by `search_score IS NOT NULL`
 - Contains search relevance scores and IMDB IDs
 - Automatically saved to "Search History" folder
 - Include title/year from `imdb_exports` table lookup
-- Contains `search_score` field for result ranking
+- Use `search_score` field to distinguish from regular library items and for result ranking
 - Protected from library sync operations
 
 **Data Flow**:
-1. **Search Results**: Saved with `search_score` field, organized into timestamped lists
+1. **Search Results**: Saved with `source = 'lib'` and `search_score` field, organized into timestamped lists
 2. **Search History**: Automatically organized into "Search History" folder
 3. **Display**: Full metadata retrieved from Kodi when displaying search results
 
 **Identification Logic**:
-- Library items: `source = 'lib'`
-- Search results: `source = 'search'`
+- Library items: `source = 'lib'` AND `search_score IS NULL`
+- Search results: `source = 'lib'` AND `search_score IS NOT NULL`
+- Manual items: `source = 'manual'`
 
 **Example Use Cases**:
 - Library movie references in user-created lists
@@ -54,12 +56,12 @@ LibraryGenie uses a `source` field in the `media_items` table to categorize cont
 INSERT INTO media_items (kodi_id, imdbnumber, source, media_type, title, year)
 VALUES (123, 'tt0111161', 'lib', 'movie', '', 0);
 
--- Example search record
+-- Example search record (note: uses 'lib' source but has search_score)
 INSERT INTO media_items (
     imdbnumber, source, search_score, title, year, 
     plot, play, media_type
 ) VALUES (
-    'tt0111161', 'search', 9.85, 'The Shawshank Redemption', 1994,
+    'tt0111161', 'lib', 9.85, 'The Shawshank Redemption', 1994,
     'Search result for "prison drama" - Score: 9.85 - IMDb: tt0111161',
     'search_history://tt0111161', 'movie'
 );
@@ -308,11 +310,11 @@ WHERE source = 'manual';
 
 -- Library references (system-generated)
 SELECT * FROM media_items 
-WHERE source = 'lib';
+WHERE source = 'lib' AND search_score IS NULL;
 
 -- Search results (AI-generated with scores)  
 SELECT * FROM media_items 
-WHERE source = 'search';
+WHERE source = 'lib' AND search_score IS NOT NULL;
 ```
 
 ## Debugging Source Issues
@@ -334,19 +336,23 @@ SELECT
 FROM media_items 
 GROUP BY source;
 
--- Find duplicate IMDB entries across all sources
-SELECT imdbnumber, source, COUNT(*) as count 
+-- Find duplicate IMDB entries across different types
+SELECT 
+    imdbnumber,
+    source,
+    CASE WHEN search_score IS NOT NULL THEN 'search_result' ELSE 'library_ref' END as item_type,
+    COUNT(*) as count 
 FROM media_items 
 WHERE imdbnumber IS NOT NULL 
-GROUP BY imdbnumber, source
+GROUP BY imdbnumber, source, (search_score IS NOT NULL)
 HAVING count > 1;
 
--- Verify search history organization
+-- Verify search history organization  
 SELECT l.name, COUNT(li.id) as items
 FROM lists l
 JOIN list_items li ON l.id = li.list_id
 JOIN media_items mi ON li.media_item_id = mi.id
-WHERE mi.source = 'search'
+WHERE mi.source = 'lib' AND mi.search_score IS NOT NULL
 GROUP BY l.name
 ORDER BY l.name;
 ```
