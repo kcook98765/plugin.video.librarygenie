@@ -103,29 +103,74 @@ def main():
             except Exception as e:
                 xbmc.log(f"LibraryGenie: Error extracting list_id: {str(e)}", xbmc.LOGDEBUG)
 
-        # Check if we're dealing with a folder item
+        # Enhanced folder detection with comprehensive debugging
         current_item_path = xbmc.getInfoLabel('ListItem.FolderPath')
+        item_path = xbmc.getInfoLabel('ListItem.Path')
         is_folder_item = xbmc.getInfoLabel('ListItem.IsFolder') == 'true'
-        is_librarygenie_folder = False # Default to false
+        is_librarygenie_folder = False
 
-        # Determine if the current item/container is a LibraryGenie folder
-        if is_folder_item and 'plugin.video.librarygenie' in current_container_path:
+        # Debug all relevant paths and properties
+        xbmc.log(f"LibraryGenie: FOLDER DEBUG - Title: '{title}'", xbmc.LOGINFO)
+        xbmc.log(f"LibraryGenie: FOLDER DEBUG - IsFolder: {is_folder_item}", xbmc.LOGINFO)
+        xbmc.log(f"LibraryGenie: FOLDER DEBUG - Container.FolderPath: '{current_container_path}'", xbmc.LOGINFO)
+        xbmc.log(f"LibraryGenie: FOLDER DEBUG - ListItem.FolderPath: '{current_item_path}'", xbmc.LOGINFO)
+        xbmc.log(f"LibraryGenie: FOLDER DEBUG - ListItem.Path: '{item_path}'", xbmc.LOGINFO)
+        
+        # Additional debugging info
+        xbmc.log(f"LibraryGenie: FOLDER DEBUG - ListItem.Label: '{xbmc.getInfoLabel('ListItem.Label')}'", xbmc.LOGINFO)
+        xbmc.log(f"LibraryGenie: FOLDER DEBUG - ListItem.Property(lg_type): '{xbmc.getInfoLabel('ListItem.Property(lg_type)')}'", xbmc.LOGINFO)
+
+        # Check if we're in a LibraryGenie context - multiple detection methods
+        if is_folder_item:
             try:
                 import re
-                # Check for specific patterns that indicate a LibraryGenie folder context
-                if re.search(r'plugin://plugin\.video\.librarygenie/\?action=browse_folder&folder_id=', current_container_path):
+                
+                # Method 1: Check if we're viewing a LibraryGenie folder structure
+                if 'plugin.video.librarygenie' in current_container_path:
+                    xbmc.log("LibraryGenie: FOLDER DEBUG - In LibraryGenie container path", xbmc.LOGINFO)
+                    
+                    # Check for browse_folder action in container path
+                    if 'action=browse_folder' in current_container_path:
+                        is_librarygenie_folder = True
+                        xbmc.log(f"LibraryGenie: FOLDER DEBUG - Detected browse_folder action in container: {current_container_path}", xbmc.LOGINFO)
+                    
+                    # Check if at root of LibraryGenie (no specific action)
+                    elif current_container_path.strip('/').endswith('plugin.video.librarygenie'):
+                        is_librarygenie_folder = True
+                        xbmc.log("LibraryGenie: FOLDER DEBUG - At LibraryGenie root", xbmc.LOGINFO)
+                
+                # Method 2: Check the item's own path
+                if not is_librarygenie_folder and item_path and 'plugin.video.librarygenie' in item_path:
+                    xbmc.log(f"LibraryGenie: FOLDER DEBUG - LibraryGenie found in item path: {item_path}", xbmc.LOGINFO)
+                    if 'action=browse_folder' in item_path:
+                        is_librarygenie_folder = True
+                        xbmc.log("LibraryGenie: FOLDER DEBUG - Detected browse_folder in item path", xbmc.LOGINFO)
+                
+                # Method 3: Check if this is a folder with 📁 emoji (our folder marker)
+                if not is_librarygenie_folder and title and title.startswith('📁'):
+                    xbmc.log("LibraryGenie: FOLDER DEBUG - Detected folder emoji marker", xbmc.LOGINFO)
+                    # Additional check: verify we're in LibraryGenie context
+                    if 'plugin.video.librarygenie' in (current_container_path or item_path or ''):
+                        is_librarygenie_folder = True
+                        xbmc.log("LibraryGenie: FOLDER DEBUG - Confirmed LibraryGenie folder via emoji marker", xbmc.LOGINFO)
+                
+                # Method 4: Check the lg_type property we set in directory_builder
+                lg_type = xbmc.getInfoLabel('ListItem.Property(lg_type)')
+                if not is_librarygenie_folder and lg_type == 'folder':
                     is_librarygenie_folder = True
-                    xbmc.log(f"LibraryGenie: Detected LibraryGenie folder context: {current_container_path}", xbmc.LOGDEBUG)
-                elif re.search(r'plugin://plugin\.video\.librarygenie/\?action=browse_folder&folder_id=', current_item_path): # Check item path too for robustness
-                    is_librarygenie_folder = True
-                    xbmc.log(f"LibraryGenie: Detected LibraryGenie folder context from item path: {current_item_path}", xbmc.LOGDEBUG)
+                    xbmc.log("LibraryGenie: FOLDER DEBUG - Detected via lg_type property", xbmc.LOGINFO)
+                    
             except Exception as e:
-                xbmc.log(f"LibraryGenie: Error detecting LibraryGenie folder context: {str(e)}", xbmc.LOGDEBUG)
+                xbmc.log(f"LibraryGenie: Error detecting LibraryGenie folder context: {str(e)}", xbmc.LOGERROR)
+                import traceback
+                xbmc.log(f"LibraryGenie: Folder detection traceback: {traceback.format_exc()}", xbmc.LOGERROR)
+        
+        xbmc.log(f"LibraryGenie: FOLDER DEBUG - Final detection result: is_librarygenie_folder = {is_librarygenie_folder}", xbmc.LOGINFO)
 
 
         # If this is a folder item AND we're in a LibraryGenie context, show folder options
         if is_folder_item and is_librarygenie_folder:
-            xbmc.log("LibraryGenie: Detected LibraryGenie folder item, showing folder options", xbmc.LOGDEBUG)
+            xbmc.log("LibraryGenie: FOLDER OPTIONS - Detected LibraryGenie folder item, showing folder options", xbmc.LOGINFO)
 
             # Folder-specific options
             options.append("Rename Folder")
@@ -135,6 +180,8 @@ def main():
             options.append("Create New Subfolder")
             options.append("Information")
             options.append("Settings")
+            
+            xbmc.log(f"LibraryGenie: FOLDER OPTIONS - Added {len(options)} folder options", xbmc.LOGINFO)
         else:
             # Regular movie/item options
             # Show Details - always available
@@ -181,45 +228,120 @@ def main():
             ])
 
         if len(options) == 0:
+            xbmc.log("LibraryGenie: No options available, exiting context menu", xbmc.LOGINFO)
             return
+
+        xbmc.log(f"LibraryGenie: CONTEXT MENU - Showing {len(options)} options: {options}", xbmc.LOGINFO)
 
         # Show selection dialog
         dialog = xbmcgui.Dialog()
         selected = dialog.select("LibraryGenie Options", options)
 
         if selected == -1:  # User cancelled
+            xbmc.log("LibraryGenie: User cancelled context menu selection", xbmc.LOGINFO)
             return
 
         selected_option = options[selected]
+        xbmc.log(f"LibraryGenie: User selected option {selected}: '{selected_option}'", xbmc.LOGINFO)
 
         # Handle folder-specific actions
         if is_folder_item and is_librarygenie_folder:
+            xbmc.log(f"LibraryGenie: FOLDER ACTION - Handling folder option: '{selected_option}'", xbmc.LOGINFO)
+            
             if selected_option == "Rename Folder":
-                xbmc.log("LibraryGenie: Action - Rename Folder", xbmc.LOGINFO)
-                # Implement Rename Folder logic
-                pass
+                xbmc.log("LibraryGenie: FOLDER ACTION - Executing Rename Folder", xbmc.LOGINFO)
+                try:
+                    # Extract folder_id from current path for rename operation
+                    folder_id = None
+                    import re
+                    
+                    # Try to extract folder_id from container path
+                    if 'folder_id=' in current_container_path:
+                        match = re.search(r'folder_id=(\d+)', current_container_path)
+                        if match:
+                            folder_id = match.group(1)
+                    
+                    if folder_id:
+                        xbmc.log(f"LibraryGenie: FOLDER ACTION - Extracted folder_id: {folder_id}", xbmc.LOGINFO)
+                        # Call rename folder function
+                        from urllib.parse import quote_plus
+                        rename_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=rename_folder&folder_id={folder_id})'
+                        xbmc.executebuiltin(rename_url)
+                    else:
+                        xbmc.log("LibraryGenie: FOLDER ACTION - Could not extract folder_id for rename", xbmc.LOGERROR)
+                        xbmcgui.Dialog().notification("LibraryGenie", "Could not determine folder to rename", xbmcgui.NOTIFICATION_ERROR, 3000)
+                except Exception as e:
+                    xbmc.log(f"LibraryGenie: FOLDER ACTION - Error in rename folder: {str(e)}", xbmc.LOGERROR)
+                    
             elif selected_option == "Delete Folder":
-                xbmc.log("LibraryGenie: Action - Delete Folder", xbmc.LOGINFO)
+                xbmc.log("LibraryGenie: FOLDER ACTION - Executing Delete Folder", xbmc.LOGINFO)
                 # Implement Delete Folder logic
-                pass
+                xbmcgui.Dialog().notification("LibraryGenie", "Delete Folder - Not implemented yet", xbmcgui.NOTIFICATION_INFO, 3000)
+                
             elif selected_option == "Move Folder":
-                xbmc.log("LibraryGenie: Action - Move Folder", xbmc.LOGINFO)
+                xbmc.log("LibraryGenie: FOLDER ACTION - Executing Move Folder", xbmc.LOGINFO)
                 # Implement Move Folder logic
-                pass
+                xbmcgui.Dialog().notification("LibraryGenie", "Move Folder - Not implemented yet", xbmcgui.NOTIFICATION_INFO, 3000)
+                
             elif selected_option == "Create New List Here":
-                xbmc.log("LibraryGenie: Action - Create New List Here", xbmc.LOGINFO)
-                # Implement Create New List Here logic
-                pass
+                xbmc.log("LibraryGenie: FOLDER ACTION - Executing Create New List Here", xbmc.LOGINFO)
+                try:
+                    # Extract folder_id from current path
+                    folder_id = None
+                    import re
+                    
+                    if 'folder_id=' in current_container_path:
+                        match = re.search(r'folder_id=(\d+)', current_container_path)
+                        if match:
+                            folder_id = match.group(1)
+                    
+                    if folder_id:
+                        xbmc.log(f"LibraryGenie: FOLDER ACTION - Creating list in folder_id: {folder_id}", xbmc.LOGINFO)
+                        create_list_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=create_list&folder_id={folder_id})'
+                        xbmc.executebuiltin(create_list_url)
+                    else:
+                        # Create at root level
+                        xbmc.log("LibraryGenie: FOLDER ACTION - Creating list at root level", xbmc.LOGINFO)
+                        create_list_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=create_list)'
+                        xbmc.executebuiltin(create_list_url)
+                except Exception as e:
+                    xbmc.log(f"LibraryGenie: FOLDER ACTION - Error creating list: {str(e)}", xbmc.LOGERROR)
+                    
             elif selected_option == "Create New Subfolder":
-                xbmc.log("LibraryGenie: Action - Create New Subfolder", xbmc.LOGINFO)
-                # Implement Create New Subfolder logic
-                pass
+                xbmc.log("LibraryGenie: FOLDER ACTION - Executing Create New Subfolder", xbmc.LOGINFO)
+                try:
+                    # Extract folder_id from current path
+                    folder_id = None
+                    import re
+                    
+                    if 'folder_id=' in current_container_path:
+                        match = re.search(r'folder_id=(\d+)', current_container_path)
+                        if match:
+                            folder_id = match.group(1)
+                    
+                    if folder_id:
+                        xbmc.log(f"LibraryGenie: FOLDER ACTION - Creating subfolder in folder_id: {folder_id}", xbmc.LOGINFO)
+                        create_folder_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=create_folder&parent_folder_id={folder_id})'
+                        xbmc.executebuiltin(create_folder_url)
+                    else:
+                        # Create at root level
+                        xbmc.log("LibraryGenie: FOLDER ACTION - Creating folder at root level", xbmc.LOGINFO)
+                        create_folder_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=create_folder)'
+                        xbmc.executebuiltin(create_folder_url)
+                except Exception as e:
+                    xbmc.log(f"LibraryGenie: FOLDER ACTION - Error creating subfolder: {str(e)}", xbmc.LOGERROR)
+                    
             elif selected_option == "Information":
-                xbmc.log("LibraryGenie: Action - Folder Information", xbmc.LOGINFO)
+                xbmc.log("LibraryGenie: FOLDER ACTION - Executing Folder Information", xbmc.LOGINFO)
                 xbmc.executebuiltin('Action(Info)')
+                
             elif selected_option == "Settings":
-                xbmc.log("LibraryGenie: Action - Folder Settings", xbmc.LOGINFO)
+                xbmc.log("LibraryGenie: FOLDER ACTION - Executing Folder Settings", xbmc.LOGINFO)
                 xbmc.executebuiltin(f'Addon.OpenSettings({addon_id})')
+            else:
+                xbmc.log(f"LibraryGenie: FOLDER ACTION - Unknown folder option: '{selected_option}'", xbmc.LOGWARNING)
+                
+            xbmc.log("LibraryGenie: FOLDER ACTION - Folder action handling complete", xbmc.LOGINFO)
             return # Exit after handling folder options
 
         # Handle regular item actions
