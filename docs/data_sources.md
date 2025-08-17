@@ -1,4 +1,3 @@
-
 # LibraryGenie Data Sources Documentation
 
 This document explains the data source system used in LibraryGenie's database to track and manage different types of media content. Understanding these sources is crucial for proper data handling and debugging.
