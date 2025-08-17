@@ -197,69 +197,25 @@ def browse_list(list_id):
 
         for i, item in enumerate(display_items):
             try:
-                # ResultsManager.build_display_items_for_list returns tuples: (li, file, media)
+                # ResultsManager.build_display_items_for_list returns tuples: (item_url, li, is_folder)
                 if isinstance(item, tuple) and len(item) >= 3:
-                    li, file_path, media_dict = item
+                    item_url, li, is_folder = item
                 else:
                     # Fallback for unexpected format
                     utils.log(f"Unexpected item format: {type(item)}", "WARNING")
                     continue
 
-                # Set additional properties
-                li.setProperty('lg_type', 'movie')
-                li.setProperty('lg_list_id', str(list_id))
-                li.setProperty('lg_movie_id', str(media_dict.get('id', '')))
-                add_context_menu_for_item(li, 'movie', list_id=list_id, movie_id=media_dict.get('id'))
+                # The ListItem is already fully built by ResultsManager, just use the URL and add to directory
+                url = item_url
+                is_playable = not is_folder
 
-                # Determine the URL and playability
-                url = file_path or media_dict.get('file') or media_dict.get('play') or ''
-                is_playable = False
-                movie_id = None
-
-                # Check if we have a valid Kodi ID for playable content
-                if media_dict.get('movieid') and str(media_dict['movieid']).isdigit() and int(media_dict['movieid']) > 0:
-                    movie_id = int(media_dict['movieid'])
-                    is_playable = True
-                elif media_dict.get('kodi_id') and str(media_dict['kodi_id']).isdigit() and int(media_dict['kodi_id']) > 0:
-                    movie_id = int(media_dict['kodi_id'])
-                    is_playable = True
-                elif url:
-                    is_playable = True
-
-                # For Kodi library items, create a plugin URL that will handle playback
-                if movie_id and is_playable:
-                    url = build_plugin_url({
-                        'action': 'play_movie',
-                        'movieid': movie_id,
-                        'list_id': list_id
-                    })
-                    # Also set the file path directly so Kodi can use its native playback if needed
-                    if file_path or media_dict.get('file'):
-                        li.setPath(file_path or media_dict.get('file'))
-                elif url and is_playable:
-                    # For items with direct file paths, use them directly
-                    if url:
-                        li.setPath(url)
-                elif not url or not is_playable:
-                    # For items without valid play URLs, create a plugin URL that will show item details
-                    url = build_plugin_url({
-                        'action': 'show_item_details',
-                        'list_id': list_id,
-                        'item_id': media_dict.get('id'),
-                        'title': media_dict.get('title', 'Unknown')
-                    })
-                    is_playable = False
-
-                # Set playability properties
                 if is_playable:
-                    li.setProperty('IsPlayable', 'true')
                     playable_count += 1
                 else:
-                    li.setProperty('IsPlayable', 'false')
                     non_playable_count += 1
 
                 # Add directory item with proper folder flag
-                xbmcplugin.addDirectoryItem(handle, url, li, isFolder=not is_playable)
+                xbmcplugin.addDirectoryItem(handle, url, li, isFolder=is_folder)
                 items_added += 1
             except Exception as e:
                 utils.log(f"Error processing item {i+1}: {str(e)}", "ERROR")
@@ -269,17 +225,10 @@ def browse_list(list_id):
         utils.log(f"Successfully added {items_added} items ({playable_count} playable, {non_playable_count} non-playable)", "INFO")
 
         # Check if this is a search results list with scores to preserve order
+        # Since display items are now (url, li, is_folder), we need to check the original list items
         has_scores = False
-        for item in display_items:
-            # Handle both tuple (li, file, media) and dict formats
-            if isinstance(item, tuple) and len(item) >= 3:
-                media_dict = item[2]  # Third element is the metadata dict
-            elif isinstance(item, dict):
-                media_dict = item
-            else:
-                media_dict = {}
-
-            search_score = media_dict.get('search_score', 0)
+        for item in list_items:
+            search_score = item.get('search_score', 0)
             if search_score is not None and search_score > 0:
                 has_scores = True
                 break
