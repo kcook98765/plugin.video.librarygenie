@@ -225,7 +225,8 @@ def browse_list(list_id):
         utils.log(f"Successfully added {items_added} items ({playable_count} playable, {non_playable_count} non-playable)", "INFO")
 
         # Check if this is a search results list with scores to preserve order
-        # Since display items are now (url, li, is_folder), we need to check the original list items
+        # Get the original list items to check for search scores
+        list_items = query_manager.fetch_list_items_with_details(list_id)
         has_scores = False
         for item in list_items:
             search_score = item.get('search_score', 0)
