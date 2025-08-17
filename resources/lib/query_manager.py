@@ -807,10 +807,26 @@ class QueryManager(Singleton):
         for key in field_names:
             if key in data:
                 value = data[key]
-                if value is not None and value != '':
+                # Convert None to empty string and ensure we have valid data
+                if value is None:
+                    value = ''
+                elif isinstance(value, str) and value.strip() == '':
+                    value = ''
+                # Only include non-empty values or essential fields
+                if value != '' or key in ['kodi_id', 'year', 'rating', 'duration', 'votes']:
                     filtered_data[key] = value
 
         media_data = filtered_data
+
+        # Ensure essential fields have default values
+        media_data.setdefault('kodi_id', 0)
+        media_data.setdefault('year', 0)
+        media_data.setdefault('rating', 0.0)
+        media_data.setdefault('duration', 0)
+        media_data.setdefault('votes', 0)
+        media_data.setdefault('title', 'Unknown')
+        media_data.setdefault('source', 'unknown')
+        media_data.setdefault('media_type', 'movie')
 
         # Ensure search_score is included if present in input data
         if 'search_score' in data and 'search_score' not in media_data:
