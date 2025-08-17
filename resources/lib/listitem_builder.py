@@ -426,7 +426,7 @@ class ListItemBuilder:
 
         # Set content properties
         li.setProperty('IsPlayable', 'true')
-        
+
         # Set LibraryGenie marker to exclude from native context menu
         li.setProperty('LibraryGenie.Item', 'true')
 
@@ -447,17 +447,17 @@ class ListItemBuilder:
         # Use centralized context menu builder
         from resources.lib.context_menu_builder import get_context_menu_builder
         context_builder = get_context_menu_builder()
-        
+
         # Build context based on available information
         context = {}
         if hasattr(media_info, '_context_info'):
             context = media_info._context_info
-        
+
         # If this item is from a list view, ensure we have the list context
         if media_info.get('_viewing_list_id'):
             context['current_list_id'] = media_info['_viewing_list_id']
             utils.log(f"Setting context for list viewing: list_id={media_info['_viewing_list_id']}, media_id={media_info.get('media_id')}", "DEBUG")
-        
+
         # Get context menu items from centralized builder
         context_menu_items = context_builder.build_video_context_menu(media_info, context)
 
@@ -471,7 +471,7 @@ class ListItemBuilder:
 
         # Enhanced play URL handling for mixed library and plugin items
         play_url = None
-        
+
         # For library items, prefer Kodi's native file paths
         if media_info.get('source') == 'library' or media_info.get('kodi_id'):
             play_url = (media_info.get('info', {}).get('play') or 
@@ -481,7 +481,7 @@ class ListItemBuilder:
             # For plugin items, handle special play URLs and fallbacks
             plugin_play_url = media_info.get('play')
             file_path = media_info.get('file')
-            
+
             if plugin_play_url and plugin_play_url.startswith('plugin_item://'):
                 # This is a stored plugin item - use the original file path if available
                 play_url = file_path if file_path else plugin_play_url
@@ -494,7 +494,7 @@ class ListItemBuilder:
             elif file_path:
                 # Fallback to file path
                 play_url = file_path
-        
+
         # Set the path if we have a valid play URL
         if play_url and play_url != 'None':
             li.setPath(play_url)

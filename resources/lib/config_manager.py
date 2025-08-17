@@ -1,4 +1,3 @@
-
 import os
 from functools import lru_cache
 from .addon_ref import get_addon
@@ -9,44 +8,18 @@ class Config:
     """ FIELDS should align with table list_items fields AND for use in listitem building """
     _instance = None
     _initialized = False
-    
+
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(Config, cls).__new__(cls)
         return cls._instance
-    
+
     FIELDS = [
-        "cast TEXT",
-        "country TEXT",
-        "dateadded TEXT",
-        "director TEXT",
-        "duration INTEGER",
-        "fanart TEXT",
-        "genre TEXT",
-        "imdbnumber TEXT",
-        "kodi_id INTEGER",
-        "media_type TEXT",
-        "mpaa TEXT",
-        "path TEXT",
-        "play TEXT",
-        "plot TEXT",
-        "premiered TEXT",
-        "rating REAL",
-        "search_score REAL",
-        "source TEXT",
-        "status TEXT",
-        "stream_url TEXT",
-        "studio TEXT",
-        "tagline TEXT",
-        "thumbnail TEXT",
-        "poster TEXT",
-        "art TEXT",
-        "title TEXT", 
-        "trailer TEXT",
-        "uniqueid TEXT",
-        "votes INTEGER",
-        "writer TEXT",
-        "year INTEGER"
+        "cast TEXT", "country TEXT", "dateadded TEXT", "director TEXT", "duration INTEGER", "fanart TEXT", "file TEXT", "genre TEXT",
+        "imdbnumber TEXT", "kodi_id INTEGER", "media_type TEXT", "mpaa TEXT", "path TEXT", "play TEXT", "plot TEXT",
+        "premiered TEXT", "rating REAL", "search_score REAL", "source TEXT", "status TEXT", "stream_url TEXT", "studio TEXT",
+        "tagline TEXT", "thumbnail TEXT", "poster TEXT", "art TEXT", "title TEXT", "trailer TEXT", "uniqueid TEXT",
+        "votes INTEGER", "writer TEXT", "year INTEGER"
     ]
 
     def __init__(self):
@@ -55,9 +28,9 @@ class Config:
         """
         if Config._initialized:
             return
-            
+
         utils.log("=== Initializing Config Manager ===", "DEBUG")
-        
+
         try:
             utils.log("Getting addon instance", "DEBUG")
             self._addon = get_addon()
@@ -70,7 +43,7 @@ class Config:
         utils.log("Initializing SettingsManager", "DEBUG")
         from .settings_manager import SettingsManager
         self.settings = SettingsManager()
-        
+
         utils.log("Reading addon information", "DEBUG")
         self.addonid = self._addon.getAddonInfo('id')
         self.addonname = self._addon.getAddonInfo('name')
@@ -98,14 +71,14 @@ class Config:
         # Normalize None to empty string
         if value is None:
             value = default
-        
+
         # Log with proper masking for sensitive settings
         if setting_id in ['lgs_upload_key', 'remote_api_key']:
             masked_value = (value[:4] + "..." + value[-2:]) if value else "(not set)"
             utils.log(f"Config: Retrieved setting '{setting_id}': '{masked_value}'", "DEBUG")
         else:
             utils.log(f"Config: Retrieved setting '{setting_id}': '{value or '(not set)'}'", "DEBUG")
-        
+
         return value
 
     def set_setting(self, setting_id, value):

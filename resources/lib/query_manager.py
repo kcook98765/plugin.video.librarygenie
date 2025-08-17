@@ -1113,6 +1113,7 @@ class QueryManager(Singleton):
             f"""CREATE TABLE IF NOT EXISTS media_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 {fields_str},
+                file TEXT,
                 UNIQUE (kodi_id, play)
             )""",
             """CREATE TABLE IF NOT EXISTS list_items (
@@ -1167,6 +1168,15 @@ class QueryManager(Singleton):
                 # Column doesn't exist, add it
                 utils.log("Adding search_score column to media_items table", "INFO")
                 cursor.execute("ALTER TABLE media_items ADD COLUMN search_score REAL")
+                conn_info['connection'].commit()
+
+            # Add migration for file column if it doesn't exist
+            try:
+                cursor.execute("SELECT file FROM media_items LIMIT 1")
+            except sqlite3.OperationalError:
+                # Column doesn't exist, add it
+                utils.log("Adding file column to media_items table", "INFO")
+                cursor.execute("ALTER TABLE media_items ADD COLUMN file TEXT")
                 conn_info['connection'].commit()
 
         finally:

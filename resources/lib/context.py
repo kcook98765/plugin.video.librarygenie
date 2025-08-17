@@ -469,6 +469,7 @@ def add_plugin_item_to_list(media_info):
             'genre': media_info.get('genre', ''),
             'director': media_info.get('director', ''),
             'cast': media_info.get('cast', '[]'),
+            'file': media_info.get('file', ''),
             'thumbnail': media_info.get('thumbnail', ''),
             'poster': media_info.get('poster', ''),
             'fanart': media_info.get('fanart', ''),
