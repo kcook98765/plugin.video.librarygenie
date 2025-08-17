@@ -430,7 +430,7 @@ def add_to_list(params):
             'year': int(year) if year and year.isdigit() else 0,
             'imdbnumber': imdb_id,
             'media_type': 'movie',
-            'source': 'context_menu'
+            'source': 'lib'
         }
 
         # Use database manager to handle the add to list functionality
@@ -555,7 +555,7 @@ def add_to_list_from_context(params):
             'year': int(year) if year and year.isdigit() else 0,
             'imdbnumber': imdb_id,
             'media_type': 'movie',
-            'source': 'context_menu'
+            'source': 'lib'
         }
 
         # Use the database manager to handle the add to list functionality
