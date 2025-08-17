@@ -1,3 +1,4 @@
+
 # LibraryGenie Data Sources Documentation
 
 This document explains the data source system used in LibraryGenie's database to track and manage different types of media content. Understanding these sources is crucial for proper data handling and debugging.
@@ -23,51 +24,7 @@ LibraryGenie uses a `source` field in the `media_items` table to categorize cont
 2. **Library References**: Created via `QueryManager.insert_media_item()`
 3. **Display**: Full metadata retrieved from Kodi when displaying library items
 
-### 2. Search Results (`search`) - AI-Powered Search Results
-
-**Purpose**: Search results from AI-powered semantic search with relevance scoring.
-
-**Characteristics**:
-- Stored with `source = 'search'`
-- Contains search relevance scores and IMDB IDs
-- Automatically saved to "Search History" folder
-- Include title/year from `imdb_exports` table lookup
-- Use `search_score` field for result ranking
-- Protected from library sync operations
-
-**Data Flow**:
-1. **Search Results**: Saved with `source = 'search'` and `search_score` field, organized into timestamped lists
-2. **Search History**: Automatically organized into "Search History" folder
-3. **Display**: Full metadata retrieved from Kodi when displaying search results
-
-**Identification Logic**:
-- Library items: `source = 'lib'`
-- Search results: `source = 'search'`
-- Manual items: `source = 'manual'`
-
-**Example Use Cases**:
-- Library movie references in user-created lists
-- AI search results with relevance scoring
-- Cross-referencing with external data sources
-- Maintaining list membership without duplicating Kodi's data
-
-```sql
--- Example lib record (library reference)
-INSERT INTO media_items (kodi_id, imdbnumber, source, media_type, title, year)
-VALUES (123, 'tt0111161', 'lib', 'movie', '', 0);
-
--- Example search record
-INSERT INTO media_items (
-    imdbnumber, source, search_score, title, year, 
-    plot, play, media_type
-) VALUES (
-    'tt0111161', 'search', 9.85, 'The Shawshank Redemption', 1994,
-    'Search result for "prison drama" - Score: 9.85 - IMDb: tt0111161',
-    'search_history://tt0111161', 'movie'
-);
-```
-
-### 2. Manual (`manual`)
+### 2. Manual (`manual`) - User-Curated Library Content
 
 **Purpose**: Items manually added via context menus from native Kodi library
 
@@ -89,17 +46,80 @@ INSERT INTO media_items (
 **URL Generation**:
 - Uses `file` path from Kodi metadata (e.g., `smb://server/movie.mp4`)
 - Fallback to `info://` URL if no file path available
-- Does NOT use `movieid://` protocol (which caused the original issue)
+- Does NOT use `movieid://` protocol (which caused playback issues)
 
-**Example**: Movie added to list via "Add to List" context menu
+### 3. Search Results (`search`) - AI-Powered Search Results
 
-```sql
--- Example manual record
-INSERT INTO media_items (imdbnumber, source, media_type, title, year)
-VALUES ('tt0111161', 'manual', 'movie', 'The Shawshank Redemption', 1994);
+**Purpose**: Search results from AI-powered semantic search with relevance scoring.
+
+**Characteristics**:
+- Stored with `source = 'search'`
+- Contains search relevance scores and IMDB IDs
+- Automatically saved to "Search History" folder
+- Include title/year from `imdb_exports` table lookup
+- Use `search_score` field for result ranking
+- Protected from library sync operations
+
+**Data Flow**:
+1. **Search Results**: Saved with `source = 'search'` and `search_score` field, organized into timestamped lists
+2. **Search History**: Automatically organized into "Search History" folder
+3. **Display**: Full metadata retrieved from Kodi when displaying search results
+
+### 4. Kodi Library (`kodi_library`) - Shortlist Import Library Matches
+
+**Purpose**: Items imported from Shortlist that were found to exist in the Kodi library.
+
+**Characteristics**:
+- Created during shortlist import when items match existing Kodi library content
+- Contains full Kodi library metadata and valid `kodi_id`
+- **Processed through library item path** like `lib` and `manual` sources
+- Uses library data instead of shortlist data for better quality
+- Preserves library references while tracking shortlist import origin
+
+**Data Flow**:
+1. **Shortlist Import**: Items looked up in Kodi library via JSON-RPC
+2. **Library Match Found**: Stored with `source = 'kodi_library'` and Kodi metadata
+3. **Display Processing**: Follows library item processing path with JSON-RPC lookup
+4. **URL Generation**: Uses file paths from Kodi library
+
+**Processing Logic**:
+```python
+# In ResultsManager.build_display_items_for_list()
+# kodi_library sources follow library processing path
+if src == 'external' or src == 'plugin_addon':
+    external.append(r)
+    continue
+# kodi_library falls through to library processing with lib, manual, search
 ```
 
-### 3. External (`external`) - External Addon Content
+### 5. Shortlist Import (`shortlist_import`) - Non-Library Shortlist Content
+
+**Purpose**: Items imported from Shortlist that were NOT found in the Kodi library.
+
+**Characteristics**:
+- Uses `INSERT OR REPLACE` for updates during import
+- Contains complete metadata from shortlist addon
+- No valid `kodi_id` (set to 0)
+- Preserves original shortlist metadata
+- **Processed through library item path** for consistency
+
+**Data Flow**:
+1. **Shortlist Import**: Items NOT found in Kodi library during lookup
+2. **Shortlist Data**: Complete metadata stored from shortlist addon
+3. **Display Processing**: Follows library processing but shows as "[Unmatched]"
+4. **URL Generation**: Uses `info://` URLs for non-playable items
+
+**Lookup Logic in QueryManager**:
+```python
+if source == 'shortlist_import':
+    # Look up by title, year, and play path for uniqueness
+    cursor.execute(
+        "SELECT id FROM media_items WHERE title = ? AND year = ? AND play = ? AND source = ?",
+        (title, year, play, source)
+    )
+```
+
+### 6. External (`external`) - External Addon Content
 
 **Purpose**: Full metadata storage for content from external addons/sources.
 
@@ -108,110 +128,70 @@ VALUES ('tt0111161', 'manual', 'movie', 'The Shawshank Redemption', 1994);
 - No `kodi_id` (external to library)
 - Full playback information included
 - Persistent storage of external content details
+- **Processed through external processing path**
 
 **Data Flow**:
 1. External addon provides complete media metadata
 2. Stored via `QueryManager.insert_media_item()` with `source = 'external'`
-3. Looked up by title/year/play combination for deduplication
+3. **Processed separately from library items in ResultsManager**
 
-**Use Cases**:
-- Content from streaming addons
-- External media sources
-- Non-library content in lists
-
-```sql
--- Example external record
-INSERT INTO media_items (
-    title, year, plot, genre, director, source, play, media_type
-) VALUES (
-    'Example Movie', 2024, 'Full plot description...', 'Action',
-    'Director Name', 'external', 'plugin://some.addon/?id=123', 'movie'
-);
-```
-
-### 4. Plugin Addon (`plugin_addon`) - Plugin Addon Content
+### 7. Plugin Addon (`plugin_addon`) - Plugin Addon Content
 
 **Purpose**: Content provided by plugin addons with special handling.
 
 **Characteristics**:
 - Similar to `external` but specifically from plugin sources
 - May have different metadata structure
-- Handled similarly to external content in display logic
-
-**Data Flow**:
-1. Plugin addon provides metadata
-2. Stored with `source = 'plugin_addon'`
-3. Processed alongside external content for display
-
-### 5. Shortlist Import (`shortlist_import`) - Imported Shortlist Content
-
-**Purpose**: Content imported from external shortlist files or sources.
-
-**Characteristics**:
-- Uses `INSERT OR REPLACE` for updates
-- May contain partial or complete metadata
-- Preserves original import source information
-- Looked up by title/year/play combination
-
-**Data Flow**:
-1. Shortlist import process extracts media information
-2. Data stored with `source = 'shortlist_import'`
-3. Allows for re-importing and updating existing records
-
-**Use Cases**:
-- Importing IMDB lists
-- Bulk content imports
-- External list migrations
+- **Processed through external processing path** alongside external content
 
 ## Source-Specific Logic in ResultsManager
 
-The `ResultsManager.build_display_items_for_list()` method handles different sources:
+The `ResultsManager.build_display_items_for_list()` method uses a clear branching strategy:
 
-### External/Plugin Content Processing
+### Library Processing Path
 ```python
 src = (r.get('source') or '').lower()
+# Only external and plugin_addon sources go to external processing
+# All other sources (lib, manual, search, kodi_library) follow library item processing path
 if src == 'external' or src == 'plugin_addon':
     external.append(r)
     continue
 ```
 
-### Library Content Processing (lib, manual)
-Manual items fall through to library processing since they reference the same Kodi library content:
+**Sources using library processing**: `lib`, `manual`, `search`, `kodi_library`, `shortlist_import`
 
+**Processing steps**:
+1. Title/year lookup from `imdb_exports` table
+2. Batch JSON-RPC lookup for library metadata
+3. File path URL generation for playback
+4. Search score preservation for ordering
+
+### External Processing Path
 ```python
-# Manual and kodi_library items continue to library processing...
-            # Try to get title/year from imdb_exports first
+# External items processed separately with stored metadata
+external_sorted = sorted(external, key=lambda x: x.get('search_score', 0), reverse=True)
 ```
 
-### URL Generation Logic
-URL generation for all library-referenced items:
+**Sources using external processing**: `external`, `plugin_addon`
 
-```python
-# Determine the appropriate URL for this item
-# For manual items and library items, use the file path if available
-file_path = meta.get('file')
-if file_path:
-    item_url = file_path  # Use actual file path (e.g., smb://server/movie.mp4)
-else:
-    item_url = f"info://{r.get('id', 'unknown')}"  # Fallback
-```
+**Processing steps**:
+1. Use stored metadata directly
+2. Sort by search score if available
+3. Use stored file paths or external URLs
 
 ## Query Manager Source Handling
 
 Different sources require different query strategies in `QueryManager.insert_media_item()`:
 
+### Update Strategy
 ```python
-# For shortlist imports - allow updates
 if source == 'shortlist_import':
-    query_type = 'INSERT OR REPLACE'
+    query_type = 'INSERT OR REPLACE'  # Allow updates
 else:
-    query_type = 'INSERT OR IGNORE'
+    query_type = 'INSERT OR IGNORE'   # Prevent duplicates
 ```
 
 ### Lookup Logic
-
-Source-specific lookup prevents conflicts:
-
 ```python
 if source == 'shortlist_import':
     # Look up by title, year, and play path
@@ -219,187 +199,185 @@ if source == 'shortlist_import':
         "SELECT id FROM media_items WHERE title = ? AND year = ? AND play = ? AND source = ?",
         (title, year, play, source)
     )
-elif source in ('lib', 'search'): # Updated to include 'search' source
-    if source == 'search':
-        # For search results, look up by IMDb ID
-        cursor.execute(
-            "SELECT id FROM media_items WHERE imdbnumber = ? AND source = ?",
-            (imdb_id, source)
-        )
-    else: # source == 'lib'
-        # For regular lib items
-        cursor.execute(
-            "SELECT id FROM media_items WHERE imdbnumber = ? AND source = ?",
-            (imdb_id, source)
-        )
+elif source in ('search', 'lib') and media_data.get('imdbnumber'):
+    # Look up by IMDb ID and source
+    cursor.execute(
+        "SELECT id FROM media_items WHERE imdbnumber = ? AND source = ?",
+        (media_data.get('imdbnumber'), source)
+    )
+else:
+    # Original lookup logic for other sources
+    cursor.execute(
+        "SELECT id FROM media_items WHERE kodi_id = ? AND play = ?",
+        (lookup_kodi_id, lookup_play)
+    )
 ```
 
-### Library Sync Protection
+## Shortlist Import System
 
-Library sync operations only affect library content in `QueryManager.sync_movies()`:
+The shortlist import system implements sophisticated logic for handling different data sources:
+
+### Library Detection Process
+```python
+def lookup_in_kodi_library(self, title, year):
+    # 1. Direct title search using JSON-RPC
+    # 2. Fuzzy title search (contains)
+    # 3. Fallback manual search through all movies
+    # 4. Returns None if no match found
+```
+
+### Data Conversion Logic
+```python
+def convert_shortlist_item_to_media_dict(self, item, kodi_movie=None):
+    if kodi_movie:
+        # Use Kodi library data - preferred when available
+        media_dict['source'] = 'kodi_library'
+        media_dict['kodi_id'] = kodi_movie.get('movieid')
+    else:
+        # Use Shortlist data with enhanced validation
+        media_dict['source'] = 'shortlist_import'  
+        media_dict['kodi_id'] = 0
+```
+
+## Library Sync Protection
+
+Library sync operations only affect library content:
 
 ```python
 def sync_movies(self, movies):
-    """Only clear library references, preserve search results and other sources"""
-    # This preserves search results which have search_score field
-    self.execute_query("DELETE FROM media_items WHERE source = 'lib'") # Simplified to clear all 'lib' sources
+    """Only clear library references, preserve other sources"""
+    self.execute_query("DELETE FROM media_items WHERE source = 'lib'")
+    # Preserves search, shortlist_import, kodi_library, external sources
 ```
 
-## Search History Management
+## URL Generation Strategy
 
-Search history uses special handling within the `search` source via `DatabaseManager.add_search_history()`:
-
-### Search Result Processing
-1. Remote API returns search results with IMDB IDs and scores via `RemoteAPIClient.search_movies()`
-2. Title/year looked up from `imdb_exports` table if available
-3. Results stored with `source = 'search'`
-4. Automatically organized into timestamped lists in "Search History" folder
-
-### Search History Identification
+### Library Sources (lib, manual, search, kodi_library, shortlist_import)
 ```python
-def is_search_result(self, media_item):
-    """Check if a media item is a search result"""
-    return media_item.get('source') == 'search'
+# Use file path from Kodi metadata when available
+file_path = meta.get('file')
+if file_path:
+    item_url = file_path  # e.g., smb://server/movie.mp4
+else:
+    item_url = f"info://{r.get('id', 'unknown')}"  # Fallback
+```
 
-def is_library_reference(self, media_item):
-    """Check if a media item is a library reference"""
-    return media_item.get('source') == 'lib' and media_item.get('kodi_id', 0) > 0
+### External Sources (external, plugin_addon)
+```python
+# Use stored file path or external URL
+item_url = item.get('file', f"external://{item.get('id', 'unknown')}")
 ```
 
 ## Best Practices
 
-### 1. Source Selection
+### 1. Source Selection Guidelines
 
-- Use `lib` for Kodi library references.
-- Use `search` for AI-powered search results.
-- Use `manual` for user-curated library items via context menu.
-- Use `external` for complete external content.
-- Use `plugin_addon` for plugin-specific content.
-- Use `shortlist_import` for bulk imports.
+- Use `lib` for automatic Kodi library references
+- Use `manual` for user-curated library items via context menu
+- Use `search` for AI-powered search results with scores
+- Use `kodi_library` for shortlist imports that match library content
+- Use `shortlist_import` for shortlist imports without library matches
+- Use `external` for complete external content with metadata
+- Use `plugin_addon` for plugin-specific content
 
-### 2. Data Consistency
+### 2. Data Consistency Rules
 
 - Always set appropriate source when inserting via `QueryManager.insert_media_item()`
-- Use source-specific lookup logic
-- Respect source-specific update strategies
-- Maintain referential integrity
+- Use source-specific lookup logic to prevent duplicates
+- Respect source-specific update strategies (`INSERT OR REPLACE` vs `INSERT OR IGNORE`)
+- Maintain proper `kodi_id` values (0 for non-library content)
 
-### 3. Performance Considerations
+### 3. Processing Path Considerations
 
-- `lib` and `manual` sources minimize storage overhead for library content
-- `search` sources preserve relevance information
-- `external` sources provide fast access to full metadata
-- Use appropriate indexes for source-specific queries
+- Library processing path: Fetches fresh metadata via JSON-RPC
+- External processing path: Uses stored metadata directly
+- URL generation depends on processing path and source type
+- Search scores preserved across all processing paths
 
-### 4. Library vs Search Distinction
-
-The key distinctions:
-
-```sql
--- Manually added items (user-curated library content)
-SELECT * FROM media_items 
-WHERE source = 'manual';
-
--- Library references (system-generated)
-SELECT * FROM media_items 
-WHERE source = 'lib';
-
--- Search results (AI-generated with scores)  
-SELECT * FROM media_items 
-WHERE source = 'search';
-```
-
-## Debugging Source Issues
+## Troubleshooting Source Issues
 
 ### Common Problems
 
-1. **URL Generation Issues**: Invalid protocols like `movieid://` causing playback failures
-2. **Search Result Conflicts**: Multiple search results for same IMDB ID
-3. **Missing Library References**: Library content without proper references after sync
-4. **Source Confusion**: Mixing up library references and search results
+1. **Playback URL Issues**: Wrong processing path for source type
+2. **Duplicate Content**: Incorrect lookup logic for source
+3. **Missing Metadata**: Source processed through wrong path
+4. **Library Sync Conflicts**: Sources not properly protected
 
 ### Diagnostic Queries
 
 ```sql
 -- Check source distribution
-SELECT 
-    source,
-    COUNT(*) as count 
+SELECT source, COUNT(*) as count 
 FROM media_items 
 GROUP BY source;
 
--- Find duplicate IMDB entries across different sources
-SELECT 
-    imdbnumber,
-    source,
-    COUNT(*) as count 
-FROM media_items 
-WHERE imdbnumber IS NOT NULL 
-GROUP BY imdbnumber, source
-HAVING count > 1;
+-- Find items by processing path
+-- Library path sources
+SELECT * FROM media_items 
+WHERE source IN ('lib', 'manual', 'search', 'kodi_library', 'shortlist_import');
 
--- Verify search history organization  
-SELECT l.name, COUNT(li.id) as items
-FROM lists l
-JOIN list_items li ON l.id = li.list_id
-JOIN media_items mi ON li.media_item_id = mi.id
-WHERE mi.source = 'search'
-GROUP BY l.name
-ORDER BY l.name;
+-- External path sources  
+SELECT * FROM media_items
+WHERE source IN ('external', 'plugin_addon');
+
+-- Verify shortlist import results
+SELECT 
+    source,
+    COUNT(*) as count,
+    COUNT(CASE WHEN kodi_id > 0 THEN 1 END) as with_kodi_id
+FROM media_items 
+WHERE source IN ('kodi_library', 'shortlist_import')
+GROUP BY source;
 ```
 
 ### Log Analysis
 
-Enable debug logging to trace source-specific operations:
+Key log patterns to monitor:
 
 ```python
-utils.log(f"Successfully inserted media item with ID: {inserted_id} for source: {source}", "DEBUG")
-```
+# Source processing decisions
+"Only external and plugin_addon sources go to external processing"
 
-Look for URL generation logs:
-```python
-utils.log(f"Set ListItem path for '{title}': {play_url}", "DEBUG")
+# Shortlist import decisions
+"JSONRPC DECISION: Using library data instead of shortlist data"
+"JSONRPC DECISION: Will use shortlist data as no library match exists"
+
+# URL generation
+"Set ListItem path for '{title}': {play_url}"
 ```
 
 ## Migration Considerations
 
 When updating source handling:
 
-1. **Backup Database**: Always backup before source changes
-2. **Test Migrations**: Verify source transitions work correctly
-3. **Update Logic**: Ensure all source-specific logic accounts for search results within `search` source
-4. **Validate Results**: Check data integrity after changes
-5. **URL Generation**: Verify playback URLs are generated correctly for each source
+1. **Backup Database**: Always backup before source logic changes
+2. **Test Source Processing**: Verify each source follows correct processing path
+3. **Validate URL Generation**: Ensure playback URLs work for each source type
+4. **Check Import Logic**: Test shortlist imports create correct source types
+5. **Verify Sync Protection**: Confirm library sync preserves non-library sources
 
-## Recent Fixes
+## Recent Updates
 
-### Manual Source URL Generation Fix
-The recent fix in `ResultsManager.build_display_items_for_list()` corrected URL generation for manual items:
+### Kodi Library Source Integration
+Added `kodi_library` source to library processing path to ensure shortlist imports that match library content are handled consistently with other library sources.
 
-**Before (Broken)**:
-```python
-movieid = meta.get('movieid', 0)
-if movieid and movieid > 0:
-    item_url = f"movieid://{movieid}/"  # Invalid protocol
-```
+### Processing Path Clarification
+Clarified that most sources (`lib`, `manual`, `search`, `kodi_library`, `shortlist_import`) use the library processing path, while only `external` and `plugin_addon` use the external processing path.
 
-**After (Fixed)**:
-```python
-file_path = meta.get('file')
-if file_path:
-    item_url = file_path  # Use actual file path from Kodi
-else:
-    item_url = f"info://{r.get('id', 'unknown')}"  # Fallback
-```
-
-This ensures that manually added library items use valid file paths for playback instead of invalid `movieid://` URLs.
+### URL Generation Fix
+Fixed URL generation for manual and library sources to use actual file paths instead of invalid `movieid://` protocols.
 
 ## Conclusion
 
-The source system provides flexible content management while maintaining data integrity. The `manual` source specifically handles user-curated library content with proper file path resolution for playback. Understanding source-specific processing is essential for proper LibraryGenie operation and development.
+The source system provides flexible content management while maintaining clear processing paths. The key distinction is between:
+
+- **Library Processing Path**: Sources that reference or relate to Kodi library content
+- **External Processing Path**: Sources with complete standalone metadata
+
+Understanding this distinction is essential for proper LibraryGenie operation and debugging.
 
 For implementation details, see:
-- `QueryManager.insert_media_item()` - Source-specific insertion logic
-- `QueryManager.sync_movies()` - Library sync operations that preserve search results
-- `DatabaseManager.add_search_history()` - Search result handling within `search` source
-- `ResultsManager.build_display_items_for_list()` - Source-specific processing and URL generation
+- `ResultsManager.build_display_items_for_list()` - Source-specific processing logic
+- `QueryManager.insert_media_item()` - Source-specific insertion and lookup
+- `ShortlistImporter.convert_shortlist_item_to_media_dict()` - Source assignment logic
+- `DatabaseManager.add_shortlist_items()` - Batch import with source handling
