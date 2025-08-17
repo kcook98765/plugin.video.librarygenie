@@ -15,13 +15,73 @@ class ShortlistImporter:
         self.jsonrpc = JSONRPC()
 
     def _rpc(self, method, params):
-        """Execute JSON-RPC call with error handling"""
+        """Execute JSON-RPC call with error handling and detailed logging"""
         req = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
+        
+        # Log detailed request information
+        utils.log(f"=== SHORTLIST JSON-RPC REQUEST ===", "INFO")
+        utils.log(f"Method: {method}", "INFO")
+        utils.log(f"Raw params: {json.dumps(params, indent=2)}", "INFO")
+        utils.log(f"Full request JSON: {json.dumps(req, indent=2)}", "INFO")
+        
+        # Special logging for Files.GetDirectory calls to analyze properties
+        if method == "Files.GetDirectory":
+            properties = params.get("properties", [])
+            utils.log(f"Properties requested ({len(properties)} total): {properties}", "INFO")
+            if len(properties) > 0:
+                utils.log(f"Property at index 7: {properties[7] if len(properties) > 7 else 'N/A'}", "INFO")
+                utils.log(f"All properties with indices:", "INFO")
+                for i, prop in enumerate(properties):
+                    utils.log(f"  [{i}]: {prop}", "INFO")
+        
         resp = xbmc.executeJSONRPC(json.dumps(req))
+        
+        # Log raw response
+        utils.log(f"=== SHORTLIST JSON-RPC RESPONSE ===", "INFO")
+        utils.log(f"Raw response length: {len(resp)} characters", "INFO")
+        utils.log(f"Raw response preview: {resp[:500]}{'...' if len(resp) > 500 else ''}", "INFO")
+        
         data = json.loads(resp)
+        
+        # Log parsed response details
         if "error" in data:
-            utils.log(f"JSON-RPC error: {data['error']}", "ERROR")
+            utils.log(f"=== SHORTLIST JSON-RPC ERROR ANALYSIS ===", "ERROR")
+            error = data["error"]
+            utils.log(f"Error code: {error.get('code')}", "ERROR")
+            utils.log(f"Error message: {error.get('message')}", "ERROR")
+            utils.log(f"Error data: {json.dumps(error.get('data', {}), indent=2)}", "ERROR")
+            
+            # Special analysis for property validation errors
+            if error.get('code') == -32602:  # Invalid params
+                error_data = error.get('data', {})
+                stack = error_data.get('stack', {})
+                utils.log(f"Stack message: {stack.get('message', 'N/A')}", "ERROR")
+                utils.log(f"Stack name: {stack.get('name', 'N/A')}", "ERROR")
+                utils.log(f"Stack type: {stack.get('type', 'N/A')}", "ERROR")
+                
+                # Try to identify which property failed
+                if 'index' in stack.get('message', ''):
+                    import re
+                    match = re.search(r'index\s+(\d+)', stack.get('message', ''))
+                    if match:
+                        failed_index = int(match.group(1))
+                        properties = params.get("properties", [])
+                        if failed_index < len(properties):
+                            utils.log(f"FAILED PROPERTY at index {failed_index}: {properties[failed_index]}", "ERROR")
+                        else:
+                            utils.log(f"Failed index {failed_index} is out of range for {len(properties)} properties", "ERROR")
+            
+            utils.log(f"=== END ERROR ANALYSIS ===", "ERROR")
             raise RuntimeError(data["error"])
+        else:
+            utils.log(f"=== SHORTLIST JSON-RPC SUCCESS ===", "INFO")
+            result = data.get("result", {})
+            if isinstance(result, dict):
+                utils.log(f"Result keys: {list(result.keys())}", "INFO")
+                if "files" in result:
+                    utils.log(f"Files returned: {len(result['files'])}", "INFO")
+            utils.log(f"=== END SUCCESS RESPONSE ===", "INFO")
+            
         return data.get("result", {})
 
     def get_dir(self, url, start=0, end=200, props=None):
