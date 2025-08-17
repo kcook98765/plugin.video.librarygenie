@@ -280,28 +280,7 @@ class DatabaseManager(Singleton):
         search_history_folder_id = self.get_folder_id_by_name("Search History")
         return folder_id == search_history_folder_id
 
-    def delete_list(self, list_id):
-        """Delete a list and all its related records"""
-        # Check if list is protected (but not search history lists - only the folder is protected)
-        if self.is_list_protected(list_id):
-            raise ValueError("Cannot delete protected list")
-
-        try:
-            self.connection.execute("BEGIN")
-            # Delete from list_items
-            self._execute_with_retry(self.cursor.execute,
-                "DELETE FROM list_items WHERE list_id = ?",
-                (list_id,))
-
-            # Finally delete the list itself
-            self._execute_with_retry(self.cursor.execute,
-                "DELETE FROM lists WHERE id = ?",
-                (list_id,))
-
-            self.connection.commit()
-        except Exception as e:
-            self.connection.rollback()
-            raise e
+    
 
     def delete_data(self, table, condition):
         query = f'DELETE FROM {table} WHERE {condition}'
@@ -836,14 +815,77 @@ class DatabaseManager(Singleton):
         return None
 
     def delete_list(self, list_id):
-        """Delete a list and all its items"""
-        utils.log(f"Deleting list {list_id}", "DEBUG")
-        return self.query_manager.delete_list(list_id)
+        """Delete a list and all its related records"""
+        # Check if list is protected (but not search history lists - only the folder is protected)
+        if self.is_list_protected(list_id):
+            raise ValueError("Cannot delete protected list")
+
+        try:
+            self.connection.execute("BEGIN")
+            # Delete from list_items
+            self._execute_with_retry(self.cursor.execute,
+                "DELETE FROM list_items WHERE list_id = ?",
+                (list_id,))
+
+            # Finally delete the list itself
+            self._execute_with_retry(self.cursor.execute,
+                "DELETE FROM lists WHERE id = ?",
+                (list_id,))
+
+            self.connection.commit()
+            utils.log(f"Successfully deleted list {list_id}", "DEBUG")
+        except Exception as e:
+            self.connection.rollback()
+            utils.log(f"Error deleting list {list_id}: {str(e)}", "ERROR")
+            raise e
 
     def delete_folder(self, folder_id):
         """Delete a folder and all its contents (cascading)"""
         utils.log(f"Deleting folder {folder_id}", "DEBUG")
-        return self.query_manager.delete_folder(folder_id)
+        return self.delete_folder_and_contents(folder_id)
+
+    def add_media_item(self, list_id, media_dict):
+        """Add a media item to a specific list"""
+        try:
+            # First insert or get the media item
+            existing_media = self.fetch_data('media_items', f"imdbnumber = '{media_dict.get('imdbnumber', '')}'")
+            
+            if existing_media and media_dict.get('imdbnumber'):
+                media_id = existing_media[0]['id']
+                utils.log(f"Found existing media item with ID: {media_id}", "DEBUG")
+            else:
+                # Insert new media item
+                media_id = self.insert_data('media_items', media_dict)
+                utils.log(f"Created new media item with ID: {media_id}", "DEBUG")
+            
+            if media_id:
+                # Check if already in list
+                existing_list_item = self.fetch_data('list_items', f"list_id = {list_id} AND media_item_id = {media_id}")
+                
+                if not existing_list_item:
+                    # Add to list
+                    list_item_data = {
+                        'list_id': list_id,
+                        'media_item_id': media_id
+                    }
+                    columns = ', '.join(list_item_data.keys())
+                    placeholders = ', '.join(['?' for _ in list_item_data])
+                    query = f'INSERT INTO list_items ({columns}) VALUES ({placeholders})'
+                    
+                    self._execute_with_retry(self.cursor.execute, query, tuple(list_item_data.values()))
+                    self.connection.commit()
+                    utils.log(f"Successfully added media item {media_id} to list {list_id}", "DEBUG")
+                else:
+                    utils.log(f"Media item {media_id} already in list {list_id}", "DEBUG")
+                    
+                return media_id
+            else:
+                utils.log("Failed to insert media item", "ERROR")
+                return None
+                
+        except Exception as e:
+            utils.log(f"Error adding media item to list: {str(e)}", "ERROR")
+            raise
 
     def update_data(self, table, data_dict, where_clause):
         """Update data in a table with a where clause"""
