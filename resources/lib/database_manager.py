@@ -851,26 +851,28 @@ class DatabaseManager(Singleton):
         return self.delete_folder_and_contents(folder_id)
 
     def add_media_item(self, list_id, media_item_data):
-        """Add a media item to a list with proper error handling"""
+        """Add a media item to a list with proper source-aware handling"""
         try:
-            utils.log(f"DATABASE: Attempting to add media item to list {list_id}: {media_item_data.get('title', 'Unknown')}", "DEBUG")
+            utils.log(f"DATABASE: Attempting to add media item to list {list_id}: {media_item_data.get('title', 'Unknown')} (source: {media_item_data.get('source', 'unknown')})", "DEBUG")
 
-            # First, insert or update the media item
-            media_id = self._add_media_record(media_item_data)
-            utils.log(f"DATABASE: Created media record with ID: {media_id}", "DEBUG")
+            # Ensure media_type is set
+            if 'media_type' not in media_item_data:
+                media_item_data['media_type'] = 'movie'
 
-            if not media_id:
+            # Insert media item using QueryManager which handles different sources properly
+            media_id = self.query_manager.insert_media_item(media_item_data)
+            utils.log(f"DATABASE: Created media record with ID: {media_id} for source: {media_item_data.get('source', 'unknown')}", "DEBUG")
+
+            if not media_id or media_id <= 0:
                 utils.log("DATABASE: Failed to insert media item, skipping list addition.", "ERROR")
                 return False
 
-            # Then add it to the list
-            success = self._add_to_list(list_id, media_id)
-            if success:
-                utils.log(f"DATABASE: Successfully added media ID {media_id} to list {list_id}", "DEBUG")
-            else:
-                utils.log(f"DATABASE: Failed to add media ID {media_id} to list {list_id}", "ERROR")
+            # Add to list using QueryManager
+            list_item_data = {'list_id': list_id, 'media_item_id': media_id}
+            self.query_manager.insert_list_item(list_item_data)
             
-            return success
+            utils.log(f"DATABASE: Successfully added media ID {media_id} to list {list_id}", "DEBUG")
+            return True
 
         except Exception as e:
             utils.log(f"DATABASE ERROR: Failed to add media item '{media_item_data.get('title', 'Unknown')}' to list {list_id}: {str(e)}", "ERROR")
@@ -879,82 +881,19 @@ class DatabaseManager(Singleton):
             raise
 
     def _add_media_record(self, media_dict):
-        """Add media record and return media_id"""
-        query = """
-        INSERT OR REPLACE INTO media_items (
-            title, year, plot, rating, duration, genre, director, cast, studio, mpaa,
-            tagline, writer, country, premiered, dateadded, votes, trailer, path, play,
-            kodi_id, media_type, source, imdbnumber, thumbnail, poster, fanart, art,
-            uniqueid, stream_url, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """
-
+        """Add media record using QueryManager and return media_id"""
         try:
-            values = (
-                media_dict.get('title', ''),
-                media_dict.get('year', 0),
-                media_dict.get('plot', ''),
-                media_dict.get('rating', 0.0),
-                media_dict.get('duration', 0),
-                media_dict.get('genre', ''),
-                media_dict.get('director', ''),
-                media_dict.get('cast', ''),
-                media_dict.get('studio', ''),
-                media_dict.get('mpaa', ''),
-                media_dict.get('tagline', ''),
-                media_dict.get('writer', ''),
-                media_dict.get('country', ''),
-                media_dict.get('premiered', ''),
-                media_dict.get('dateadded', ''),
-                media_dict.get('votes', 0),
-                media_dict.get('trailer', ''),
-                media_dict.get('path', ''),
-                media_dict.get('play', ''),
-                media_dict.get('kodi_id', 0),
-                media_dict.get('media_type', 'movie'),
-                media_dict.get('source', ''),
-                media_dict.get('imdbnumber', ''),
-                media_dict.get('thumbnail', ''),
-                media_dict.get('poster', ''),
-                media_dict.get('fanart', ''),
-                media_dict.get('art', ''),
-                media_dict.get('uniqueid', ''),
-                media_dict.get('stream_url', ''),
-                media_dict.get('status', 'available')
-            )
-
-            utils.log(f"DATABASE: Executing media insert query for: {media_dict.get('title', 'Unknown')}", "DEBUG")
-            cursor = self.db.execute(query, values)
-            media_id = cursor.lastrowid
-            utils.log(f"DATABASE: Media record created with ID: {media_id}", "DEBUG")
+            # Use the established QueryManager.insert_media_item method which properly handles different sources
+            media_id = self.query_manager.insert_media_item(media_dict)
+            utils.log(f"DATABASE: Media record created with ID: {media_id} for source: {media_dict.get('source', 'unknown')}", "DEBUG")
             return media_id
 
         except Exception as e:
             utils.log(f"DATABASE ERROR: Failed to insert media record for '{media_dict.get('title', 'Unknown')}': {str(e)}", "ERROR")
             utils.log(f"DATABASE ERROR: Media dict keys: {list(media_dict.keys())}", "ERROR")
-            utils.log(f"DATABASE ERROR: Values length: {len(values)}", "ERROR")
             raise
 
-    def _add_to_list(self, list_id, media_item_id):
-        """Add an existing media item to a list"""
-        try:
-            # Check if already in list
-            existing = self.fetch_data('list_items', f"list_id = {list_id} AND media_item_id = {media_item_id}")
-            if existing:
-                utils.log(f"Item {media_item_id} already in list {list_id}", "DEBUG")
-                return True
-
-            # Add to list with direct SQL to avoid parameter binding issues
-            query = "INSERT INTO list_items (list_id, media_item_id) VALUES (?, ?)"
-            self._execute_with_retry(self.cursor.execute, query, (int(list_id), int(media_item_id)))
-            self.connection.commit()
-
-            utils.log(f"Successfully added media item {media_item_id} to list {list_id}", "DEBUG")
-            return True
-
-        except Exception as e:
-            utils.log(f"DATABASE ERROR in _add_to_list: {str(e)}", "ERROR")
-            return False
+    
 
 
     def update_data(self, table, data_dict, where_clause):
