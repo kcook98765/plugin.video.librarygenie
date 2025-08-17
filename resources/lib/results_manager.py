@@ -55,7 +55,7 @@ class ResultsManager(Singleton):
 
             for r in rows:
                 src = (r.get('source') or '').lower()
-                if src == 'external':
+                if src == 'external' or src == 'plugin_addon':
                     external.append(r)
                     continue
                 imdb = r.get('imdbnumber')
