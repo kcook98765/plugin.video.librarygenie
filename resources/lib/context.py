@@ -96,8 +96,11 @@ def main():
             except Exception as e:
                 xbmc.log(f"LibraryGenie: Error extracting list_id: {str(e)}", xbmc.LOGDEBUG)
 
-        # Add movie to a list - available when IMDb ID is detected
-        if imdb_id and str(imdb_id).startswith('tt'):
+        # Add movie to a list - available for both library items (with IMDb) and plugin items (without IMDb)
+        # For library items, we prefer IMDb ID, but for plugin items we'll use available metadata
+        can_add_to_list = (imdb_id and str(imdb_id).startswith('tt')) or (title and title.strip())
+        
+        if can_add_to_list:
             if viewing_list_id and is_librarygenie_list:
                 # If viewing a LibraryGenie list, offer Remove option first
                 options.append("Remove from List...")
@@ -196,7 +199,7 @@ def main():
                 xbmcgui.Dialog().notification("LibraryGenie", "Error removing movie from list", xbmcgui.NOTIFICATION_ERROR, 3000)
 
         elif selected_option in ["Add to List...", "Add to Another List..."]:
-            # Handle adding movie to list
+            # Handle adding movie to list (both library and plugin items)
             try:
                 # Get the clean title without color formatting
                 clean_title = title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
@@ -209,15 +212,30 @@ def main():
                           xbmc.getInfoLabel('ListItem.Property(movieid)') or 
                           xbmc.getInfoLabel('ListItem.Property(id)') or "")
 
-                # Use RunPlugin to trigger add_to_list action
-                from urllib.parse import quote_plus
-                encoded_title = quote_plus(clean_title)
-                add_to_list_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=add_to_list&title={encoded_title}&item_id={item_id})'
-                xbmc.executebuiltin(add_to_list_url)
+                # Determine if this is a library item or plugin item
+                is_library_item = item_id and item_id.isdigit() and int(item_id) > 0
+                
+                if is_library_item:
+                    # Use the existing add_to_list action for library items
+                    from urllib.parse import quote_plus
+                    encoded_title = quote_plus(clean_title)
+                    add_to_list_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=add_to_list&title={encoded_title}&item_id={item_id})'
+                    xbmc.executebuiltin(add_to_list_url)
+                else:
+                    # For plugin items, use direct context menu handling
+                    xbmc.log(f"LibraryGenie: Adding plugin item to list: {clean_title}", xbmc.LOGINFO)
+                    
+                    # Get media manager to extract current item info
+                    from resources.lib.media_manager import MediaManager
+                    media_manager = MediaManager()
+                    media_info = media_manager.get_media_info('movie')
+                    
+                    # Add the plugin item directly
+                    add_plugin_item_to_list(media_info)
 
             except Exception as add_error:
-                xbmc.log(f"LibraryGenie: Error adding movie to list: {str(add_error)}", xbmc.LOGERROR)
-                xbmcgui.Dialog().notification("LibraryGenie", "Error adding movie to list", xbmcgui.NOTIFICATION_ERROR, 3000)
+                xbmc.log(f"LibraryGenie: Error adding item to list: {str(add_error)}", xbmc.LOGERROR)
+                xbmcgui.Dialog().notification("LibraryGenie", "Error adding item to list", xbmcgui.NOTIFICATION_ERROR, 3000)
 
         elif selected_option == "Refresh Metadata":
             # Refresh metadata
