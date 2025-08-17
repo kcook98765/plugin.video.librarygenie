@@ -517,22 +517,15 @@ class ShortlistImporter:
                             utils.log(f"  {key}: {value}", "INFO")
                     utils.log(f"=== END MEDIA_DICT DEBUG ===", "INFO")
                     
-                    # Add to list - use the correct method name
+                    # Add to list using the established DatabaseManager.add_media_item method
                     try:
-                        # The correct method is add_media_item, not add_media_to_list
                         self.db_manager.add_media_item(list_id, media_dict)
                         utils.log(f"Successfully added '{media_dict['title']}' to list '{list_name}' - Source: {media_dict['source']}", "INFO")
                     except Exception as e:
                         utils.log(f"Error adding item to list: {str(e)}", "ERROR")
-                        # Try alternative method names in case the API has changed
-                        try:
-                            self.db_manager.insert_media_item(list_id, media_dict)
-                            utils.log(f"Successfully added '{media_dict['title']}' using insert_media_item method", "INFO")
-                        except Exception as e2:
-                            utils.log(f"Alternative method also failed: {str(e2)}", "ERROR")
-                            # Log what methods are actually available
-                            available_methods = [method for method in dir(self.db_manager) if not method.startswith('_')]
-                            utils.log(f"Available DatabaseManager methods: {available_methods}", "ERROR")
+                        # Log the error details for debugging
+                        import traceback
+                        utils.log(f"Full traceback: {traceback.format_exc()}", "ERROR")
             
             progress.update(100, "Import complete!")
             progress.close()
