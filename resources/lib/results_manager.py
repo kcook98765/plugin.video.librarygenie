@@ -195,11 +195,12 @@ class ResultsManager(Singleton):
                     list_item = ListItemBuilder.build_video_item(meta, is_search_history=is_search_history)
                     
                     # Determine the appropriate URL for this item
-                    movieid = meta.get('movieid', 0)
-                    if movieid and movieid > 0:
-                        item_url = f"movieid://{movieid}/"
+                    # For manual items and library items, use the file path if available
+                    file_path = meta.get('file')
+                    if file_path:
+                        item_url = file_path
                     else:
-                        # Fallback for items without valid movieid
+                        # Fallback for items without file path
                         item_url = f"info://{r.get('id', 'unknown')}"
                     display_items.append((item_url, list_item, False))
                 else:
