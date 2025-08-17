@@ -241,6 +241,12 @@ class ShortlistImporter:
                     utils.log(f"Extracted {len(non_empty_fields)} fields for: {item_data['title']} ({item_data['year']})", "DEBUG")
                     utils.log(f"Available fields: {list(non_empty_fields.keys())}", "DEBUG")
                     
+                    # DEBUG: Log the complete raw item data
+                    utils.log(f"=== RAW ITEM DATA DEBUG for '{item_data['title']}' ===", "INFO")
+                    for key, value in non_empty_fields.items():
+                        utils.log(f"  {key}: {repr(value)[:200]}{'...' if len(repr(value)) > 200 else ''}", "INFO")
+                    utils.log(f"=== END RAW ITEM DATA DEBUG ===", "INFO")
+                    
                     items.append(item_data)
                 
                 if items:  # Only add lists that have items
@@ -487,12 +493,29 @@ class ShortlistImporter:
                     # Convert to media dict
                     media_dict = self.convert_shortlist_item_to_media_dict(item, kodi_movie)
                     
-                    # Add to list
+                    # DEBUG: Log the complete media_dict being inserted
+                    utils.log(f"=== MEDIA_DICT DEBUG for '{media_dict['title']}' ===", "INFO")
+                    for key, value in media_dict.items():
+                        if value:  # Only log non-empty values
+                            utils.log(f"  {key}: {value}", "INFO")
+                    utils.log(f"=== END MEDIA_DICT DEBUG ===", "INFO")
+                    
+                    # Add to list - use the correct method name
                     try:
-                        self.db_manager.add_media_to_list(list_id, media_dict)
-                        utils.log(f"Added '{media_dict['title']}' to list '{list_name}' - Source: {media_dict['source']}", "DEBUG")
+                        # The correct method is add_media_item, not add_media_to_list
+                        self.db_manager.add_media_item(list_id, media_dict)
+                        utils.log(f"Successfully added '{media_dict['title']}' to list '{list_name}' - Source: {media_dict['source']}", "INFO")
                     except Exception as e:
                         utils.log(f"Error adding item to list: {str(e)}", "ERROR")
+                        # Try alternative method names in case the API has changed
+                        try:
+                            self.db_manager.insert_media_item(list_id, media_dict)
+                            utils.log(f"Successfully added '{media_dict['title']}' using insert_media_item method", "INFO")
+                        except Exception as e2:
+                            utils.log(f"Alternative method also failed: {str(e2)}", "ERROR")
+                            # Log what methods are actually available
+                            available_methods = [method for method in dir(self.db_manager) if not method.startswith('_')]
+                            utils.log(f"Available DatabaseManager methods: {available_methods}", "ERROR")
             
             progress.update(100, "Import complete!")
             progress.close()
