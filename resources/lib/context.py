@@ -37,6 +37,19 @@ def main():
         addon = get_addon()
         addon_id = addon.getAddonInfo("id")
 
+        # Ensure database schema is up to date (including migrations)
+        try:
+            from resources.lib.config_manager import Config
+            from resources.lib.database_manager import DatabaseManager
+            
+            config = Config()
+            db_manager = DatabaseManager(config.db_path)
+            # This will run any pending migrations including the 'file' column
+            db_manager.setup_database()
+            xbmc.log("LibraryGenie: Database schema check completed for context menu", xbmc.LOGDEBUG)
+        except Exception as e:
+            xbmc.log(f"LibraryGenie: Error setting up database schema: {str(e)}", xbmc.LOGERROR)
+
         # Use existing KodiHelper to get IMDb ID (handles v19/v20+ compatibility)
         imdb_id = None
         try:
