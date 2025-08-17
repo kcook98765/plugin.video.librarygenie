@@ -1,3 +1,4 @@
+
 import json
 import xbmc
 import xbmcgui
@@ -16,13 +17,13 @@ class ShortlistImporter:
     def _rpc(self, method, params):
         """Execute JSON-RPC call with error handling and detailed logging"""
         req = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
-
+        
         # Log detailed request information
         utils.log(f"=== SHORTLIST JSON-RPC REQUEST ===", "INFO")
         utils.log(f"Method: {method}", "INFO")
         utils.log(f"Raw params: {json.dumps(params, indent=2)}", "INFO")
         utils.log(f"Full request JSON: {json.dumps(req, indent=2)}", "INFO")
-
+        
         # Special logging for Files.GetDirectory calls to analyze properties
         if method == "Files.GetDirectory":
             properties = params.get("properties", [])
@@ -32,16 +33,16 @@ class ShortlistImporter:
                 utils.log(f"All properties with indices:", "INFO")
                 for i, prop in enumerate(properties):
                     utils.log(f"  [{i}]: {prop}", "INFO")
-
+        
         resp = xbmc.executeJSONRPC(json.dumps(req))
-
+        
         # Log raw response
         utils.log(f"=== SHORTLIST JSON-RPC RESPONSE ===", "INFO")
         utils.log(f"Raw response length: {len(resp)} characters", "INFO")
         utils.log(f"Raw response preview: {resp[:500]}{'...' if len(resp) > 500 else ''}", "INFO")
-
+        
         data = json.loads(resp)
-
+        
         # Log parsed response details
         if "error" in data:
             utils.log(f"=== SHORTLIST JSON-RPC ERROR ANALYSIS ===", "ERROR")
@@ -49,7 +50,7 @@ class ShortlistImporter:
             utils.log(f"Error code: {error.get('code')}", "ERROR")
             utils.log(f"Error message: {error.get('message')}", "ERROR")
             utils.log(f"Error data: {json.dumps(error.get('data', {}), indent=2)}", "ERROR")
-
+            
             # Special analysis for property validation errors
             if error.get('code') == -32602:  # Invalid params
                 error_data = error.get('data', {})
@@ -57,7 +58,7 @@ class ShortlistImporter:
                 utils.log(f"Stack message: {stack.get('message', 'N/A')}", "ERROR")
                 utils.log(f"Stack name: {stack.get('name', 'N/A')}", "ERROR")
                 utils.log(f"Stack type: {stack.get('type', 'N/A')}", "ERROR")
-
+                
                 # Try to identify which property failed
                 if 'index' in stack.get('message', ''):
                     import re
@@ -69,7 +70,7 @@ class ShortlistImporter:
                             utils.log(f"FAILED PROPERTY at index {failed_index}: {properties[failed_index]}", "ERROR")
                         else:
                             utils.log(f"Failed index {failed_index} is out of range for {len(properties)} properties", "ERROR")
-
+            
             utils.log(f"=== END ERROR ANALYSIS ===", "ERROR")
             raise RuntimeError(data["error"])
         else:
@@ -80,13 +81,13 @@ class ShortlistImporter:
                 if "files" in result:
                     utils.log(f"Files returned: {len(result['files'])}", "INFO")
             utils.log(f"=== END SUCCESS RESPONSE ===", "INFO")
-
+            
         return data.get("result", {})
 
     def get_dir(self, url, start=0, end=200, props=None):
         """Get directory contents with pagination using valid List.Fields.Files properties"""
         utils.log(f"Getting directory: {url} (start={start}, end={end})", "DEBUG")
-
+        
         # Use the most comprehensive valid property set for Files.GetDirectory
         # Based on List.Fields.Files from Kodi JSON-RPC API
         if props is None:
@@ -116,23 +117,23 @@ class ShortlistImporter:
                 "country",
                 "imdbnumber"
             ]
-
+        
         utils.log(f"Using {len(props)} valid List.Fields.Files properties", "DEBUG")
         utils.log(f"Properties: {props}", "DEBUG")
-
+        
         result = self._rpc("Files.GetDirectory", {
             "directory": url,
             "media": "files",  # Use "files" media type as recommended
             "properties": props,
             "limits": {"start": start, "end": end}
         })
-
+        
         files = result.get("files", [])
         lims = result.get("limits", {"total": len(files), "end": end})
         total = lims.get("total", len(files))
-
+        
         utils.log(f"Got {len(files)} files, total: {total}", "DEBUG")
-
+        
         # Paginate if needed
         while len(files) < total:
             start = len(files)
@@ -146,7 +147,7 @@ class ShortlistImporter:
             if not chunk:
                 break
             files.extend(chunk)
-
+            
         utils.log(f"Final file count: {len(files)}", "DEBUG")
         return files
 
@@ -168,34 +169,34 @@ class ShortlistImporter:
         """Scrape all lists from Shortlist addon"""
         base = "plugin://plugin.program.shortlist/"
         lists = []
-
+        
         utils.log("Starting Shortlist scrape", "INFO")
-
+        
         try:
             # Discover lists (directories)
             entries = self.get_dir(base)
             utils.log(f"Found {len(entries)} top-level entries in Shortlist", "INFO")
-
+            
             for entry in entries:
                 if entry.get("filetype") != "directory":
                     utils.log(f"Skipping non-directory entry: {entry.get('label')}", "DEBUG")
                     continue
-
+                    
                 list_name = entry.get("label") or entry.get("title") or "Unnamed"
                 list_url = entry.get("file")
-
+                
                 utils.log(f"Processing Shortlist: {list_name} ({list_url})", "INFO")
-
+                
                 # Fetch items in this list
                 items_raw = self.get_dir(list_url)
                 utils.log(f"Found {len(items_raw)} raw items in list '{list_name}'", "DEBUG")
-
+                
                 items = []
                 for it in items_raw:
                     if it.get("filetype") == "directory":
                         utils.log(f"Skipping directory item: {it.get('label')}", "DEBUG")
                         continue
-
+                        
                     # Extract all available data from Shortlist item
                     # Note: filetype is automatically included in response, poster is in art.poster
                     item_data = {
@@ -209,7 +210,7 @@ class ShortlistImporter:
                         "plotoutline": it.get("plotoutline"),
                         "art": it.get("art", {}),
                         "position": len(items),
-
+                        
                         # Additional metadata that might be available
                         "genre": it.get("genre"),
                         "director": it.get("director"),
@@ -228,47 +229,47 @@ class ShortlistImporter:
                         # poster is extracted from art.poster below, not a direct field
                         "poster": it.get("art", {}).get("poster", "") if isinstance(it.get("art"), dict) else ""
                     }
-
+                    
                     # Extract duration from streamdetails if available and not already set
                     if not item_data["duration"]:
                         streamdetails = it.get("streamdetails", {})
                         if streamdetails and "video" in streamdetails and len(streamdetails["video"]) > 0:
                             item_data["duration"] = streamdetails["video"][0].get("duration")
-
+                    
                     # Log what we actually extracted
                     non_empty_fields = {k: v for k, v in item_data.items() if v not in (None, "", [], {})}
                     utils.log(f"Extracted {len(non_empty_fields)} fields for: {item_data['title']} ({item_data['year']})", "DEBUG")
                     utils.log(f"Available fields: {list(non_empty_fields.keys())}", "DEBUG")
-
+                    
                     # DEBUG: Log the complete raw item data
                     utils.log(f"=== RAW ITEM DATA DEBUG for '{item_data['title']}' ===", "INFO")
                     for key, value in non_empty_fields.items():
                         utils.log(f"  {key}: {repr(value)[:200]}{'...' if len(repr(value)) > 200 else ''}", "INFO")
                     utils.log(f"=== END RAW ITEM DATA DEBUG ===", "INFO")
-
+                    
                     items.append(item_data)
-
+                
                 if items:  # Only add lists that have items
                     lists.append({"name": list_name, "url": list_url, "items": items})
                     utils.log(f"Added list '{list_name}' with {len(items)} items", "INFO")
                 else:
                     utils.log(f"Skipping empty list '{list_name}'", "DEBUG")
-
+                    
         except Exception as e:
             utils.log(f"Error scraping Shortlist: {str(e)}", "ERROR")
             raise
-
+            
         utils.log(f"Shortlist scrape complete: {len(lists)} lists found", "INFO")
         return lists
 
     def lookup_in_kodi_library(self, title, year):
         """Try to find movie in Kodi library using comprehensive JSONRPC search"""
         utils.log(f"=== KODI LIBRARY LOOKUP START: '{title}' ({year}) ===", "INFO")
-
+        
         try:
             # Strategy 1: Direct title search using JSONRPC search capabilities
             utils.log(f"JSONRPC LOOKUP: Attempting direct title search for '{title}'", "INFO")
-
+            
             search_response = self.jsonrpc.execute("VideoLibrary.GetMovies", {
                 "filter": {
                     "field": "title",
@@ -281,13 +282,13 @@ class ShortlistImporter:
                     "dateadded", "votes", "trailer", "file", "art", "imdbnumber", "uniqueid"
                 ]
             })
-
+            
             utils.log(f"JSONRPC RESPONSE: Direct title search returned: {search_response}", "INFO")
-
+            
             if 'result' in search_response and 'movies' in search_response['result']:
                 movies = search_response['result']['movies']
                 utils.log(f"JSONRPC ANALYSIS: Found {len(movies)} exact title matches", "INFO")
-
+                
                 # Look for year match in exact title matches
                 for movie in movies:
                     movie_year = movie.get('year', 0)
@@ -295,10 +296,10 @@ class ShortlistImporter:
                         utils.log(f"JSONRPC SUCCESS: Exact match found - '{movie.get('title')}' ({movie_year})", "INFO")
                         utils.log(f"JSONRPC DECISION: Using library data instead of shortlist data", "INFO")
                         return movie
-
+            
             # Strategy 2: Fuzzy title search if exact match fails
             utils.log(f"JSONRPC LOOKUP: Attempting fuzzy title search (contains) for '{title}'", "INFO")
-
+            
             fuzzy_response = self.jsonrpc.execute("VideoLibrary.GetMovies", {
                 "filter": {
                     "field": "title",
@@ -311,28 +312,28 @@ class ShortlistImporter:
                     "dateadded", "votes", "trailer", "file", "art", "imdbnumber", "uniqueid"
                 ]
             })
-
+            
             utils.log(f"JSONRPC RESPONSE: Fuzzy search returned: {fuzzy_response}", "INFO")
-
+            
             if 'result' in fuzzy_response and 'movies' in fuzzy_response['result']:
                 movies = fuzzy_response['result']['movies']
                 utils.log(f"JSONRPC ANALYSIS: Found {len(movies)} fuzzy title matches", "INFO")
-
+                
                 # Score matches by title similarity and year closeness
                 best_match = None
                 best_score = 0
-
+                
                 for movie in movies:
                     movie_title = movie.get('title', '').lower()
                     movie_year = movie.get('year', 0)
-
+                    
                     # Title similarity score (simple containment check)
                     title_score = 0
                     if title.lower() in movie_title:
                         title_score = 0.8
                     elif movie_title in title.lower():
                         title_score = 0.6
-
+                    
                     # Year score
                     year_score = 0
                     if year and movie_year:
@@ -343,49 +344,49 @@ class ShortlistImporter:
                             year_score = 0.2
                         elif year_diff <= 2:
                             year_score = 0.1
-
+                    
                     total_score = title_score + year_score
-
+                    
                     utils.log(f"JSONRPC SCORING: '{movie_title}' ({movie_year}) - Title: {title_score}, Year: {year_score}, Total: {total_score}", "INFO")
-
+                    
                     if total_score > best_score and total_score >= 0.6:  # Minimum threshold
                         best_match = movie
                         best_score = total_score
-
+                
                 if best_match:
                     utils.log(f"JSONRPC SUCCESS: Best fuzzy match found - '{best_match.get('title')}' ({best_match.get('year')}) with score {best_score}", "INFO")
                     utils.log(f"JSONRPC DECISION: Using library data instead of shortlist data", "INFO")
                     return best_match
-
+            
             # Strategy 3: Fallback to getting all movies and manual search (for older Kodi versions)
             utils.log(f"JSONRPC LOOKUP: Fallback to manual search through all movies", "INFO")
-
+            
             all_movies_response = self.jsonrpc.get_movies(0, 100, properties=[
                 "title", "year", "plot", "rating", "runtime", "genre", "director", 
                 "cast", "studio", "mpaa", "tagline", "writer", "country", "premiered",
                 "dateadded", "votes", "trailer", "file", "art", "imdbnumber", "uniqueid"
             ])
-
+            
             if 'result' in all_movies_response and 'movies' in all_movies_response['result']:
                 movies = all_movies_response['result']['movies']
                 utils.log(f"JSONRPC ANALYSIS: Searching through {len(movies)} movies manually", "INFO")
-
+                
                 for movie in movies:
                     if isinstance(movie, dict):
                         movie_title = movie.get('title', '').lower()
                         movie_year = movie.get('year', 0)
-
+                        
                         # Manual title matching with year verification
                         if (title.lower() in movie_title or movie_title in title.lower()) and \
                            (not year or abs(movie_year - year) <= 1):
                             utils.log(f"JSONRPC SUCCESS: Manual match found - '{movie.get('title')}' ({movie_year})", "INFO")
                             utils.log(f"JSONRPC DECISION: Using library data instead of shortlist data", "INFO")
                             return movie
-
+                        
         except Exception as e:
             utils.log(f"JSONRPC ERROR: Library lookup failed: {str(e)}", "ERROR")
             utils.log(f"JSONRPC DECISION: Will use shortlist data due to lookup error", "INFO")
-
+            
         utils.log(f"JSONRPC RESULT: No library match found for '{title}' ({year})", "INFO")
         utils.log(f"JSONRPC DECISION: Will use shortlist data as no library match exists", "INFO")
         utils.log(f"=== KODI LIBRARY LOOKUP END ===", "INFO")
@@ -465,11 +466,11 @@ class ShortlistImporter:
         if kodi_movie:
             # Use Kodi library data - this is preferred when available
             utils.log(f"=== DATA_CONVERSION: Using KODI LIBRARY data for '{kodi_movie.get('title')}' ===", "INFO")
-
+            
             # Runtime conversion: Kodi stores in minutes, we need seconds
             runtime_minutes = self.safe_convert_int(kodi_movie.get('runtime', 0))
             duration_seconds = runtime_minutes * 60 if runtime_minutes > 0 else 0
-
+            
             # Cast processing: Extract actor names from cast array
             cast_data = kodi_movie.get('cast', [])
             cast_string = ''
@@ -483,7 +484,7 @@ class ShortlistImporter:
                     elif isinstance(actor, str):
                         actor_names.append(actor)
                 cast_string = ', '.join(actor_names) if actor_names else ''
-
+            
             media_dict = {
                 'title': self.safe_convert_string(kodi_movie.get('title'), 'Unknown Title'),
                 'year': self.safe_convert_int(kodi_movie.get('year')),
@@ -516,7 +517,7 @@ class ShortlistImporter:
                 'stream_url': '',
                 'status': 'available'
             }
-
+            
             # Extract and process art data
             art = kodi_movie.get('art', {})
             if isinstance(art, dict):
@@ -524,44 +525,44 @@ class ShortlistImporter:
                 media_dict['poster'] = self.safe_convert_string(art.get('poster'))
                 media_dict['fanart'] = self.safe_convert_string(art.get('fanart'))
                 media_dict['art'] = json.dumps(art) if art else ''
-
+            
             # Extract IMDb ID and other unique identifiers
             uniqueid = kodi_movie.get('uniqueid', {})
             imdbnumber_direct = kodi_movie.get('imdbnumber', '')
-
+            
             # Prefer uniqueid.imdb over direct imdbnumber
             if isinstance(uniqueid, dict) and uniqueid.get('imdb'):
                 media_dict['imdbnumber'] = self.safe_convert_string(uniqueid['imdb'])
             elif imdbnumber_direct:
                 media_dict['imdbnumber'] = self.safe_convert_string(imdbnumber_direct)
-
+            
             media_dict['uniqueid'] = json.dumps(uniqueid) if uniqueid else ''
-
+            
             utils.log(f"DATA_CONVERSION: Library data processed - IMDb: {media_dict['imdbnumber']}, Runtime: {runtime_minutes}min -> {duration_seconds}s", "INFO")
-
+            
         else:
             # Use Shortlist data with enhanced validation and conversion
             utils.log(f"=== DATA_CONVERSION: Using SHORTLIST data for '{item.get('title') or item.get('label')}' ===", "INFO")
-
+            
             # Title processing with fallbacks
             title = self.safe_convert_string(item.get('title')) or \
                    self.safe_convert_string(item.get('label')) or 'Unknown'
-
+            
             # Duration processing: handle both 'duration' and 'runtime' fields
             duration_value = item.get('duration') or item.get('runtime', 0)
             duration_seconds = self.safe_convert_int(duration_value)
-
+            
             # If duration seems to be in minutes (common in some sources), check if conversion needed
             if 0 < duration_seconds < 500:  # Likely minutes if between 0-500
                 utils.log(f"DATA_CONVERSION: Duration {duration_seconds} seems to be in minutes, converting to seconds", "DEBUG")
                 duration_seconds = duration_seconds * 60
-
+            
             # Rating processing - handle different rating scales
             rating_value = self.safe_convert_float(item.get('rating'))
             if rating_value > 10:  # Rating might be on 100-point scale
                 rating_value = rating_value / 10.0
                 utils.log(f"DATA_CONVERSION: Rating appears to be on 100-point scale, converted to {rating_value}", "DEBUG")
-
+            
             media_dict = {
                 'title': title,
                 'year': self.safe_convert_int(item.get('year')),
@@ -594,7 +595,7 @@ class ShortlistImporter:
                 'stream_url': '',
                 'status': 'available'
             }
-
+            
             # Extract art from Shortlist with improved handling
             art = item.get('art', {})
             if art and isinstance(art, dict):
@@ -610,46 +611,46 @@ class ShortlistImporter:
                 media_dict['thumbnail'] = self.safe_convert_string(item.get('thumbnail'))
                 media_dict['poster'] = self.safe_convert_string(item.get('poster'))
                 media_dict['fanart'] = self.safe_convert_string(item.get('fanart'))
-
+            
             utils.log(f"DATA_CONVERSION: Shortlist data processed - Duration: {duration_value} -> {duration_seconds}s, Rating: {item.get('rating')} -> {rating_value}", "INFO")
-
+        
         utils.log(f"=== DATA_CONVERSION COMPLETE: '{media_dict['title']}' ({media_dict['year']}) from {media_dict['source']} ===", "INFO")
         return media_dict
 
     def clear_imported_lists_folder(self, imported_folder_id):
         """Clear all contents of the Imported Lists folder"""
         utils.log(f"Clearing contents of Imported Lists folder (ID: {imported_folder_id})", "INFO")
-
+        
         # Get all subfolders and lists in the imported folder
         subfolders = self.db_manager.fetch_folders(imported_folder_id)
         lists = self.db_manager.fetch_lists(imported_folder_id)
-
+        
         # Delete all lists first
         for list_item in lists:
             utils.log(f"Deleting list: {list_item['name']} (ID: {list_item['id']})", "DEBUG")
             self.db_manager.delete_list(list_item['id'])
-
+        
         # Delete all subfolders (this will cascade to their contents)
         for folder in subfolders:
             utils.log(f"Deleting folder: {folder['name']} (ID: {folder['id']})", "DEBUG")
             self.db_manager.delete_folder(folder['id'])
-
+        
         utils.log("Imported Lists folder cleared", "INFO")
 
     def import_from_shortlist(self):
         """Main import function"""
         utils.log("=== Starting Shortlist import process ===", "INFO")
-
+        
         # Check if Shortlist is installed
         if not self.is_shortlist_installed():
             xbmcgui.Dialog().notification("LibraryGenie", "Shortlist addon not found or disabled", xbmcgui.NOTIFICATION_WARNING)
             return False
-
+        
         # Show progress dialog
         progress = xbmcgui.DialogProgress()
         progress.create("Importing from Shortlist", "Scanning Shortlist addon...")
         progress.update(10)
-
+        
         try:
             # Scrape Shortlist data
             lists = self.scrape_shortlist()
@@ -657,56 +658,56 @@ class ShortlistImporter:
                 progress.close()
                 xbmcgui.Dialog().notification("LibraryGenie", "No lists found in Shortlist", xbmcgui.NOTIFICATION_WARNING)
                 return False
-
+            
             progress.update(30, "Creating Imported Lists folder...")
-
+            
             # Ensure "Imported Lists" folder exists
             imported_folder_result = self.db_manager.ensure_folder_exists("Imported Lists", None)
-
+            
             # Extract the actual ID from the result
             if isinstance(imported_folder_result, dict):
                 imported_folder_id = imported_folder_result['id']
             else:
                 imported_folder_id = imported_folder_result
-
+                
             utils.log(f"Imported Lists folder ID: {imported_folder_id}", "DEBUG")
-
+            
             # Clear existing data in the folder
             progress.update(40, "Clearing existing imported data...")
             self.clear_imported_lists_folder(imported_folder_id)
-
+            
             # Process each list
             total_lists = len(lists)
             for i, shortlist_list in enumerate(lists):
                 list_name = shortlist_list['name']
                 items = shortlist_list['items']
-
+                
                 progress_percent = 50 + int((i / total_lists) * 40)
                 progress.update(progress_percent, f"Processing list: {list_name}")
-
+                
                 utils.log(f"Processing list {i+1}/{total_lists}: {list_name} ({len(items)} items)", "INFO")
-
+                
                 if progress.iscanceled():
                     break
-
+                
                 # Create list in LibraryGenie
                 list_result = self.db_manager.create_list(list_name, imported_folder_id)
-
+                
                 # Handle both dictionary and integer return values
                 if isinstance(list_result, dict):
                     list_id = list_result['id']
                 else:
                     list_id = list_result
-
+                    
                 utils.log(f"Created LibraryGenie list: {list_name} (ID: {list_id})", "INFO")
-
+                
                 # Process each item in the list
                 for j, item in enumerate(items):
                     item_title = item.get('title') or item.get('label', 'Unknown')
                     item_year = self.safe_convert_int(item.get('year'))
-
+                    
                     utils.log(f"=== PROCESSING ITEM {j+1}/{len(items)}: '{item_title}' ({item_year}) ===", "INFO")
-
+                    
                     # Enhanced library lookup with better validation
                     kodi_movie = None
                     if item_title and item_title.strip() and item_title != 'Unknown':
@@ -715,7 +716,7 @@ class ShortlistImporter:
                         if len(clean_title) > 2:  # Only search for titles with meaningful length
                             utils.log(f"IMPORT_PROCESS: Attempting library lookup for '{clean_title}' ({item_year})", "INFO")
                             kodi_movie = self.lookup_in_kodi_library(clean_title, item_year)
-
+                            
                             if kodi_movie:
                                 utils.log(f"IMPORT_SUCCESS: Library match found - will use Kodi data", "INFO")
                             else:
@@ -724,11 +725,11 @@ class ShortlistImporter:
                             utils.log(f"IMPORT_SKIP: Title too short for reliable matching: '{clean_title}'", "INFO")
                     else:
                         utils.log(f"IMPORT_SKIP: Invalid title for library lookup: '{item_title}'", "INFO")
-
+                    
                     # Convert to media dict with enhanced data processing
                     try:
                         media_dict = self.convert_shortlist_item_to_media_dict(item, kodi_movie)
-
+                        
                         # Validation of converted data
                         validation_issues = []
                         if not media_dict.get('title') or media_dict['title'] in ['Unknown', '']:
@@ -737,10 +738,10 @@ class ShortlistImporter:
                             validation_issues.append(f"Suspicious year: {media_dict.get('year')}")
                         if media_dict.get('duration', 0) < 0:
                             validation_issues.append(f"Invalid duration: {media_dict.get('duration')}")
-
+                        
                         if validation_issues:
                             utils.log(f"DATA_VALIDATION: Issues found for '{media_dict['title']}': {'; '.join(validation_issues)}", "WARNING")
-
+                        
                         # Enhanced logging of final media dict
                         utils.log(f"=== FINAL MEDIA_DICT for '{media_dict['title']}' ===", "INFO")
                         important_fields = ['title', 'year', 'source', 'duration', 'rating', 'genre', 'director', 'plot', 'imdbnumber']
@@ -749,7 +750,7 @@ class ShortlistImporter:
                             if value:
                                 utils.log(f"  {field}: {value}", "INFO")
                         utils.log(f"=== END FINAL MEDIA_DICT ===", "INFO")
-
+                        
                     except Exception as e:
                         utils.log(f"CONVERSION_ERROR: Failed to convert item '{item_title}': {str(e)}", "ERROR")
                         # Create minimal fallback media dict
@@ -764,11 +765,10 @@ class ShortlistImporter:
                             'votes': 0,
                             'plot': f"Failed to process shortlist item: {str(e)}",
                             'play': item.get('file', ''),
-                            'path': item.get('file', ''),
-                            'status': 'available'
+                            'path': item.get('file', '')
                         }
                         utils.log(f"CONVERSION_FALLBACK: Using minimal data for '{media_dict['title']}'", "WARNING")
-
+                    
                     # Add to list using the established DatabaseManager.add_media_item method
                     try:
                         media_id = self.db_manager.add_media_item(list_id, media_dict)
@@ -781,10 +781,10 @@ class ShortlistImporter:
                         utils.log(f"Full traceback: {traceback.format_exc()}", "ERROR")
                         # Don't continue with this item if database insertion failed
                         continue
-
+            
             progress.update(100, "Import complete!")
             progress.close()
-
+            
             if not progress.iscanceled():
                 message = f"Successfully imported {total_lists} lists from Shortlist to 'Imported Lists' folder"
                 xbmcgui.Dialog().notification("LibraryGenie", message, xbmcgui.NOTIFICATION_INFO, 5000)
@@ -793,7 +793,7 @@ class ShortlistImporter:
             else:
                 utils.log("Shortlist import cancelled by user", "INFO")
                 return False
-
+                
         except Exception as e:
             progress.close()
             error_msg = f"Import failed: {str(e)}"
