@@ -195,7 +195,12 @@ class ResultsManager(Singleton):
                     list_item = ListItemBuilder.build_video_item(meta, is_search_history=is_search_history)
                     
                     # Determine the appropriate URL for this item
-                    item_url = f"movieid://{meta.get('movieid', 0)}"
+                    movieid = meta.get('movieid', 0)
+                    if movieid and movieid > 0:
+                        item_url = f"movieid://{movieid}/"
+                    else:
+                        # Fallback for items without valid movieid
+                        item_url = f"info://{r.get('id', 'unknown')}"
                     display_items.append((item_url, list_item, False))
                 else:
                     # No Kodi match found - using fallback data

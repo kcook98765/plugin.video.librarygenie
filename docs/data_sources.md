@@ -13,8 +13,15 @@ LibraryGenie uses a `source` field in the `media_items` table to categorize cont
 **Characteristics**:
 - Added through LibraryGenie context menu actions
 - Contains library-sourced content but marked as manually curated
-- Compatible with existing lib processing logic
+- Processed through standard library item path (not external path)
 - Distinguishes manually added items from search results
+- Uses same lookup and display logic as library items
+
+**Data Flow**:
+1. User selects "Add to List" from LibraryGenie context menu
+2. Item stored with `source = 'manual'` and library metadata
+3. Processed through library item display path in `ResultsManager`
+4. Matched against Kodi library via JSON-RPC for playback
 
 **Example**: Movie added to list via "Add to List" context menu
 
@@ -216,7 +223,15 @@ if src == 'external' or src == 'plugin_addon':
 ```
 
 ### Library Content Processing
+Manual items (`source = 'manual'`) are processed alongside library items since they reference the same Kodi library content:
+
 ```python
+# Manual items fall through to library processing (not caught by external filter)
+src = (r.get('source') or '').lower()
+if src == 'external' or src == 'plugin_addon':
+    external.append(r)
+    continue
+# Manual items continue to library processing...
 # Try to get title/year from imdb_exports first
 if imdb:
     q = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
