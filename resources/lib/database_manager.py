@@ -705,11 +705,12 @@ class DatabaseManager(Singleton):
                     'art': '{}',
                     'poster': '',
                     'fanart': '',
-                    'source': 'Lib',
+                    'source': 'search',  # Use 'search' source instead of 'Lib'
                     'search_score': score_display,  # Store search score
                     'duration': 0,
                     'votes': 0,
-                    'play': f"search_history://{imdb_id}"  # Unique identifier for search results
+                    'play': f"search_history://{imdb_id}",  # Unique identifier for search results
+                    'media_type': 'movie'  # Ensure media_type is set
                 }
 
                 # Enhanced logging to show complete data being stored
@@ -724,12 +725,17 @@ class DatabaseManager(Singleton):
             if media_items_to_insert:
                 # Insert media items and link them to the new list
                 for item_data in media_items_to_insert:
-                    media_item_id = query_manager.insert_media_item(item_data)
-                    if media_item_id:
-                        list_item_data = {'list_id': final_list_id, 'media_item_id': media_item_id}
-                        query_manager.insert_list_item(list_item_data)
-                    else:
-                        utils.log(f"Failed to insert media item for: {item_data.get('imdbnumber', 'N/A')}", "ERROR")
+                    try:
+                        media_item_id = query_manager.insert_media_item(item_data)
+                        if media_item_id and media_item_id > 0:
+                            list_item_data = {'list_id': final_list_id, 'media_item_id': media_item_id}
+                            query_manager.insert_list_item(list_item_data)
+                            utils.log(f"Successfully added search result {item_data.get('imdbnumber', 'N/A')} to list", "DEBUG")
+                        else:
+                            utils.log(f"Failed to insert media item for: {item_data.get('imdbnumber', 'N/A')}", "ERROR")
+                    except Exception as e:
+                        utils.log(f"Error inserting search result {item_data.get('imdbnumber', 'N/A')}: {str(e)}", "ERROR")
+                        # Continue with next item instead of failing entire operation
                 utils.log("=== SEARCH HISTORY SAVE COMPLETE ===", "INFO")
                 utils.log(f"List Name: '{list_name}'", "INFO")
                 utils.log(f"List ID: {final_list_id}", "INFO")
