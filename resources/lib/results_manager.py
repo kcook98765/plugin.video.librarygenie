@@ -55,6 +55,8 @@ class ResultsManager(Singleton):
 
             for r in rows:
                 src = (r.get('source') or '').lower()
+                # Only external and plugin_addon sources go to external processing
+                # All other sources (lib, manual, search) follow library item processing path
                 if src == 'external' or src == 'plugin_addon':
                     external.append(r)
                     continue
