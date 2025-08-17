@@ -191,7 +191,7 @@ if imdb:
 ```
 
 ### URL Generation Logic
-The recent fix addresses URL generation for all library-referenced items:
+URL generation for all library-referenced items:
 
 ```python
 # Determine the appropriate URL for this item
@@ -200,8 +200,7 @@ file_path = meta.get('file')
 if file_path:
     item_url = file_path  # Use actual file path (e.g., smb://server/movie.mp4)
 else:
-    # Fallback for items without file path
-    item_url = f"info://{r.get('id', 'unknown')}"
+    item_url = f"info://{r.get('id', 'unknown')}"  # Fallback
 ```
 
 ## Query Manager Source Handling
