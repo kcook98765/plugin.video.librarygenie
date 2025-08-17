@@ -523,7 +523,7 @@ def add_to_list(params):
         else:
             # Add to list using the database manager's method
             try:
-                success = db_manager.add_item_to_list(selected_list_id, media_id)
+                success = db_manager.add_media_item(selected_list_id, media_item)
 
                 if success:
                     utils.log(f"Successfully added item to list: list_id={selected_list_id}, media_item_id={media_id}", "DEBUG")
@@ -650,7 +650,7 @@ def add_to_list_from_context(params):
         else:
             # Add to list using the database manager's method
             try:
-                success = db_manager.add_item_to_list(selected_list_id, media_id)
+                success = db_manager.add_media_item(selected_list_id, media_item)
 
                 if success:
                     utils.log(f"Successfully added item to list: list_id={selected_list_id}, media_item_id={media_id}", "DEBUG")
