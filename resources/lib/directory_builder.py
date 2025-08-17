@@ -108,6 +108,7 @@ def build_root_directory(ctx: dict, handle: int):
         db_manager = DatabaseManager(config.db_path)
 
         # Add Options & Tools header first
+        utils.log("Adding Options & Tools header item to root directory", "DEBUG")
         add_options_header_item(ctx, handle)
 
         # Get root folders and lists
@@ -190,6 +191,12 @@ def add_folder_item(folder: dict, ctx: dict, handle: int):
 def add_list_item(list_item: dict, ctx: dict, handle: int):
     """Helper to build and add a list list item."""
     try:
+        from resources.lib.config_manager import Config
+        from resources.lib.database_manager import DatabaseManager
+        
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+        
         list_count = db_manager.get_list_media_count(list_item['id'])
 
         # Check if this list contains a count pattern like "(number)" at the end
