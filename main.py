@@ -186,7 +186,7 @@ def browse_list(list_id):
 
         # Use policy-aware resolver
         rm = ResultsManager()
-        display_items = rm.build_display_items_for_list(list_id)
+        display_items = rm.build_display_items_for_list(list_id, handle)
 
         if not display_items:
             utils.log(f"No display items found for list {list_id}", "WARNING")
