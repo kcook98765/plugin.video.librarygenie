@@ -27,7 +27,7 @@
       <menu id="kodi.core.main">
         <item library="resources/lib/context.py">
           <label>LibraryGenie</label>
-          <visible>String.IsEqual(ListItem.DBTYPE,movie) | [String.StartsWith(ListItem.Path,plugin://) + !ListItem.IsFolder]</visible>
+          <visible>String.IsEqual(ListItem.DBTYPE,movie) | [String.StartsWith(ListItem.Path,plugin://) + !ListItem.IsFolder] | [String.Contains(ListItem.Path,plugin.video.librarygenie) + ListItem.IsFolder]</visible>
         </item>
       </menu>
     </extension>
