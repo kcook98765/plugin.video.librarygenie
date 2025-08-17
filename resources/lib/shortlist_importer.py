@@ -263,70 +263,249 @@ class ShortlistImporter:
         return lists
 
     def lookup_in_kodi_library(self, title, year):
-        """Try to find movie in Kodi library and return full data"""
-        utils.log(f"Looking up '{title}' ({year}) in Kodi library", "DEBUG")
+        """Try to find movie in Kodi library using comprehensive JSONRPC search"""
+        utils.log(f"=== KODI LIBRARY LOOKUP START: '{title}' ({year}) ===", "INFO")
         
         try:
-            # Search for movie in Kodi library
-            movies = self.jsonrpc.get_movies()
+            # Strategy 1: Direct title search using JSONRPC search capabilities
+            utils.log(f"JSONRPC LOOKUP: Attempting direct title search for '{title}'", "INFO")
             
-            for movie in movies:
-                # Handle both dictionary and string movie entries
-                if isinstance(movie, dict):
+            search_response = self.jsonrpc.execute("VideoLibrary.GetMovies", {
+                "filter": {
+                    "field": "title",
+                    "operator": "is",
+                    "value": title
+                },
+                "properties": [
+                    "title", "year", "plot", "rating", "runtime", "genre", "director", 
+                    "cast", "studio", "mpaa", "tagline", "writer", "country", "premiered",
+                    "dateadded", "votes", "trailer", "file", "art", "imdbnumber", "uniqueid"
+                ]
+            })
+            
+            utils.log(f"JSONRPC RESPONSE: Direct title search returned: {search_response}", "INFO")
+            
+            if 'result' in search_response and 'movies' in search_response['result']:
+                movies = search_response['result']['movies']
+                utils.log(f"JSONRPC ANALYSIS: Found {len(movies)} exact title matches", "INFO")
+                
+                # Look for year match in exact title matches
+                for movie in movies:
+                    movie_year = movie.get('year', 0)
+                    if not year or abs(movie_year - year) <= 1:
+                        utils.log(f"JSONRPC SUCCESS: Exact match found - '{movie.get('title')}' ({movie_year})", "INFO")
+                        utils.log(f"JSONRPC DECISION: Using library data instead of shortlist data", "INFO")
+                        return movie
+            
+            # Strategy 2: Fuzzy title search if exact match fails
+            utils.log(f"JSONRPC LOOKUP: Attempting fuzzy title search (contains) for '{title}'", "INFO")
+            
+            fuzzy_response = self.jsonrpc.execute("VideoLibrary.GetMovies", {
+                "filter": {
+                    "field": "title",
+                    "operator": "contains",
+                    "value": title
+                },
+                "properties": [
+                    "title", "year", "plot", "rating", "runtime", "genre", "director", 
+                    "cast", "studio", "mpaa", "tagline", "writer", "country", "premiered",
+                    "dateadded", "votes", "trailer", "file", "art", "imdbnumber", "uniqueid"
+                ]
+            })
+            
+            utils.log(f"JSONRPC RESPONSE: Fuzzy search returned: {fuzzy_response}", "INFO")
+            
+            if 'result' in fuzzy_response and 'movies' in fuzzy_response['result']:
+                movies = fuzzy_response['result']['movies']
+                utils.log(f"JSONRPC ANALYSIS: Found {len(movies)} fuzzy title matches", "INFO")
+                
+                # Score matches by title similarity and year closeness
+                best_match = None
+                best_score = 0
+                
+                for movie in movies:
                     movie_title = movie.get('title', '').lower()
                     movie_year = movie.get('year', 0)
-                    movie_id = movie.get('movieid', 0)
-                elif isinstance(movie, str):
-                    # If movie is just a string, skip it
-                    utils.log(f"Skipping string movie entry: {movie}", "DEBUG")
-                    continue
-                else:
-                    utils.log(f"Unexpected movie data type: {type(movie)}", "DEBUG")
-                    continue
-                
-                # Simple title matching with year verification
-                if (title.lower() in movie_title or movie_title in title.lower()) and \
-                   (not year or abs(movie_year - year) <= 1):
-                    utils.log(f"Found library match: {movie_title} ({movie_year}) - ID: {movie_id}", "INFO")
                     
-                    # Get full movie details
-                    full_movie = self.jsonrpc.get_movie_details(movie_id)
-                    if full_movie:
-                        utils.log(f"Retrieved full library data for: {full_movie.get('title')}", "DEBUG")
-                        return full_movie
+                    # Title similarity score (simple containment check)
+                    title_score = 0
+                    if title.lower() in movie_title:
+                        title_score = 0.8
+                    elif movie_title in title.lower():
+                        title_score = 0.6
+                    
+                    # Year score
+                    year_score = 0
+                    if year and movie_year:
+                        year_diff = abs(movie_year - year)
+                        if year_diff == 0:
+                            year_score = 0.3
+                        elif year_diff == 1:
+                            year_score = 0.2
+                        elif year_diff <= 2:
+                            year_score = 0.1
+                    
+                    total_score = title_score + year_score
+                    
+                    utils.log(f"JSONRPC SCORING: '{movie_title}' ({movie_year}) - Title: {title_score}, Year: {year_score}, Total: {total_score}", "INFO")
+                    
+                    if total_score > best_score and total_score >= 0.6:  # Minimum threshold
+                        best_match = movie
+                        best_score = total_score
+                
+                if best_match:
+                    utils.log(f"JSONRPC SUCCESS: Best fuzzy match found - '{best_match.get('title')}' ({best_match.get('year')}) with score {best_score}", "INFO")
+                    utils.log(f"JSONRPC DECISION: Using library data instead of shortlist data", "INFO")
+                    return best_match
+            
+            # Strategy 3: Fallback to getting all movies and manual search (for older Kodi versions)
+            utils.log(f"JSONRPC LOOKUP: Fallback to manual search through all movies", "INFO")
+            
+            all_movies_response = self.jsonrpc.get_movies(0, 100, properties=[
+                "title", "year", "plot", "rating", "runtime", "genre", "director", 
+                "cast", "studio", "mpaa", "tagline", "writer", "country", "premiered",
+                "dateadded", "votes", "trailer", "file", "art", "imdbnumber", "uniqueid"
+            ])
+            
+            if 'result' in all_movies_response and 'movies' in all_movies_response['result']:
+                movies = all_movies_response['result']['movies']
+                utils.log(f"JSONRPC ANALYSIS: Searching through {len(movies)} movies manually", "INFO")
+                
+                for movie in movies:
+                    if isinstance(movie, dict):
+                        movie_title = movie.get('title', '').lower()
+                        movie_year = movie.get('year', 0)
+                        
+                        # Manual title matching with year verification
+                        if (title.lower() in movie_title or movie_title in title.lower()) and \
+                           (not year or abs(movie_year - year) <= 1):
+                            utils.log(f"JSONRPC SUCCESS: Manual match found - '{movie.get('title')}' ({movie_year})", "INFO")
+                            utils.log(f"JSONRPC DECISION: Using library data instead of shortlist data", "INFO")
+                            return movie
                         
         except Exception as e:
-            utils.log(f"Error looking up movie in library: {str(e)}", "DEBUG")
+            utils.log(f"JSONRPC ERROR: Library lookup failed: {str(e)}", "ERROR")
+            utils.log(f"JSONRPC DECISION: Will use shortlist data due to lookup error", "INFO")
             
-        utils.log(f"No library match found for '{title}' ({year})", "DEBUG")
+        utils.log(f"JSONRPC RESULT: No library match found for '{title}' ({year})", "INFO")
+        utils.log(f"JSONRPC DECISION: Will use shortlist data as no library match exists", "INFO")
+        utils.log(f"=== KODI LIBRARY LOOKUP END ===", "INFO")
         return None
 
+    def safe_convert_int(self, value, default=0):
+        """Safely convert value to integer with fallback"""
+        if value is None:
+            return default
+        try:
+            if isinstance(value, str):
+                # Handle empty strings
+                if not value.strip():
+                    return default
+                # Handle numeric strings
+                return int(float(value))  # float first to handle "2.0" -> 2
+            elif isinstance(value, (int, float)):
+                return int(value)
+            else:
+                utils.log(f"DATA_CONVERSION: Unexpected type for int conversion: {type(value)} = {value}", "DEBUG")
+                return default
+        except (ValueError, TypeError):
+            utils.log(f"DATA_CONVERSION: Failed to convert '{value}' to int, using default {default}", "DEBUG")
+            return default
+
+    def safe_convert_float(self, value, default=0.0):
+        """Safely convert value to float with fallback"""
+        if value is None:
+            return default
+        try:
+            if isinstance(value, str):
+                if not value.strip():
+                    return default
+                return float(value)
+            elif isinstance(value, (int, float)):
+                return float(value)
+            else:
+                utils.log(f"DATA_CONVERSION: Unexpected type for float conversion: {type(value)} = {value}", "DEBUG")
+                return default
+        except (ValueError, TypeError):
+            utils.log(f"DATA_CONVERSION: Failed to convert '{value}' to float, using default {default}", "DEBUG")
+            return default
+
+    def safe_convert_string(self, value, default=''):
+        """Safely convert value to string with fallback"""
+        if value is None:
+            return default
+        try:
+            if isinstance(value, str):
+                return value.strip()
+            else:
+                return str(value).strip()
+        except:
+            utils.log(f"DATA_CONVERSION: Failed to convert '{value}' to string, using default '{default}'", "DEBUG")
+            return default
+
+    def safe_list_to_string(self, value, default=''):
+        """Safely convert list or other value to comma-separated string"""
+        if value is None:
+            return default
+        try:
+            if isinstance(value, list):
+                # Filter out empty/None values and convert to strings
+                clean_items = [str(item).strip() for item in value if item is not None and str(item).strip()]
+                return ', '.join(clean_items) if clean_items else default
+            elif isinstance(value, str):
+                return value.strip() if value.strip() else default
+            else:
+                converted = str(value).strip()
+                return converted if converted else default
+        except:
+            utils.log(f"DATA_CONVERSION: Failed to convert list '{value}' to string, using default '{default}'", "DEBUG")
+            return default
+
     def convert_shortlist_item_to_media_dict(self, item, kodi_movie=None):
-        """Convert Shortlist item to LibraryGenie media dictionary format"""
+        """Convert Shortlist item to LibraryGenie media dictionary format with enhanced data conversion"""
         if kodi_movie:
-            # Use Kodi library data
-            utils.log(f"Converting library movie: {kodi_movie.get('title')}", "DEBUG")
+            # Use Kodi library data - this is preferred when available
+            utils.log(f"=== DATA_CONVERSION: Using KODI LIBRARY data for '{kodi_movie.get('title')}' ===", "INFO")
+            
+            # Runtime conversion: Kodi stores in minutes, we need seconds
+            runtime_minutes = self.safe_convert_int(kodi_movie.get('runtime', 0))
+            duration_seconds = runtime_minutes * 60 if runtime_minutes > 0 else 0
+            
+            # Cast processing: Extract actor names from cast array
+            cast_data = kodi_movie.get('cast', [])
+            cast_string = ''
+            if isinstance(cast_data, list):
+                actor_names = []
+                for actor in cast_data[:10]:  # Limit to 10 actors
+                    if isinstance(actor, dict):
+                        name = actor.get('name', '')
+                        if name:
+                            actor_names.append(name)
+                    elif isinstance(actor, str):
+                        actor_names.append(actor)
+                cast_string = ', '.join(actor_names) if actor_names else ''
+            
             media_dict = {
-                'title': kodi_movie.get('title', ''),
-                'year': kodi_movie.get('year', 0),
-                'plot': kodi_movie.get('plot', ''),
-                'rating': kodi_movie.get('rating', 0.0),
-                'duration': kodi_movie.get('runtime', 0) * 60 if kodi_movie.get('runtime') else 0,  # Convert minutes to seconds
-                'genre': ', '.join(kodi_movie.get('genre', [])) if kodi_movie.get('genre') else '',
-                'director': ', '.join(kodi_movie.get('director', [])) if kodi_movie.get('director') else '',
-                'cast': ', '.join([actor.get('name', '') for actor in kodi_movie.get('cast', [])[:5]]),  # Limit to 5 actors
-                'studio': ', '.join(kodi_movie.get('studio', [])) if kodi_movie.get('studio') else '',
-                'mpaa': kodi_movie.get('mpaa', ''),
-                'tagline': kodi_movie.get('tagline', ''),
-                'writer': ', '.join(kodi_movie.get('writer', [])) if kodi_movie.get('writer') else '',
-                'country': ', '.join(kodi_movie.get('country', [])) if kodi_movie.get('country') else '',
-                'premiered': kodi_movie.get('premiered', ''),
-                'dateadded': kodi_movie.get('dateadded', ''),
-                'votes': kodi_movie.get('votes', 0),
-                'trailer': kodi_movie.get('trailer', ''),
-                'path': kodi_movie.get('file', ''),
-                'play': kodi_movie.get('file', ''),
-                'kodi_id': kodi_movie.get('movieid', 0),
+                'title': self.safe_convert_string(kodi_movie.get('title'), 'Unknown Title'),
+                'year': self.safe_convert_int(kodi_movie.get('year')),
+                'plot': self.safe_convert_string(kodi_movie.get('plot')),
+                'rating': self.safe_convert_float(kodi_movie.get('rating')),
+                'duration': duration_seconds,
+                'genre': self.safe_list_to_string(kodi_movie.get('genre')),
+                'director': self.safe_list_to_string(kodi_movie.get('director')),
+                'cast': cast_string,
+                'studio': self.safe_list_to_string(kodi_movie.get('studio')),
+                'mpaa': self.safe_convert_string(kodi_movie.get('mpaa')),
+                'tagline': self.safe_convert_string(kodi_movie.get('tagline')),
+                'writer': self.safe_list_to_string(kodi_movie.get('writer')),
+                'country': self.safe_list_to_string(kodi_movie.get('country')),
+                'premiered': self.safe_convert_string(kodi_movie.get('premiered')),
+                'dateadded': self.safe_convert_string(kodi_movie.get('dateadded')),
+                'votes': self.safe_convert_int(kodi_movie.get('votes')),
+                'trailer': self.safe_convert_string(kodi_movie.get('trailer')),
+                'path': self.safe_convert_string(kodi_movie.get('file')),
+                'play': self.safe_convert_string(kodi_movie.get('file')),
+                'kodi_id': self.safe_convert_int(kodi_movie.get('movieid')),
                 'media_type': 'movie',
                 'source': 'kodi_library',
                 'imdbnumber': '',
@@ -339,50 +518,72 @@ class ShortlistImporter:
                 'status': 'available'
             }
             
-            # Extract art
+            # Extract and process art data
             art = kodi_movie.get('art', {})
-            media_dict['thumbnail'] = art.get('thumb', '')
-            media_dict['poster'] = art.get('poster', '')
-            media_dict['fanart'] = art.get('fanart', '')
-            media_dict['art'] = json.dumps(art) if art else ''
+            if isinstance(art, dict):
+                media_dict['thumbnail'] = self.safe_convert_string(art.get('thumb'))
+                media_dict['poster'] = self.safe_convert_string(art.get('poster'))
+                media_dict['fanart'] = self.safe_convert_string(art.get('fanart'))
+                media_dict['art'] = json.dumps(art) if art else ''
             
-            # Extract IMDb ID from uniqueid
+            # Extract IMDb ID and other unique identifiers
             uniqueid = kodi_movie.get('uniqueid', {})
-            if 'imdb' in uniqueid:
-                media_dict['imdbnumber'] = uniqueid['imdb']
+            imdbnumber_direct = kodi_movie.get('imdbnumber', '')
+            
+            # Prefer uniqueid.imdb over direct imdbnumber
+            if isinstance(uniqueid, dict) and uniqueid.get('imdb'):
+                media_dict['imdbnumber'] = self.safe_convert_string(uniqueid['imdb'])
+            elif imdbnumber_direct:
+                media_dict['imdbnumber'] = self.safe_convert_string(imdbnumber_direct)
+            
             media_dict['uniqueid'] = json.dumps(uniqueid) if uniqueid else ''
             
-        else:
-            # Use Shortlist data - preserve all available information
-            utils.log(f"Converting Shortlist item: {item.get('title')}", "DEBUG")
+            utils.log(f"DATA_CONVERSION: Library data processed - IMDb: {media_dict['imdbnumber']}, Runtime: {runtime_minutes}min -> {duration_seconds}s", "INFO")
             
-            # Helper function to safely convert lists to strings
-            def list_to_string(value):
-                if isinstance(value, list):
-                    return ', '.join(str(v) for v in value if v)
-                return str(value) if value else ''
+        else:
+            # Use Shortlist data with enhanced validation and conversion
+            utils.log(f"=== DATA_CONVERSION: Using SHORTLIST data for '{item.get('title') or item.get('label')}' ===", "INFO")
+            
+            # Title processing with fallbacks
+            title = self.safe_convert_string(item.get('title')) or \
+                   self.safe_convert_string(item.get('label')) or 'Unknown'
+            
+            # Duration processing: handle both 'duration' and 'runtime' fields
+            duration_value = item.get('duration') or item.get('runtime', 0)
+            duration_seconds = self.safe_convert_int(duration_value)
+            
+            # If duration seems to be in minutes (common in some sources), check if conversion needed
+            if 0 < duration_seconds < 500:  # Likely minutes if between 0-500
+                utils.log(f"DATA_CONVERSION: Duration {duration_seconds} seems to be in minutes, converting to seconds", "DEBUG")
+                duration_seconds = duration_seconds * 60
+            
+            # Rating processing - handle different rating scales
+            rating_value = self.safe_convert_float(item.get('rating'))
+            if rating_value > 10:  # Rating might be on 100-point scale
+                rating_value = rating_value / 10.0
+                utils.log(f"DATA_CONVERSION: Rating appears to be on 100-point scale, converted to {rating_value}", "DEBUG")
             
             media_dict = {
-                'title': item.get('title', '') or item.get('label', '') or 'Unknown',
-                'year': item.get('year', 0) or 0,
-                'plot': item.get('plot', '') or item.get('plotoutline', '') or '',
-                'rating': item.get('rating', 0.0) or 0.0,
-                'duration': item.get('duration', 0) or 0,
-                'genre': list_to_string(item.get('genre', '')),
-                'director': list_to_string(item.get('director', '')),
-                'cast': list_to_string(item.get('cast', '')),
-                'studio': list_to_string(item.get('studio', '')),
-                'mpaa': item.get('mpaa', '') or '',
-                'tagline': item.get('tagline', '') or '',
-                'writer': list_to_string(item.get('writer', '')),
-                'country': list_to_string(item.get('country', '')),
-                'premiered': item.get('premiered', '') or '',
-                'dateadded': item.get('dateadded', '') or '',
-                'votes': item.get('votes', 0) or 0,
-                'trailer': item.get('trailer', '') or '',
-                'path': item.get('file', '') or '',
-                'play': item.get('file', '') or '',
-                'kodi_id': 0,
+                'title': title,
+                'year': self.safe_convert_int(item.get('year')),
+                'plot': self.safe_convert_string(item.get('plot')) or self.safe_convert_string(item.get('plotoutline')),
+                'rating': rating_value,
+                'duration': duration_seconds,
+                'genre': self.safe_list_to_string(item.get('genre')),
+                'director': self.safe_list_to_string(item.get('director')),
+                'cast': self.safe_list_to_string(item.get('cast')),
+                'studio': self.safe_list_to_string(item.get('studio')),
+                'mpaa': self.safe_convert_string(item.get('mpaa')),
+                'tagline': self.safe_convert_string(item.get('tagline')),
+                'writer': self.safe_list_to_string(item.get('writer')),
+                'country': self.safe_list_to_string(item.get('country')),
+                'premiered': self.safe_convert_string(item.get('premiered')),
+                'dateadded': self.safe_convert_string(item.get('dateadded')),
+                'votes': self.safe_convert_int(item.get('votes')),
+                'trailer': self.safe_convert_string(item.get('trailer')),
+                'path': self.safe_convert_string(item.get('file')),
+                'play': self.safe_convert_string(item.get('file')),
+                'kodi_id': 0,  # No Kodi ID for shortlist imports
                 'media_type': 'movie',
                 'source': 'shortlist_import',
                 'imdbnumber': '',
@@ -395,20 +596,25 @@ class ShortlistImporter:
                 'status': 'available'
             }
             
-            # Extract art from Shortlist - poster is now in art.poster, not direct field
+            # Extract art from Shortlist with improved handling
             art = item.get('art', {})
             if art and isinstance(art, dict):
-                media_dict['thumbnail'] = art.get('thumb', '') or art.get('icon', '') or item.get('thumbnail', '')
-                media_dict['poster'] = art.get('poster', '')  # poster is in art.poster
-                media_dict['fanart'] = art.get('fanart', '') or item.get('fanart', '')
+                media_dict['thumbnail'] = self.safe_convert_string(art.get('thumb')) or \
+                                         self.safe_convert_string(art.get('icon')) or \
+                                         self.safe_convert_string(item.get('thumbnail'))
+                media_dict['poster'] = self.safe_convert_string(art.get('poster'))
+                media_dict['fanart'] = self.safe_convert_string(art.get('fanart')) or \
+                                      self.safe_convert_string(item.get('fanart'))
                 media_dict['art'] = json.dumps(art)
             else:
-                # Fallback to direct properties and item.poster field (from our extraction above)
-                media_dict['thumbnail'] = item.get('thumbnail', '')
-                media_dict['poster'] = item.get('poster', '')  # This was extracted from art.poster above
-                media_dict['fanart'] = item.get('fanart', '')
+                # Fallback to direct properties
+                media_dict['thumbnail'] = self.safe_convert_string(item.get('thumbnail'))
+                media_dict['poster'] = self.safe_convert_string(item.get('poster'))
+                media_dict['fanart'] = self.safe_convert_string(item.get('fanart'))
+            
+            utils.log(f"DATA_CONVERSION: Shortlist data processed - Duration: {duration_value} -> {duration_seconds}s, Rating: {item.get('rating')} -> {rating_value}", "INFO")
         
-        utils.log(f"Converted media dict for: {media_dict['title']} ({media_dict['year']}) - Source: {media_dict['source']}", "DEBUG")
+        utils.log(f"=== DATA_CONVERSION COMPLETE: '{media_dict['title']}' ({media_dict['year']}) from {media_dict['source']} ===", "INFO")
         return media_dict
 
     def clear_imported_lists_folder(self, imported_folder_id):
@@ -498,31 +704,78 @@ class ShortlistImporter:
                 # Process each item in the list
                 for j, item in enumerate(items):
                     item_title = item.get('title') or item.get('label', 'Unknown')
-                    item_year = item.get('year', 0)
+                    item_year = self.safe_convert_int(item.get('year'))
                     
-                    utils.log(f"Processing item {j+1}/{len(items)}: {item_title} ({item_year})", "DEBUG")
+                    utils.log(f"=== PROCESSING ITEM {j+1}/{len(items)}: '{item_title}' ({item_year}) ===", "INFO")
                     
-                    # Try to find in Kodi library first
+                    # Enhanced library lookup with better validation
                     kodi_movie = None
-                    if item_title and item_year:
-                        kodi_movie = self.lookup_in_kodi_library(item_title, item_year)
+                    if item_title and item_title.strip() and item_title != 'Unknown':
+                        # Clean title for better matching
+                        clean_title = item_title.strip()
+                        if len(clean_title) > 2:  # Only search for titles with meaningful length
+                            utils.log(f"IMPORT_PROCESS: Attempting library lookup for '{clean_title}' ({item_year})", "INFO")
+                            kodi_movie = self.lookup_in_kodi_library(clean_title, item_year)
+                            
+                            if kodi_movie:
+                                utils.log(f"IMPORT_SUCCESS: Library match found - will use Kodi data", "INFO")
+                            else:
+                                utils.log(f"IMPORT_INFO: No library match - will use Shortlist data", "INFO")
+                        else:
+                            utils.log(f"IMPORT_SKIP: Title too short for reliable matching: '{clean_title}'", "INFO")
+                    else:
+                        utils.log(f"IMPORT_SKIP: Invalid title for library lookup: '{item_title}'", "INFO")
                     
-                    # Convert to media dict
-                    media_dict = self.convert_shortlist_item_to_media_dict(item, kodi_movie)
-                    
-                    # DEBUG: Log the complete media_dict being inserted
-                    utils.log(f"=== MEDIA_DICT DEBUG for '{media_dict['title']}' ===", "INFO")
-                    for key, value in media_dict.items():
-                        if value:  # Only log non-empty values
-                            utils.log(f"  {key}: {value}", "INFO")
-                    utils.log(f"=== END MEDIA_DICT DEBUG ===", "INFO")
+                    # Convert to media dict with enhanced data processing
+                    try:
+                        media_dict = self.convert_shortlist_item_to_media_dict(item, kodi_movie)
+                        
+                        # Validation of converted data
+                        validation_issues = []
+                        if not media_dict.get('title') or media_dict['title'] in ['Unknown', '']:
+                            validation_issues.append("Missing or invalid title")
+                        if media_dict.get('year', 0) < 1900 or media_dict.get('year', 0) > 2030:
+                            validation_issues.append(f"Suspicious year: {media_dict.get('year')}")
+                        if media_dict.get('duration', 0) < 0:
+                            validation_issues.append(f"Invalid duration: {media_dict.get('duration')}")
+                        
+                        if validation_issues:
+                            utils.log(f"DATA_VALIDATION: Issues found for '{media_dict['title']}': {'; '.join(validation_issues)}", "WARNING")
+                        
+                        # Enhanced logging of final media dict
+                        utils.log(f"=== FINAL MEDIA_DICT for '{media_dict['title']}' ===", "INFO")
+                        important_fields = ['title', 'year', 'source', 'duration', 'rating', 'genre', 'director', 'plot', 'imdbnumber']
+                        for field in important_fields:
+                            value = media_dict.get(field, '')
+                            if value:
+                                utils.log(f"  {field}: {value}", "INFO")
+                        utils.log(f"=== END FINAL MEDIA_DICT ===", "INFO")
+                        
+                    except Exception as e:
+                        utils.log(f"CONVERSION_ERROR: Failed to convert item '{item_title}': {str(e)}", "ERROR")
+                        # Create minimal fallback media dict
+                        media_dict = {
+                            'title': item_title or 'Unknown',
+                            'year': item_year or 0,
+                            'source': 'shortlist_import',
+                            'media_type': 'movie',
+                            'kodi_id': 0,
+                            'rating': 0.0,
+                            'duration': 0,
+                            'votes': 0,
+                            'plot': f"Failed to process shortlist item: {str(e)}",
+                            'play': item.get('file', ''),
+                            'path': item.get('file', '')
+                        }
+                        utils.log(f"CONVERSION_FALLBACK: Using minimal data for '{media_dict['title']}'", "WARNING")
                     
                     # Add to list using the established DatabaseManager.add_media_item method
                     try:
                         self.db_manager.add_media_item(list_id, media_dict)
-                        utils.log(f"Successfully added '{media_dict['title']}' to list '{list_name}' - Source: {media_dict['source']}", "INFO")
+                        source_indicator = "📚 LIBRARY" if media_dict['source'] == 'kodi_library' else "📁 SHORTLIST"
+                        utils.log(f"IMPORT_SUCCESS: Added '{media_dict['title']}' to list '{list_name}' - {source_indicator}", "INFO")
                     except Exception as e:
-                        utils.log(f"Error adding item to list: {str(e)}", "ERROR")
+                        utils.log(f"DATABASE_ERROR: Failed to add '{media_dict['title']}' to list: {str(e)}", "ERROR")
                         # Log the error details for debugging
                         import traceback
                         utils.log(f"Full traceback: {traceback.format_exc()}", "ERROR")
