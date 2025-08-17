@@ -479,7 +479,16 @@ class ListItemBuilder:
             li.addContextMenuItems(context_menu_items, replaceItems=False)
 
         # Try to get play URL from different possible locations
-        play_url = media_info.get('info', {}).get('play') or media_info.get('play') or media_info.get('file')
+        # For plugin items, prioritize the 'file' field which contains the original plugin URL
+        play_url = None
+        
+        # Check if this is a plugin item and prioritize file field
+        if source == 'plugin_addon' and media_info.get('file'):
+            play_url = media_info.get('file')
+        else:
+            # For other items, use the standard priority order
+            play_url = media_info.get('info', {}).get('play') or media_info.get('play') or media_info.get('file')
+        
         if play_url:
             li.setPath(play_url)
             utils.log(f"Set ListItem path for '{title}': {play_url}", "DEBUG")
