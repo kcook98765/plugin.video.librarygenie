@@ -82,11 +82,32 @@ class MediaManager:
 
         # Fallback to current method for non-library items
         utils.log("Using fallback method for non-library item", "DEBUG")
+        
+        # Get basic info from current ListItem
+        title = xbmc.getInfoLabel('ListItem.Title')
+        year = xbmc.getInfoLabel('ListItem.Year')
+        plot = xbmc.getInfoLabel('ListItem.Plot')
+        
+        # Try to get IMDb ID from various sources
+        imdb_candidates = [
+            xbmc.getInfoLabel('ListItem.IMDBNumber'),
+            xbmc.getInfoLabel('ListItem.UniqueID(imdb)'),
+            xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)'),
+            xbmc.getInfoLabel('ListItem.Property(imdb_id)'),
+            xbmc.getInfoLabel('ListItem.Property(imdbnumber)')
+        ]
+        
+        imdb_id = None
+        for candidate in imdb_candidates:
+            if candidate and str(candidate).startswith('tt'):
+                imdb_id = candidate
+                break
+        
         info = {
-            'kodi_id': kodi_id,
-            'title': xbmc.getInfoLabel('ListItem.Title'),
-            'year': xbmc.getInfoLabel('ListItem.Year'),
-            'plot': xbmc.getInfoLabel('ListItem.Plot'),
+            'kodi_id': kodi_id if kodi_id and kodi_id.isdigit() else None,
+            'title': title,
+            'year': year,
+            'plot': plot,
             'genre': xbmc.getInfoLabel('ListItem.Genre'),
             'director': xbmc.getInfoLabel('ListItem.Director'),
             'cast': self.get_cast_info(),
@@ -94,16 +115,24 @@ class MediaManager:
             'file': xbmc.getInfoLabel('ListItem.FileNameAndPath'),
             'thumbnail': xbmc.getInfoLabel('ListItem.Art(poster)'),
             'fanart': xbmc.getInfoLabel('ListItem.Art(fanart)'),
-            'poster': xbmc.getInfoLabel('ListItem.Art(poster)'),  # Store poster URL explicitly
+            'poster': xbmc.getInfoLabel('ListItem.Art(poster)'),
             'duration': xbmc.getInfoLabel('ListItem.Duration'),
-            'type': media_type
+            'type': media_type,
+            'imdbnumber': imdb_id,
+            'source': 'plugin_addon'  # Mark as coming from plugin addon
         }
         
-        # Assuming ListItemBuilder is imported and available in this scope
-        from resources.lib.listitem_builder import ListItemBuilder
-        list_item = ListItemBuilder.build_video_item(info, is_search_history=False)
+        # Clean up empty values but keep essential fields
+        cleaned_info = {}
+        for k, v in info.items():
+            if k in ['title', 'source', 'type']:  # Always keep these essential fields
+                cleaned_info[k] = v or ('Unknown' if k == 'title' else v)
+            elif v:  # Keep non-empty values
+                cleaned_info[k] = v
         
-        return {k: v for k, v in info.items() if v}
+        utils.log(f"Fallback media info extracted: title='{cleaned_info.get('title')}', imdb='{cleaned_info.get('imdbnumber')}', source='{cleaned_info.get('source')}'", "DEBUG")
+        
+        return cleaned_info
 
 
     def get_cast_info(self):

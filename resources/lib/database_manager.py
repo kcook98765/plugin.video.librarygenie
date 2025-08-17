@@ -280,7 +280,7 @@ class DatabaseManager(Singleton):
         search_history_folder_id = self.get_folder_id_by_name("Search History")
         return folder_id == search_history_folder_id
 
-    
+
 
     def delete_data(self, table, condition):
         query = f'DELETE FROM {table} WHERE {condition}'
@@ -850,7 +850,7 @@ class DatabaseManager(Singleton):
             # First insert or get the media item
             media_id = None
             imdb_id = media_dict.get('imdbnumber', '')
-            
+
             # Look for existing media item by IMDB ID if available
             if imdb_id:
                 try:
@@ -862,19 +862,19 @@ class DatabaseManager(Singleton):
                         utils.log(f"Found existing media item with ID: {media_id}", "DEBUG")
                 except Exception as e:
                     utils.log(f"Error looking up existing media item: {str(e)}", "DEBUG")
-            
+
             # If no existing media item found, create new one
             if not media_id:
                 media_id = self.insert_data('media_items', media_dict)
                 utils.log(f"Created new media item with ID: {media_id}", "DEBUG")
-            
+
             if media_id and media_id > 0:
                 # Check if already in list
                 try:
                     query = "SELECT id FROM list_items WHERE list_id = ? AND media_item_id = ?"
                     self._execute_with_retry(self.cursor.execute, query, (list_id, media_id))
                     existing_list_item = self.cursor.fetchone()
-                    
+
                     if not existing_list_item:
                         # Add to list
                         query = "INSERT INTO list_items (list_id, media_item_id) VALUES (?, ?)"
@@ -883,17 +883,17 @@ class DatabaseManager(Singleton):
                         utils.log(f"Successfully added media item {media_id} to list {list_id}", "DEBUG")
                     else:
                         utils.log(f"Media item {media_id} already in list {list_id}", "DEBUG")
-                        
+
                 except Exception as e:
                     utils.log(f"Error checking/adding list item: {str(e)}", "ERROR")
                     raise
-                    
+
                 return media_id
             else:
                 utils.log(f"Failed to insert media item - got invalid ID: {media_id}", "ERROR")
                 utils.log(f"Media dict was: {media_dict}", "ERROR")
                 return None
-                
+
         except Exception as e:
             utils.log(f"Error adding media item to list: {str(e)}", "ERROR")
             raise
@@ -915,7 +915,6 @@ class DatabaseManager(Singleton):
             self.connection.commit()
 
             return self.cursor.rowcount > 0
-
         except Exception as e:
             utils.log(f"Error updating data in {table}: {str(e)}", "ERROR")
             return False
