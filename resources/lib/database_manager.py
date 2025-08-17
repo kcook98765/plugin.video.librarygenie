@@ -848,35 +848,45 @@ class DatabaseManager(Singleton):
         """Add a media item to a specific list"""
         try:
             # First insert or get the media item
-            existing_media = self.fetch_data('media_items', f"imdbnumber = '{media_dict.get('imdbnumber', '')}'")
+            media_id = None
+            imdb_id = media_dict.get('imdbnumber', '')
             
-            if existing_media and media_dict.get('imdbnumber'):
-                media_id = existing_media[0]['id']
-                utils.log(f"Found existing media item with ID: {media_id}", "DEBUG")
-            else:
-                # Insert new media item
+            # Look for existing media item by IMDB ID if available
+            if imdb_id:
+                try:
+                    query = "SELECT id FROM media_items WHERE imdbnumber = ?"
+                    self._execute_with_retry(self.cursor.execute, query, (imdb_id,))
+                    result = self.cursor.fetchone()
+                    if result:
+                        media_id = result[0]
+                        utils.log(f"Found existing media item with ID: {media_id}", "DEBUG")
+                except Exception as e:
+                    utils.log(f"Error looking up existing media item: {str(e)}", "DEBUG")
+            
+            # If no existing media item found, create new one
+            if not media_id:
                 media_id = self.insert_data('media_items', media_dict)
                 utils.log(f"Created new media item with ID: {media_id}", "DEBUG")
             
             if media_id:
                 # Check if already in list
-                existing_list_item = self.fetch_data('list_items', f"list_id = {list_id} AND media_item_id = {media_id}")
-                
-                if not existing_list_item:
-                    # Add to list
-                    list_item_data = {
-                        'list_id': list_id,
-                        'media_item_id': media_id
-                    }
-                    columns = ', '.join(list_item_data.keys())
-                    placeholders = ', '.join(['?' for _ in list_item_data])
-                    query = f'INSERT INTO list_items ({columns}) VALUES ({placeholders})'
+                try:
+                    query = "SELECT id FROM list_items WHERE list_id = ? AND media_item_id = ?"
+                    self._execute_with_retry(self.cursor.execute, query, (list_id, media_id))
+                    existing_list_item = self.cursor.fetchone()
                     
-                    self._execute_with_retry(self.cursor.execute, query, tuple(list_item_data.values()))
-                    self.connection.commit()
-                    utils.log(f"Successfully added media item {media_id} to list {list_id}", "DEBUG")
-                else:
-                    utils.log(f"Media item {media_id} already in list {list_id}", "DEBUG")
+                    if not existing_list_item:
+                        # Add to list
+                        query = "INSERT INTO list_items (list_id, media_item_id) VALUES (?, ?)"
+                        self._execute_with_retry(self.cursor.execute, query, (list_id, media_id))
+                        self.connection.commit()
+                        utils.log(f"Successfully added media item {media_id} to list {list_id}", "DEBUG")
+                    else:
+                        utils.log(f"Media item {media_id} already in list {list_id}", "DEBUG")
+                        
+                except Exception as e:
+                    utils.log(f"Error checking/adding list item: {str(e)}", "ERROR")
+                    raise
                     
                 return media_id
             else:

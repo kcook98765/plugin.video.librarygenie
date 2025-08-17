@@ -271,16 +271,26 @@ class ShortlistImporter:
             movies = self.jsonrpc.get_movies()
             
             for movie in movies:
-                movie_title = movie.get('title', '').lower()
-                movie_year = movie.get('year', 0)
+                # Handle both dictionary and string movie entries
+                if isinstance(movie, dict):
+                    movie_title = movie.get('title', '').lower()
+                    movie_year = movie.get('year', 0)
+                    movie_id = movie.get('movieid', 0)
+                elif isinstance(movie, str):
+                    # If movie is just a string, skip it
+                    utils.log(f"Skipping string movie entry: {movie}", "DEBUG")
+                    continue
+                else:
+                    utils.log(f"Unexpected movie data type: {type(movie)}", "DEBUG")
+                    continue
                 
                 # Simple title matching with year verification
                 if (title.lower() in movie_title or movie_title in title.lower()) and \
                    (not year or abs(movie_year - year) <= 1):
-                    utils.log(f"Found library match: {movie['title']} ({movie['year']}) - ID: {movie['movieid']}", "INFO")
+                    utils.log(f"Found library match: {movie_title} ({movie_year}) - ID: {movie_id}", "INFO")
                     
                     # Get full movie details
-                    full_movie = self.jsonrpc.get_movie_details(movie['movieid'])
+                    full_movie = self.jsonrpc.get_movie_details(movie_id)
                     if full_movie:
                         utils.log(f"Retrieved full library data for: {full_movie.get('title')}", "DEBUG")
                         return full_movie
@@ -475,7 +485,14 @@ class ShortlistImporter:
                     break
                 
                 # Create list in LibraryGenie
-                list_id = self.db_manager.create_list(list_name, imported_folder_id)
+                list_result = self.db_manager.create_list(list_name, imported_folder_id)
+                
+                # Handle both dictionary and integer return values
+                if isinstance(list_result, dict):
+                    list_id = list_result['id']
+                else:
+                    list_id = list_result
+                    
                 utils.log(f"Created LibraryGenie list: {list_name} (ID: {list_id})", "INFO")
                 
                 # Process each item in the list
