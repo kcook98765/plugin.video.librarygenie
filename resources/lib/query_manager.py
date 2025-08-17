@@ -763,6 +763,7 @@ class QueryManager(Singleton):
         Legacy behavior inserted full library metadata into media_items.
         Under the new policy we only clear any stale 'lib' rows; library data
         is fetched on-demand via JSON-RPC when rendering lists.
+        Search results (source='search') and other sources are preserved.
         """
         self.execute_query("DELETE FROM media_items WHERE source = 'lib'")
 

@@ -1,4 +1,3 @@
-
 # LibraryGenie Data Sources Documentation
 
 This document explains the data source system used in LibraryGenie's database to track and manage different types of media content. Understanding these sources is crucial for proper data handling and debugging.
@@ -9,27 +8,40 @@ LibraryGenie uses a `source` field in the `media_items` table to categorize cont
 
 ## Source Types
 
-### 1. Library (`lib`) - Kodi Library Content & Search Results
+### 1. Library (`lib`) - Kodi Library Content References
 
-**Purpose**: Reference entries for movies that exist in the user's Kodi library, as well as search results from AI-powered semantic search.
+**Purpose**: Reference entries for movies that exist in the user's Kodi library.
 
 **Characteristics**:
-- **Library References**: Minimal metadata stored (identifiers only), contains `kodi_id` linking to Kodi's database
-- **Search Results**: Contains search relevance scores and IMDB IDs, automatically saved to "Search History" folder
+- Minimal metadata stored (identifiers only), contains `kodi_id` linking to Kodi's database
 - May include `imdbnumber` for cross-referencing
-- Full metadata fetched on-demand via JSON-RPC for library items
-- Search results include title/year from `imdb_exports` table lookup
+- Full metadata fetched on-demand via JSON-RPC when displaying lists
 - Library references automatically cleared during library sync operations
 
 **Data Flow**:
-1. **Library Sync**: Removes all `source = 'lib'` records without `search_score`
+1. **Library Sync**: Removes all `source = 'lib'` records during sync operations
 2. **Library References**: Created via `QueryManager.insert_media_item()`
-3. **Search Results**: Saved with `search_score` field, organized into timestamped lists
-4. **Display**: Full metadata retrieved from Kodi when displaying library items
+3. **Display**: Full metadata retrieved from Kodi when displaying library items
+
+### 2. Search (`search`) - AI-Powered Search Results
+
+**Purpose**: Search results from AI-powered semantic search with relevance scoring.
+
+**Characteristics**:
+- Contains search relevance scores and IMDB IDs
+- Automatically saved to "Search History" folder
+- Include title/year from `imdb_exports` table lookup
+- Contains `search_score` field for result ranking
+- Protected from library sync operations
+
+**Data Flow**:
+1. **Search Results**: Saved with `search_score` field, organized into timestamped lists
+2. **Search History**: Automatically organized into "Search History" folder
+3. **Display**: Full metadata retrieved from Kodi when displaying search results
 
 **Identification Logic**:
-- Library items: `source = 'lib'` AND `search_score IS NULL`
-- Search results: `source = 'lib'` AND `search_score IS NOT NULL`
+- Library items: `source = 'lib'`
+- Search results: `source = 'search'`
 
 **Example Use Cases**:
 - Library movie references in user-created lists
@@ -42,12 +54,12 @@ LibraryGenie uses a `source` field in the `media_items` table to categorize cont
 INSERT INTO media_items (kodi_id, imdbnumber, source, media_type, title, year)
 VALUES (123, 'tt0111161', 'lib', 'movie', '', 0);
 
--- Example lib record (search result)
+-- Example search record
 INSERT INTO media_items (
     imdbnumber, source, search_score, title, year, 
     plot, play, media_type
 ) VALUES (
-    'tt0111161', 'lib', 9.85, 'The Shawshank Redemption', 1994,
+    'tt0111161', 'search', 9.85, 'The Shawshank Redemption', 1994,
     'Search result for "prison drama" - Score: 9.85 - IMDb: tt0111161',
     'search_history://tt0111161', 'movie'
 );
@@ -213,14 +225,14 @@ if source == 'shortlist_import':
         "SELECT id FROM media_items WHERE title = ? AND year = ? AND play = ? AND source = ?",
         (title, year, play, source)
     )
-elif source in ('lib',) and imdb_id:
-    if media_data.get('search_score'):
-        # For search results, look up by IMDb ID and search_score presence
+elif source in ('lib', 'search'): # Updated to include 'search' source
+    if source == 'search':
+        # For search results, look up by IMDb ID
         cursor.execute(
-            "SELECT id FROM media_items WHERE imdbnumber = ? AND search_score IS NOT NULL",
-            (imdb_id,)
+            "SELECT id FROM media_items WHERE imdbnumber = ? AND source = ?",
+            (imdb_id, source)
         )
-    else:
+    else: # source == 'lib'
         # For regular lib items
         cursor.execute(
             "SELECT id FROM media_items WHERE imdbnumber = ? AND source = ?",
@@ -230,54 +242,50 @@ elif source in ('lib',) and imdb_id:
 
 ### Library Sync Protection
 
-Library sync operations only affect library content without search scores in `QueryManager.sync_movies()`:
+Library sync operations only affect library content in `QueryManager.sync_movies()`:
 
 ```python
 def sync_movies(self, movies):
     """Only clear library references, preserve search results and other sources"""
     # This preserves search results which have search_score field
-    self.execute_query("DELETE FROM media_items WHERE source = 'lib' AND search_score IS NULL")
+    self.execute_query("DELETE FROM media_items WHERE source = 'lib'") # Simplified to clear all 'lib' sources
 ```
 
 ## Search History Management
 
-Search history uses special handling within the `lib` source via `DatabaseManager.add_search_history()`:
+Search history uses special handling within the `search` source via `DatabaseManager.add_search_history()`:
 
 ### Search Result Processing
 1. Remote API returns search results with IMDB IDs and scores via `RemoteAPIClient.search_movies()`
 2. Title/year looked up from `imdb_exports` table if available
-3. Results stored with `source = 'lib'` AND `search_score = relevance_score`
+3. Results stored with `source = 'search'`
 4. Automatically organized into timestamped lists in "Search History" folder
 
 ### Search History Identification
 ```python
 def is_search_result(self, media_item):
     """Check if a media item is a search result"""
-    return (media_item.get('source') == 'lib' and 
-            media_item.get('search_score') is not None)
+    return media_item.get('source') == 'search'
 
 def is_library_reference(self, media_item):
     """Check if a media item is a library reference"""
-    return (media_item.get('source') == 'lib' and 
-            media_item.get('search_score') is None and
-            media_item.get('kodi_id', 0) > 0)
+    return media_item.get('source') == 'lib' and media_item.get('kodi_id', 0) > 0
 ```
 
 ## Best Practices
 
 ### 1. Source Selection
 
-- Use `lib` for both Kodi library references AND search results
-- Use `search_score` field to distinguish between library refs and search results
-- Use `manual` for user-curated library items via context menu
-- Use `external` for complete external content
-- Use `plugin_addon` for plugin-specific content
-- Use `shortlist_import` for bulk imports
+- Use `lib` for Kodi library references.
+- Use `search` for AI-powered search results.
+- Use `manual` for user-curated library items via context menu.
+- Use `external` for complete external content.
+- Use `plugin_addon` for plugin-specific content.
+- Use `shortlist_import` for bulk imports.
 
 ### 2. Data Consistency
 
 - Always set appropriate source when inserting via `QueryManager.insert_media_item()`
-- Use `search_score` field to identify search results within `lib` source
 - Use source-specific lookup logic
 - Respect source-specific update strategies
 - Maintain referential integrity
@@ -285,11 +293,11 @@ def is_library_reference(self, media_item):
 ### 3. Performance Considerations
 
 - `lib` and `manual` sources minimize storage overhead for library content
-- Search results within `lib` preserve relevance information
+- `search` sources preserve relevance information
 - `external` sources provide fast access to full metadata
 - Use appropriate indexes for source-specific queries
 
-### 4. Manual vs Library vs Search Distinction
+### 4. Library vs Search Distinction
 
 The key distinctions:
 
@@ -300,11 +308,11 @@ WHERE source = 'manual';
 
 -- Library references (system-generated)
 SELECT * FROM media_items 
-WHERE source = 'lib' AND search_score IS NULL;
+WHERE source = 'lib';
 
 -- Search results (AI-generated with scores)  
 SELECT * FROM media_items 
-WHERE source = 'lib' AND search_score IS NOT NULL;
+WHERE source = 'search';
 ```
 
 ## Debugging Source Issues
@@ -319,23 +327,18 @@ WHERE source = 'lib' AND search_score IS NOT NULL;
 ### Diagnostic Queries
 
 ```sql
--- Check source distribution including search results
+-- Check source distribution
 SELECT 
     source,
-    CASE 
-        WHEN source = 'lib' AND search_score IS NOT NULL THEN 'search_result'
-        WHEN source = 'lib' AND search_score IS NULL THEN 'library_ref'
-        ELSE source
-    END as effective_source,
     COUNT(*) as count 
 FROM media_items 
-GROUP BY source, effective_source;
+GROUP BY source;
 
 -- Find duplicate IMDB entries across all sources
-SELECT imdbnumber, source, search_score, COUNT(*) as count 
+SELECT imdbnumber, source, COUNT(*) as count 
 FROM media_items 
 WHERE imdbnumber IS NOT NULL 
-GROUP BY imdbnumber, source, (search_score IS NOT NULL)
+GROUP BY imdbnumber, source
 HAVING count > 1;
 
 -- Verify search history organization
@@ -343,7 +346,7 @@ SELECT l.name, COUNT(li.id) as items
 FROM lists l
 JOIN list_items li ON l.id = li.list_id
 JOIN media_items mi ON li.media_item_id = mi.id
-WHERE mi.source = 'lib' AND mi.search_score IS NOT NULL
+WHERE mi.source = 'search'
 GROUP BY l.name
 ORDER BY l.name;
 ```
@@ -353,7 +356,7 @@ ORDER BY l.name;
 Enable debug logging to trace source-specific operations:
 
 ```python
-utils.log(f"Successfully inserted media item with ID: {inserted_id} for source: {source}, search_score: {search_score}", "DEBUG")
+utils.log(f"Successfully inserted media item with ID: {inserted_id} for source: {source}", "DEBUG")
 ```
 
 Look for URL generation logs:
@@ -367,7 +370,7 @@ When updating source handling:
 
 1. **Backup Database**: Always backup before source changes
 2. **Test Migrations**: Verify source transitions work correctly
-3. **Update Logic**: Ensure all source-specific logic accounts for search results within `lib`
+3. **Update Logic**: Ensure all source-specific logic accounts for search results within `search` source
 4. **Validate Results**: Check data integrity after changes
 5. **URL Generation**: Verify playback URLs are generated correctly for each source
 
@@ -401,5 +404,5 @@ The source system provides flexible content management while maintaining data in
 For implementation details, see:
 - `QueryManager.insert_media_item()` - Source-specific insertion logic
 - `QueryManager.sync_movies()` - Library sync operations that preserve search results
-- `DatabaseManager.add_search_history()` - Search result handling within `lib` source
+- `DatabaseManager.add_search_history()` - Search result handling within `search` source
 - `ResultsManager.build_display_items_for_list()` - Source-specific processing and URL generation
