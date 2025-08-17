@@ -807,6 +807,11 @@ class DatabaseManager(Singleton):
         utils.log(f"Creating folder '{name}' with parent_id={parent_id}", "DEBUG")
         return self.query_manager.create_folder(name, parent_id)
 
+    def create_list(self, name, folder_id=None):
+        """Create a new list"""
+        utils.log(f"Creating list '{name}' with folder_id={folder_id}", "DEBUG")
+        return self.query_manager.create_list(name, folder_id)
+
     def ensure_folder_exists(self, name, parent_id=None):
         """Ensure a folder exists, create if it doesn't"""
         utils.log(f"Ensuring folder '{name}' exists with parent_id={parent_id}", "DEBUG")
