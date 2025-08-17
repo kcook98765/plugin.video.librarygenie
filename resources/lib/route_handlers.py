@@ -125,7 +125,14 @@ def create_list(params):
         else:
             folder_id = None
         utils.log(f"Creating list '{name}' in folder_id: {folder_id}", "DEBUG")
-        list_id = db_manager.create_list(name, folder_id)
+        created_list = db_manager.create_list(name, folder_id)
+        if not created_list:
+            xbmcgui.Dialog().notification('LibraryGenie', 'Failed to create new list', xbmcgui.NOTIFICATION_ERROR)
+            return
+
+        # Extract list ID from returned dictionary
+        selected_list_id = created_list['id'] if isinstance(created_list, dict) else created_list
+        utils.log(f"Created new list '{name}' with ID: {selected_list_id}", "DEBUG")
         utils.log("=== CREATE_LIST: ABOUT TO SHOW SUCCESS NOTIFICATION ===", "DEBUG")
         xbmcgui.Dialog().notification('LibraryGenie', 'List created')
         utils.log("=== CREATE_LIST: SUCCESS NOTIFICATION CLOSED ===", "DEBUG")
@@ -410,7 +417,7 @@ def add_to_list(params):
         from resources.lib.kodi_helper import KodiHelper
         kodi_helper = KodiHelper()
         imdb_id = kodi_helper.get_imdb_from_item()
-        
+
         # Get year from Kodi
         import xbmc
         year_str = xbmc.getInfoLabel('ListItem.Year')
@@ -487,11 +494,13 @@ def add_to_list(params):
                 return
 
             # Create new list at root level (folder_id=None)
-            selected_list_id = db_manager.create_list(new_list_name, None)
-            if not selected_list_id:
+            created_list = db_manager.create_list(new_list_name, None)
+            if not created_list:
                 xbmcgui.Dialog().notification('LibraryGenie', 'Failed to create new list', xbmcgui.NOTIFICATION_ERROR)
                 return
 
+            # Extract list ID from returned dictionary
+            selected_list_id = created_list['id'] if isinstance(created_list, dict) else created_list
             utils.log(f"Created new list '{new_list_name}' with ID: {selected_list_id}", "DEBUG")
 
 
@@ -515,7 +524,7 @@ def add_to_list(params):
             # Add to list using the database manager's method
             try:
                 success = db_manager.add_item_to_list(selected_list_id, media_id)
-                
+
                 if success:
                     utils.log(f"Successfully added item to list: list_id={selected_list_id}, media_item_id={media_id}", "DEBUG")
                     xbmcgui.Dialog().notification('LibraryGenie', f'Added "{title}" to list', xbmcgui.NOTIFICATION_INFO, 3000)
@@ -612,11 +621,13 @@ def add_to_list_from_context(params):
                 return
 
             # Create new list at root level (folder_id=None)
-            selected_list_id = db_manager.create_list(new_list_name, None)
-            if not selected_list_id:
+            created_list = db_manager.create_list(new_list_name, None)
+            if not created_list:
                 xbmcgui.Dialog().notification('LibraryGenie', 'Failed to create new list', xbmcgui.NOTIFICATION_ERROR)
                 return
 
+            # Extract list ID from returned dictionary
+            selected_list_id = created_list['id'] if isinstance(created_list, dict) else created_list
             utils.log(f"Created new list '{new_list_name}' with ID: {selected_list_id}", "DEBUG")
 
 
@@ -640,7 +651,7 @@ def add_to_list_from_context(params):
             # Add to list using the database manager's method
             try:
                 success = db_manager.add_item_to_list(selected_list_id, media_id)
-                
+
                 if success:
                     utils.log(f"Successfully added item to list: list_id={selected_list_id}, media_item_id={media_id}", "DEBUG")
                     xbmcgui.Dialog().notification('LibraryGenie', f'Added "{title}" to list', xbmcgui.NOTIFICATION_INFO, 3000)

@@ -9,6 +9,18 @@ LibraryGenie uses a `source` field in the `media_items` table to categorize cont
 
 ## Source Types
 
+### 1. Manual (`manual`)
+**Purpose**: Items manually added via context menus from native Kodi library  
+**Characteristics**:
+- Added through LibraryGenie context menu actions
+- Contains library-sourced content but marked as manually curated
+- Compatible with existing lib processing logic
+- Distinguishes manually added items from search results
+
+**Example**: Movie added to list via "Add to List" context menu
+
+### 2. Library (`lib`) - Legacy
+
 ### 1. `lib` - Kodi Library Content & Search Results
 
 **Purpose**: Reference entries for movies that exist in the user's Kodi library, as well as search results from AI-powered semantic search.
@@ -241,12 +253,16 @@ if imdb:
 - `external` sources provide fast access to full metadata
 - Use appropriate indexes for source-specific queries
 
-### 4. Search vs Library Distinction
+### 4. Manual vs Library vs Search Distinction
 
-The key distinction within `lib` source:
+The key distinctions:
 
 ```sql
--- Library references (no search_score)
+-- Manually added items (no search_score)
+SELECT * FROM media_items 
+WHERE source = 'manual' AND search_score IS NULL;
+
+-- Library references (no search_score) - Legacy
 SELECT * FROM media_items 
 WHERE source = 'lib' AND search_score IS NULL;
 
