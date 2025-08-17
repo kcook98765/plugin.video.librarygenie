@@ -387,6 +387,30 @@ class QueryManager(Singleton):
         finally:
             self._release_connection(conn_info)
 
+    def create_folder(self, name: str, parent_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+        """Create a new folder and return its details"""
+        query = """
+            INSERT INTO folders (name, parent_id)
+            VALUES (?, ?)
+        """
+        conn_info = self._get_connection()
+        try:
+            cursor = conn_info['connection'].cursor()
+            cursor.execute(query, (name, parent_id))
+            conn_info['connection'].commit()
+            folder_id = cursor.lastrowid
+
+            if folder_id:
+                utils.log(f"Created folder '{name}' with ID: {folder_id} in parent: {parent_id}", "DEBUG")
+                return {
+                    'id': folder_id,
+                    'name': name,
+                    'parent_id': parent_id
+                }
+            return None
+        finally:
+            self._release_connection(conn_info)
+
     def create_list(self, name: str, folder_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
         """Create a new list and return its details"""
         query = """
