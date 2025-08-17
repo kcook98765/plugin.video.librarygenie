@@ -25,19 +25,61 @@ class ShortlistImporter:
         return data.get("result", {})
 
     def get_dir(self, url, start=0, end=200, props=None):
-        """Get directory contents with pagination"""
-        if props is None:
-            # Use minimal, widely supported properties
-            props = ["title", "year", "rating", "plot", "filetype"]
-        
+        """Get directory contents with pagination using progressive property fallback"""
         utils.log(f"Getting directory: {url} (start={start}, end={end})", "DEBUG")
         
-        result = self._rpc("Files.GetDirectory", {
-            "directory": url,
-            "media": "video",
-            "properties": props,
-            "limits": {"start": start, "end": end}
-        })
+        # Define property sets in order of preference (most comprehensive to most basic)
+        property_sets = [
+            # Comprehensive set for maximum details
+            ["title", "year", "rating", "plot", "plotoutline", "genre", "director", 
+             "cast", "duration", "runtime", "art", "thumbnail", "fanart", "poster", 
+             "tagline", "studio", "mpaa", "writer", "country", "premiered", 
+             "dateadded", "votes", "trailer", "file", "filetype"],
+            
+            # Standard set with common properties
+            ["title", "year", "rating", "plot", "plotoutline", "genre", "director", 
+             "cast", "duration", "art", "thumbnail", "fanart", "file", "filetype"],
+            
+            # Reduced set without potentially problematic properties
+            ["title", "year", "rating", "plot", "genre", "director", "art", "filetype"],
+            
+            # Basic set with core properties
+            ["title", "year", "rating", "plot", "filetype"],
+            
+            # Minimal set - last resort
+            ["title", "filetype"]
+        ]
+        
+        # If specific props provided, try those first
+        if props is not None:
+            property_sets.insert(0, props)
+        
+        # Try each property set until one works
+        for i, prop_set in enumerate(property_sets):
+            try:
+                utils.log(f"Trying property set {i+1}/{len(property_sets)}: {len(prop_set)} properties", "DEBUG")
+                
+                result = self._rpc("Files.GetDirectory", {
+                    "directory": url,
+                    "media": "video", 
+                    "properties": prop_set,
+                    "limits": {"start": start, "end": end}
+                })
+                
+                utils.log(f"Successfully used property set {i+1} with {len(prop_set)} properties", "INFO")
+                break
+                
+            except RuntimeError as e:
+                error_str = str(e)
+                utils.log(f"Property set {i+1} failed: {error_str}", "DEBUG")
+                
+                # If this is the last property set, re-raise the error
+                if i == len(property_sets) - 1:
+                    utils.log("All property sets failed, re-raising last error", "ERROR")
+                    raise
+                
+                # Continue to next property set
+                continue
         
         files = result.get("files", [])
         lims = result.get("limits", {"total": len(files), "end": end})
@@ -108,25 +150,48 @@ class ShortlistImporter:
                         utils.log(f"Skipping directory item: {it.get('label')}", "DEBUG")
                         continue
                         
+                    # Extract all available data from Shortlist item
                     item_data = {
                         "label": it.get("label") or it.get("title"),
                         "title": it.get("title") or it.get("label"),
                         "file": it.get("file"),
                         "year": it.get("year"),
                         "rating": it.get("rating"),
-                        "duration": None,
+                        "duration": it.get("duration") or it.get("runtime"),
                         "plot": it.get("plot"),
                         "plotoutline": it.get("plotoutline"),
                         "art": it.get("art", {}),
-                        "position": len(items)
+                        "position": len(items),
+                        
+                        # Additional metadata that might be available
+                        "genre": it.get("genre"),
+                        "director": it.get("director"),
+                        "cast": it.get("cast"),
+                        "tagline": it.get("tagline"),
+                        "studio": it.get("studio"),
+                        "mpaa": it.get("mpaa"),
+                        "writer": it.get("writer"),
+                        "country": it.get("country"),
+                        "premiered": it.get("premiered"),
+                        "dateadded": it.get("dateadded"),
+                        "votes": it.get("votes"),
+                        "trailer": it.get("trailer"),
+                        "thumbnail": it.get("thumbnail"),
+                        "fanart": it.get("fanart"),
+                        "poster": it.get("poster")
                     }
                     
-                    # Extract duration from streamdetails if available
-                    streamdetails = it.get("streamdetails", {})
-                    if streamdetails and "video" in streamdetails and len(streamdetails["video"]) > 0:
-                        item_data["duration"] = streamdetails["video"][0].get("duration")
+                    # Extract duration from streamdetails if available and not already set
+                    if not item_data["duration"]:
+                        streamdetails = it.get("streamdetails", {})
+                        if streamdetails and "video" in streamdetails and len(streamdetails["video"]) > 0:
+                            item_data["duration"] = streamdetails["video"][0].get("duration")
                     
-                    utils.log(f"Raw item data: {item_data['title']} ({item_data['year']})", "DEBUG")
+                    # Log what we actually extracted
+                    non_empty_fields = {k: v for k, v in item_data.items() if v not in (None, "", [], {})}
+                    utils.log(f"Extracted {len(non_empty_fields)} fields for: {item_data['title']} ({item_data['year']})", "DEBUG")
+                    utils.log(f"Available fields: {list(non_empty_fields.keys())}", "DEBUG")
+                    
                     items.append(item_data)
                 
                 if items:  # Only add lists that have items
@@ -223,26 +288,33 @@ class ShortlistImporter:
             media_dict['uniqueid'] = json.dumps(uniqueid) if uniqueid else ''
             
         else:
-            # Use Shortlist data
+            # Use Shortlist data - preserve all available information
             utils.log(f"Converting Shortlist item: {item.get('title')}", "DEBUG")
+            
+            # Helper function to safely convert lists to strings
+            def list_to_string(value):
+                if isinstance(value, list):
+                    return ', '.join(str(v) for v in value if v)
+                return str(value) if value else ''
+            
             media_dict = {
                 'title': item.get('title', '') or item.get('label', ''),
                 'year': item.get('year', 0) or 0,
                 'plot': item.get('plot', '') or item.get('plotoutline', ''),
                 'rating': item.get('rating', 0.0) or 0.0,
                 'duration': item.get('duration', 0) or 0,
-                'genre': '',
-                'director': '',
-                'cast': '',
-                'studio': '',
-                'mpaa': '',
-                'tagline': '',
-                'writer': '',
-                'country': '',
-                'premiered': '',
-                'dateadded': '',
-                'votes': 0,
-                'trailer': '',
+                'genre': list_to_string(item.get('genre', '')),
+                'director': list_to_string(item.get('director', '')),
+                'cast': list_to_string(item.get('cast', '')),
+                'studio': list_to_string(item.get('studio', '')),
+                'mpaa': item.get('mpaa', ''),
+                'tagline': item.get('tagline', ''),
+                'writer': list_to_string(item.get('writer', '')),
+                'country': list_to_string(item.get('country', '')),
+                'premiered': item.get('premiered', ''),
+                'dateadded': item.get('dateadded', ''),
+                'votes': item.get('votes', 0) or 0,
+                'trailer': item.get('trailer', ''),
                 'path': item.get('file', ''),
                 'play': item.get('file', ''),
                 'kodi_id': 0,
@@ -258,13 +330,18 @@ class ShortlistImporter:
                 'status': 'available'
             }
             
-            # Extract art from Shortlist
+            # Extract art from Shortlist with multiple fallback sources
             art = item.get('art', {})
             if art:
-                media_dict['thumbnail'] = art.get('thumb', '') or art.get('icon', '')
-                media_dict['poster'] = art.get('poster', '')
-                media_dict['fanart'] = art.get('fanart', '')
+                media_dict['thumbnail'] = art.get('thumb', '') or art.get('icon', '') or item.get('thumbnail', '')
+                media_dict['poster'] = art.get('poster', '') or item.get('poster', '')
+                media_dict['fanart'] = art.get('fanart', '') or item.get('fanart', '')
                 media_dict['art'] = json.dumps(art)
+            else:
+                # Try direct properties if art object is empty
+                media_dict['thumbnail'] = item.get('thumbnail', '')
+                media_dict['poster'] = item.get('poster', '')
+                media_dict['fanart'] = item.get('fanart', '')
         
         utils.log(f"Converted media dict for: {media_dict['title']} ({media_dict['year']}) - Source: {media_dict['source']}", "DEBUG")
         return media_dict
