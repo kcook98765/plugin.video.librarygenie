@@ -143,6 +143,11 @@ class ResultsManager(Singleton):
             utils.log(f"=== BUILD_DISPLAY_ITEMS: Starting movie matching for {len(rows)} items ===", "DEBUG")
 
             for i, r in enumerate(rows):
+                # Skip items that are already handled as external
+                src = (r.get('source') or '').lower()
+                if src == 'external' or src == 'plugin_addon':
+                    continue
+
                 ref_title = r.get("title", "")
                 ref_year = r.get("year", 0)
                 ref_imdb = r.get("imdbnumber", "")
