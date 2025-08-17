@@ -894,7 +894,7 @@ class QueryManager(Singleton):
                 title = media_data.get('title', '')
                 year = media_data.get('year', 0)
                 play = media_data.get('play', '')
-                
+
                 cursor.execute(
                     "SELECT id FROM media_items WHERE title = ? AND year = ? AND play = ? AND source = ?",
                     (title, year, play, source)
@@ -904,8 +904,8 @@ class QueryManager(Singleton):
                     utils.log(f"Found existing shortlist import record with ID: {result[0]}", "DEBUG")
                     return result[0]
 
-            elif source in ('search', 'search_library') and media_data.get('imdbnumber'):
-                # For search results, look up by IMDb ID and source
+            elif source in ('search', 'lib') and media_data.get('imdbnumber'):
+                # Look up by IMDb ID and source for search results
                 cursor.execute(
                     "SELECT id FROM media_items WHERE imdbnumber = ? AND source = ?",
                     (media_data.get('imdbnumber'), source)

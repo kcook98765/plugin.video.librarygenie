@@ -705,7 +705,7 @@ class DatabaseManager(Singleton):
                     'art': '{}',
                     'poster': '',
                     'fanart': '',
-                    'source': 'search_library',  # Search results of library content
+                    'source': 'lib',  # Keep as 'lib' for proper ListItem handling
                     'search_score': score_display,  # Store search score
                     'duration': 0,
                     'votes': 0,

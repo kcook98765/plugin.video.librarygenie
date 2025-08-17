@@ -171,9 +171,9 @@ class ListItemBuilder:
         plot = media_info.get('plot', '') or media_info.get('tagline', '') or f"Movie: {title}"
 
         # For search history items, enhance plot with match status and score
-        if source == 'search_library':
-            search_score = media_item.get('search_score', 0)
-            if media_item.get('is_library_match'):
+        if source == 'lib' and media_info.get('search_score'):
+            search_score = media_info.get('search_score', 0)
+            if media_info.get('is_library_match'):
                 plot = f"⭐ IN YOUR LIBRARY (Score: {search_score:.1f})\n\n{plot}"
             else:
                 plot = f"📍 Not in library (Score: {search_score:.1f})\n\n{plot}"
@@ -438,9 +438,9 @@ class ListItemBuilder:
         is_playable = 'false'
         if source == 'lib' and media_info.get('kodi_id', 0) > 0:
             is_playable = 'true'
-        elif source == 'search_library' and media_info.get('is_library_match') and media_info.get('kodi_id', 0) > 0:
+        elif source == 'lib' and media_info.get('search_score') and media_info.get('is_library_match') and media_info.get('kodi_id', 0) > 0:
             is_playable = 'true'
-        elif source != 'search_library' and media_info.get('file'): # Assume external media is playable if file path exists
+        elif not media_info.get('search_score') and media_info.get('file'): # Assume external media is playable if file path exists
             is_playable = 'true'
         
         li.setProperty('IsPlayable', is_playable)
@@ -497,11 +497,11 @@ class ListItemBuilder:
             # Library items - use kodi_movie protocol
             li.setPath(f"kodi_movie://{kodi_id}")
             utils.log(f"Set ListItem path for '{title}': kodi_movie://{kodi_id}", "DEBUG")
-        elif source == 'search_library':
+        elif source == 'lib' and media_info.get('search_score'):
             # Search history items - check if they have library matches
-            if media_item.get('is_library_match') and media_item.get('kodi_id', 0) > 0:
+            if media_info.get('is_library_match') and media_info.get('kodi_id', 0) > 0:
                 # Has library match - make it playable
-                kodi_id = media_item.get('kodi_id')
+                kodi_id = media_info.get('kodi_id')
                 li.setPath(f"kodi_movie://{kodi_id}")
                 li.setProperty('IsPlayable', 'true')
                 utils.log(f"Set ListItem path for search result '{title}': kodi_movie://{kodi_id} (library match)", "DEBUG")

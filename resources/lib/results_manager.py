@@ -119,7 +119,7 @@ class ResultsManager(Singleton):
             enhanced_item = dict(item)
             imdb_id = item.get('imdbnumber', '')
 
-            if imdb_id and item.get('source') == 'search_library':
+            if imdb_id and item.get('source') == 'lib' and item.get('search_score'):
                 # Try to find matching library content
                 library_match = self._find_library_match_by_imdb(imdb_id)
 
