@@ -23,7 +23,7 @@ LibraryGenie uses a `source` field in the `media_items` table to categorize cont
 
 **Data Flow**:
 1. **Library Sync**: Removes all `source = 'lib'` records without `search_score`
-2. **Library References**: Created via `upsert_reference_media_item()`
+2. **Library References**: Created via `QueryManager.insert_media_item()`
 3. **Search Results**: Saved with `search_score` field, organized into timestamped lists
 4. **Display**: Full metadata retrieved from Kodi when displaying library items
 
@@ -65,7 +65,7 @@ INSERT INTO media_items (
 
 **Data Flow**:
 1. External addon provides complete media metadata
-2. Stored via `upsert_external_media_item()`
+2. Stored via `QueryManager.insert_media_item()` with `source = 'external'`
 3. Looked up by title/year/play combination for deduplication
 
 **Use Cases**:
@@ -83,7 +83,21 @@ INSERT INTO media_items (
 );
 ```
 
-### 3. `shortlist_import` - Imported Shortlist Content
+### 3. `plugin_addon` - Plugin Addon Content
+
+**Purpose**: Content provided by plugin addons with special handling.
+
+**Characteristics**:
+- Similar to `external` but specifically from plugin sources
+- May have different metadata structure
+- Handled similarly to external content in display logic
+
+**Data Flow**:
+1. Plugin addon provides metadata
+2. Stored with `source = 'plugin_addon'`
+3. Processed alongside external content for display
+
+### 4. `shortlist_import` - Imported Shortlist Content
 
 **Purpose**: Content imported from external shortlist files or sources.
 
@@ -103,29 +117,15 @@ INSERT INTO media_items (
 - Bulk content imports
 - External list migrations
 
-### 4. `provider` - Content Provider References
-
-**Purpose**: Reference entries for content from specific providers.
-
-**Characteristics**:
-- Similar to `lib` source but for external providers
-- Minimal metadata (identifiers only)
-- Used for cross-referencing provider content
-
-**Data Flow**:
-1. Provider integration creates reference entries
-2. Links provider content to LibraryGenie lists
-3. Metadata fetched from provider when needed
-
 ## Source-Specific Logic
 
 ### Query Handling
 
-Different sources require different query strategies:
+Different sources require different query strategies in `QueryManager.insert_media_item()`:
 
 ```python
-# For shortlist imports and items with search scores
-if source in ('shortlist_import', 'search') or media_data.get('search_score'):
+# For shortlist imports - allow updates
+if source == 'shortlist_import':
     query_type = 'INSERT OR REPLACE'
 else:
     query_type = 'INSERT OR IGNORE'
@@ -142,7 +142,7 @@ if source == 'shortlist_import':
         "SELECT id FROM media_items WHERE title = ? AND year = ? AND play = ? AND source = ?",
         (title, year, play, source)
     )
-elif source in ('search', 'lib') and imdb_id:
+elif source in ('lib',) and imdb_id:
     if media_data.get('search_score'):
         # For search results, look up by IMDb ID and search_score presence
         cursor.execute(
@@ -159,7 +159,7 @@ elif source in ('search', 'lib') and imdb_id:
 
 ### Library Sync Protection
 
-Library sync operations only affect library content without search scores:
+Library sync operations only affect library content without search scores in `QueryManager.sync_movies()`:
 
 ```python
 def sync_movies(self, movies):
@@ -170,10 +170,10 @@ def sync_movies(self, movies):
 
 ## Search History Management
 
-Search history uses special handling within the `lib` source:
+Search history uses special handling within the `lib` source via `DatabaseManager.add_search_history()`:
 
 ### Search Result Processing
-1. Remote API returns search results with IMDB IDs and scores
+1. Remote API returns search results with IMDB IDs and scores via `RemoteAPIClient.search_movies()`
 2. Title/year looked up from `imdb_exports` table if available
 3. Results stored with `source = 'lib'` AND `search_score = relevance_score`
 4. Automatically organized into timestamped lists in "Search History" folder
@@ -192,6 +192,30 @@ def is_library_reference(self, media_item):
             media_item.get('kodi_id', 0) > 0)
 ```
 
+## Display Logic in ResultsManager
+
+The `ResultsManager.build_display_items_for_list()` method handles different sources:
+
+### External/Plugin Content
+```python
+src = (r.get('source') or '').lower()
+if src == 'external' or src == 'plugin_addon':
+    external.append(r)
+    continue
+```
+
+### Library Content Processing
+```python
+# Try to get title/year from imdb_exports first
+if imdb:
+    q = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
+    hit = self.query_manager.execute_query(q, (imdb,))
+    if hit:
+        rec = hit[0]
+        title = (rec.get('title') if isinstance(rec, dict) else rec[0]) or ''
+        year = int((rec.get('year') if isinstance(rec, dict) else rec[1]) or 0)
+```
+
 ## Best Practices
 
 ### 1. Source Selection
@@ -199,12 +223,12 @@ def is_library_reference(self, media_item):
 - Use `lib` for both Kodi library references AND search results
 - Use `search_score` field to distinguish between library refs and search results
 - Use `external` for complete external content
+- Use `plugin_addon` for plugin-specific content
 - Use `shortlist_import` for bulk imports
-- Use `provider` for provider-specific references
 
 ### 2. Data Consistency
 
-- Always set appropriate source when inserting
+- Always set appropriate source when inserting via `QueryManager.insert_media_item()`
 - Use `search_score` field to identify search results within `lib` source
 - Use source-specific lookup logic
 - Respect source-specific update strategies
@@ -296,6 +320,6 @@ The unified `lib` source system provides flexible content management while maint
 
 For implementation details, see:
 - `QueryManager.insert_media_item()` - Source-specific insertion logic with search score handling
-- `DatabaseManager.sync_movies()` - Library sync operations that preserve search results
+- `QueryManager.sync_movies()` - Library sync operations that preserve search results
 - `DatabaseManager.add_search_history()` - Search result handling within `lib` source
-- `ResultsManager._enhance_search_history_items()` - Search result processing and display
+- `ResultsManager.build_display_items_for_list()` - Search result processing and display
