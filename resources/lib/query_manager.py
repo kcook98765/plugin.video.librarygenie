@@ -866,9 +866,9 @@ class QueryManager(Singleton):
             utils.log("ERROR - No valid media data to insert", "ERROR")
             return None
 
-        # For shortlist imports, always use INSERT to ensure new records are created
+        # For shortlist imports and search results, always use INSERT to ensure new records are created
         source = media_data.get('source', '')
-        if source in ('shortlist_import', 'search', 'search_library'):
+        if source in ('shortlist_import', 'search') or media_data.get('search_score'):
             query_type = 'INSERT OR REPLACE'
         else:
             query_type = 'INSERT OR IGNORE'
@@ -905,11 +905,19 @@ class QueryManager(Singleton):
                     return result[0]
 
             elif source in ('search', 'lib') and media_data.get('imdbnumber'):
-                # Look up by IMDb ID and source for search results
-                cursor.execute(
-                    "SELECT id FROM media_items WHERE imdbnumber = ? AND source = ?",
-                    (media_data.get('imdbnumber'), source)
-                )
+                # Look up by IMDb ID for search results (check both source and search_score)
+                if media_data.get('search_score'):
+                    # For search results, look up by IMDb ID and search_score presence
+                    cursor.execute(
+                        "SELECT id FROM media_items WHERE imdbnumber = ? AND search_score IS NOT NULL",
+                        (media_data.get('imdbnumber'),)
+                    )
+                else:
+                    # For regular lib items
+                    cursor.execute(
+                        "SELECT id FROM media_items WHERE imdbnumber = ? AND source = ?",
+                        (media_data.get('imdbnumber'), source)
+                    )
                 result = cursor.fetchone()
                 if result:
                     return result[0]
