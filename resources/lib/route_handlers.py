@@ -512,21 +512,16 @@ def add_to_list(params):
         if existing_list_item:
             xbmcgui.Dialog().notification('LibraryGenie', f'"{title}" is already in that list', xbmcgui.NOTIFICATION_INFO, 3000)
         else:
-            # Add to list
+            # Add to list using the database manager's method
             try:
-                list_item_data = {
-                    'list_id': selected_list_id,
-                    'media_item_id': media_id
-                }
-                columns = ', '.join(list_item_data.keys())
-                placeholders = ', '.join(['?' for _ in list_item_data])
-                query = f'INSERT INTO list_items ({columns}) VALUES ({placeholders})'
-
-                db_manager._execute_with_retry(db_manager.cursor.execute, query, tuple(list_item_data.values()))
-                db_manager.connection.commit()
-
-                utils.log(f"Successfully added item to list: list_id={selected_list_id}, media_item_id={media_id}", "DEBUG")
-                xbmcgui.Dialog().notification('LibraryGenie', f'Added "{title}" to list', xbmcgui.NOTIFICATION_INFO, 3000)
+                success = db_manager.add_item_to_list(selected_list_id, media_id)
+                
+                if success:
+                    utils.log(f"Successfully added item to list: list_id={selected_list_id}, media_item_id={media_id}", "DEBUG")
+                    xbmcgui.Dialog().notification('LibraryGenie', f'Added "{title}" to list', xbmcgui.NOTIFICATION_INFO, 3000)
+                else:
+                    utils.log(f"Failed to add item to list: list_id={selected_list_id}, media_item_id={media_id}", "ERROR")
+                    xbmcgui.Dialog().notification('LibraryGenie', 'Error adding to list', xbmcgui.NOTIFICATION_ERROR, 3000)
 
             except Exception as insert_error:
                 utils.log(f"Error inserting list item: {str(insert_error)}", "ERROR")
@@ -642,21 +637,16 @@ def add_to_list_from_context(params):
         if existing_list_item:
             xbmcgui.Dialog().notification('LibraryGenie', f'"{title}" is already in that list', xbmcgui.NOTIFICATION_INFO, 3000)
         else:
-            # Add to list - use direct SQL insert for list_items to avoid QueryManager complications
+            # Add to list using the database manager's method
             try:
-                list_item_data = {
-                    'list_id': selected_list_id,
-                    'media_item_id': media_id
-                }
-                columns = ', '.join(list_item_data.keys())
-                placeholders = ', '.join(['?' for _ in list_item_data])
-                query = f'INSERT INTO list_items ({columns}) VALUES ({placeholders})'
-
-                db_manager._execute_with_retry(db_manager.cursor.execute, query, tuple(list_item_data.values()))
-                db_manager.connection.commit()
-
-                utils.log(f"Successfully added item to list: list_id={selected_list_id}, media_item_id={media_id}", "DEBUG")
-                xbmcgui.Dialog().notification('LibraryGenie', f'Added "{title}" to list', xbmcgui.NOTIFICATION_INFO, 3000)
+                success = db_manager.add_item_to_list(selected_list_id, media_id)
+                
+                if success:
+                    utils.log(f"Successfully added item to list: list_id={selected_list_id}, media_item_id={media_id}", "DEBUG")
+                    xbmcgui.Dialog().notification('LibraryGenie', f'Added "{title}" to list', xbmcgui.NOTIFICATION_INFO, 3000)
+                else:
+                    utils.log(f"Failed to add item to list: list_id={selected_list_id}, media_item_id={media_id}", "ERROR")
+                    xbmcgui.Dialog().notification('LibraryGenie', 'Error adding to list', xbmcgui.NOTIFICATION_ERROR, 3000)
 
             except Exception as insert_error:
                 utils.log(f"Error inserting list item: {str(insert_error)}", "ERROR")

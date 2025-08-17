@@ -850,59 +850,44 @@ class DatabaseManager(Singleton):
         utils.log(f"Deleting folder {folder_id}", "DEBUG")
         return self.delete_folder_and_contents(folder_id)
 
-    def add_media_item(self, list_id, media_dict):
-        """Add a media item to a specific list"""
+    def add_media_item(self, list_id, media_item_data):
+        """Add a media item to a list with proper error handling"""
         try:
-            # First insert or get the media item
-            media_id = None
-            imdb_id = media_dict.get('imdbnumber', '')
+            # First, insert or update the media item
+            media_id = self.insert_data('media_items', media_item_data)
 
-            # Look for existing media item by IMDB ID if available
-            if imdb_id:
-                try:
-                    query = "SELECT id FROM media_items WHERE imdbnumber = ?"
-                    self._execute_with_retry(self.cursor.execute, query, (imdb_id,))
-                    result = self.cursor.fetchone()
-                    if result:
-                        media_id = result[0]
-                        utils.log(f"Found existing media item with ID: {media_id}", "DEBUG")
-                except Exception as e:
-                    utils.log(f"Error looking up existing media item: {str(e)}", "DEBUG")
-
-            # If no existing media item found, create new one
             if not media_id:
-                media_id = self.insert_data('media_items', media_dict)
-                utils.log(f"Created new media item with ID: {media_id}", "DEBUG")
+                utils.log("Failed to insert media item", "ERROR")
+                return False
 
-            if media_id and media_id > 0:
-                # Check if already in list
-                try:
-                    query = "SELECT id FROM list_items WHERE list_id = ? AND media_item_id = ?"
-                    self._execute_with_retry(self.cursor.execute, query, (list_id, media_id))
-                    existing_list_item = self.cursor.fetchone()
-
-                    if not existing_list_item:
-                        # Add to list
-                        query = "INSERT INTO list_items (list_id, media_item_id) VALUES (?, ?)"
-                        self._execute_with_retry(self.cursor.execute, query, (list_id, media_id))
-                        self.connection.commit()
-                        utils.log(f"Successfully added media item {media_id} to list {list_id}", "DEBUG")
-                    else:
-                        utils.log(f"Media item {media_id} already in list {list_id}", "DEBUG")
-
-                except Exception as e:
-                    utils.log(f"Error checking/adding list item: {str(e)}", "ERROR")
-                    raise
-
-                return media_id
-            else:
-                utils.log(f"Failed to insert media item - got invalid ID: {media_id}", "ERROR")
-                utils.log(f"Media dict was: {media_dict}", "ERROR")
-                return None
+            # Then add it to the list
+            return self.add_item_to_list(list_id, media_id)
 
         except Exception as e:
-            utils.log(f"Error adding media item to list: {str(e)}", "ERROR")
-            raise
+            utils.log(f"Error in add_media_item: {str(e)}", "ERROR")
+            return False
+
+    def add_item_to_list(self, list_id, media_item_id):
+        """Add an existing media item to a list"""
+        try:
+            # Check if already in list
+            existing = self.fetch_data('list_items', f"list_id = {list_id} AND media_item_id = {media_item_id}")
+            if existing:
+                utils.log(f"Item {media_item_id} already in list {list_id}", "DEBUG")
+                return True
+
+            # Add to list with direct SQL to avoid parameter binding issues
+            query = "INSERT INTO list_items (list_id, media_item_id) VALUES (?, ?)"
+            self._execute_with_retry(self.cursor.execute, query, (int(list_id), int(media_item_id)))
+            self.connection.commit()
+
+            utils.log(f"Successfully added media item {media_item_id} to list {list_id}", "DEBUG")
+            return True
+
+        except Exception as e:
+            utils.log(f"Error in add_item_to_list: {str(e)}", "ERROR")
+            return False
+
 
     def update_data(self, table, data_dict, where_clause):
         """Update data in a table with a where clause"""
