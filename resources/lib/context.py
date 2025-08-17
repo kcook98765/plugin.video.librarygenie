@@ -337,6 +337,11 @@ def main():
 def add_plugin_item_to_list(media_info):
     """Add a plugin item (non-library) to a selected list with enhanced fallback data"""
     try:
+        # Import required modules
+        from resources.lib import utils
+        from resources.lib.config_manager import Config
+        from resources.lib.database_manager import DatabaseManager
+        
         utils.log("=== ADD PLUGIN ITEM TO LIST: Starting process ===", "DEBUG")
 
         # Enhance media_info for plugin items
@@ -359,10 +364,123 @@ def add_plugin_item_to_list(media_info):
             else:
                 media_info['plot'] = f"[Plugin Item] - Added from {media_info.get('source', 'external addon')}"
 
-        # Use the same list selection process as library items
-        add_item_to_list(media_info)
+        # Use the database manager directly for plugin items
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+
+        # Get all available lists for user selection
+        all_lists = db_manager.fetch_all_lists()
+
+        # Get Search History folder ID to exclude its lists
+        search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
+
+        # Filter out Search History lists
+        filtered_lists = []
+        for list_item in all_lists:
+            if list_item.get('folder_id') != search_history_folder_id:
+                filtered_lists.append(list_item)
+
+        if not filtered_lists:
+            utils.log("ADD PLUGIN ITEM: No lists found", "WARNING")
+            xbmcgui.Dialog().ok('LibraryGenie', "No lists found. Create a list first.")
+            return
+
+        # Create list selection options with "New List" at top
+        list_options = ["📝 Create New List"]
+        list_ids = [None]  # None indicates "create new list"
+
+        for list_item in filtered_lists:
+            # Get folder path for display
+            folder_path = ""
+            if list_item.get('folder_id'):
+                folder = db_manager.fetch_folder_by_id(list_item['folder_id'])
+                if folder:
+                    folder_path = f"[{folder['name']}] "
+
+            list_options.append(f"{folder_path}{list_item['name']}")
+            list_ids.append(list_item['id'])
+
+        # Show list selection dialog
+        selected_index = xbmcgui.Dialog().select(
+            f"Add '{title}' to list:",
+            list_options
+        )
+
+        if selected_index == -1:  # User cancelled
+            utils.log("ADD PLUGIN ITEM: User cancelled list selection", "DEBUG")
+            return
+
+        selected_list_id = list_ids[selected_index]
+
+        # Handle "Create New List" option
+        if selected_list_id is None:
+            new_list_name = xbmcgui.Dialog().input('New list name', type=xbmcgui.INPUT_ALPHANUM)
+            if not new_list_name:
+                utils.log("ADD PLUGIN ITEM: User cancelled new list creation", "DEBUG")
+                return
+
+            # Create new list at root level (folder_id=None)
+            selected_list_id = db_manager.create_list(new_list_name, None)
+            if not selected_list_id:
+                xbmcgui.Dialog().notification('LibraryGenie', 'Failed to create new list', xbmcgui.NOTIFICATION_ERROR)
+                return
+
+            utils.log(f"ADD PLUGIN ITEM: Created new list '{new_list_name}' with ID: {selected_list_id}", "DEBUG")
+
+        # For plugin items, create a unique media item entry
+        import hashlib
+        file_path = media_info.get('file', '')
+        unique_id = hashlib.md5(f"{title}_{file_path}".encode()).hexdigest()[:16]
+        
+        # Create media item data for plugin item
+        media_item_data = {
+            'kodi_id': 0,  # No Kodi ID for plugin items
+            'title': title,
+            'year': int(media_info.get('year', 0)) if media_info.get('year', '').isdigit() else 0,
+            'imdbnumber': media_info.get('imdbnumber', ''),  # May be empty for plugin items
+            'source': 'plugin_addon',
+            'plot': media_info.get('plot', f'[Plugin Item] - Added from external addon'),
+            'rating': 0.0,
+            'search_score': 0,
+            'media_type': 'movie',
+            'genre': media_info.get('genre', ''),
+            'director': media_info.get('director', ''),
+            'cast': media_info.get('cast', '[]'),
+            'file': file_path,
+            'thumbnail': media_info.get('thumbnail', ''),
+            'poster': media_info.get('poster', ''),
+            'fanart': media_info.get('fanart', ''),
+            'art': media_info.get('art', '{}'),
+            'duration': media_info.get('duration', 0),
+            'votes': 0,
+            'play': f"plugin_item://{unique_id}"  # Unique identifier for plugin items
+        }
+
+        utils.log(f"ADD PLUGIN ITEM: Creating media item for '{title}' with data: {media_item_data}", "DEBUG")
+
+        # Add the media item to the selected list
+        success = db_manager.add_media_item(selected_list_id, media_item_data)
+
+        if success:
+            selected_list_name = next((lst['name'] for lst in filtered_lists if lst['id'] == selected_list_id), 'New List')
+            utils.log(f"ADD PLUGIN ITEM: Successfully added '{title}' to list '{selected_list_name}'", "INFO")
+            xbmcgui.Dialog().notification(
+                'LibraryGenie',
+                f"Added '{title}' to '{selected_list_name}'",
+                xbmcgui.NOTIFICATION_INFO,
+                3000
+            )
+        else:
+            utils.log(f"ADD PLUGIN ITEM: Failed to add '{title}' to list", "ERROR")
+            xbmcgui.Dialog().notification(
+                'LibraryGenie',
+                f"Failed to add '{title}' to list",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
 
     except Exception as e:
+        from resources.lib import utils
         utils.log(f"ADD PLUGIN ITEM TO LIST: Error: {str(e)}", "ERROR")
         import traceback
         utils.log(f"ADD PLUGIN ITEM TO LIST: Traceback: {traceback.format_exc()}", "ERROR")
@@ -374,78 +492,7 @@ def add_plugin_item_to_list(media_info):
         )
 
 
-def add_item_to_list(media_info):
-    """Add the current item to a selected list"""
-    try:
-        utils.log("=== ADD TO LIST: Starting add to list process ===", "DEBUG")
 
-        from resources.lib.config_manager import Config
-        from resources.lib.database_manager import DatabaseManager
-
-        config = Config()
-        db_manager = DatabaseManager(config.db_path)
-
-        # Get all available lists for user selection
-        all_lists = db_manager.fetch_all_lists()
-
-        if not all_lists:
-            utils.log("ADD TO LIST: No lists found", "WARNING")
-            xbmcgui.Dialog().ok('LibraryGenie', "No lists found. Create a list first.")
-            return
-
-        # Create list selection dialog
-        dialog = xbmcgui.Dialog()
-        list_options = []
-        list_ids = []
-
-        for lst in all_lists:
-            list_name = lst.get('name', 'Unknown List')
-            folder_path = lst.get('folder_path', '')
-            display_name = f"{folder_path}/{list_name}" if folder_path else list_name
-            list_options.append(display_name)
-            list_ids.append(lst.get('list_id'))
-
-        choice = dialog.select('Select List', list_options)
-
-        if choice == -1:  # User cancelled
-            utils.log("ADD TO LIST: User cancelled list selection", "DEBUG")
-            return
-
-        selected_list_id = list_ids[choice]
-        selected_list_name = list_options[choice]
-
-        utils.log(f"ADD TO LIST: User selected list: {selected_list_name} (ID: {selected_list_id})", "DEBUG")
-
-        # Add the item to the selected list
-        success = db_manager.add_media_to_list(selected_list_id, media_info)
-
-        if success:
-            utils.log(f"ADD TO LIST: Successfully added '{media_info.get('title')}' to list '{selected_list_name}'", "INFO")
-            xbmcgui.Dialog().notification(
-                'LibraryGenie',
-                f"Added '{media_info.get('title', 'Unknown')}' to '{selected_list_name}'",
-                xbmcgui.NOTIFICATION_INFO,
-                3000
-            )
-        else:
-            utils.log(f"ADD TO LIST: Failed to add '{media_info.get('title')}' to list '{selected_list_name}'", "ERROR")
-            xbmcgui.Dialog().notification(
-                'LibraryGenie',
-                f"Failed to add item to '{selected_list_name}'",
-                xbmcgui.NOTIFICATION_ERROR,
-                3000
-            )
-
-    except Exception as e:
-        utils.log(f"ADD TO LIST: Error adding item to list: {str(e)}", "ERROR")
-        import traceback
-        utils.log(f"ADD TO LIST: Traceback: {traceback.format_exc()}", "ERROR")
-        xbmcgui.Dialog().notification(
-            'LibraryGenie',
-            'Error adding item to list',
-            xbmcgui.NOTIFICATION_ERROR,
-            3000
-        )
 
 
 if __name__ == '__main__':
