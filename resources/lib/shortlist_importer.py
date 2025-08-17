@@ -27,7 +27,8 @@ class ShortlistImporter:
     def get_dir(self, url, start=0, end=200, props=None):
         """Get directory contents with pagination"""
         if props is None:
-            props = ["title", "art", "thumbnail", "year", "rating", "plot", "plotoutline", "filetype", "streamdetails", "dateadded"]
+            # Use minimal, widely supported properties
+            props = ["title", "year", "rating", "plot", "filetype"]
         
         utils.log(f"Getting directory: {url} (start={start}, end={end})", "DEBUG")
         
