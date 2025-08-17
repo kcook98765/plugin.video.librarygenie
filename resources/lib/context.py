@@ -442,11 +442,12 @@ def add_plugin_item_to_list(media_info):
                 return
 
             # Create new list at root level (folder_id=None)
-            selected_list_id = db_manager.create_list(new_list_name, None)
-            if not selected_list_id:
+            new_list_result = db_manager.create_list(new_list_name, None)
+            if not new_list_result:
                 xbmcgui.Dialog().notification('LibraryGenie', 'Failed to create new list', xbmcgui.NOTIFICATION_ERROR)
                 return
 
+            selected_list_id = new_list_result['id'] if isinstance(new_list_result, dict) else new_list_result
             utils.log(f"ADD PLUGIN ITEM: Created new list '{new_list_name}' with ID: {selected_list_id}", "DEBUG")
 
         # For plugin items, create a unique media item entry
