@@ -39,12 +39,6 @@ def add_context_menu_for_item(li: xbmcgui.ListItem, item_type: str, **ids):
 def add_options_header_item(ctx: dict, handle: int):
     """Add the options and tools header item as a non-folder RunPlugin item"""
     try:
-        # Check if navigation is in progress - skip adding options header during navigation
-        navigating = xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.Navigating)")
-        if navigating == "true":
-            utils.log("Navigation in progress, skipping options header item", "DEBUG")
-            return
-
         # Create list item for options as non-folder
         li = xbmcgui.ListItem(label="[B]Options & Tools[/B]")
         utils.log("Adding Options & Tools header item", "DEBUG")
@@ -122,9 +116,15 @@ def build_root_directory(ctx: dict, handle: int):
 
         utils.log(f"Found {len(folders)} folders and {len(lists)} lists in root", "DEBUG")
 
-        # Add folders
+        # Get Search History folder ID to exclude it from root display
+        search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
+
+        # Add folders (excluding Search History folder)
         for folder in folders:
-            add_folder_item(folder, ctx, handle)
+            if folder['id'] != search_history_folder_id:
+                add_folder_item(folder, ctx, handle)
+            else:
+                utils.log(f"Hiding Search History folder (ID: {folder['id']}) from root directory", "DEBUG")
 
         # Add lists
         for list_item in lists:
