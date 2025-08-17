@@ -440,7 +440,14 @@ class ShortlistImporter:
             progress.update(30, "Creating Imported Lists folder...")
             
             # Ensure "Imported Lists" folder exists
-            imported_folder_id = self.db_manager.ensure_folder_exists("Imported Lists", None)
+            imported_folder_result = self.db_manager.ensure_folder_exists("Imported Lists", None)
+            
+            # Extract the actual ID from the result
+            if isinstance(imported_folder_result, dict):
+                imported_folder_id = imported_folder_result['id']
+            else:
+                imported_folder_id = imported_folder_result
+                
             utils.log(f"Imported Lists folder ID: {imported_folder_id}", "DEBUG")
             
             # Clear existing data in the folder
