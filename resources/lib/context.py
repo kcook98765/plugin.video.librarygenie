@@ -41,7 +41,7 @@ def main():
         try:
             from resources.lib.config_manager import Config
             from resources.lib.database_manager import DatabaseManager
-            
+
             config = Config()
             db_manager = DatabaseManager(config.db_path)
             # This will run any pending migrations including the 'file' column
@@ -68,12 +68,6 @@ def main():
         from resources.lib.context_menu_builder import get_context_menu_builder
         context_builder = get_context_menu_builder()
         is_authenticated = context_builder._is_authenticated()
-
-        # Show Details - always available
-        options.append("Show Details")
-
-        # Information - always available  
-        options.append("Information")
 
         # Check if we're currently viewing a LibraryGenie list (to offer Remove option)
         current_container_path = xbmc.getInfoLabel('Container.FolderPath')
@@ -109,39 +103,82 @@ def main():
             except Exception as e:
                 xbmc.log(f"LibraryGenie: Error extracting list_id: {str(e)}", xbmc.LOGDEBUG)
 
-        # Add movie to a list - available for both library items (with IMDb) and plugin items (without IMDb)
-        # For library items, we prefer IMDb ID, but for plugin items we'll use available metadata
-        can_add_to_list = (imdb_id and str(imdb_id).startswith('tt')) or (title and title.strip())
-        
-        if can_add_to_list:
-            if viewing_list_id and is_librarygenie_list:
-                # If viewing a LibraryGenie list, offer Remove option first
-                options.append("Remove from List...")
-                options.append("Add to Another List...")
-            else:
-                # If not viewing a LibraryGenie list, offer Add option
-                options.append("Add to List...")
+        # Check if we're dealing with a folder item
+        current_item_path = xbmc.getInfoLabel('ListItem.FolderPath')
+        is_folder_item = xbmc.getInfoLabel('ListItem.IsFolder') == 'true'
+        is_librarygenie_folder = False # Default to false
 
-        # Find Similar Movies - only if authenticated AND has valid IMDb ID
-        if imdb_id and str(imdb_id).startswith('tt'):
-            if is_authenticated:
-                options.append("Find Similar Movies...")
-            else:
-                options.append("Find Similar Movies... (Requires Authentication)")
+        # Determine if the current item/container is a LibraryGenie folder
+        if is_folder_item and 'plugin.video.librarygenie' in current_container_path:
+            try:
+                import re
+                # Check for specific patterns that indicate a LibraryGenie folder context
+                if re.search(r'plugin://plugin\.video\.librarygenie/\?action=browse_folder&folder_id=', current_container_path):
+                    is_librarygenie_folder = True
+                    xbmc.log(f"LibraryGenie: Detected LibraryGenie folder context: {current_container_path}", xbmc.LOGDEBUG)
+                elif re.search(r'plugin://plugin\.video\.librarygenie/\?action=browse_folder&folder_id=', current_item_path): # Check item path too for robustness
+                    is_librarygenie_folder = True
+                    xbmc.log(f"LibraryGenie: Detected LibraryGenie folder context from item path: {current_item_path}", xbmc.LOGDEBUG)
+            except Exception as e:
+                xbmc.log(f"LibraryGenie: Error detecting LibraryGenie folder context: {str(e)}", xbmc.LOGDEBUG)
 
-        # Refresh Metadata - always available
-        options.append("Refresh Metadata")
+
+        # If this is a folder item AND we're in a LibraryGenie context, show folder options
+        if is_folder_item and is_librarygenie_folder:
+            xbmc.log("LibraryGenie: Detected LibraryGenie folder item, showing folder options", xbmc.LOGDEBUG)
+
+            # Folder-specific options
+            options.append("Rename Folder")
+            options.append("Delete Folder")
+            options.append("Move Folder")
+            options.append("Create New List Here")
+            options.append("Create New Subfolder")
+            options.append("Information")
+            options.append("Settings")
+        else:
+            # Regular movie/item options
+            # Show Details - always available
+            options.append("Show Details")
+
+            # Information - always available  
+            options.append("Information")
+
+            # Add movie to a list - available for both library items (with IMDb) and plugin items (without IMDb)
+            # For library items, we prefer IMDb ID, but for plugin items we'll use available metadata
+            can_add_to_list = (imdb_id and str(imdb_id).startswith('tt')) or (title and title.strip())
+
+            if can_add_to_list:
+                if viewing_list_id and is_librarygenie_list:
+                    # If viewing a LibraryGenie list, offer Remove option first
+                    options.append("Remove from List...")
+                    options.append("Add to Another List...")
+                else:
+                    # If not viewing a LibraryGenie list, offer Add option
+                    options.append("Add to List...")
+
+            # Find Similar Movies - only if authenticated AND has valid IMDb ID
+            if imdb_id and str(imdb_id).startswith('tt'):
+                if is_authenticated:
+                    options.append("Find Similar Movies...")
+                else:
+                    options.append("Find Similar Movies... (Requires Authentication)")
+
+        # Refresh Metadata - always available (unless it's a folder, then it's handled by folder options)
+        if not is_folder_item or not is_librarygenie_folder:
+            options.append("Refresh Metadata")
 
         # Search Movies - only if authenticated
-        if is_authenticated:
-            options.append("Search Movies...")
-        else:
-            options.append("Search Movies... (Requires Authentication)")
+        if not is_folder_item or not is_librarygenie_folder:
+            if is_authenticated:
+                options.append("Search Movies...")
+            else:
+                options.append("Search Movies... (Requires Authentication)")
 
-        options.extend([
-            "Search History", 
-            "Settings"
-        ])
+        if not is_folder_item or not is_librarygenie_folder:
+            options.extend([
+                "Search History", 
+                "Settings"
+            ])
 
         if len(options) == 0:
             return
@@ -155,6 +192,37 @@ def main():
 
         selected_option = options[selected]
 
+        # Handle folder-specific actions
+        if is_folder_item and is_librarygenie_folder:
+            if selected_option == "Rename Folder":
+                xbmc.log("LibraryGenie: Action - Rename Folder", xbmc.LOGINFO)
+                # Implement Rename Folder logic
+                pass
+            elif selected_option == "Delete Folder":
+                xbmc.log("LibraryGenie: Action - Delete Folder", xbmc.LOGINFO)
+                # Implement Delete Folder logic
+                pass
+            elif selected_option == "Move Folder":
+                xbmc.log("LibraryGenie: Action - Move Folder", xbmc.LOGINFO)
+                # Implement Move Folder logic
+                pass
+            elif selected_option == "Create New List Here":
+                xbmc.log("LibraryGenie: Action - Create New List Here", xbmc.LOGINFO)
+                # Implement Create New List Here logic
+                pass
+            elif selected_option == "Create New Subfolder":
+                xbmc.log("LibraryGenie: Action - Create New Subfolder", xbmc.LOGINFO)
+                # Implement Create New Subfolder logic
+                pass
+            elif selected_option == "Information":
+                xbmc.log("LibraryGenie: Action - Folder Information", xbmc.LOGINFO)
+                xbmc.executebuiltin('Action(Info)')
+            elif selected_option == "Settings":
+                xbmc.log("LibraryGenie: Action - Folder Settings", xbmc.LOGINFO)
+                xbmc.executebuiltin(f'Addon.OpenSettings({addon_id})')
+            return # Exit after handling folder options
+
+        # Handle regular item actions
         if selected_option == "Show Details":
             # Show item details
             try:
@@ -227,7 +295,7 @@ def main():
 
                 # Determine if this is a library item or plugin item
                 is_library_item = item_id and item_id.isdigit() and int(item_id) > 0
-                
+
                 if is_library_item:
                     # Use the existing add_to_list action for library items
                     from urllib.parse import quote_plus
@@ -237,15 +305,15 @@ def main():
                 else:
                     # For plugin items, use direct context menu handling
                     xbmc.log(f"LibraryGenie: Adding plugin item to list: {clean_title}", xbmc.LOGINFO)
-                    
+
                     try:
                         # Get media manager to extract current item info
                         from resources.lib.media_manager import MediaManager
                         media_manager = MediaManager()
-                        
+
                         xbmc.log("LibraryGenie: Extracting media info for plugin item...", xbmc.LOGDEBUG)
                         media_info = media_manager.get_media_info('movie')
-                        
+
                         if media_info:
                             xbmc.log(f"LibraryGenie: Successfully extracted media info for '{media_info.get('title', 'Unknown')}'", xbmc.LOGDEBUG)
                             # Add the plugin item directly
@@ -253,7 +321,7 @@ def main():
                         else:
                             xbmc.log("LibraryGenie: Failed to extract media info - no data returned", xbmc.LOGERROR)
                             xbmcgui.Dialog().notification("LibraryGenie", "Failed to extract item information", xbmcgui.NOTIFICATION_ERROR, 3000)
-                    
+
                     except Exception as media_error:
                         xbmc.log(f"LibraryGenie: Error extracting media info: {str(media_error)}", xbmc.LOGERROR)
                         import traceback
@@ -368,7 +436,7 @@ def add_plugin_item_to_list(media_info):
         from resources.lib import utils
         from resources.lib.config_manager import Config
         from resources.lib.database_manager import DatabaseManager
-        
+
         utils.log("=== ADD PLUGIN ITEM TO LIST: Starting process ===", "DEBUG")
         utils.log(f"ADD PLUGIN ITEM: Received media_info: {media_info}", "DEBUG")
 
@@ -467,7 +535,7 @@ def add_plugin_item_to_list(media_info):
         import hashlib
         file_path = media_info.get('file', '')
         unique_id = hashlib.md5(f"{title}_{file_path}".encode()).hexdigest()[:16]
-        
+
         # Create media item data for plugin item
         media_item_data = {
             'kodi_id': 0,  # No Kodi ID for plugin items
