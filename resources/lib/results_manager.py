@@ -62,7 +62,7 @@ class ResultsManager(Singleton):
 
                     # Check if this is a plugin item (has plugin_item:// in play field or source is plugin_addon)
                     is_plugin_item = (
-                        item.get('source') == 'plugin_addon' or 
+                        item.get('source') == 'plugin_addon' or
                         (item.get('play', '').startswith('plugin_item://'))
                     )
 
@@ -88,7 +88,7 @@ class ResultsManager(Singleton):
                         else:
                             utils.log(f"Skipping non-playable item without identifier: {item.get('title', 'Unknown')}", "WARNING")
                             continue
-                    
+
                     if item_url:
                         utils.log(f"Adding item: {item.get('title', 'Unknown')} with URL: {item_url}", "DEBUG")
                         display_items.append((item_url, li, False))  # False = not a folder
@@ -111,43 +111,72 @@ class ResultsManager(Singleton):
             utils.log(f"Traceback: {traceback.format_exc()}", "ERROR")
             return []
 
-    def _enhance_search_history_items(self, list_items):
-        """Enhance search history items by matching them to library content"""
-        enhanced_items = []
+    def _enhance_search_history_items(self, items):
+        """Enhanced processing for search history items with library matching"""
+        try:
+            utils.log("=== ENHANCING SEARCH HISTORY ITEMS ===", "DEBUG")
 
-        for item in list_items:
-            enhanced_item = dict(item)
-            imdb_id = item.get('imdbnumber', '')
+            # Initialize JSONRPC for library lookups
+            import xbmc
+            import json
 
-            if imdb_id and item.get('source') == 'lib' and item.get('search_score'):
-                # Try to find matching library content
-                library_match = self._find_library_match_by_imdb(imdb_id)
+            enhanced_items = []
 
-                if library_match:
-                    # Update with library data for playability
-                    utils.log(f"Found library match for {imdb_id}: {library_match.get('title', 'Unknown')}", "DEBUG")
-                    enhanced_item.update({
-                        'kodi_id': library_match.get('movieid', 0),
-                        'file': library_match.get('file', ''),
-                        'play': f"kodi_movie://{library_match.get('movieid', 0)}",
-                        'playable': True,
-                        'is_library_match': True
-                    })
-                    # Keep search score for display
-                    if 'search_score' in item:
-                        enhanced_item['search_score'] = item['search_score']
+            for item in items:
+                enhanced_item = dict(item)
+
+                # Check if this item has a library match
+                imdb_id = item.get('imdbnumber', '')
+                if imdb_id and imdb_id.startswith('tt'):
+                    try:
+                        # Try to find this movie in the user's library using direct JSONRPC call
+                        query = {
+                            "jsonrpc": "2.0",
+                            "method": "VideoLibrary.GetMovies",
+                            "params": {
+                                "properties": ["title", "year", "file", "movieid", "imdbnumber"],
+                                "filter": {
+                                    "field": "imdbnumber",
+                                    "operator": "is",
+                                    "value": imdb_id
+                                }
+                            },
+                            "id": 1
+                        }
+
+                        response = xbmc.executeJSONRPC(json.dumps(query))
+                        result = json.loads(response)
+
+                        if result.get('result', {}).get('movies'):
+                            library_movie = result['result']['movies'][0]
+
+                            # This is a library match - make it playable
+                            enhanced_item['kodi_id'] = library_movie['movieid']
+                            enhanced_item['is_playable'] = True
+                            enhanced_item['file'] = library_movie.get('file', '')
+                            enhanced_item['source'] = 'lib'  # Mark as library source
+
+                            # Set proper play path
+                            enhanced_item['play'] = f"movieid://{library_movie['movieid']}"
+
+                            utils.log(f"Found library match for {imdb_id}: {library_movie['title']} (ID: {library_movie['movieid']})", "DEBUG")
+                        else:
+                            utils.log(f"No library match found for {imdb_id}", "DEBUG")
+                            enhanced_item['is_playable'] = False
+
+                    except Exception as e:
+                        utils.log(f"Error finding library match for {imdb_id}: {str(e)}", "ERROR")
+                        enhanced_item['is_playable'] = False
                 else:
-                    # No library match - make it informational only
-                    utils.log(f"No library match found for {imdb_id}", "DEBUG")
-                    enhanced_item.update({
-                        'playable': False,
-                        'is_library_match': False,
-                        'play': f"info://{imdb_id}"  # Non-playable info path
-                    })
+                    enhanced_item['is_playable'] = False
 
-            enhanced_items.append(enhanced_item)
+                enhanced_items.append(enhanced_item)
 
-        return enhanced_items
+            return enhanced_items
+
+        except Exception as e:
+            utils.log(f"Error enhancing search history items: {str(e)}", "ERROR")
+            return items
 
     def _find_library_match_by_imdb(self, imdb_id):
         """Find library movie by IMDB ID using JSON-RPC"""
