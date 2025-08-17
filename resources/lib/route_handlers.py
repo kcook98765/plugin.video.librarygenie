@@ -406,28 +406,15 @@ def add_to_list(params):
 
         utils.log(f"add_to_list called with title='{title}', item_id='{item_id}'", "DEBUG")
 
-        # For items coming from context menu without full media info, we need to get it from Kodi
-        # Use xbmc.getInfoLabel to get current focused item info
+        # Get IMDb ID using KodiHelper which has better detection logic
+        from resources.lib.kodi_helper import KodiHelper
+        kodi_helper = KodiHelper()
+        imdb_id = kodi_helper.get_imdb_from_item()
+        
+        # Get year from Kodi
         import xbmc
-
-        # Try to get IMDb ID from focused item
-        imdb_id = None
-        year = ""
-
-        # Try multiple sources for IMDb ID
-        imdb_candidates = [
-            xbmc.getInfoLabel('ListItem.IMDBNumber'),
-            xbmc.getInfoLabel('ListItem.UniqueID(imdb)'),
-            xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)')
-        ]
-
-        for candidate in imdb_candidates:
-            if candidate and str(candidate).startswith('tt'):
-                imdb_id = candidate
-                break
-
-        # Get year
         year_str = xbmc.getInfoLabel('ListItem.Year')
+        year = ""
         if year_str and year_str.isdigit():
             year = year_str
 
