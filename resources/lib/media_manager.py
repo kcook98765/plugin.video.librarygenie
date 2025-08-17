@@ -11,129 +11,136 @@ class MediaManager:
         self.query_manager = QueryManager(Config().db_path)
 
     def get_media_info(self, media_type='movie'):
-        """Get media info from Kodi"""
-        from resources.lib.query_manager import QueryManager
-        self.query_manager = QueryManager(Config().db_path)
-        kodi_id = xbmc.getInfoLabel('ListItem.DBID')
+        """Extract media information from the currently focused Kodi item"""
+        try:
+            utils.log("=== MEDIA_MANAGER: Starting get_media_info ===", "DEBUG")
 
-        # If we have a valid database ID, use JSONRPC
-        if kodi_id and kodi_id.isdigit() and int(kodi_id) > 0:
-            utils.log(f"Getting library item details via JSONRPC for ID: {kodi_id}", "DEBUG")
-            method = 'VideoLibrary.GetMovieDetails'
-            params = {
-                'movieid': int(kodi_id),
-                'properties': [
-                    'title', 'genre', 'year', 'director', 'cast', 'plot', 'rating',
-                    'file', 'thumbnail', 'fanart', 'runtime', 'tagline',
-                    'writer', 'imdbnumber', 'premiered', 'mpaa', 'trailer', 'votes',
-                    'country', 'dateadded', 'studio', 'art'
+            # Get basic info that's always available
+            title = xbmc.getInfoLabel('ListItem.Title') or ''
+            year = xbmc.getInfoLabel('ListItem.Year') or ''
+            plot = xbmc.getInfoLabel('ListItem.Plot') or ''
+
+            # Get file path - try multiple sources
+            file_path = (xbmc.getInfoLabel('ListItem.FileNameAndPath') or 
+                        xbmc.getInfoLabel('ListItem.Path') or 
+                        xbmc.getInfoLabel('ListItem.FolderPath') or '')
+
+            utils.log(f"MEDIA_MANAGER: Basic info - Title: '{title}', Year: '{year}', File: '{file_path}'", "DEBUG")
+
+            # Get additional metadata with fallbacks
+            genre = xbmc.getInfoLabel('ListItem.Genre') or ''
+            director = xbmc.getInfoLabel('ListItem.Director') or ''
+
+            # Handle duration - convert to integer
+            duration_str = xbmc.getInfoLabel('ListItem.Duration') or '0'
+            try:
+                duration = int(duration_str) if duration_str.isdigit() else 0
+            except:
+                duration = 0
+
+            # Get art with multiple fallback sources
+            thumbnail = (xbmc.getInfoLabel('ListItem.Thumb') or 
+                        xbmc.getInfoLabel('ListItem.Art(thumb)') or '')
+            poster = (xbmc.getInfoLabel('ListItem.Art(poster)') or 
+                     xbmc.getInfoLabel('ListItem.Thumb') or '')
+            fanart = (xbmc.getInfoLabel('ListItem.Art(fanart)') or 
+                     xbmc.getInfoLabel('ListItem.Property(fanart_image)') or '')
+
+            # Try to get IMDb ID from various sources
+            imdb_id = ''
+            try:
+                # Try different IMDb ID sources
+                imdb_sources = [
+                    'ListItem.IMDBNumber',
+                    'ListItem.Property(imdb_id)',
+                    'ListItem.UniqueId(imdb)',
+                    'ListItem.Property(imdb)',
                 ]
+
+                for source in imdb_sources:
+                    imdb_candidate = xbmc.getInfoLabel(source)
+                    if imdb_candidate and imdb_candidate.startswith('tt'):
+                        imdb_id = imdb_candidate
+                        utils.log(f"MEDIA_MANAGER: Found IMDb ID from {source}: {imdb_id}", "DEBUG")
+                        break
+
+            except Exception as e:
+                utils.log(f"MEDIA_MANAGER: Error getting IMDb ID: {str(e)}", "DEBUG")
+
+            # Enhance plot for plugin items
+            if not imdb_id and file_path:
+                # Determine source addon from file path
+                source_addon = 'external addon'
+                if 'plugin://' in file_path:
+                    try:
+                        plugin_part = file_path.split('plugin://')[1].split('/')[0]
+                        source_addon = plugin_part
+                    except:
+                        pass
+
+                if not plot:
+                    plot = f"Item from {source_addon}"
+                else:
+                    plot = f"[{source_addon}] {plot}"
+
+            # Build comprehensive media info
+            media_info = {
+                'title': title.strip() if title else 'Unknown Title',
+                'year': year.strip() if year and year.isdigit() else '',
+                'plot': plot.strip() if plot else 'No description available',
+                'file': file_path.strip() if file_path else '',
+                'genre': genre.strip() if genre else '',
+                'director': director.strip() if director else '',
+                'duration': duration,
+                'thumbnail': thumbnail.strip() if thumbnail else '',
+                'poster': poster.strip() if poster else '',
+                'fanart': fanart.strip() if fanart else '',
+                'imdbnumber': imdb_id.strip() if imdb_id else '',
+                'source': 'plugin_addon' if not imdb_id else 'library',
+                'art': json.dumps({
+                    'poster': poster,
+                    'fanart': fanart,
+                    'thumb': thumbnail
+                }) if any([poster, fanart, thumbnail]) else '{}',
+                'cast': '[]'  # Empty cast for plugin items
             }
 
-            response = self.jsonrpc.execute(method, params)
-            details = response.get('result', {}).get('moviedetails', {})
+            utils.log(f"MEDIA_MANAGER: Final media info extracted:", "DEBUG")
+            utils.log(f"  Title: '{media_info['title']}'", "DEBUG")
+            utils.log(f"  Source: '{media_info['source']}'", "DEBUG")
+            utils.log(f"  File: '{media_info['file']}'", "DEBUG")
+            utils.log(f"  IMDb: '{media_info['imdbnumber']}'", "DEBUG")
+            utils.log("=== MEDIA_MANAGER: get_media_info complete ===", "DEBUG")
 
-            if details:
-                # Convert cast to expected format and JSON string
-                cast_list = details.get('cast', [])
-                cast = [{'name': actor.get('name'), 'role': actor.get('role'), 
-                        'order': actor.get('order'), 'thumbnail': actor.get('thumbnail')} 
-                       for actor in cast_list]
+            return media_info
 
-                # Get art dictionary with detailed logging
-                art_dict = details.get('art', {})
-                poster_url = art_dict.get('poster', '')
+        except Exception as e:
+            utils.log(f"MEDIA_MANAGER: Error in get_media_info: {str(e)}", "ERROR")
+            import traceback
+            utils.log(f"MEDIA_MANAGER: Traceback: {traceback.format_exc()}", "ERROR")
 
-                if not poster_url:
-                    poster_url = details.get('thumbnail', '')
-                    utils.log(f"Poster fallback to thumbnail: {poster_url}", "DEBUG")
+            # Return minimal info as fallback
+            fallback_title = xbmc.getInfoLabel('ListItem.Title') or 'Unknown'
+            fallback_file = xbmc.getInfoLabel('ListItem.FileNameAndPath') or ''
 
-                # Ensure art dictionary has all required fields
-                art_dict = {
-                    'poster': poster_url,
-                    'thumb': poster_url,
-                    'icon': poster_url,
-                    'fanart': art_dict.get('fanart', '')
-                }
+            utils.log(f"MEDIA_MANAGER: Using fallback info - Title: '{fallback_title}', File: '{fallback_file}'", "DEBUG")
 
-                media_info = {
-                    'kodi_id': kodi_id,
-                    'title': details.get('title', ''),
-                    'art': json.dumps(art_dict),  # Store art as JSON string
-                    'thumbnail': poster_url,  # Keep thumbnail for compatibility
-                    'poster': poster_url,  # Explicitly store poster URL
-                    'year': details.get('year', ''),
-                    'plot': details.get('plot', ''),
-                    'genre': ' / '.join(details.get('genre', [])),
-                    'director': ' / '.join(details.get('director', [])),
-                    'cast': json.dumps(cast),
-                    'rating': details.get('rating', ''),
-                    'file': details.get('file', ''),
-                    'fanart': art_dict.get('fanart', ''),
-                    'duration': details.get('runtime', ''),
-                    'type': media_type
-                }
-                
-                # Assuming ListItemBuilder is imported and available in this scope
-                from resources.lib.listitem_builder import ListItemBuilder
-                movie_data = media_info
-                list_item = ListItemBuilder.build_video_item(movie_data, is_search_history=False)
-
-
-        # Fallback to current method for non-library items
-        utils.log("Using fallback method for non-library item", "DEBUG")
-        
-        # Get basic info from current ListItem
-        title = xbmc.getInfoLabel('ListItem.Title')
-        year = xbmc.getInfoLabel('ListItem.Year')
-        plot = xbmc.getInfoLabel('ListItem.Plot')
-        
-        # Try to get IMDb ID from various sources
-        imdb_candidates = [
-            xbmc.getInfoLabel('ListItem.IMDBNumber'),
-            xbmc.getInfoLabel('ListItem.UniqueID(imdb)'),
-            xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)'),
-            xbmc.getInfoLabel('ListItem.Property(imdb_id)'),
-            xbmc.getInfoLabel('ListItem.Property(imdbnumber)')
-        ]
-        
-        imdb_id = None
-        for candidate in imdb_candidates:
-            if candidate and str(candidate).startswith('tt'):
-                imdb_id = candidate
-                break
-        
-        info = {
-            'kodi_id': kodi_id if kodi_id and kodi_id.isdigit() else None,
-            'title': title,
-            'year': year,
-            'plot': plot,
-            'genre': xbmc.getInfoLabel('ListItem.Genre'),
-            'director': xbmc.getInfoLabel('ListItem.Director'),
-            'cast': self.get_cast_info(),
-            'rating': xbmc.getInfoLabel('ListItem.Rating'),
-            'file': xbmc.getInfoLabel('ListItem.FileNameAndPath'),
-            'thumbnail': xbmc.getInfoLabel('ListItem.Art(poster)'),
-            'fanart': xbmc.getInfoLabel('ListItem.Art(fanart)'),
-            'poster': xbmc.getInfoLabel('ListItem.Art(poster)'),
-            'duration': xbmc.getInfoLabel('ListItem.Duration'),
-            'type': media_type,
-            'imdbnumber': imdb_id,
-            'source': 'plugin_addon'  # Mark as coming from plugin addon
-        }
-        
-        # Clean up empty values but keep essential fields
-        cleaned_info = {}
-        for k, v in info.items():
-            if k in ['title', 'source', 'type']:  # Always keep these essential fields
-                cleaned_info[k] = v or ('Unknown' if k == 'title' else v)
-            elif v:  # Keep non-empty values
-                cleaned_info[k] = v
-        
-        utils.log(f"Fallback media info extracted: title='{cleaned_info.get('title')}', imdb='{cleaned_info.get('imdbnumber')}', source='{cleaned_info.get('source')}'", "DEBUG")
-        
-        return cleaned_info
-
+            return {
+                'title': fallback_title,
+                'year': '',
+                'plot': 'Plugin item added via context menu',
+                'file': fallback_file,
+                'genre': '',
+                'director': '',
+                'duration': 0,
+                'thumbnail': '',
+                'poster': '',
+                'fanart': '',
+                'imdbnumber': '',
+                'source': 'plugin_addon',
+                'art': '{}',
+                'cast': '[]'
+            }
 
     def get_cast_info(self):
         """Get cast information for current media"""

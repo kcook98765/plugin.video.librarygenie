@@ -225,13 +225,27 @@ def main():
                     # For plugin items, use direct context menu handling
                     xbmc.log(f"LibraryGenie: Adding plugin item to list: {clean_title}", xbmc.LOGINFO)
                     
-                    # Get media manager to extract current item info
-                    from resources.lib.media_manager import MediaManager
-                    media_manager = MediaManager()
-                    media_info = media_manager.get_media_info('movie')
+                    try:
+                        # Get media manager to extract current item info
+                        from resources.lib.media_manager import MediaManager
+                        media_manager = MediaManager()
+                        
+                        xbmc.log("LibraryGenie: Extracting media info for plugin item...", xbmc.LOGDEBUG)
+                        media_info = media_manager.get_media_info('movie')
+                        
+                        if media_info:
+                            xbmc.log(f"LibraryGenie: Successfully extracted media info for '{media_info.get('title', 'Unknown')}'", xbmc.LOGDEBUG)
+                            # Add the plugin item directly
+                            add_plugin_item_to_list(media_info)
+                        else:
+                            xbmc.log("LibraryGenie: Failed to extract media info - no data returned", xbmc.LOGERROR)
+                            xbmcgui.Dialog().notification("LibraryGenie", "Failed to extract item information", xbmcgui.NOTIFICATION_ERROR, 3000)
                     
-                    # Add the plugin item directly
-                    add_plugin_item_to_list(media_info)
+                    except Exception as media_error:
+                        xbmc.log(f"LibraryGenie: Error extracting media info: {str(media_error)}", xbmc.LOGERROR)
+                        import traceback
+                        xbmc.log(f"LibraryGenie: Media extraction traceback: {traceback.format_exc()}", xbmc.LOGERROR)
+                        xbmcgui.Dialog().notification("LibraryGenie", "Error extracting item information", xbmcgui.NOTIFICATION_ERROR, 3000)
 
             except Exception as add_error:
                 xbmc.log(f"LibraryGenie: Error adding item to list: {str(add_error)}", xbmc.LOGERROR)
@@ -343,9 +357,17 @@ def add_plugin_item_to_list(media_info):
         from resources.lib.database_manager import DatabaseManager
         
         utils.log("=== ADD PLUGIN ITEM TO LIST: Starting process ===", "DEBUG")
+        utils.log(f"ADD PLUGIN ITEM: Received media_info: {media_info}", "DEBUG")
+
+        # Validate media_info
+        if not media_info or not isinstance(media_info, dict):
+            utils.log(f"ADD PLUGIN ITEM: Invalid media_info received: {media_info}", "ERROR")
+            xbmcgui.Dialog().notification("LibraryGenie", "Invalid item information", xbmcgui.NOTIFICATION_ERROR, 3000)
+            return
 
         # Enhance media_info for plugin items
         title = media_info.get('title', 'Unknown')
+        utils.log(f"ADD PLUGIN ITEM: Working with title: '{title}'", "DEBUG")
 
         # For plugin items without IMDb ID, we can still add them with available metadata
         if not media_info.get('imdbnumber'):
