@@ -434,16 +434,7 @@ class ListItemBuilder:
                 pass
 
         # Set content properties
-        # Determine playability based on source and library match
-        is_playable = 'false'
-        if source == 'lib' and media_info.get('kodi_id', 0) > 0:
-            is_playable = 'true'
-        elif source == 'lib' and media_info.get('search_score') and media_info.get('is_library_match') and media_info.get('kodi_id', 0) > 0:
-            is_playable = 'true'
-        elif not media_info.get('search_score') and media_info.get('file'): # Assume external media is playable if file path exists
-            is_playable = 'true'
-        
-        li.setProperty('IsPlayable', is_playable)
+        li.setProperty('IsPlayable', 'true')
 
         # Set LibraryGenie marker to exclude from native context menu
         li.setProperty('LibraryGenie.Item', 'true')
@@ -487,37 +478,13 @@ class ListItemBuilder:
             # v20+ can use replaceItems=False to preserve existing items
             li.addContextMenuItems(context_menu_items, replaceItems=False)
 
-        # Enhanced play URL handling for mixed library and plugin items
-        play_url = None
-        kodi_id = media_info.get('kodi_id')
-        play_path = media_info.get('file')
-
-        # Set the playable path
-        if source == 'lib' and kodi_id and kodi_id > 0:
-            # Library items - use kodi_movie protocol
-            li.setPath(f"kodi_movie://{kodi_id}")
-            utils.log(f"Set ListItem path for '{title}': kodi_movie://{kodi_id}", "DEBUG")
-        elif source == 'lib' and media_info.get('search_score'):
-            # Search history items - check if they have library matches
-            if media_info.get('is_library_match') and media_info.get('kodi_id', 0) > 0:
-                # Has library match - make it playable
-                kodi_id = media_info.get('kodi_id')
-                li.setPath(f"kodi_movie://{kodi_id}")
-                li.setProperty('IsPlayable', 'true')
-                utils.log(f"Set ListItem path for search result '{title}': kodi_movie://{kodi_id} (library match)", "DEBUG")
-            else:
-                # No library match - informational only
-                li.setPath("noop://")
-                li.setProperty('IsPlayable', 'false')
-                utils.log(f"Set ListItem path for search result '{title}': noop:// (no library match)", "DEBUG")
-        elif play_path and play_path != '':
-            # External items or items with specific play paths
-            li.setPath(play_path)
-            utils.log(f"Set ListItem path for '{title}': {play_path}", "DEBUG")
+        # Try to get play URL from different possible locations
+        play_url = media_info.get('info', {}).get('play') or media_info.get('play') or media_info.get('file')
+        if play_url:
+            li.setPath(play_url)
+            utils.log(f"Set ListItem path for '{title}': {play_url}", "DEBUG")
         else:
-            # Fallback for items without proper paths
-            li.setPath("noop://")
-            utils.log(f"Set ListItem path for '{title}': noop:// (no valid path found)", "DEBUG")
+            utils.log(f"No play URL found for '{title}'", "DEBUG")
 
 
         # Store IMDb ID as a property on the ListItem itself for context menu access
