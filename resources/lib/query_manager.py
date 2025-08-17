@@ -850,14 +850,16 @@ class QueryManager(Singleton):
             utils.log("ERROR - No valid media data to insert", "ERROR")
             return None
 
-        # Insert media item - use REPLACE for search results to ensure they get inserted
+        # For shortlist imports, always use INSERT to ensure new records are created
+        source = media_data.get('source', '')
+        if source in ('shortlist_import', 'search'):
+            query_type = 'INSERT OR REPLACE'
+        else:
+            query_type = 'INSERT OR IGNORE'
+
         columns = ', '.join(media_data.keys())
         placeholders = ', '.join('?' for _ in media_data)
-
-        if media_data.get('source') == 'search':
-            query = f'INSERT OR REPLACE INTO media_items ({columns}) VALUES ({placeholders})'
-        else:
-            query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
+        query = f'{query_type} INTO media_items ({columns}) VALUES ({placeholders})'
 
         conn_info = self._get_connection()
         try:
@@ -865,27 +867,39 @@ class QueryManager(Singleton):
             cursor.execute(query, tuple(media_data.values()))
             conn_info['connection'].commit()
 
-            # For search results, use a more specific unique identifier
-            if media_data.get('source') == 'search' and media_data.get('imdbnumber'):
-                # Look up by IMDb ID and source for search results
+            inserted_id = cursor.lastrowid
+            if inserted_id and inserted_id > 0:
+                utils.log(f"Successfully inserted media item with ID: {inserted_id} for source: {source}", "DEBUG")
+                return inserted_id
+
+            # If lastrowid is None/0, try to find the record by unique fields
+            if source == 'shortlist_import':
+                # For shortlist imports, look up by title, year, and play path
+                title = media_data.get('title', '')
+                year = media_data.get('year', 0)
+                play = media_data.get('play', '')
+                
                 cursor.execute(
-                    "SELECT id FROM media_items WHERE imdbnumber = ? AND source = ?",
-                    (media_data.get('imdbnumber'), 'search')
+                    "SELECT id FROM media_items WHERE title = ? AND year = ? AND play = ? AND source = ?",
+                    (title, year, play, source)
                 )
                 result = cursor.fetchone()
+                if result:
+                    utils.log(f"Found existing shortlist import record with ID: {result[0]}", "DEBUG")
+                    return result[0]
 
+            elif source == 'search' and media_data.get('imdbnumber'):
+                # For search results, look up by IMDb ID and source
+                cursor.execute(
+                    "SELECT id FROM media_items WHERE imdbnumber = ? AND source = ?",
+                    (media_data.get('imdbnumber'), source)
+                )
+                result = cursor.fetchone()
                 if result:
                     return result[0]
-                else:
-                    # Try to get the last inserted row ID
-                    inserted_id = cursor.lastrowid
-                    if inserted_id and inserted_id > 0:
-                        return inserted_id
-                    else:
-                        utils.log("Could not determine inserted record ID", "WARNING")
-                        return None
+
             else:
-                # Original lookup logic for non-search items
+                # Original lookup logic for other sources
                 lookup_kodi_id = media_data.get('kodi_id', 0)
                 lookup_play = media_data.get('play', '')
 
@@ -894,15 +908,15 @@ class QueryManager(Singleton):
                     (lookup_kodi_id, lookup_play)
                 )
                 result = cursor.fetchone()
-
                 if result:
                     return result[0]
-                else:
-                    utils.log("Could not find inserted record", "WARNING")
-                    return None
+
+            utils.log(f"Could not determine inserted record ID for source: {source}", "WARNING")
+            return None
 
         except Exception as e:
-            utils.log(f"SQL Error: {str(e)}", "ERROR")
+            utils.log(f"SQL Error inserting media item: {str(e)}", "ERROR")
+            utils.log(f"Failed data: {media_data}", "ERROR")
             raise
         finally:
             self._release_connection(conn_info)

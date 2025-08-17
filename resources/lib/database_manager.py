@@ -868,7 +868,7 @@ class DatabaseManager(Singleton):
                 media_id = self.insert_data('media_items', media_dict)
                 utils.log(f"Created new media item with ID: {media_id}", "DEBUG")
             
-            if media_id:
+            if media_id and media_id > 0:
                 # Check if already in list
                 try:
                     query = "SELECT id FROM list_items WHERE list_id = ? AND media_item_id = ?"
@@ -890,7 +890,8 @@ class DatabaseManager(Singleton):
                     
                 return media_id
             else:
-                utils.log("Failed to insert media item", "ERROR")
+                utils.log(f"Failed to insert media item - got invalid ID: {media_id}", "ERROR")
+                utils.log(f"Media dict was: {media_dict}", "ERROR")
                 return None
                 
         except Exception as e:
