@@ -850,10 +850,88 @@ class DatabaseManager(Singleton):
         utils.log(f"Deleting folder {folder_id}", "DEBUG")
         return self.delete_folder_and_contents(folder_id)
 
+    def add_shortlist_items(self, list_id, media_items_data):
+        """Add multiple shortlist items to a list in a single transaction (like add_search_history)"""
+        try:
+            utils.log(f"DATABASE: Adding {len(media_items_data)} shortlist items to list {list_id}", "DEBUG")
+            
+            # Use single connection/transaction like search history does
+            conn_info = self.query_manager._get_connection()
+            try:
+                conn_info['connection'].execute("BEGIN")
+                
+                for item_data in media_items_data:
+                    # Ensure media_type is set
+                    if 'media_type' not in item_data:
+                        item_data['media_type'] = 'movie'
+                    
+                    # Insert media item directly in this transaction
+                    cursor = conn_info['connection'].cursor()
+                    
+                    # Filter data for media_items table
+                    field_names = [field.split()[0] for field in Config.FIELDS]
+                    filtered_data = {}
+                    for key in field_names:
+                        if key in item_data:
+                            value = item_data[key]
+                            if value is None:
+                                value = ''
+                            elif isinstance(value, str) and value.strip() == '':
+                                value = ''
+                            if value != '' or key in ['kodi_id', 'year', 'rating', 'duration', 'votes']:
+                                filtered_data[key] = value
+                    
+                    # Set defaults for essential fields
+                    filtered_data.setdefault('kodi_id', 0)
+                    filtered_data.setdefault('year', 0)
+                    filtered_data.setdefault('rating', 0.0)
+                    filtered_data.setdefault('duration', 0)
+                    filtered_data.setdefault('votes', 0)
+                    filtered_data.setdefault('title', 'Unknown')
+                    filtered_data.setdefault('source', 'shortlist_import')
+                    filtered_data.setdefault('media_type', 'movie')
+                    
+                    # Insert media item
+                    columns = ', '.join(filtered_data.keys())
+                    placeholders = ', '.join('?' for _ in filtered_data)
+                    media_query = f'INSERT OR REPLACE INTO media_items ({columns}) VALUES ({placeholders})'
+                    
+                    cursor.execute(media_query, tuple(filtered_data.values()))
+                    media_id = cursor.lastrowid
+                    
+                    if media_id and media_id > 0:
+                        # Insert list item in same transaction
+                        list_query = 'INSERT INTO list_items (list_id, media_item_id) VALUES (?, ?)'
+                        cursor.execute(list_query, (list_id, media_id))
+                        utils.log(f"DATABASE: Added shortlist item '{item_data.get('title', 'Unknown')}' with media_id {media_id}", "DEBUG")
+                    else:
+                        utils.log(f"DATABASE WARNING: Failed to get media_id for '{item_data.get('title', 'Unknown')}'", "WARNING")
+                
+                conn_info['connection'].commit()
+                utils.log(f"DATABASE: Successfully added {len(media_items_data)} shortlist items to list {list_id}", "INFO")
+                return True
+                
+            except Exception as e:
+                conn_info['connection'].rollback()
+                utils.log(f"DATABASE ERROR: Transaction failed for shortlist items: {str(e)}", "ERROR")
+                raise
+            finally:
+                self.query_manager._release_connection(conn_info)
+                
+        except Exception as e:
+            utils.log(f"DATABASE ERROR: Failed to add shortlist items to list {list_id}: {str(e)}", "ERROR")
+            import traceback
+            utils.log(f"DATABASE ERROR traceback: {traceback.format_exc()}", "ERROR")
+            raise
+
     def add_media_item(self, list_id, media_item_data):
         """Add a media item to a list with proper source-aware handling"""
         try:
             utils.log(f"DATABASE: Attempting to add media item to list {list_id}: {media_item_data.get('title', 'Unknown')} (source: {media_item_data.get('source', 'unknown')})", "DEBUG")
+
+            # For shortlist imports, use the dedicated batch method for single items
+            if media_item_data.get('source') == 'shortlist_import':
+                return self.add_shortlist_items(list_id, [media_item_data])
 
             # Ensure media_type is set
             if 'media_type' not in media_item_data:

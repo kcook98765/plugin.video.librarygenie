@@ -700,7 +700,8 @@ class ShortlistImporter:
 
                 utils.log(f"Created LibraryGenie list: {list_name} (ID: {list_id})", "INFO")
 
-                # Process each item in the list
+                # Process all items in the list and collect media dicts
+                media_items_to_add = []
                 for j, item in enumerate(items):
                     item_title = item.get('title') or item.get('label', 'Unknown')
                     item_year = self.safe_convert_int(item.get('year'))
@@ -750,6 +751,8 @@ class ShortlistImporter:
                                 utils.log(f"  {field}: {value}", "INFO")
                         utils.log(f"=== END FINAL MEDIA_DICT ===", "INFO")
 
+                        media_items_to_add.append(media_dict)
+
                     except Exception as e:
                         utils.log(f"CONVERSION_ERROR: Failed to convert item '{item_title}': {str(e)}", "ERROR")
                         # Create minimal fallback media dict
@@ -768,19 +771,20 @@ class ShortlistImporter:
                             'status': 'available'
                         }
                         utils.log(f"CONVERSION_FALLBACK: Using minimal data for '{media_dict['title']}'", "WARNING")
+                        media_items_to_add.append(media_dict)
 
-                    # Add to list using the established DatabaseManager.add_media_item method
+                # Add all items to list using batch transaction method
+                if media_items_to_add:
                     try:
-                        media_id = self.db_manager.add_media_item(list_id, media_dict)
-                        source_indicator = "📚 LIBRARY" if media_dict['source'] == 'kodi_library' else "📁 SHORTLIST"
-                        utils.log(f"IMPORT_SUCCESS: Added '{media_dict['title']}' (media_id: {media_id}) to list '{list_name}' - {source_indicator}", "INFO")
+                        success = self.db_manager.add_shortlist_items(list_id, media_items_to_add)
+                        if success:
+                            utils.log(f"IMPORT_SUCCESS: Added {len(media_items_to_add)} items to list '{list_name}' in batch", "INFO")
+                        else:
+                            utils.log(f"DATABASE_ERROR: Failed to add items to list '{list_name}' in batch", "ERROR")
                     except Exception as e:
-                        utils.log(f"DATABASE_ERROR: Failed to add '{media_dict['title']}' to list: {str(e)}", "ERROR")
-                        # Log the error details for debugging
+                        utils.log(f"DATABASE_ERROR: Failed to add items to list '{list_name}': {str(e)}", "ERROR")
                         import traceback
                         utils.log(f"Full traceback: {traceback.format_exc()}", "ERROR")
-                        # Don't continue with this item if database insertion failed
-                        continue
 
             progress.update(100, "Import complete!")
             progress.close()
