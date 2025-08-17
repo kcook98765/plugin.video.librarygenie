@@ -906,19 +906,11 @@ class QueryManager(Singleton):
                     return result[0]
 
             elif source in ('search', 'lib') and media_data.get('imdbnumber'):
-                # Look up by IMDb ID for search results (check both source and search_score)
-                if media_data.get('search_score'):
-                    # For search results, look up by IMDb ID and search_score presence
-                    cursor.execute(
-                        "SELECT id FROM media_items WHERE imdbnumber = ? AND search_score IS NOT NULL",
-                        (media_data.get('imdbnumber'),)
-                    )
-                else:
-                    # For regular lib items
-                    cursor.execute(
-                        "SELECT id FROM media_items WHERE imdbnumber = ? AND source = ?",
-                        (media_data.get('imdbnumber'), source)
-                    )
+                # Look up by IMDb ID and source
+                cursor.execute(
+                    "SELECT id FROM media_items WHERE imdbnumber = ? AND source = ?",
+                    (media_data.get('imdbnumber'), source)
+                )
                 result = cursor.fetchone()
                 if result:
                     return result[0]
