@@ -771,14 +771,16 @@ class ShortlistImporter:
                     
                     # Add to list using the established DatabaseManager.add_media_item method
                     try:
-                        self.db_manager.add_media_item(list_id, media_dict)
+                        media_id = self.db_manager.add_media_item(list_id, media_dict)
                         source_indicator = "📚 LIBRARY" if media_dict['source'] == 'kodi_library' else "📁 SHORTLIST"
-                        utils.log(f"IMPORT_SUCCESS: Added '{media_dict['title']}' to list '{list_name}' - {source_indicator}", "INFO")
+                        utils.log(f"IMPORT_SUCCESS: Added '{media_dict['title']}' (media_id: {media_id}) to list '{list_name}' - {source_indicator}", "INFO")
                     except Exception as e:
                         utils.log(f"DATABASE_ERROR: Failed to add '{media_dict['title']}' to list: {str(e)}", "ERROR")
                         # Log the error details for debugging
                         import traceback
                         utils.log(f"Full traceback: {traceback.format_exc()}", "ERROR")
+                        # Don't continue with this item if database insertion failed
+                        continue
             
             progress.update(100, "Import complete!")
             progress.close()

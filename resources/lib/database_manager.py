@@ -853,21 +853,89 @@ class DatabaseManager(Singleton):
     def add_media_item(self, list_id, media_item_data):
         """Add a media item to a list with proper error handling"""
         try:
+            utils.log(f"DATABASE: Attempting to add media item to list {list_id}: {media_item_data.get('title', 'Unknown')}", "DEBUG")
+
             # First, insert or update the media item
-            media_id = self.insert_data('media_items', media_item_data)
+            media_id = self._add_media_record(media_item_data)
+            utils.log(f"DATABASE: Created media record with ID: {media_id}", "DEBUG")
 
             if not media_id:
-                utils.log("Failed to insert media item", "ERROR")
+                utils.log("DATABASE: Failed to insert media item, skipping list addition.", "ERROR")
                 return False
 
             # Then add it to the list
-            return self.add_item_to_list(list_id, media_id)
+            success = self._add_to_list(list_id, media_id)
+            if success:
+                utils.log(f"DATABASE: Successfully added media ID {media_id} to list {list_id}", "DEBUG")
+            else:
+                utils.log(f"DATABASE: Failed to add media ID {media_id} to list {list_id}", "ERROR")
+            
+            return success
 
         except Exception as e:
-            utils.log(f"Error in add_media_item: {str(e)}", "ERROR")
-            return False
+            utils.log(f"DATABASE ERROR: Failed to add media item '{media_item_data.get('title', 'Unknown')}' to list {list_id}: {str(e)}", "ERROR")
+            import traceback
+            utils.log(f"DATABASE ERROR traceback: {traceback.format_exc()}", "ERROR")
+            raise
 
-    def add_item_to_list(self, list_id, media_item_id):
+    def _add_media_record(self, media_dict):
+        """Add media record and return media_id"""
+        query = """
+        INSERT OR REPLACE INTO media_items (
+            title, year, plot, rating, duration, genre, director, cast, studio, mpaa,
+            tagline, writer, country, premiered, dateadded, votes, trailer, path, play,
+            kodi_id, media_type, source, imdbnumber, thumbnail, poster, fanart, art,
+            uniqueid, stream_url, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+
+        try:
+            values = (
+                media_dict.get('title', ''),
+                media_dict.get('year', 0),
+                media_dict.get('plot', ''),
+                media_dict.get('rating', 0.0),
+                media_dict.get('duration', 0),
+                media_dict.get('genre', ''),
+                media_dict.get('director', ''),
+                media_dict.get('cast', ''),
+                media_dict.get('studio', ''),
+                media_dict.get('mpaa', ''),
+                media_dict.get('tagline', ''),
+                media_dict.get('writer', ''),
+                media_dict.get('country', ''),
+                media_dict.get('premiered', ''),
+                media_dict.get('dateadded', ''),
+                media_dict.get('votes', 0),
+                media_dict.get('trailer', ''),
+                media_dict.get('path', ''),
+                media_dict.get('play', ''),
+                media_dict.get('kodi_id', 0),
+                media_dict.get('media_type', 'movie'),
+                media_dict.get('source', ''),
+                media_dict.get('imdbnumber', ''),
+                media_dict.get('thumbnail', ''),
+                media_dict.get('poster', ''),
+                media_dict.get('fanart', ''),
+                media_dict.get('art', ''),
+                media_dict.get('uniqueid', ''),
+                media_dict.get('stream_url', ''),
+                media_dict.get('status', 'available')
+            )
+
+            utils.log(f"DATABASE: Executing media insert query for: {media_dict.get('title', 'Unknown')}", "DEBUG")
+            cursor = self.db.execute(query, values)
+            media_id = cursor.lastrowid
+            utils.log(f"DATABASE: Media record created with ID: {media_id}", "DEBUG")
+            return media_id
+
+        except Exception as e:
+            utils.log(f"DATABASE ERROR: Failed to insert media record for '{media_dict.get('title', 'Unknown')}': {str(e)}", "ERROR")
+            utils.log(f"DATABASE ERROR: Media dict keys: {list(media_dict.keys())}", "ERROR")
+            utils.log(f"DATABASE ERROR: Values length: {len(values)}", "ERROR")
+            raise
+
+    def _add_to_list(self, list_id, media_item_id):
         """Add an existing media item to a list"""
         try:
             # Check if already in list
@@ -885,7 +953,7 @@ class DatabaseManager(Singleton):
             return True
 
         except Exception as e:
-            utils.log(f"Error in add_item_to_list: {str(e)}", "ERROR")
+            utils.log(f"DATABASE ERROR in _add_to_list: {str(e)}", "ERROR")
             return False
 
 
