@@ -802,19 +802,43 @@ class DatabaseManager(Singleton):
             utils.log(f"Error ensuring folder exists: {str(e)}", "ERROR")
             return None
 
-    def create_list(self, list_name, folder_id=None):
-        """Create a new list and return its ID"""
-        try:
-            list_data = {
-                'name': list_name,
-                'folder_id': folder_id
-            }
+    def create_folder(self, name, parent_id=None):
+        """Create a new folder"""
+        utils.log(f"Creating folder '{name}' with parent_id={parent_id}", "DEBUG")
+        return self.query_manager.create_folder(name, parent_id)
 
-            return self.insert_data('lists', list_data)
+    def ensure_folder_exists(self, name, parent_id=None):
+        """Ensure a folder exists, create if it doesn't"""
+        utils.log(f"Ensuring folder '{name}' exists with parent_id={parent_id}", "DEBUG")
 
-        except Exception as e:
-            utils.log(f"Error creating list: {str(e)}", "ERROR")
-            return None
+        # Check if folder already exists
+        existing_folder = self.get_folder_id_by_name(name, parent_id)
+        if existing_folder:
+            utils.log(f"Folder '{name}' already exists with ID: {existing_folder}", "DEBUG")
+            return existing_folder
+
+        # Create the folder
+        folder_id = self.create_folder(name, parent_id)
+        utils.log(f"Created folder '{name}' with ID: {folder_id}", "DEBUG")
+        return folder_id
+
+    def get_folder_id_by_name(self, name, parent_id=None):
+        """Get folder ID by name and parent"""
+        folders = self.fetch_folders(parent_id)
+        for folder in folders:
+            if folder['name'] == name:
+                return folder['id']
+        return None
+
+    def delete_list(self, list_id):
+        """Delete a list and all its items"""
+        utils.log(f"Deleting list {list_id}", "DEBUG")
+        return self.query_manager.delete_list(list_id)
+
+    def delete_folder(self, folder_id):
+        """Delete a folder and all its contents (cascading)"""
+        utils.log(f"Deleting folder {folder_id}", "DEBUG")
+        return self.query_manager.delete_folder(folder_id)
 
     def update_data(self, table, data_dict, where_clause):
         """Update data in a table with a where clause"""
