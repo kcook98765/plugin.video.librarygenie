@@ -85,61 +85,48 @@ class ShortlistImporter:
         return data.get("result", {})
 
     def get_dir(self, url, start=0, end=200, props=None):
-        """Get directory contents with pagination using progressive property fallback"""
+        """Get directory contents with pagination using valid List.Fields.Files properties"""
         utils.log(f"Getting directory: {url} (start={start}, end={end})", "DEBUG")
         
-        # Define property sets in order of preference (most comprehensive to most basic)
-        property_sets = [
-            # Comprehensive set for maximum details
-            ["title", "year", "rating", "plot", "plotoutline", "genre", "director", 
-             "cast", "duration", "runtime", "art", "thumbnail", "fanart", "poster", 
-             "tagline", "studio", "mpaa", "writer", "country", "premiered", 
-             "dateadded", "votes", "trailer", "file", "filetype"],
-            
-            # Standard set with common properties
-            ["title", "year", "rating", "plot", "plotoutline", "genre", "director", 
-             "cast", "duration", "art", "thumbnail", "fanart", "file", "filetype"],
-            
-            # Reduced set without potentially problematic properties
-            ["title", "year", "rating", "plot", "genre", "director", "art", "filetype"],
-            
-            # Basic set with core properties
-            ["title", "year", "rating", "plot", "filetype"],
-            
-            # Minimal set - last resort
-            ["title", "filetype"]
-        ]
+        # Use the most comprehensive valid property set for Files.GetDirectory
+        # Based on List.Fields.Files from Kodi JSON-RPC API
+        if props is None:
+            props = [
+                "title",
+                "file", 
+                "thumbnail",
+                "fanart",
+                "art",
+                "plot",
+                "plotoutline", 
+                "genre",
+                "director",
+                "cast",
+                "year",
+                "rating",
+                "duration",
+                "runtime",
+                "dateadded",
+                "resume",
+                "streamdetails",
+                "trailer",
+                "originaltitle",
+                "writer", 
+                "studio",
+                "mpaa",
+                "country",
+                "imdbnumber"
+            ]
         
-        # If specific props provided, try those first
-        if props is not None:
-            property_sets.insert(0, props)
+        utils.log(f"Using {len(props)} valid List.Fields.Files properties", "DEBUG")
+        utils.log(f"Properties: {props}", "DEBUG")
         
-        # Try each property set until one works
-        for i, prop_set in enumerate(property_sets):
-            try:
-                utils.log(f"Trying property set {i+1}/{len(property_sets)}: {len(prop_set)} properties", "DEBUG")
-                
-                result = self._rpc("Files.GetDirectory", {
-                    "directory": url,
-                    "media": "video", 
-                    "properties": prop_set,
-                    "limits": {"start": start, "end": end}
-                })
-                
-                utils.log(f"Successfully used property set {i+1} with {len(prop_set)} properties", "INFO")
-                break
-                
-            except RuntimeError as e:
-                error_str = str(e)
-                utils.log(f"Property set {i+1} failed: {error_str}", "DEBUG")
-                
-                # If this is the last property set, re-raise the error
-                if i == len(property_sets) - 1:
-                    utils.log("All property sets failed, re-raising last error", "ERROR")
-                    raise
-                
-                # Continue to next property set
-                continue
+        result = self._rpc("Files.GetDirectory", {
+            "directory": url,
+            "media": "files",  # Use "files" media type as recommended
+            "properties": props,
+            "limits": {"start": start, "end": end}
+        })
         
         files = result.get("files", [])
         lims = result.get("limits", {"total": len(files), "end": end})
@@ -153,7 +140,7 @@ class ShortlistImporter:
             utils.log(f"Paginating: start={start}", "DEBUG")
             chunk = self._rpc("Files.GetDirectory", {
                 "directory": url,
-                "media": "video",
+                "media": "files",
                 "properties": props,
                 "limits": {"start": start, "end": start + 200}
             }).get("files", [])
@@ -211,6 +198,7 @@ class ShortlistImporter:
                         continue
                         
                     # Extract all available data from Shortlist item
+                    # Note: filetype is automatically included in response, poster is in art.poster
                     item_data = {
                         "label": it.get("label") or it.get("title"),
                         "title": it.get("title") or it.get("label"),
@@ -238,7 +226,8 @@ class ShortlistImporter:
                         "trailer": it.get("trailer"),
                         "thumbnail": it.get("thumbnail"),
                         "fanart": it.get("fanart"),
-                        "poster": it.get("poster")
+                        # poster is extracted from art.poster below, not a direct field
+                        "poster": it.get("art", {}).get("poster", "") if isinstance(it.get("art"), dict) else ""
                     }
                     
                     # Extract duration from streamdetails if available and not already set
@@ -390,17 +379,17 @@ class ShortlistImporter:
                 'status': 'available'
             }
             
-            # Extract art from Shortlist with multiple fallback sources
+            # Extract art from Shortlist - poster is now in art.poster, not direct field
             art = item.get('art', {})
-            if art:
+            if art and isinstance(art, dict):
                 media_dict['thumbnail'] = art.get('thumb', '') or art.get('icon', '') or item.get('thumbnail', '')
-                media_dict['poster'] = art.get('poster', '') or item.get('poster', '')
+                media_dict['poster'] = art.get('poster', '')  # poster is in art.poster
                 media_dict['fanart'] = art.get('fanart', '') or item.get('fanart', '')
                 media_dict['art'] = json.dumps(art)
             else:
-                # Try direct properties if art object is empty
+                # Fallback to direct properties and item.poster field (from our extraction above)
                 media_dict['thumbnail'] = item.get('thumbnail', '')
-                media_dict['poster'] = item.get('poster', '')
+                media_dict['poster'] = item.get('poster', '')  # This was extracted from art.poster above
                 media_dict['fanart'] = item.get('fanart', '')
         
         utils.log(f"Converted media dict for: {media_dict['title']} ({media_dict['year']}) - Source: {media_dict['source']}", "DEBUG")
