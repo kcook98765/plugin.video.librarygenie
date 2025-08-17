@@ -179,15 +179,8 @@ if src == 'external' or src == 'plugin_addon':
 Manual items fall through to library processing since they reference the same Kodi library content:
 
 ```python
-# Manual items continue to library processing...
-# Try to get title/year from imdb_exports first
-if imdb:
-    q = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
-    hit = self.query_manager.execute_query(q, (imdb,))
-    if hit:
-        rec = hit[0]
-        title = (rec.get('title') if isinstance(rec, dict) else rec[0]) or ''
-        year = int((rec.get('year') if isinstance(rec, dict) else rec[1]) or 0)
+# Manual and kodi_library items continue to library processing...
+            # Try to get title/year from imdb_exports first
 ```
 
 ### URL Generation Logic
