@@ -868,7 +868,7 @@ class QueryManager(Singleton):
 
         # For shortlist imports, always use INSERT to ensure new records are created
         source = media_data.get('source', '')
-        if source in ('shortlist_import', 'search'):
+        if source in ('shortlist_import', 'search', 'search_library'):
             query_type = 'INSERT OR REPLACE'
         else:
             query_type = 'INSERT OR IGNORE'
@@ -904,7 +904,7 @@ class QueryManager(Singleton):
                     utils.log(f"Found existing shortlist import record with ID: {result[0]}", "DEBUG")
                     return result[0]
 
-            elif source == 'search' and media_data.get('imdbnumber'):
+            elif source in ('search', 'search_library') and media_data.get('imdbnumber'):
                 # For search results, look up by IMDb ID and source
                 cursor.execute(
                     "SELECT id FROM media_items WHERE imdbnumber = ? AND source = ?",
