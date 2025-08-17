@@ -10,10 +10,11 @@ I'm excited to share **LibraryGenie**, a brand new Kodi addon focused on intelli
 ## What you can do today (Available to everyone)
 
 • **Hierarchical Organization**: Create nested folders and lists with unlimited depth
-• **Manual Curation**: Add items from any addon/source via context menus
+• **Manual Curation**: Add items from any addon/source via context menus with proper playback support
 • **Batch Operations**: Work efficiently with large collections
 • **Smart Navigation**: Modal/clean interfaces with built-in UI conflict protection
 • **Sorting & Viewing**: Proper ListItem construction and sort methods
+• **Reliable Playback**: Fixed URL generation ensures all manually added items play correctly
 • **Robust Internals**: SQLite storage, JSON-RPC integration, detailed logging, settings
 
 No remote services required. Install and start organizing immediately.
@@ -87,6 +88,7 @@ No remote services required. Install and start organizing immediately.
 • **Lists not displaying**: Enable debug logging and check for database messages
 • **Navigation conflicts**: Built-in protection minimizes duplicate/stacked UIs
 • **Context menu missing**: Verify the addon is installed and enabled
+• **Manual items not playing**: Recent fix ensures proper file path URLs instead of invalid movieid:// protocols
 • **Debug mode**: Turn on debug logging, reproduce the issue, and check Kodi logs for lines prefixed with [LibraryGenie]
 
 ### Alpha-only notes
@@ -119,9 +121,10 @@ If you'd like to participate:
 ## Tech Notes
 
 • Python 3.x (Kodi's Python API)
-• SQLite for local data
-• JSON-RPC for library integration
+• SQLite for local data with robust source handling
+• JSON-RPC for library integration with proper metadata retrieval
 • Clean modal UI patterns and navigation lifecycle management
+• Fixed URL generation for reliable playback across all content sources
 
 ## License & Contributing
 
