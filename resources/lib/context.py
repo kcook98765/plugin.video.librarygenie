@@ -58,19 +58,15 @@ def main():
 
         # Show Details - always available
         options.append("Show Details")
-
+        
         # Information - always available  
         options.append("Information")
-
-        # Debug IMDB - always available if an IMDB ID is detected
-        if imdb_id and str(imdb_id).startswith('tt'):
-            options.append("Debug IMDB")
 
         # Check if we're currently viewing a LibraryGenie list (to offer Remove option)
         current_container_path = xbmc.getInfoLabel('Container.FolderPath')
         viewing_list_id = None
         is_librarygenie_list = False
-
+        
         if 'browse_list' in current_container_path and 'list_id=' in current_container_path and 'plugin.video.librarygenie' in current_container_path:
             try:
                 import re
@@ -78,16 +74,16 @@ def main():
                 if match:
                     extracted_list_id = match.group(1)
                     xbmc.log(f"LibraryGenie: Detected potential list_id: {extracted_list_id}", xbmc.LOGDEBUG)
-
+                    
                     # Verify this list exists in our database
                     try:
                         from resources.lib.config_manager import Config
                         from resources.lib.database_manager import DatabaseManager
-
+                        
                         config = Config()
                         db_manager = DatabaseManager(config.db_path)
                         list_data = db_manager.fetch_list_by_id(extracted_list_id)
-
+                        
                         if list_data:
                             viewing_list_id = extracted_list_id
                             is_librarygenie_list = True
@@ -96,7 +92,7 @@ def main():
                             xbmc.log(f"LibraryGenie: List {extracted_list_id} not found in database - not a LibraryGenie list", xbmc.LOGDEBUG)
                     except Exception as db_error:
                         xbmc.log(f"LibraryGenie: Error verifying list in database: {str(db_error)}", xbmc.LOGDEBUG)
-
+                        
             except Exception as e:
                 xbmc.log(f"LibraryGenie: Error extracting list_id: {str(e)}", xbmc.LOGDEBUG)
 
@@ -148,32 +144,24 @@ def main():
             try:
                 # Get the clean title without color formatting
                 clean_title = title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
-
+                
                 # Get item ID from various sources
                 item_id = (xbmc.getInfoLabel('ListItem.DBID') or 
                           xbmc.getInfoLabel('ListItem.Property(movieid)') or 
                           xbmc.getInfoLabel('ListItem.Property(id)') or "")
-
+                
                 from urllib.parse import quote_plus
                 encoded_title = quote_plus(clean_title)
                 details_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=show_item_details&title={encoded_title}&item_id={item_id})'
                 xbmc.executebuiltin(details_url)
-
+                
             except Exception as details_error:
                 xbmc.log(f"LibraryGenie: Error showing details: {str(details_error)}", xbmc.LOGERROR)
                 xbmcgui.Dialog().notification("LibraryGenie", "Error showing details", xbmcgui.NOTIFICATION_ERROR, 3000)
 
         elif selected_option == "Information":
-            xbmc.executebuiltin("Action(Info)")
-        elif selected_option == "Debug IMDB":
-            # Import here to avoid circular imports
-            from resources.lib.debug_manager import DebugManager
-
-            try:
-                debug_manager = DebugManager()
-                debug_manager.debug_imdb_info({'imdb_id': [imdb_id] if imdb_id else []})
-            except Exception as debug_error:
-                xbmc.log(f"LibraryGenie: Debug IMDB error: {str(debug_error)}", xbmc.LOGERROR)
+            # Show Kodi information dialog
+            xbmc.executebuiltin('Action(Info)')
 
         elif selected_option == "Remove from List...":
             # Handle removing movie from current list
@@ -183,7 +171,7 @@ def main():
                 clean_title = clean_title.replace('[COLOR FFF0DC8A]', '').replace('[/COLOR]', '')
                 clean_title = clean_title.replace('[COLOR FFF4BC7B]', '').replace('[/COLOR]', '')
                 clean_title = clean_title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
-
+                
                 # Get media_id from ListItem properties (set by listitem_builder)
                 media_id = xbmc.getInfoLabel('ListItem.Property(media_id)')
                 if not media_id:
@@ -191,9 +179,9 @@ def main():
                     media_id = (xbmc.getInfoLabel('ListItem.DBID') or 
                               xbmc.getInfoLabel('ListItem.Property(movieid)') or 
                               xbmc.getInfoLabel('ListItem.Property(id)') or "")
-
+                
                 xbmc.log(f"LibraryGenie: Remove from list - Title: {clean_title}, List ID: {viewing_list_id}, Media ID: {media_id}", xbmc.LOGDEBUG)
-
+                
                 if viewing_list_id and media_id:
                     # Use RunPlugin to trigger remove_from_list action
                     from urllib.parse import quote_plus
@@ -202,7 +190,7 @@ def main():
                     xbmc.executebuiltin(remove_url)
                 else:
                     xbmcgui.Dialog().notification("LibraryGenie", "Cannot determine list or media ID", xbmcgui.NOTIFICATION_WARNING, 3000)
-
+                
             except Exception as remove_error:
                 xbmc.log(f"LibraryGenie: Error removing movie from list: {str(remove_error)}", xbmc.LOGERROR)
                 xbmcgui.Dialog().notification("LibraryGenie", "Error removing movie from list", xbmcgui.NOTIFICATION_ERROR, 3000)
@@ -215,18 +203,18 @@ def main():
                 clean_title = clean_title.replace('[COLOR FFF0DC8A]', '').replace('[/COLOR]', '')
                 clean_title = clean_title.replace('[COLOR FFF4BC7B]', '').replace('[/COLOR]', '')
                 clean_title = clean_title.replace('[COLOR FFECA9A7]', '').replace('[/COLOR]', '')
-
+                
                 # Get item ID from various sources
                 item_id = (xbmc.getInfoLabel('ListItem.DBID') or 
                           xbmc.getInfoLabel('ListItem.Property(movieid)') or 
                           xbmc.getInfoLabel('ListItem.Property(id)') or "")
-
+                
                 # Use RunPlugin to trigger add_to_list action
                 from urllib.parse import quote_plus
                 encoded_title = quote_plus(clean_title)
                 add_to_list_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=add_to_list&title={encoded_title}&item_id={item_id})'
                 xbmc.executebuiltin(add_to_list_url)
-
+                
             except Exception as add_error:
                 xbmc.log(f"LibraryGenie: Error adding movie to list: {str(add_error)}", xbmc.LOGERROR)
                 xbmcgui.Dialog().notification("LibraryGenie", "Error adding movie to list", xbmcgui.NOTIFICATION_ERROR, 3000)
@@ -236,17 +224,17 @@ def main():
             try:
                 # Get the clean title without color formatting
                 clean_title = title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
-
+                
                 # Get item ID from various sources
                 item_id = (xbmc.getInfoLabel('ListItem.DBID') or 
                           xbmc.getInfoLabel('ListItem.Property(movieid)') or 
                           xbmc.getInfoLabel('ListItem.Property(id)') or "")
-
+                
                 from urllib.parse import quote_plus
                 encoded_title = quote_plus(clean_title)
                 refresh_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=refresh_metadata&title={encoded_title}&item_id={item_id})'
                 xbmc.executebuiltin(refresh_url)
-
+                
             except Exception as refresh_error:
                 xbmc.log(f"LibraryGenie: Error refreshing metadata: {str(refresh_error)}", xbmc.LOGERROR)
                 xbmcgui.Dialog().notification("LibraryGenie", "Error refreshing metadata", xbmcgui.NOTIFICATION_ERROR, 3000)
@@ -255,7 +243,7 @@ def main():
             if "(Requires Authentication)" in selected_option:
                 dialog.notification("LibraryGenie", "Please configure API settings first", xbmcgui.NOTIFICATION_WARNING, 3000)
                 return
-
+                
             # Get the clean title without color formatting
             clean_title = title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
 
@@ -301,19 +289,18 @@ def main():
             try:
                 from resources.lib.config_manager import Config
                 from resources.lib.database_manager import DatabaseManager
-
+                
                 config = Config()
                 db_manager = DatabaseManager(config.db_path)
                 search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
-
+                
                 if search_history_folder_id:
                     url = f"plugin://{addon_id}/?action=browse_folder&folder_id={search_history_folder_id}&view=folder"
                     xbmc.executebuiltin(f'ActivateWindow(videos,{url})')
                 else:
                     xbmcgui.Dialog().notification("LibraryGenie", "Search History folder not found", xbmcgui.NOTIFICATION_WARNING, 3000)
-
+                    
             except Exception as e:
-                from resources.lib import utils
                 utils.log(f"Error accessing Search History: {str(e)}", "ERROR")
                 xbmcgui.Dialog().notification("LibraryGenie", "Error accessing Search History", xbmcgui.NOTIFICATION_ERROR, 3000)
         elif selected_option == "Settings":  # Settings

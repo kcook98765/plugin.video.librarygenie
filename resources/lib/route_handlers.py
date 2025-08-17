@@ -722,13 +722,6 @@ def find_similar_movies_from_context(params):
         utils.log(f"Error in find_similar_movies_from_context: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERROR)
 
-
-def debug_imdb_info(params):
-    """Debug IMDB information from database tables"""
-    from resources.lib.debug_manager import DebugManager
-    debug_manager = DebugManager()
-    debug_manager.debug_imdb_info(params)
-
 def _perform_similarity_search(imdb_id, title, from_context_menu=False):
     """Perform the actual similarity search and create list"""
     try:
