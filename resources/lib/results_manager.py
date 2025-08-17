@@ -48,6 +48,10 @@ class ResultsManager(Singleton):
 
             utils.log(f"=== BUILD_DISPLAY_ITEMS: Is search history: {is_search_history} ===", "DEBUG")
 
+            # Enhance search history items if applicable
+            if is_search_history:
+                list_items = self._enhance_search_history_items(list_items)
+
             display_items = []
 
             for item in list_items:
@@ -62,33 +66,40 @@ class ResultsManager(Singleton):
                         (item.get('play', '').startswith('plugin_item://'))
                     )
 
-                    if is_plugin_item:
-                        utils.log(f"Processing plugin item: {item.get('title', 'Unknown')}", "DEBUG")
+                    utils.log(f"Processing item: {item.get('title', 'Unknown')}, Playable: {item.get('playable', 'N/A')}", "DEBUG")
 
                     # Build ListItem using the centralized builder
                     from resources.lib.listitem_builder import ListItemBuilder
                     li = ListItemBuilder.build_video_item(item, is_search_history=is_search_history)
 
                     # Determine the appropriate URL for this item
-                    if is_plugin_item and item.get('file'):
-                        # For plugin items, use the original file path if available
-                        item_url = item['file']
-                        utils.log(f"Using plugin file path: {item_url}", "DEBUG")
-                    elif item.get('play') and not item.get('play').startswith('plugin_item://'):
-                        # Use play URL if it's not a stored plugin item reference
-                        item_url = item['play']
-                    elif item.get('file'):
-                        # Fallback to file path
-                        item_url = item['file']
+                    item_url = None
+                    if item.get('playable', False):
+                        if item.get('play'):
+                            item_url = item['play']
+                        elif item.get('file'):
+                            item_url = item['file']
                     else:
-                        # Skip items without valid URLs
-                        utils.log(f"Skipping item without valid URL: {item.get('title', 'Unknown')}", "WARNING")
-                        continue
+                        # If not playable, use an info URL or skip
+                        if item.get('imdb_id'): # Assuming imdb_id is available for non-playable items
+                            item_url = f"info://{item.get('imdb_id')}"
+                        elif item.get('id'): # Fallback to item id if imdb_id is not present
+                            item_url = f"info://{item.get('id')}"
+                        else:
+                            utils.log(f"Skipping non-playable item without identifier: {item.get('title', 'Unknown')}", "WARNING")
+                            continue
+                    
+                    if item_url:
+                        utils.log(f"Adding item: {item.get('title', 'Unknown')} with URL: {item_url}", "DEBUG")
+                        display_items.append((item_url, li, False))  # False = not a folder
+                    else:
+                        utils.log(f"Skipping item due to missing URL: {item.get('title', 'Unknown')}", "WARNING")
 
-                    display_items.append((item_url, li, False))  # False = not a folder
 
                 except Exception as item_error:
                     utils.log(f"Error processing list item {item.get('id', 'unknown')}: {str(item_error)}", "ERROR")
+                    import traceback
+                    utils.log(f"Traceback: {traceback.format_exc()}", "ERROR")
                     continue
 
             utils.log(f"=== BUILD_DISPLAY_ITEMS: Created {len(display_items)} display items ===", "DEBUG")
@@ -99,3 +110,67 @@ class ResultsManager(Singleton):
             import traceback
             utils.log(f"Traceback: {traceback.format_exc()}", "ERROR")
             return []
+
+    def _enhance_search_history_items(self, list_items):
+        """Enhance search history items by matching them to library content"""
+        enhanced_items = []
+
+        for item in list_items:
+            enhanced_item = dict(item)
+            imdb_id = item.get('imdbnumber', '')
+
+            if imdb_id and item.get('source') == 'search_library':
+                # Try to find matching library content
+                library_match = self._find_library_match_by_imdb(imdb_id)
+
+                if library_match:
+                    # Update with library data for playability
+                    utils.log(f"Found library match for {imdb_id}: {library_match.get('title', 'Unknown')}", "DEBUG")
+                    enhanced_item.update({
+                        'kodi_id': library_match.get('movieid', 0),
+                        'file': library_match.get('file', ''),
+                        'play': f"kodi_movie://{library_match.get('movieid', 0)}",
+                        'playable': True,
+                        'is_library_match': True
+                    })
+                    # Keep search score for display
+                    if 'search_score' in item:
+                        enhanced_item['search_score'] = item['search_score']
+                else:
+                    # No library match - make it informational only
+                    utils.log(f"No library match found for {imdb_id}", "DEBUG")
+                    enhanced_item.update({
+                        'playable': False,
+                        'is_library_match': False,
+                        'play': f"info://{imdb_id}"  # Non-playable info path
+                    })
+
+            enhanced_items.append(enhanced_item)
+
+        return enhanced_items
+
+    def _find_library_match_by_imdb(self, imdb_id):
+        """Find library movie by IMDB ID using JSON-RPC"""
+        try:
+            # Get all movies from library
+            movies_result = self.jsonrpc.VideoLibrary.GetMovies({
+                'properties': ['movieid', 'title', 'year', 'imdbnumber', 'uniqueid', 'file'],
+                'limits': {'start': 0, 'end': 999999}
+            })
+
+            if movies_result and 'movies' in movies_result:
+                for movie in movies_result['movies']:
+                    # Check direct imdbnumber match
+                    if movie.get('imdbnumber') == imdb_id:
+                        return movie
+
+                    # Check uniqueid for imdb match
+                    uniqueid = movie.get('uniqueid', {})
+                    if isinstance(uniqueid, dict) and uniqueid.get('imdb') == imdb_id:
+                        return movie
+
+            return None
+
+        except Exception as e:
+            utils.log(f"Error finding library match for {imdb_id}: {str(e)}", "ERROR")
+            return None

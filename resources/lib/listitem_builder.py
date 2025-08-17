@@ -153,7 +153,7 @@ class ListItemBuilder:
 
         # Basic info extraction
         title = str(media_info.get('title', 'Unknown'))
-
+        source = media_info.get('source')
 
         # Create ListItem with proper string title (remove emoji characters)
         formatted_title = ListItemBuilder._clean_title(title)
@@ -167,21 +167,30 @@ class ListItemBuilder:
         # Create the ListItem
         li = xbmcgui.ListItem(label=formatted_title)
 
+        # Handle plot - prefer plot over tagline, fallback to title
+        plot = media_info.get('plot', '') or media_info.get('tagline', '') or f"Movie: {title}"
 
+        # For search history items, enhance plot with match status and score
+        if source == 'search_library':
+            search_score = media_item.get('search_score', 0)
+            if media_item.get('is_library_match'):
+                plot = f"⭐ IN YOUR LIBRARY (Score: {search_score:.1f})\n\n{plot}"
+            else:
+                plot = f"📍 Not in library (Score: {search_score:.1f})\n\n{plot}"
 
         # Prepare artwork dictionary
         art_dict = {}
 
         # Get poster URL with priority order
         poster_url = None
-        for source in [
+        for src_func in [
             lambda: media_info.get('poster'),
             lambda: media_info.get('art', {}).get('poster') if isinstance(media_info.get('art'), dict) else None,
             lambda: media_info.get('info', {}).get('poster'),
             lambda: media_info.get('thumbnail')
         ]:
             try:
-                url = source()
+                url = src_func()
                 if url and str(url) != 'None':
                     poster_url = url
                     break
@@ -224,7 +233,7 @@ class ListItemBuilder:
         # Create info dictionary for InfoTag
         info_dict = {
             'title': formatted_title,
-            'plot': media_info.get('plot', ''),
+            'plot': plot, # Use the potentially enhanced plot
             'tagline': media_info.get('tagline', ''),
             'country': media_info.get('country', ''),
             'director': media_info.get('director', ''),
@@ -425,7 +434,16 @@ class ListItemBuilder:
                 pass
 
         # Set content properties
-        li.setProperty('IsPlayable', 'true')
+        # Determine playability based on source and library match
+        is_playable = 'false'
+        if source == 'lib' and media_info.get('kodi_id', 0) > 0:
+            is_playable = 'true'
+        elif source == 'search_library' and media_info.get('is_library_match') and media_info.get('kodi_id', 0) > 0:
+            is_playable = 'true'
+        elif source != 'search_library' and media_info.get('file'): # Assume external media is playable if file path exists
+            is_playable = 'true'
+        
+        li.setProperty('IsPlayable', is_playable)
 
         # Set LibraryGenie marker to exclude from native context menu
         li.setProperty('LibraryGenie.Item', 'true')
@@ -471,38 +489,36 @@ class ListItemBuilder:
 
         # Enhanced play URL handling for mixed library and plugin items
         play_url = None
+        kodi_id = media_info.get('kodi_id')
+        play_path = media_info.get('file')
 
-        # For library items, prefer Kodi's native file paths
-        if media_info.get('source') == 'library' or media_info.get('kodi_id'):
-            play_url = (media_info.get('info', {}).get('play') or 
-                       media_info.get('play') or 
-                       media_info.get('file'))
+        # Set the playable path
+        if source == 'lib' and kodi_id and kodi_id > 0:
+            # Library items - use kodi_movie protocol
+            li.setPath(f"kodi_movie://{kodi_id}")
+            utils.log(f"Set ListItem path for '{title}': kodi_movie://{kodi_id}", "DEBUG")
+        elif source == 'search_library':
+            # Search history items - check if they have library matches
+            if media_item.get('is_library_match') and media_item.get('kodi_id', 0) > 0:
+                # Has library match - make it playable
+                kodi_id = media_item.get('kodi_id')
+                li.setPath(f"kodi_movie://{kodi_id}")
+                li.setProperty('IsPlayable', 'true')
+                utils.log(f"Set ListItem path for search result '{title}': kodi_movie://{kodi_id} (library match)", "DEBUG")
+            else:
+                # No library match - informational only
+                li.setPath("noop://")
+                li.setProperty('IsPlayable', 'false')
+                utils.log(f"Set ListItem path for search result '{title}': noop:// (no library match)", "DEBUG")
+        elif play_path and play_path != '':
+            # External items or items with specific play paths
+            li.setPath(play_path)
+            utils.log(f"Set ListItem path for '{title}': {play_path}", "DEBUG")
         else:
-            # For plugin items, handle special play URLs and fallbacks
-            plugin_play_url = media_info.get('play')
-            file_path = media_info.get('file')
+            # Fallback for items without proper paths
+            li.setPath("noop://")
+            utils.log(f"Set ListItem path for '{title}': noop:// (no valid path found)", "DEBUG")
 
-            if plugin_play_url and plugin_play_url.startswith('plugin_item://'):
-                # This is a stored plugin item - use the original file path if available
-                play_url = file_path if file_path else plugin_play_url
-            elif file_path and file_path.startswith('plugin://'):
-                # Direct plugin URL
-                play_url = file_path
-            elif plugin_play_url:
-                # Use any other play URL provided
-                play_url = plugin_play_url
-            elif file_path:
-                # Fallback to file path
-                play_url = file_path
-
-        # Set the path if we have a valid play URL
-        if play_url and play_url != 'None':
-            li.setPath(play_url)
-            utils.log(f"Set ListItem path for '{title}': {play_url}", "DEBUG")
-        else:
-            # For items without valid URLs, set as non-playable
-            li.setProperty('IsPlayable', 'false')
-            utils.log(f"No valid play URL for '{title}', marked as non-playable", "DEBUG")
 
         # Store IMDb ID as a property on the ListItem itself for context menu access
         # Use the same IMDb ID we processed above for consistency
