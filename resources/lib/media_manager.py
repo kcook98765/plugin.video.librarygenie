@@ -104,6 +104,9 @@ class MediaManager:
                 'cast': '[]'  # Empty cast for plugin items
             }
 
+            # Add file path to media info
+            media_info['file'] = file_path
+
             utils.log(f"MEDIA_MANAGER: Final media info extracted:", "DEBUG")
             utils.log(f"  Title: '{media_info['title']}'", "DEBUG")
             utils.log(f"  Source: '{media_info['source']}'", "DEBUG")
@@ -128,6 +131,7 @@ class MediaManager:
                 'title': fallback_title,
                 'year': '',
                 'plot': 'Plugin item added via context menu',
+                'file': fallback_file,
                 'genre': '',
                 'director': '',
                 'duration': 0,

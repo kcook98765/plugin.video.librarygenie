@@ -46,6 +46,45 @@ class ResultsManager(Singleton):
                 if src == 'external':
                     external.append(r)
                     continue
+                elif src == 'plugin_addon':
+                    # Handle plugin items directly without library lookup
+                    utils.log(f"Processing plugin item: {r.get('title', 'Unknown')}", "DEBUG")
+                    
+                    # Create ListItem for plugin item with enhanced metadata
+                    plugin_item = {
+                        'id': r.get('id'),
+                        'title': r.get('title', 'Unknown Plugin Item'),
+                        'year': r.get('year', 0) or 0,
+                        'plot': r.get('plot', 'Plugin item'),
+                        'file': r.get('play') or r.get('file', ''),  # Use play URL or file path
+                        'source': 'plugin_addon',
+                        'media_type': 'movie',
+                        'kodi_id': None,
+                        'rating': r.get('rating', 0.0),
+                        'search_score': r.get('search_score', 0),
+                        'list_item_id': r.get('list_item_id'),
+                        '_viewing_list_id': list_id,
+                        'media_id': r.get('id') or r.get('media_id'),
+                        'genre': r.get('genre', ''),
+                        'director': r.get('director', ''),
+                        'cast': r.get('cast', '[]'),
+                        'art': r.get('art', '{}'),
+                        'thumbnail': r.get('thumbnail', ''),
+                        'poster': r.get('poster', ''),
+                        'fanart': r.get('fanart', ''),
+                        'duration': r.get('duration', 0),
+                        'votes': r.get('votes', 0)
+                    }
+                    
+                    # Build ListItem for plugin item
+                    from resources.lib.listitem_builder import ListItemBuilder
+                    list_item = ListItemBuilder.build_video_item(plugin_item, is_search_history=is_search_history)
+                    
+                    # Use the file path as URL for plugin items
+                    plugin_url = plugin_item.get('file', '')
+                    resolved_items_for_list.append((list_item, plugin_url, plugin_item))
+                    continue
+                    
                 imdb = r.get('imdbnumber')
                 title, year = '', 0
 

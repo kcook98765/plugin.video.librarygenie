@@ -469,10 +469,40 @@ class ListItemBuilder:
             # v20+ can use replaceItems=False to preserve existing items
             li.addContextMenuItems(context_menu_items, replaceItems=False)
 
-        # Try to get play URL from different possible locations
-        play_url = media_info.get('info', {}).get('play') or media_info.get('play') or media_info.get('file')
-        if play_url:
+        # Enhanced play URL handling for mixed library and plugin items
+        play_url = None
+        
+        # For library items, prefer Kodi's native file paths
+        if media_info.get('source') == 'library' or media_info.get('kodi_id'):
+            play_url = (media_info.get('info', {}).get('play') or 
+                       media_info.get('play') or 
+                       media_info.get('file'))
+        else:
+            # For plugin items, handle special play URLs and fallbacks
+            plugin_play_url = media_info.get('play')
+            file_path = media_info.get('file')
+            
+            if plugin_play_url and plugin_play_url.startswith('plugin_item://'):
+                # This is a stored plugin item - use the original file path if available
+                play_url = file_path if file_path else plugin_play_url
+            elif file_path and file_path.startswith('plugin://'):
+                # Direct plugin URL
+                play_url = file_path
+            elif plugin_play_url:
+                # Use any other play URL provided
+                play_url = plugin_play_url
+            elif file_path:
+                # Fallback to file path
+                play_url = file_path
+        
+        # Set the path if we have a valid play URL
+        if play_url and play_url != 'None':
             li.setPath(play_url)
+            utils.log(f"Set ListItem path for '{title}': {play_url}", "DEBUG")
+        else:
+            # For items without valid URLs, set as non-playable
+            li.setProperty('IsPlayable', 'false')
+            utils.log(f"No valid play URL for '{title}', marked as non-playable", "DEBUG")
 
         # Store IMDb ID as a property on the ListItem itself for context menu access
         # Use the same IMDb ID we processed above for consistency
