@@ -1,33 +1,15 @@
+
 # LibraryGenie Data Sources Documentation
 
 This document explains the data source system used in LibraryGenie's database to track and manage different types of media content. Understanding these sources is crucial for proper data handling and debugging.
 
 ## Overview
 
-LibraryGenie uses a `source` field in the `media_items` table to categorize content based on its origin and purpose. Each source type has specific characteristics, use cases, and handling logic.
+LibraryGenie uses a `source` field in the `media_items` table to categorize content based on its origin and purpose. Each source type has specific characteristics, use cases, and handling logic in the `ResultsManager.build_display_items_for_list()` method.
 
 ## Source Types
 
-### 1. Manual (`manual`)
-**Purpose**: Items manually added via context menus from native Kodi library  
-**Characteristics**:
-- Added through LibraryGenie context menu actions
-- Contains library-sourced content but marked as manually curated
-- Processed through standard library item path (not external path)
-- Distinguishes manually added items from search results
-- Uses same lookup and display logic as library items
-
-**Data Flow**:
-1. User selects "Add to List" from LibraryGenie context menu
-2. Item stored with `source = 'manual'` and library metadata
-3. Processed through library item display path in `ResultsManager`
-4. Matched against Kodi library via JSON-RPC for playback
-
-**Example**: Movie added to list via "Add to List" context menu
-
-### 2. Library (`lib`) - Legacy
-
-### 1. `lib` - Kodi Library Content & Search Results
+### 1. Library (`lib`) - Kodi Library Content & Search Results
 
 **Purpose**: Reference entries for movies that exist in the user's Kodi library, as well as search results from AI-powered semantic search.
 
@@ -71,7 +53,39 @@ INSERT INTO media_items (
 );
 ```
 
-### 2. `external` - External Addon Content
+### 2. Manual (`manual`)
+
+**Purpose**: Items manually added via context menus from native Kodi library
+
+**Characteristics**:
+- Added through LibraryGenie context menu actions on existing Kodi library items
+- Contains library-sourced content but marked as manually curated
+- **Processed through standard library item path** (not external path)
+- Distinguishes manually added items from automatic search results
+- Uses same lookup and display logic as library items
+- **Uses file path from Kodi for playback** (not movieid:// protocol)
+
+**Data Flow**:
+1. User selects "Add to List" from LibraryGenie context menu on library item
+2. Item stored with `source = 'manual'` and library metadata
+3. **Processed through library item display path** in `ResultsManager`
+4. Matched against Kodi library via JSON-RPC for full metadata
+5. **Uses file path from JSON-RPC response for playable URL**
+
+**URL Generation**:
+- Uses `file` path from Kodi metadata (e.g., `smb://server/movie.mp4`)
+- Fallback to `info://` URL if no file path available
+- Does NOT use `movieid://` protocol (which caused the original issue)
+
+**Example**: Movie added to list via "Add to List" context menu
+
+```sql
+-- Example manual record
+INSERT INTO media_items (imdbnumber, source, media_type, title, year)
+VALUES ('tt0111161', 'manual', 'movie', 'The Shawshank Redemption', 1994);
+```
+
+### 3. External (`external`) - External Addon Content
 
 **Purpose**: Full metadata storage for content from external addons/sources.
 
@@ -101,7 +115,7 @@ INSERT INTO media_items (
 );
 ```
 
-### 3. `plugin_addon` - Plugin Addon Content
+### 4. Plugin Addon (`plugin_addon`) - Plugin Addon Content
 
 **Purpose**: Content provided by plugin addons with special handling.
 
@@ -115,7 +129,7 @@ INSERT INTO media_items (
 2. Stored with `source = 'plugin_addon'`
 3. Processed alongside external content for display
 
-### 4. `shortlist_import` - Imported Shortlist Content
+### 5. Shortlist Import (`shortlist_import`) - Imported Shortlist Content
 
 **Purpose**: Content imported from external shortlist files or sources.
 
@@ -135,9 +149,48 @@ INSERT INTO media_items (
 - Bulk content imports
 - External list migrations
 
-## Source-Specific Logic
+## Source-Specific Logic in ResultsManager
 
-### Query Handling
+The `ResultsManager.build_display_items_for_list()` method handles different sources:
+
+### External/Plugin Content Processing
+```python
+src = (r.get('source') or '').lower()
+if src == 'external' or src == 'plugin_addon':
+    external.append(r)
+    continue
+```
+
+### Library Content Processing (lib, manual)
+Manual items fall through to library processing since they reference the same Kodi library content:
+
+```python
+# Manual items continue to library processing...
+# Try to get title/year from imdb_exports first
+if imdb:
+    q = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
+    hit = self.query_manager.execute_query(q, (imdb,))
+    if hit:
+        rec = hit[0]
+        title = (rec.get('title') if isinstance(rec, dict) else rec[0]) or ''
+        year = int((rec.get('year') if isinstance(rec, dict) else rec[1]) or 0)
+```
+
+### URL Generation Logic
+The recent fix addresses URL generation for all library-referenced items:
+
+```python
+# Determine the appropriate URL for this item
+# For manual items and library items, use the file path if available
+file_path = meta.get('file')
+if file_path:
+    item_url = file_path  # Use actual file path (e.g., smb://server/movie.mp4)
+else:
+    # Fallback for items without file path
+    item_url = f"info://{r.get('id', 'unknown')}"
+```
+
+## Query Manager Source Handling
 
 Different sources require different query strategies in `QueryManager.insert_media_item()`:
 
@@ -210,44 +263,13 @@ def is_library_reference(self, media_item):
             media_item.get('kodi_id', 0) > 0)
 ```
 
-## Display Logic in ResultsManager
-
-The `ResultsManager.build_display_items_for_list()` method handles different sources:
-
-### External/Plugin Content
-```python
-src = (r.get('source') or '').lower()
-if src == 'external' or src == 'plugin_addon':
-    external.append(r)
-    continue
-```
-
-### Library Content Processing
-Manual items (`source = 'manual'`) are processed alongside library items since they reference the same Kodi library content:
-
-```python
-# Manual items fall through to library processing (not caught by external filter)
-src = (r.get('source') or '').lower()
-if src == 'external' or src == 'plugin_addon':
-    external.append(r)
-    continue
-# Manual items continue to library processing...
-# Try to get title/year from imdb_exports first
-if imdb:
-    q = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
-    hit = self.query_manager.execute_query(q, (imdb,))
-    if hit:
-        rec = hit[0]
-        title = (rec.get('title') if isinstance(rec, dict) else rec[0]) or ''
-        year = int((rec.get('year') if isinstance(rec, dict) else rec[1]) or 0)
-```
-
 ## Best Practices
 
 ### 1. Source Selection
 
 - Use `lib` for both Kodi library references AND search results
 - Use `search_score` field to distinguish between library refs and search results
+- Use `manual` for user-curated library items via context menu
 - Use `external` for complete external content
 - Use `plugin_addon` for plugin-specific content
 - Use `shortlist_import` for bulk imports
@@ -262,7 +284,7 @@ if imdb:
 
 ### 3. Performance Considerations
 
-- `lib` sources (both types) minimize storage overhead for library content
+- `lib` and `manual` sources minimize storage overhead for library content
 - Search results within `lib` preserve relevance information
 - `external` sources provide fast access to full metadata
 - Use appropriate indexes for source-specific queries
@@ -272,15 +294,15 @@ if imdb:
 The key distinctions:
 
 ```sql
--- Manually added items (no search_score)
+-- Manually added items (user-curated library content)
 SELECT * FROM media_items 
-WHERE source = 'manual' AND search_score IS NULL;
+WHERE source = 'manual';
 
--- Library references (no search_score) - Legacy
+-- Library references (system-generated)
 SELECT * FROM media_items 
 WHERE source = 'lib' AND search_score IS NULL;
 
--- Search results (has search_score)  
+-- Search results (AI-generated with scores)  
 SELECT * FROM media_items 
 WHERE source = 'lib' AND search_score IS NOT NULL;
 ```
@@ -289,9 +311,9 @@ WHERE source = 'lib' AND search_score IS NOT NULL;
 
 ### Common Problems
 
-1. **Search Result Conflicts**: Multiple search results for same IMDB ID
-2. **Missing Library References**: Library content without proper references after sync
-3. **Stale Library Data**: Outdated library references after sync
+1. **URL Generation Issues**: Invalid protocols like `movieid://` causing playback failures
+2. **Search Result Conflicts**: Multiple search results for same IMDB ID
+3. **Missing Library References**: Library content without proper references after sync
 4. **Source Confusion**: Mixing up library references and search results
 
 ### Diagnostic Queries
@@ -334,6 +356,11 @@ Enable debug logging to trace source-specific operations:
 utils.log(f"Successfully inserted media item with ID: {inserted_id} for source: {source}, search_score: {search_score}", "DEBUG")
 ```
 
+Look for URL generation logs:
+```python
+utils.log(f"Set ListItem path for '{title}': {play_url}", "DEBUG")
+```
+
 ## Migration Considerations
 
 When updating source handling:
@@ -342,14 +369,37 @@ When updating source handling:
 2. **Test Migrations**: Verify source transitions work correctly
 3. **Update Logic**: Ensure all source-specific logic accounts for search results within `lib`
 4. **Validate Results**: Check data integrity after changes
-5. **Search Score Migration**: Ensure existing search results maintain their scores
+5. **URL Generation**: Verify playback URLs are generated correctly for each source
+
+## Recent Fixes
+
+### Manual Source URL Generation Fix
+The recent fix in `ResultsManager.build_display_items_for_list()` corrected URL generation for manual items:
+
+**Before (Broken)**:
+```python
+movieid = meta.get('movieid', 0)
+if movieid and movieid > 0:
+    item_url = f"movieid://{movieid}/"  # Invalid protocol
+```
+
+**After (Fixed)**:
+```python
+file_path = meta.get('file')
+if file_path:
+    item_url = file_path  # Use actual file path from Kodi
+else:
+    item_url = f"info://{r.get('id', 'unknown')}"  # Fallback
+```
+
+This ensures that manually added library items use valid file paths for playback instead of invalid `movieid://` URLs.
 
 ## Conclusion
 
-The unified `lib` source system provides flexible content management while maintaining data integrity. The `search_score` field serves as the key differentiator between library references and search results within the same source. Understanding this dual nature is essential for proper LibraryGenie operation and development.
+The source system provides flexible content management while maintaining data integrity. The `manual` source specifically handles user-curated library content with proper file path resolution for playback. Understanding source-specific processing is essential for proper LibraryGenie operation and development.
 
 For implementation details, see:
-- `QueryManager.insert_media_item()` - Source-specific insertion logic with search score handling
+- `QueryManager.insert_media_item()` - Source-specific insertion logic
 - `QueryManager.sync_movies()` - Library sync operations that preserve search results
 - `DatabaseManager.add_search_history()` - Search result handling within `lib` source
-- `ResultsManager.build_display_items_for_list()` - Search result processing and display
+- `ResultsManager.build_display_items_for_list()` - Source-specific processing and URL generation
