@@ -249,9 +249,15 @@ def browse_list(list_id):
         xbmcplugin.endOfDirectory(handle, succeeded=True, cacheToDisc=False, updateListing=True)
         utils.log(f"=== BROWSE_LIST ACTION COMPLETE for list_id={list_id} ===", "INFO")
     except Exception as e:
-        utils.log(f"Error in browse_list: {e}", "ERROR")
-        import traceback
-        utils.log(f"browse_list traceback: {traceback.format_exc()}", "ERROR")
+        try:
+            utils.log(f"Error in browse_list: {str(e)}", "ERROR")
+            import traceback
+            utils.log(f"browse_list traceback: {traceback.format_exc()}", "ERROR")
+        except Exception as log_error:
+            # Fallback logging if utils still has issues
+            import xbmc
+            xbmc.log(f"LibraryGenie [ERROR]: Error in browse_list: {str(e)}", xbmc.LOGINFO)
+            xbmc.log(f"LibraryGenie [ERROR]: Additional logging error: {str(log_error)}", xbmc.LOGINFO)
         # Show error item
         from resources.lib.kodi.listitem_builder import ListItemBuilder
         error_li = ListItemBuilder.build_folder_item(f"Error loading list: {str(e)}", is_folder=False)

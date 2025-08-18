@@ -1,6 +1,6 @@
 import json
 import xbmc
-from resources.lib import utils
+from resources.lib.utils import utils
 from typing import Dict, Any, Optional
 
 class JSONRPC:
