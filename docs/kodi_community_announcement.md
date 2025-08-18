@@ -135,6 +135,7 @@ If you'd like to participate:
 
 • Grab the latest ZIP from the releases page
 • Enable debug logging, reproduce issues, and include relevant [LibraryGenie] log lines in reports
-• Feature requests and usability feedback are very welcome!
+• Feature requests and usability improvements are welcome
+• For alpha access, contact the development team with your library details and use casey feedback are very welcome!
 
 Thanks for checking out LibraryGenie — hope it makes curating your library faster, cleaner, and more fun. 🙌

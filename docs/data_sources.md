@@ -48,7 +48,7 @@ LibraryGenie uses a `source` field in the `media_items` table to categorize cont
 - Fallback to `info://` URL if no file path available
 - Does NOT use `movieid://` protocol (which caused playback issues)
 
-### 3. Search Results (`search`) - AI-Powered Search Results
+### 3. Search Results (`search`) - AI-Powered Search Results (Alpha)
 
 **Purpose**: Search results from AI-powered semantic search with relevance scoring.
 
@@ -59,6 +59,7 @@ LibraryGenie uses a `source` field in the `media_items` table to categorize cont
 - Include title/year from `imdb_exports` table lookup
 - Use `search_score` field for result ranking
 - Protected from library sync operations
+- **Alpha Feature**: Available only with remote API access
 
 **Data Flow**:
 1. **Search Results**: Saved with `source = 'search'` and `search_score` field, organized into timestamped lists

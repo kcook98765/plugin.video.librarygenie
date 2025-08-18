@@ -183,13 +183,13 @@ CREATE TABLE movies_reference (
 ```
 
 **Data Sources**:
-- **Writes**: Library sync operations (`DatabaseSyncManager.sync_library_movies`)
+- **Writes**: Library sync operations via DatabaseManager and QueryManager
 - **Reads**: Export and matching operations
 
 **Key Features**:
 - `source` differentiates library entries ('Lib') from addon files ('File')
 - Unique indexes prevent duplicates based on source type
-- Managed by `DatabaseSyncManager` class
+- Managed by DatabaseManager and QueryManager classes
 
 ### 8. imdb_exports
 **Purpose**: Tracks movies exported for remote API synchronization.
@@ -272,7 +272,7 @@ CREATE TABLE blacklist (
 5. UI reads hierarchical structure for display
 
 ### Library Synchronization Flow
-1. `DatabaseSyncManager` scans Kodi library via JSONRPC
+1. JSONRPCManager scans Kodi library via JSON-RPC API
 2. Movie metadata stored in `movies_reference` with proper source tracking
 3. IMDB IDs extracted from both `imdbnumber` field and `uniqueid` object
 4. Export data prepared in `imdb_exports`
@@ -342,7 +342,7 @@ The `Config` class defines field mappings that align with database schema:
 
 - **resources.lib.data.database_manager.DatabaseManager**: High-level database operations, singleton pattern with retry logic
 - **resources.lib.data.query_manager.QueryManager**: Low-level SQL execution with connection pooling and management
-- **resources.lib.integrations.jsonrpc.jsonrpc_manager.JSONRPCManager**: Library synchronization operations with JSONRPC integration  
+- **resources.lib.integrations.jsonrpc.jsonrpc_manager.JSONRPCManager**: JSON-RPC communication with Kodi's API  
 - **resources.lib.config.config_manager.Config**: Database schema definitions and field mappings
 - **resources.lib.integrations.remote_api.imdb_upload_manager.IMDbUploadManager**: Handles server upload operations and batch management
 

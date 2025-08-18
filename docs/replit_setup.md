@@ -46,7 +46,7 @@ Your Repl should have these essential files:
 
 1. Organize your code into modules under `resources/lib/`
 2. Use clear naming conventions
-3. Keep Kodi-specific code isolated from business logic
+3. Keep Kodi-specific code isolated from businebusiness logic
 4. Comment your code thoroughly
 
 ## Version Control
@@ -63,4 +63,4 @@ Replit's Git integration allows you to:
 3. Use Replit's collaboration features for team development
 4. Package your addon for distribution
 
-Remember: While you can't run the addon directly in Replit, it provides an excellent development environment with proper code completion and documentation support through Kodistubs.
+Remember: While you can't run the addon directly in Replit, it provides an excellent development environment with proper code completion and syntax highlighting for Kodi addon development.d documentation support through Kodistubs.
