@@ -831,31 +831,34 @@ def view_list(list_id):
 
 
 def view_folder(folder_id):
-    """View contents of a folder"""
+    """View contents of a folder using new factory pattern"""
     try:
-        from resources.lib.data.folder_list_manager import FolderListManager
         import xbmcplugin
         import sys
 
         utils.log(f"Viewing folder: {folder_id}", "DEBUG")
 
-        manager = FolderListManager()
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
 
-        # Get folder contents using existing methods
-        subfolders = manager.get_subfolders(folder_id)
-        lists = manager.get_lists_in_folder(folder_id)
+        # Get folder contents
+        subfolders = db_manager.fetch_folders(folder_id)
+        lists = db_manager.fetch_lists(folder_id)
 
         # Convert subfolders to MediaItems and build ListItems
         for subfolder in subfolders:
-            # Create MediaItem from folder data
+            # Normalize database row to MediaItem
             media_item = from_db({
                 'id': subfolder['id'],
                 'title': subfolder['name'],
                 'media_type': 'folder',
                 'is_folder': True,
                 'play_path': f"plugin://plugin.video.librarygenie/?action=view_folder&folder_id={subfolder['id']}",
-                'art': {'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'}
             })
+
+            # Add folder context for menu generation
+            media_item.context_tags.add('folder')
+            media_item.extras['folder_id'] = subfolder['id']
 
             # Build ListItem using factory
             li = build_listitem(media_item, 'folder_view')
@@ -870,16 +873,18 @@ def view_folder(folder_id):
 
         # Convert lists to MediaItems and build ListItems  
         for list_item in lists:
-            # Create MediaItem from list data
+            # Normalize database row to MediaItem
             media_item = from_db({
                 'id': list_item['id'],
                 'title': list_item['name'],
                 'media_type': 'playlist',
                 'is_folder': True,
                 'play_path': f"plugin://plugin.video.librarygenie/?action=view_list&list_id={list_item['id']}",
-                'art': {'icon': 'DefaultPlaylist.png', 'thumb': 'DefaultPlaylist.png'},
-                'extras': {'list_id': list_item['id']}  # For context menu
             })
+
+            # Add list context for menu generation
+            media_item.context_tags.add('list')
+            media_item.extras['list_id'] = list_item['id']
 
             # Build ListItem using factory
             li = build_listitem(media_item, 'folder_view')

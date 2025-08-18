@@ -7,7 +7,11 @@ from resources.lib.utils import utils
 from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.config.config_manager import Config
 from resources.lib.kodi.url_builder import build_plugin_url, detect_context
-from resources.lib.kodi.listitem_builder import ListItemBuilder
+from resources.lib.data.normalize import from_db
+from resources.lib.kodi.listitem.factory import build_listitem
+import sys
+import urllib.parse
+from typing import List, Dict, Any
 
 def add_context_menu_for_item(li: xbmcgui.ListItem, item_type: str, **ids):
     """
@@ -125,7 +129,7 @@ def build_root_directory(handle: int):
                 folder_count = db_manager.get_folder_media_count(folder['id'])
                 subfolders = db_manager.fetch_folders(folder['id'])
                 has_subfolders = len(subfolders) > 0
-                
+
                 # Only show if it has content (lists or subfolders)
                 if folder_count == 0 and not has_subfolders:
                     continue
@@ -133,7 +137,7 @@ def build_root_directory(handle: int):
                 if folder['name'] == "Search History":
                     continue
 
-            li = ListItemBuilder.build_folder_item(f"📁 {folder['name']}", is_folder=True)
+            li = build_listitem(f"📁 {folder['name']}", is_folder=True)
             li.setProperty('lg_type', 'folder')
             add_context_menu_for_item(li, 'folder', folder_id=folder['id']) # Pass folder_id
             url = build_plugin_url({'action': 'browse_folder', 'folder_id': folder['id'], 'view': 'folder'})
@@ -154,7 +158,7 @@ def build_root_directory(handle: int):
             else:
                 # Regular list, add count
                 display_title = f"{list_item['name']} ({list_count})"
-            li = ListItemBuilder.build_folder_item(f"📋 {display_title}", is_folder=True, item_type='playlist')
+            li = build_listitem(f"📋 {display_title}", is_folder=True, item_type='playlist')
             li.setProperty('lg_type', 'list')
             add_context_menu_for_item(li, 'list', list_id=list_item['id'])
             url = build_plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
@@ -171,7 +175,7 @@ def show_empty_directory(handle: int, message="No items to display."):
     """Displays a directory with a single item indicating no content."""
     utils.log(f"Showing empty directory: {message}", "DEBUG")
     try:
-        li = ListItemBuilder.build_folder_item(message, is_folder=False)
+        li = build_listitem(message, is_folder=False)
         li.setProperty('IsPlayable', 'false')
         xbmcplugin.addDirectoryItem(handle, "", li, False)
         xbmcplugin.endOfDirectory(handle, succeeded=True)
