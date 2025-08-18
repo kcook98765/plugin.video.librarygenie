@@ -50,7 +50,7 @@ def clear_all_local_data():
                     utils.log(f"Deleted root-level list: {list_item['name']} (ID: {list_item['id']})", "DEBUG")
                 except Exception as e:
                     utils.log(f"Error deleting root-level list {list_item['name']}: {str(e)}", "WARNING")
-
+            
             dialog.notification("LibraryGenie", "All local data cleared successfully.", xbmcgui.NOTIFICATION_INFO, 3000)
             utils.log("Successfully cleared all local data.", "INFO")
 
@@ -61,63 +61,7 @@ def clear_all_local_data():
         utils.log("User cancelled clearing local data.", "INFO")
 
 
-def handle_script_action(action):
-    """Handle script actions that are called directly (not via plugin routing)"""
-    utils.log(f"Handling script action: {action}", "INFO")
-
-    if action == 'setup_remote_api':
-        from resources.lib.integrations.remote_api.remote_api_setup import run_setup
-        run_setup()
-        return True
-    elif action == 'import_from_shortlist':
-        from resources.lib.integrations.remote_api.shortlist_importer import import_from_shortlist
-        import_from_shortlist()
-        return True
-    elif action == 'manual_setup_remote_api':
-        from resources.lib.integrations.remote_api.remote_api_setup import manual_setup_remote_api
-        manual_setup_remote_api()
-        return True
-    elif action == 'test_remote_api':
-        from resources.lib.integrations.remote_api.remote_api_client import RemoteAPIClient
-        client = RemoteAPIClient()
-        if client.test_connection():
-            utils.show_notification("Remote API", "Connection test successful!")
-        else:
-            utils.show_notification("Remote API", "Connection test failed!", icon=xbmcgui.NOTIFICATION_ERROR)
-        return True
-    elif action == 'upload_library_full':
-        from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
-        upload_manager = IMDbUploadManager()
-        upload_manager.upload_library_full_sync()
-        return True
-    elif action == 'upload_library_delta':
-        from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
-        upload_manager = IMDbUploadManager()
-        upload_manager.upload_library_delta_sync()
-        return True
-    elif action == 'upload_status':
-        from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
-        upload_manager = IMDbUploadManager()
-        upload_manager.get_upload_status()
-        return True
-    elif action == 'clear_server_library':
-        from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
-        upload_manager = IMDbUploadManager()
-        upload_manager.clear_server_library()
-        return True
-    elif action == 'clear_all_local_data':
-        clear_all_local_data()
-        return True
-    elif action == 'show_main_window':
-        utils.log("Main window functionality deprecated - using plugin routing", "INFO")
-        xbmcgui.Dialog().notification("LibraryGenie", "Main window has been replaced with plugin interface", xbmcgui.NOTIFICATION_INFO, 3000)
-        return True
-
-    return False
-
-
 def run_addon():
-    """Legacy function maintained for compatibility - now delegates to proper plugin routing"""
     global _initialized
     if _initialized:
         utils.log("Addon already initialized, skipping", "DEBUG")
@@ -125,8 +69,43 @@ def run_addon():
 
     utils.log("=== Starting run_addon() ===", "DEBUG")
     _initialized = True
-
     try:
+        # Initialize args and action
+        args = ""
+        action = None
+        utils.log(f"Processing command line arguments: {sys.argv}", "DEBUG")
+
+        # Handle direct script actions from settings
+        script_actions = [
+            'setup_remote_api', 'manual_setup_remote_api', 'test_remote_api',
+            'upload_library_full', 'upload_library_delta', 'upload_status', 
+            'clear_server_library', 'show_main_window', 'clear_all_local_data',
+            'import_from_shortlist'
+        ]
+
+        if len(sys.argv) > 1 and sys.argv[1] in script_actions:
+            action = sys.argv[1]
+            utils.log(f"Detected script action: {action}", "INFO")
+
+            # Handle special case for setup_remote_api
+            if action == 'setup_remote_api':
+                from resources.lib.integrations.remote_api.remote_api_setup import run_setup
+                run_setup()
+                return  # Early return to prevent normal startup
+            elif action == 'import_from_shortlist':
+                from resources.lib.integrations.remote_api.shortlist_importer import import_from_shortlist
+                import_from_shortlist()
+                return  # Early return to prevent normal startup
+        else:
+            args = sys.argv[2][1:] if len(sys.argv) > 2 else ""
+            params = urllib.parse.parse_qs(args)
+            action = params.get('action', [None])[0]
+            utils.log(f"Parsed URL params - args: '{args}', action: '{action}'", "DEBUG")
+
+        # Check if launched from context menu only (exclude show_main_window which has its own handler)
+        listitem_context = (len(sys.argv) > 1 and sys.argv[1] == '-1') and action != 'show_main_window'
+        utils.log(f"Launch context analysis - Args: {sys.argv}, Action: {action}, Is Context: {listitem_context}", "DEBUG")
+
         # Initialize config and database
         utils.log("Initializing Config and DatabaseManager", "DEBUG")
         from resources.lib.config.config_manager import get_config
@@ -140,8 +119,71 @@ def run_addon():
         utils.log("Initializing Kodi helper", "DEBUG")
         kodi_helper = KodiHelper()
 
-        # Show notification that addon is initialized
-        xbmcgui.Dialog().notification("LibraryGenie", "Addon initialized", xbmcgui.NOTIFICATION_INFO, 2000)
+        # MainWindow functionality has been moved to plugin-based approach
+        utils.log("Using plugin-based routing instead of MainWindow", "DEBUG")
+
+        # Handle context menu vs direct launch
+        if listitem_context:
+            utils.log("Processing context menu click", "DEBUG")
+            # Context menu functionality has been moved to plugin-based approach
+            utils.log("Context menu handling deprecated - using plugin routing", "INFO")
+            xbmcgui.Dialog().notification("LibraryGenie", "Use addon menu instead of context menu", xbmcgui.NOTIFICATION_INFO, 3000)
+            return
+        elif action == 'show_list':
+            # Handle specific list display
+            params = urllib.parse.parse_qs(args)
+            list_id = params.get('list_id', [None])[0]
+            if list_id:
+                kodi_helper.show_list(int(list_id))
+            return
+        else:
+            # Handle different actions
+            if action == 'show_main_window':
+                utils.log("Main window functionality deprecated - using plugin routing", "INFO")
+                xbmcgui.Dialog().notification("LibraryGenie", "Main window has been replaced with plugin interface", xbmcgui.NOTIFICATION_INFO, 3000)
+            elif action == 'setup_remote_api':
+                utils.log("Setting up remote API", "DEBUG")
+                utils.setup_remote_api()
+            elif action == 'manual_setup_remote_api':
+                utils.log("Manual remote API setup", "DEBUG")
+                from resources.lib.integrations.remote_api.remote_api_setup import manual_setup_remote_api
+                manual_setup_remote_api()
+            elif action == 'test_remote_api':
+                utils.log("Testing remote API connection", "DEBUG")
+                from resources.lib.integrations.remote_api.remote_api_client import RemoteAPIClient
+                client = RemoteAPIClient()
+                if client.test_connection():
+                    utils.show_notification("Remote API", "Connection test successful!")
+                else:
+                    utils.show_notification("Remote API", "Connection test failed!", icon=xbmcgui.NOTIFICATION_ERROR)
+            elif action == 'upload_library_full':
+                utils.log("Starting full library upload", "DEBUG")
+                from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
+                upload_manager = IMDbUploadManager()
+                upload_manager.upload_library_full_sync()
+            elif action == 'upload_library_delta':
+                utils.log("Starting delta library sync", "DEBUG")
+                from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
+                upload_manager = IMDbUploadManager()
+                upload_manager.upload_library_delta_sync()
+            elif action == 'upload_status':
+                utils.log("Checking upload status", "DEBUG")
+                from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
+                upload_manager = IMDbUploadManager()
+                upload_manager.get_upload_status()
+            elif action == 'clear_server_library':
+                utils.log("Clearing server library", "DEBUG")
+                from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
+                upload_manager = IMDbUploadManager()
+                upload_manager.clear_server_library()
+            elif action == 'clear_all_local_data':
+                clear_all_local_data()
+            else:
+                # Always show root directory for direct launch or unknown action
+                root_folders = db_manager.fetch_folders(None)  # Get root folders
+                root_lists = db_manager.fetch_lists(None)  # Get root lists
+                kodi_helper.list_folders_and_lists(root_folders, root_lists)
+                return
 
     except Exception as e:
         utils.log(f"Error running addon: {str(e)}", "ERROR")

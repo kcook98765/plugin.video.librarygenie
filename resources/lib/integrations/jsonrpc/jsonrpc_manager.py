@@ -572,12 +572,13 @@ class JSONRPC:
             if 'result' in response and 'movies' in response['result']:
                 movies = response['result']['movies']
                 log(f"=== BATCH JSON-RPC: SUCCESS - Found {len(movies)} matches from single call ===", "INFO")
-                for i, movie in enumerate(movies[:3]):  # Log first 3 matches
-                    log(f"BATCH JSON-RPC: Match {i+1}: '{movie.get('title')}' ({movie.get('year')}) - plot: {len(movie.get('plot', ''))}, rating: {movie.get('rating', 0)}", "INFO")
-                    if i == 0:  # Detailed log for first movie
-                        log(f"BATCH JSON-RPC: First movie details - genres: {movie.get('genre', [])}, cast: {len(movie.get('cast', []))}, art keys: {list(movie.get('art', {}).keys())}", "DEBUG")
 
-                # Return raw JSON-RPC payload for normalization by from_jsonrpc()
+                # Log sample matches
+                for i, movie in enumerate(movies[:3]):
+                    log(f"BATCH JSON-RPC: Match {i+1}: '{movie.get('title', 'N/A')}' ({movie.get('year', 'N/A')})", "INFO")
+                if len(movies) > 3:
+                    log(f"BATCH JSON-RPC: ... and {len(movies) - 3} more matches", "INFO")
+
                 return response
             else:
                 log("BATCH JSON-RPC: No movies found in response", "INFO")

@@ -1,3 +1,4 @@
+import sys
 import xbmcgui
 import xbmcaddon
 import xbmcvfs
@@ -7,12 +8,11 @@ from urllib.parse import quote_plus
 
 from resources.lib.kodi.kodi_helper import KodiHelper
 from resources.lib.config.addon_ref import get_addon
+from resources.lib.kodi.context_menu_builder import get_context_menu_builder
 from resources.lib.config.config_manager import Config
 from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.kodi.window_search import SearchWindow
 from resources.lib.utils import utils
-# Updated import for menu registry
-from resources.lib.kodi.menu.registry import ContextMenuRegistry
 
 translatePath = xbmcvfs.translatePath
 
@@ -63,36 +63,8 @@ def main():
         options = []
 
         # Check authentication before adding API-dependent options
-        # Updated to use menu registry for context menu building
-        from ..data.models import MediaItem
-
-        # Get current item properties for context menu generation
-        current_item_id = xbmc.getInfoLabel('ListItem.DBID') or \
-                          xbmc.getInfoLabel('ListItem.Property(movieid)') or \
-                          xbmc.getInfoLabel('ListItem.Property(id)') or \
-                          xbmc.getInfoLabel('ListItem.Property(folder_id)') or \
-                          "context"
-        current_title = title
-        current_item_path = xbmc.getInfoLabel('ListItem.Path')
-        is_folder_item = xbmc.getInfoLabel('ListItem.IsFolder') == 'true'
-        lg_type = xbmc.getInfoLabel('ListItem.Property(lg_type)')
-        
-        # Create minimal MediaItem from current context
-        # Convert current_item_id to int if it's numeric, otherwise use None
-        parsed_item_id = None
-        if current_item_id and current_item_id.isdigit():
-            parsed_item_id = int(current_item_id)
-        
-        current_item = MediaItem(
-            id=parsed_item_id,
-            media_type="unknown", 
-            title=current_title or "Context Item",
-            is_folder=is_folder_item or lg_type == 'folder'
-        )
-        
-        # Use registry to check authentication
-        context_menu_registry = ContextMenuRegistry()
-        is_authenticated = context_menu_registry._is_authenticated()
+        context_builder = get_context_menu_builder()
+        is_authenticated = context_builder._is_authenticated()
 
         # Check if we're currently viewing a LibraryGenie list (to offer Remove option)
         current_container_path = xbmc.getInfoLabel('Container.FolderPath')
@@ -125,7 +97,10 @@ def main():
                 xbmc.log(f"LibraryGenie: Error extracting list_id: {str(e)}", xbmc.LOGDEBUG)
 
         # Enhanced folder detection with comprehensive debugging
+        current_item_path = xbmc.getInfoLabel('ListItem.FolderPath')
         item_path = xbmc.getInfoLabel('ListItem.Path')
+        is_folder_item = xbmc.getInfoLabel('ListItem.IsFolder') == 'true'
+        lg_type = xbmc.getInfoLabel('ListItem.Property(lg_type)')
         is_librarygenie_folder = False
 
         # Debug all relevant paths and properties
@@ -359,7 +334,7 @@ def main():
                 except Exception as e:
                     xbmc.log(f"LibraryGenie: LIST ACTION - Error in move list: {str(e)}", xbmc.LOGERROR)
 
-
+            
 
             elif selected_option == "Clear List":
                 xbmc.log("LibraryGenie: LIST ACTION - Executing Clear List", xbmc.LOGINFO)

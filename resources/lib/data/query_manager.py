@@ -416,7 +416,6 @@ class QueryManager(Singleton):
         Under the new policy we only clear any stale 'lib' rows; library data
         is fetched on-demand via JSON-RPC when rendering lists.
         Search results (source='search') and other sources are preserved.
-        Raw movie data is normalized via from_jsonrpc() when needed.
         """
         self.execute_write("DELETE FROM media_items WHERE source = 'lib'")
 

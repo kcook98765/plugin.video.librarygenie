@@ -428,8 +428,6 @@ class IMDbUploadManager:
                 message = f"Syncing chunk {current_chunk} of {total_chunks} ({chunk_size} movies)"
                 if current_item:
                     message += f"\nProcessing: {current_item}"
-                
-                # Progress callback works with raw data - no changes needed for factory pattern
 
                 utils.log(f"Progress update: {percent}% - {message}", "DEBUG")
                 progress.update(percent, message)
