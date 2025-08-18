@@ -107,21 +107,30 @@ def main():
         current_item_path = xbmc.getInfoLabel('ListItem.FolderPath')
         item_path = xbmc.getInfoLabel('ListItem.Path')
         is_folder_item = xbmc.getInfoLabel('ListItem.IsFolder') == 'true'
+        lg_type = xbmc.getInfoLabel('ListItem.Property(lg_type)')
         is_librarygenie_folder = False
 
         # Debug all relevant paths and properties
         xbmc.log(f"LibraryGenie: FOLDER DEBUG - Title: '{title}'", xbmc.LOGINFO)
         xbmc.log(f"LibraryGenie: FOLDER DEBUG - IsFolder: {is_folder_item}", xbmc.LOGINFO)
+        xbmc.log(f"LibraryGenie: FOLDER DEBUG - lg_type: '{lg_type}'", xbmc.LOGINFO)
         xbmc.log(f"LibraryGenie: FOLDER DEBUG - Container.FolderPath: '{current_container_path}'", xbmc.LOGINFO)
         xbmc.log(f"LibraryGenie: FOLDER DEBUG - ListItem.FolderPath: '{current_item_path}'", xbmc.LOGINFO)
         xbmc.log(f"LibraryGenie: FOLDER DEBUG - ListItem.Path: '{item_path}'", xbmc.LOGINFO)
         
         # Additional debugging info
         xbmc.log(f"LibraryGenie: FOLDER DEBUG - ListItem.Label: '{xbmc.getInfoLabel('ListItem.Label')}'", xbmc.LOGINFO)
-        xbmc.log(f"LibraryGenie: FOLDER DEBUG - ListItem.Property(lg_type): '{xbmc.getInfoLabel('ListItem.Property(lg_type)')}'", xbmc.LOGINFO)
 
-        # Check if we're in a LibraryGenie context - multiple detection methods
-        if is_folder_item:
+        # Check if this is a LibraryGenie folder based on lg_type property first
+        # This handles cases where IsFolder might be False but it's still a folder/list item
+        if lg_type == 'folder':
+            # This is a LibraryGenie folder - check if we're in LibraryGenie context
+            if 'plugin.video.librarygenie' in (current_container_path or item_path or ''):
+                is_librarygenie_folder = True
+                xbmc.log("LibraryGenie: FOLDER DEBUG - Detected LibraryGenie folder via lg_type=folder", xbmc.LOGINFO)
+        
+        # For regular folder items (when IsFolder is True), use the existing detection methods
+        elif is_folder_item:
             try:
                 import re
                 
@@ -153,14 +162,8 @@ def main():
                     if 'plugin.video.librarygenie' in (current_container_path or item_path or ''):
                         is_librarygenie_folder = True
                         xbmc.log("LibraryGenie: FOLDER DEBUG - Confirmed LibraryGenie folder via emoji marker", xbmc.LOGINFO)
-                
-                # Method 4: Check the lg_type property we set in directory_builder
-                lg_type = xbmc.getInfoLabel('ListItem.Property(lg_type)')
-                if not is_librarygenie_folder and lg_type == 'folder':
-                    is_librarygenie_folder = True
-                    xbmc.log("LibraryGenie: FOLDER DEBUG - Detected via lg_type property", xbmc.LOGINFO)
 
-                # Method 5: Universal LibraryGenie folder detection - if we're in LibraryGenie and it's a folder, assume it's ours
+                # Method 4: Universal LibraryGenie folder detection - if we're in LibraryGenie and it's a folder, assume it's ours
                 if not is_librarygenie_folder and 'plugin.video.librarygenie' in current_container_path:
                     is_librarygenie_folder = True
                     xbmc.log("LibraryGenie: FOLDER DEBUG - Universal detection - folder in LibraryGenie context", xbmc.LOGINFO)
@@ -170,12 +173,16 @@ def main():
                 import traceback
                 xbmc.log(f"LibraryGenie: Folder detection traceback: {traceback.format_exc()}", xbmc.LOGERROR)
         
+        # Check if this is a LibraryGenie folder/list item (either by IsFolder=true or lg_type=folder)
+        is_lg_folder_item = (is_folder_item and is_librarygenie_folder) or (lg_type == 'folder' and is_librarygenie_folder)
+        
         xbmc.log(f"LibraryGenie: FOLDER DEBUG - Final detection result: is_librarygenie_folder = {is_librarygenie_folder}", xbmc.LOGINFO)
         xbmc.log(f"LibraryGenie: FOLDER DEBUG - is_folder_item = {is_folder_item}", xbmc.LOGINFO)
-        xbmc.log(f"LibraryGenie: FOLDER DEBUG - Combined check: is_folder_item AND is_librarygenie_folder = {is_folder_item and is_librarygenie_folder}", xbmc.LOGINFO)
+        xbmc.log(f"LibraryGenie: FOLDER DEBUG - lg_type = {lg_type}", xbmc.LOGINFO)
+        xbmc.log(f"LibraryGenie: FOLDER DEBUG - is_lg_folder_item = {is_lg_folder_item}", xbmc.LOGINFO)
 
-        # If this is a folder item AND we're in a LibraryGenie context, show folder options
-        if is_folder_item and is_librarygenie_folder:
+        # If this is a LibraryGenie folder item (either actual folder or lg_type=folder), show folder options
+        if is_lg_folder_item:
             xbmc.log("LibraryGenie: FOLDER OPTIONS - Detected LibraryGenie folder item, showing folder options", xbmc.LOGINFO)
 
             # Folder-specific options
@@ -217,18 +224,18 @@ def main():
                 else:
                     options.append("Find Similar Movies... (Requires Authentication)")
 
-        # Refresh Metadata - always available (unless it's a folder, then it's handled by folder options)
-        if not is_folder_item or not is_librarygenie_folder:
+        # Refresh Metadata - always available (unless it's a LibraryGenie folder, then it's handled by folder options)
+        if not is_lg_folder_item:
             options.append("Refresh Metadata")
 
         # Search Movies - only if authenticated
-        if not is_folder_item or not is_librarygenie_folder:
+        if not is_lg_folder_item:
             if is_authenticated:
                 options.append("Search Movies...")
             else:
                 options.append("Search Movies... (Requires Authentication)")
 
-        if not is_folder_item or not is_librarygenie_folder:
+        if not is_lg_folder_item:
             options.extend([
                 "Search History", 
                 "Settings"
@@ -252,7 +259,7 @@ def main():
         xbmc.log(f"LibraryGenie: User selected option {selected}: '{selected_option}'", xbmc.LOGINFO)
 
         # Handle folder-specific actions
-        if is_folder_item and is_librarygenie_folder:
+        if is_lg_folder_item:
             xbmc.log(f"LibraryGenie: FOLDER ACTION - Handling folder option: '{selected_option}'", xbmc.LOGINFO)
             
             if selected_option == "Rename Folder":
