@@ -575,7 +575,7 @@ def delete_folder(params):
                 parent_folder_id = folder_info.get('parent_id')
 
                 for subfolder in subfolders:
-                    db_manager.move_folder_to_parent(subfolder['id'], parent_folder_id)
+                    db_manager.query_manager.update_folder_parent(subfolder['id'], parent_folder_id)
 
                 for list_item in lists:
                     db_manager.move_list_to_folder(list_item['id'], parent_folder_id)
@@ -683,7 +683,7 @@ def move_folder(params):
             return
 
         # Perform the move
-        success = db_manager.move_folder_to_parent(folder_id, target_parent_id)
+        success = db_manager.query_manager.update_folder_parent(folder_id, target_parent_id)
 
         if success:
             utils.log(f"Successfully moved folder {folder_id} to parent {target_parent_id}", "INFO")
