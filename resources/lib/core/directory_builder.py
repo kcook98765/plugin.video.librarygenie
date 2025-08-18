@@ -5,10 +5,10 @@ import xbmc
 import xbmcgui
 import xbmcplugin
 from resources.lib import utils
-from resources.lib.database_manager import DatabaseManager
-from resources.lib.config_manager import Config
-from resources.lib.url_builder import build_plugin_url, detect_context
-from resources.lib.listitem_builder import ListItemBuilder
+from resources.lib.data.database_manager import DatabaseManager
+from resources.lib.config.config_manager import Config
+from resources.lib.kodi.url_builder import build_plugin_url, detect_context
+from resources.lib.kodi.listitem_builder import ListItemBuilder
 
 def add_context_menu_for_item(li: xbmcgui.ListItem, item_type: str, **ids):
     """

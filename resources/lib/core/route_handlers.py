@@ -2,8 +2,8 @@
 import xbmc
 import xbmcgui
 from resources.lib import utils
-from resources.lib.config_manager import Config
-from resources.lib.database_manager import DatabaseManager
+from resources.lib.config.config_manager import Config
+from resources.lib.data.database_manager import DatabaseManager
 import json # Added for json.loads
 import threading
 
