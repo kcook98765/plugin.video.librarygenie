@@ -49,10 +49,15 @@ def build_listitem(item: MediaItem, view_hint: Optional[Union[str, object]] = No
         # Set additional properties
         _set_additional_properties(item, li, view_hint)
         
-        # Attach context menu (when menu registry is implemented)
-        # context_menu = for_item(item)
-        # if context_menu:
-        #     li.addContextMenuItems(context_menu)
+        # Attach context menu from registry
+        from ..menu.registry import for_item
+        context_menu = for_item(item, view_hint)
+        if context_menu:
+            # Handle Kodi version differences for context menus
+            if utils.get_kodi_version() >= 19:
+                li.addContextMenuItems(context_menu, replaceItems=True)
+            else:
+                li.addContextMenuItems(context_menu, replaceItems=False)
         
         utils.log(f"Built ListItem for '{item.title}' (type: {item.media_type})", "DEBUG")
         return li
