@@ -370,14 +370,14 @@ def add_movies_to_list(params):
                 search_results_list_id = match.group(1)
 
                 # Get all items from the search results list
-                search_items = db_manager.fetch_list_items_with_details(search_results_list_id)
+                search_items = db_manager.query_manager.fetch_list_items_with_details(search_results_list_id)
 
                 if search_items:
                     # Add each search result to the target list
                     added_count = 0
                     for item in search_items:
                         # Check if item already exists in target list
-                        existing_item = db_manager.get_list_item_by_media_id(list_id, item['id'])
+                        existing_item = db_manager.query_manager.get_list_item_by_media_id(list_id, item['id'])
                         if not existing_item:
                             # Create media item data from search result
                             media_item_data = {
