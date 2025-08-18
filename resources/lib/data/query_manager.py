@@ -220,7 +220,7 @@ class QueryManager(Singleton):
 
         if year:
             conditions.append("year = ?")
-            params.append(str(year))
+            params.append(int(year))
         if director:
             conditions.append("director LIKE ?")
             params.append(f"%{director}%")
@@ -683,8 +683,8 @@ class QueryManager(Singleton):
 
         return results
 
-    def get_media_details(self, media_id: int, media_type: str = 'movie') -> dict:
-        """Get media details from database"""
+    def get_media_details(self, kodi_dbid: int, media_type: str = 'movie') -> dict:
+        """Get media details from database by Kodi database ID"""
         query = """
             SELECT *
             FROM media_items
@@ -692,7 +692,7 @@ class QueryManager(Singleton):
         """
         conn_info = self._get_connection()
         try:
-            cursor = conn_info['connection'].execute(query, (media_id, media_type))
+            cursor = conn_info['connection'].execute(query, (kodi_dbid, media_type))
             result = cursor.fetchone()
             return dict(result) if result else {}
         finally:
