@@ -153,7 +153,7 @@ class ResultsManager(Singleton):
             for i, r in enumerate(rows):
                 # Skip items that are already handled as external
                 src = (r.get('source') or '').lower()
-                if src == 'external' or src == 'plugin_addon':
+                if src == 'external' or src == 'plugin_addon' or src == 'favorites_import':
                     continue
 
                 ref_title = r.get("title", "")
