@@ -3,7 +3,7 @@
 
 import time
 import xbmc
-from resources.lib.utils import utils
+from resources.lib.utils.utils import utils
 
 class NavigationManager:
     """Manages navigation state and flow control for the addon"""

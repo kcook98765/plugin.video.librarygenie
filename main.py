@@ -29,7 +29,7 @@ from resources.lib.core.route_handlers import (
     remove_from_list, rename_folder, move_list
 )
 from resources.lib.kodi.listitem_builder import ListItemBuilder
-from resources.lib import route_handlers
+from resources.lib.core import route_handlers
 
 
 # Add addon directory to Python path
@@ -173,7 +173,7 @@ def browse_list(list_id):
         utils.log(f"=== BROWSE_LIST ACTION START for list_id={list_id} ===", "INFO")
         config = Config()
         query_manager = QueryManager(config.db_path)
-        from resources.lib.results_manager import ResultsManager
+        from resources.lib.data.results_manager import ResultsManager
         from resources.lib.kodi.listitem_builder import ListItemBuilder
 
         # Clear navigation flags - simplified

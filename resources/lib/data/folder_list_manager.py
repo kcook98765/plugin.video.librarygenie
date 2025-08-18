@@ -1,4 +1,3 @@
-
 """Folder and list management utilities for LibraryGenie addon"""
 
 import xbmc
@@ -9,7 +8,7 @@ from resources.lib.config.config_manager import Config
 
 class FolderListManager:
     """Manages folder and list operations"""
-    
+
     def __init__(self):
         self.config = Config()
         self.db_manager = DatabaseManager(self.config.db_path)
@@ -25,7 +24,7 @@ class FolderListManager:
             if parent_folder_id is not None:
                 current_depth = self.db_manager.get_folder_depth(parent_folder_id)
                 max_depth = self.config.max_folder_depth - 1  # -1 because we're adding a new level
-                
+
                 if current_depth >= max_depth:
                     # Show limit reached notification without override option
                     xbmcgui.Dialog().ok(
@@ -57,7 +56,7 @@ class FolderListManager:
             utils.log("=== CLEAR_ALL_LOCAL_DATA: CONFIRMATION MODAL CLOSED - CANCELLED ===", "DEBUG")
             return
         utils.log("=== CLEAR_ALL_LOCAL_DATA: CONFIRMATION MODAL CLOSED - CONFIRMED ===", "DEBUG")
-        
+
         try:
             # Clear user-created content and media cache
             self.db_manager.delete_data('list_items', '1=1')
