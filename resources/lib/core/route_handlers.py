@@ -518,7 +518,7 @@ def export_list(params):
 
         if selected_format == 0:  # Plain Text
             filename = f"LibraryGenie_{safe_list_name}_{timestamp}.txt"
-            content = f"LibraryGenie List Export\n"
+            content = "LibraryGenie List Export\n"
             content += f"List Name: {list_info['name']}\n"
             content += f"Export Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
             content += f"Total Items: {len(list_items)}\n\n"
@@ -588,7 +588,7 @@ def export_list(params):
                 f.write(content)
 
             utils.log(f"Successfully exported list to {export_path}", "INFO")
-            xbmcgui.Dialog().ok('LibraryGenie', f"List exported successfully!", f"File saved to:", export_path)
+            xbmcgui.Dialog().ok('LibraryGenie', "List exported successfully!", "File saved to:", export_path)
 
         except Exception as write_error:
             utils.log(f"Error writing export file: {str(write_error)}", "ERROR")
