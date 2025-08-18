@@ -8,6 +8,11 @@ import json
 import threading
 from typing import List, Union, cast
 
+# Import necessary components for the new factory pattern
+from resources.lib.common.media_item import MediaItem
+from resources.lib.common.list_item_builder import build_listitem
+from resources.lib.data.db_utils import from_db # Assuming from_db is in db_utils
+
 def play_movie(params):
     """Play a movie from Kodi library using movieid"""
     try:
@@ -771,8 +776,74 @@ def rename_folder(params):
         utils.log(f"Error renaming folder: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Rename failed')
 
+def view_folder(folder_id):
+    """View contents of a folder"""
+    try:
+        from resources.lib.data.folder_list_manager import FolderListManager
+        import xbmcplugin
+        import sys
 
+        utils.log(f"Viewing folder: {folder_id}", "DEBUG")
 
+        manager = FolderListManager()
+
+        # Get folder contents using existing methods
+        subfolders = manager.get_subfolders(folder_id)
+        lists = manager.get_lists_in_folder(folder_id)
+
+        # Convert subfolders to MediaItems and build ListItems
+        for subfolder in subfolders:
+            # Create MediaItem from folder data
+            media_item = from_db({
+                'id': subfolder['id'],
+                'title': subfolder['name'],
+                'media_type': 'folder',
+                'is_folder': True,
+                'play_path': f"plugin://plugin.video.librarygenie/?action=view_folder&folder_id={subfolder['id']}",
+                'art': {'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'}
+            })
+
+            # Build ListItem using factory
+            li = build_listitem(media_item, 'folder_view')
+
+            # Add to directory
+            xbmcplugin.addDirectoryItem(
+                int(sys.argv[1]), 
+                media_item.play_path, 
+                li, 
+                True
+            )
+
+        # Convert lists to MediaItems and build ListItems  
+        for list_item in lists:
+            # Create MediaItem from list data
+            media_item = from_db({
+                'id': list_item['id'],
+                'title': list_item['name'],
+                'media_type': 'playlist',
+                'is_folder': True,
+                'play_path': f"plugin://plugin.video.librarygenie/?action=view_list&list_id={list_item['id']}",
+                'art': {'icon': 'DefaultPlaylist.png', 'thumb': 'DefaultPlaylist.png'},
+                'extras': {'list_id': list_item['id']}  # For context menu
+            })
+
+            # Build ListItem using factory
+            li = build_listitem(media_item, 'folder_view')
+
+            # Add to directory
+            xbmcplugin.addDirectoryItem(
+                int(sys.argv[1]), 
+                media_item.play_path, 
+                li, 
+                True
+            )
+
+        xbmcplugin.endOfDirectory(int(sys.argv[1]))
+
+    except Exception as e:
+        utils.log(f"Error viewing folder {folder_id}: {str(e)}", "ERROR")
+        import xbmcgui
+        xbmcgui.Dialog().notification("LibraryGenie", "Error viewing folder", xbmcgui.NOTIFICATION_ERROR)
 
 
 def add_to_list(params):
@@ -1362,7 +1433,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
 
         # Build target URL for navigation
         target_url = _build_plugin_url({
-            'action': 'browse_list',
+            'action': 'view_list', # Corrected action for viewing lists
             'list_id': new_list_id,
         })
 
