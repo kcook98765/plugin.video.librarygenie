@@ -158,11 +158,11 @@ def browse_list(list_id):
     import xbmcplugin
     import xbmcgui
     import json
-    from resources.lib.addon_ref import get_addon
-    from resources.lib.database_manager import DatabaseManager
-    from resources.lib.config_manager import Config
-    from resources.lib.listitem_builder import ListItemBuilder
-    from resources.lib.query_manager import QueryManager
+    from resources.lib.config.addon_ref import get_addon
+    from resources.lib.data.database_manager import DatabaseManager
+    from resources.lib.config.config_manager import Config
+    from resources.lib.kodi.listitem_builder import ListItemBuilder
+    from resources.lib.data.query_manager import QueryManager
 
     addon = get_addon()
     handle = int(sys.argv[1])
@@ -174,7 +174,7 @@ def browse_list(list_id):
         config = Config()
         query_manager = QueryManager(config.db_path)
         from resources.lib.results_manager import ResultsManager
-        from resources.lib.listitem_builder import ListItemBuilder
+        from resources.lib.kodi.listitem_builder import ListItemBuilder
 
         # Clear navigation flags - simplified
         nav_manager.clear_navigation_flags()
@@ -253,7 +253,7 @@ def browse_list(list_id):
         import traceback
         utils.log(f"browse_list traceback: {traceback.format_exc()}", "ERROR")
         # Show error item
-        from resources.lib.listitem_builder import ListItemBuilder
+        from resources.lib.kodi.listitem_builder import ListItemBuilder
         error_li = ListItemBuilder.build_folder_item(f"Error loading list: {str(e)}", is_folder=False)
         xbmcplugin.addDirectoryItem(handle, "", error_li, False)
         xbmcplugin.endOfDirectory(handle, succeeded=False)
@@ -263,7 +263,7 @@ def router(paramstring):
     utils.log(f"Router called with: {paramstring}", "DEBUG")
 
     # Initialize navigation manager first
-    from resources.lib.navigation_manager import get_navigation_manager
+    from resources.lib.core.navigation_manager import get_navigation_manager
     nav_manager = get_navigation_manager()
 
     params = parse_params(paramstring)
@@ -319,7 +319,7 @@ def router(paramstring):
         utils.log("Handling search action", "DEBUG")
         try:
             from resources.lib.kodi.window_search import SearchWindow
-            from resources.lib.navigation_manager import get_navigation_manager
+            from resources.lib.core.navigation_manager import get_navigation_manager
 
             search_window = SearchWindow()
             search_window.doModal()
