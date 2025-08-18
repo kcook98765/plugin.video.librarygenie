@@ -114,7 +114,6 @@ class ListItemBuilder:
             utils.log(f"Error in legacy ListItemBuilder: {str(e)}", "ERROR")
             # Use factory for error cases too
             from ...data.models import MediaItem
-            from .factory import build_listitem
             error_item = MediaItem(
                 id="error",
                 media_type="unknown",
