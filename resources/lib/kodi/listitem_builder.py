@@ -479,11 +479,11 @@ class ListItemBuilder:
             li.addContextMenuItems(context_menu_items, replaceItems=False)
 
         # Try to get play URL from different possible locations
-        # For plugin items, prioritize the 'file' field which contains the original plugin URL
+        # For plugin items and favorites imports, prioritize the 'file' field which contains the original URL
         play_url = None
         
-        # Check if this is a plugin item and prioritize file field
-        if source == 'plugin_addon' and media_info.get('file'):
+        # Check if this is a plugin item or favorites import and prioritize file field
+        if source in ('plugin_addon', 'favorites_import') and media_info.get('file'):
             play_url = media_info.get('file')
         else:
             # For other items, use the standard priority order

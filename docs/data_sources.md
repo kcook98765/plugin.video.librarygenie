@@ -144,6 +144,16 @@ if source == 'shortlist_import':
 - May have different metadata structure
 - **Processed through external processing path** alongside external content
 
+### 8. Favorites Import (`favorites_import`) - Imported Favorites Content
+
+**Purpose**: Content imported from Kodi favorites that wasn't matched to library content.
+
+**Characteristics**:
+- Contains complete metadata stored during favorites import
+- May include library metadata if item was upgraded during import
+- **Processed through external processing path** as stored metadata is used directly
+- Uses original favorite path/URL for playback
+
 ## Source-Specific Logic in ResultsManager
 
 The `ResultsManager.build_display_items_for_list()` method uses a clear branching strategy:
@@ -152,8 +162,8 @@ The `ResultsManager.build_display_items_for_list()` method uses a clear branchin
 ```python
 src = (r.get('source') or '').lower()
 # Only external and plugin_addon sources go to external processing
-# All other sources (lib, manual, search, kodi_library) follow library item processing path
-if src == 'external' or src == 'plugin_addon':
+# All other sources (lib, manual, search, kodi_library, shortlist_import) follow library item processing path
+if src in ('external', 'plugin_addon', 'favorites_import'):
     external.append(r)
     continue
 ```
@@ -172,7 +182,7 @@ if src == 'external' or src == 'plugin_addon':
 external_sorted = sorted(external, key=lambda x: x.get('search_score', 0), reverse=True)
 ```
 
-**Sources using external processing**: `external`, `plugin_addon`
+**Sources using external processing**: `external`, `plugin_addon`, `favorites_import`
 
 **Processing steps**:
 1. Use stored metadata directly

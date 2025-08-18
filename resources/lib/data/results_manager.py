@@ -54,9 +54,9 @@ class ResultsManager(Singleton):
 
             for r in rows:
                 src = (r.get('source') or '').lower()
-                # Only external and plugin_addon sources go to external processing
-                # All other sources (lib, manual, search, kodi_library) follow library item processing path
-                if src == 'external' or src == 'plugin_addon':
+                # Sources that don't use Kodi library processing: external, plugin_addon, favorites_import
+                # All other sources (lib, manual, search, kodi_library, shortlist_import) follow library item processing path
+                if src in ('external', 'plugin_addon', 'favorites_import'):
                     external.append(r)
                     continue
                 imdb = r.get('imdbnumber')
