@@ -639,8 +639,7 @@ class DatabaseManager(Singleton):
                     try:
                         media_item_id = self.query_manager.insert_media_item(item_data)
                         if media_item_id and media_item_id > 0:
-                            list_item_data = {'list_id': final_list_id, 'media_item_id': media_item_id}
-                            self.query_manager.insert_list_item(list_item_data)
+                            self.query_manager.insert_list_item(final_list_id, media_item_id)
                             utils.log(f"Successfully added search result {item_data.get('imdbnumber', 'N/A')} to list", "DEBUG")
                         else:
                             utils.log(f"Failed to insert media item for: {item_data.get('imdbnumber', 'N/A')}", "ERROR")
@@ -828,8 +827,7 @@ class DatabaseManager(Singleton):
                 return False
 
             # Add to list using QueryManager
-            list_item_data = {'list_id': list_id, 'media_item_id': media_id}
-            self.query_manager.insert_list_item(list_item_data)
+            self.query_manager.insert_list_item(list_id, media_id)
             
             utils.log(f"DATABASE: Successfully added media ID {media_id} to list {list_id}", "DEBUG")
             return True
