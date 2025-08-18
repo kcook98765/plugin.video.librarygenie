@@ -109,8 +109,15 @@ class ResultsManager(Singleton):
             utils.log(f"=== BUILD_DISPLAY_ITEMS: First 3 batch pairs: {batch_pairs[:3]} ===", "DEBUG")
 
             utils.log("=== BUILD_DISPLAY_ITEMS: Calling get_movies_by_title_year_batch ===", "DEBUG")
-            batch_resp = self.jsonrpc.get_movies_by_title_year_batch(batch_pairs) or {}
-            utils.log(f"=== BUILD_DISPLAY_ITEMS: Batch response keys: {list(batch_resp.keys()) if batch_resp else 'None'} ===", "DEBUG")
+            try:
+                batch_resp = self.jsonrpc.get_movies_by_title_year_batch(batch_pairs) or {}
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: Batch response keys: {list(batch_resp.keys()) if batch_resp else 'None'} ===", "DEBUG")
+            except AttributeError as e:
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: Method not found error: {str(e)} ===", "ERROR")
+                batch_resp = {}
+            except Exception as e:
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: Batch lookup failed: {str(e)} ===", "ERROR")
+                batch_resp = {}
 
             batch_movies = (batch_resp.get("result") or {}).get("movies") or []
             utils.log(f"=== BUILD_DISPLAY_ITEMS: JSON-RPC returned {len(batch_movies)} movies from batch lookup ===", "DEBUG")
