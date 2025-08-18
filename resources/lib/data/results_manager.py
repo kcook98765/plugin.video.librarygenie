@@ -275,6 +275,9 @@ class ResultsManager(Singleton):
                         db_item['title'] = processed_ref.get('title', 'Unknown')
                     if not db_item.get('year'):
                         db_item['year'] = processed_ref.get('year', 0)
+                    
+                    # Set proper media type for rich metadata
+                    db_item['media_type'] = 'movie'
 
                     utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Creating from DB data - title: '{db_item.get('title')}', plot length: {len(str(db_item.get('plot', '')))} ===", "DEBUG")
 
