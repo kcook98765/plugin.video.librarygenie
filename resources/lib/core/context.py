@@ -258,10 +258,10 @@ def main():
 
         # Show list selection dialog
         from typing import List, Union
-        typed_list_options: List[Union[str, xbmcgui.ListItem]] = options
+        typed_options: List[Union[str, xbmcgui.ListItem]] = options
         selected_index = xbmcgui.Dialog().select(
-            f"Add '{title}' to list:",
-            typed_list_options
+            f"LibraryGenie - {title}:",
+            typed_options
         )
 
         if selected_index == -1:  # User cancelled
@@ -553,7 +553,7 @@ def main():
 
         elif "Find Similar Movies..." in selected_option:
             if "(Requires Authentication)" in selected_option:
-                dialog.notification("LibraryGenie", "Please configure API settings first", xbmcgui.NOTIFICATION_WARNING, 3000)
+                xbmcgui.Dialog().notification("LibraryGenie", "Please configure API settings first", xbmcgui.NOTIFICATION_WARNING, 3000)
                 return
             # Get the clean title without color formatting
             clean_title = title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
@@ -562,7 +562,7 @@ def main():
 
             if not imdb_id or not str(imdb_id).startswith('tt'):
                 xbmc.log("LibraryGenie [WARNING]: Similarity search failed - no valid IMDb ID found", xbmc.LOGWARNING)
-                dialog.notification("LibraryGenie", "No valid IMDb ID found for similarity search", xbmcgui.NOTIFICATION_WARNING, 3000)
+                xbmcgui.Dialog().notification("LibraryGenie", "No valid IMDb ID found for similarity search", xbmcgui.NOTIFICATION_WARNING, 3000)
                 return
 
             # Use RunPlugin to trigger similarity search
@@ -572,7 +572,7 @@ def main():
 
         elif "Search Movies..." in selected_option:  # Search Movies - use direct search instead of plugin URL
             if "(Requires Authentication)" in selected_option:
-                dialog.notification("LibraryGenie", "Please configure API settings first", xbmcgui.NOTIFICATION_WARNING, 3000)
+                xbmcgui.Dialog().notification("LibraryGenie", "Please configure API settings first", xbmcgui.NOTIFICATION_WARNING, 3000)
                 return
             try:
                 # Perform search directly
@@ -688,9 +688,11 @@ def add_plugin_item_to_list(media_info):
             list_ids.append(list_item['id'])
 
         # Show list selection dialog
+        from typing import List, Union, cast
+        typed_list_options = cast(List[Union[str, xbmcgui.ListItem]], list_options)
         selected_index = xbmcgui.Dialog().select(
             f"Add '{title}' to list:",
-            list_options
+            typed_list_options
         )
 
         if selected_index == -1:  # User cancelled
@@ -727,7 +729,7 @@ def add_plugin_item_to_list(media_info):
             'year': int(media_info.get('year', 0)) if media_info.get('year', '').isdigit() else 0,
             'imdbnumber': media_info.get('imdbnumber', ''),  # May be empty for plugin items
             'source': 'plugin_addon',
-            'plot': media_info.get('plot', f'[Plugin Item] - Added from external addon'),
+            'plot': media_info.get('plot', '[Plugin Item] - Added from external addon'),
             'rating': 0.0,
             'search_score': 0,
             'media_type': 'movie',

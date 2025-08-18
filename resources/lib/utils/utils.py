@@ -20,7 +20,7 @@ def log(message, level=None):
     # Check debug logging setting for DEBUG and INFO messages
     if level in ['DEBUG', 'INFO']:
         try:
-            from .addon_ref import get_addon
+            from resources.lib.config.addon_ref import get_addon
             addon = get_addon()
             debug_enabled = addon.getSetting('debug_logging') == 'true'
             if not debug_enabled:
@@ -103,7 +103,7 @@ def show_dialog_input(heading, default=""):
 def is_debug_enabled():
     """Check if debug logging is enabled for the addon"""
     try:
-        from resources.lib.settings_manager import SettingsManager
+        from resources.lib.config.settings_manager import SettingsManager
         settings_manager = SettingsManager()
         return settings_manager.get_setting('debug_mode', default='false') == 'true'
     except Exception:
@@ -141,7 +141,7 @@ def is_kodi_v20_plus():
 def setup_remote_api():
     """Launch remote API setup wizard"""
     try:
-        from resources.lib.remote_api_setup import setup_remote_api
+        from resources.lib.integrations.remote_api.remote_api_setup import setup_remote_api
         return setup_remote_api()
     except Exception as e:
         log(f"Error setting up remote API: {str(e)}", "ERROR")

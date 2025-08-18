@@ -1,8 +1,7 @@
 """Context Menu Builder for LibraryGenie - handles both native and ListItem context menus"""
 
 import xbmc
-from resources.lib import utils
-from urllib.parse import quote_plus
+from resources.lib.utils import utils
 
 
 class ContextMenuBuilder:
@@ -14,7 +13,7 @@ class ContextMenuBuilder:
     def _is_authenticated(self):
         """Check if user is authenticated to the server"""
         try:
-            from resources.lib.addon_ref import get_addon
+            from resources.lib.config.addon_ref import get_addon
             addon = get_addon()
 
             # Check if we have API configuration

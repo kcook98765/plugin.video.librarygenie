@@ -63,4 +63,4 @@ Replit's Git integration allows you to:
 3. Use Replit's collaboration features for team development
 4. Package your addon for distribution
 
-Remember: While you can't run the addon directly in Replit, it provides an excellent development environment with proper code completion and documentation support through Kodistubs.
+Remember: While you can't run the addon directly in Replit, it provides an excellent development environment with proper code completion and syntax highlighting for Kodi addon development.d documentation support through Kodistubs.

@@ -1,10 +1,7 @@
 """URL building and parameter parsing utilities for LibraryGenie addon"""
 
-import sys
-import urllib.parse
-from urllib.parse import urlencode, parse_qs, urlparse, quote_plus
-import xbmcaddon
-from resources.lib import utils
+from urllib.parse import parse_qs, urlparse, quote_plus
+from resources.lib.utils.utils import log
 
 def build_plugin_url(params):
     """Build plugin URL from parameters"""
@@ -42,7 +39,7 @@ def parse_params(params_string: str) -> dict:
 
         return parse_qs(query_string) if query_string else {}
     except Exception as e:
-        utils.log(f"Error parsing params '{params_string}': {str(e)}", "ERROR")
+        log(f"Error parsing params '{params_string}': {str(e)}", "ERROR")
         return {}
 
 def detect_context(ctx_params: dict) -> dict:

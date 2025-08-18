@@ -3,7 +3,7 @@
 
 import time
 import xbmc
-from resources.lib.utils.utils import utils
+from resources.lib.utils import utils
 
 class NavigationManager:
     """Manages navigation state and flow control for the addon"""
@@ -78,7 +78,7 @@ class NavigationManager:
     def navigate_to_list_delayed(self, list_id, delay_seconds=2.0):
         """Navigate to a list with delayed execution for modal cleanup"""
         try:
-            from resources.lib.addon_ref import get_addon
+            from resources.lib.config.addon_ref import get_addon
             from urllib.parse import urlencode
             import threading
             import time

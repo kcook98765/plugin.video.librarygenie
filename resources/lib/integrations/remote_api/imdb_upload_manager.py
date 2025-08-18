@@ -1,9 +1,8 @@
 import xbmcgui
 import json
-from resources.lib import utils
+from resources.lib.utils import utils
 from resources.lib.integrations.jsonrpc.jsonrpc_manager import JSONRPC
 from resources.lib.integrations.remote_api.remote_api_client import RemoteAPIClient
-from resources.lib.data.query_manager import QueryManager
 from resources.lib.config.config_manager import Config
 
 class IMDbUploadManager:
@@ -110,7 +109,7 @@ class IMDbUploadManager:
                 progress_dialog.update(0, "Scanning Kodi library and storing locally...")
 
             # Use database manager instead of direct query manager to avoid connection conflicts
-            from resources.lib.database_manager import DatabaseManager
+            from resources.lib.data.database_manager import DatabaseManager
             db_manager = DatabaseManager(Config().db_path)
 
             # Clear existing library data first using database manager

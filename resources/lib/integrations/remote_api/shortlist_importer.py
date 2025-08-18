@@ -1,7 +1,7 @@
 import json
 import xbmc
 import xbmcgui
-from resources.lib import utils
+from resources.lib.utils import utils
 from resources.lib.config.config_manager import Config
 from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.integrations.jsonrpc.jsonrpc_manager import JSONRPC
@@ -18,7 +18,7 @@ class ShortlistImporter:
         req = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
 
         # Log detailed request information
-        utils.log(f"=== SHORTLIST JSON-RPC REQUEST ===", "INFO")
+        utils.log("=== SHORTLIST JSON-RPC REQUEST ===", "INFO")
         utils.log(f"Method: {method}", "INFO")
         utils.log(f"Raw params: {json.dumps(params, indent=2)}", "INFO")
         utils.log(f"Full request JSON: {json.dumps(req, indent=2)}", "INFO")
@@ -29,14 +29,14 @@ class ShortlistImporter:
             utils.log(f"Properties requested ({len(properties)} total): {properties}", "INFO")
             if len(properties) > 0:
                 utils.log(f"Property at index 7: {properties[7] if len(properties) > 7 else 'N/A'}", "INFO")
-                utils.log(f"All properties with indices:", "INFO")
+                utils.log("All properties with indices:", "INFO")
                 for i, prop in enumerate(properties):
                     utils.log(f"  [{i}]: {prop}", "INFO")
 
         resp = xbmc.executeJSONRPC(json.dumps(req))
 
         # Log raw response
-        utils.log(f"=== SHORTLIST JSON-RPC RESPONSE ===", "INFO")
+        utils.log("=== SHORTLIST JSON-RPC RESPONSE ===", "INFO")
         utils.log(f"Raw response length: {len(resp)} characters", "INFO")
         utils.log(f"Raw response preview: {resp[:500]}{'...' if len(resp) > 500 else ''}", "INFO")
 
@@ -44,7 +44,7 @@ class ShortlistImporter:
 
         # Log parsed response details
         if "error" in data:
-            utils.log(f"=== SHORTLIST JSON-RPC ERROR ANALYSIS ===", "ERROR")
+            utils.log("=== SHORTLIST JSON-RPC ERROR ANALYSIS ===", "ERROR")
             error = data["error"]
             utils.log(f"Error code: {error.get('code')}", "ERROR")
             utils.log(f"Error message: {error.get('message')}", "ERROR")
@@ -70,16 +70,16 @@ class ShortlistImporter:
                         else:
                             utils.log(f"Failed index {failed_index} is out of range for {len(properties)} properties", "ERROR")
 
-            utils.log(f"=== END ERROR ANALYSIS ===", "ERROR")
+            utils.log("=== END ERROR ANALYSIS ===", "ERROR")
             raise RuntimeError(data["error"])
         else:
-            utils.log(f"=== SHORTLIST JSON-RPC SUCCESS ===", "INFO")
+            utils.log("=== SHORTLIST JSON-RPC SUCCESS ===", "INFO")
             result = data.get("result", {})
             if isinstance(result, dict):
                 utils.log(f"Result keys: {list(result.keys())}", "INFO")
                 if "files" in result:
                     utils.log(f"Files returned: {len(result['files'])}", "INFO")
-            utils.log(f"=== END SUCCESS RESPONSE ===", "INFO")
+            utils.log("=== END SUCCESS RESPONSE ===", "INFO")
 
         return data.get("result", {})
 
@@ -244,7 +244,7 @@ class ShortlistImporter:
                     utils.log(f"=== RAW ITEM DATA DEBUG for '{item_data['title']}' ===", "INFO")
                     for key, value in non_empty_fields.items():
                         utils.log(f"  {key}: {repr(value)[:200]}{'...' if len(repr(value)) > 200 else ''}", "INFO")
-                    utils.log(f"=== END RAW ITEM DATA DEBUG ===", "INFO")
+                    utils.log("=== END RAW ITEM DATA DEBUG ===", "INFO")
 
                     items.append(item_data)
 
@@ -293,7 +293,7 @@ class ShortlistImporter:
                     movie_year = movie.get('year', 0)
                     if not year or abs(movie_year - year) <= 1:
                         utils.log(f"JSONRPC SUCCESS: Exact match found - '{movie.get('title')}' ({movie_year})", "INFO")
-                        utils.log(f"JSONRPC DECISION: Using library data instead of shortlist data", "INFO")
+                        utils.log("JSONRPC DECISION: Using library data instead of shortlist data", "INFO")
                         return movie
 
             # Strategy 2: Fuzzy title search if exact match fails
@@ -354,11 +354,11 @@ class ShortlistImporter:
 
                 if best_match:
                     utils.log(f"JSONRPC SUCCESS: Best fuzzy match found - '{best_match.get('title')}' ({best_match.get('year')}) with score {best_score}", "INFO")
-                    utils.log(f"JSONRPC DECISION: Using library data instead of shortlist data", "INFO")
+                    utils.log("JSONRPC DECISION: Using library data instead of shortlist data", "INFO")
                     return best_match
 
             # Strategy 3: Fallback to getting all movies and manual search (for older Kodi versions)
-            utils.log(f"JSONRPC LOOKUP: Fallback to manual search through all movies", "INFO")
+            utils.log("JSONRPC LOOKUP: Fallback to manual search through all movies", "INFO")
 
             all_movies_response = self.jsonrpc.get_movies(0, 100, properties=[
                 "title", "year", "plot", "rating", "runtime", "genre", "director", 
@@ -379,16 +379,16 @@ class ShortlistImporter:
                         if (title.lower() in movie_title or movie_title in title.lower()) and \
                            (not year or abs(movie_year - year) <= 1):
                             utils.log(f"JSONRPC SUCCESS: Manual match found - '{movie.get('title')}' ({movie_year})", "INFO")
-                            utils.log(f"JSONRPC DECISION: Using library data instead of shortlist data", "INFO")
+                            utils.log("JSONRPC DECISION: Using library data instead of shortlist data", "INFO")
                             return movie
 
         except Exception as e:
             utils.log(f"JSONRPC ERROR: Library lookup failed: {str(e)}", "ERROR")
-            utils.log(f"JSONRPC DECISION: Will use shortlist data due to lookup error", "INFO")
+            utils.log("JSONRPC DECISION: Will use shortlist data due to lookup error", "INFO")
 
-        utils.log(f"JSONRPC RESULT: No library match found for '{title}' ({year})", "INFO")
-        utils.log(f"JSONRPC DECISION: Will use shortlist data as no library match exists", "INFO")
-        utils.log(f"=== KODI LIBRARY LOOKUP END ===", "INFO")
+        utils.log("JSONRPC RESULT: No library match found for '{title}' ({year})", "INFO")
+        utils.log("JSONRPC DECISION: Will use shortlist data as no library match exists", "INFO")
+        utils.log("=== KODI LIBRARY LOOKUP END ===", "INFO")
         return None
 
     def safe_convert_int(self, value, default=0):
@@ -718,9 +718,9 @@ class ShortlistImporter:
                             kodi_movie = self.lookup_in_kodi_library(clean_title, item_year)
 
                             if kodi_movie:
-                                utils.log(f"IMPORT_SUCCESS: Library match found - will use Kodi data", "INFO")
+                                utils.log("IMPORT_SUCCESS: Library match found - will use Kodi data", "INFO")
                             else:
-                                utils.log(f"IMPORT_INFO: No library match - will use Shortlist data", "INFO")
+                                utils.log("IMPORT_INFO: No library match - will use Shortlist data", "INFO")
                         else:
                             utils.log(f"IMPORT_SKIP: Title too short for reliable matching: '{clean_title}'", "INFO")
                     else:
@@ -749,7 +749,7 @@ class ShortlistImporter:
                             value = media_dict.get(field, '')
                             if value:
                                 utils.log(f"  {field}: {value}", "INFO")
-                        utils.log(f"=== END FINAL MEDIA_DICT ===", "INFO")
+                        utils.log("=== END FINAL MEDIA_DICT ===", "INFO")
 
                         media_items_to_add.append(media_dict)
 

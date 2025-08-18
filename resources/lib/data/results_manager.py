@@ -1,4 +1,3 @@
-
 import json
 from resources.lib.integrations.jsonrpc.jsonrpc_manager import JSONRPC
 from resources.lib.utils import utils
@@ -8,8 +7,8 @@ class ResultsManager(Singleton):
     def __init__(self):
         if not hasattr(self, '_initialized'):
             self.jsonrpc = JSONRPC()
-            from resources.lib.query_manager import QueryManager
-            from resources.lib.config_manager import Config
+            from resources.lib.data.query_manager import QueryManager
+            from resources.lib.config.config_manager import Config
             self.query_manager = QueryManager(Config().db_path)
             self._initialized = True
 
@@ -110,8 +109,15 @@ class ResultsManager(Singleton):
             utils.log(f"=== BUILD_DISPLAY_ITEMS: First 3 batch pairs: {batch_pairs[:3]} ===", "DEBUG")
 
             utils.log("=== BUILD_DISPLAY_ITEMS: Calling get_movies_by_title_year_batch ===", "DEBUG")
-            batch_resp = self.jsonrpc.get_movies_by_title_year_batch(batch_pairs) or {}
-            utils.log(f"=== BUILD_DISPLAY_ITEMS: Batch response keys: {list(batch_resp.keys()) if batch_resp else 'None'} ===", "DEBUG")
+            try:
+                batch_resp = self.jsonrpc.get_movies_by_title_year_batch(batch_pairs) or {}
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: Batch response keys: {list(batch_resp.keys()) if batch_resp else 'None'} ===", "DEBUG")
+            except AttributeError as e:
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: Method not found error: {str(e)} ===", "ERROR")
+                batch_resp = {}
+            except Exception as e:
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: Batch lookup failed: {str(e)} ===", "ERROR")
+                batch_resp = {}
 
             batch_movies = (batch_resp.get("result") or {}).get("movies") or []
             utils.log(f"=== BUILD_DISPLAY_ITEMS: JSON-RPC returned {len(batch_movies)} movies from batch lookup ===", "DEBUG")
@@ -188,14 +194,14 @@ class ResultsManager(Singleton):
                     # Preserve search score from original item for sorting
                     meta['search_score'] = processed_ref.get('search_score', 0)
                     meta['list_item_id'] = r.get('list_item_id')
-                    
+
                     # Add context for list viewing and removal
                     meta['_viewing_list_id'] = list_id
                     meta['media_id'] = r.get('id') or r.get('media_id') or meta.get('movieid')
-                    
-                    from resources.lib.listitem_builder import ListItemBuilder
+
+                    from resources.lib.kodi.listitem_builder import ListItemBuilder
                     list_item = ListItemBuilder.build_video_item(meta, is_search_history=is_search_history)
-                    
+
                     # Determine the appropriate URL for this item
                     # For manual items and library items, use the file path if available
                     file_path = meta.get('file')
@@ -226,9 +232,9 @@ class ResultsManager(Singleton):
                         'media_id': r.get('id') or r.get('media_id'),
                         'playable': False
                     }
-                    from resources.lib.listitem_builder import ListItemBuilder
+                    from resources.lib.kodi.listitem_builder import ListItemBuilder
                     list_item = ListItemBuilder.build_video_item(resolved_item, is_search_history=is_search_history)
-                    
+
                     # Use info URL for non-playable items
                     item_url = f"info://{ref_imdb}" if ref_imdb else f"info://{r.get('id', 'unknown')}"
                     display_items.append((item_url, list_item, False))
@@ -239,10 +245,10 @@ class ResultsManager(Singleton):
                 # Add context for list viewing and removal
                 item['_viewing_list_id'] = list_id
                 item['media_id'] = item.get('id') or item.get('media_id')
-                
-                from resources.lib.listitem_builder import ListItemBuilder
+
+                from resources.lib.kodi.listitem_builder import ListItemBuilder
                 list_item = ListItemBuilder.build_video_item(item, is_search_history=is_search_history)
-                
+
                 # Use file path or fallback URL for external items
                 item_url = item.get('file', f"external://{item.get('id', 'unknown')}")
                 display_items.append((item_url, list_item, False))

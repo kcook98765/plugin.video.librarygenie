@@ -6,9 +6,9 @@ This module does not support Kodi 18 (Leia) or earlier versions
 import json
 import xbmcgui
 from resources.lib.kodi.listitem_infotagvideo import set_info_tag, set_art
-from resources.lib import utils
+from resources.lib.utils import utils
 
-from urllib.parse import quote, urlparse, quote_plus
+from urllib.parse import quote, urlparse
 
 __all__ = ['set_info_tag', 'set_art']
 
@@ -44,7 +44,7 @@ def _wrap_for_kodi_image(u: str) -> str:
 
 def _get_addon_artwork_fallbacks() -> dict:
     """Return addon artwork that can be used as fallbacks"""
-    from resources.lib.addon_ref import get_addon
+    from resources.lib.config.addon_ref import get_addon
     addon = get_addon()
     addon_path = addon.getAddonInfo("path")
     media = f"{addon_path}/resources/media"
@@ -454,13 +454,13 @@ class ListItemBuilder:
         li.setProperty('MediaType', media_type)
 
         # Use centralized context menu builder
-        from resources.lib.context_menu_builder import get_context_menu_builder
+        from resources.lib.kodi.context_menu_builder import get_context_menu_builder
         context_builder = get_context_menu_builder()
 
         # Build context based on available information
         context = {}
-        if hasattr(media_info, '_context_info'):
-            context = media_info._context_info
+        if isinstance(media_info, dict) and '_context_info' in media_info:
+            context = media_info['_context_info']
 
         # If this item is from a list view, ensure we have the list context
         if media_info.get('_viewing_list_id'):
@@ -532,7 +532,7 @@ class ListItemBuilder:
             item_type: Type of item ('folder', 'playlist', 'list') to determine icon
             plot: Plot/description text for the item
         """
-        from resources.lib.addon_ref import get_addon
+        from resources.lib.config.addon_ref import get_addon
         addon = get_addon()
         addon_path = addon.getAddonInfo("path")
         media = f"{addon_path}/resources/media"

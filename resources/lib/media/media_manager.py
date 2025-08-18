@@ -1,13 +1,13 @@
 import xbmc
 import json
-from .config.config_manager import Config
-from . import utils
-from .integrations.jsonrpc.jsonrpc_manager import JSONRPC
+from resources.lib.config.config_manager import Config
+from resources.lib.utils import utils
+from resources.lib.integrations.jsonrpc.jsonrpc_manager import JSONRPC
 
 class MediaManager:
     def __init__(self):
         self.jsonrpc = JSONRPC()
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         self.query_manager = QueryManager(Config().db_path)
 
     def get_media_info(self, media_type='movie'):

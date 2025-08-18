@@ -1,7 +1,6 @@
 import sys
 import urllib.parse
 import xbmcgui
-from .config_manager import Config
 from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.kodi.kodi_helper import KodiHelper
 from resources.lib.utils import utils
@@ -90,11 +89,11 @@ def run_addon():
 
             # Handle special case for setup_remote_api
             if action == 'setup_remote_api':
-                from .remote_api_setup import run_setup
+                from resources.lib.integrations.remote_api.remote_api_setup import run_setup
                 run_setup()
                 return  # Early return to prevent normal startup
             elif action == 'import_from_shortlist':
-                from .shortlist_importer import import_from_shortlist
+                from resources.lib.integrations.remote_api.shortlist_importer import import_from_shortlist
                 import_from_shortlist()
                 return  # Early return to prevent normal startup
         else:
@@ -147,11 +146,11 @@ def run_addon():
                 utils.setup_remote_api()
             elif action == 'manual_setup_remote_api':
                 utils.log("Manual remote API setup", "DEBUG")
-                from resources.lib.remote_api_setup import manual_setup_remote_api
+                from resources.lib.integrations.remote_api.remote_api_setup import manual_setup_remote_api
                 manual_setup_remote_api()
             elif action == 'test_remote_api':
                 utils.log("Testing remote API connection", "DEBUG")
-                from resources.lib.remote_api_client import RemoteAPIClient
+                from resources.lib.integrations.remote_api.remote_api_client import RemoteAPIClient
                 client = RemoteAPIClient()
                 if client.test_connection():
                     utils.show_notification("Remote API", "Connection test successful!")
@@ -159,22 +158,22 @@ def run_addon():
                     utils.show_notification("Remote API", "Connection test failed!", icon=xbmcgui.NOTIFICATION_ERROR)
             elif action == 'upload_library_full':
                 utils.log("Starting full library upload", "DEBUG")
-                from resources.lib.imdb_upload_manager import IMDbUploadManager
+                from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
                 upload_manager = IMDbUploadManager()
                 upload_manager.upload_library_full_sync()
             elif action == 'upload_library_delta':
                 utils.log("Starting delta library sync", "DEBUG")
-                from resources.lib.imdb_upload_manager import IMDbUploadManager
+                from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
                 upload_manager = IMDbUploadManager()
                 upload_manager.upload_library_delta_sync()
             elif action == 'upload_status':
                 utils.log("Checking upload status", "DEBUG")
-                from resources.lib.imdb_upload_manager import IMDbUploadManager
+                from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
                 upload_manager = IMDbUploadManager()
                 upload_manager.get_upload_status()
             elif action == 'clear_server_library':
                 utils.log("Clearing server library", "DEBUG")
-                from resources.lib.imdb_upload_manager import IMDbUploadManager
+                from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
                 upload_manager = IMDbUploadManager()
                 upload_manager.clear_server_library()
             elif action == 'clear_all_local_data':

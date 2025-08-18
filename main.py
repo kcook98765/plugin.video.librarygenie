@@ -3,9 +3,9 @@ import os
 import sys
 import urllib.parse # Import urllib.parse
 import xbmc
-import xbmcaddon
 import xbmcgui
 import xbmcplugin
+import xbmcaddon
 from urllib.parse import urlencode, parse_qs
 from urllib.parse import quote_plus, urlparse # Import urlparse
 import time # Import time module
@@ -23,7 +23,7 @@ from resources.lib.data.folder_list_manager import get_folder_list_manager
 from resources.lib.config.addon_helper import run_addon
 from resources.lib.config.config_manager import Config
 from resources.lib.data.database_manager import DatabaseManager
-from resources.lib.utils.utils import utils
+from resources.lib.utils.utils import log
 from resources.lib.core.route_handlers import (
     play_movie, show_item_details, create_list, rename_list, delete_list,
     remove_from_list, rename_folder, move_list
@@ -50,36 +50,36 @@ folder_list_manager = get_folder_list_manager()
 
 def run_search_flow():
     """Launch search modal and navigate to results after completion"""
-    utils.log("=== RUN_SEARCH_FLOW START ===", "DEBUG")
+    log("=== RUN_SEARCH_FLOW START ===", "DEBUG")
 
     target_url = None
     try:
         from resources.lib.kodi.window_search import SearchWindow
-        utils.log("=== CREATING SearchWindow INSTANCE ===", "DEBUG")
+        log("=== CREATING SearchWindow INSTANCE ===", "DEBUG")
         search_window = SearchWindow()
-        utils.log("=== ABOUT TO CALL SearchWindow.doModal() ===", "DEBUG")
+        log("=== ABOUT TO CALL SearchWindow.doModal() ===", "DEBUG")
         search_window.doModal()
-        utils.log("=== SearchWindow.doModal() COMPLETED ===", "DEBUG")
+        log("=== SearchWindow.doModal() COMPLETED ===", "DEBUG")
 
         # Get target URL if search was successful
         target_url = search_window.get_target_url()
-        utils.log(f"=== SearchWindow returned target_url: {target_url} ===", "DEBUG")
+        log(f"=== SearchWindow returned target_url: {target_url} ===", "DEBUG")
 
         del search_window
-        utils.log("=== SearchWindow INSTANCE DELETED ===", "DEBUG")
+        log("=== SearchWindow INSTANCE DELETED ===", "DEBUG")
 
     except Exception as e:
-        utils.log(f"=== ERROR IN RUN_SEARCH_FLOW: {str(e)} ===", "ERROR")
+        log(f"=== ERROR IN RUN_SEARCH_FLOW: {str(e)} ===", "ERROR")
         import traceback
-        utils.log(f"Traceback: {traceback.format_exc()}", "ERROR")
+        log(f"Traceback: {traceback.format_exc()}", "ERROR")
 
     # Navigate only after modal is completely closed
     if target_url:
         nav_manager.navigate_to_url(target_url)
     else:
-        utils.log("=== NO TARGET URL - SEARCH CANCELLED OR FAILED ===", "DEBUG")
+        log("=== NO TARGET URL - SEARCH CANCELLED OR FAILED ===", "DEBUG")
 
-    utils.log("=== RUN_SEARCH_FLOW COMPLETE ===", "DEBUG")
+    log("=== RUN_SEARCH_FLOW COMPLETE ===", "DEBUG")
 
 def run_search(params):
     """Legacy function - redirect to new flow"""
@@ -89,12 +89,12 @@ def browse_folder(params):
     """Browse a folder and display its contents"""
     folder_id = params.get('folder_id', [None])[0]
     if not folder_id:
-        utils.log("No folder_id provided for browse_folder", "ERROR")
+        log("No folder_id provided for browse_folder", "ERROR")
         return
 
     try:
         folder_id = int(folder_id)
-        utils.log(f"Browsing folder {folder_id}", "DEBUG")
+        log(f"Browsing folder {folder_id}", "DEBUG")
 
         config = Config()
         db_manager = DatabaseManager(config.db_path)
@@ -102,7 +102,7 @@ def browse_folder(params):
         # Get folder details
         folder = db_manager.fetch_folder_by_id(folder_id)
         if not folder:
-            utils.log(f"Folder {folder_id} not found", "ERROR")
+            log(f"Folder {folder_id} not found", "ERROR")
             xbmcgui.Dialog().notification('LibraryGenie', 'Folder not found')
             return
 
@@ -148,9 +148,9 @@ def browse_folder(params):
         xbmcplugin.endOfDirectory(ADDON_HANDLE)
 
     except Exception as e:
-        utils.log(f"Error browsing folder: {str(e)}", "ERROR")
+        log(f"Error browsing folder: {str(e)}", "ERROR")
         import traceback
-        utils.log(f"browse_folder traceback: {traceback.format_exc()}", "ERROR")
+        log(f"browse_folder traceback: {traceback.format_exc()}", "ERROR")
         show_empty_directory(ADDON_HANDLE, "Error loading folder contents")
 
 def browse_list(list_id):
@@ -167,10 +167,10 @@ def browse_list(list_id):
     addon = get_addon()
     handle = int(sys.argv[1])
 
-    utils.log(f"=== BROWSE_LIST FUNCTION CALLED with list_id={list_id}, handle={handle} ===", "INFO")
+    log(f"=== BROWSE_LIST FUNCTION CALLED with list_id={list_id}, handle={handle} ===", "INFO")
 
     try:
-        utils.log(f"=== BROWSE_LIST ACTION START for list_id={list_id} ===", "INFO")
+        log(f"=== BROWSE_LIST ACTION START for list_id={list_id} ===", "INFO")
         config = Config()
         query_manager = QueryManager(config.db_path)
         from resources.lib.data.results_manager import ResultsManager
@@ -178,7 +178,7 @@ def browse_list(list_id):
 
         # Clear navigation flags - simplified
         nav_manager.clear_navigation_flags()
-        utils.log("Cleared navigation flags at browse_list entry", "DEBUG")
+        log("Cleared navigation flags at browse_list entry", "DEBUG")
 
         # Set proper container properties first
         xbmcplugin.setContent(handle, "movies")
@@ -189,7 +189,7 @@ def browse_list(list_id):
         display_items = rm.build_display_items_for_list(list_id, handle)
 
         if not display_items:
-            utils.log(f"No display items found for list {list_id}", "WARNING")
+            log(f"No display items found for list {list_id}", "WARNING")
             return
         items_added = 0
         playable_count = 0
@@ -202,7 +202,7 @@ def browse_list(list_id):
                     item_url, li, is_folder = item
                 else:
                     # Fallback for unexpected format
-                    utils.log(f"Unexpected item format: {type(item)}", "WARNING")
+                    log(f"Unexpected item format: {type(item)}", "WARNING")
                     continue
 
                 # The ListItem is already fully built by ResultsManager, just use the URL and add to directory
@@ -218,11 +218,11 @@ def browse_list(list_id):
                 xbmcplugin.addDirectoryItem(handle, url, li, isFolder=is_folder)
                 items_added += 1
             except Exception as e:
-                utils.log(f"Error processing item {i+1}: {str(e)}", "ERROR")
+                log(f"Error processing item {i+1}: {str(e)}", "ERROR")
                 import traceback
-                utils.log(f"Item processing traceback: {traceback.format_exc()}", "ERROR")
+                log(f"Item processing traceback: {traceback.format_exc()}", "ERROR")
 
-        utils.log(f"Successfully added {items_added} items ({playable_count} playable, {non_playable_count} non-playable)", "INFO")
+        log(f"Successfully added {items_added} items ({playable_count} playable, {non_playable_count} non-playable)", "INFO")
 
         # Check if this is a search results list with scores to preserve order
         # Get the original list items to check for search scores
@@ -247,11 +247,17 @@ def browse_list(list_id):
             xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)
 
         xbmcplugin.endOfDirectory(handle, succeeded=True, cacheToDisc=False, updateListing=True)
-        utils.log(f"=== BROWSE_LIST ACTION COMPLETE for list_id={list_id} ===", "INFO")
+        log(f"=== BROWSE_LIST ACTION COMPLETE for list_id={list_id} ===", "INFO")
     except Exception as e:
-        utils.log(f"Error in browse_list: {e}", "ERROR")
-        import traceback
-        utils.log(f"browse_list traceback: {traceback.format_exc()}", "ERROR")
+        try:
+            log(f"Error in browse_list: {str(e)}", "ERROR")
+            import traceback
+            log(f"browse_list traceback: {traceback.format_exc()}", "ERROR")
+        except Exception as log_error:
+            # Fallback logging if utils still has issues
+            import xbmc
+            xbmc.log(f"LibraryGenie [ERROR]: Error in browse_list: {str(e)}", xbmc.LOGINFO)
+            xbmc.log(f"LibraryGenie [ERROR]: Additional logging error: {str(log_error)}", xbmc.LOGINFO)
         # Show error item
         from resources.lib.kodi.listitem_builder import ListItemBuilder
         error_li = ListItemBuilder.build_folder_item(f"Error loading list: {str(e)}", is_folder=False)
@@ -260,7 +266,7 @@ def browse_list(list_id):
 
 def router(paramstring):
     """Main router function to handle different actions"""
-    utils.log(f"Router called with: {paramstring}", "DEBUG")
+    log(f"Router called with: {paramstring}", "DEBUG")
 
     # Initialize navigation manager first
     from resources.lib.core.navigation_manager import get_navigation_manager
@@ -272,12 +278,12 @@ def router(paramstring):
     # Cleanup any stuck navigation states first
     nav_manager.cleanup_stuck_navigation()
 
-    utils.log(f"Parsed action: {action}", "DEBUG")
-    utils.log(f"All params: {params}", "DEBUG")
+    log(f"Parsed action: {action}", "DEBUG")
+    log(f"All params: {params}", "DEBUG")
 
     # Check for deferred option execution from RunScript
     if len(sys.argv) >= 3 and sys.argv[1] == 'deferred_option':
-        utils.log("=== HANDLING DEFERRED OPTION EXECUTION FROM MAIN ===", "DEBUG")
+        log("=== HANDLING DEFERRED OPTION EXECUTION FROM MAIN ===", "DEBUG")
         try:
             option_index = int(sys.argv[2])
             # Retrieve stored folder context
@@ -292,12 +298,12 @@ def router(paramstring):
             xbmc.executebuiltin("ClearProperty(LibraryGenie.DeferredFolderContext,Home)")
             options_manager.execute_deferred_option(option_index, folder_context)
         except Exception as e:
-            utils.log(f"Error in deferred option execution: {str(e)}", "ERROR")
+            log(f"Error in deferred option execution: {str(e)}", "ERROR")
         return
 
     # Check if paramstr is valid and not empty before parsing
     if not params:
-        utils.log("Received empty paramstr, building root directory.", "WARNING")
+        log("Received empty paramstr, building root directory.", "WARNING")
         nav_manager.clear_navigation_flags()
         build_root_directory(ADDON_HANDLE)
         return
@@ -308,15 +314,15 @@ def router(paramstring):
     elif isinstance(params, dict):
         q = params
     else:
-        utils.log(f"Unexpected params type: {type(params)}, treating as empty", "WARNING")
+        log(f"Unexpected params type: {type(params)}, treating as empty", "WARNING")
         q = {}
 
     action = q.get("action", [""])[0] if isinstance(q.get("action", [""]), list) else q.get("action", "")
 
-    utils.log(f"Action determined: {action}", "DEBUG")
+    log(f"Action determined: {action}", "DEBUG")
 
     if action == "search":
-        utils.log("Handling search action", "DEBUG")
+        log("Handling search action", "DEBUG")
         try:
             from resources.lib.kodi.window_search import SearchWindow
             from resources.lib.core.navigation_manager import get_navigation_manager
@@ -327,76 +333,72 @@ def router(paramstring):
             # Check if we need to navigate after search
             target_url = search_window.get_target_url()
             if target_url:
-                utils.log(f"Navigating to search results: {target_url}", "DEBUG")
+                log(f"Navigating to search results: {target_url}", "DEBUG")
                 nav_manager = get_navigation_manager()
                 nav_manager.navigate_to_url(target_url, replace=False)
         except Exception as e:
-            utils.log(f"Error in search action: {str(e)}", "ERROR")
+            log(f"Error in search action: {str(e)}", "ERROR")
             xbmcgui.Dialog().notification("LibraryGenie", "Search failed", xbmcgui.NOTIFICATION_ERROR)
     elif action == 'setup_remote_api':
-        utils.log("Handling setup_remote_api action", "DEBUG")
+        log("Handling setup_remote_api action", "DEBUG")
         try:
-            from resources.lib.remote_api_setup import run_setup
+            from resources.lib.integrations.remote_api.remote_api_setup import run_setup
             run_setup()
         except Exception as e:
-            utils.log(f"Error in setup_remote_api action: {str(e)}", "ERROR")
+            log(f"Error in setup_remote_api action: {str(e)}", "ERROR")
             xbmcgui.Dialog().notification("LibraryGenie", "Failed to setup Remote API", xbmcgui.NOTIFICATION_ERROR)
     elif action == 'browse_folder':
-        utils.log("Handling browse_folder action", "DEBUG")
+        log("Handling browse_folder action", "DEBUG")
         try:
             folder_id = q.get('folder_id', [None])[0]
             if folder_id:
                 nav_manager.set_navigation_in_progress(False)
                 browse_folder(q) # Pass the parsed params to browse_folder
             else:
-                utils.log("Missing folder_id for browse_folder action, returning to root.", "WARNING")
+                log("Missing folder_id for browse_folder action, returning to root.", "WARNING")
                 build_root_directory(ADDON_HANDLE)
         except Exception as e:
-            utils.log(f"Error in browse_folder action: {str(e)}", "ERROR")
+            log(f"Error in browse_folder action: {str(e)}", "ERROR")
             xbmcgui.Dialog().notification("LibraryGenie", "Error browsing folder", xbmcgui.NOTIFICATION_ERROR)
     elif action == 'show_options':
-        utils.log("Routing to options action", "DEBUG")
+        log("Routing to options action", "DEBUG")
         # Check if we're in the middle of navigation to prevent dialog conflicts
         if nav_manager.is_navigation_in_progress():
-            utils.log("Navigation in progress, skipping options dialog", "DEBUG")
+            log("Navigation in progress, skipping options dialog", "DEBUG")
             return
         options_manager.show_options_menu(q)
         # IMPORTANT: Do NOT call endOfDirectory() here - this is a RunPlugin action
         return
     elif action == 'create_list':
-        utils.log("Routing to create_list action", "DEBUG")
+        log("Routing to create_list action", "DEBUG")
         create_list(q)
         return
     elif action == 'rename_list':
-        utils.log("Routing to rename_list action", "DEBUG")
+        log("Routing to rename_list action", "DEBUG")
         rename_list(q)
         return
     elif action == 'delete_list':
-        utils.log("Routing to delete_list action", "DEBUG")
+        log("Routing to delete_list action", "DEBUG")
         delete_list(q)
         return
     elif action == 'move_list':
-        utils.log("Routing to move_list action", "DEBUG")
+        log("Routing to move_list action", "DEBUG")
         move_list(q)
         return
     elif action == 'remove_from_list':
-        utils.log("Routing to remove_from_list action", "DEBUG")
+        log("Routing to remove_from_list action", "DEBUG")
         remove_from_list(q)
         return
     elif action == 'rename_folder':
-        utils.log("Routing to rename_folder action", "DEBUG")
+        log("Routing to rename_folder action", "DEBUG")
         rename_folder(q)
         return
-    elif action == 'refresh_movie':
-        utils.log("Routing to refresh_movie action", "DEBUG")
-        refresh_movie(q)
-        return
     elif action == 'show_item_details':
-        utils.log("Routing to show_item_details action", "DEBUG")
+        log("Routing to show_item_details action", "DEBUG")
         show_item_details(q)
         return
     elif action == 'play_movie':
-        utils.log("Routing to play_movie action", "DEBUG")
+        log("Routing to play_movie action", "DEBUG")
         play_movie(q)
         return
     elif action == 'browse_list':
@@ -408,15 +410,15 @@ def router(paramstring):
             nav_manager.set_navigation_in_progress(False)
             browse_list(list_id)
         else:
-            utils.log("No list_id provided for browse_list action", "WARNING")
+            log("No list_id provided for browse_list action", "WARNING")
             show_empty_directory(ADDON_HANDLE)
         return
     elif action == 'separator':
         # Do nothing for separator items
-        utils.log("Received separator action, doing nothing.", "DEBUG")
+        log("Received separator action, doing nothing.", "DEBUG")
         pass
     elif action == 'find_similar':
-        from resources.lib.route_handlers import find_similar_movies
+        from resources.lib.core.route_handlers import find_similar_movies
         find_similar_movies(params)
     elif action == 'find_similar_from_plugin':
         route_handlers.find_similar_movies_from_plugin(params)
@@ -426,7 +428,7 @@ def router(paramstring):
         route_handlers.add_to_list(params)
     else:
         # Default: build root directory if action is not recognized or empty
-        utils.log(f"Unrecognized action '{action}' or no action specified, building root directory.", "DEBUG")
+        log(f"Unrecognized action '{action}' or no action specified, building root directory.", "DEBUG")
         build_root_directory(ADDON_HANDLE)
 
 # Expose functions that other modules need to import
@@ -444,15 +446,15 @@ def browse_search_history():
 
 def main():
     """Main addon entry point"""
-    utils.log("=== LibraryGenie addon starting ===", "INFO")
-    utils.log(f"Command line args: {sys.argv}", "DEBUG")
+    log("=== LibraryGenie addon starting ===", "INFO")
+    log(f"Command line args: {sys.argv}", "DEBUG")
 
     try:
-        utils.log("Initializing addon components", "DEBUG")
+        log("Initializing addon components", "DEBUG")
 
         # Check for deferred option execution from RunScript
         if len(sys.argv) >= 3 and sys.argv[1] == 'deferred_option':
-            utils.log("=== HANDLING DEFERRED OPTION EXECUTION FROM MAIN ===", "DEBUG")
+            log("=== HANDLING DEFERRED OPTION EXECUTION FROM MAIN ===", "DEBUG")
             try:
                 option_index = int(sys.argv[2])
                 # Retrieve stored folder context
@@ -467,31 +469,31 @@ def main():
                 xbmc.executebuiltin("ClearProperty(LibraryGenie.DeferredFolderContext,Home)")
                 options_manager.execute_deferred_option(option_index, folder_context)
             except Exception as e:
-                utils.log(f"Error in deferred option execution: {str(e)}", "ERROR")
+                log(f"Error in deferred option execution: {str(e)}", "ERROR")
             return
 
         # Handle plugin routing
         if len(sys.argv) >= 3:
-            utils.log("Plugin routing detected", "DEBUG")
+            log("Plugin routing detected", "DEBUG")
             router(sys.argv[2])
             return
 
         # Fallback: Run the addon helper if no other conditions met
-        utils.log("No specific action detected, running default addon helper.", "DEBUG")
+        log("No specific action detected, running default addon helper.", "DEBUG")
         run_addon()
 
         # Ensure Search History folder exists
-        utils.log("Setting up configuration and database for first run", "DEBUG")
+        log("Setting up configuration and database for first run", "DEBUG")
         config = Config()
         db_manager = DatabaseManager(config.db_path)
         db_manager.ensure_folder_exists("Search History", None) # Ensure it exists at startup
-        utils.log("Configuration and database setup complete", "DEBUG")
+        log("Configuration and database setup complete", "DEBUG")
 
-        utils.log("=== LibraryGenie addon startup complete ===", "INFO")
+        log("=== LibraryGenie addon startup complete ===", "INFO")
     except Exception as e:
-        utils.log(f"CRITICAL ERROR in main(): {str(e)}", "ERROR")
+        log(f"CRITICAL ERROR in main(): {str(e)}", "ERROR")
         import traceback
-        utils.log(f"Full traceback: {traceback.format_exc()}", "ERROR")
+        log(f"Full traceback: {traceback.format_exc()}", "ERROR")
 
 if __name__ == '__main__':
     main()

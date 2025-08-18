@@ -1,7 +1,7 @@
 import json
 import xbmc
-from resources.lib import utils
-from typing import Dict, Any, Optional
+from resources.lib.utils.utils import log
+from typing import Dict, Any
 
 class JSONRPC:
 
@@ -21,7 +21,7 @@ class JSONRPC:
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(JSONRPC, cls).__new__(cls)
-            utils.log("JSONRPC Manager module initialized", "INFO")
+            log("JSONRPC Manager module initialized", "INFO")
         return cls._instance
 
     def execute(self, method, params):
@@ -34,61 +34,61 @@ class JSONRPC:
         query_json = json.dumps(request_data)
 
         # Log all JSON-RPC requests with details
-        utils.log(f"=== JSONRPC REQUEST: {method} ===", "DEBUG")
-        utils.log(f"Request params: {params}", "DEBUG")
-        utils.log(f"Full request JSON: {query_json}", "DEBUG")
+        log(f"=== JSONRPC REQUEST: {method} ===", "DEBUG")
+        log(f"Request params: {params}", "DEBUG")
+        log(f"Full request JSON: {json.dumps(request_data, indent=2)}", "DEBUG")
 
         # Send JSONRPC request
         response = xbmc.executeJSONRPC(query_json)
 
         # Log raw response
-        utils.log(f"=== JSONRPC RESPONSE RAW: {method} ===", "DEBUG")
-        utils.log(f"Raw response length: {len(response)} chars", "DEBUG")
+        log(f"=== JSONRPC RESPONSE RAW: {method} ===", "DEBUG")
+        log(f"Raw response length: {len(response)} chars", "DEBUG")
 
         parsed_response = json.loads(response)
 
         # Log parsed response details
-        utils.log(f"=== JSONRPC RESPONSE PARSED: {method} ===", "DEBUG")
+        log(f"=== JSONRPC RESPONSE PARSED: {method} ===", "DEBUG")
         if 'result' in parsed_response:
             result = parsed_response['result']
             if isinstance(result, dict):
-                utils.log(f"Response result keys: {list(result.keys())}", "DEBUG")
+                log(f"Response result keys: {list(result.keys())}", "DEBUG")
                 # Log movie count for movie-related methods
                 if method in ['VideoLibrary.GetMovies', 'VideoLibrary.GetMovieDetails']:
                     if 'movies' in result:
-                        utils.log(f"Movies returned: {len(result['movies'])}", "DEBUG")
+                        log(f"Movies returned: {len(result['movies'])}", "DEBUG")
                         if result['movies']:
                             # Log first movie sample with detailed IMDb analysis
                             first_movie = result['movies'][0]
-                            utils.log(f"First movie sample keys: {list(first_movie.keys())}", "DEBUG")
-                            utils.log(f"First movie title: {first_movie.get('title', 'N/A')}", "DEBUG")
+                            log(f"First movie sample keys: {list(first_movie.keys())}", "DEBUG")
+                            log(f"First movie title: {first_movie.get('title', 'N/A')}", "DEBUG")
 
 
                     elif 'moviedetails' in result:
                         movie = result['moviedetails']
-                        utils.log(f"Movie details keys: {list(movie.keys())}", "DEBUG")
-                        utils.log(f"Movie title: {movie.get('title', 'N/A')}", "DEBUG")
+                        log(f"Movie details keys: {list(movie.keys())}", "DEBUG")
+                        log(f"Movie title: {movie.get('title', 'N/A')}", "DEBUG")
 
                         # Detailed IMDb ID logging for movie details
                         imdbnumber = movie.get('imdbnumber', '')
                         uniqueid = movie.get('uniqueid', {})
-                        utils.log(f"=== IMDB_TRACE: JSONRPC GetMovieDetails ===", "INFO")
-                        utils.log(f"IMDB_TRACE: imdbnumber field = '{imdbnumber}' (type: {type(imdbnumber)})", "INFO")
-                        utils.log(f"IMDB_TRACE: uniqueid field = {uniqueid} (type: {type(uniqueid)})", "INFO")
+                        log(f"=== IMDB_TRACE: JSONRPC GetMovieDetails ===", "INFO")
+                        log(f"IMDB_TRACE: imdbnumber field = '{imdbnumber}' (type: {type(imdbnumber)})", "INFO")
+                        log(f"IMDB_TRACE: uniqueid field = {uniqueid} (type: {type(uniqueid)})", "INFO")
                         if isinstance(uniqueid, dict):
-                            utils.log(f"IMDB_TRACE: uniqueid.imdb = '{uniqueid.get('imdb', 'NOT_FOUND')}'", "INFO")
-                        utils.log(f"=== END IMDB_TRACE ===", "INFO")
+                            log(f"IMDB_TRACE: uniqueid.imdb = '{uniqueid.get('imdb', 'NOT_FOUND')}'", "INFO")
+                        log(f"=== END IMDB_TRACE ===", "INFO")
             else:
-                utils.log(f"Response result type: {type(result)}", "DEBUG")
+                log(f"Response result type: {type(result)}", "DEBUG")
 
         # Log errors with full details
         if 'error' in parsed_response:
-            utils.log(f"=== JSONRPC ERROR: {method} ===", "ERROR")
-            utils.log(f"Error message: {parsed_response['error'].get('message', 'Unknown error')}", "ERROR")
-            utils.log(f"Full error response: {parsed_response}", "ERROR")
-            utils.log(f"Failed request: {query_json}", "ERROR")
+            log(f"=== JSONRPC ERROR: {method} ===", "ERROR")
+            log(f"Error message: {parsed_response['error'].get('message', 'Unknown error')}", "ERROR")
+            log(f"Full error response: {parsed_response}", "ERROR")
+            log(f"Failed request: {query_json}", "ERROR")
         else:
-            utils.log(f"=== JSONRPC SUCCESS: {method} ===", "DEBUG")
+            log(f"=== JSONRPC SUCCESS: {method} ===", "DEBUG")
 
         return parsed_response
 
@@ -127,10 +127,10 @@ class JSONRPC:
             response = self.execute("Application.GetProperties", {"properties": ["version"]})
             if 'result' in response and 'version' in response['result']:
                 major = response['result']['version'].get('major', 0)
-                utils.log(f"Detected Kodi version: {major}", "DEBUG")
+                log(f"Detected Kodi version: {major}", "DEBUG")
                 return major
         except Exception as e:
-            utils.log(f"Could not detect Kodi version, assuming v20+: {str(e)}", "WARNING")
+            log(f"Could not detect Kodi version, assuming v20+: {str(e)}", "WARNING")
         return 20  # Default to v20+ behavior
 
     def _get_version_compatible_properties(self):
@@ -142,16 +142,16 @@ class JSONRPC:
             return ["title", "year", "file", "imdbnumber", "uniqueid"]
         else:
             # v19 and earlier - use only basic properties
-            utils.log("Using Kodi v19 compatible properties (no uniqueid)", "DEBUG")
+            log("Using Kodi v19 compatible properties (no uniqueid)", "DEBUG")
             return ["title", "year", "file", "imdbnumber"]
 
     def get_movies_with_imdb(self, progress_callback=None):
         """Get all movies from Kodi library with IMDb information"""
-        utils.log("Getting all movies with IMDb information from Kodi library", "DEBUG")
+        log("Getting all movies with IMDb information from Kodi library", "DEBUG")
 
         # Get version-compatible properties
         properties = self._get_version_compatible_properties()
-        utils.log(f"Using properties for this Kodi version: {properties}", "DEBUG")
+        log(f"Using properties for this Kodi version: {properties}", "DEBUG")
 
         all_movies = []
         start = 0
@@ -175,15 +175,15 @@ class JSONRPC:
 
             # Log response summary instead of full response
             if 'result' not in response:
-                utils.log("JSONRPC GetMovies failed: No 'result' key in response", "DEBUG")
+                log("JSONRPC GetMovies failed: No 'result' key in response", "DEBUG")
                 break
 
             if 'movies' not in response['result']:
-                utils.log("JSONRPC GetMovies failed: No 'movies' key in result", "DEBUG")
+                log("JSONRPC GetMovies failed: No 'movies' key in result", "DEBUG")
                 # Check if there are any movies at all
                 if 'limits' in response['result']:
                     total = response['result']['limits'].get('total', 0)
-                    utils.log(f"Total movies reported by Kodi: {total}", "INFO")
+                    log(f"Total movies reported by Kodi: {total}", "INFO")
                 break
 
             movies = response['result']['movies']
@@ -195,7 +195,7 @@ class JSONRPC:
 
             # Log summary only every 500 movies to reduce spam
             if start % 500 == 0:
-                utils.log(f"JSONRPC GetMovies batch: Got {len(movies)} movies (start={start}, total={total})", "DEBUG")
+                log(f"JSONRPC GetMovies batch: Got {len(movies)} movies (start={start}, total={total})", "DEBUG")
 
             if not movies:
                 break
@@ -208,7 +208,7 @@ class JSONRPC:
 
             start += limit
 
-        utils.log(f"Retrieved {len(all_movies)} total movies from Kodi library", "INFO")
+        log(f"Retrieved {len(all_movies)} total movies from Kodi library", "INFO")
         return all_movies
 
     def get_episode_details(self, episode_id, properties=None):
@@ -228,14 +228,14 @@ class JSONRPC:
     def find_movie_by_imdb(self, imdb_id, properties=None):
         """Find a movie in Kodi library by IMDb ID with v19 compatibility"""
         try:
-            utils.log(f"DEBUG: Starting JSONRPC lookup for IMDB ID: {imdb_id}", "DEBUG")
+            log(f"DEBUG: Starting JSONRPC lookup for IMDB ID: {imdb_id}", "DEBUG")
 
             # Get version-compatible properties
             properties = properties or self._get_version_compatible_properties()
 
             # v19 may not support complex filters, so always fetch all movies and filter manually
-            if utils.is_kodi_v19():
-                utils.log("DEBUG: Using v19 compatible search (manual filtering)", "DEBUG")
+            if log.is_kodi_v19():
+                log("DEBUG: Using v19 compatible search (manual filtering)", "DEBUG")
                 return self._find_movie_by_imdb_v19(imdb_id, properties)
 
             # v20+ can use more advanced filters
@@ -259,7 +259,7 @@ class JSONRPC:
             ]
 
             for i, strategy in enumerate(strategies):
-                utils.log(f"DEBUG: Trying JSONRPC strategy {i+1} for IMDB ID: {imdb_id}", "DEBUG")
+                log(f"DEBUG: Trying JSONRPC strategy {i+1} for IMDB ID: {imdb_id}", "DEBUG")
 
                 try:
                     response = self.execute('VideoLibrary.GetMovies', {
@@ -269,7 +269,7 @@ class JSONRPC:
 
                     if 'result' in response and 'movies' in response['result']:
                         movies = response['result']['movies']
-                        utils.log(f"DEBUG: Strategy {i+1} found {len(movies)} movies for IMDB ID: {imdb_id}", "DEBUG")
+                        log(f"DEBUG: Strategy {i+1} found {len(movies)} movies for IMDB ID: {imdb_id}", "DEBUG")
 
                         if movies:
                             movie = movies[0]  # Take first match
@@ -279,15 +279,15 @@ class JSONRPC:
                                 'kodi_id': movie.get('movieid', 0)
                             }
                 except Exception as e:
-                    utils.log(f"DEBUG: Strategy {i+1} failed: {str(e)}", "DEBUG")
+                    log(f"DEBUG: Strategy {i+1} failed: {str(e)}", "DEBUG")
                     continue
 
             # Fallback to manual search for both versions
-            utils.log(f"DEBUG: Using fallback manual search for IMDB ID: {imdb_id}", "DEBUG")
+            log(f"DEBUG: Using fallback manual search for IMDB ID: {imdb_id}", "DEBUG")
             return self._find_movie_by_imdb_manual(imdb_id, properties)
 
         except Exception as e:
-            utils.log(f"ERROR: JSONRPC error finding movie by IMDB ID {imdb_id}: {str(e)}", "ERROR")
+            log(f"ERROR: JSONRPC error finding movie by IMDB ID {imdb_id}: {str(e)}", "ERROR")
             return None
 
     def _find_movie_by_imdb_v19(self, imdb_id, properties):
@@ -300,7 +300,7 @@ class JSONRPC:
 
             if 'result' in response and 'movies' in response['result']:
                 movies = response['result']['movies']
-                utils.log(f"DEBUG: v19 search - got {len(movies)} total movies", "DEBUG")
+                log(f"DEBUG: v19 search - got {len(movies)} total movies", "DEBUG")
 
                 for movie in movies:
                     # Streamlined IMDb ID extraction prioritizing most reliable methods
@@ -330,18 +330,18 @@ class JSONRPC:
                             imdb_id_found = match.group(0) if match else ''
 
                     if imdb_id_found == imdb_id:
-                        utils.log(f"DEBUG: v19 found match for IMDB ID: {imdb_id} -> {movie.get('title', 'N/A')}", "DEBUG")
+                        log(f"DEBUG: v19 found match for IMDB ID: {imdb_id} -> {movie.get('title', 'N/A')}", "DEBUG")
                         return {
                             'title': movie.get('title', ''),
                             'year': movie.get('year', 0),
                             'kodi_id': movie.get('movieid', 0)
                         }
 
-            utils.log(f"DEBUG: v19 search - no match found for IMDB ID: {imdb_id}", "DEBUG")
+            log(f"DEBUG: v19 search - no match found for IMDB ID: {imdb_id}", "DEBUG")
             return None
 
         except Exception as e:
-            utils.log(f"ERROR: v19 search failed for IMDB ID {imdb_id}: {str(e)}", "ERROR")
+            log(f"ERROR: v19 search failed for IMDB ID {imdb_id}: {str(e)}", "ERROR")
             return None
 
     def _find_movie_by_imdb_manual(self, imdb_id, properties):
@@ -353,7 +353,7 @@ class JSONRPC:
 
             if 'result' in response and 'movies' in response['result']:
                 movies = response['result']['movies']
-                utils.log(f"DEBUG: Manual search - checking {len(movies)} movies", "DEBUG")
+                log(f"DEBUG: Manual search - checking {len(movies)} movies", "DEBUG")
 
                 for movie in movies:
                     # Use the same logic as the IMDb upload manager for consistency
@@ -365,18 +365,18 @@ class JSONRPC:
                     final_imdb = imdb_from_uniqueid or (imdb_from_number if imdb_from_number.startswith('tt') else '')
 
                     if final_imdb == imdb_id:
-                        utils.log(f"DEBUG: Manual search found match: {movie.get('title', 'N/A')}", "DEBUG")
+                        log(f"DEBUG: Manual search found match: {movie.get('title', 'N/A')}", "DEBUG")
                         return {
                             'title': movie.get('title', ''),
                             'year': movie.get('year', 0),
                             'kodi_id': movie.get('movieid', 0)
                         }
 
-            utils.log(f"DEBUG: Manual search - no match found for IMDB ID: {imdb_id}", "DEBUG")
+            log(f"DEBUG: Manual search - no match found for IMDB ID: {imdb_id}", "DEBUG")
             return None
 
         except Exception as e:
-            utils.log(f"ERROR: Manual search failed for IMDB ID {imdb_id}: {str(e)}", "ERROR")
+            log(f"ERROR: Manual search failed for IMDB ID {imdb_id}: {str(e)}", "ERROR")
             return None
 
     # v19+ (API v12) Video.Fields.Movie (must be valid enums)
@@ -397,8 +397,8 @@ class JSONRPC:
         properties = properties or self._get_version_compatible_properties()
 
         # v19 may not support complex filters
-        if utils.is_kodi_v19():
-            utils.log("DEBUG: Using v19 compatible movie search", "DEBUG")
+        if log.is_kodi_v19():
+            log(f"DEBUG: Using v19 compatible movie search", "DEBUG")
             return self._search_movies_v19(filter_obj, properties)
 
         # v20+ can use full property set and filters
@@ -409,7 +409,7 @@ class JSONRPC:
             }
             return self.execute("VideoLibrary.GetMovies", payload)
         except Exception as e:
-            utils.log(f"DEBUG: Advanced search failed, using fallback: {str(e)}", "DEBUG")
+            log(f"DEBUG: Advanced search failed, using fallback: {str(e)}", "DEBUG")
             return self._search_movies_v19(filter_obj, properties)
 
     def _search_movies_v19(self, filter_obj: Dict[str, Any], properties):
@@ -457,7 +457,7 @@ class JSONRPC:
             }
 
         except Exception as e:
-            utils.log(f"ERROR: v19 movie search failed: {str(e)}", "ERROR")
+            log(f"ERROR: v19 movie search failed: {str(e)}", "ERROR")
             return {"result": {"movies": []}}
 
     def get_comprehensive_properties(self):
@@ -486,14 +486,14 @@ class JSONRPC:
             return {"result": {"movies": []}}
 
         try:
-            utils.log(f"=== BATCH JSON-RPC: Starting batch lookup for {len(title_year_pairs)} title/year pairs ===", "INFO")
+            log(f"=== BATCH JSON-RPC: Starting batch lookup for {len(title_year_pairs)} title/year pairs ===", "INFO")
 
             # Log sample of what we're looking for
             sample_pairs = title_year_pairs[:3]
             for i, pair in enumerate(sample_pairs):
-                utils.log(f"BATCH JSON-RPC: Sample {i+1}: '{pair.get('title', 'N/A')}' ({pair.get('year', 'N/A')})", "INFO")
+                log(f"BATCH JSON-RPC: Sample {i+1}: '{pair.get('title', 'N/A')}' ({pair.get('year', 'N/A')})", "INFO")
             if len(title_year_pairs) > 3:
-                utils.log(f"BATCH JSON-RPC: ... and {len(title_year_pairs) - 3} more", "INFO")
+                log(f"BATCH JSON-RPC: ... and {len(title_year_pairs) - 3} more", "INFO")
 
             properties = self.get_comprehensive_properties()
 
@@ -534,7 +534,7 @@ class JSONRPC:
                     filter_conditions.append(title_condition)
 
             if not filter_conditions:
-                utils.log("BATCH JSON-RPC: No valid filter conditions created", "WARNING")
+                log("BATCH JSON-RPC: No valid filter conditions created", "WARNING")
                 return {"result": {"movies": []}}
 
             # Create the proper Kodi JSON-RPC filter structure
@@ -561,8 +561,8 @@ class JSONRPC:
                     'or': or_list
                 }
 
-            utils.log(f"BATCH JSON-RPC: Built OR filter with {len(filter_conditions)} conditions", "INFO")
-            utils.log(f"BATCH JSON-RPC: Making single JSONRPC call to VideoLibrary.GetMovies", "INFO")
+            log(f"BATCH JSON-RPC: Built OR filter with {len(filter_conditions)} conditions", "INFO")
+            log(f"BATCH JSON-RPC: Making single JSONRPC call to VideoLibrary.GetMovies", "INFO")
 
             response = self.execute('VideoLibrary.GetMovies', {
                 'properties': properties,
@@ -571,19 +571,19 @@ class JSONRPC:
 
             if 'result' in response and 'movies' in response['result']:
                 movies = response['result']['movies']
-                utils.log(f"=== BATCH JSON-RPC: SUCCESS - Found {len(movies)} matches from single call ===", "INFO")
+                log(f"=== BATCH JSON-RPC: SUCCESS - Found {len(movies)} matches from single call ===", "INFO")
 
                 # Log sample matches
                 for i, movie in enumerate(movies[:3]):
-                    utils.log(f"BATCH JSON-RPC: Match {i+1}: '{movie.get('title', 'N/A')}' ({movie.get('year', 'N/A')})", "INFO")
+                    log(f"BATCH JSON-RPC: Match {i+1}: '{movie.get('title', 'N/A')}' ({movie.get('year', 'N/A')})", "INFO")
                 if len(movies) > 3:
-                    utils.log(f"BATCH JSON-RPC: ... and {len(movies) - 3} more matches", "INFO")
+                    log(f"BATCH JSON-RPC: ... and {len(movies) - 3} more matches", "INFO")
 
                 return response
             else:
-                utils.log("BATCH JSON-RPC: No movies found in response", "INFO")
+                log("BATCH JSON-RPC: No movies found in response", "INFO")
                 return {"result": {"movies": []}}
 
         except Exception as e:
-            utils.log(f"=== BATCH JSON-RPC: ERROR - {str(e)} ===", "ERROR")
+            log(f"=== BATCH JSON-RPC: ERROR - {str(e)} ===", "ERROR")
             return {"result": {"movies": []}}
