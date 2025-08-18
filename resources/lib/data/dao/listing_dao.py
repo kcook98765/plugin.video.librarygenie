@@ -149,7 +149,11 @@ class ListingDAO:
         return result['rowcount']
 
     def delete_folder_and_contents(self, folder_id):
-        """Delete folder and all its contents recursively"""
+        """Delete folder and all its contents recursively
+        
+        Note: This method should be called within a transaction managed by QueryManager
+        to ensure atomicity of the entire operation.
+        """
         # Get all subfolders
         subfolders = self.get_folders(folder_id)
         

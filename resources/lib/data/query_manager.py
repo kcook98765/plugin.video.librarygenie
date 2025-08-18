@@ -92,7 +92,26 @@ class QueryManager(Singleton):
         return self._listing.update_folder_parent(folder_id, new_parent_id)
     
     def delete_folder_and_contents(self, folder_id):
-        return self._listing.delete_folder_and_contents(folder_id)
+        """Delete folder and all its contents in a single transaction"""
+        conn_info = self._get_connection()
+        try:
+            # Begin transaction
+            conn_info['connection'].execute('BEGIN')
+            
+            # Perform the recursive deletion via DAO
+            result = self._listing.delete_folder_and_contents(folder_id)
+            
+            # Commit transaction
+            conn_info['connection'].commit()
+            return result
+            
+        except Exception as e:
+            # Rollback on any error
+            conn_info['connection'].rollback()
+            utils.log(f"Transaction rolled back during folder deletion: {str(e)}", "ERROR")
+            raise
+        finally:
+            self._release_connection(conn_info)
     
     def fetch_folders_with_item_status(self, parent_id, media_item_id):
         return self._listing.fetch_folders_with_item_status(parent_id, media_item_id)
