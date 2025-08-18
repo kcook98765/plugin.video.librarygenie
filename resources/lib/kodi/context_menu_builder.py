@@ -36,7 +36,7 @@ class ContextMenuBuilder:
 
     def build_video_context_menu(self, media_info, context=None):
         """Build context menu for video items - now returns empty since we use native context only
-
+        
         All context menu functionality has been moved to the native context menu
         in addon.xml and handled by resources/lib/context.py
         """

@@ -776,7 +776,49 @@ def rename_folder(params):
 
 
 
+def find_similar_movies(params):
+    """Handler for similarity search from native Kodi context menu (via context.py)"""
+    try:
+        # Extract parameters
+        imdb_id = params.get('imdb_id', [None])[0] if params.get('imdb_id') else None
+        title = params.get('title', ['Unknown'])[0] if params.get('title') else 'Unknown'
 
+        if not imdb_id or not imdb_id.startswith('tt'):
+            xbmcgui.Dialog().ok('LibraryGenie', "This item doesn't have a valid IMDb ID.")
+            return
+
+        # URL decode the title
+        import urllib.parse
+        title = urllib.parse.unquote_plus(title)
+
+        # This action is triggered from context.py (native context menu), so use context menu navigation
+        _perform_similarity_search(imdb_id, title, from_context_menu=True)
+
+    except Exception as e:
+        utils.log(f"Error in find_similar_movies: {str(e)}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERROR)
+
+def find_similar_movies_from_plugin(params):
+    """Handler for similarity search from plugin ListItems (context menu items added by listitem_builder.py)"""
+    try:
+        # Extract parameters
+        imdb_id = params.get('imdb_id', [None])[0] if params.get('imdb_id') else None
+        title = params.get('title', ['Unknown'])[0] if params.get('title') else 'Unknown'
+
+        if not imdb_id or not imdb_id.startswith('tt'):
+            xbmcgui.Dialog().ok('LibraryGenie', "This item doesn't have a valid IMDb ID.")
+            return
+
+        # URL decode the title
+        import urllib.parse
+        title = urllib.parse.unquote_plus(title)
+
+        # This is from plugin context items, so use plugin navigation
+        _perform_similarity_search(imdb_id, title, from_context_menu=False)
+
+    except Exception as e:
+        utils.log(f"Error in find_similar_movies_from_plugin: {str(e)}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERROR)
 
 def add_to_list(params):
     """Handler for adding items to lists from context menu - simplified version"""
@@ -1047,9 +1089,276 @@ def add_to_list_from_context(params):
         utils.log(f"Error in add_to_list_from_context: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Error adding to list', xbmcgui.NOTIFICATION_ERROR, 3000)
 
+def find_similar_movies_from_context(params):
+    """Handler for similarity search from native Kodi context menu"""
+    try:
+        # Get focused item info from Kodi
+        import xbmc
 
+        # Get IMDb ID from our custom property (set by listitem_builder.py)
+        imdb_id = xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)')
 
+        # Simple fallback for non-LibraryGenie items
+        if not imdb_id:
+            fallback_candidates = [
+                xbmc.getInfoLabel('ListItem.IMDBNumber'),
+                xbmc.getInfoLabel('ListItem.UniqueID(imdb)')
+            ]
+            for candidate in fallback_candidates:
+                if candidate and str(candidate).startswith('tt'):
+                    imdb_id = candidate
+                    break
 
+        if imdb_id:
+            utils.log(f"Similarity search found IMDb ID: {imdb_id}", "INFO")
+
+        title = xbmc.getInfoLabel('ListItem.Title')
+        year = xbmc.getInfoLabel('ListItem.Year')
+
+        utils.log(f"Similarity search - Title: {title}, Year: {year}, IMDb: {imdb_id}", "DEBUG")
+
+        if not imdb_id or not imdb_id.startswith('tt'):
+            utils.log("Similarity search failed - no valid IMDb ID found", "WARNING")
+            xbmcgui.Dialog().ok('LibraryGenie', "This item doesn't have a valid IMDb ID.")
+            return
+
+        # Use title with year if available
+        display_title = f"{title} ({year})" if year and year != '0' else title
+
+        # Perform similarity search with context menu flag
+        _perform_similarity_search(imdb_id, display_title, from_context_menu=True)
+
+    except Exception as e:
+        utils.log(f"Error in find_similar_movies_from_context: {str(e)}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERROR)
+
+def _perform_similarity_search(imdb_id, title, from_context_menu=False):
+    """Perform the actual similarity search and create list"""
+    try:
+        from resources.lib.integrations.remote_api.remote_api_client import RemoteAPIClient
+        from resources.lib.config.config_manager import Config
+        from resources.lib.data.query_manager import QueryManager
+
+        config = Config()
+
+        # Show facet selection dialog
+        available_facets = ["Plot", "Mood/tone", "Themes", "Genre"]
+        facet_descriptions = [
+            "Plot - Story structure and narrative elements",
+            "Mood/tone - Emotional atmosphere and feel",
+            "Themes - Underlying messages and concepts",
+            "Genre - Movie categories and tropes"
+        ]
+
+        utils.log("=== SIMILARITY_SEARCH: Showing facet selection dialog ===", "DEBUG")
+
+        # Load previously selected facets if available
+        cached_facets_str = config.get_setting('similarity_facets')
+        preselected_indices = []
+        if cached_facets_str:
+            try:
+                cached_facets = json.loads(cached_facets_str)
+                preselected_indices = [available_facets.index(facet) for facet in cached_facets if facet in available_facets]
+                utils.log(f"Loaded cached facets: {cached_facets}, preselected indices: {preselected_indices}", "DEBUG")
+            except (json.JSONDecodeError, ValueError) as e:
+                utils.log(f"Error loading cached facets: {e}", "WARNING")
+
+        # Show multi-select dialog for facets with preselection
+        typed_facet_descriptions = cast(List[Union[str, xbmcgui.ListItem]], list(facet_descriptions))
+        selected_indices = xbmcgui.Dialog().multiselect(
+            f"Select similarity aspects for '{title}':",
+            typed_facet_descriptions,
+            preselect=preselected_indices
+        )
+
+        if selected_indices is None or len(selected_indices) == 0:
+            utils.log("User cancelled facet selection or selected no facets", "DEBUG")
+            return
+
+        # Convert selections to facet list
+        facets_list = [available_facets[i] for i in selected_indices]
+        utils.log(f"User selected facets: {facets_list}", "DEBUG")
+
+        # Save user's selection for future use
+        config.set_setting('similarity_facets', json.dumps(facets_list))
+
+        # Convert to API parameters
+        facet_params = {
+            'plot': 'Plot' in facets_list,
+            'mood': 'Mood/tone' in facets_list,
+            'themes': 'Themes' in facets_list,
+            'genre': 'Genre' in facets_list
+        }
+
+        utils.log(f"Making similarity request for {imdb_id} with facets: plot={facet_params['plot']}, mood={facet_params['mood']}, themes={facet_params['themes']}, genre={facet_params['genre']}", "DEBUG")
+
+        # Make API request
+        client = RemoteAPIClient()
+        similar_movies = client.find_similar_movies(
+            imdb_id,
+            include_plot=facet_params['plot'],
+            include_mood=facet_params['mood'],
+            include_themes=facet_params['themes'],
+            include_genre=facet_params['genre']
+        )
+
+        if not similar_movies:
+            xbmcgui.Dialog().ok('LibraryGenie', 'No similar movies found.')
+            return
+
+        utils.log(f"Found {len(similar_movies)} similar movies", "INFO")
+        utils.log(f"=== SIMILARITY_SEARCH: Raw API response sample (first 3): {similar_movies[:3]} ===", "DEBUG")
+
+        # Create list name with facet description
+        facet_names = [name for name, enabled in zip(['Plot', 'Mood/tone', 'Themes', 'Genre'],
+                                                    [facet_params['plot'], facet_params['mood'],
+                                                     facet_params['themes'], facet_params['genre']])
+                      if enabled]
+        facet_desc = ' + '.join(facet_names)
+
+        # Get search history folder
+        query_manager = QueryManager(config.db_path)
+        search_folder = query_manager.ensure_search_history_folder()
+
+        # Check if search folder was created successfully
+        if search_folder is None:
+            utils.log("Failed to ensure search history folder. Cannot proceed.", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'Failed to find/create necessary folder', xbmcgui.NOTIFICATION_ERROR)
+            return
+
+        # Create unique list name
+        base_name = f"Similar to {title} ({facet_desc})"
+        list_name = query_manager.get_unique_list_name(base_name, search_folder['id'])
+        utils.log(f"=== SIMILARITY_SEARCH: Creating list '{list_name}' in folder {search_folder['id']} ===", "DEBUG")
+
+        # Create the list
+        new_list = query_manager.create_list(list_name, search_folder['id'])
+        if not new_list:
+            xbmcgui.Dialog().ok('LibraryGenie', 'Failed to create similarity list.')
+            return
+
+        utils.log(f"=== SIMILARITY_SEARCH: Created list with ID {new_list['id']} ===", "DEBUG")
+
+        # Process similar movies following the same flow as regular search
+        utils.log(f"=== SIMILARITY_SEARCH: Processing {len(similar_movies)} IMDb IDs ===", "DEBUG")
+
+        # Step 1: Convert IMDb IDs to format expected by search results
+        search_results = []
+        for i, movie_data in enumerate(similar_movies):
+            # Handle both string format (just IMDb ID) and object format
+            if isinstance(movie_data, str):
+                imdb = movie_data
+                score = len(similar_movies) - i  # Use reverse index as score for ordering
+            else:
+                imdb = movie_data.get('imdb_id', '')
+                score = movie_data.get('score', 0)
+
+            if imdb and imdb.startswith('tt'):
+                search_results.append({
+                    'imdbnumber': imdb,
+                    'score': score,
+                    'search_score': score
+                })
+
+        utils.log(f"=== SIMILARITY_SEARCH: Converted to {len(search_results)} search results ===", "DEBUG")
+
+        if search_results:
+            # Step 2: Create media items for each search result following the search pattern
+            utils.log(f"=== SIMILARITY_SEARCH: Creating media items for {len(search_results)} results ===", "DEBUG")
+
+            for i, result in enumerate(search_results):
+                imdb_id = result['imdbnumber']
+                search_score = result.get('search_score', 0)
+
+                utils.log(f"=== SIMILARITY_SEARCH: Processing result {i+1}/{len(search_results)}: {imdb_id} (score: {search_score}) ===", "DEBUG")
+
+                # Look up title and year from imdb_exports if available
+                title_lookup = ''
+                year_lookup = 0
+
+                try:
+                    lookup_query = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
+                    lookup_result = query_manager.execute_query(lookup_query, (imdb_id,))
+                    if lookup_result:
+                        title_lookup = lookup_result[0].get('title', '')
+                        year_lookup = int(lookup_result[0].get('year', 0) or 0)
+                        utils.log(f"=== SIMILARITY_SEARCH: Found title/year for {imdb_id}: '{title_lookup}' ({year_lookup}) ===", "DEBUG")
+                    else:
+                        utils.log(f"=== SIMILARITY_SEARCH: No imdb_exports entry for {imdb_id} ===", "DEBUG")
+                except Exception as e:
+                    utils.log(f"=== SIMILARITY_SEARCH: Error looking up title/year for {imdb_id}: {str(e)} ===", "ERROR")
+
+                # Create media item with available data
+                media_item_data = {
+                    'kodi_id': 0,
+                    'title': title_lookup or f'IMDB: {imdb_id}',
+                    'year': year_lookup,
+                    'imdbnumber': imdb_id,
+                    'source': 'search',
+                    'plot': '',
+                    'rating': 0.0,
+                    'search_score': search_score,
+                    'media_type': 'movie'
+                }
+
+                utils.log(f"=== SIMILARITY_SEARCH: Creating media item: title='{media_item_data['title']}', year={media_item_data['year']}, imdb={imdb_id} ===", "DEBUG")
+
+                # Insert media item and add to list
+                try:
+                    success = query_manager.insert_media_item_and_add_to_list(new_list['id'], media_item_data)
+                    if success:
+                        utils.log(f"=== SIMILARITY_SEARCH: Successfully added {imdb_id} to list ===", "DEBUG")
+                    else:
+                        utils.log(f"=== SIMILARITY_SEARCH: Failed to add {imdb_id} to list ===", "ERROR")
+                except Exception as e:
+                    utils.log(f"=== SIMILARITY_SEARCH: Error adding {imdb_id} to list: {str(e)} ===", "ERROR")
+
+        utils.log(f"=== SIMILARITY_SEARCH: Finished processing {len(search_results)} movies into list {new_list['id']} ===", "DEBUG")
+
+        # Show confirmation and navigate based on context
+        xbmcgui.Dialog().notification('LibraryGenie', f'Created similarity list with {len(similar_movies)} movies', xbmcgui.NOTIFICATION_INFO)
+
+        if from_context_menu:
+            # For context menu execution, use ActivateWindow for more reliable navigation
+            target_url = _build_plugin_url({
+                'action': 'browse_list',
+                'list_id': new_list['id'],
+            })
+
+            if target_url:
+                utils.log(f"=== SIMILARITY_SEARCH: Using ActivateWindow navigation from context menu: {target_url} ===", "DEBUG")
+                # Use ActivateWindow for context menu navigation
+                import threading
+                import time
+
+                def delayed_activate():
+                    time.sleep(1.5)  # Wait for notification to show
+                    utils.log(f"=== CONTEXT_MENU_NAVIGATION: Activating window: {target_url} ===", "DEBUG")
+                    xbmc.executebuiltin(f'ActivateWindow(videos,"{target_url}",return)')
+                    utils.log("=== CONTEXT_MENU_NAVIGATION: ActivateWindow completed ===", "DEBUG")
+
+                nav_thread = threading.Thread(target=delayed_activate)
+                nav_thread.daemon = True
+                nav_thread.start()
+        else:
+            # For plugin execution, use Container.Update
+            target_url = _build_plugin_url({
+                'action': 'browse_list',
+                'list_id': new_list['id'],
+            })
+
+            if target_url:
+                utils.log(f"=== SIMILARITY_SEARCH: Using Container.Update navigation from plugin: {target_url} ===", "DEBUG")
+                # Use delayed navigation similar to SearchWindow pattern
+                _schedule_delayed_navigation(target_url)
+
+        utils.log(f"=== SIMILARITY_SEARCH: Similarity search complete - list ID: {new_list['id']} ===", "INFO")
+
+    except Exception as e:
+        utils.log(f"Error in similarity search: {str(e)}", "ERROR")
+        import traceback
+        utils.log(f"Similarity search traceback: {traceback.format_exc()}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search failed', xbmcgui.NOTIFICATION_ERROR)
 
 
 def _build_plugin_url(params):
