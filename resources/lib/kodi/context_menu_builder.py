@@ -2,7 +2,6 @@
 
 import xbmc
 from resources.lib.utils import utils
-from urllib.parse import quote_plus
 
 
 class ContextMenuBuilder:

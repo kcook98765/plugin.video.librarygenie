@@ -342,7 +342,7 @@ def router(paramstring):
     elif action == 'setup_remote_api':
         log("Handling setup_remote_api action", "DEBUG")
         try:
-            from resources.lib.remote_api_setup import run_setup
+            from resources.lib.integrations.remote_api.remote_api_setup import run_setup
             run_setup()
         except Exception as e:
             log(f"Error in setup_remote_api action: {str(e)}", "ERROR")
@@ -393,10 +393,6 @@ def router(paramstring):
         log("Routing to rename_folder action", "DEBUG")
         rename_folder(q)
         return
-    elif action == 'refresh_movie':
-        log("Routing to refresh_movie action", "DEBUG")
-        refresh_movie(q)
-        return
     elif action == 'show_item_details':
         log("Routing to show_item_details action", "DEBUG")
         show_item_details(q)
@@ -422,7 +418,7 @@ def router(paramstring):
         log("Received separator action, doing nothing.", "DEBUG")
         pass
     elif action == 'find_similar':
-        from resources.lib.route_handlers import find_similar_movies
+        from resources.lib.core.route_handlers import find_similar_movies
         find_similar_movies(params)
     elif action == 'find_similar_from_plugin':
         route_handlers.find_similar_movies_from_plugin(params)

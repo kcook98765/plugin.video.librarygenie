@@ -7,8 +7,8 @@ class ResultsManager(Singleton):
     def __init__(self):
         if not hasattr(self, '_initialized'):
             self.jsonrpc = JSONRPC()
-            from resources.lib.query_manager import QueryManager
-            from resources.lib.config_manager import Config
+            from resources.lib.data.query_manager import QueryManager
+            from resources.lib.config.config_manager import Config
             self.query_manager = QueryManager(Config().db_path)
             self._initialized = True
 
@@ -192,7 +192,7 @@ class ResultsManager(Singleton):
                     meta['_viewing_list_id'] = list_id
                     meta['media_id'] = r.get('id') or r.get('media_id') or meta.get('movieid')
 
-                    from resources.lib.listitem_builder import ListItemBuilder
+                    from resources.lib.kodi.listitem_builder import ListItemBuilder
                     list_item = ListItemBuilder.build_video_item(meta, is_search_history=is_search_history)
 
                     # Determine the appropriate URL for this item
@@ -225,7 +225,7 @@ class ResultsManager(Singleton):
                         'media_id': r.get('id') or r.get('media_id'),
                         'playable': False
                     }
-                    from resources.lib.listitem_builder import ListItemBuilder
+                    from resources.lib.kodi.listitem_builder import ListItemBuilder
                     list_item = ListItemBuilder.build_video_item(resolved_item, is_search_history=is_search_history)
 
                     # Use info URL for non-playable items
@@ -239,7 +239,7 @@ class ResultsManager(Singleton):
                 item['_viewing_list_id'] = list_id
                 item['media_id'] = item.get('id') or item.get('media_id')
 
-                from resources.lib.listitem_builder import ListItemBuilder
+                from resources.lib.kodi.listitem_builder import ListItemBuilder
                 list_item = ListItemBuilder.build_video_item(item, is_search_history=is_search_history)
 
                 # Use file path or fallback URL for external items
