@@ -786,18 +786,20 @@ class DatabaseManager(Singleton):
                     filtered_data.setdefault('media_type', 'movie')
 
                     # Insert or get media item - handle duplicates gracefully
-                    # First try to find existing media item to avoid foreign key constraint
+                    # Check for existing media item using multiple strategies to avoid UNIQUE constraint violation
                     existing_media_query = """
                         SELECT id FROM media_items 
-                        WHERE title = ? AND year = ? AND source = ? 
-                        AND (play = ? OR (play IS NULL AND ? IS NULL))
+                        WHERE (title = ? AND year = ? AND source = ?) 
+                        OR (kodi_id = ? AND kodi_id > 0)
+                        OR (play = ? AND play IS NOT NULL AND play != '')
+                        LIMIT 1
                     """
                     cursor.execute(existing_media_query, (
-                        item_data.get('title'), 
-                        item_data.get('year'), 
-                        item_data.get('source'),
-                        item_data.get('play'),
-                        item_data.get('play')
+                        item_data.get('title', ''), 
+                        item_data.get('year', 0), 
+                        item_data.get('source', ''),
+                        item_data.get('kodi_id', 0),
+                        item_data.get('play', '')
                     ))
                     existing_media = cursor.fetchone()
 
@@ -805,14 +807,29 @@ class DatabaseManager(Singleton):
                         media_id = existing_media[0]
                         utils.log(f"DATABASE: Found existing media item for '{item_data.get('title')}' with ID {media_id}", "DEBUG")
                     else:
-                        # Insert new media item using dynamic field list
+                        # Insert new media item using INSERT OR IGNORE to handle remaining constraint violations
                         columns = ', '.join(filtered_data.keys())
                         placeholders = ', '.join(['?' for _ in filtered_data])
-                        media_query = f'INSERT INTO media_items ({columns}) VALUES ({placeholders})'
+                        media_query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
 
                         cursor.execute(media_query, tuple(filtered_data.values()))
                         media_id = cursor.lastrowid
-                        utils.log(f"DATABASE: Created new media item for '{item_data.get('title')}' with ID {media_id}", "DEBUG")
+                        
+                        # If INSERT OR IGNORE didn't create a new record, find the existing one
+                        if not media_id or media_id == 0:
+                            cursor.execute(existing_media_query, (
+                                item_data.get('title', ''), 
+                                item_data.get('year', 0), 
+                                item_data.get('source', ''),
+                                item_data.get('kodi_id', 0),
+                                item_data.get('play', '')
+                            ))
+                            existing_media = cursor.fetchone()
+                            if existing_media:
+                                media_id = existing_media[0]
+                                utils.log(f"DATABASE: Found existing media item after INSERT OR IGNORE for '{item_data.get('title')}' with ID {media_id}", "DEBUG")
+                        else:
+                            utils.log(f"DATABASE: Created new media item for '{item_data.get('title')}' with ID {media_id}", "DEBUG")
 
 
                     if media_id and media_id > 0:
