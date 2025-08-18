@@ -688,8 +688,8 @@ def add_plugin_item_to_list(media_info):
             list_ids.append(list_item['id'])
 
         # Show list selection dialog
-        from typing import Sequence, Union
-        typed_list_options: Sequence[Union[str, xbmcgui.ListItem]] = list_options
+        from typing import List, Union
+        typed_list_options: List[Union[str, xbmcgui.ListItem]] = list_options
         selected_index = xbmcgui.Dialog().select(
             f"Add '{title}' to list:",
             typed_list_options
