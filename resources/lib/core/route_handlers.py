@@ -137,7 +137,10 @@ def create_list(params):
         utils.log("=== CREATE_LIST: ABOUT TO SHOW SUCCESS NOTIFICATION ===", "DEBUG")
         xbmcgui.Dialog().notification('LibraryGenie', 'List created')
         utils.log("=== CREATE_LIST: SUCCESS NOTIFICATION CLOSED ===", "DEBUG")
-        xbmc.executebuiltin('Container.Refresh')
+        # Use navigation manager for consistent logging
+        from resources.lib.core.navigation_manager import get_navigation_manager
+        nav_manager = get_navigation_manager()
+        nav_manager.refresh_current_container("List Created")
     except Exception as e:
         utils.log(f"Error creating list: {str(e)}", "ERROR")
         utils.log("=== CREATE_LIST: ABOUT TO SHOW ERROR NOTIFICATION ===", "DEBUG")
@@ -157,7 +160,10 @@ def rename_list(params):
 
         db_manager.update_data('lists', {'name': new_name}, f"id = {list_id}")
         xbmcgui.Dialog().notification('LibraryGenie', 'List renamed')
-        xbmc.executebuiltin('Container.Refresh')
+        # Use navigation manager for consistent logging
+        from resources.lib.core.navigation_manager import get_navigation_manager
+        nav_manager = get_navigation_manager()
+        nav_manager.refresh_current_container("List Renamed")
     except Exception as e:
         utils.log(f"Error renaming list: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Rename failed')
@@ -177,7 +183,10 @@ def delete_list(params):
         # Delete the list
         db_manager.delete_data('lists', f"id = {list_id}")
         xbmcgui.Dialog().notification('LibraryGenie', 'List deleted')
-        xbmc.executebuiltin('Container.Refresh')
+        # Use navigation manager for consistent logging
+        from resources.lib.core.navigation_manager import get_navigation_manager
+        nav_manager = get_navigation_manager()
+        nav_manager.refresh_current_container("List Deleted")
     except Exception as e:
         utils.log(f"Error deleting list: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Delete failed')
@@ -246,7 +255,10 @@ def remove_from_list(params):
             xbmcgui.Dialog().notification('LibraryGenie', f'Removed "{media_title}" from list')
 
         # Always refresh the container regardless of success/failure
-        xbmc.executebuiltin('Container.Refresh')
+        # Use navigation manager for consistent logging
+        from resources.lib.core.navigation_manager import get_navigation_manager
+        nav_manager = get_navigation_manager()
+        nav_manager.refresh_current_container("Item Removed From List")
 
     except Exception as e:
         utils.log(f"Error removing from list: {str(e)}", "ERROR")
@@ -254,7 +266,10 @@ def remove_from_list(params):
         utils.log(f"remove_from_list traceback: {traceback.format_exc()}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Failed to remove from list', xbmcgui.NOTIFICATION_ERROR)
         # Still refresh container to ensure UI is updated
-        xbmc.executebuiltin('Container.Refresh')
+        from resources.lib.core.navigation_manager import get_navigation_manager
+        nav_manager = get_navigation_manager()
+        nav_manager.refresh_current_container("Item Removed From List")
+
 
 def move_list(params):
     """Move a list to a different folder"""
@@ -332,7 +347,10 @@ def move_list(params):
             utils.log(f"Successfully moved list {list_id} to folder {target_folder_id}", "INFO")
             xbmcgui.Dialog().notification('LibraryGenie', f"Moved '{list_info['name']}' to '{target_folder_name}'", xbmcgui.NOTIFICATION_INFO)
             # Refresh the current container
-            xbmc.executebuiltin('Container.Refresh')
+            # Use navigation manager for consistent logging
+            from resources.lib.core.navigation_manager import get_navigation_manager
+            nav_manager = get_navigation_manager()
+            nav_manager.refresh_current_container("List Moved")
         else:
             utils.log(f"Failed to move list {list_id} to folder {target_folder_id}", "ERROR")
             xbmcgui.Dialog().notification('LibraryGenie', 'Failed to move list', xbmcgui.NOTIFICATION_ERROR)
@@ -383,7 +401,9 @@ def clear_list(params):
         if success:
             utils.log(f"Successfully cleared list {list_id}", "INFO")
             xbmcgui.Dialog().notification('LibraryGenie', f"Cleared '{list_info['name']}'", xbmcgui.NOTIFICATION_INFO)
-            xbmc.executebuiltin('Container.Refresh')
+            from resources.lib.core.navigation_manager import get_navigation_manager
+            nav_manager = get_navigation_manager()
+            nav_manager.refresh_current_container("List Cleared")
         else:
             utils.log(f"Failed to clear list {list_id}", "ERROR")
             xbmcgui.Dialog().notification('LibraryGenie', 'Failed to clear list', xbmcgui.NOTIFICATION_ERROR)
@@ -591,7 +611,10 @@ def delete_folder(params):
         if success:
             utils.log(f"Successfully deleted folder {folder_id}", "INFO")
             xbmcgui.Dialog().notification('LibraryGenie', f"Deleted folder '{folder_info['name']}'", xbmcgui.NOTIFICATION_INFO)
-            xbmc.executebuiltin('Container.Refresh')
+            # Use navigation manager for consistent logging
+            from resources.lib.core.navigation_manager import get_navigation_manager
+            nav_manager = get_navigation_manager()
+            nav_manager.refresh_current_container("Folder Deleted")
         else:
             utils.log(f"Failed to delete folder {folder_id}", "ERROR")
             xbmcgui.Dialog().notification('LibraryGenie', 'Failed to delete folder', xbmcgui.NOTIFICATION_ERROR)
@@ -685,7 +708,10 @@ def move_folder(params):
         if success:
             utils.log(f"Successfully moved folder {folder_id} to parent {target_parent_id}", "INFO")
             xbmcgui.Dialog().notification('LibraryGenie', f"Moved '{folder_info['name']}' to '{target_name}'", xbmcgui.NOTIFICATION_INFO)
-            xbmc.executebuiltin('Container.Refresh')
+            # Use navigation manager for consistent logging
+            from resources.lib.core.navigation_manager import get_navigation_manager
+            nav_manager = get_navigation_manager()
+            nav_manager.refresh_current_container("Folder Moved")
         else:
             utils.log(f"Failed to move folder {folder_id} to parent {target_parent_id}", "ERROR")
             xbmcgui.Dialog().notification('LibraryGenie', 'Failed to move folder', xbmcgui.NOTIFICATION_ERROR)
@@ -742,7 +768,10 @@ def create_subfolder(params):
         if new_folder:
             utils.log(f"Successfully created subfolder '{new_folder_name}' in parent {parent_folder_id}", "INFO")
             xbmcgui.Dialog().notification('LibraryGenie', f"Created folder '{new_folder_name}'", xbmcgui.NOTIFICATION_INFO)
-            xbmc.executebuiltin('Container.Refresh')
+            # Use navigation manager for consistent logging
+            from resources.lib.core.navigation_manager import get_navigation_manager
+            nav_manager = get_navigation_manager()
+            nav_manager.refresh_current_container("Folder Created")
         else:
             utils.log(f"Failed to create subfolder '{new_folder_name}' in parent {parent_folder_id}", "ERROR")
             xbmcgui.Dialog().notification('LibraryGenie', 'Failed to create folder', xbmcgui.NOTIFICATION_ERROR)
@@ -766,7 +795,10 @@ def rename_folder(params):
 
         db_manager.update_data('folders', {'name': new_name}, f"id = {folder_id}")
         xbmcgui.Dialog().notification('LibraryGenie', 'Folder renamed')
-        xbmc.executebuiltin('Container.Refresh')
+        # Use navigation manager for consistent logging
+        from resources.lib.core.navigation_manager import get_navigation_manager
+        nav_manager = get_navigation_manager()
+        nav_manager.refresh_current_container("Folder Renamed")
     except Exception as e:
         utils.log(f"Error renaming folder: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Rename failed')
@@ -958,7 +990,10 @@ def add_movies_to_list(params):
             xbmcgui.Dialog().notification('LibraryGenie', 'Failed to add movies to list', xbmcgui.NOTIFICATION_ERROR)
 
         # Refresh the container
-        xbmc.executebuiltin('Container.Refresh')
+        # Use navigation manager for consistent logging
+        from resources.lib.core.navigation_manager import get_navigation_manager
+        nav_manager = get_navigation_manager()
+        nav_manager.refresh_current_container("Movies Added To List")
 
     except Exception as e:
         utils.log(f"Error in add_movies_to_list: {str(e)}", "ERROR")
