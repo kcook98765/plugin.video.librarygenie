@@ -400,9 +400,4 @@ class ListingDAO:
         result = self.execute_write(sql, params)
         return result['rowcount']
 
-    def insert_media_item_and_add_to_list(self, list_id, media_data):
-        """Insert media item and add to list in one operation"""
-        # This method needs to coordinate with QueryManager for the insert_media_item operation
-        # Since DAO doesn't handle connection management, we'll delegate this back
-        # This is a complex operation that spans multiple concerns
-        raise NotImplementedError("This method requires coordination with QueryManager.insert_media_item")
+    
