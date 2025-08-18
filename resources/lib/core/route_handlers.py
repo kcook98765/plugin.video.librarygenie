@@ -847,14 +847,19 @@ def view_folder(folder_id):
 
         # Convert subfolders to MediaItems and build ListItems
         for subfolder in subfolders:
-            # Normalize database row to MediaItem
-            media_item = from_db({
+            # Create folder data for normalization
+            folder_data = {
                 'id': subfolder['id'],
-                'title': subfolder['name'],
+                'title': f"📁 {subfolder['name']}",
                 'media_type': 'folder',
-                'is_folder': True,
-                'play_path': f"plugin://plugin.video.librarygenie/?action=view_folder&folder_id={subfolder['id']}",
-            })
+                'is_folder': True
+            }
+            
+            # Normalize database row to MediaItem
+            media_item = from_db(folder_data)
+            
+            # Set proper play path
+            media_item.play_path = f"plugin://plugin.video.librarygenie/?action=view_folder&folder_id={subfolder['id']}"
 
             # Add folder context for menu generation
             media_item.context_tags.add('folder')
@@ -873,14 +878,31 @@ def view_folder(folder_id):
 
         # Convert lists to MediaItems and build ListItems  
         for list_item in lists:
-            # Normalize database row to MediaItem
-            media_item = from_db({
+            # Get list count for display
+            list_count = db_manager.get_list_media_count(list_item['id'])
+            
+            # Check if list name already has count
+            import re
+            has_count_in_name = re.search(r'\(\d+\)$', list_item['name'])
+            
+            if has_count_in_name:
+                display_title = f"📋 {list_item['name']}"
+            else:
+                display_title = f"📋 {list_item['name']} ({list_count})"
+            
+            # Create list data for normalization
+            list_data = {
                 'id': list_item['id'],
-                'title': list_item['name'],
+                'title': display_title,
                 'media_type': 'playlist',
-                'is_folder': True,
-                'play_path': f"plugin://plugin.video.librarygenie/?action=view_list&list_id={list_item['id']}",
-            })
+                'is_folder': True
+            }
+            
+            # Normalize database row to MediaItem
+            media_item = from_db(list_data)
+            
+            # Set proper play path
+            media_item.play_path = f"plugin://plugin.video.librarygenie/?action=view_list&list_id={list_item['id']}"
 
             # Add list context for menu generation
             media_item.context_tags.add('list')
