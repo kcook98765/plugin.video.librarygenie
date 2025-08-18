@@ -23,8 +23,14 @@ def build_listitem(item: MediaItem, view_hint: Union[str, None] = None) -> xbmcg
         Configured xbmcgui.ListItem ready for display
     """
     try:
+        utils.log(f"=== BUILD_LISTITEM: Starting for '{item.title}' (type: {item.media_type}) ===", "DEBUG")
+        utils.log(f"=== BUILD_LISTITEM: MediaItem plot length: {len(item.plot)}, rating: {item.rating} ===", "DEBUG")
+        utils.log(f"=== BUILD_LISTITEM: MediaItem art keys: {list(item.art.keys())}, runtime: {item.runtime} ===", "DEBUG")
+        utils.log(f"=== BUILD_LISTITEM: MediaItem view_hint: '{view_hint}' ===", "DEBUG")
+
         # Create base ListItem
         li = xbmcgui.ListItem(item.title or "Unknown")
+        utils.log(f"=== BUILD_LISTITEM: Created base ListItem for '{item.title}' ===", "DEBUG")
 
         # Set basic properties
         li.setIsFolder(item.is_folder)
@@ -35,10 +41,14 @@ def build_listitem(item: MediaItem, view_hint: Union[str, None] = None) -> xbmcg
             li.setLabel2(label2)
 
         # Apply InfoTag data (version-specific)
+        utils.log(f"=== BUILD_LISTITEM: Applying infotag fields for '{item.title}' ===", "DEBUG")
         apply_infotag(item, li)
+        utils.log(f"=== BUILD_LISTITEM: Infotag fields applied for '{item.title}' ===", "DEBUG")
 
         # Apply art mapping
+        utils.log(f"=== BUILD_LISTITEM: Applying art mapping for '{item.title}' ===", "DEBUG")
         apply_art(item, li)
+        utils.log(f"=== BUILD_LISTITEM: Art mapping applied for '{item.title}' ===", "DEBUG")
 
         # Set additional properties
         _set_properties(li, item, view_hint)
@@ -50,8 +60,9 @@ def build_listitem(item: MediaItem, view_hint: Union[str, None] = None) -> xbmcg
         context_menu = for_item(item)
         if context_menu:
             li.addContextMenuItems(context_menu, replaceItems=False)
+            utils.log(f"=== BUILD_LISTITEM: Applied {len(context_menu)} context menu items for '{item.title}' ===", "DEBUG")
 
-        utils.log(f"Built ListItem for '{item.title}' (type: {item.media_type})", "DEBUG")
+        utils.log(f"=== BUILD_LISTITEM: COMPLETE for '{item.title}' (type: {item.media_type}) ===", "DEBUG")
         return li
 
     except Exception as e:

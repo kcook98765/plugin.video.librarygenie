@@ -342,6 +342,8 @@ def from_db(row: Dict[str, Any]) -> MediaItem:
 
         utils.log(f"=== FROM_DB: Created MediaItem - media_type: '{media_item.media_type}', title: '{media_item.title}' ===", "DEBUG")
         utils.log(f"=== FROM_DB: MediaItem plot length: {len(media_item.plot)}, rating: {media_item.rating} ===", "DEBUG")
+        utils.log(f"=== FROM_DB: MediaItem art keys: {list(media_item.art.keys())}, runtime: {media_item.runtime} ===", "DEBUG")
+        utils.log(f"=== FROM_DB: MediaItem genres: {media_item.genres}, studio: '{media_item.studio}' ===", "DEBUG")
 
         return media_item
 
