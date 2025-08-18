@@ -1,7 +1,15 @@
 import xbmc
 import xbmcgui
+import xbmcaddon
+import threading
 import time
+from urllib.parse import quote_plus
 from resources.lib.utils import utils
+from resources.lib.config.config_manager import Config
+from resources.lib.data.query_manager import QueryManager
+from resources.lib.integrations.remote_api.remote_api_client import RemoteAPIClient
+from resources.lib.data.normalize import from_db
+from resources.lib.kodi.listitem.factory import build_listitem
 
 class SearchWindow:
     def __init__(self, title="Movie Search"):
@@ -18,20 +26,20 @@ class SearchWindow:
         try:
             import time
             dialog_start_time = time.time()
-            
+
             utils.log("=== ABOUT TO SHOW SEARCH INPUT MODAL ===", "DEBUG")
             # Set property to track modal state
             xbmc.executebuiltin("SetProperty(LibraryGenie.SearchModalActive,true,Home)")
-            
+
             # Show input dialog for search query
             query = xbmcgui.Dialog().input(
                 f"{self.title}: Enter your movie search query", 
                 type=xbmcgui.INPUT_ALPHANUM
             )
-            
+
             # Clear modal state property
             xbmc.executebuiltin("ClearProperty(LibraryGenie.SearchModalActive,Home)")
-            
+
             dialog_duration = time.time() - dialog_start_time
             utils.log("=== SEARCH INPUT MODAL CLOSED ===", "DEBUG")
             utils.log(f"Input dialog duration: {dialog_duration:.1f}s", "DEBUG")
@@ -253,12 +261,12 @@ class SearchWindow:
             current_time = time.time()
             xbmc.executebuiltin("SetProperty(LibraryGenie.Navigating,true,Home)")
             xbmc.executebuiltin(f"SetProperty(LibraryGenie.LastNavigation,{current_time},Home)")
-            
+
             # Simple dialog cleanup
             utils.log("SearchWindow: Dialog cleanup", "DEBUG")
             xbmc.executebuiltin("Dialog.Close(all,true)")
             xbmc.sleep(100)  # Brief wait for cleanup
-            
+
             # Clear window states
             xbmc.executebuiltin("ClearProperty(LibraryGenie.DialogActive,Home)")
             xbmc.executebuiltin("ClearProperty(LibraryGenie.SearchModalActive,Home)")
@@ -267,7 +275,7 @@ class SearchWindow:
             utils.log(f"SearchWindow: Using Container.Update to navigate to: {plugin_url}", "DEBUG")
             xbmc.executebuiltin(f'Container.Update({plugin_url})')
             utils.log("SearchWindow: Container.Update command executed", "DEBUG")
-            
+
             utils.log(f"SearchWindow: Navigation sequence completed for list ID: {list_id}", "DEBUG")
 
         except Exception as e:

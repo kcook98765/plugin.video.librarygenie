@@ -16,6 +16,7 @@ class DatabaseManager(Singleton):
             self._connect()
             self.setup_database()
             self.ensure_search_history_folder()
+            self.ensure_imported_lists_folder()
             # Initialize query_manager for direct access
             from resources.lib.data.query_manager import QueryManager
             self._query_manager = QueryManager(self.db_path)
@@ -539,6 +540,25 @@ class DatabaseManager(Singleton):
         else:
             utils.log(f"'{search_history_folder_name}' folder already exists.", "INFO")
 
+    def ensure_imported_lists_folder(self):
+        """Ensures the 'Imported Lists' folder exists and is protected."""
+        imported_lists_folder_name = "Imported Lists"
+
+        # Check if the folder already exists
+        existing_folder = self.query_manager.get_folder_by_name(imported_lists_folder_name)
+
+        if not existing_folder:
+            utils.log(f"Creating '{imported_lists_folder_name}' folder.", "INFO")
+            self.query_manager.insert_folder_direct(imported_lists_folder_name, parent_id=None)
+
+            newly_created_folder = self.query_manager.get_folder_by_name(imported_lists_folder_name)
+            if newly_created_folder:
+                utils.log(f"'{imported_lists_folder_name}' folder created with ID: {newly_created_folder['id']}", "INFO")
+            else:
+                utils.log(f"Failed to retrieve '{imported_lists_folder_name}' folder after creation.", "ERROR")
+        else:
+            utils.log(f"'{imported_lists_folder_name}' folder already exists.", "INFO")
+
     def add_search_history(self, query, results):
         """Adds the search results to the 'Search History' folder as a new list. Returns the list ID."""
         search_history_folder_id = self.get_folder_id_by_name("Search History")
@@ -765,13 +785,52 @@ class DatabaseManager(Singleton):
                     filtered_data.setdefault('source', 'shortlist_import')
                     filtered_data.setdefault('media_type', 'movie')
 
-                    # Insert media item
-                    columns = ', '.join(filtered_data.keys())
-                    placeholders = ', '.join('?' for _ in filtered_data)
-                    media_query = f'INSERT OR REPLACE INTO media_items ({columns}) VALUES ({placeholders})'
+                    # Insert or get media item - handle duplicates gracefully
+                    # Check for existing media item using multiple strategies to avoid UNIQUE constraint violation
+                    existing_media_query = """
+                        SELECT id FROM media_items 
+                        WHERE (title = ? AND year = ? AND source = ?) 
+                        OR (kodi_id = ? AND kodi_id > 0)
+                        OR (play = ? AND play IS NOT NULL AND play != '')
+                        LIMIT 1
+                    """
+                    cursor.execute(existing_media_query, (
+                        item_data.get('title', ''), 
+                        item_data.get('year', 0), 
+                        item_data.get('source', ''),
+                        item_data.get('kodi_id', 0),
+                        item_data.get('play', '')
+                    ))
+                    existing_media = cursor.fetchone()
 
-                    cursor.execute(media_query, tuple(filtered_data.values()))
-                    media_id = cursor.lastrowid
+                    if existing_media:
+                        media_id = existing_media[0]
+                        utils.log(f"DATABASE: Found existing media item for '{item_data.get('title')}' with ID {media_id}", "DEBUG")
+                    else:
+                        # Insert new media item using INSERT OR IGNORE to handle remaining constraint violations
+                        columns = ', '.join(filtered_data.keys())
+                        placeholders = ', '.join(['?' for _ in filtered_data])
+                        media_query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
+
+                        cursor.execute(media_query, tuple(filtered_data.values()))
+                        media_id = cursor.lastrowid
+                        
+                        # If INSERT OR IGNORE didn't create a new record, find the existing one
+                        if not media_id or media_id == 0:
+                            cursor.execute(existing_media_query, (
+                                item_data.get('title', ''), 
+                                item_data.get('year', 0), 
+                                item_data.get('source', ''),
+                                item_data.get('kodi_id', 0),
+                                item_data.get('play', '')
+                            ))
+                            existing_media = cursor.fetchone()
+                            if existing_media:
+                                media_id = existing_media[0]
+                                utils.log(f"DATABASE: Found existing media item after INSERT OR IGNORE for '{item_data.get('title')}' with ID {media_id}", "DEBUG")
+                        else:
+                            utils.log(f"DATABASE: Created new media item for '{item_data.get('title')}' with ID {media_id}", "DEBUG")
+
 
                     if media_id and media_id > 0:
                         # Insert list item in same transaction
@@ -887,12 +946,12 @@ class DatabaseManager(Singleton):
             descendant_ids = []
             # Get direct children
             subfolders = self.query_manager.get_folders(folder_id)
-            
+
             for subfolder in subfolders:
                 descendant_ids.append(subfolder['id'])
                 # Recursively get descendants
                 descendant_ids.extend(self.get_descendant_folder_ids(subfolder['id']))
-            
+
             return descendant_ids
         except Exception as e:
             utils.log(f"Error getting descendant folder IDs: {str(e)}", "ERROR")

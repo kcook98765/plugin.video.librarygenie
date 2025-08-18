@@ -8,6 +8,10 @@ import json
 import threading
 from typing import List, Union, cast
 
+# Import necessary components for the new factory pattern
+from resources.lib.data.normalize import from_db
+from resources.lib.kodi.listitem.factory import build_listitem
+
 def play_movie(params):
     """Play a movie from Kodi library using movieid"""
     try:
@@ -288,7 +292,7 @@ def move_list(params):
         # Create folder selection options
         folder_options = []
         folder_ids = []
-        
+
         # Only add "Root Folder" option if the list is NOT already at root level
         current_folder_id = list_info.get('folder_id')
         if current_folder_id is not None:  # List is not at root, so root is an option
@@ -342,9 +346,6 @@ def move_list(params):
         import traceback
         utils.log(f"move_list traceback: {traceback.format_exc()}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Error moving list', xbmcgui.NOTIFICATION_ERROR)
-
-
-
 
 
 def clear_list(params):
@@ -543,7 +544,7 @@ def delete_folder(params):
             return
 
         # Check for protected folders
-        protected_folders = ["Search History"]
+        protected_folders = ["Search History", "Imported Lists"]
         if folder_info['name'] in protected_folders:
             xbmcgui.Dialog().notification('LibraryGenie', 'Cannot delete protected folder', xbmcgui.NOTIFICATION_ERROR)
             return
@@ -625,7 +626,7 @@ def move_folder(params):
             return
 
         # Check for protected folders
-        protected_folders = ["Search History"]
+        protected_folders = ["Search History", "Imported Lists"]
         if folder_info['name'] in protected_folders:
             xbmcgui.Dialog().notification('LibraryGenie', 'Cannot move protected folder', xbmcgui.NOTIFICATION_ERROR)
             return
@@ -774,51 +775,157 @@ def rename_folder(params):
         utils.log(f"Error renaming folder: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Rename failed')
 
-
-
-def find_similar_movies(params):
-    """Handler for similarity search from native Kodi context menu (via context.py)"""
+def view_list(list_id):
+    """View contents of a list using new factory pattern"""
     try:
-        # Extract parameters
-        imdb_id = params.get('imdb_id', [None])[0] if params.get('imdb_id') else None
-        title = params.get('title', ['Unknown'])[0] if params.get('title') else 'Unknown'
+        import xbmcplugin
+        import sys
+        from resources.lib.data.normalize import from_db
+        from resources.lib.kodi.listitem.factory import build_listitem
 
-        if not imdb_id or not imdb_id.startswith('tt'):
-            xbmcgui.Dialog().ok('LibraryGenie', "This item doesn't have a valid IMDb ID.")
-            return
+        utils.log(f"Viewing list: {list_id}", "DEBUG")
 
-        # URL decode the title
-        import urllib.parse
-        title = urllib.parse.unquote_plus(title)
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
 
-        # This action is triggered from context.py (native context menu), so use context menu navigation
-        _perform_similarity_search(imdb_id, title, from_context_menu=True)
+        # Get list items with details
+        list_items = db_manager.fetch_list_items_with_details(list_id)
+        
+        for item_data in list_items:
+            # Normalize database row to MediaItem
+            media_item = from_db(item_data)
+            
+            # Set appropriate play path based on whether it's in Kodi library
+            if item_data.get('kodi_id') or item_data.get('movieid'):
+                # Item exists in Kodi library - use play action
+                media_item.play_path = f"plugin://plugin.video.librarygenie/?action=play_movie&movieid={item_data.get('kodi_id') or item_data.get('movieid')}"
+                media_item.is_folder = False
+            else:
+                # Non-library item - use details action
+                import urllib.parse
+                encoded_title = urllib.parse.quote_plus(media_item.title)
+                media_item.play_path = f"plugin://plugin.video.librarygenie/?action=show_item_details&title={encoded_title}&list_id={list_id}&item_id={media_item.id}"
+                media_item.is_folder = False
+
+            # Add list context for menu generation
+            media_item.context_tags.add('in_list')
+            media_item.extras['list_id'] = list_id
+
+            # Build ListItem using factory
+            li = build_listitem(media_item, 'list_view')
+
+            # Add to directory
+            xbmcplugin.addDirectoryItem(
+                int(sys.argv[1]), 
+                media_item.play_path, 
+                li, 
+                media_item.is_folder
+            )
+
+        xbmcplugin.endOfDirectory(int(sys.argv[1]))
 
     except Exception as e:
-        utils.log(f"Error in find_similar_movies: {str(e)}", "ERROR")
-        xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERROR)
+        utils.log(f"Error viewing list {list_id}: {str(e)}", "ERROR")
+        import xbmcgui
+        xbmcgui.Dialog().notification("LibraryGenie", "Error viewing list", xbmcgui.NOTIFICATION_ERROR)
 
-def find_similar_movies_from_plugin(params):
-    """Handler for similarity search from plugin ListItems (context menu items added by listitem_builder.py)"""
+
+def view_folder(folder_id):
+    """View contents of a folder using new factory pattern"""
     try:
-        # Extract parameters
-        imdb_id = params.get('imdb_id', [None])[0] if params.get('imdb_id') else None
-        title = params.get('title', ['Unknown'])[0] if params.get('title') else 'Unknown'
+        import xbmcplugin
+        import sys
 
-        if not imdb_id or not imdb_id.startswith('tt'):
-            xbmcgui.Dialog().ok('LibraryGenie', "This item doesn't have a valid IMDb ID.")
-            return
+        utils.log(f"Viewing folder: {folder_id}", "DEBUG")
 
-        # URL decode the title
-        import urllib.parse
-        title = urllib.parse.unquote_plus(title)
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
 
-        # This is from plugin context items, so use plugin navigation
-        _perform_similarity_search(imdb_id, title, from_context_menu=False)
+        # Get folder contents
+        subfolders = db_manager.fetch_folders(folder_id)
+        lists = db_manager.fetch_lists(folder_id)
+
+        # Convert subfolders to MediaItems and build ListItems
+        for subfolder in subfolders:
+            # Create folder data for normalization
+            folder_data = {
+                'id': subfolder['id'],
+                'title': f"📁 {subfolder['name']}",
+                'media_type': 'folder',
+                'is_folder': True
+            }
+            
+            # Normalize database row to MediaItem
+            media_item = from_db(folder_data)
+            
+            # Set proper play path
+            media_item.play_path = f"plugin://plugin.video.librarygenie/?action=view_folder&folder_id={subfolder['id']}"
+
+            # Add folder context for menu generation
+            media_item.context_tags.add('folder')
+            media_item.extras['folder_id'] = subfolder['id']
+
+            # Build ListItem using factory
+            li = build_listitem(media_item, 'folder_view')
+
+            # Add to directory
+            xbmcplugin.addDirectoryItem(
+                int(sys.argv[1]), 
+                media_item.play_path, 
+                li, 
+                True
+            )
+
+        # Convert lists to MediaItems and build ListItems  
+        for list_item in lists:
+            # Get list count for display
+            list_count = db_manager.get_list_media_count(list_item['id'])
+            
+            # Check if list name already has count
+            import re
+            has_count_in_name = re.search(r'\(\d+\)$', list_item['name'])
+            
+            if has_count_in_name:
+                display_title = f"📋 {list_item['name']}"
+            else:
+                display_title = f"📋 {list_item['name']} ({list_count})"
+            
+            # Create list data for normalization
+            list_data = {
+                'id': list_item['id'],
+                'title': display_title,
+                'media_type': 'playlist',
+                'is_folder': True
+            }
+            
+            # Normalize database row to MediaItem
+            media_item = from_db(list_data)
+            
+            # Set proper play path
+            media_item.play_path = f"plugin://plugin.video.librarygenie/?action=view_list&list_id={list_item['id']}"
+
+            # Add list context for menu generation
+            media_item.context_tags.add('list')
+            media_item.extras['list_id'] = list_item['id']
+
+            # Build ListItem using factory
+            li = build_listitem(media_item, 'folder_view')
+
+            # Add to directory
+            xbmcplugin.addDirectoryItem(
+                int(sys.argv[1]), 
+                media_item.play_path, 
+                li, 
+                True
+            )
+
+        xbmcplugin.endOfDirectory(int(sys.argv[1]))
 
     except Exception as e:
-        utils.log(f"Error in find_similar_movies_from_plugin: {str(e)}", "ERROR")
-        xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERROR)
+        utils.log(f"Error viewing folder {folder_id}: {str(e)}", "ERROR")
+        import xbmcgui
+        xbmcgui.Dialog().notification("LibraryGenie", "Error viewing folder", xbmcgui.NOTIFICATION_ERROR)
+
 
 def add_to_list(params):
     """Handler for adding items to lists from context menu - simplified version"""
@@ -961,6 +1068,54 @@ def add_to_list(params):
         utils.log(f"Error in add_to_list: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Error adding to list', xbmcgui.NOTIFICATION_ERROR, 3000)
 
+def add_movies_to_list(params):
+    """Handler for adding multiple movies to a list - used by search results"""
+    try:
+        # Extract parameters
+        list_id = params.get('list_id', [None])[0] if params.get('list_id') else None
+        movie_data = params.get('movie_data', [None])[0] if params.get('movie_data') else None
+
+        if not list_id or not movie_data:
+            utils.log("Missing list_id or movie_data for add_movies_to_list", "ERROR")
+            return
+
+        # Parse movie data if it's a string
+        if isinstance(movie_data, str):
+            import json
+            try:
+                movie_data = json.loads(movie_data)
+            except json.JSONDecodeError:
+                utils.log("Invalid movie_data format", "ERROR")
+                return
+
+        from resources.lib.config.config_manager import Config
+        from resources.lib.data.database_manager import DatabaseManager
+
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+
+        # Add each movie to the list
+        success_count = 0
+        for movie in movie_data:
+            try:
+                success = db_manager.add_media_item(list_id, movie)
+                if success:
+                    success_count += 1
+            except Exception as e:
+                utils.log(f"Error adding movie {movie.get('title', 'Unknown')} to list: {str(e)}", "ERROR")
+
+        if success_count > 0:
+            xbmcgui.Dialog().notification('LibraryGenie', f'Added {success_count} movies to list', xbmcgui.NOTIFICATION_INFO)
+        else:
+            xbmcgui.Dialog().notification('LibraryGenie', 'Failed to add movies to list', xbmcgui.NOTIFICATION_ERROR)
+
+        # Refresh the container
+        xbmc.executebuiltin('Container.Refresh')
+
+    except Exception as e:
+        utils.log(f"Error in add_movies_to_list: {str(e)}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error adding movies to list', xbmcgui.NOTIFICATION_ERROR)
+
 def add_to_list_from_context(params):
     """Handler for adding a movie to a list from native Kodi context menu"""
     try:
@@ -1088,6 +1243,31 @@ def add_to_list_from_context(params):
     except Exception as e:
         utils.log(f"Error in add_to_list_from_context: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Error adding to list', xbmcgui.NOTIFICATION_ERROR, 3000)
+
+def find_similar_movies(params):
+    """Handler for similarity search from plugin interface"""
+    try:
+        # Extract parameters from plugin call
+        imdb_id = params.get('imdb_id', [None])[0] if params.get('imdb_id') else None
+        title = params.get('title', ['Unknown'])[0] if params.get('title') else 'Unknown'
+
+        # URL decode the title
+        import urllib.parse
+        title = urllib.parse.unquote_plus(title)
+
+        utils.log(f"Plugin similarity search - Title: {title}, IMDb: {imdb_id}", "DEBUG")
+
+        if not imdb_id or not imdb_id.startswith('tt'):
+            utils.log("Plugin similarity search failed - no valid IMDb ID found", "WARNING")
+            xbmcgui.Dialog().ok('LibraryGenie', "This item doesn't have a valid IMDb ID.")
+            return
+
+        # Perform similarity search with plugin navigation (not context menu)
+        _perform_similarity_search(imdb_id, title, from_context_menu=False)
+
+    except Exception as e:
+        utils.log(f"Error in find_similar_movies: {str(e)}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERROR)
 
 def find_similar_movies_from_context(params):
     """Handler for similarity search from native Kodi context menu"""
@@ -1226,18 +1406,32 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
             xbmcgui.Dialog().notification('LibraryGenie', 'Failed to find/create necessary folder', xbmcgui.NOTIFICATION_ERROR)
             return
 
+        # Handle both dict and int return types from ensure_search_history_folder
+        if isinstance(search_folder, dict):
+            search_folder_id = search_folder['id']
+        else:
+            # search_folder is just the ID (int)
+            search_folder_id = search_folder
+
         # Create unique list name
         base_name = f"Similar to {title} ({facet_desc})"
-        list_name = query_manager.get_unique_list_name(base_name, search_folder['id'])
-        utils.log(f"=== SIMILARITY_SEARCH: Creating list '{list_name}' in folder {search_folder['id']} ===", "DEBUG")
+        list_name = query_manager.get_unique_list_name(base_name, search_folder_id)
+        utils.log(f"=== SIMILARITY_SEARCH: Creating list '{list_name}' in folder {search_folder_id} ===", "DEBUG")
 
         # Create the list
-        new_list = query_manager.create_list(list_name, search_folder['id'])
+        new_list = query_manager.create_list(list_name, search_folder_id)
         if not new_list:
             xbmcgui.Dialog().ok('LibraryGenie', 'Failed to create similarity list.')
             return
 
-        utils.log(f"=== SIMILARITY_SEARCH: Created list with ID {new_list['id']} ===", "DEBUG")
+        # Handle both dict and int return types from create_list
+        if isinstance(new_list, dict):
+            new_list_id = new_list['id']
+        else:
+            # new_list is just the ID (int)
+            new_list_id = new_list
+
+        utils.log(f"=== SIMILARITY_SEARCH: Created list with ID {new_list_id} ===", "DEBUG")
 
         # Process similar movies following the same flow as regular search
         utils.log(f"=== SIMILARITY_SEARCH: Processing {len(similar_movies)} IMDb IDs ===", "DEBUG")
@@ -1305,7 +1499,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
 
                 # Insert media item and add to list
                 try:
-                    success = query_manager.insert_media_item_and_add_to_list(new_list['id'], media_item_data)
+                    success = query_manager.insert_media_item_and_add_to_list(new_list_id, media_item_data)
                     if success:
                         utils.log(f"=== SIMILARITY_SEARCH: Successfully added {imdb_id} to list ===", "DEBUG")
                     else:
@@ -1313,46 +1507,60 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
                 except Exception as e:
                     utils.log(f"=== SIMILARITY_SEARCH: Error adding {imdb_id} to list: {str(e)} ===", "ERROR")
 
-        utils.log(f"=== SIMILARITY_SEARCH: Finished processing {len(search_results)} movies into list {new_list['id']} ===", "DEBUG")
+        utils.log(f"=== SIMILARITY_SEARCH: Finished processing {len(search_results)} movies into list {new_list_id} ===", "DEBUG")
 
-        # Show confirmation and navigate based on context
+        # Show confirmation and navigate to the created list
         xbmcgui.Dialog().notification('LibraryGenie', f'Created similarity list with {len(similar_movies)} movies', xbmcgui.NOTIFICATION_INFO)
 
-        if from_context_menu:
-            # For context menu execution, use ActivateWindow for more reliable navigation
-            target_url = _build_plugin_url({
-                'action': 'browse_list',
-                'list_id': new_list['id'],
-            })
+        # Build target URL for navigation
+        target_url = _build_plugin_url({
+            'action': 'view_list', # Corrected action for viewing lists
+            'list_id': new_list_id,
+        })
 
-            if target_url:
-                utils.log(f"=== SIMILARITY_SEARCH: Using ActivateWindow navigation from context menu: {target_url} ===", "DEBUG")
-                # Use ActivateWindow for context menu navigation
-                import threading
-                import time
+        if target_url:
+            # Always use ActivateWindow for more reliable navigation from context menu
+            utils.log(f"=== SIMILARITY_SEARCH: Using ActivateWindow navigation: {target_url} ===", "DEBUG")
 
-                def delayed_activate():
-                    time.sleep(1.5)  # Wait for notification to show
-                    utils.log(f"=== CONTEXT_MENU_NAVIGATION: Activating window: {target_url} ===", "DEBUG")
+            import threading
+            import time
+
+            def delayed_activate():
+                try:
+                    # Wait for notification and database operations to complete
+                    time.sleep(2.0)
+
+                    utils.log(f"=== SIMILARITY_SEARCH_NAVIGATION: Activating window with URL: {target_url} ===", "DEBUG")
+
+                    # Use ActivateWindow which is more reliable for context menu operations
                     xbmc.executebuiltin(f'ActivateWindow(videos,"{target_url}",return)')
-                    utils.log("=== CONTEXT_MENU_NAVIGATION: ActivateWindow completed ===", "DEBUG")
 
-                nav_thread = threading.Thread(target=delayed_activate)
-                nav_thread.daemon = True
-                nav_thread.start()
+                    # Brief wait and try alternative navigation if needed
+                    time.sleep(1.0)
+
+                    # Fallback: try ReplaceWindow if ActivateWindow doesn't work
+                    utils.log("=== SIMILARITY_SEARCH_NAVIGATION: Attempting fallback navigation ===", "DEBUG")
+                    xbmc.executebuiltin(f'ReplaceWindow(videos,"{target_url}")')
+
+                    utils.log("=== SIMILARITY_SEARCH_NAVIGATION: Navigation sequence completed ===", "DEBUG")
+
+                except Exception as e:
+                    utils.log(f"Error in similarity search navigation: {str(e)}", "ERROR")
+                    # Final fallback - show helpful notification
+                    xbmcgui.Dialog().notification(
+                        'LibraryGenie', 
+                        'List created in Search History folder', 
+                        xbmcgui.NOTIFICATION_INFO,
+                        5000
+                    )
+
+            nav_thread = threading.Thread(target=delayed_activate)
+            nav_thread.daemon = True
+            nav_thread.start()
         else:
-            # For plugin execution, use Container.Update
-            target_url = _build_plugin_url({
-                'action': 'browse_list',
-                'list_id': new_list['id'],
-            })
+            utils.log("=== SIMILARITY_SEARCH: Failed to build target URL for navigation ===", "ERROR")
 
-            if target_url:
-                utils.log(f"=== SIMILARITY_SEARCH: Using Container.Update navigation from plugin: {target_url} ===", "DEBUG")
-                # Use delayed navigation similar to SearchWindow pattern
-                _schedule_delayed_navigation(target_url)
-
-        utils.log(f"=== SIMILARITY_SEARCH: Similarity search complete - list ID: {new_list['id']} ===", "INFO")
+        utils.log(f"=== SIMILARITY_SEARCH: Similarity search complete - list ID: {new_list_id} ===", "INFO")
 
     except Exception as e:
         utils.log(f"Error in similarity search: {str(e)}", "ERROR")
@@ -1405,12 +1613,20 @@ def _schedule_delayed_navigation(target_url):
             utils.log("=== DELAYED_NAVIGATION: Using Container.Update to navigate ===", "DEBUG")
             xbmc.executebuiltin(f'Container.Update({target_url})')
 
+            # Additional fallback navigation attempt if needed
+            time.sleep(1.0)
             utils.log("=== DELAYED_NAVIGATION: Navigation completed ===", "DEBUG")
 
         except Exception as e:
             utils.log(f"Error in delayed navigation: {str(e)}", "ERROR")
             import traceback
             utils.log(f"Delayed navigation traceback: {traceback.format_exc()}", "ERROR")
+
+            # Fallback notification on navigation failure
+            try:
+                xbmcgui.Dialog().notification('LibraryGenie', 'List created - check Search History folder', xbmcgui.NOTIFICATION_INFO)
+            except:
+                pass
 
     # Start navigation in background thread
     nav_thread = threading.Thread(target=delayed_navigate)

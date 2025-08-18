@@ -137,6 +137,15 @@ class RemoteAPIClient(Singleton):
         if not self.api_key:
             log("Remote API not configured", "WARNING")
             return []
+        
+        # Return raw API response for normalization by from_remote_api()
+        params = {
+            'query': query,
+            'limit': limit
+        }
+        
+        result = self._make_request('POST', '/kodi/search', params)
+        return result
 
         try:
             response = self._make_request('POST', '/kodi/search/movies', {

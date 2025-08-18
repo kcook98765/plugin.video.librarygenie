@@ -61,7 +61,11 @@ def log(message, level=None):
             "=== JSONRPC RESPONSE RAW: VideoLibrary.GetMovies ===",
             "Raw response length:",
             "=== JSONRPC RESPONSE PARSED: VideoLibrary.GetMovies ===",
-            "Response result keys:"
+            "Response result keys:",
+            "Set ListItem path for",
+            "Setting context for list viewing:",
+            "=== BUILD_DISPLAY_ITEMS: Created",
+            "display items ==="
         ]
 
         # Allow JSON-RPC request logging to always show through

@@ -7,6 +7,7 @@ LibraryGenie is a comprehensive Kodi addon focused on intelligent list managemen
 ### 📚 Smart Library Management
 - **Hierarchical Organization**: Create nested folders and lists with unlimited depth
 - **Manual Curation**: Add individual items from any addon or source via context menus
+- **Import from Favorites**: Scan Kodi favorites for playable items and import with rich library metadata
 - **Batch Operations**: Efficiently manage large collections
 - **Context Menu Integration**: Add items directly from any Kodi interface
 - **Smart Navigation Management**: Prevents UI conflicts with timeout protection
@@ -30,9 +31,11 @@ LibraryGenie is a comprehensive Kodi addon focused on intelligent list managemen
 ### 🤖 AI-Powered Search (Alpha)
 - **Natural Language Queries**: Search your media using plain English descriptions
 - **Semantic Search**: Leverages AI embeddings for intelligent movie discovery
+- **Similarity Search**: Find movies similar to any reference movie based on selected aspects (plot, mood, themes, genre)
 - **Interactive Search Interface**: Modal search window with real-time query refinement
 - **Automatic Library Matching**: Seamlessly matches search results to your local Kodi library
 - **Score-Based Results**: Search results ranked by relevance with automatic sorting
+- **Faceted Similarity**: Choose specific movie aspects to compare for more targeted similarity results
 
 ### 🔄 Remote API Integration (Alpha)
 - **Easy Pairing**: Simple 8-digit code pairing with remote servers
@@ -115,8 +118,8 @@ The Options & Tools menu adapts based on your authentication status:
 - **Settings**: Access addon configuration
 
 **Alpha Users Only:**
-- **Search Movies**: Available when authenticated to remote API
-- **Search History**: Available when search history exists
+- **Find Similar Movies**: Use AI to find movies similar to the current item
+- **Search Movies**: Perform AI-powered movie searches
 
 ### Managing Collections
 
@@ -145,7 +148,19 @@ The Options & Tools menu adapts based on your authentication status:
 
 > ⚠️ **Alpha Access Required**: These features require special server access.
 
-#### Natural Language Search Examples
+#### Similarity Search Examples (Alpha)
+- "Find movies similar to Inception based on plot and mood"
+- "Movies with similar themes to The Dark Knight"
+- "Films with comparable genre elements to Blade Runner"
+
+#### Similarity Search Process (Alpha)
+1. Access similarity search via Options menu or context menu on any movie
+2. Select which aspects to compare: Plot, Mood/tone, Themes, Genre
+3. AI finds movies with similar characteristics using semantic analysis
+4. Results are automatically saved to "Search History" folder as a new list
+5. Navigate to the created list to view similar movies from the database
+
+#### Natural Language Search Examples (Alpha)
 - "Psychological thrillers with plot twists"
 - "Comedy movies from the 80s and 90s"
 - "Sci-fi movies about time travel"
@@ -163,6 +178,7 @@ The Options & Tools menu adapts based on your authentication status:
 
 ### Basic Settings (Available to All Users)
 - **Debug Logging**: Enable detailed logging for troubleshooting
+- **Import Favorites**: Scan and import playable items from Kodi favorites
 - **Performance Tuning**: Adjust timeouts and batch sizes
 - **Navigation Protection**: Configurable UI conflict prevention
 
@@ -218,12 +234,13 @@ resources/
 │   ├── integrations/           # External integrations
 │   │   ├── jsonrpc/               # Kodi JSON-RPC integration
 │   │   │   └── jsonrpc_manager.py      # JSON-RPC communication
-│   │   └── remote_api/            # (Alpha) Remote API integration
-│   │       ├── authenticate_code.py    # Authentication handling
-│   │       ├── imdb_upload_manager.py  # Library upload management
-│   │       ├── remote_api_client.py    # Remote server integration
-│   │       ├── remote_api_setup.py     # API setup workflows
-│   │       └── shortlist_importer.py   # Shortlist import functionality
+│   │   ├── remote_api/            # (Alpha) Remote API integration
+│   │   │   ├── authenticate_code.py    # Authentication handling
+│   │   │   ├── favorites_importer.py   # Kodi favorites import functionality
+│   │   │   ├── imdb_upload_manager.py  # Library upload management
+│   │   │   ├── remote_api_client.py    # Remote server integration
+│   │   │   ├── remote_api_setup.py     # API setup workflows
+│   │   │   └── shortlist_importer.py   # Shortlist addon import functionality
 │   ├── kodi/                   # Kodi-specific utilities
 │   │   ├── context_menu_builder.py # Context menu construction
 │   │   ├── kodi_helper.py          # Kodi utility functions

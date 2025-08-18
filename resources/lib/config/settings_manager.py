@@ -35,6 +35,11 @@ class SettingsManager:
         from resources.lib.integrations.remote_api.authenticate_code import authenticate_with_code
         return authenticate_with_code()
 
+    def import_from_favorites(self):
+        """Trigger favorites import"""
+        from resources.lib.integrations.remote_api.favorites_importer import import_from_favorites
+        return import_from_favorites()
+
     @property 
     def addon_path(self):
         return xbmcvfs.translatePath(self.addon.getAddonInfo('path'))

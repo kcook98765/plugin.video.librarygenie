@@ -16,13 +16,16 @@ class KodiHelper:
         self.jsonrpc = JSONRPC()
 
     def list_items(self, items, content_type='video'):
-        from resources.lib.kodi.listitem_builder import ListItemBuilder
+        from resources.lib.data.normalize import from_db
+        from resources.lib.kodi.listitem.factory import build_listitem
 
         # Set content type for proper display
         xbmcplugin.setContent(self.addon_handle, content_type)
 
         for item in items:
-            list_item = ListItemBuilder.build_video_item(item)
+            # Normalize item to MediaItem and build via factory
+            media_item = from_db(item)
+            list_item = build_listitem(media_item, 'video')
             url = f'{self.addon_url}?action=play_item&id={item.get("id")}'
 
             xbmcplugin.addDirectoryItem(
@@ -74,9 +77,16 @@ class KodiHelper:
         xbmcplugin.endOfDirectory(self.addon_handle)
 
     def list_folders(self, folders):
-        from resources.lib.kodi.listitem_builder import ListItemBuilder
+        from resources.lib.data.models import MediaItem
+        from resources.lib.kodi.listitem.factory import build_listitem
         for folder in folders:
-            list_item = ListItemBuilder.build_folder_item(folder['name'], is_folder=True, item_type='folder')
+            media_item = MediaItem(
+                id=folder.get('id', 0),
+                media_type='folder',
+                title=folder['name'],
+                is_folder=True
+            )
+            list_item = build_listitem(media_item, 'folder')
             url = f'{self.addon_url}?action=show_list&list_id={folder["id"]}'
 
             xbmcplugin.addDirectoryItem(
@@ -89,9 +99,20 @@ class KodiHelper:
         xbmcplugin.endOfDirectory(self.addon_handle)
 
     def list_folders_and_lists(self, folders, lists):
-        from resources.lib.kodi.listitem_builder import ListItemBuilder
+        from resources.lib.data.normalize import from_db
+        from resources.lib.kodi.listitem.factory import build_listitem
+        from resources.lib.data.models import MediaItem
+
         for folder in folders:
-            list_item = ListItemBuilder.build_folder_item(folder['name'], is_folder=True, item_type='folder')
+            # Create MediaItem for folder
+            folder_item = MediaItem(
+                id=folder.get('id'),
+                media_type='folder',
+                title=folder.get('name', ''),
+                is_folder=True,
+                context_tags={'folder'}
+            )
+            list_item = build_listitem(folder_item, 'folder')
             url = f'{self.addon_url}?action=show_folder&folder_id={folder["id"]}'
             utils.log(f"Adding folder: {folder['name']} with URL - {url}", "DEBUG")
             xbmcplugin.addDirectoryItem(
@@ -101,7 +122,15 @@ class KodiHelper:
                 isFolder=True
             )
         for list_ in lists:
-            list_item = ListItemBuilder.build_folder_item(list_['name'], is_folder=True, item_type='playlist')
+            # Create MediaItem for list
+            list_item_data = MediaItem(
+                id=list_.get('id'),
+                media_type='playlist',
+                title=list_.get('name', ''),
+                is_folder=True,
+                context_tags={'playlist'}
+            )
+            list_item = build_listitem(list_item_data, 'playlist')
             url = f'{self.addon_url}?action=show_list&list_id={list_["id"]}'
             utils.log(f"Adding list: {list_['name']} with URL - {url}", "DEBUG")
             xbmcplugin.addDirectoryItem(
@@ -170,9 +199,14 @@ class KodiHelper:
         xbmcplugin.setProperty(self.addon_handle, 'ForcedView', 'true')
         xbmc.executebuiltin('Container.SetForceViewMode(true)')
 
-        # Add items and end directory
+        # Add items and end directory using new factory pattern
+        from resources.lib.data.normalize import from_db
+        from resources.lib.kodi.listitem.factory import build_listitem
+
         for item in items:
-            list_item = ListItemBuilder.build_video_item(item)
+            # Convert to MediaItem and use factory
+            media_item = from_db(item)
+            list_item = build_listitem(media_item, 'video')
             url = f'{self.addon_url}?action=play_item&id={item.get("id")}'
             xbmcplugin.addDirectoryItem(
                 handle=self.addon_handle,
@@ -231,19 +265,12 @@ class KodiHelper:
             field_names = [field.split()[0] for field in db.config.FIELDS]
             item_data = dict(zip(['id'] + field_names, result))
 
-            # Create list item with proper metadata using ListItemBuilder if it's a video item
-            if item_data.get('mediatype') == 'movie' or item_data.get('media_type') == 'movie':
-                from resources.lib.kodi.listitem_builder import ListItemBuilder
-                list_item = ListItemBuilder.build_video_item(item_data)
-            else:
-                # For non-video items, create basic ListItem using ListItemBuilder
-                from resources.lib.kodi.listitem_builder import ListItemBuilder
-                info_dict = {
-                    'title': item_data.get('title', ''),
-                    'plot': item_data.get('plot', ''),
-                    'mediatype': item_data.get('mediatype', item_data.get('media_type', 'video'))
-                }
-                list_item = ListItemBuilder.build_video_item(info_dict)
+            # Create list item using new factory pattern
+            from resources.lib.data.normalize import from_db
+            from resources.lib.kodi.listitem.factory import build_listitem
+
+            media_item = from_db(item_data)
+            list_item = build_listitem(media_item, 'video')
 
             # Get play URL and check validity
             folder_path = item_data.get('path', '')
@@ -486,7 +513,7 @@ class KodiHelper:
 
                     if 'result' in response and 'moviedetails' in response['result']:
                         details = response['result']['moviedetails']
-                        
+
                         # Try imdbnumber first
                         imdb_from_details = details.get('imdbnumber', '')
                         if imdb_from_details and str(imdb_from_details).startswith('tt'):
@@ -512,11 +539,11 @@ class KodiHelper:
         """Get a playable URL from item information"""
         if not item_info:
             return None
-            
+
         # Try to get URL from different possible fields
         for field in ['play', 'file', 'path', 'stream_url']:
             url = item_info.get(field)
             if url and str(url).strip():
                 return str(url).strip()
-                
+
         return None

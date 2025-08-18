@@ -614,6 +614,8 @@ class ShortlistImporter:
             utils.log(f"DATA_CONVERSION: Shortlist data processed - Duration: {duration_value} -> {duration_seconds}s, Rating: {item.get('rating')} -> {rating_value}", "INFO")
 
         utils.log(f"=== DATA_CONVERSION COMPLETE: '{media_dict['title']}' ({media_dict['year']}) from {media_dict['source']} ===", "INFO")
+        
+        # Return raw payload for normalization by from_remote_api() or from_db()
         return media_dict
 
     def clear_imported_lists_folder(self, imported_folder_id):
@@ -671,9 +673,20 @@ class ShortlistImporter:
 
             utils.log(f"Imported Lists folder ID: {imported_folder_id}", "DEBUG")
 
-            # Clear existing data in the folder
-            progress.update(40, "Clearing existing imported data...")
-            self.clear_imported_lists_folder(imported_folder_id)
+            # Ensure "Shortlist" subfolder exists under "Imported Lists"
+            shortlist_folder_result = self.db_manager.ensure_folder_exists("Shortlist", imported_folder_id)
+
+            # Extract the actual ID from the result
+            if isinstance(shortlist_folder_result, dict):
+                shortlist_folder_id = shortlist_folder_result['id']
+            else:
+                shortlist_folder_id = shortlist_folder_result
+
+            utils.log(f"Shortlist subfolder ID: {shortlist_folder_id}", "DEBUG")
+
+            # Clear existing data in the shortlist folder only
+            progress.update(40, "Clearing existing shortlist imports...")
+            self.clear_imported_lists_folder(shortlist_folder_id)
 
             # Process each list
             total_lists = len(lists)
@@ -681,16 +694,20 @@ class ShortlistImporter:
                 list_name = shortlist_list['name']
                 items = shortlist_list['items']
 
+                # Create dated list name first
+                from datetime import datetime
+                dated_list_name = f"{list_name} ({datetime.now().strftime('%Y-%m-%d')})"
+
                 progress_percent = 50 + int((i / total_lists) * 40)
                 progress.update(progress_percent, f"Processing list: {list_name}")
 
-                utils.log(f"Processing list {i+1}/{total_lists}: {list_name} ({len(items)} items)", "INFO")
+                utils.log(f"Processing list {i+1}/{total_lists}: {dated_list_name} ({len(items)} items)", "INFO")
 
                 if progress.iscanceled():
                     break
 
-                # Create list in LibraryGenie
-                list_result = self.db_manager.create_list(list_name, imported_folder_id)
+                # Create list in LibraryGenie under Shortlist subfolder with date suffix
+                list_result = self.db_manager.create_list(dated_list_name, shortlist_folder_id)
 
                 # Handle both dictionary and integer return values
                 if isinstance(list_result, dict):
@@ -698,7 +715,7 @@ class ShortlistImporter:
                 else:
                     list_id = list_result
 
-                utils.log(f"Created LibraryGenie list: {list_name} (ID: {list_id})", "INFO")
+                utils.log(f"Created LibraryGenie list: {dated_list_name} (ID: {list_id})", "INFO")
 
                 # Process all items in the list and collect media dicts
                 media_items_to_add = []
@@ -751,7 +768,10 @@ class ShortlistImporter:
                                 utils.log(f"  {field}: {value}", "INFO")
                         utils.log("=== END FINAL MEDIA_DICT ===", "INFO")
 
+                        # Always add items to the list - the database layer will handle media_items deduplication
+                        # but we want to create list entries for shortlist imports regardless
                         media_items_to_add.append(media_dict)
+                        utils.log(f"IMPORT_ADD: Adding '{media_dict['title']}' ({media_dict['year']}) to import list", "INFO")
 
                     except Exception as e:
                         utils.log(f"CONVERSION_ERROR: Failed to convert item '{item_title}': {str(e)}", "ERROR")
@@ -778,11 +798,11 @@ class ShortlistImporter:
                     try:
                         success = self.db_manager.add_shortlist_items(list_id, media_items_to_add)
                         if success:
-                            utils.log(f"IMPORT_SUCCESS: Added {len(media_items_to_add)} items to list '{list_name}' in batch", "INFO")
+                            utils.log(f"IMPORT_SUCCESS: Added {len(media_items_to_add)} items to list '{dated_list_name}' in batch", "INFO")
                         else:
-                            utils.log(f"DATABASE_ERROR: Failed to add items to list '{list_name}' in batch", "ERROR")
+                            utils.log(f"DATABASE_ERROR: Failed to add items to list '{dated_list_name}' in batch", "ERROR")
                     except Exception as e:
-                        utils.log(f"DATABASE_ERROR: Failed to add items to list '{list_name}': {str(e)}", "ERROR")
+                        utils.log(f"DATABASE_ERROR: Failed to add items to list '{dated_list_name}': {str(e)}", "ERROR")
                         import traceback
                         utils.log(f"Full traceback: {traceback.format_exc()}", "ERROR")
 
@@ -790,7 +810,7 @@ class ShortlistImporter:
             progress.close()
 
             if not progress.iscanceled():
-                message = f"Successfully imported {total_lists} lists from Shortlist to 'Imported Lists' folder"
+                message = f"Successfully imported {total_lists} lists from Shortlist to 'Imported Lists/Shortlist' folder"
                 xbmcgui.Dialog().notification("LibraryGenie", message, xbmcgui.NOTIFICATION_INFO, 5000)
                 utils.log(f"=== Shortlist import complete: {total_lists} lists imported ===", "INFO")
                 return True
