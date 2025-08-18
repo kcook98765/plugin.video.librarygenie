@@ -433,8 +433,12 @@ class ListItemBuilder:
             except Exception:
                 pass
 
-        # Set content properties
-        li.setProperty('IsPlayable', 'true')
+        # Set content properties - handle non-playable items
+        is_playable = media_info.get('playable', True)  # Default to True for backward compatibility
+        if source == 'favorites_import' and media_info.get('playable') is False:
+            is_playable = False
+        
+        li.setProperty('IsPlayable', 'true' if is_playable else 'false')
 
         # Set LibraryGenie marker to exclude from native context menu
         li.setProperty('LibraryGenie.Item', 'true')
