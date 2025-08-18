@@ -71,7 +71,8 @@ def run_search_flow():
 
     # Navigate only after modal is completely closed
     if target_url:
-        nav_manager.navigate_with_back_support(target_url, "Search Results")
+        # Use delayed navigation to ensure proper modal cleanup and back button functionality
+        nav_manager.navigate_to_list_delayed(target_url.split('list_id=')[1], delay_seconds=1.0)
     else:
         log("=== NO TARGET URL - SEARCH CANCELLED OR FAILED ===", "DEBUG")
 
