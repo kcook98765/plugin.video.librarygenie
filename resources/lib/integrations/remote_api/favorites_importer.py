@@ -8,6 +8,9 @@ from resources.lib.config.config_manager import Config
 from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.integrations.jsonrpc.jsonrpc_manager import JSONRPC
 
+# Video file extensions for playability detection
+VIDEO_EXTENSIONS = ('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.m4v', '.ts', '.mpg', '.mpeg')
+
 
 class FavoritesImporter:
     def __init__(self):
@@ -89,7 +92,7 @@ class FavoritesImporter:
             result = self._rpc("Files.GetDirectory", {
                 "directory": path,
                 "media": "files",
-                "properties": ["file", "title", "thumbnail", "art", "runtime"],
+                "properties": ["file", "title", "thumbnail", "art", "runtime", "streamdetails"],
                 "limits": {"start": 0, "end": 200}
             })
             return result.get("files", []) or []
@@ -101,8 +104,9 @@ class FavoritesImporter:
         """
         Accept if:
           - plugin://plugin.video.* URLs (always playable)
+          - videodb:// URLs (always playable)
+          - path has video file extension (cheap check first)
           - streamdetails.video is present (strongest signal)
-          - OR path has video file extension
           - OR directory probe finds matching filename with video extension
         """
         if not path:
@@ -113,20 +117,26 @@ class FavoritesImporter:
             utils.log(f"Playable confirmed by plugin URL for: {path}", "DEBUG")
             return True
 
+        # videodb:// URLs are always playable
+        if path.startswith("videodb://"):
+            utils.log(f"Playable confirmed by videodb URL for: {path}", "DEBUG")
+            return True
+
         # Strip pipe options for probing but keep original path
         base_path = path.split('|')[0] if '|' in path else path
 
+        # Check file extension first (cheap operation) for real file URLs
+        if base_path and any(base_path.lower().endswith(ext) for ext in VIDEO_EXTENSIONS):
+            utils.log(f"Playable confirmed by file extension for: {path}", "DEBUG")
+            return True
+
+        # Only call expensive RPC if extension check failed
         fd = self._get_file_details(base_path)
         
         # Check for streamdetails.video as strongest playable indicator
         streamdetails = fd.get("streamdetails", {})
         if isinstance(streamdetails, dict) and streamdetails.get("video"):
             utils.log(f"Playable confirmed by streamdetails for: {path}", "DEBUG")
-            return True
-
-        # Check file extension for real file URLs
-        if base_path and any(base_path.lower().endswith(ext) for ext in ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.m4v', '.ts', '.mpg', '.mpeg']):
-            utils.log(f"Playable confirmed by file extension for: {path}", "DEBUG")
             return True
 
         # For directories or unclear paths, probe parent directory
@@ -141,7 +151,7 @@ class FavoritesImporter:
                         item_streamdetails = item.get("streamdetails", {})
                         if isinstance(item_streamdetails, dict) and item_streamdetails.get("video"):
                             return True
-                        if any(item_file.lower().endswith(ext) for ext in ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.m4v', '.ts', '.mpg', '.mpeg']):
+                        if any(item_file.lower().endswith(ext) for ext in VIDEO_EXTENSIONS):
                             return True
 
         utils.log(f"Could not confirm playability for: {path}", "DEBUG")
@@ -410,6 +420,7 @@ class FavoritesImporter:
 
             # Duration calculation with streamdetails preference
             duration_seconds = 0
+            runtime_minutes = 0
             streamdetails = kodi_movie.get('streamdetails', {})
             if isinstance(streamdetails, dict) and streamdetails.get('video'):
                 video_streams = streamdetails['video']
@@ -492,7 +503,7 @@ class FavoritesImporter:
 
             media_dict['uniqueid'] = json.dumps(uniqueid) if uniqueid else ''
 
-            utils.log(f"DATA_CONVERSION: Library data processed - IMDb: {media_dict['imdbnumber']}, Runtime: {runtime_minutes}min -> {duration_seconds}s", "INFO")
+            utils.log(f"DATA_CONVERSION: Library data processed - IMDb: {media_dict['imdbnumber']}, Duration: {duration_seconds}s", "INFO")
 
         else:
             # Use Favorites data with enhanced validation and conversion
@@ -504,6 +515,7 @@ class FavoritesImporter:
 
             # Duration calculation with streamdetails preference
             duration_seconds = 0
+            runtime_minutes = 0
             if filedetails:
                 streamdetails = filedetails.get('streamdetails', {})
                 if isinstance(streamdetails, dict) and streamdetails.get('video'):
@@ -557,7 +569,7 @@ class FavoritesImporter:
                 'status': 'available'
             }
 
-            utils.log(f"DATA_CONVERSION: Favorites data processed - Runtime: {runtime_minutes}min -> {duration_seconds}s", "INFO")
+            utils.log(f"DATA_CONVERSION: Favorites data processed - Duration: {duration_seconds}s", "INFO")
 
         utils.log(f"=== DATA_CONVERSION COMPLETE: '{media_dict['title']}' from {media_dict['source']} ===", "INFO")
         return media_dict
