@@ -258,7 +258,7 @@ def main():
 
         # Show list selection dialog
         from typing import List, Union
-        typed_list_options: List[Union[str, xbmcgui.ListItem]] = list_options
+        typed_list_options: List[Union[str, xbmcgui.ListItem]] = options
         selected_index = xbmcgui.Dialog().select(
             f"Add '{title}' to list:",
             typed_list_options
