@@ -5,6 +5,8 @@ Converts raw payloads from different sources into standardized MediaItem objects
 from typing import Dict, Any, List, Optional
 from ..models import MediaItem, Actor
 import json
+# Assuming 'utils' is available in the same directory or accessible path
+# from ..utils import log  # Uncomment if utils is available and log is needed
 
 
 def from_jsonrpc(payload: Dict[str, Any]) -> MediaItem:
@@ -81,6 +83,50 @@ def from_jsonrpc(payload: Dict[str, Any]) -> MediaItem:
         # Stream details
         stream_details = payload.get('streamdetails', {})
 
+        # Handle director/writer with enhanced processing
+        director = payload.get('director', [])
+        if isinstance(director, list):
+            director = ' / '.join(str(d) for d in director if d)
+        elif director:
+            director = str(director)
+        else:
+            director = ""
+
+        writer = payload.get('writer', [])
+        if isinstance(writer, list):
+            writer = ' / '.join(str(w) for w in writer if w)
+        elif writer:
+            writer = str(writer)
+        else:
+            writer = ""
+
+        # Capture additional metadata fields
+        tagline = payload.get('tagline', '')
+        set_name = payload.get('set', '')
+        premiered = payload.get('premiered', '')
+        mpaa = payload.get('mpaa', '')
+        trailer = payload.get('trailer', '')
+
+        # Store additional fields in extras for richer display
+        extras = {
+            'movieid': payload.get('movieid', 0),
+            'file': payload.get('file', ''),
+            'dateadded': payload.get('dateadded', ''),
+            'lastplayed': payload.get('lastplayed', ''),
+            'playcount': payload.get('playcount', 0),
+            'resume': payload.get('resume', {}),
+            'search_score': payload.get('search_score', 0),
+            '_viewing_list_id': payload.get('_viewing_list_id'),
+            'media_id': payload.get('media_id'),
+            'director': director,
+            'writer': writer,
+            'tagline': tagline,
+            'set': set_name,
+            'premiered': premiered,
+            'mpaa': mpaa,
+            'trailer': trailer
+        }
+
         return MediaItem(
             id=media_id,
             media_type='movie',  # JSON-RPC typically deals with movies
@@ -102,10 +148,13 @@ def from_jsonrpc(payload: Dict[str, Any]) -> MediaItem:
             cast=cast_list,
             context_tags=set(),
             sort_keys={},
-            extras=payload  # Store original payload for additional fields
+            extras=extras  # Store original payload for additional fields
         )
 
     except Exception as e:
+        # Log the error if utils is available
+        # if 'utils' in locals():
+        #     utils.log(f"Error converting JSON-RPC payload: {e}", "ERROR")
         # Return minimal MediaItem on error
         return MediaItem(
             id=0,
@@ -164,6 +213,32 @@ def from_remote_api(payload: Dict[str, Any]) -> MediaItem:
         # Add search score if available
         search_score = float(payload.get('search_score', 0))
 
+        # Additional fields for extras
+        director = payload.get('director', '')
+        writer = payload.get('writer', '')
+        tagline = payload.get('tagline', '')
+        set_name = payload.get('set', '')
+        premiered = payload.get('premiered', '')
+        mpaa = payload.get('mpaa', '')
+        trailer = payload.get('trailer', '')
+
+        extras = {
+            'id': payload.get('id'),
+            'imdb_id': payload.get('imdb_id'),
+            'tmdb_id': payload.get('tmdb_id'),
+            'vote_average': payload.get('vote_average'),
+            'vote_count': payload.get('vote_count'),
+            'search_score': search_score,
+            'director': director,
+            'writer': writer,
+            'tagline': tagline,
+            'set': set_name,
+            'premiered': premiered,
+            'mpaa': mpaa,
+            'trailer': trailer,
+            'overview': payload.get('overview', '') # Include overview from API
+        }
+
         return MediaItem(
             id=media_id,
             media_type='movie',
@@ -185,10 +260,13 @@ def from_remote_api(payload: Dict[str, Any]) -> MediaItem:
             cast=[],
             context_tags=set(),
             sort_keys={'search_score': search_score},
-            extras=payload
+            extras=extras
         )
 
     except Exception as e:
+        # Log the error if utils is available
+        # if 'utils' in locals():
+        #     utils.log(f"Error converting Remote API payload: {e}", "ERROR")
         return MediaItem(
             id=0,
             media_type='unknown',
@@ -310,10 +388,35 @@ def from_db(row: Dict[str, Any]) -> MediaItem:
         if not media_type or media_type == 'unknown':
             media_type = 'movie'  # Default to movie for rich metadata
 
-        # Additional fields that were missing
-        studio = row.get('studio', '')
-        country = row.get('country', '')
-        extras = dict(row)  # Store original row data
+        # Handle additional fields from database with more comprehensive extraction
+        director = row.get('director', '')
+        writer = row.get('writer', '')
+        tagline = row.get('tagline', '')
+        set_name = row.get('set', '') or row.get('setname', '')
+        premiered = row.get('premiered', '') or row.get('releasedate', '')
+        mpaa = row.get('mpaa', '') or row.get('certification', '')
+        trailer = row.get('trailer', '')
+
+        # Store extended metadata in extras
+        extras = {
+            'list_item_id': row.get('list_item_id'),
+            '_viewing_list_id': row.get('_viewing_list_id'),
+            'media_id': row.get('media_id') or row.get('id'),
+            'source': row.get('source', 'db'),
+            'search_score': row.get('search_score', 0),
+            'kodi_id': row.get('kodi_id') or row.get('movieid'),
+            'file': row.get('file') or row.get('path') or row.get('play'),
+            'director': director,
+            'writer': writer,
+            'tagline': tagline,
+            'set': set_name,
+            'premiered': premiered,
+            'mpaa': mpaa,
+            'trailer': trailer,
+            'dateadded': row.get('dateadded', ''),
+            'lastplayed': row.get('lastplayed', ''),
+            'playcount': row.get('playcount', 0)
+        }
 
         # Create MediaItem with proper defaults
         media_item = MediaItem(
@@ -328,8 +431,8 @@ def from_db(row: Dict[str, Any]) -> MediaItem:
             runtime=runtime,
             rating=rating,
             votes=votes,
-            studio=studio,
-            country=country,
+            studio=row.get('studio', ''),
+            country=row.get('country', ''),
             stream_details=stream_details,
             play_path=play_path,
             is_folder=is_folder,
@@ -340,14 +443,19 @@ def from_db(row: Dict[str, Any]) -> MediaItem:
             extras=extras
         )
 
-        utils.log(f"=== FROM_DB: Created MediaItem - media_type: '{media_item.media_type}', title: '{media_item.title}' ===", "DEBUG")
-        utils.log(f"=== FROM_DB: MediaItem plot length: {len(media_item.plot)}, rating: {media_item.rating} ===", "DEBUG")
-        utils.log(f"=== FROM_DB: MediaItem art keys: {list(media_item.art.keys())}, runtime: {media_item.runtime} ===", "DEBUG")
-        utils.log(f"=== FROM_DB: MediaItem genres: {media_item.genres}, studio: '{media_item.studio}' ===", "DEBUG")
+        # Assuming utils is available for logging
+        # if 'utils' in locals():
+        #     utils.log(f"=== FROM_DB: Created MediaItem - media_type: '{media_item.media_type}', title: '{media_item.title}' ===", "DEBUG")
+        #     utils.log(f"=== FROM_DB: MediaItem plot length: {len(media_item.plot)}, rating: {media_item.rating} ===", "DEBUG")
+        #     utils.log(f"=== FROM_DB: MediaItem art keys: {list(media_item.art.keys())}, runtime: {media_item.runtime} ===", "DEBUG")
+        #     utils.log(f"=== FROM_DB: MediaItem genres: {media_item.genres}, studio: '{media_item.studio}' ===", "DEBUG")
 
         return media_item
 
     except Exception as e:
+        # Log the error if utils is available
+        # if 'utils' in locals():
+        #     utils.log(f"Error converting DB row: {e}", "ERROR")
         return MediaItem(
             id=0,
             media_type='unknown',

@@ -82,9 +82,25 @@ def _get_label2(item: MediaItem, view_hint: Union[str, None]) -> str:
                 score = item.sort_keys.get('search_score')
                 return f"Score: {score:.1f}"
 
-        # Default: show year if available
+        # For library items, show more informative label2
         if item.year and item.year > 0:
-            return str(item.year)
+            label2_parts = [str(item.year)]
+            
+            # Add rating if available
+            if item.rating and item.rating > 0:
+                label2_parts.append(f"★{item.rating:.1f}")
+            
+            # Add runtime if available
+            if item.runtime and item.runtime > 0:
+                minutes = item.runtime // 60
+                if minutes > 0:
+                    label2_parts.append(f"{minutes}min")
+            
+            return " • ".join(label2_parts)
+
+        # Fallback to rating only
+        if item.rating and item.rating > 0:
+            return f"★{item.rating:.1f}"
 
         return ""
 

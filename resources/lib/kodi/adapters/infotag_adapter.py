@@ -14,43 +14,80 @@ def apply_infotag(item: MediaItem, li: xbmcgui.ListItem) -> None:
     try:
         # Get Kodi version once
         kodi_version = _get_kodi_version()
-        utils.log(f"InfoTag adapter using Kodi version path: {kodi_version}", "DEBUG")
+        utils.log(f"=== INFOTAG: Applying InfoTag for '{item.title}' using Kodi version: {kodi_version} ===", "DEBUG")
+        utils.log(f"=== INFOTAG: MediaItem data - plot: {len(item.plot)} chars, rating: {item.rating}, runtime: {item.runtime} ===", "DEBUG")
+        utils.log(f"=== INFOTAG: MediaItem genres: {item.genres}, studio: '{item.studio}', cast: {len(item.cast)} actors ===", "DEBUG")
 
         # Get video info tag
         info_tag = li.getVideoInfoTag()
 
-        # Set basic metadata
+        # Set basic metadata with detailed logging
         if item.title:
             info_tag.setTitle(item.title)
+            utils.log(f"=== INFOTAG: Set title: '{item.title}' ===", "DEBUG")
 
         if item.plot:
             info_tag.setPlot(item.plot)
+            utils.log(f"=== INFOTAG: Set plot: {len(item.plot)} characters ===", "DEBUG")
 
         if item.year and item.year > 0:
             info_tag.setYear(item.year)
+            utils.log(f"=== INFOTAG: Set year: {item.year} ===", "DEBUG")
 
         if item.rating and item.rating > 0:
             info_tag.setRating(item.rating)
+            utils.log(f"=== INFOTAG: Set rating: {item.rating} ===", "DEBUG")
 
         if item.votes and item.votes > 0:
             info_tag.setVotes(item.votes)
+            utils.log(f"=== INFOTAG: Set votes: {item.votes} ===", "DEBUG")
 
         if item.runtime and item.runtime > 0:
             info_tag.setDuration(item.runtime)
+            utils.log(f"=== INFOTAG: Set runtime: {item.runtime} seconds ===", "DEBUG")
 
         if item.studio:
             info_tag.setStudios([item.studio])
+            utils.log(f"=== INFOTAG: Set studio: '{item.studio}' ===", "DEBUG")
 
         if item.country:
             info_tag.setCountries([item.country])
+            utils.log(f"=== INFOTAG: Set country: '{item.country}' ===", "DEBUG")
 
         # Set genres
         if item.genres:
             info_tag.setGenres(item.genres)
+            utils.log(f"=== INFOTAG: Set genres: {item.genres} ===", "DEBUG")
 
         # Set media type
         if item.media_type and item.media_type != 'unknown':
             info_tag.setMediaType(item.media_type)
+            utils.log(f"=== INFOTAG: Set media type: '{item.media_type}' ===", "DEBUG")
+
+        # Set additional InfoTag fields for richer display
+        if hasattr(item, 'tagline') and item.extras.get('tagline'):
+            info_tag.setTagLine(item.extras.get('tagline'))
+            utils.log(f"=== INFOTAG: Set tagline ===", "DEBUG")
+
+        if hasattr(item, 'director') and item.extras.get('director'):
+            directors = item.extras.get('director')
+            if isinstance(directors, str):
+                directors = [directors]
+            elif isinstance(directors, list):
+                directors = [str(d) for d in directors if d]
+            if directors:
+                info_tag.setDirectors(directors)
+                utils.log(f"=== INFOTAG: Set directors: {directors} ===", "DEBUG")
+
+        if hasattr(item, 'writer') and item.extras.get('writer'):
+            writers = item.extras.get('writer')
+            if isinstance(writers, str):
+                writers = [writers]
+            elif isinstance(writers, list):
+                writers = [str(w) for w in writers if w]
+            if writers:
+                info_tag.setWriters(writers)
+                utils.log(f"=== INFOTAG: Set writers: {writers} ===", "DEBUG")
 
         # Handle unique IDs (version-specific)
         _set_unique_ids(info_tag, item, kodi_version)
@@ -65,10 +102,13 @@ def apply_infotag(item: MediaItem, li: xbmcgui.ListItem) -> None:
         if item.stream_details:
             _set_stream_details(info_tag, item.stream_details)
 
+        utils.log(f"=== INFOTAG: Successfully applied all InfoTag fields for '{item.title}' ===", "DEBUG")
+
     except Exception as e:
-        utils.log(f"Error applying InfoTag for '{item.title}': {str(e)}", "ERROR")
-        # Fallback to basic setInfo for compatibility
+        utils.log(f"=== INFOTAG: Error applying InfoTag for '{item.title}': {str(e)} ===", "ERROR")
+        # Enhanced fallback to basic setInfo for compatibility
         try:
+            utils.log(f"=== INFOTAG: Using fallback setInfo method for '{item.title}' ===", "DEBUG")
             basic_info = {
                 'title': item.title,
                 'plot': item.plot,
@@ -81,11 +121,21 @@ def apply_infotag(item: MediaItem, li: xbmcgui.ListItem) -> None:
                 'country': item.country,
                 'mediatype': item.media_type
             }
+
+            # Add additional fields from extras
+            if item.extras.get('director'):
+                basic_info['director'] = item.extras.get('director')
+            if item.extras.get('writer'):
+                basic_info['writer'] = item.extras.get('writer')
+            if item.extras.get('tagline'):
+                basic_info['tagline'] = item.extras.get('tagline')
+
             # Filter out empty values
             basic_info = {k: v for k, v in basic_info.items() if v}
             li.setInfo('video', basic_info)
+            utils.log(f"=== INFOTAG: Fallback setInfo applied with {len(basic_info)} fields ===", "DEBUG")
         except Exception as fallback_error:
-            utils.log(f"Fallback InfoTag also failed for '{item.title}': {str(fallback_error)}", "ERROR")
+            utils.log(f"=== INFOTAG: Fallback InfoTag also failed for '{item.title}': {str(fallback_error)} ===", "ERROR")
 
 
 def _get_kodi_version() -> str:
