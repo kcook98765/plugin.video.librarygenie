@@ -303,7 +303,7 @@ class DatabaseManager(Singleton):
             # Check depth limit unless overridden
             if not override_depth_check:
                 # Get the depth of the subtree being moved
-                subtree_depth = self.query_manager.get_subtree_depth(folder_id)
+                subtree_depth = self._get_subtree_depth(folder_id)
 
                 # Get the depth at the new location
                 target_depth = self.query_manager.get_folder_depth(new_parent_id)
