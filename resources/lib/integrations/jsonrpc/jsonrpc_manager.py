@@ -234,7 +234,7 @@ class JSONRPC:
             properties = properties or self._get_version_compatible_properties()
 
             # v19 may not support complex filters, so always fetch all movies and filter manually
-            if log.is_kodi_v19():
+            if self._get_kodi_version() < 20:
                 log("DEBUG: Using v19 compatible search (manual filtering)", "DEBUG")
                 return self._find_movie_by_imdb_v19(imdb_id, properties)
 
@@ -397,7 +397,7 @@ class JSONRPC:
         properties = properties or self._get_version_compatible_properties()
 
         # v19 may not support complex filters
-        if log.is_kodi_v19():
+        if self._get_kodi_version() < 20:
             log(f"DEBUG: Using v19 compatible movie search", "DEBUG")
             return self._search_movies_v19(filter_obj, properties)
 
