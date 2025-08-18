@@ -44,7 +44,9 @@ LibraryGenie is a comprehensive Kodi addon focused on intelligent list managemen
 ### 📊 Advanced Search Features (Alpha)
 - **Dynamic Lists**: Lists that update automatically based on search criteria
 - **Protected Search History**: Automatic permanent storage of all searches in a protected folder
-- **Intelligent Matching**: Advanced algorithms for matching search results to local content
+- **Intelligent Matching**: Advanced algorithms for matching search results to local library content
+- **Relevance Scoring**: Search results automatically ranked by semantic relevance
+- **Cross-Reference Capability**: Links search results to existing library items via IMDB IDsal content
 
 ## Installation
 
@@ -177,7 +179,9 @@ The Options & Tools menu adapts based on your authentication status:
 #### Alpha Components (Future Release)
 - **RemoteAPIClient**: Search API communication
 - **WindowSearch**: Modal search interface
-- **ResultsManager**: Search result processing and display
+- **ResultsManager**: Search result processing and display item building
+- **IMDbUploadManager**: Library synchronization with remote servers
+- **ShortlistImporter**: Integration with Shortlist addon for content importger**: Search result processing and display
 
 ### File Structure
 ```

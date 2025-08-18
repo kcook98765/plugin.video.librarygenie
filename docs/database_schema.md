@@ -391,6 +391,12 @@ The `Config` class defines field mappings that align with database schema:
 - **resources.lib.config.config_manager.Config**: Database schema definitions and field mappings
 - **resources.lib.integrations.remote_api.imdb_upload_manager.IMDbUploadManager**: Handles server upload operations and batch management
 
+### Method Signature Updates
+
+The `fetch_folders_with_item_status` method has been updated to use proper parameter names:
+- **DatabaseManager**: `fetch_folders_with_item_status(media_item_id, parent_id=None)`
+- **QueryManager**: `fetch_folders_with_item_status(parent_id, media_item_id)`
+
 ## DAO Pattern Implementation
 
 The ListingDAO pattern separates folder and list concerns from QueryManager:

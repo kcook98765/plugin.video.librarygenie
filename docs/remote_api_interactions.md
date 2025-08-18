@@ -82,23 +82,35 @@ Benefits: Direct control, works offline after initial setup
 
 **Local Testing:**
 ```python
-# Test API connectivity (Kodi 19+ with Python 3)
-import xbmc
-import xbmcaddon
-import urllib.request
-import urllib.error
+# Test API connectivity
+def test_api_connection():
+    client = RemoteAPIClient()
+    if client.api_key:
+        response = client.test_connection()
+        return response.get('success', False)
+    return False
 
-def test_api_connection(server_url, api_key):
-    try:
-        request = urllib.request.Request(f"{server_url}/")
-        request.add_header("Authorization", f"ApiKey {api_key}")
-        response = urllib.request.urlopen(request, timeout=10)
-        if response.getcode() == 200:
-            xbmc.log("API connection successful", xbmc.LOGINFO)
-            return True
-    except Exception as e:
-        xbmc.log(f"API connection failed: {str(e)}", xbmc.LOGERROR)
-        return False
+# Test search functionality
+def test_search():
+    client = RemoteAPIClient()
+    results = client.search_movies("action movies", limit=5)
+    return len(results) > 0
+```
+**Local Testing:**
+```python
+# Test API connectivity
+def test_api_connection():
+    client = RemoteAPIClient()
+    if client.api_key:
+        response = client.test_connection()
+        return response.get('success', False)
+    return False
+
+# Test search functionality
+def test_search():
+    client = RemoteAPIClient()
+    results = client.search_movies("action movies", limit=5)
+    return len(results) > 0
 ```
 
 **Production Considerations:**

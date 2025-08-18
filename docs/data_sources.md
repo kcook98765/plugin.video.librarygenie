@@ -382,6 +382,8 @@ For implementation details, see:
 - `resources.lib.integrations.remote_api.shortlist_importer.ShortlistImporter.convert_shortlist_item_to_media_dict()` - Source assignment logic
 - `resources.lib.data.database_manager.DatabaseManager.add_shortlist_items()` - Batch import with source handling
 
+**Note**: The shortlist_importer module is part of the remote API integration which is currently in alpha status.
+
 ## Key Manager Classes
 
 - **resources.lib.data.database_manager.DatabaseManager**: High-level database operations, singleton pattern with retry logic
