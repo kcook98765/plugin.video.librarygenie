@@ -1405,7 +1405,7 @@ def _schedule_delayed_navigation(target_url):
             utils.log("=== DELAYED_NAVIGATION: Using Container.Update to navigate ===", "DEBUG")
             xbmc.executebuiltin(f'Container.Update({target_url})')
 
-            utils.log(f"=== DELAYED_NAVIGATION: Navigation completed ===", "DEBUG")
+            utils.log("=== DELAYED_NAVIGATION: Navigation completed ===", "DEBUG")
 
         except Exception as e:
             utils.log(f"Error in delayed navigation: {str(e)}", "ERROR")
