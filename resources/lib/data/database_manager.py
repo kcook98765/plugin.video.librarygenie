@@ -666,11 +666,6 @@ class DatabaseManager(Singleton):
         if hasattr(self, 'connection') and self.connection:
             self.connection.close()
 
-    def create_folder(self, name, parent_id=None):
-        """Create a new folder"""
-        utils.log(f"Creating folder '{name}' with parent_id={parent_id}", "DEBUG")
-        return self.query_manager.create_folder(name, parent_id)
-
     def create_list(self, name, folder_id=None):
         """Create a new list"""
         utils.log(f"Creating list '{name}' with folder_id={folder_id}", "DEBUG")
