@@ -16,8 +16,8 @@ I'm excited to share **LibraryGenie**, a brand new Kodi addon focused on intelli
 • **Batch Operations**: Work efficiently with large collections using chunked processing
 • **Smart Navigation**: Modal/clean interfaces with built-in UI conflict protection
 • **Sorting & Viewing**: Proper ListItem construction and sort methods
-• **Reliable Playback**: Fixed URL generation ensures all manually added items play correctly
-• **Enhanced Database**: SQLite storage with UNIQUE constraint handling, duplicate detection, and transaction safety
+• **Reliable Playback**: URL generation ensures all manually added items play correctly
+• **Database**: SQLite storage with UNIQUE constraint handling, duplicate detection, and transaction safety
 • **Robust Internals**: JSON-RPC integration, detailed logging, comprehensive error handling, and settings management
 
 No remote services required. Install and start organizing immediately.
@@ -60,7 +60,7 @@ No remote services required. Install and start organizing immediately.
 • Use the **Options & Tools** menu to:
   – Create folders/lists
   – Import from Kodi Favorites (automatically organizes playable favorites)
-  – Import from Shortlist addon (full list import with library enhancement)
+  – Import from Shortlist addon (full list import with library matching)
   – Manage and move lists
   – Configure settings
 • From any media item's **context menu**, choose **LibraryGenie** to add to a list
@@ -70,13 +70,13 @@ No remote services required. Install and start organizing immediately.
 **Favorites Import:**
 • Scans Kodi favorites for playable video content
 • Automatically detects video file extensions and plugin sources
-• Enhances items with library metadata when available
+• Adds library metadata when available
 • Creates organized "Imported Lists/Favorites" folder structure
 • Handles various URL formats (smb://, plugin://, videodb://, etc.)
 
 **Shortlist Import:**
 • Full integration with Shortlist addon lists
-• Automatic library matching for enhanced metadata
+• Automatic library matching for metadata
 • Preserves all original Shortlist metadata for unmatched items
 • Creates organized "Imported Lists/Shortlist" folder structure
 • Batch processing with progress tracking and error recovery
@@ -104,15 +104,14 @@ No remote services required. Install and start organizing immediately.
 
 ### Library Sync (Identifiers only)
 • After setup, choose **Upload IMDB List to Server** — this sends **IMDb IDs** in chunks (no titles, paths, or playback info).
-• After sync (and some backend processing of movies not yet collected and preprocessed), searches will be able to limit to your library contents. So you do not wnt to share access with others, as any upload of imdb numbers would overwrite and cause un-synched results.
-
+• After sync (and some backend processing of movies not yet collected and preprocessed), searches will be able to limit to your library contents. So you do not want to share access with others, as any upload of imdb numbers would overwrite and cause un-synched results.
 
 ## Troubleshooting
 
 • **Lists not displaying**: Enable debug logging and check for database messages
 • **Navigation conflicts**: Built-in protection minimizes duplicate/stacked UIs
 • **Context menu missing**: Verify the addon is installed and enabled
-• **Manual items not playing**: Recent fix ensures proper file path URLs instead of invalid movieid:// protocols
+• **Manual items not playing**: URL generation ensures proper file path URLs instead of invalid movieid:// protocols
 • **Import not working**: Check that source addon (Favorites/Shortlist) has content and is enabled
 • **Duplicate import results**: Import process automatically clears previous imports before adding new content
 • **Shortlist import failures**: Enable debug logging to see detailed JSON-RPC analysis and library matching attempts
@@ -129,7 +128,7 @@ No remote services required. Install and start organizing immediately.
 No. All list/folder features including import functionality are local and available to everyone.
 
 **Can I import my existing Kodi favorites?**
-Yes! Use "Import from Favorites" in the Options menu to scan and import all playable video favorites with enhanced metadata.
+Yes! Use "Import from Favorites" in the Options menu to scan and import all playable video favorites with metadata.
 
 **Does Shortlist import work with all versions?**
 Yes, the import system uses comprehensive JSON-RPC calls compatible with various Shortlist addon versions.
@@ -157,10 +156,10 @@ If you'd like to participate:
 • Python 3.x (Kodi's Python API)
 • SQLite for local data with robust source handling and UNIQUE constraint management
 • Comprehensive JSON-RPC integration for library metadata retrieval and import operations
-• Enhanced import system with automatic library matching and metadata enhancement
+• Import system with automatic library matching and metadata
 • Smart duplicate detection and database transaction safety
 • Clean modal UI patterns and navigation lifecycle management
-• Fixed URL generation for reliable playback across all content sources
+• URL generation for reliable playback across all content sources
 • Chunked processing for large import operations with progress tracking
 • Multi-source content handling (library, favorites, shortlist, external addons)
 
@@ -174,6 +173,6 @@ If you'd like to participate:
 • Grab the latest ZIP from the releases page
 • Enable debug logging, reproduce issues, and include relevant [LibraryGenie] log lines in reports
 • Feature requests and usability improvements are welcome
-• For alpha access, contact the development team with your library details and use casey feedback are very welcome!
+• For alpha access, contact the development team with your library details and use case
 
 Thanks for checking out LibraryGenie — hope it makes curating your library faster, cleaner, and more fun. 🙌
