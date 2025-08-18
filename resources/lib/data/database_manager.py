@@ -120,6 +120,9 @@ class DatabaseManager(Singleton):
     def fetch_list_items(self, list_id):
         return self.query_manager.fetch_list_items_with_details(list_id)
 
+    def fetch_list_items_with_details(self, list_id):
+        return self.query_manager.fetch_list_items_with_details(list_id)
+
     def truncate_data(self, data, max_length=10):
         truncated_data = {}
         for key, value in data.items():
