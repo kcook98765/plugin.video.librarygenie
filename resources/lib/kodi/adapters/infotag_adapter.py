@@ -7,8 +7,7 @@ import xbmc
 import xbmcgui
 from typing import Dict, Any, List
 from resources.lib.data.models import MediaItem, Actor
-
-import xbmcgui
+from resources.lib.utils import utils
 
 # Global flag to log version detection once per session
 _version_logged = False
