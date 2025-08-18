@@ -112,16 +112,16 @@ class ResultsManager(Singleton):
 
             utils.log("=== BUILD_DISPLAY_ITEMS: Calling get_movies_by_title_year_batch ===", "DEBUG")
             try:
-                batch_resp = self.jsonrpc.get_movies_by_title_year_batch(batch_pairs) or {}
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: Batch response keys: {list(batch_resp.keys()) if batch_resp else 'None'} ===", "DEBUG")
+                lookup_result = self.jsonrpc.get_movies_by_title_year_batch(batch_pairs) or {}
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: Batch response keys: {list(lookup_result.keys()) if lookup_result else 'None'} ===", "DEBUG")
             except AttributeError as e:
                 utils.log(f"=== BUILD_DISPLAY_ITEMS: Method not found error: {str(e)} ===", "ERROR")
-                batch_resp = {}
+                lookup_result = {}
             except Exception as e:
                 utils.log(f"=== BUILD_DISPLAY_ITEMS: Batch lookup failed: {str(e)} ===", "ERROR")
-                batch_resp = {}
+                lookup_result = {}
 
-            batch_movies = (batch_resp.get("result") or {}).get("movies") or []
+            batch_movies = (lookup_result.get("result") or {}).get("movies") or []
             utils.log(f"=== BUILD_DISPLAY_ITEMS: JSON-RPC returned {len(batch_movies)} movies from batch lookup ===", "DEBUG")
 
             if batch_movies:
@@ -182,34 +182,49 @@ class ResultsManager(Singleton):
                     media_item = from_db(r)
                     list_item = build_listitem(media_item, 'search_history' if is_search_history else 'default')
 
-                    # Use the playable path directly instead of info URL
+                    # Use the playable path instead of info URL
                     item_url = playable_path
                     display_items.append((item_url, list_item, False))
                     continue
 
-                ref_title = r.get("title", "")
-                ref_year = r.get("year", 0)
-                ref_imdb = r.get("imdbnumber", "")
+                processed_ref = {}
+                try:
+                    # Process each field that might exist in the row
+                    for field in ['title', 'year', 'plot', 'rating', 'genre', 'director', 'cast', 'duration', 'search_score']:
+                        processed_ref[field] = r.get(field)
 
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: ref_title='{ref_title}', ref_year={ref_year}, ref_imdb='{ref_imdb}' ===", "DEBUG")
+                    # Handle special fields that might have different names or need processing
+                    processed_ref['title'] = r.get('title') or 'Unknown Title'
+                    processed_ref['year'] = r.get('year') or 0
 
-                # Find the corresponding processed ref data
-                processed_ref = next((ref for ref in refs if ref.get('imdb') == ref_imdb and ref.get('title') == ref_title and ref.get('year') == ref_year), None)
-                if not processed_ref:
-                    # Fallback if processed_ref is somehow not found, use original row data
-                    processed_ref = {'title': ref_title, 'year': ref_year, 'imdb': ref_imdb, 'search_score': r.get('search_score', 0)}
-                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Using fallback processed_ref ===", "WARNING")
-                else:
-                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Found matching processed_ref ===", "DEBUG")
+                    if not processed_ref['title'] or processed_ref['title'] == 'Unknown Title':
+                        utils.log(f"Using fallback title: {r.get('title', 'Unknown')}", "DEBUG")
+                        processed_ref['title'] = r.get('title', 'Unknown')
 
-                k_exact = _key(processed_ref.get("title"), processed_ref.get("year"))
-                k_title = _key(processed_ref.get("title"), 0)
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Lookup keys - exact: {k_exact}, title: {k_title} ===", "DEBUG")
+                    if not processed_ref['year']:
+                        utils.log(f"Using fallback year: {r.get('year', 0)}", "DEBUG")
+                        processed_ref['year'] = r.get('year', 0)
 
-                cand = (idx_ty.get(k_exact) or idx_t.get(k_title) or [])
+                except Exception as e:
+                    utils.log(f"Error processing row {i}: {str(e)}", "ERROR")
+                    processed_ref = {'title': 'Error', 'year': 0}
+
+                # Find matching Kodi library entries
+                cand = []
+                if lookup_result and 'result' in lookup_result and 'movies' in lookup_result['result']:
+                    movies = lookup_result['result']['movies']
+                    for movie in movies:
+                        movie_title = movie.get('title', '').lower().strip()
+                        ref_title = processed_ref['title'].lower().strip()
+                        movie_year = movie.get('year', 0)
+                        ref_year = processed_ref['year'] or 0
+
+                        # More flexible matching - exact title match or relaxed year matching
+                        if movie_title == ref_title and (movie_year == ref_year or ref_year == 0):
+                            cand.append(movie)
+                            utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Found match - '{movie_title}' ({movie_year}) ===", "DEBUG")
+
                 meta = cand[0] if cand else None
-
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Found {len(cand)} candidates, meta exists: {meta is not None} ===", "DEBUG")
 
                 if meta:
                     utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Found Kodi match - title: {meta.get('title')}, movieid: {meta.get('movieid')} ===", "DEBUG")
@@ -243,40 +258,32 @@ class ResultsManager(Singleton):
                         item_url = f"info://{r.get('id', 'unknown')}"
                     display_items.append((item_url, list_item, False))
                 else:
-                    # No Kodi match found - only process non-favorites imports here
-                    if src != 'favorites_import':
-                        fallback_title = processed_ref.get("title") or 'Unknown Title'
-                        utils.log(f"Item {i+1}: No Kodi match for '{processed_ref.get('title')}' ({processed_ref.get('year')}), using fallback title: '{fallback_title}'", "WARNING")
+                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: No Kodi match found, using database data for '{processed_ref.get('title')}' ===", "DEBUG")
+                    # No library match - create item from database data
 
-                        resolved_item = {
-                            'id': r.get('id'),
-                            'title': processed_ref.get('title') or ref_imdb or 'Unknown',
-                            'year': processed_ref.get('year', 0) or 0,
-                            'plot': f"IMDb ID: {ref_imdb}" if ref_imdb else "No library match found",
-                            'rating': 0.0,
-                            'kodi_id': None,
-                            'file': None,
-                            'genre': '',
-                            'cast': [],
-                            'art': {},
-                            'search_score': processed_ref.get('search_score', 0),
-                            'list_item_id': r.get('list_item_id'),
-                            '_viewing_list_id': list_id,
-                            'media_id': r.get('id') or r.get('media_id'),
-                            'source': src
-                        }
+                    # Use the original database row data and normalize it
+                    db_item = dict(r)  # Copy the original row
 
-                        # Copy over any artwork and metadata from the original item
-                        for field in ['thumbnail', 'poster', 'fanart', 'art', 'plot', 'rating', 'genre', 'director', 'cast', 'duration']:
-                            if r.get(field):
-                                resolved_item[field] = r.get(field)
+                    # Add context data
+                    db_item['list_item_id'] = r.get('list_item_id')
+                    db_item['_viewing_list_id'] = list_id
+                    db_item['media_id'] = r.get('id') or r.get('media_id')
+                    db_item['source'] = 'db'
 
-                        media_item = from_db(resolved_item) # Assuming from_db can handle this structure
-                        list_item = build_listitem(media_item, 'search_history' if is_search_history else 'default')
+                    # Ensure we have the basic required fields
+                    if not db_item.get('title'):
+                        db_item['title'] = processed_ref.get('title', 'Unknown')
+                    if not db_item.get('year'):
+                        db_item['year'] = processed_ref.get('year', 0)
 
-                        item_url = f"info://{ref_imdb}" if ref_imdb else f"info://{r.get('id', 'unknown')}"
-                        display_items.append((item_url, list_item, False))
-                    # Favorites imports are already handled above, skip here to avoid duplication
+                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Creating from DB data - title: '{db_item.get('title')}', plot length: {len(str(db_item.get('plot', '')))} ===", "DEBUG")
+
+                    media_item = from_db(db_item)
+                    list_item = build_listitem(media_item, 'search_history' if is_search_history else 'default')
+
+                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Successfully created ListItem from database data ===", "DEBUG")
+
+                refs.append(list_item)
 
             # External items processed separately with stored metadata
             # Handle None search_score values that can't be compared
