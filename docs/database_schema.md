@@ -390,12 +390,58 @@ The `Config` class defines field mappings that align with database schema:
 - **resources.lib.integrations.jsonrpc.jsonrpc_manager.JSONRPCManager**: JSON-RPC communication with Kodi's API  
 - **resources.lib.config.config_manager.Config**: Database schema definitions and field mappings
 - **resources.lib.integrations.remote_api.imdb_upload_manager.IMDbUploadManager**: Handles server upload operations and batch management
+- **resources.lib.integrations.remote_api.shortlist_importer.ShortlistImporter**: Handles importing from Shortlist addon with UNIQUE constraint handling
+- **resources.lib.integrations.remote_api.favorites_importer.FavoritesImporter**: Handles importing from Kodi favorites with metadata conversion
+
+## Shortlist Import Handling
+
+### UNIQUE Constraint Management
+The `add_shortlist_items` method in DatabaseManager implements sophisticated duplicate detection:
+
+```python
+# Multiple strategies to avoid UNIQUE constraint violations
+existing_media_query = """
+    SELECT id FROM media_items 
+    WHERE (title = ? AND year = ? AND source = ?) 
+    OR (kodi_id = ? AND kodi_id > 0)
+    OR (play = ? AND play IS NOT NULL AND play != '')
+    LIMIT 1
+"""
+```
+
+### INSERT OR IGNORE Strategy
+For shortlist imports, the system uses `INSERT OR IGNORE` with fallback lookup to handle constraint violations gracefully:
+
+```python
+# Insert new media item using INSERT OR IGNORE
+media_query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
+cursor.execute(media_query, tuple(filtered_data.values()))
+media_id = cursor.lastrowid
+
+# If INSERT OR IGNORE didn't create a new record, find the existing one
+if not media_id or media_id == 0:
+    cursor.execute(existing_media_query, lookup_params)
+    existing_media = cursor.fetchone()
+    if existing_media:
+        media_id = existing_media[0]
+```
 
 ### Method Signature Updates
 
 The `fetch_folders_with_item_status` method has been updated to use proper parameter names:
 - **DatabaseManager**: `fetch_folders_with_item_status(media_item_id, parent_id=None)`
 - **QueryManager**: `fetch_folders_with_item_status(parent_id, media_item_id)`
+
+### Recent Schema Updates
+
+#### File Column Addition
+A `file` column has been added to the `media_items` table to store file paths for media items:
+
+```sql
+ALTER TABLE media_items ADD COLUMN file TEXT;
+```
+
+This column supports improved file path handling and URL generation for media playback.
 
 ## DAO Pattern Implementation
 

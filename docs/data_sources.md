@@ -175,6 +175,7 @@ if src in ('external', 'plugin_addon', 'favorites_import'):
 2. Batch JSON-RPC lookup for library metadata
 3. File path URL generation for playback
 4. Search score preservation for ordering
+5. Enhanced duplicate detection for imports
 
 ### External Processing Path
 ```python
@@ -196,9 +197,23 @@ Different sources require different query strategies in `QueryManager.insert_med
 ### Update Strategy
 ```python
 if source == 'shortlist_import':
-    query_type = 'INSERT OR REPLACE'  # Allow updates
+    query_type = 'INSERT OR REPLACE'  # Allow updates for imports
+elif source == 'favorites_import':
+    query_type = 'INSERT OR IGNORE'   # Prevent duplicates for favorites
 else:
-    query_type = 'INSERT OR IGNORE'   # Prevent duplicates
+    query_type = 'INSERT OR IGNORE'   # Default prevention of duplicates
+```
+
+### Duplicate Detection for Shortlist Imports
+```python
+# Enhanced duplicate detection using multiple strategies
+existing_media_query = """
+    SELECT id FROM media_items 
+    WHERE (title = ? AND year = ? AND source = ?) 
+    OR (kodi_id = ? AND kodi_id > 0)
+    OR (play = ? AND play IS NOT NULL AND play != '')
+    LIMIT 1
+"""
 ```
 
 ### Lookup Logic
@@ -290,12 +305,50 @@ item_url = item.get('file', f"external://{item.get('id', 'unknown')}")
 - Use `external` for complete external content with metadata
 - Use `plugin_addon` for plugin-specific content
 
-### 2. Data Consistency Rules
+### 7. Shortlist Import (`shortlist_import`) - Imported from Shortlist Addon
+
+**Purpose**: Content imported from the Shortlist Kodi addon with enhanced metadata.
+
+**Characteristics**:
+- Source set to `shortlist_import` during import process
+- May contain both library and external content
+- Uses `INSERT OR REPLACE` strategy to allow updates
+- Implements sophisticated duplicate detection to avoid UNIQUE constraint violations
+- Preserves original metadata while allowing library enhancement
+
+**Processing Path**: Library processing path (enhanced with JSON-RPC lookups)
+
+### 8. Favorites Import (`favorites_import`) - Imported from Kodi Favorites
+
+**Purpose**: Content imported from Kodi's favorites system.
+
+**Characteristics**:
+- Source set to `favorites_import` during import process
+- Converts various Kodi favorite types to standardized media items
+- Uses external processing path due to varied URL formats
+- Preserves original favorite URLs and metadata
+
+**Processing Path**: External processing path (uses stored metadata)
+
+### 9. Search Results (`search`) - AI-Powered Search Results
+
+**Purpose**: Results from semantic search operations.
+
+**Characteristics**:
+- Minimal initial data (IMDB ID and search score only)
+- Enhanced with library data during display if available
+- Preserved permanently in "Search History" folder
+- Uses library processing path for metadata enhancement
+
+**Processing Path**: Library processing path (enhanced with JSON-RPC lookups)
+
+## Data Consistency Rules
 
 - Always set appropriate source when inserting via `QueryManager.insert_media_item()`
 - Use source-specific lookup logic to prevent duplicates
 - Respect source-specific update strategies (`INSERT OR REPLACE` vs `INSERT OR IGNORE`)
 - Maintain proper `kodi_id` values (0 for non-library content)
+- Use sophisticated duplicate detection for shortlist imports to avoid constraint violations
 
 ### 3. Processing Path Considerations
 

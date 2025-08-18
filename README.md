@@ -234,12 +234,13 @@ resources/
 │   ├── integrations/           # External integrations
 │   │   ├── jsonrpc/               # Kodi JSON-RPC integration
 │   │   │   └── jsonrpc_manager.py      # JSON-RPC communication
-│   │   └── remote_api/            # (Alpha) Remote API integration
-│   │       ├── authenticate_code.py    # Authentication handling
-│   │       ├── imdb_upload_manager.py  # Library upload management
-│   │       ├── remote_api_client.py    # Remote server integration
-│   │       ├── remote_api_setup.py     # API setup workflows
-│   │       └── shortlist_importer.py   # Shortlist import functionality
+│   │   ├── remote_api/            # (Alpha) Remote API integration
+│   │   │   ├── authenticate_code.py    # Authentication handling
+│   │   │   ├── favorites_importer.py   # Kodi favorites import functionality
+│   │   │   ├── imdb_upload_manager.py  # Library upload management
+│   │   │   ├── remote_api_client.py    # Remote server integration
+│   │   │   ├── remote_api_setup.py     # API setup workflows
+│   │   │   └── shortlist_importer.py   # Shortlist addon import functionality
 │   ├── kodi/                   # Kodi-specific utilities
 │   │   ├── context_menu_builder.py # Context menu construction
 │   │   ├── kodi_helper.py          # Kodi utility functions
