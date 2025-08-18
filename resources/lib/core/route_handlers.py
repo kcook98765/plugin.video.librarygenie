@@ -1275,7 +1275,14 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
             xbmcgui.Dialog().ok('LibraryGenie', 'Failed to create similarity list.')
             return
 
-        utils.log(f"=== SIMILARITY_SEARCH: Created list with ID {new_list['id']} ===", "DEBUG")
+        # Handle both dict and int return types from create_list
+        if isinstance(new_list, dict):
+            new_list_id = new_list['id']
+        else:
+            # new_list is just the ID (int)
+            new_list_id = new_list
+
+        utils.log(f"=== SIMILARITY_SEARCH: Created list with ID {new_list_id} ===", "DEBUG")
 
         # Process similar movies following the same flow as regular search
         utils.log(f"=== SIMILARITY_SEARCH: Processing {len(similar_movies)} IMDb IDs ===", "DEBUG")
@@ -1343,7 +1350,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
 
                 # Insert media item and add to list
                 try:
-                    success = query_manager.insert_media_item_and_add_to_list(new_list['id'], media_item_data)
+                    success = query_manager.insert_media_item_and_add_to_list(new_list_id, media_item_data)
                     if success:
                         utils.log(f"=== SIMILARITY_SEARCH: Successfully added {imdb_id} to list ===", "DEBUG")
                     else:
@@ -1351,7 +1358,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
                 except Exception as e:
                     utils.log(f"=== SIMILARITY_SEARCH: Error adding {imdb_id} to list: {str(e)} ===", "ERROR")
 
-        utils.log(f"=== SIMILARITY_SEARCH: Finished processing {len(search_results)} movies into list {new_list['id']} ===", "DEBUG")
+        utils.log(f"=== SIMILARITY_SEARCH: Finished processing {len(search_results)} movies into list {new_list_id} ===", "DEBUG")
 
         # Show confirmation and navigate based on context
         xbmcgui.Dialog().notification('LibraryGenie', f'Created similarity list with {len(similar_movies)} movies', xbmcgui.NOTIFICATION_INFO)
@@ -1360,7 +1367,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
             # For context menu execution, use ActivateWindow for more reliable navigation
             target_url = _build_plugin_url({
                 'action': 'browse_list',
-                'list_id': new_list['id'],
+                'list_id': new_list_id,
             })
 
             if target_url:
@@ -1382,7 +1389,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
             # For plugin execution, use Container.Update
             target_url = _build_plugin_url({
                 'action': 'browse_list',
-                'list_id': new_list['id'],
+                'list_id': new_list_id,
             })
 
             if target_url:
@@ -1390,7 +1397,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
                 # Use delayed navigation similar to SearchWindow pattern
                 _schedule_delayed_navigation(target_url)
 
-        utils.log(f"=== SIMILARITY_SEARCH: Similarity search complete - list ID: {new_list['id']} ===", "INFO")
+        utils.log(f"=== SIMILARITY_SEARCH: Similarity search complete - list ID: {new_list_id} ===", "INFO")
 
     except Exception as e:
         utils.log(f"Error in similarity search: {str(e)}", "ERROR")
