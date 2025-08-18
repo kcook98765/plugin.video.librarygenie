@@ -17,7 +17,7 @@ class DatabaseManager(Singleton):
             self.setup_database()
             self.ensure_search_history_folder()
             # Initialize query_manager for direct access
-            from resources.lib.query_manager import QueryManager
+            from resources.lib.data.query_manager import QueryManager
             self._query_manager = QueryManager(self.db_path)
             self._initialized = True
 
@@ -46,7 +46,7 @@ class DatabaseManager(Singleton):
     def query_manager(self):
         """Access to QueryManager instance"""
         if not hasattr(self, '_query_manager'):
-            from resources.lib.query_manager import QueryManager
+            from resources.lib.data.query_manager import QueryManager
             self._query_manager = QueryManager(self.db_path)
         return self._query_manager
 
@@ -71,17 +71,17 @@ class DatabaseManager(Singleton):
 
     def setup_database(self):
         """Initialize database by delegating to query manager"""
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         query_manager.setup_database()
 
     def fetch_folders(self, parent_id=None):
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         return query_manager.fetch_folders_direct(parent_id)
 
     def fetch_lists(self, folder_id=None):
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         return query_manager.fetch_lists_direct(folder_id)
 
@@ -111,32 +111,32 @@ class DatabaseManager(Singleton):
 
 
     def get_folder_depth(self, folder_id):
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         return query_manager.get_folder_depth(folder_id)
 
     def insert_folder(self, name, parent_id=None):
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         query_manager.insert_folder_direct(name, parent_id)
 
     def update_list_folder(self, list_id, folder_id):
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         query_manager.update_list_folder(list_id, folder_id)
 
     def fetch_lists_with_item_status(self, item_id):
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         return query_manager.fetch_lists_with_item_status(item_id)
 
     def fetch_all_lists_with_item_status(self, item_id):
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         return query_manager.fetch_all_lists_with_item_status(item_id)
 
     def fetch_list_items(self, list_id):
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         return query_manager.fetch_list_items_with_details(list_id)
 
@@ -192,7 +192,7 @@ class DatabaseManager(Singleton):
             raise
 
     def insert_data(self, table, data):
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
 
         # Convert the cast list to a JSON string if it exists
         if 'cast' in data and isinstance(data['cast'], list):
@@ -270,7 +270,7 @@ class DatabaseManager(Singleton):
 
     def is_list_protected(self, list_id):
         """Check if a list is protected from modification"""
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         list_data = query_manager.fetch_list_by_id(list_id)
         return list_data and list_data.get('protected', 0) == 1
@@ -289,17 +289,17 @@ class DatabaseManager(Singleton):
         self.connection.commit()
 
     def get_list_id_by_name(self, list_name):
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         return query_manager.get_list_id_by_name(list_name)
 
     def get_lists_for_item(self, item_id):
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         return query_manager.get_lists_for_item(item_id)
 
     def fetch_all_folders(self):
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         return query_manager.fetch_all_folders()
 
@@ -318,28 +318,22 @@ class DatabaseManager(Singleton):
             return []
 
     def fetch_all_lists(self):
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         return query_manager.fetch_all_lists()
 
     def get_item_id_by_title_and_list(self, list_id, title):
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         return query_manager.get_item_id_by_title_and_list(list_id, title)
 
-    def get_folder_id_by_name(self, folder_name):
-        from resources.lib.query_manager import QueryManager
-        query_manager = QueryManager(self.db_path)
-        result = query_manager.get_folder_by_name(folder_name)
-        return result['id'] if result else None
-
     def update_folder_name(self, folder_id, new_name):
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         query_manager.update_folder_name(folder_id, new_name)
 
     def update_folder_parent(self, folder_id, new_parent_id, override_depth_check=False):
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
 
         if new_parent_id is not None:
@@ -442,28 +436,28 @@ class DatabaseManager(Singleton):
             raise e
 
     def fetch_folder_by_id(self, folder_id):
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         return query_manager.fetch_folder_by_id(folder_id)
 
     def fetch_list_by_id(self, list_id):
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         return query_manager.fetch_list_by_id(list_id)
 
     def fetch_folders_with_item_status(self, item_id):
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         return query_manager.fetch_folders_with_item_status(item_id)
 
     def remove_media_item_from_list(self, list_id, media_item_id):
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         query_manager.remove_media_item_from_list(list_id, media_item_id)
 
     def fetch_media_items_by_folder(self, folder_id):
         """Fetch all media items from lists in a specific folder"""
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
 
         # Get all lists in this folder
@@ -535,31 +529,31 @@ class DatabaseManager(Singleton):
 
     def get_imdb_export_stats(self):
         """Get statistics about IMDB numbers in exports"""
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         return query_manager.get_imdb_export_stats()
 
     def insert_imdb_export(self, movies):
         """Insert multiple movies into imdb_exports table"""
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         query_manager.insert_imdb_export(movies)
 
     def get_valid_imdb_numbers(self):
         """Get all valid IMDB numbers from exports table"""
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         return query_manager.get_valid_imdb_numbers()
 
     def sync_movies(self, movies):
         """Sync movies with the database"""
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
         query_manager.sync_movies(movies)
 
     def search_remote_movies(self, query, limit=20):
         """Search movies using remote API and return formatted results"""
-        from resources.lib.remote_api_client import RemoteAPIClient
+        from resources.lib.integrations.remote_api.remote_api_client import RemoteAPIClient
 
         remote_client = RemoteAPIClient()
         if not remote_client.api_key:
@@ -592,7 +586,7 @@ class DatabaseManager(Singleton):
 
     def ensure_search_history_folder(self):
         """Ensures the 'Search History' folder exists and is protected."""
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(self.db_path)
 
         search_history_folder_name = "Search History"
@@ -618,7 +612,7 @@ class DatabaseManager(Singleton):
 
     def add_search_history(self, query, results):
         """Adds the search results to the 'Search History' folder as a new list. Returns the list ID."""
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.data.query_manager import QueryManager
 
         query_manager = QueryManager(self.db_path)
 
@@ -758,34 +752,6 @@ class DatabaseManager(Singleton):
         if hasattr(self, 'connection') and self.connection:
             self.connection.close()
 
-
-    def ensure_folder_exists(self, folder_name, parent_folder_id=None):
-        """Ensure a folder exists, create if not found"""
-        try:
-            # Check if folder already exists using proper column name
-            if parent_folder_id is None:
-                condition = f"name = '{folder_name}' AND parent_id IS NULL"
-            else:
-                condition = f"name = '{folder_name}' AND parent_id = {parent_folder_id}"
-
-            result = self.fetch_data('folders', condition)
-
-            if result:
-                utils.log(f"'{folder_name}' folder already exists.", "INFO")
-                return result[0]['id']
-            else:
-                # Create the folder
-                utils.log(f"Creating '{folder_name}' folder.", "INFO")
-                folder_data = {
-                    'name': folder_name,
-                    'parent_id': parent_folder_id
-                }
-                folder_id = self.insert_data('folders', folder_data)
-                utils.log(f"'{folder_name}' folder created with ID: {folder_id}", "INFO")
-                return folder_id
-        except Exception as e:
-            utils.log(f"Error ensuring folder exists: {str(e)}", "ERROR")
-            return None
 
     def create_folder(self, name, parent_id=None):
         """Create a new folder"""

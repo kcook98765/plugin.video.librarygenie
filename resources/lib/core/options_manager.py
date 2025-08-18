@@ -3,7 +3,7 @@
 import time
 import xbmc
 import xbmcgui
-from resources.lib import utils
+from resources.lib.utils import utils
 from resources.lib.kodi.url_builder import build_plugin_url
 
 class OptionsManager:
@@ -37,7 +37,7 @@ class OptionsManager:
     def _is_authenticated(self):
         """Check if user is authenticated to the server"""
         try:
-            from resources.lib.addon_ref import get_addon
+            from resources.lib.config.addon_ref import get_addon
             addon = get_addon()
 
             # Check if we have API configuration
@@ -61,8 +61,8 @@ class OptionsManager:
     def _has_search_history(self):
         """Check if there are any search history entries"""
         try:
-            from resources.lib.config_manager import Config
-            from resources.lib.database_manager import DatabaseManager
+            from resources.lib.config.config_manager import Config
+            from resources.lib.data.database_manager import DatabaseManager
 
             config = Config()
             db_manager = DatabaseManager(config.db_path)
@@ -249,7 +249,7 @@ class OptionsManager:
             elif "Create New List" in selected_text:
                 utils.log("=== EXECUTING: CREATE NEW LIST ===", "DEBUG")
                 utils.log("=== ABOUT TO CALL create_list() - MODAL WILL OPEN ===", "DEBUG")
-                from resources.lib.route_handlers import create_list
+                from resources.lib.core.route_handlers import create_list
                 # Pass current folder context
                 params = {'folder_id': [current_folder_id]} if current_folder_id else {}
                 create_list(params)
@@ -257,7 +257,7 @@ class OptionsManager:
             elif "Create New Folder" in selected_text:
                 utils.log("=== EXECUTING: CREATE NEW FOLDER ===", "DEBUG")
                 utils.log("=== ABOUT TO CALL create_new_folder() - MODAL WILL OPEN ===", "DEBUG")
-                from resources.lib.folder_list_manager import get_folder_list_manager
+                from resources.lib.data.folder_list_manager import get_folder_list_manager
                 folder_manager = get_folder_list_manager()
                 folder_manager.create_new_folder(current_folder_id)
                 utils.log("=== COMPLETED: CREATE NEW FOLDER - ALL MODALS CLOSED ===", "DEBUG")

@@ -4,7 +4,7 @@ import xbmcgui
 from resources.lib.utils import utils
 from resources.lib.config.config_manager import Config
 from resources.lib.data.database_manager import DatabaseManager
-import json # Added for json.loads
+import json
 import threading
 
 def play_movie(params):
@@ -20,7 +20,7 @@ def play_movie(params):
         utils.log(f"Playing movie with Kodi ID: {movieid}", "DEBUG")
 
         # Use JSON-RPC to directly play the movie - this preserves resume points and all Kodi functionality
-        from resources.lib.jsonrpc_manager import JSONRPC
+        from resources.lib.integrations.jsonrpc.jsonrpc_manager import JSONRPC
         jsonrpc = JSONRPC()
 
         # Get movie title for logging
@@ -414,7 +414,7 @@ def add_to_list(params):
         utils.log(f"add_to_list called with title='{title}', item_id='{item_id}'", "DEBUG")
 
         # Get IMDb ID using KodiHelper which has better detection logic
-        from resources.lib.kodi_helper import KodiHelper
+        from resources.lib.kodi.kodi_helper import KodiHelper
         kodi_helper = KodiHelper()
         imdb_id = kodi_helper.get_imdb_from_item()
 
@@ -441,8 +441,8 @@ def add_to_list(params):
         }
 
         # Use database manager to handle the add to list functionality
-        from resources.lib.config_manager import Config
-        from resources.lib.database_manager import DatabaseManager
+        from resources.lib.config.config_manager import Config
+        from resources.lib.data.database_manager import DatabaseManager
 
         config = Config()
         db_manager = DatabaseManager(config.db_path)
@@ -460,7 +460,7 @@ def add_to_list(params):
                 filtered_lists.append(list_item)
 
         # Create list selection options with "New List" at top
-        list_options = ["📝 Create New List"]
+        list_options = ["Create New List"]
         list_ids = [None]  # None indicates "create new list"
 
         for list_item in filtered_lists:
@@ -568,8 +568,8 @@ def add_to_list_from_context(params):
         }
 
         # Use the database manager to handle the add to list functionality
-        from resources.lib.config_manager import Config
-        from resources.lib.database_manager import DatabaseManager
+        from resources.lib.config.config_manager import Config
+        from resources.lib.data.database_manager import DatabaseManager
 
         config = Config()
         db_manager = DatabaseManager(config.db_path)
@@ -587,7 +587,7 @@ def add_to_list_from_context(params):
                 filtered_lists.append(list_item)
 
         # Create list selection options with "New List" at top
-        list_options = ["📝 Create New List"]
+        list_options = ["Create New List"]
         list_ids = [None]  # None indicates "create new list"
 
         for list_item in filtered_lists:
@@ -713,9 +713,9 @@ def find_similar_movies_from_context(params):
 def _perform_similarity_search(imdb_id, title, from_context_menu=False):
     """Perform the actual similarity search and create list"""
     try:
-        from resources.lib.remote_api_client import RemoteAPIClient
-        from resources.lib.config_manager import Config
-        from resources.lib.query_manager import QueryManager
+        from resources.lib.integrations.remote_api.remote_api_client import RemoteAPIClient
+        from resources.lib.config.config_manager import Config
+        from resources.lib.data.query_manager import QueryManager
 
         config = Config()
 
@@ -912,7 +912,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
                     time.sleep(1.5)  # Wait for notification to show
                     utils.log(f"=== CONTEXT_MENU_NAVIGATION: Activating window: {target_url} ===", "DEBUG")
                     xbmc.executebuiltin(f'ActivateWindow(videos,"{target_url}",return)')
-                    utils.log(f"=== CONTEXT_MENU_NAVIGATION: ActivateWindow completed ===", "DEBUG")
+                    utils.log("=== CONTEXT_MENU_NAVIGATION: ActivateWindow completed ===", "DEBUG")
 
                 nav_thread = threading.Thread(target=delayed_activate)
                 nav_thread.daemon = True
@@ -942,7 +942,7 @@ def _build_plugin_url(params):
     """Build a clean plugin URL with proper encoding"""
     try:
         from urllib.parse import urlencode
-        from resources.lib.addon_ref import get_addon
+        from resources.lib.config.addon_ref import get_addon
 
         addon = get_addon()
         addon_id = addon.getAddonInfo("id")

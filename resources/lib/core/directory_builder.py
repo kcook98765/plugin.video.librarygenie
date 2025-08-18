@@ -4,7 +4,7 @@ import sys
 import xbmc
 import xbmcgui
 import xbmcplugin
-from resources.lib import utils
+from resources.lib.utils import utils
 from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.config.config_manager import Config
 from resources.lib.kodi.url_builder import build_plugin_url, detect_context
@@ -16,7 +16,7 @@ def add_context_menu_for_item(li: xbmcgui.ListItem, item_type: str, **ids):
     item_type: 'list' | 'movie' | 'folder'
     ids may include: list_id, movie_id, folder_id
     """
-    from resources.lib.context_menu_builder import get_context_menu_builder
+    from resources.lib.kodi.context_menu_builder import get_context_menu_builder
     context_builder = get_context_menu_builder()
 
     cm = []
@@ -50,8 +50,7 @@ def add_options_header_item(ctx: dict, handle: int):
         utils.log("Adding Options & Tools header item", "DEBUG")
 
         # For Kodi v19, avoid setting video info entirely to prevent video info dialog
-        from resources.lib import utils as utils_module
-        if utils_module.is_kodi_v19():
+        if utils.is_kodi_v19():
             utils.log("Kodi v19 detected - skipping video info to prevent dialog issues", "INFO")
         else:
             # Set info dictionary for v20+ - NO mediatype to avoid video info dialog
@@ -65,7 +64,7 @@ def add_options_header_item(ctx: dict, handle: int):
 
         # Set custom icon for Options & Tools
 
-        from resources.lib.addon_ref import get_addon
+        from resources.lib.config.addon_ref import get_addon
         addon = get_addon()
         addon_path = addon.getAddonInfo("path")
         icon_path = f"{addon_path}/resources/media/icon.jpg"

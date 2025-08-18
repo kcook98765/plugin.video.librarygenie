@@ -729,7 +729,7 @@ def add_plugin_item_to_list(media_info):
             'year': int(media_info.get('year', 0)) if media_info.get('year', '').isdigit() else 0,
             'imdbnumber': media_info.get('imdbnumber', ''),  # May be empty for plugin items
             'source': 'plugin_addon',
-            'plot': media_info.get('plot', f'[Plugin Item] - Added from external addon'),
+            'plot': media_info.get('plot', '[Plugin Item] - Added from external addon'),
             'rating': 0.0,
             'search_score': 0,
             'media_type': 'movie',
