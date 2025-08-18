@@ -225,12 +225,7 @@ def main():
                     # If not viewing a LibraryGenie list, offer Add option
                     options.append("Add to List...")
 
-            # Find Similar Movies - only if authenticated AND has valid IMDb ID
-            if imdb_id and str(imdb_id).startswith('tt'):
-                if is_authenticated:
-                    options.append("Find Similar Movies...")
-                else:
-                    options.append("Find Similar Movies... (Requires Authentication)")
+            
 
         # Refresh Metadata - always available (unless it's a LibraryGenie folder, then it's handled by folder options)
         if not is_lg_folder_item:
@@ -637,24 +632,7 @@ def main():
                 xbmc.log(f"LibraryGenie: Error refreshing metadata: {str(refresh_error)}", xbmc.LOGERROR)
                 xbmcgui.Dialog().notification("LibraryGenie", "Error refreshing metadata", xbmcgui.NOTIFICATION_ERROR, 3000)
 
-        elif "Find Similar Movies..." in selected_option:
-            if "(Requires Authentication)" in selected_option:
-                xbmcgui.Dialog().notification("LibraryGenie", "Please configure API settings first", xbmcgui.NOTIFICATION_WARNING, 3000)
-                return
-            # Get the clean title without color formatting
-            clean_title = title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
-
-            xbmc.log(f"LibraryGenie [DEBUG]: Similarity search - Title: {clean_title}, Year: {year}, IMDb: {imdb_id}", xbmc.LOGDEBUG)
-
-            if not imdb_id or not str(imdb_id).startswith('tt'):
-                xbmc.log("LibraryGenie [WARNING]: Similarity search failed - no valid IMDb ID found", xbmc.LOGWARNING)
-                xbmcgui.Dialog().notification("LibraryGenie", "No valid IMDb ID found for similarity search", xbmcgui.NOTIFICATION_WARNING, 3000)
-                return
-
-            # Use RunPlugin to trigger similarity search
-            encoded_title = quote_plus(clean_title)
-            similarity_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=find_similar&imdb_id={imdb_id}&title={encoded_title})'
-            xbmc.executebuiltin(similarity_url)
+        
 
         elif "Search Movies..." in selected_option:  # Search Movies - use direct search instead of plugin URL
             if "(Requires Authentication)" in selected_option:
