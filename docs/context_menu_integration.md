@@ -75,8 +75,9 @@ Context menu options are dynamically generated based on:
    - **Rename List**: Change the name of the current list
    - **Delete List**: Permanently remove the current list after confirmation
    - **Move List**: Move the current list to a different folder with folder selection dialog
-   - **Add Movies to List**: Add additional movies to the current list (planned)
-   - **Clear List**: Remove all items from the current list (planned)
+   - **Add Movies to List**: Add additional movies to the current list via search interface
+   - **Clear List**: Remove all items from the current list with confirmation
+   - **Export List**: Export list contents to text, CSV, or JSON format
 
 ## IMDb ID Detection
 
@@ -138,6 +139,35 @@ When right-clicking on a LibraryGenie list item, additional management options b
 
 3. **Rename List**: Opens an input dialog to change the list name, with validation to prevent duplicate names within the same folder.
 
+4. **Add Movies to List**: Opens the search interface to find and add additional movies to the existing list. Search results are automatically added to the selected list.
+
+5. **Clear List**: Removes all items from the list after confirmation. The list structure remains but becomes empty.
+
+6. **Export List**: Exports the list contents to a file in the user's choice of format:
+   - **Plain Text (.txt)**: Simple numbered list with titles, years, and IMDb IDs
+   - **CSV (.csv)**: Spreadsheet-compatible format with detailed metadata
+   - **JSON (.json)**: Structured data format including all available metadata
+
+### Folder Management Operations
+
+When right-clicking on a LibraryGenie folder item, comprehensive folder management options are available:
+
+1. **Rename Folder**: Change the folder name with validation to prevent duplicates within the same parent folder.
+
+2. **Delete Folder**: Remove the folder with options for handling contents:
+   - Delete folder and all contents (subfolders and lists)
+   - Move contents to parent folder before deletion
+   - Cancel the operation
+
+3. **Move Folder**: Relocate the folder to a different parent folder with intelligent filtering:
+   - Excludes protected folders (Search History)
+   - Prevents circular references (moving folder into its own descendants)
+   - Shows full folder paths for clarity
+
+4. **Create New List Here**: Create a new list within the current folder context.
+
+5. **Create New Subfolder**: Create a new subfolder within the current folder with name validation.
+
 ## Configuration
 
 Context menu behavior can be configured through addon settings:
@@ -156,6 +186,10 @@ Context menu behavior can be configured through addon settings:
 4. **Slow Response**: Check network connectivity for remote API operations
 5. **List Management Failures**: Ensure proper list_id extraction from the current container path
 6. **Move List Shows No Folders**: Verify that target folders exist and are not protected (like Search History)
+7. **Export List File Not Found**: Check that the export directory is writable (uses Kodi's temp directory)
+8. **Folder Deletion Blocked**: Some folders are protected and cannot be deleted (e.g., Search History)
+9. **Circular Folder Move**: Cannot move a folder into its own descendant folders
+10. **Clear List No Confirmation**: Clear list operations require explicit user confirmation to prevent accidental data loss
 
 ### Debug Information
 

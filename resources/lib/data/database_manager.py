@@ -1,4 +1,3 @@
-
 import os
 import sqlite3
 import json
@@ -723,7 +722,7 @@ class DatabaseManager(Singleton):
             raise e
 
     def delete_folder(self, folder_id):
-        """Delete a folder and all its contents (cascading)"""
+        """Delete a folder and all its contents"""
         utils.log(f"Deleting folder {folder_id}", "DEBUG")
         return self.delete_folder_and_contents(folder_id)
 
@@ -731,20 +730,20 @@ class DatabaseManager(Singleton):
         """Add multiple shortlist items to a list in a single transaction (like add_search_history)"""
         try:
             utils.log(f"DATABASE: Adding {len(media_items_data)} shortlist items to list {list_id}", "DEBUG")
-            
+
             # Use single connection/transaction like search history does
             conn_info = self.query_manager._get_connection()
             try:
                 conn_info['connection'].execute("BEGIN")
-                
+
                 for item_data in media_items_data:
                     # Ensure media_type is set
                     if 'media_type' not in item_data:
                         item_data['media_type'] = 'movie'
-                    
+
                     # Insert media item directly in this transaction
                     cursor = conn_info['connection'].cursor()
-                    
+
                     # Filter data for media_items table
                     field_names = [field.split()[0] for field in Config.FIELDS]
                     filtered_data = {}
@@ -757,7 +756,7 @@ class DatabaseManager(Singleton):
                                 value = ''
                             if value != '' or key in ['kodi_id', 'year', 'rating', 'duration', 'votes']:
                                 filtered_data[key] = value
-                    
+
                     # Set defaults for essential fields
                     filtered_data.setdefault('kodi_id', 0)
                     filtered_data.setdefault('year', 0)
@@ -767,15 +766,15 @@ class DatabaseManager(Singleton):
                     filtered_data.setdefault('title', 'Unknown')
                     filtered_data.setdefault('source', 'shortlist_import')
                     filtered_data.setdefault('media_type', 'movie')
-                    
+
                     # Insert media item
                     columns = ', '.join(filtered_data.keys())
                     placeholders = ', '.join('?' for _ in filtered_data)
                     media_query = f'INSERT OR REPLACE INTO media_items ({columns}) VALUES ({placeholders})'
-                    
+
                     cursor.execute(media_query, tuple(filtered_data.values()))
                     media_id = cursor.lastrowid
-                    
+
                     if media_id and media_id > 0:
                         # Insert list item in same transaction
                         list_query = 'INSERT INTO list_items (list_id, media_item_id) VALUES (?, ?)'
@@ -783,18 +782,18 @@ class DatabaseManager(Singleton):
                         utils.log(f"DATABASE: Added shortlist item '{item_data.get('title', 'Unknown')}' with media_id {media_id}", "DEBUG")
                     else:
                         utils.log(f"DATABASE WARNING: Failed to get media_id for '{item_data.get('title', 'Unknown')}'", "WARNING")
-                
+
                 conn_info['connection'].commit()
                 utils.log(f"DATABASE: Successfully added {len(media_items_data)} shortlist items to list {list_id}", "INFO")
                 return True
-                
+
             except Exception as e:
                 conn_info['connection'].rollback()
                 utils.log(f"DATABASE ERROR: Transaction failed for shortlist items: {str(e)}", "ERROR")
                 raise
             finally:
                 self.query_manager._release_connection(conn_info)
-                
+
         except Exception as e:
             utils.log(f"DATABASE ERROR: Failed to add shortlist items to list {list_id}: {str(e)}", "ERROR")
             import traceback
@@ -824,7 +823,7 @@ class DatabaseManager(Singleton):
 
             # Add to list using QueryManager
             self.query_manager.insert_list_item(list_id, media_id)
-            
+
             utils.log(f"DATABASE: Successfully added media ID {media_id} to list {list_id}", "DEBUG")
             return True
 
@@ -867,3 +866,141 @@ class DatabaseManager(Singleton):
         except Exception as e:
             utils.log(f"Error updating data in {table}: {str(e)}", "ERROR")
             return False
+
+    def move_list_to_folder(self, list_id, target_folder_id):
+        """Move a list to a different folder"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "UPDATE lists SET folder_id = ? WHERE id = ?",
+                    (target_folder_id, list_id)
+                )
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            self.log(f"Error moving list to folder: {str(e)}", "ERROR")
+            return False
+
+    def clear_list_items(self, list_id):
+        """Remove all items from a list"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM list_items WHERE list_id = ?", (list_id,))
+                conn.commit()
+                return True
+        except Exception as e:
+            self.log(f"Error clearing list items: {str(e)}", "ERROR")
+            return False
+
+    def delete_folder(self, folder_id):
+        """Delete a folder and all its contents"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+
+                # Delete all lists in this folder and their items
+                cursor.execute("SELECT id FROM lists WHERE folder_id = ?", (folder_id,))
+                list_ids = [row[0] for row in cursor.fetchall()]
+
+                for list_id in list_ids:
+                    cursor.execute("DELETE FROM list_items WHERE list_id = ?", (list_id,))
+
+                cursor.execute("DELETE FROM lists WHERE folder_id = ?", (folder_id,))
+
+                # Delete all subfolders recursively
+                cursor.execute("SELECT id FROM folders WHERE parent_id = ?", (folder_id,))
+                subfolder_ids = [row[0] for row in cursor.fetchall()]
+
+                for subfolder_id in subfolder_ids:
+                    self.delete_folder(subfolder_id)  # Recursive call
+
+                # Delete the folder itself
+                cursor.execute("DELETE FROM folders WHERE id = ?", (folder_id,))
+
+                conn.commit()
+                return True
+        except Exception as e:
+            self.log(f"Error deleting folder: {str(e)}", "ERROR")
+            return False
+
+    def move_folder_to_parent(self, folder_id, new_parent_id):
+        """Move a folder to a different parent folder"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "UPDATE folders SET parent_id = ? WHERE id = ?",
+                    (new_parent_id, folder_id)
+                )
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            self.log(f"Error moving folder to parent: {str(e)}", "ERROR")
+            return False
+
+    def get_descendant_folder_ids(self, folder_id):
+        """Get all descendant folder IDs for a given folder"""
+        try:
+            descendant_ids = []
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+
+                # Get direct children
+                cursor.execute("SELECT id FROM folders WHERE parent_id = ?", (folder_id,))
+                children = [row[0] for row in cursor.fetchall()]
+
+                for child_id in children:
+                    descendant_ids.append(child_id)
+                    # Recursively get descendants
+                    descendant_ids.extend(self.get_descendant_folder_ids(child_id))
+
+            return descendant_ids
+        except Exception as e:
+            self.log(f"Error getting descendant folder IDs: {str(e)}", "ERROR")
+            return []
+
+    def get_folder_path(self, folder_id):
+        """Get the full path of a folder (e.g., 'Parent/Child/Grandchild')"""
+        try:
+            path_parts = []
+            current_id = folder_id
+
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+
+                while current_id:
+                    cursor.execute("SELECT name, parent_id FROM folders WHERE id = ?", (current_id,))
+                    row = cursor.fetchone()
+                    if row:
+                        path_parts.insert(0, row[0])  # Insert at beginning
+                        current_id = row[1]  # Move to parent
+                    else:
+                        break
+
+            return " / ".join(path_parts) if path_parts else "Root"
+        except Exception as e:
+            self.log(f"Error getting folder path: {str(e)}", "ERROR")
+            return "Unknown"
+
+    def create_folder(self, name, parent_id=None):
+        """Create a new folder"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "INSERT INTO folders (name, parent_id) VALUES (?, ?)",
+                    (name, parent_id)
+                )
+                folder_id = cursor.lastrowid
+                conn.commit()
+
+                return {
+                    'id': folder_id,
+                    'name': name,
+                    'parent_id': parent_id
+                }
+        except Exception as e:
+            self.log(f"Error creating folder: {str(e)}", "ERROR")
+            return None

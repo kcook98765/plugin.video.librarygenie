@@ -257,85 +257,577 @@ def remove_from_list(params):
         xbmc.executebuiltin('Container.Refresh')
 
 def move_list(params):
-    """Move a list to a different folder or root"""
-    list_id = params.get('list_id', [None])[0]
-    if not list_id:
-        return
-
+    """Move a list to a different folder"""
     try:
+        list_id = params.get('list_id', [None])[0]
+        if not list_id:
+            utils.log("No list_id provided for move_list", "ERROR")
+            return
+
         config = Config()
         db_manager = DatabaseManager(config.db_path)
 
         # Get current list info
         list_info = db_manager.fetch_list_by_id(list_id)
         if not list_info:
-            utils.log(f"List with ID {list_id} not found", "ERROR")
+            utils.log(f"List {list_id} not found", "ERROR")
             xbmcgui.Dialog().notification('LibraryGenie', 'List not found', xbmcgui.NOTIFICATION_ERROR)
             return
 
-        # Check if list is protected (search history lists cannot be moved)
-        if db_manager.is_list_protected(list_id):
-            utils.log(f"Cannot move protected list {list_id}", "WARNING")
-            xbmcgui.Dialog().notification('LibraryGenie', 'Cannot move protected list', xbmcgui.NOTIFICATION_WARNING)
-            return
-
-        # Get all folders for selection (excluding Search History folder)
+        # Get all folders for selection (excluding Search History)
         all_folders = db_manager.fetch_all_folders()
         search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
 
-        # Filter out Search History folder and folders that would exceed depth limit
-        folder_options = ["Root (No folder)"]
-        folder_ids = [None]  # Root folder represented as None
-
+        # Filter out Search History folder and current folder
+        available_folders = []
         for folder in all_folders:
-            if folder['id'] != search_history_folder_id:
-                # Check if moving to this folder would exceed depth limit
-                folder_depth = db_manager.get_folder_depth(folder['id'])
-                if folder_depth < config.max_folder_depth:
-                    # Build folder path for display
-                    folder_path = folder['name']
-                    current_folder = folder
-                    while current_folder.get('parent_id'):
-                        parent_folder = db_manager.fetch_folder_by_id(current_folder['parent_id'])
-                        if parent_folder and parent_folder['id'] != search_history_folder_id:
-                            folder_path = f"{parent_folder['name']} > {folder_path}"
-                            current_folder = parent_folder
-                        else:
-                            break
+            if (folder['id'] != search_history_folder_id and 
+                folder['id'] != list_info.get('folder_id')):
+                available_folders.append(folder)
 
-                    folder_options.append(folder_path)
-                    folder_ids.append(folder['id'])
+        if not available_folders:
+            xbmcgui.Dialog().notification('LibraryGenie', 'No target folders available', xbmcgui.NOTIFICATION_WARNING)
+            return
+
+        # Create folder selection options
+        folder_options = ["📁 Root Folder"]  # Option to move to root
+        folder_ids = [None]  # None indicates root folder
+
+        for folder in available_folders:
+            folder_options.append(f"📁 {folder['name']}")
+            folder_ids.append(folder['id'])
 
         # Show folder selection dialog
         selected_index = xbmcgui.Dialog().select(
-            f"Move list '{list_info['name']}' to:",
-            list(folder_options)
+            f"Move '{list_info['name']}' to folder:",
+            folder_options
         )
 
         if selected_index == -1:  # User cancelled
             return
 
         target_folder_id = folder_ids[selected_index]
-        current_folder_id = list_info.get('folder_id')
+        target_folder_name = "Root Folder" if target_folder_id is None else available_folders[selected_index - 1]['name']
 
-        # Check if already in target location
-        if target_folder_id == current_folder_id:
-            xbmcgui.Dialog().notification('LibraryGenie', 'List is already in that location', xbmcgui.NOTIFICATION_INFO)
+        # Confirm the move
+        if not xbmcgui.Dialog().yesno(
+            'LibraryGenie',
+            f"Move '{list_info['name']}' to '{target_folder_name}'?",
+            'This action cannot be undone.'
+        ):
             return
 
-        # Move the list
-        db_manager.update_list_folder(list_id, target_folder_id)
+        # Perform the move
+        success = db_manager.move_list_to_folder(list_id, target_folder_id)
 
-        # Show success notification
-        target_name = "Root" if target_folder_id is None else folder_options[selected_index].replace("📁 ", "")
-        xbmcgui.Dialog().notification('LibraryGenie', f'List moved to {target_name}')
-        xbmc.executebuiltin('Container.Refresh')
+        if success:
+            utils.log(f"Successfully moved list {list_id} to folder {target_folder_id}", "INFO")
+            xbmcgui.Dialog().notification('LibraryGenie', f"Moved '{list_info['name']}' to '{target_folder_name}'", xbmcgui.NOTIFICATION_INFO)
+            # Refresh the current container
+            xbmc.executebuiltin('Container.Refresh')
+        else:
+            utils.log(f"Failed to move list {list_id} to folder {target_folder_id}", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'Failed to move list', xbmcgui.NOTIFICATION_ERROR)
 
     except Exception as e:
-        utils.log(f"Error moving list: {str(e)}", "ERROR")
+        utils.log(f"Error in move_list: {str(e)}", "ERROR")
         import traceback
-        utils.log(f"Move list traceback: {traceback.format_exc()}", "ERROR")
-        xbmcgui.Dialog().notification('LibraryGenie', 'Failed to move list', xbmcgui.NOTIFICATION_ERROR)
+        utils.log(f"move_list traceback: {traceback.format_exc()}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error moving list', xbmcgui.NOTIFICATION_ERROR)
+
+
+def add_movies_to_list(params):
+    """Add additional movies to an existing list"""
+    try:
+        list_id = params.get('list_id', [None])[0]
+        if not list_id:
+            utils.log("No list_id provided for add_movies_to_list", "ERROR")
+            return
+
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+
+        # Get list info
+        list_info = db_manager.fetch_list_by_id(list_id)
+        if not list_info:
+            utils.log(f"List {list_id} not found", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'List not found', xbmcgui.NOTIFICATION_ERROR)
+            return
+
+        # Show search dialog to find movies to add
+        from resources.lib.kodi.window_search import SearchWindow
+        search_window = SearchWindow(f"Add Movies to '{list_info['name']}'")
+        search_window.doModal()
+
+        # Check if search was successful and get the results
+        target_url = search_window.get_target_url()
+        if target_url and 'list_id=' in target_url:
+            # Extract the search results list ID
+            import re
+            match = re.search(r'list_id=(\d+)', target_url)
+            if match:
+                search_results_list_id = match.group(1)
+
+                # Get all items from the search results list
+                search_items = db_manager.fetch_list_items_with_details(search_results_list_id)
+
+                if search_items:
+                    # Add each search result to the target list
+                    added_count = 0
+                    for item in search_items:
+                        # Check if item already exists in target list
+                        existing_item = db_manager.get_list_item_by_media_id(list_id, item['id'])
+                        if not existing_item:
+                            # Create media item data from search result
+                            media_item_data = {
+                                'kodi_id': item.get('kodi_id', 0),
+                                'title': item.get('title', ''),
+                                'year': item.get('year', 0),
+                                'imdbnumber': item.get('imdbnumber', ''),
+                                'source': item.get('source', 'library'),
+                                'plot': item.get('plot', ''),
+                                'rating': item.get('rating', 0.0),
+                                'search_score': 0,  # Reset search score for manual additions
+                                'media_type': item.get('media_type', 'movie'),
+                                'genre': item.get('genre', ''),
+                                'director': item.get('director', ''),
+                                'cast': item.get('cast', '[]'),
+                                'file': item.get('file', ''),
+                                'thumbnail': item.get('thumbnail', ''),
+                                'poster': item.get('poster', ''),
+                                'fanart': item.get('fanart', ''),
+                                'art': item.get('art', '{}'),
+                                'duration': item.get('duration', 0),
+                                'votes': item.get('votes', 0),
+                                'play': item.get('play', '')
+                            }
+
+                            success = db_manager.add_media_item(list_id, media_item_data)
+                            if success:
+                                added_count += 1
+
+                    if added_count > 0:
+                        xbmcgui.Dialog().notification('LibraryGenie', f"Added {added_count} movies to '{list_info['name']}'", xbmcgui.NOTIFICATION_INFO)
+                        xbmc.executebuiltin('Container.Refresh')
+                    else:
+                        xbmcgui.Dialog().notification('LibraryGenie', 'No new movies were added', xbmcgui.NOTIFICATION_INFO)
+                else:
+                    xbmcgui.Dialog().notification('LibraryGenie', 'No search results found', xbmcgui.NOTIFICATION_WARNING)
+        else:
+            utils.log("Search was cancelled or failed", "DEBUG")
+
+    except Exception as e:
+        utils.log(f"Error in add_movies_to_list: {str(e)}", "ERROR")
+        import traceback
+        utils.log(f"add_movies_to_list traceback: {traceback.format_exc()}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error adding movies to list', xbmcgui.NOTIFICATION_ERROR)
+
+
+def clear_list(params):
+    """Remove all items from a list"""
+    try:
+        list_id = params.get('list_id', [None])[0]
+        if not list_id:
+            utils.log("No list_id provided for clear_list", "ERROR")
+            return
+
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+
+        # Get list info
+        list_info = db_manager.fetch_list_by_id(list_id)
+        if not list_info:
+            utils.log(f"List {list_id} not found", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'List not found', xbmcgui.NOTIFICATION_ERROR)
+            return
+
+        # Get current item count
+        item_count = db_manager.get_list_media_count(list_id)
+
+        if item_count == 0:
+            xbmcgui.Dialog().notification('LibraryGenie', f"'{list_info['name']}' is already empty", xbmcgui.NOTIFICATION_INFO)
+            return
+
+        # Confirm the clear operation
+        if not xbmcgui.Dialog().yesno(
+            'LibraryGenie',
+            f"Clear all {item_count} items from '{list_info['name']}'?",
+            'This action cannot be undone.'
+        ):
+            return
+
+        # Clear all items from the list
+        success = db_manager.clear_list_items(list_id)
+
+        if success:
+            utils.log(f"Successfully cleared list {list_id}", "INFO")
+            xbmcgui.Dialog().notification('LibraryGenie', f"Cleared '{list_info['name']}'", xbmcgui.NOTIFICATION_INFO)
+            xbmc.executebuiltin('Container.Refresh')
+        else:
+            utils.log(f"Failed to clear list {list_id}", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'Failed to clear list', xbmcgui.NOTIFICATION_ERROR)
+
+    except Exception as e:
+        utils.log(f"Error in clear_list: {str(e)}", "ERROR")
+        import traceback
+        utils.log(f"clear_list traceback: {traceback.format_exc()}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error clearing list', xbmcgui.NOTIFICATION_ERROR)
+
+
+def export_list(params):
+    """Export list contents to a file"""
+    try:
+        list_id = params.get('list_id', [None])[0]
+        if not list_id:
+            utils.log("No list_id provided for export_list", "ERROR")
+            return
+
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+
+        # Get list info
+        list_info = db_manager.fetch_list_by_id(list_id)
+        if not list_info:
+            utils.log(f"List {list_id} not found", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'List not found', xbmcgui.NOTIFICATION_ERROR)
+            return
+
+        # Get list items
+        list_items = db_manager.fetch_list_items_with_details(list_id)
+        if not list_items:
+            xbmcgui.Dialog().notification('LibraryGenie', f"'{list_info['name']}' is empty", xbmcgui.NOTIFICATION_WARNING)
+            return
+
+        # Choose export format
+        export_formats = ["Plain Text (.txt)", "CSV (.csv)", "JSON (.json)"]
+        selected_format = xbmcgui.Dialog().select("Choose export format:", export_formats)
+
+        if selected_format == -1:  # User cancelled
+            return
+
+        # Generate export content based on format
+        import json
+        import csv
+        import io
+        from datetime import datetime
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_list_name = "".join(c for c in list_info['name'] if c.isalnum() or c in (' ', '-', '_')).strip()
+
+        if selected_format == 0:  # Plain Text
+            filename = f"LibraryGenie_{safe_list_name}_{timestamp}.txt"
+            content = f"LibraryGenie List Export\n"
+            content += f"List Name: {list_info['name']}\n"
+            content += f"Export Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            content += f"Total Items: {len(list_items)}\n\n"
+
+            for i, item in enumerate(list_items, 1):
+                content += f"{i}. {item.get('title', 'Unknown Title')}"
+                if item.get('year'):
+                    content += f" ({item['year']})"
+                if item.get('imdbnumber'):
+                    content += f" - IMDb: {item['imdbnumber']}"
+                content += "\n"
+
+        elif selected_format == 1:  # CSV
+            filename = f"LibraryGenie_{safe_list_name}_{timestamp}.csv"
+            output = io.StringIO()
+            writer = csv.writer(output)
+
+            # Write header
+            writer.writerow(['Title', 'Year', 'IMDb ID', 'Genre', 'Director', 'Rating', 'Plot'])
+
+            # Write data
+            for item in list_items:
+                writer.writerow([
+                    item.get('title', ''),
+                    item.get('year', ''),
+                    item.get('imdbnumber', ''),
+                    item.get('genre', ''),
+                    item.get('director', ''),
+                    item.get('rating', ''),
+                    item.get('plot', '')[:100] + ('...' if len(item.get('plot', '')) > 100 else '')
+                ])
+
+            content = output.getvalue()
+
+        else:  # JSON
+            filename = f"LibraryGenie_{safe_list_name}_{timestamp}.json"
+            export_data = {
+                'list_name': list_info['name'],
+                'export_date': datetime.now().isoformat(),
+                'total_items': len(list_items),
+                'items': []
+            }
+
+            for item in list_items:
+                export_data['items'].append({
+                    'title': item.get('title', ''),
+                    'year': item.get('year', ''),
+                    'imdb_id': item.get('imdbnumber', ''),
+                    'genre': item.get('genre', ''),
+                    'director': item.get('director', ''),
+                    'rating': item.get('rating', ''),
+                    'plot': item.get('plot', ''),
+                    'poster': item.get('poster', ''),
+                    'duration': item.get('duration', '')
+                })
+
+            content = json.dumps(export_data, indent=2, ensure_ascii=False)
+
+        # Get export directory (use Kodi's temp directory)
+        import xbmcvfs
+        temp_dir = xbmcvfs.translatePath("special://temp/")
+        export_path = temp_dir + filename
+
+        # Write file
+        try:
+            with open(export_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+
+            utils.log(f"Successfully exported list to {export_path}", "INFO")
+            xbmcgui.Dialog().ok('LibraryGenie', f"List exported successfully!", f"File saved to:", export_path)
+
+        except Exception as write_error:
+            utils.log(f"Error writing export file: {str(write_error)}", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'Error writing export file', xbmcgui.NOTIFICATION_ERROR)
+
+    except Exception as e:
+        utils.log(f"Error in export_list: {str(e)}", "ERROR")
+        import traceback
+        utils.log(f"export_list traceback: {traceback.format_exc()}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error exporting list', xbmcgui.NOTIFICATION_ERROR)
+
+
+def delete_folder(params):
+    """Delete a folder and optionally its contents"""
+    try:
+        folder_id = params.get('folder_id', [None])[0]
+        if not folder_id:
+            utils.log("No folder_id provided for delete_folder", "ERROR")
+            return
+
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+
+        # Get folder info
+        folder_info = db_manager.fetch_folder_by_id(folder_id)
+        if not folder_info:
+            utils.log(f"Folder {folder_id} not found", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'Folder not found', xbmcgui.NOTIFICATION_ERROR)
+            return
+
+        # Check for protected folders
+        protected_folders = ["Search History"]
+        if folder_info['name'] in protected_folders:
+            xbmcgui.Dialog().notification('LibraryGenie', 'Cannot delete protected folder', xbmcgui.NOTIFICATION_ERROR)
+            return
+
+        # Check if folder has contents
+        subfolders = db_manager.fetch_folders(folder_id)
+        lists = db_manager.fetch_lists(folder_id)
+
+        total_contents = len(subfolders) + len(lists)
+
+        if total_contents > 0:
+            # Ask user what to do with contents
+            content_options = [
+                f"Delete folder and all {total_contents} items inside",
+                "Move contents to parent folder, then delete",
+                "Cancel deletion"
+            ]
+
+            selected_option = xbmcgui.Dialog().select(
+                f"Folder '{folder_info['name']}' contains {total_contents} items:",
+                content_options
+            )
+
+            if selected_option == -1 or selected_option == 2:  # Cancel
+                return
+            elif selected_option == 1:  # Move contents
+                # Move all subfolders and lists to parent folder
+                parent_folder_id = folder_info.get('parent_id')
+
+                for subfolder in subfolders:
+                    db_manager.move_folder_to_parent(subfolder['id'], parent_folder_id)
+
+                for list_item in lists:
+                    db_manager.move_list_to_folder(list_item['id'], parent_folder_id)
+
+        # Final confirmation
+        if not xbmcgui.Dialog().yesno(
+            'LibraryGenie',
+            f"Delete folder '{folder_info['name']}'?",
+            'This action cannot be undone.'
+        ):
+            return
+
+        # Delete the folder
+        success = db_manager.delete_folder(folder_id)
+
+        if success:
+            utils.log(f"Successfully deleted folder {folder_id}", "INFO")
+            xbmcgui.Dialog().notification('LibraryGenie', f"Deleted folder '{folder_info['name']}'", xbmcgui.NOTIFICATION_INFO)
+            xbmc.executebuiltin('Container.Refresh')
+        else:
+            utils.log(f"Failed to delete folder {folder_id}", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'Failed to delete folder', xbmcgui.NOTIFICATION_ERROR)
+
+    except Exception as e:
+        utils.log(f"Error in delete_folder: {str(e)}", "ERROR")
+        import traceback
+        utils.log(f"delete_folder traceback: {traceback.format_exc()}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error deleting folder', xbmcgui.NOTIFICATION_ERROR)
+
+
+def move_folder(params):
+    """Move a folder to a different parent folder"""
+    try:
+        folder_id = params.get('folder_id', [None])[0]
+        if not folder_id:
+            utils.log("No folder_id provided for move_folder", "ERROR")
+            return
+
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+
+        # Get current folder info
+        folder_info = db_manager.fetch_folder_by_id(folder_id)
+        if not folder_info:
+            utils.log(f"Folder {folder_id} not found", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'Folder not found', xbmcgui.NOTIFICATION_ERROR)
+            return
+
+        # Check for protected folders
+        protected_folders = ["Search History"]
+        if folder_info['name'] in protected_folders:
+            xbmcgui.Dialog().notification('LibraryGenie', 'Cannot move protected folder', xbmcgui.NOTIFICATION_ERROR)
+            return
+
+        # Get all folders for selection (excluding Search History, current folder, and its descendants)
+        all_folders = db_manager.fetch_all_folders()
+        search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
+        current_parent_id = folder_info.get('parent_id')
+
+        # Get descendant folder IDs to exclude them
+        descendant_ids = db_manager.get_descendant_folder_ids(folder_id)
+        descendant_ids.append(folder_id)  # Include self
+
+        # Filter available folders
+        available_folders = []
+        for folder in all_folders:
+            if (folder['id'] != search_history_folder_id and 
+                folder['id'] not in descendant_ids and
+                folder['id'] != current_parent_id):
+                available_folders.append(folder)
+
+        # Create folder selection options
+        folder_options = ["📁 Root Level"]  # Option to move to root
+        folder_ids = [None]  # None indicates root level
+
+        for folder in available_folders:
+            # Build folder path for display
+            folder_path = db_manager.get_folder_path(folder['id'])
+            folder_options.append(f"📁 {folder_path}")
+            folder_ids.append(folder['id'])
+
+        if len(folder_options) == 1:  # Only root option available
+            xbmcgui.Dialog().notification('LibraryGenie', 'No target folders available', xbmcgui.NOTIFICATION_WARNING)
+            return
+
+        # Show folder selection dialog
+        selected_index = xbmcgui.Dialog().select(
+            f"Move '{folder_info['name']}' to:",
+            folder_options
+        )
+
+        if selected_index == -1:  # User cancelled
+            return
+
+        target_parent_id = folder_ids[selected_index]
+        target_name = "Root Level" if target_parent_id is None else available_folders[selected_index - 1]['name']
+
+        # Confirm the move
+        if not xbmcgui.Dialog().yesno(
+            'LibraryGenie',
+            f"Move '{folder_info['name']}' to '{target_name}'?",
+            'This action cannot be undone.'
+        ):
+            return
+
+        # Perform the move
+        success = db_manager.move_folder_to_parent(folder_id, target_parent_id)
+
+        if success:
+            utils.log(f"Successfully moved folder {folder_id} to parent {target_parent_id}", "INFO")
+            xbmcgui.Dialog().notification('LibraryGenie', f"Moved '{folder_info['name']}' to '{target_name}'", xbmcgui.NOTIFICATION_INFO)
+            xbmc.executebuiltin('Container.Refresh')
+        else:
+            utils.log(f"Failed to move folder {folder_id} to parent {target_parent_id}", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'Failed to move folder', xbmcgui.NOTIFICATION_ERROR)
+
+    except Exception as e:
+        utils.log(f"Error in move_folder: {str(e)}", "ERROR")
+        import traceback
+        utils.log(f"move_folder traceback: {traceback.format_exc()}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error moving folder', xbmcgui.NOTIFICATION_ERROR)
+
+
+def create_subfolder(params):
+    """Create a new subfolder within an existing folder"""
+    try:
+        parent_folder_id = params.get('parent_folder_id', [None])[0]
+        # If no parent_folder_id specified, create at root level (parent_folder_id = None)
+
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+
+        # If parent specified, verify it exists
+        if parent_folder_id:
+            parent_folder = db_manager.fetch_folder_by_id(parent_folder_id)
+            if not parent_folder:
+                utils.log(f"Parent folder {parent_folder_id} not found", "ERROR")
+                xbmcgui.Dialog().notification('LibraryGenie', 'Parent folder not found', xbmcgui.NOTIFICATION_ERROR)
+                return
+            parent_name = parent_folder['name']
+        else:
+            parent_name = "Root Level"
+
+        # Get folder name from user
+        new_folder_name = xbmcgui.Dialog().input(
+            f'Create subfolder in "{parent_name}":',
+            type=xbmcgui.INPUT_ALPHANUM
+        )
+
+        if not new_folder_name or not new_folder_name.strip():
+            utils.log("User cancelled subfolder creation or entered empty name", "DEBUG")
+            return
+
+        new_folder_name = new_folder_name.strip()
+
+        # Check if folder name already exists in the parent
+        existing_folders = db_manager.fetch_folders(parent_folder_id)
+        for folder in existing_folders:
+            if folder['name'].lower() == new_folder_name.lower():
+                xbmcgui.Dialog().notification('LibraryGenie', 'Folder name already exists', xbmcgui.NOTIFICATION_ERROR)
+                return
+
+        # Create the folder
+        new_folder = db_manager.create_folder(new_folder_name, parent_folder_id)
+
+        if new_folder:
+            utils.log(f"Successfully created subfolder '{new_folder_name}' in parent {parent_folder_id}", "INFO")
+            xbmcgui.Dialog().notification('LibraryGenie', f"Created folder '{new_folder_name}'", xbmcgui.NOTIFICATION_INFO)
+            xbmc.executebuiltin('Container.Refresh')
+        else:
+            utils.log(f"Failed to create subfolder '{new_folder_name}' in parent {parent_folder_id}", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'Failed to create folder', xbmcgui.NOTIFICATION_ERROR)
+
+    except Exception as e:
+        utils.log(f"Error in create_subfolder: {str(e)}", "ERROR")
+        import traceback
+        utils.log(f"create_subfolder traceback: {traceback.format_exc()}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error creating subfolder', xbmcgui.NOTIFICATION_ERROR)
 
 def rename_folder(params):
     folder_id = params.get('folder_id', [None])[0]
