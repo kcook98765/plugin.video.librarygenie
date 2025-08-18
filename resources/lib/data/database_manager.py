@@ -2,7 +2,7 @@ import os
 import sqlite3
 import json
 import time
-from resources.lib import utils
+from resources.lib.utils import utils
 from resources.lib.config.config_manager import Config
 from datetime import datetime # Import datetime
 

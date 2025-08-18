@@ -23,7 +23,7 @@ from resources.lib.data.folder_list_manager import get_folder_list_manager
 from resources.lib.config.addon_helper import run_addon
 from resources.lib.config.config_manager import Config
 from resources.lib.data.database_manager import DatabaseManager
-from resources.lib.utils import utils
+from resources.lib.utils.utils import utils
 from resources.lib.core.route_handlers import (
     play_movie, show_item_details, create_list, rename_list, delete_list,
     remove_from_list, rename_folder, move_list

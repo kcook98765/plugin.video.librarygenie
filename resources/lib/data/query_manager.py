@@ -2,7 +2,7 @@ import sqlite3
 import time
 import json
 from typing import List, Dict, Any, Optional
-from resources.lib import utils
+from resources.lib.utils import utils
 from resources.lib.utils.singleton_base import Singleton
 from resources.lib.config.config_manager import Config
 
