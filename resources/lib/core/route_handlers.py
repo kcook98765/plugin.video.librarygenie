@@ -9,9 +9,8 @@ import threading
 from typing import List, Union, cast
 
 # Import necessary components for the new factory pattern
-from resources.lib.common.media_item import MediaItem
-from resources.lib.common.list_item_builder import build_listitem
-from resources.lib.data.db_utils import from_db # Assuming from_db is in db_utils
+from resources.lib.data.normalize import from_db
+from resources.lib.kodi.listitem.factory import build_listitem
 
 def play_movie(params):
     """Play a movie from Kodi library using movieid"""
@@ -775,6 +774,61 @@ def rename_folder(params):
     except Exception as e:
         utils.log(f"Error renaming folder: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Rename failed')
+
+def view_list(list_id):
+    """View contents of a list using new factory pattern"""
+    try:
+        import xbmcplugin
+        import sys
+        from resources.lib.data.normalize import from_db
+        from resources.lib.kodi.listitem.factory import build_listitem
+
+        utils.log(f"Viewing list: {list_id}", "DEBUG")
+
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+
+        # Get list items with details
+        list_items = db_manager.fetch_list_items_with_details(list_id)
+        
+        for item_data in list_items:
+            # Normalize database row to MediaItem
+            media_item = from_db(item_data)
+            
+            # Set appropriate play path based on whether it's in Kodi library
+            if item_data.get('kodi_id') or item_data.get('movieid'):
+                # Item exists in Kodi library - use play action
+                media_item.play_path = f"plugin://plugin.video.librarygenie/?action=play_movie&movieid={item_data.get('kodi_id') or item_data.get('movieid')}"
+                media_item.is_folder = False
+            else:
+                # Non-library item - use details action
+                import urllib.parse
+                encoded_title = urllib.parse.quote_plus(media_item.title)
+                media_item.play_path = f"plugin://plugin.video.librarygenie/?action=show_item_details&title={encoded_title}&list_id={list_id}&item_id={media_item.id}"
+                media_item.is_folder = False
+
+            # Add list context for menu generation
+            media_item.context_tags.add('in_list')
+            media_item.extras['list_id'] = list_id
+
+            # Build ListItem using factory
+            li = build_listitem(media_item, 'list_view')
+
+            # Add to directory
+            xbmcplugin.addDirectoryItem(
+                int(sys.argv[1]), 
+                media_item.play_path, 
+                li, 
+                media_item.is_folder
+            )
+
+        xbmcplugin.endOfDirectory(int(sys.argv[1]))
+
+    except Exception as e:
+        utils.log(f"Error viewing list {list_id}: {str(e)}", "ERROR")
+        import xbmcgui
+        xbmcgui.Dialog().notification("LibraryGenie", "Error viewing list", xbmcgui.NOTIFICATION_ERROR)
+
 
 def view_folder(folder_id):
     """View contents of a folder"""
