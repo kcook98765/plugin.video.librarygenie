@@ -494,10 +494,10 @@ class ListItemBuilder:
             if is_playable:
                 play_url = media_info.get('file') or media_info.get('path') or media_info.get('play')
                 if play_url and str(play_url).strip():
-                    li.setPath(play_url)
-                    utils.log(f"Set ListItem path for favorites import '{title}': {play_url}", "DEBUG")
+                    # Don't set path here - it's already set in the URL by ResultsManager
+                    utils.log(f"Favorites import '{title}' has playable path: {play_url}", "DEBUG")
                 else:
-                    utils.log(f"Favorites import '{title}' marked non-playable - no path set", "DEBUG")
+                    utils.log(f"Favorites import '{title}' marked non-playable - no path available", "DEBUG")
             else:
                 utils.log(f"Favorites import '{title}' is non-playable - no path set", "DEBUG")
         elif source == 'plugin_addon' and media_info.get('file'):

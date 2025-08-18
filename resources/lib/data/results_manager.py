@@ -158,6 +158,21 @@ class ResultsManager(Singleton):
                 
                 # Handle favorites_import items separately to avoid library lookup
                 if src == 'favorites_import':
+                    # Check if item has a valid playable path
+                    playable_path = r.get('path') or r.get('play') or r.get('file')
+                    
+                    # Skip items without valid playable paths (similar to shortlist import logic)
+                    if not playable_path or not str(playable_path).strip():
+                        utils.log(f"Skipping favorites import item '{r.get('title', 'Unknown')}' - no valid playable path", "DEBUG")
+                        continue
+                    
+                    # Validate the path is actually playable (basic check)
+                    path_str = str(playable_path).strip()
+                    if not (path_str.startswith(('smb://', 'nfs://', 'http://', 'https://', 'ftp://', 'ftps://', 'plugin://', '/')) or 
+                            '\\' in path_str):  # Windows network paths
+                        utils.log(f"Skipping favorites import item '{r.get('title', 'Unknown')}' - invalid path format: {path_str}", "DEBUG")
+                        continue
+                    
                     # For favorites imports, use the stored data directly
                     r['_viewing_list_id'] = list_id
                     r['media_id'] = r.get('id') or r.get('media_id')
@@ -165,8 +180,8 @@ class ResultsManager(Singleton):
                     from resources.lib.kodi.listitem_builder import ListItemBuilder
                     list_item = ListItemBuilder.build_video_item(r, is_search_history=is_search_history)
                     
-                    # Use info URL for favorites imports to open information page
-                    item_url = f"info://{r.get('id', 'unknown')}"
+                    # Use the playable path directly instead of info URL
+                    item_url = playable_path
                     display_items.append((item_url, list_item, False))
                     continue
 
@@ -226,47 +241,40 @@ class ResultsManager(Singleton):
                         item_url = f"info://{r.get('id', 'unknown')}"
                     display_items.append((item_url, list_item, False))
                 else:
-                    # No Kodi match found - check if this is a favorites import with playable path
-                    fallback_title = processed_ref.get("title") or 'Unknown Title'
-                    utils.log(f"Item {i+1}: No Kodi match for '{processed_ref.get('title')}' ({processed_ref.get('year')}), using fallback title: '{fallback_title}'", "WARNING")
-                    
-                    # For favorites imports, preserve the original playable path if available
-                    original_path = r.get('path') or r.get('play')
-                    is_playable = bool(original_path and src == 'favorites_import')
-                    
-                    resolved_item = {
-                        'id': r.get('id'),
-                        'title': processed_ref.get('title') or ref_imdb or 'Unknown',
-                        'year': processed_ref.get('year', 0) or 0,
-                        'plot': f"IMDb ID: {ref_imdb} - Imported from Favorites" if ref_imdb else "Imported from Favorites",
-                        'rating': 0.0,
-                        'kodi_id': None,
-                        'file': original_path if is_playable else None,
-                        'genre': '',
-                        'cast': [],
-                        'art': {},
-                        'search_score': processed_ref.get('search_score', 0),
-                        'list_item_id': r.get('list_item_id'),
-                        '_viewing_list_id': list_id,
-                        'media_id': r.get('id') or r.get('media_id'),
-                        'source': src,
-                        'playable': is_playable
-                    }
-                    
-                    # Copy over any artwork and metadata from the original item
-                    for field in ['thumbnail', 'poster', 'fanart', 'art', 'plot', 'rating', 'genre', 'director', 'cast', 'duration']:
-                        if r.get(field):
-                            resolved_item[field] = r.get(field)
-                    
-                    from resources.lib.kodi.listitem_builder import ListItemBuilder
-                    list_item = ListItemBuilder.build_video_item(resolved_item, is_search_history=is_search_history)
+                    # No Kodi match found - only process non-favorites imports here
+                    if src != 'favorites_import':
+                        fallback_title = processed_ref.get("title") or 'Unknown Title'
+                        utils.log(f"Item {i+1}: No Kodi match for '{processed_ref.get('title')}' ({processed_ref.get('year')}), using fallback title: '{fallback_title}'", "WARNING")
+                        
+                        resolved_item = {
+                            'id': r.get('id'),
+                            'title': processed_ref.get('title') or ref_imdb or 'Unknown',
+                            'year': processed_ref.get('year', 0) or 0,
+                            'plot': f"IMDb ID: {ref_imdb}" if ref_imdb else "No library match found",
+                            'rating': 0.0,
+                            'kodi_id': None,
+                            'file': None,
+                            'genre': '',
+                            'cast': [],
+                            'art': {},
+                            'search_score': processed_ref.get('search_score', 0),
+                            'list_item_id': r.get('list_item_id'),
+                            '_viewing_list_id': list_id,
+                            'media_id': r.get('id') or r.get('media_id'),
+                            'source': src
+                        }
+                        
+                        # Copy over any artwork and metadata from the original item
+                        for field in ['thumbnail', 'poster', 'fanart', 'art', 'plot', 'rating', 'genre', 'director', 'cast', 'duration']:
+                            if r.get(field):
+                                resolved_item[field] = r.get(field)
+                        
+                        from resources.lib.kodi.listitem_builder import ListItemBuilder
+                        list_item = ListItemBuilder.build_video_item(resolved_item, is_search_history=is_search_history)
 
-                    # Use the original path for playable favorites imports, otherwise use info URL
-                    if is_playable and original_path:
-                        item_url = original_path
-                    else:
                         item_url = f"info://{ref_imdb}" if ref_imdb else f"info://{r.get('id', 'unknown')}"
-                    display_items.append((item_url, list_item, False))
+                        display_items.append((item_url, list_item, False))
+                    # Favorites imports are already handled above, skip here to avoid duplication
 
             # External items processed separately with stored metadata
             # Handle None search_score values that can't be compared
