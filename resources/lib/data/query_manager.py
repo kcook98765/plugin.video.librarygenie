@@ -13,6 +13,11 @@ class QueryManager(Singleton):
             self.pool_size = 5
             self._connection_pool = []
             self._initialize_pool()
+            
+            # Initialize DAO with query executor
+            from resources.lib.data.dao.listing_dao import ListingDAO
+            self._listing = ListingDAO(self.execute_query)
+            
             self._initialized = True
 
     def _initialize_pool(self):
@@ -42,6 +47,122 @@ class QueryManager(Singleton):
     def _release_connection(self, conn_info):
         """Release a connection back to the pool"""
         conn_info['in_use'] = False
+
+    # =========================
+    # FOLDER DELEGATION METHODS
+    # =========================
+    
+    def get_folders(self, parent_id=None):
+        return self._listing.get_folders(parent_id)
+    
+    def fetch_folders_direct(self, parent_id=None):
+        return self._listing.fetch_folders_direct(parent_id)
+    
+    def insert_folder_direct(self, name, parent_id):
+        return self._listing.insert_folder_direct(name, parent_id)
+    
+    def update_folder_name_direct(self, folder_id, new_name):
+        return self._listing.update_folder_name_direct(folder_id, new_name)
+    
+    def get_folder_depth(self, folder_id):
+        return self._listing.get_folder_depth(folder_id)
+    
+    def get_folder_by_name(self, name, parent_id=None):
+        return self._listing.get_folder_by_name(name, parent_id)
+    
+    def get_folder_id_by_name(self, name, parent_id=None):
+        return self._listing.get_folder_id_by_name(name, parent_id)
+    
+    def ensure_search_history_folder(self):
+        return self._listing.ensure_search_history_folder()
+    
+    def insert_folder(self, name, parent_id):
+        return self._listing.insert_folder(name, parent_id)
+    
+    def create_folder(self, name, parent_id):
+        return self._listing.create_folder(name, parent_id)
+    
+    def update_folder_name(self, folder_id, new_name):
+        return self._listing.update_folder_name(folder_id, new_name)
+    
+    def get_folder_media_count(self, folder_id):
+        return self._listing.get_folder_media_count(folder_id)
+    
+    def fetch_folder_by_id(self, folder_id):
+        return self._listing.fetch_folder_by_id(folder_id)
+    
+    def update_folder_parent(self, folder_id, new_parent_id):
+        return self._listing.update_folder_parent(folder_id, new_parent_id)
+    
+    def delete_folder_and_contents(self, folder_id):
+        return self._listing.delete_folder_and_contents(folder_id)
+    
+    def fetch_folders_with_item_status(self, parent_id, media_item_id):
+        return self._listing.fetch_folders_with_item_status(parent_id, media_item_id)
+    
+    def fetch_all_folders(self):
+        return self._listing.fetch_all_folders()
+
+    # =========================
+    # LIST DELEGATION METHODS
+    # =========================
+    
+    def get_lists(self, folder_id=None):
+        return self._listing.get_lists(folder_id)
+    
+    def fetch_lists_direct(self, folder_id=None):
+        return self._listing.fetch_lists_direct(folder_id)
+    
+    def get_list_items(self, list_id):
+        return self._listing.get_list_items(list_id)
+    
+    def fetch_list_items_with_details(self, list_id):
+        return self._listing.fetch_list_items_with_details(list_id)
+    
+    def get_list_media_count(self, list_id):
+        return self._listing.get_list_media_count(list_id)
+    
+    def fetch_lists_with_item_status(self, folder_id, media_item_id):
+        return self._listing.fetch_lists_with_item_status(folder_id, media_item_id)
+    
+    def fetch_all_lists_with_item_status(self, media_item_id):
+        return self._listing.fetch_all_lists_with_item_status(media_item_id)
+    
+    def update_list_folder(self, list_id, folder_id):
+        return self._listing.update_list_folder(list_id, folder_id)
+    
+    def get_list_id_by_name(self, name, folder_id=None):
+        return self._listing.get_list_id_by_name(name, folder_id)
+    
+    def get_lists_for_item(self, media_item_id):
+        return self._listing.get_lists_for_item(media_item_id)
+    
+    def get_item_id_by_title_and_list(self, title, list_id):
+        return self._listing.get_item_id_by_title_and_list(title, list_id)
+    
+    def create_list(self, name, folder_id=None):
+        return self._listing.create_list(name, folder_id)
+    
+    def get_unique_list_name(self, base_name, folder_id=None):
+        return self._listing.get_unique_list_name(base_name, folder_id)
+    
+    def delete_list_and_contents(self, list_id):
+        return self._listing.delete_list_and_contents(list_id)
+    
+    def fetch_all_lists(self):
+        return self._listing.fetch_all_lists()
+    
+    def fetch_list_by_id(self, list_id):
+        return self._listing.fetch_list_by_id(list_id)
+    
+    def insert_list_item(self, list_id, media_item_id):
+        return self._listing.insert_list_item(list_id, media_item_id)
+    
+    def remove_media_item_from_list(self, list_id, media_item_id):
+        return self._listing.remove_media_item_from_list(list_id, media_item_id)
+    
+    def insert_media_item_and_add_to_list(self, media_data, list_id):
+        return self._listing.insert_media_item_and_add_to_list(media_data, list_id)
 
     def fetch_folders_direct(self, parent_id=None):
         """Direct folder fetch without going through DatabaseManager"""
