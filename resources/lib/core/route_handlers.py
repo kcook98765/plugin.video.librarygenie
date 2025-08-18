@@ -344,9 +344,6 @@ def move_list(params):
         xbmcgui.Dialog().notification('LibraryGenie', 'Error moving list', xbmcgui.NOTIFICATION_ERROR)
 
 
-
-
-
 def clear_list(params):
     """Remove all items from a list"""
     try:

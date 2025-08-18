@@ -7,6 +7,7 @@ LibraryGenie is a comprehensive Kodi addon focused on intelligent list managemen
 ### 📚 Smart Library Management
 - **Hierarchical Organization**: Create nested folders and lists with unlimited depth
 - **Manual Curation**: Add individual items from any addon or source via context menus
+- **Import from Favorites**: Scan Kodi favorites for playable items and import with rich library metadata
 - **Batch Operations**: Efficiently manage large collections
 - **Context Menu Integration**: Add items directly from any Kodi interface
 - **Smart Navigation Management**: Prevents UI conflicts with timeout protection
@@ -177,6 +178,7 @@ The Options & Tools menu adapts based on your authentication status:
 
 ### Basic Settings (Available to All Users)
 - **Debug Logging**: Enable detailed logging for troubleshooting
+- **Import Favorites**: Scan and import playable items from Kodi favorites
 - **Performance Tuning**: Adjust timeouts and batch sizes
 - **Navigation Protection**: Configurable UI conflict prevention
 

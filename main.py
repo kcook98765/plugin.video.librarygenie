@@ -441,6 +441,11 @@ def router(paramstring):
         route_handlers.add_to_list_from_context(params)
     elif action == 'add_to_list':
         route_handlers.add_to_list(params)
+    elif action == 'import_favorites':
+        log("Routing to import_favorites action", "DEBUG")
+        from resources.lib.integrations.remote_api.favorites_importer import import_from_favorites
+        import_from_favorites()
+        return
     else:
         # Default: build root directory if action is not recognized or empty
         log(f"Unrecognized action '{action}' or no action specified, building root directory.", "DEBUG")
