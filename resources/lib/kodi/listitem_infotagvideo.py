@@ -1,10 +1,7 @@
 from typing import Dict
 from urllib.parse import quote
-import json
-
-import xbmc
 from xbmcgui import ListItem
-from resources.lib import utils
+from resources.lib.utils import utils
 
 __all__ = ['set_info_tag', 'set_art']
 

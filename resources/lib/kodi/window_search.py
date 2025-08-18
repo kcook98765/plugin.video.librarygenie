@@ -1,7 +1,7 @@
 import xbmc
 import xbmcgui
 import time
-from resources.lib import utils
+from resources.lib.utils import utils
 
 class SearchWindow:
     def __init__(self, title="Movie Search"):
@@ -71,7 +71,7 @@ class SearchWindow:
 
             # Perform search directly
             utils.log("SearchWindow: Initializing RemoteAPIClient", "DEBUG")
-            from resources.lib.remote_api_client import RemoteAPIClient
+            from resources.lib.integrations.remote_api.remote_api_client import RemoteAPIClient
             api_client = RemoteAPIClient()
 
             utils.log("SearchWindow: Starting movie search", "DEBUG")
@@ -151,8 +151,8 @@ class SearchWindow:
     def save_to_search_history(self, query, search_results):
         """Save search results to search history and return the created list ID"""
         try:
-            from resources.lib.database_manager import DatabaseManager
-            from resources.lib.config_manager import Config
+            from resources.lib.data.database_manager import DatabaseManager
+            from resources.lib.config.config_manager import Config
 
             config = Config()
             db_manager = DatabaseManager(config.db_path)
@@ -206,7 +206,7 @@ class SearchWindow:
         """Build a clean plugin URL with proper encoding"""
         try:
             from urllib.parse import urlencode
-            from resources.lib.addon_ref import get_addon
+            from resources.lib.config.addon_ref import get_addon
 
             addon = get_addon()
             addon_id = addon.getAddonInfo("id")

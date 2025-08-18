@@ -8,7 +8,7 @@ import xbmcgui
 from resources.lib.kodi.listitem_infotagvideo import set_info_tag, set_art
 from resources.lib.utils import utils
 
-from urllib.parse import quote, urlparse, quote_plus
+from urllib.parse import quote, urlparse
 
 __all__ = ['set_info_tag', 'set_art']
 

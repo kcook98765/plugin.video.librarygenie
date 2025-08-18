@@ -1,10 +1,7 @@
 """URL building and parameter parsing utilities for LibraryGenie addon"""
 
-import sys
-import urllib.parse
-from urllib.parse import urlencode, parse_qs, urlparse, quote_plus
-import xbmcaddon
-from resources.lib import utils
+from urllib.parse import parse_qs, urlparse, quote_plus
+from resources.lib.utils import utils
 
 def build_plugin_url(params):
     """Build plugin URL from parameters"""
