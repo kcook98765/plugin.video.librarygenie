@@ -59,16 +59,24 @@ Context menu options are dynamically generated based on:
 1. **Add to List**: Add the current item to an existing or new list
 2. **Create New List**: Create a new list and add the item
 3. **Settings**: Access addon configuration
+4. **Refresh Metadata**: Update item information from library sources
+5. **Search History**: Browse previously performed searches
 
 ### Authentication-Dependent (Alpha)
 
 1. **Find Similar Movies**: Use AI to find movies similar to the current item
 2. **Add Similar to List**: Find similar movies and add them to a list
+3. **Search Movies**: Perform AI-powered movie searches
 
 ### Context-Specific
 
 1. **Remove from List**: Available when viewing a LibraryGenie list
-2. **List Management**: Rename, delete, or move the current list
+2. **List Management**: 
+   - **Rename List**: Change the name of the current list
+   - **Delete List**: Permanently remove the current list after confirmation
+   - **Move List**: Move the current list to a different folder with folder selection dialog
+   - **Add Movies to List**: Add additional movies to the current list (planned)
+   - **Clear List**: Remove all items from the current list (planned)
 
 ## IMDb ID Detection
 
@@ -120,6 +128,16 @@ Context menu operations include comprehensive error handling:
 6. **Action Execution**: Selected operation is performed
 7. **Result Display**: User receives feedback on operation success
 
+### List Management Operations
+
+When right-clicking on a LibraryGenie list item, additional management options become available:
+
+1. **Move List**: Presents a folder selection dialog showing all available folders (excluding protected folders like Search History). The list is moved to the selected destination folder.
+
+2. **Delete List**: Shows a confirmation dialog before permanently removing the list and all its contents from the database.
+
+3. **Rename List**: Opens an input dialog to change the list name, with validation to prevent duplicate names within the same folder.
+
 ## Configuration
 
 Context menu behavior can be configured through addon settings:
@@ -136,6 +154,8 @@ Context menu behavior can be configured through addon settings:
 2. **Missing Options**: Verify authentication status for Alpha features
 3. **IMDb ID Detection Failures**: Enable debug logging to trace extraction process
 4. **Slow Response**: Check network connectivity for remote API operations
+5. **List Management Failures**: Ensure proper list_id extraction from the current container path
+6. **Move List Shows No Folders**: Verify that target folders exist and are not protected (like Search History)
 
 ### Debug Information
 
