@@ -72,12 +72,12 @@ class JSONRPC:
                         # Detailed IMDb ID logging for movie details
                         imdbnumber = movie.get('imdbnumber', '')
                         uniqueid = movie.get('uniqueid', {})
-                        log(f"=== IMDB_TRACE: JSONRPC GetMovieDetails ===", "INFO")
+                        log("=== IMDB_TRACE: JSONRPC GetMovieDetails ===", "INFO")
                         log(f"IMDB_TRACE: imdbnumber field = '{imdbnumber}' (type: {type(imdbnumber)})", "INFO")
                         log(f"IMDB_TRACE: uniqueid field = {uniqueid} (type: {type(uniqueid)})", "INFO")
                         if isinstance(uniqueid, dict):
                             log(f"IMDB_TRACE: uniqueid.imdb = '{uniqueid.get('imdb', 'NOT_FOUND')}'", "INFO")
-                        log(f"=== END IMDB_TRACE ===", "INFO")
+                        log("=== END IMDB_TRACE ===", "INFO")
             else:
                 log(f"Response result type: {type(result)}", "DEBUG")
 
@@ -398,7 +398,7 @@ class JSONRPC:
 
         # v19 may not support complex filters
         if self._get_kodi_version() < 20:
-            log(f"DEBUG: Using v19 compatible movie search", "DEBUG")
+            log("DEBUG: Using v19 compatible movie search", "DEBUG")
             return self._search_movies_v19(filter_obj, properties)
 
         # v20+ can use full property set and filters
@@ -562,7 +562,7 @@ class JSONRPC:
                 }
 
             log(f"BATCH JSON-RPC: Built OR filter with {len(filter_conditions)} conditions", "INFO")
-            log(f"BATCH JSON-RPC: Making single JSONRPC call to VideoLibrary.GetMovies", "INFO")
+            log("BATCH JSON-RPC: Making single JSONRPC call to VideoLibrary.GetMovies", "INFO")
 
             response = self.execute('VideoLibrary.GetMovies', {
                 'properties': properties,
