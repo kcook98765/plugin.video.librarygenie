@@ -73,9 +73,6 @@ class QueryManager(Singleton):
     def get_folder_id_by_name(self, name, parent_id=None):
         return self._listing.get_folder_id_by_name(name, parent_id)
     
-    def ensure_search_history_folder(self):
-        return self._listing.ensure_search_history_folder()
-    
     def insert_folder(self, name, parent_id):
         return self._listing.insert_folder(name, parent_id)
     
@@ -154,9 +151,6 @@ class QueryManager(Singleton):
     
     def fetch_list_by_id(self, list_id):
         return self._listing.fetch_list_by_id(list_id)
-    
-    def insert_list_item(self, list_id, media_item_id):
-        return self._listing.insert_list_item(list_id, media_item_id)
     
     def remove_media_item_from_list(self, list_id, media_item_id):
         return self._listing.remove_media_item_from_list(list_id, media_item_id)
