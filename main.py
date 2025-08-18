@@ -114,7 +114,19 @@ def browse_folder(params):
 
         # Add subfolders
         for subfolder in subfolders:
-            li = ListItemBuilder.build_folder_item(f"📁 {subfolder['name']}", is_folder=True)
+            from resources.lib.data.normalize import from_db
+            from resources.lib.kodi.listitem.factory import build_listitem
+            
+            # Create MediaItem for subfolder
+            folder_data = {
+                'id': subfolder['id'],
+                'media_type': 'folder',
+                'title': subfolder['name'],
+                'is_folder': True
+            }
+            media_item = from_db(folder_data)
+            
+            li = build_listitem(media_item, 'folder')
             li.setProperty('lg_type', 'folder')
             add_context_menu_for_item(li, 'folder', folder_id=subfolder['id'])
             url = build_plugin_url({'action': 'browse_folder', 'folder_id': subfolder['id'], 'view': 'folder'})
@@ -122,6 +134,9 @@ def browse_folder(params):
 
         # Add lists
         for list_item in lists:
+            from resources.lib.data.normalize import from_db
+            from resources.lib.kodi.listitem.factory import build_listitem
+            
             list_count = db_manager.get_list_media_count(list_item['id'])
 
             # Check if this list contains a count pattern like "(number)" at the end
@@ -135,7 +150,16 @@ def browse_folder(params):
                 # Regular list, add count
                 display_title = f"{list_item['name']} ({list_count})"
 
-            li = ListItemBuilder.build_folder_item(f"📋 {display_title}", is_folder=True, item_type='playlist')
+            # Create MediaItem for list
+            list_data = {
+                'id': list_item['id'],
+                'media_type': 'list',
+                'title': display_title,
+                'is_folder': True
+            }
+            media_item = from_db(list_data)
+            
+            li = build_listitem(media_item, 'list')
             li.setProperty('lg_type', 'list')
             add_context_menu_for_item(li, 'list', list_id=list_item['id'])
             url = build_plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
