@@ -13,7 +13,7 @@ from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.kodi.window_search import SearchWindow
 from resources.lib.utils import utils
 # Updated import for menu registry
-from resources.lib.kodi.menu.registry import for_item
+from resources.lib.kodi.menu.registry import for_item, ContextMenuRegistry
 
 translatePath = xbmcvfs.translatePath
 
@@ -86,9 +86,10 @@ def main():
             title=current_title or "Context Item",
             is_folder=is_folder_item or lg_type == 'folder'
         )
-        context_menu = for_item(current_item)
-
-        is_authenticated = context_menu._is_authenticated()
+        
+        # Use registry to check authentication
+        context_menu_registry = ContextMenuRegistry()
+        is_authenticated = context_menu_registry._is_authenticated()
 
         # Check if we're currently viewing a LibraryGenie list (to offer Remove option)
         current_container_path = xbmc.getInfoLabel('Container.FolderPath')

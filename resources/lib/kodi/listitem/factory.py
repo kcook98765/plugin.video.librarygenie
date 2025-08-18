@@ -4,60 +4,53 @@ ListItem Factory for LibraryGenie
 Single entry point for creating Kodi ListItems from MediaItem objects
 """
 import xbmcgui
-from typing import Optional, Union
+from typing import Union
 from ...data.models import MediaItem
 from ..adapters.infotag_adapter import apply_infotag
 from ..adapters.art_mapper import apply_art
+from ..menu.registry import for_item
 from ...utils import utils
 
 
-def build_listitem(item: MediaItem, view_hint: Optional[Union[str, object]] = None) -> xbmcgui.ListItem:
+def build_listitem(item: MediaItem, view_hint: Union[str, None] = None) -> xbmcgui.ListItem:
     """
-    Build a complete Kodi ListItem from a MediaItem
+    Build a complete Kodi ListItem from MediaItem
     
     Args:
-        item: MediaItem with all normalized data
-        view_hint: Optional hint about the view context (for future use)
+        item: MediaItem containing all media information
+        view_hint: Optional hint about the viewing context ('folder', 'list', 'search_history', etc.)
     
     Returns:
-        Fully configured xbmcgui.ListItem
+        Configured xbmcgui.ListItem ready for display
     """
     try:
         # Create base ListItem
-        li = xbmcgui.ListItem()
+        li = xbmcgui.ListItem(item.title or "Unknown")
         
         # Set basic properties
-        if item.title:
-            li.setLabel(item.title)
+        li.setIsFolder(item.is_folder)
         
-        # Set label2 (could be year, duration, etc. based on view_hint)
+        # Set label2 based on context
         label2 = _get_label2(item, view_hint)
         if label2:
             li.setLabel2(label2)
         
-        # Set folder/playable state
-        li.setIsFolder(item.is_folder)
-        if not item.is_folder and item.play_path:
-            li.setProperty('IsPlayable', 'true')
-        
-        # Apply InfoTag data
+        # Apply InfoTag data (version-specific)
         apply_infotag(item, li)
         
         # Apply art mapping
         apply_art(item, li)
         
         # Set additional properties
-        _set_additional_properties(item, li, view_hint)
+        _set_properties(li, item, view_hint)
         
-        # Attach context menu from registry
-        from ..menu.registry import for_item
-        context_menu = for_item(item, view_hint)
+        # Set sort keys if available
+        _set_sort_properties(li, item)
+        
+        # Add context menu items
+        context_menu = for_item(item)
         if context_menu:
-            # Handle Kodi version differences for context menus
-            if utils.get_kodi_version() >= 19:
-                li.addContextMenuItems(context_menu, replaceItems=True)
-            else:
-                li.addContextMenuItems(context_menu, replaceItems=False)
+            li.addContextMenuItems(context_menu, replaceItems=False)
         
         utils.log(f"Built ListItem for '{item.title}' (type: {item.media_type})", "DEBUG")
         return li
@@ -70,39 +63,95 @@ def build_listitem(item: MediaItem, view_hint: Optional[Union[str, object]] = No
         return fallback_li
 
 
-def _get_label2(item: MediaItem, view_hint: Optional[Union[str, object]]) -> str:
-    """Generate label2 based on item data and view context"""
-    if item.year:
-        return str(item.year)
-    elif item.runtime and item.runtime > 0:
-        # Convert seconds to readable format
-        hours = item.runtime // 3600
-        minutes = (item.runtime % 3600) // 60
-        if hours > 0:
-            return f"{hours}h {minutes}m"
-        else:
-            return f"{minutes}m"
-    return ""
-
-
-def _set_additional_properties(item: MediaItem, li: xbmcgui.ListItem, view_hint: Optional[Union[str, object]]) -> None:
-    """Set additional properties on the ListItem"""
+def _get_label2(item: MediaItem, view_hint: Union[str, None]) -> str:
+    """Generate label2 based on item and context"""
     try:
-        # Set sort keys if available
-        if hasattr(item, 'sort_keys') and item.sort_keys:
-            for key, value in item.sort_keys.items():
-                if value is not None:
-                    li.setProperty(f"sort_{key}", str(value))
+        if view_hint == 'search_history':
+            # Show search score for search results
+            if item.sort_keys.get('search_score'):
+                score = item.sort_keys.get('search_score')
+                return f"Score: {score:.1f}"
         
-        # Set any extra properties
-        if hasattr(item, 'extras') and item.extras:
-            for key, value in item.extras.items():
-                if value is not None:
-                    li.setProperty(key, str(value))
+        # Default: show year if available
+        if item.year and item.year > 0:
+            return str(item.year)
         
-        # Set context tags as properties (for future filtering/menu logic)
-        if hasattr(item, 'context_tags') and item.context_tags:
-            li.setProperty('context_tags', ','.join(item.context_tags))
-            
+        return ""
+        
+    except Exception:
+        return ""
+
+
+def _set_properties(li: xbmcgui.ListItem, item: MediaItem, view_hint: Union[str, None]) -> None:
+    """Set additional ListItem properties"""
+    try:
+        # Set media ID for context menu operations
+        if item.id:
+            li.setProperty('media_id', str(item.id))
+        
+        # Set IMDb ID for external operations
+        if item.imdb:
+            li.setProperty('imdb_id', item.imdb)
+        
+        # Set TMDb ID if available
+        if item.tmdb:
+            li.setProperty('tmdb_id', item.tmdb)
+        
+        # Set type indicators for context menu detection
+        if item.is_folder:
+            if item.media_type == 'folder':
+                li.setProperty('lg_type', 'folder')
+            else:
+                li.setProperty('lg_type', 'list')
+        
+        # Set viewing context for list operations
+        if 'in_list' in item.context_tags and item.extras.get('_viewing_list_id'):
+            li.setProperty('viewing_list_id', str(item.extras.get('_viewing_list_id')))
+        
+        # Set search score for search results
+        if item.sort_keys.get('search_score'):
+            li.setProperty('search_score', str(item.sort_keys.get('search_score')))
+        
+        # Set playable property for non-folder items
+        if not item.is_folder:
+            li.setProperty('IsPlayable', 'true')
+        
     except Exception as e:
-        utils.log(f"Failed to set additional properties: {str(e)}", "WARNING")
+        utils.log(f"Error setting properties: {str(e)}", "DEBUG")
+
+
+def _set_sort_properties(li: xbmcgui.ListItem, item: MediaItem) -> None:
+    """Set sort-related properties"""
+    try:
+        # Set sort key for search results
+        if item.sort_keys.get('search_score'):
+            # Invert score for proper sorting (higher scores first)
+            inverted_score = 1000 - item.sort_keys.get('search_score')
+            li.setProperty('sort_score', f"{inverted_score:06.1f}")
+        
+        # Set year for sorting
+        if item.year:
+            li.setProperty('sort_year', f"{item.year:04d}")
+        
+        # Set title for sorting (remove special characters)
+        clean_title = _clean_title_for_sort(item.title)
+        li.setProperty('sort_title', clean_title)
+        
+    except Exception as e:
+        utils.log(f"Error setting sort properties: {str(e)}", "DEBUG")
+
+
+def _clean_title_for_sort(title: str) -> str:
+    """Clean title for sorting purposes"""
+    if not title:
+        return ""
+    
+    import re
+    
+    # Remove common articles and special characters
+    clean = title.lower()
+    clean = re.sub(r'^(the|a|an)\s+', '', clean)
+    clean = re.sub(r'[^\w\s]', '', clean)
+    clean = re.sub(r'\s+', ' ', clean).strip()
+    
+    return clean
