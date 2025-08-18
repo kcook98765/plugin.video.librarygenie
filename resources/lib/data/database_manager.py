@@ -210,11 +210,7 @@ class DatabaseManager(Singleton):
         elif table == 'list_items':
             media_item_id = self.query_manager.insert_media_item(data)
             if media_item_id:
-                list_data = {
-                    'list_id': data['list_id'],
-                    'media_item_id': media_item_id
-                }
-                self.query_manager.insert_list_item(list_data)
+                self.query_manager.insert_list_item(data['list_id'], media_item_id)
                 utils.log(f"Inserted list item with media_item_id: {media_item_id}", "DEBUG")
             else:
                 utils.log("No media_item_id found, insertion skipped", "ERROR")
