@@ -3,7 +3,7 @@
 
 import xbmc
 import xbmcgui
-from resources.lib import utils
+from resources.lib.utils import utils
 from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.config.config_manager import Config
 

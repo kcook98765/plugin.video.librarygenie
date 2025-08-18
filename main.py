@@ -54,7 +54,7 @@ def run_search_flow():
 
     target_url = None
     try:
-        from resources.lib.window_search import SearchWindow
+        from resources.lib.kodi.window_search import SearchWindow
         utils.log("=== CREATING SearchWindow INSTANCE ===", "DEBUG")
         search_window = SearchWindow()
         utils.log("=== ABOUT TO CALL SearchWindow.doModal() ===", "DEBUG")
@@ -318,7 +318,7 @@ def router(paramstring):
     if action == "search":
         utils.log("Handling search action", "DEBUG")
         try:
-            from resources.lib.window_search import SearchWindow
+            from resources.lib.kodi.window_search import SearchWindow
             from resources.lib.navigation_manager import get_navigation_manager
 
             search_window = SearchWindow()

@@ -1,7 +1,7 @@
 """Route handlers for LibraryGenie plugin actions"""
 import xbmc
 import xbmcgui
-from resources.lib import utils
+from resources.lib.utils import utils
 from resources.lib.config.config_manager import Config
 from resources.lib.data.database_manager import DatabaseManager
 import json # Added for json.loads
