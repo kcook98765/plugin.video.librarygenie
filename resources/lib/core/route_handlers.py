@@ -285,13 +285,20 @@ def move_list(params):
                 folder['id'] != list_info.get('folder_id')):
                 available_folders.append(folder)
 
-        if not available_folders:
+        # Create folder selection options
+        folder_options = []
+        folder_ids = []
+        
+        # Only add "Root Folder" option if the list is NOT already at root level
+        current_folder_id = list_info.get('folder_id')
+        if current_folder_id is not None:  # List is not at root, so root is an option
+            folder_options.append("Root Folder")
+            folder_ids.append(None)
+
+        # Check if we have any target options available
+        if not available_folders and current_folder_id is None:
             xbmcgui.Dialog().notification('LibraryGenie', 'No target folders available', xbmcgui.NOTIFICATION_WARNING)
             return
-
-        # Create folder selection options
-        folder_options = ["Root Folder"]  # Option to move to root
-        folder_ids = [None]  # None indicates root folder
 
         for folder in available_folders:
             folder_options.append(f"{folder['name']}")
