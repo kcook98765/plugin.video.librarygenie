@@ -3,8 +3,7 @@ ListItem Builder for LibraryGenie
 Minimum supported Kodi version: 19 (Matrix)
 This module does not support Kodi 18 (Leia) or earlier versions
 """
-import json
-import xbmcgui
+
 from resources.lib.data.normalize import from_db
 from resources.lib.kodi.listitem.factory import build_listitem
 from resources.lib.utils import utils
