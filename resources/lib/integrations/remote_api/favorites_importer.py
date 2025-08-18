@@ -14,6 +14,7 @@ class FavoritesImporter:
         self.config = Config()
         self.db_manager = DatabaseManager(self.config.db_path)
         self.jsonrpc = JSONRPC()
+        self._parent_cache = {}
 
     def _rpc(self, method, params):
         """Execute JSON-RPC call with error handling and detailed logging"""
@@ -99,6 +100,7 @@ class FavoritesImporter:
     def _is_playable_video(self, path):
         """
         Accept if:
+          - plugin://plugin.video.* URLs (always playable)
           - streamdetails.video is present (strongest signal)
           - OR path has video file extension
           - OR directory probe finds matching filename with video extension
@@ -106,7 +108,15 @@ class FavoritesImporter:
         if not path:
             return False
 
-        fd = self._get_file_details(path)
+        # Plugin video URLs are always playable
+        if path.startswith("plugin://plugin.video."):
+            utils.log(f"Playable confirmed by plugin URL for: {path}", "DEBUG")
+            return True
+
+        # Strip pipe options for probing but keep original path
+        base_path = path.split('|')[0] if '|' in path else path
+
+        fd = self._get_file_details(base_path)
         
         # Check for streamdetails.video as strongest playable indicator
         streamdetails = fd.get("streamdetails", {})
@@ -115,13 +125,13 @@ class FavoritesImporter:
             return True
 
         # Check file extension for real file URLs
-        if path and any(path.lower().endswith(ext) for ext in ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.m4v', '.ts', '.mpg', '.mpeg']):
+        if base_path and any(base_path.lower().endswith(ext) for ext in ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.m4v', '.ts', '.mpg', '.mpeg']):
             utils.log(f"Playable confirmed by file extension for: {path}", "DEBUG")
             return True
 
         # For directories or unclear paths, probe parent directory
-        if "/" in path and not path.startswith(("plugin://", "videodb://", "pvr://")):
-            parent, filename = self._split_parent_and_filename(path)
+        if "/" in base_path and not base_path.startswith(("plugin://", "videodb://", "pvr://")):
+            parent, filename = self._split_parent_and_filename(base_path)
             if parent and filename:
                 listing = self._get_dir_probe(parent)
                 for item in listing:
@@ -164,27 +174,53 @@ class FavoritesImporter:
         props = [
             "title", "year", "plot", "rating", "runtime", "genre", "director",
             "cast", "studio", "mpaa", "tagline", "writer", "country", "premiered",
-            "dateadded", "votes", "trailer", "file", "art", "imdbnumber", "uniqueid"
+            "dateadded", "votes", "trailer", "file", "art", "imdbnumber", "uniqueid", "streamdetails"
         ]
 
-        # Filter by path startswith, then check filename in Python
-        try:
-            resp = self.jsonrpc.execute("VideoLibrary.GetMovies", {
-                "filter": {
-                    "field": "path", "operator": "startswith", "value": parent
-                },
-                "properties": props,
-                "limits": {"start": 0, "end": 10000}
-            })
-            movies = resp.get("result", {}).get("movies", []) or []
-            filename_lower = filename.lower()
-            for m in movies:
-                mf = (m.get("file") or "").lower()
-                if mf.endswith("/" + filename_lower) or mf.endswith("\\" + filename_lower) or mf.endswith(filename_lower):
-                    utils.log(f"LIB_MATCH: Found by path/filename -> {m.get('title')} ({m.get('year')})", "INFO")
-                    return m
-        except Exception as e:
-            utils.log(f"LIB_LOOKUP error (path match): {e}", "DEBUG")
+        # Check cache first
+        cache_key = parent
+        if cache_key in self._parent_cache:
+            utils.log(f"LIB_LOOKUP: Using cached results for parent: {parent}", "DEBUG")
+            movies = self._parent_cache[cache_key]
+        else:
+            # Use precise server-side filter with AND condition
+            try:
+                resp = self.jsonrpc.execute("VideoLibrary.GetMovies", {
+                    "filter": {
+                        "and": [
+                            {"field": "path", "operator": "startswith", "value": parent},
+                            {"field": "filename", "operator": "is", "value": filename}
+                        ]
+                    },
+                    "properties": props,
+                    "limits": {"start": 0, "end": 10000}
+                })
+                movies = resp.get("result", {}).get("movies", []) or []
+                
+                # If precise filter fails, fall back to broad parent query and cache it
+                if not movies:
+                    utils.log(f"LIB_LOOKUP: Precise filter failed, falling back to broad parent query", "DEBUG")
+                    resp = self.jsonrpc.execute("VideoLibrary.GetMovies", {
+                        "filter": {
+                            "field": "path", "operator": "startswith", "value": parent
+                        },
+                        "properties": props,
+                        "limits": {"start": 0, "end": 10000}
+                    })
+                    movies = resp.get("result", {}).get("movies", []) or []
+                    self._parent_cache[cache_key] = movies
+                    
+            except Exception as e:
+                utils.log(f"LIB_LOOKUP error (path match): {e}", "DEBUG")
+                return None
+
+        # Match filename in results
+        filename_lower = filename.lower()
+        for m in movies:
+            mf = (m.get("file") or "").lower()
+            if mf.endswith("/" + filename_lower) or mf.endswith("\\" + filename_lower) or mf.endswith(filename_lower):
+                utils.log(f"LIB_MATCH: Found by path/filename -> {m.get('title')} ({m.get('year')})", "INFO")
+                return m
 
         return None
 
@@ -372,9 +408,22 @@ class FavoritesImporter:
             # Use Kodi library data - this is preferred when available
             utils.log(f"=== DATA_CONVERSION: Using KODI LIBRARY data for '{kodi_movie.get('title')}' ===", "INFO")
 
-            # Runtime conversion: Kodi stores in minutes, we need seconds
-            runtime_minutes = self.safe_convert_int(kodi_movie.get('runtime', 0))
-            duration_seconds = runtime_minutes * 60 if runtime_minutes > 0 else 0
+            # Duration calculation with streamdetails preference
+            duration_seconds = 0
+            streamdetails = kodi_movie.get('streamdetails', {})
+            if isinstance(streamdetails, dict) and streamdetails.get('video'):
+                video_streams = streamdetails['video']
+                if isinstance(video_streams, list) and len(video_streams) > 0:
+                    stream_duration = self.safe_convert_int(video_streams[0].get('duration', 0))
+                    if 60 <= stream_duration <= 21600:  # 1 minute to 6 hours range
+                        duration_seconds = stream_duration
+                        utils.log(f"Duration from streamdetails: {duration_seconds}s", "DEBUG")
+            
+            if duration_seconds == 0:
+                # Fallback to runtime in minutes
+                runtime_minutes = self.safe_convert_int(kodi_movie.get('runtime', 0))
+                duration_seconds = runtime_minutes * 60 if runtime_minutes > 0 else 0
+                utils.log(f"Duration from runtime: {runtime_minutes}min -> {duration_seconds}s", "DEBUG")
 
             # Cast processing: Extract actor names from cast array
             cast_data = kodi_movie.get('cast', [])
@@ -453,9 +502,23 @@ class FavoritesImporter:
             title = self.safe_convert_string(fav.get('title')) or \
                    self.safe_convert_string((filedetails or {}).get('title')) or 'Unknown'
 
-            # Duration processing: use runtime field (in minutes) and convert to seconds
-            runtime_minutes = self.safe_convert_int((filedetails or {}).get('runtime', 0))
-            duration_seconds = runtime_minutes * 60 if runtime_minutes > 0 else 0
+            # Duration calculation with streamdetails preference
+            duration_seconds = 0
+            if filedetails:
+                streamdetails = filedetails.get('streamdetails', {})
+                if isinstance(streamdetails, dict) and streamdetails.get('video'):
+                    video_streams = streamdetails['video']
+                    if isinstance(video_streams, list) and len(video_streams) > 0:
+                        stream_duration = self.safe_convert_int(video_streams[0].get('duration', 0))
+                        if 60 <= stream_duration <= 21600:  # 1 minute to 6 hours range
+                            duration_seconds = stream_duration
+                            utils.log(f"Duration from filedetails streamdetails: {duration_seconds}s", "DEBUG")
+            
+            if duration_seconds == 0:
+                # Fallback to runtime in minutes
+                runtime_minutes = self.safe_convert_int((filedetails or {}).get('runtime', 0))
+                duration_seconds = runtime_minutes * 60 if runtime_minutes > 0 else 0
+                utils.log(f"Duration from runtime: {runtime_minutes}min -> {duration_seconds}s", "DEBUG")
 
             art = (filedetails or {}).get('art', {})
             thumb = (filedetails or {}).get('thumbnail') or self.safe_convert_string(fav.get('thumbnail'))
@@ -627,11 +690,11 @@ class FavoritesImporter:
                 if kodi_movie:
                     utils.log("IMPORT_SUCCESS: Library match found - will use Kodi data", "INFO")
                     upgraded_count += 1
+                    filedetails = None  # Skip file details when we have library data
                 else:
                     utils.log("IMPORT_INFO: No library match - will use Favorites data", "INFO")
-
-                # Pull filedetails once (also provides art/duration for minimal entries)
-                filedetails = self._get_file_details(path)
+                    # Pull filedetails only when we don't have library data
+                    filedetails = self._get_file_details(path)
 
                 # Convert to media dict with enhanced data processing
                 try:
