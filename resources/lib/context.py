@@ -134,17 +134,17 @@ def main():
                         is_librarygenie_folder = True
                         xbmc.log(f"LibraryGenie: FOLDER DEBUG - Detected browse_folder action in container: {current_container_path}", xbmc.LOGINFO)
                     
-                    # Check if at root of LibraryGenie (no specific action)
-                    elif current_container_path.strip('/').endswith('plugin.video.librarygenie'):
+                    # Check if at root of LibraryGenie (no specific action) - this is key for root folders
+                    elif current_container_path.strip('/').endswith('plugin.video.librarygenie') or '/?action=' not in current_container_path:
                         is_librarygenie_folder = True
-                        xbmc.log("LibraryGenie: FOLDER DEBUG - At LibraryGenie root", xbmc.LOGINFO)
+                        xbmc.log("LibraryGenie: FOLDER DEBUG - At LibraryGenie root or general context", xbmc.LOGINFO)
                 
                 # Method 2: Check the item's own path
                 if not is_librarygenie_folder and item_path and 'plugin.video.librarygenie' in item_path:
                     xbmc.log(f"LibraryGenie: FOLDER DEBUG - LibraryGenie found in item path: {item_path}", xbmc.LOGINFO)
-                    if 'action=browse_folder' in item_path:
+                    if 'action=browse_folder' in item_path or 'folder_id=' in item_path:
                         is_librarygenie_folder = True
-                        xbmc.log("LibraryGenie: FOLDER DEBUG - Detected browse_folder in item path", xbmc.LOGINFO)
+                        xbmc.log("LibraryGenie: FOLDER DEBUG - Detected folder action in item path", xbmc.LOGINFO)
                 
                 # Method 3: Check if this is a folder with 📁 emoji (our folder marker)
                 if not is_librarygenie_folder and title and title.startswith('📁'):
@@ -159,6 +159,11 @@ def main():
                 if not is_librarygenie_folder and lg_type == 'folder':
                     is_librarygenie_folder = True
                     xbmc.log("LibraryGenie: FOLDER DEBUG - Detected via lg_type property", xbmc.LOGINFO)
+
+                # Method 5: Universal LibraryGenie folder detection - if we're in LibraryGenie and it's a folder, assume it's ours
+                if not is_librarygenie_folder and 'plugin.video.librarygenie' in current_container_path:
+                    is_librarygenie_folder = True
+                    xbmc.log("LibraryGenie: FOLDER DEBUG - Universal detection - folder in LibraryGenie context", xbmc.LOGINFO)
                     
             except Exception as e:
                 xbmc.log(f"LibraryGenie: Error detecting LibraryGenie folder context: {str(e)}", xbmc.LOGERROR)
@@ -166,7 +171,8 @@ def main():
                 xbmc.log(f"LibraryGenie: Folder detection traceback: {traceback.format_exc()}", xbmc.LOGERROR)
         
         xbmc.log(f"LibraryGenie: FOLDER DEBUG - Final detection result: is_librarygenie_folder = {is_librarygenie_folder}", xbmc.LOGINFO)
-
+        xbmc.log(f"LibraryGenie: FOLDER DEBUG - is_folder_item = {is_folder_item}", xbmc.LOGINFO)
+        xbmc.log(f"LibraryGenie: FOLDER DEBUG - Combined check: is_folder_item AND is_librarygenie_folder = {is_folder_item and is_librarygenie_folder}", xbmc.LOGINFO)
 
         # If this is a folder item AND we're in a LibraryGenie context, show folder options
         if is_folder_item and is_librarygenie_folder:
@@ -174,15 +180,16 @@ def main():
 
             # Folder-specific options
             options.append("Rename Folder")
-            options.append("Delete Folder")
+            options.append("Delete Folder") 
             options.append("Move Folder")
             options.append("Create New List Here")
             options.append("Create New Subfolder")
             options.append("Information")
             options.append("Settings")
             
-            xbmc.log(f"LibraryGenie: FOLDER OPTIONS - Added {len(options)} folder options", xbmc.LOGINFO)
+            xbmc.log(f"LibraryGenie: FOLDER OPTIONS - Added {len(options)} folder options: {options}", xbmc.LOGINFO)
         else:
+            xbmc.log("LibraryGenie: FOLDER OPTIONS - NOT showing folder options, showing regular item options instead", xbmc.LOGINFO)
             # Regular movie/item options
             # Show Details - always available
             options.append("Show Details")
