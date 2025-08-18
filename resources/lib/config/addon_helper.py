@@ -180,12 +180,14 @@ def run_addon():
                 clear_all_local_data()
             else:
                 # Always show root directory for direct launch or unknown action
-                root_folders = db_manager.fetch_folders(None)  # Get root folders
-                root_lists = db_manager.fetch_lists(None)  # Get root lists
-                # Use directory builder which now uses the new factory pattern
-                from resources.lib.core.directory_builder import DirectoryBuilder
-                directory_builder = DirectoryBuilder()
-                directory_builder.build_folders_and_lists_directory(root_folders, root_lists)
+                # Use the new function-based directory builder
+                from resources.lib.core.directory_builder import build_root_directory
+                import sys
+                
+                # Get the plugin handle for directory building
+                handle = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else -1
+                if handle != -1:
+                    build_root_directory(handle)
                 return
 
     except Exception as e:
