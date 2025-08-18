@@ -2,6 +2,18 @@ import sys
 import xbmcgui
 import xbmcaddon
 import xbmcvfs
+import xbmc
+import re
+from urllib.parse import quote_plus
+
+from resources.lib.kodi.kodi_helper import KodiHelper
+from resources.lib.config.addon_ref import get_addon
+from resources.lib.kodi.context_menu_builder import get_context_menu_builder
+from resources.lib.config.config_manager import Config
+from resources.lib.data.database_manager import DatabaseManager
+from resources.lib.kodi.window_search import SearchWindow
+from resources.lib import utils
+
 translatePath = xbmcvfs.translatePath
 
 # Get addon and setup paths FIRST
@@ -12,14 +24,9 @@ ADDON_PATH = translatePath(ADDON.getAddonInfo("path"))
 if ADDON_PATH not in sys.path:
     sys.path.insert(0, ADDON_PATH)
 
-# Import required modules AFTER setting up the path
-from resources.lib.kodi.kodi_helper import KodiHelper
-from resources.lib.config.addon_ref import get_addon
-
 def main():
     """Main entry point for context menu actions"""
     try:
-        import xbmc
         xbmc.log("LibraryGenie: Context menu script started", xbmc.LOGINFO)
 
         addon = get_addon()
@@ -34,14 +41,10 @@ def main():
         xbmc.log(f"LibraryGenie: Context menu for: {title} ({year})", xbmc.LOGINFO)
 
         # Show context menu options
-        addon = get_addon()
         addon_id = addon.getAddonInfo("id")
 
         # Ensure database schema is up to date (including migrations)
         try:
-            from resources.lib.config.config_manager import Config
-            from resources.lib.data.database_manager import DatabaseManager
-
             config = Config()
             db_manager = DatabaseManager(config.db_path)
             # This will run any pending migrations including the 'file' column
@@ -53,7 +56,6 @@ def main():
         # Use existing KodiHelper to get IMDb ID (handles v19/v20+ compatibility)
         imdb_id = None
         try:
-            from resources.lib.kodi.kodi_helper import KodiHelper
             kodi_helper = KodiHelper()
             imdb_id = kodi_helper.get_imdb_from_item()
             xbmc.log(f"LibraryGenie: IMDb ID from KodiHelper: {imdb_id}", xbmc.LOGDEBUG)
@@ -65,7 +67,6 @@ def main():
         options = []
 
         # Check authentication before adding API-dependent options
-        from resources.lib.kodi.context_menu_builder import get_context_menu_builder
         context_builder = get_context_menu_builder()
         is_authenticated = context_builder._is_authenticated()
 
@@ -76,7 +77,6 @@ def main():
 
         if 'browse_list' in current_container_path and 'list_id=' in current_container_path and 'plugin.video.librarygenie' in current_container_path:
             try:
-                import re
                 match = re.search(r'list_id=(\d+)', current_container_path)
                 if match:
                     extracted_list_id = match.group(1)
@@ -84,9 +84,6 @@ def main():
 
                     # Verify this list exists in our database
                     try:
-                        from resources.lib.config.config_manager import Config
-                        from resources.lib.data.database_manager import DatabaseManager
-
                         config = Config()
                         db_manager = DatabaseManager(config.db_path)
                         list_data = db_manager.fetch_list_by_id(extracted_list_id)
@@ -117,7 +114,7 @@ def main():
         xbmc.log(f"LibraryGenie: FOLDER DEBUG - Container.FolderPath: '{current_container_path}'", xbmc.LOGINFO)
         xbmc.log(f"LibraryGenie: FOLDER DEBUG - ListItem.FolderPath: '{current_item_path}'", xbmc.LOGINFO)
         xbmc.log(f"LibraryGenie: FOLDER DEBUG - ListItem.Path: '{item_path}'", xbmc.LOGINFO)
-        
+
         # Additional debugging info
         xbmc.log(f"LibraryGenie: FOLDER DEBUG - ListItem.Label: '{xbmc.getInfoLabel('ListItem.Label')}'", xbmc.LOGINFO)
 
@@ -128,33 +125,31 @@ def main():
             if 'plugin.video.librarygenie' in (current_container_path or item_path or ''):
                 is_librarygenie_folder = True
                 xbmc.log("LibraryGenie: FOLDER DEBUG - Detected LibraryGenie folder via lg_type=folder", xbmc.LOGINFO)
-        
+
         # For regular folder items (when IsFolder is True), use the existing detection methods
         elif is_folder_item:
             try:
-                import re
-                
                 # Method 1: Check if we're viewing a LibraryGenie folder structure
                 if 'plugin.video.librarygenie' in current_container_path:
                     xbmc.log("LibraryGenie: FOLDER DEBUG - In LibraryGenie container path", xbmc.LOGINFO)
-                    
+
                     # Check for browse_folder action in container path
                     if 'action=browse_folder' in current_container_path:
                         is_librarygenie_folder = True
                         xbmc.log(f"LibraryGenie: FOLDER DEBUG - Detected browse_folder action in container: {current_container_path}", xbmc.LOGINFO)
-                    
+
                     # Check if at root of LibraryGenie (no specific action) - this is key for root folders
                     elif current_container_path.strip('/').endswith('plugin.video.librarygenie') or '/?action=' not in current_container_path:
                         is_librarygenie_folder = True
                         xbmc.log("LibraryGenie: FOLDER DEBUG - At LibraryGenie root or general context", xbmc.LOGINFO)
-                
+
                 # Method 2: Check the item's own path
                 if not is_librarygenie_folder and item_path and 'plugin.video.librarygenie' in item_path:
                     xbmc.log(f"LibraryGenie: FOLDER DEBUG - LibraryGenie found in item path: {item_path}", xbmc.LOGINFO)
                     if 'action=browse_folder' in item_path or 'folder_id=' in item_path:
                         is_librarygenie_folder = True
                         xbmc.log("LibraryGenie: FOLDER DEBUG - Detected folder action in item path", xbmc.LOGINFO)
-                
+
                 # Method 3: Check if this is a folder with 📁 emoji (our folder marker)
                 if not is_librarygenie_folder and title and title.startswith('📁'):
                     xbmc.log("LibraryGenie: FOLDER DEBUG - Detected folder emoji marker", xbmc.LOGINFO)
@@ -167,16 +162,16 @@ def main():
                 if not is_librarygenie_folder and 'plugin.video.librarygenie' in current_container_path:
                     is_librarygenie_folder = True
                     xbmc.log("LibraryGenie: FOLDER DEBUG - Universal detection - folder in LibraryGenie context", xbmc.LOGINFO)
-                    
+
             except Exception as e:
                 xbmc.log(f"LibraryGenie: Error detecting LibraryGenie folder context: {str(e)}", xbmc.LOGERROR)
                 import traceback
                 xbmc.log(f"LibraryGenie: Folder detection traceback: {traceback.format_exc()}", xbmc.LOGERROR)
-        
+
         # Check if this is a LibraryGenie folder/list item (either by IsFolder=true or lg_type=folder/list)
         is_lg_folder_item = (is_folder_item and is_librarygenie_folder) or (lg_type == 'folder' and is_librarygenie_folder)
         is_lg_list_item = (lg_type == 'list' and 'plugin.video.librarygenie' in (current_container_path or ''))
-        
+
         xbmc.log(f"LibraryGenie: FOLDER DEBUG - Final detection result: is_librarygenie_folder = {is_librarygenie_folder}", xbmc.LOGINFO)
         xbmc.log(f"LibraryGenie: FOLDER DEBUG - is_folder_item = {is_folder_item}", xbmc.LOGINFO)
         xbmc.log(f"LibraryGenie: FOLDER DEBUG - lg_type = {lg_type}", xbmc.LOGINFO)
@@ -189,29 +184,29 @@ def main():
 
             # List-specific options
             options.append("Rename List")
-            options.append("Delete List") 
+            options.append("Delete List")
             options.append("Move List")
             options.append("Add Movies to List")
             options.append("Clear List")
             options.append("Export List")
             options.append("Information")
             options.append("Settings")
-            
+
             xbmc.log(f"LibraryGenie: LIST OPTIONS - Added {len(options)} list options: {options}", xbmc.LOGINFO)
-        
+
         # If this is a LibraryGenie folder item (either actual folder or lg_type=folder), show folder options
         elif is_lg_folder_item:
             xbmc.log("LibraryGenie: FOLDER OPTIONS - Detected LibraryGenie folder item, showing folder options", xbmc.LOGINFO)
 
             # Folder-specific options
             options.append("Rename Folder")
-            options.append("Delete Folder") 
+            options.append("Delete Folder")
             options.append("Move Folder")
             options.append("Create New List Here")
             options.append("Create New Subfolder")
             options.append("Information")
             options.append("Settings")
-            
+
             xbmc.log(f"LibraryGenie: FOLDER OPTIONS - Added {len(options)} folder options: {options}", xbmc.LOGINFO)
         else:
             xbmc.log("LibraryGenie: FOLDER OPTIONS - NOT showing folder options, showing regular item options instead", xbmc.LOGINFO)
@@ -219,7 +214,7 @@ def main():
             # Show Details - always available
             options.append("Show Details")
 
-            # Information - always available  
+            # Information - always available
             options.append("Information")
 
             # Add movie to a list - available for both library items (with IMDb) and plugin items (without IMDb)
@@ -255,7 +250,7 @@ def main():
 
         if not is_lg_folder_item:
             options.extend([
-                "Search History", 
+                "Search History",
                 "Settings"
             ])
 
@@ -279,20 +274,16 @@ def main():
         # Handle list-specific actions
         if is_lg_list_item:
             xbmc.log(f"LibraryGenie: LIST ACTION - Handling list option: '{selected_option}'", xbmc.LOGINFO)
-            
+
             if selected_option == "Rename List":
                 xbmc.log("LibraryGenie: LIST ACTION - Executing Rename List", xbmc.LOGINFO)
                 try:
                     # Extract list_id from item path for rename operation
                     list_id = None
-                    import re
-                    
-                    # Try to extract list_id from ListItem.FolderPath
-                    if 'list_id=' in current_item_path:
-                        match = re.search(r'list_id=(\d+)', current_item_path)
-                        if match:
-                            list_id = match.group(1)
-                    
+                    match = re.search(r'list_id=(\d+)', current_item_path)
+                    if match:
+                        list_id = match.group(1)
+
                     if list_id:
                         xbmc.log(f"LibraryGenie: LIST ACTION - Extracted list_id: {list_id}", xbmc.LOGINFO)
                         # Call rename list function
@@ -303,66 +294,61 @@ def main():
                         xbmcgui.Dialog().notification("LibraryGenie", "Could not determine list to rename", xbmcgui.NOTIFICATION_ERROR, 3000)
                 except Exception as e:
                     xbmc.log(f"LibraryGenie: LIST ACTION - Error in rename list: {str(e)}", xbmc.LOGERROR)
-                    
+
             elif selected_option == "Delete List":
                 xbmc.log("LibraryGenie: LIST ACTION - Executing Delete List", xbmc.LOGINFO)
                 # Implement Delete List logic
                 xbmcgui.Dialog().notification("LibraryGenie", "Delete List - Not implemented yet", xbmcgui.NOTIFICATION_INFO, 3000)
-                
+
             elif selected_option == "Move List":
                 xbmc.log("LibraryGenie: LIST ACTION - Executing Move List", xbmc.LOGINFO)
                 # Implement Move List logic
                 xbmcgui.Dialog().notification("LibraryGenie", "Move List - Not implemented yet", xbmcgui.NOTIFICATION_INFO, 3000)
-                
+
             elif selected_option == "Add Movies to List":
                 xbmc.log("LibraryGenie: LIST ACTION - Executing Add Movies to List", xbmc.LOGINFO)
                 # Implement Add Movies to List logic
                 xbmcgui.Dialog().notification("LibraryGenie", "Add Movies to List - Not implemented yet", xbmcgui.NOTIFICATION_INFO, 3000)
-                
+
             elif selected_option == "Clear List":
                 xbmc.log("LibraryGenie: LIST ACTION - Executing Clear List", xbmc.LOGINFO)
                 # Implement Clear List logic
                 xbmcgui.Dialog().notification("LibraryGenie", "Clear List - Not implemented yet", xbmcgui.NOTIFICATION_INFO, 3000)
-                
+
             elif selected_option == "Export List":
                 xbmc.log("LibraryGenie: LIST ACTION - Executing Export List", xbmc.LOGINFO)
                 # Implement Export List logic
                 xbmcgui.Dialog().notification("LibraryGenie", "Export List - Not implemented yet", xbmcgui.NOTIFICATION_INFO, 3000)
-                
+
             elif selected_option == "Information":
                 xbmc.log("LibraryGenie: LIST ACTION - Executing List Information", xbmc.LOGINFO)
                 xbmc.executebuiltin('Action(Info)')
-                
+
             elif selected_option == "Settings":
                 xbmc.log("LibraryGenie: LIST ACTION - Executing List Settings", xbmc.LOGINFO)
                 xbmc.executebuiltin(f'Addon.OpenSettings({addon_id})')
             else:
                 xbmc.log(f"LibraryGenie: LIST ACTION - Unknown list option: '{selected_option}'", xbmc.LOGWARNING)
-                
+
             xbmc.log("LibraryGenie: LIST ACTION - List action handling complete", xbmc.LOGINFO)
             return # Exit after handling list options
 
         # Handle folder-specific actions
         elif is_lg_folder_item:
             xbmc.log(f"LibraryGenie: FOLDER ACTION - Handling folder option: '{selected_option}'", xbmc.LOGINFO)
-            
+
             if selected_option == "Rename Folder":
                 xbmc.log("LibraryGenie: FOLDER ACTION - Executing Rename Folder", xbmc.LOGINFO)
                 try:
                     # Extract folder_id from current path for rename operation
                     folder_id = None
-                    import re
-                    
-                    # Try to extract folder_id from container path
-                    if 'folder_id=' in current_container_path:
-                        match = re.search(r'folder_id=(\d+)', current_container_path)
-                        if match:
-                            folder_id = match.group(1)
-                    
+                    match = re.search(r'folder_id=(\d+)', current_container_path)
+                    if match:
+                        folder_id = match.group(1)
+
                     if folder_id:
                         xbmc.log(f"LibraryGenie: FOLDER ACTION - Extracted folder_id: {folder_id}", xbmc.LOGINFO)
                         # Call rename folder function
-                        from urllib.parse import quote_plus
                         rename_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=rename_folder&folder_id={folder_id})'
                         xbmc.executebuiltin(rename_url)
                     else:
@@ -370,29 +356,26 @@ def main():
                         xbmcgui.Dialog().notification("LibraryGenie", "Could not determine folder to rename", xbmcgui.NOTIFICATION_ERROR, 3000)
                 except Exception as e:
                     xbmc.log(f"LibraryGenie: FOLDER ACTION - Error in rename folder: {str(e)}", xbmc.LOGERROR)
-                    
+
             elif selected_option == "Delete Folder":
                 xbmc.log("LibraryGenie: FOLDER ACTION - Executing Delete Folder", xbmc.LOGINFO)
                 # Implement Delete Folder logic
                 xbmcgui.Dialog().notification("LibraryGenie", "Delete Folder - Not implemented yet", xbmcgui.NOTIFICATION_INFO, 3000)
-                
+
             elif selected_option == "Move Folder":
                 xbmc.log("LibraryGenie: FOLDER ACTION - Executing Move Folder", xbmc.LOGINFO)
                 # Implement Move Folder logic
                 xbmcgui.Dialog().notification("LibraryGenie", "Move Folder - Not implemented yet", xbmcgui.NOTIFICATION_INFO, 3000)
-                
+
             elif selected_option == "Create New List Here":
                 xbmc.log("LibraryGenie: FOLDER ACTION - Executing Create New List Here", xbmc.LOGINFO)
                 try:
                     # Extract folder_id from current path
                     folder_id = None
-                    import re
-                    
-                    if 'folder_id=' in current_container_path:
-                        match = re.search(r'folder_id=(\d+)', current_container_path)
-                        if match:
-                            folder_id = match.group(1)
-                    
+                    match = re.search(r'folder_id=(\d+)', current_container_path)
+                    if match:
+                        folder_id = match.group(1)
+
                     if folder_id:
                         xbmc.log(f"LibraryGenie: FOLDER ACTION - Creating list in folder_id: {folder_id}", xbmc.LOGINFO)
                         create_list_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=create_list&folder_id={folder_id})'
@@ -404,19 +387,16 @@ def main():
                         xbmc.executebuiltin(create_list_url)
                 except Exception as e:
                     xbmc.log(f"LibraryGenie: FOLDER ACTION - Error creating list: {str(e)}", xbmc.LOGERROR)
-                    
+
             elif selected_option == "Create New Subfolder":
                 xbmc.log("LibraryGenie: FOLDER ACTION - Executing Create New Subfolder", xbmc.LOGINFO)
                 try:
                     # Extract folder_id from current path
                     folder_id = None
-                    import re
-                    
-                    if 'folder_id=' in current_container_path:
-                        match = re.search(r'folder_id=(\d+)', current_container_path)
-                        if match:
-                            folder_id = match.group(1)
-                    
+                    match = re.search(r'folder_id=(\d+)', current_container_path)
+                    if match:
+                        folder_id = match.group(1)
+
                     if folder_id:
                         xbmc.log(f"LibraryGenie: FOLDER ACTION - Creating subfolder in folder_id: {folder_id}", xbmc.LOGINFO)
                         create_folder_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=create_folder&parent_folder_id={folder_id})'
@@ -428,17 +408,17 @@ def main():
                         xbmc.executebuiltin(create_folder_url)
                 except Exception as e:
                     xbmc.log(f"LibraryGenie: FOLDER ACTION - Error creating subfolder: {str(e)}", xbmc.LOGERROR)
-                    
+
             elif selected_option == "Information":
                 xbmc.log("LibraryGenie: FOLDER ACTION - Executing Folder Information", xbmc.LOGINFO)
                 xbmc.executebuiltin('Action(Info)')
-                
+
             elif selected_option == "Settings":
                 xbmc.log("LibraryGenie: FOLDER ACTION - Executing Folder Settings", xbmc.LOGINFO)
                 xbmc.executebuiltin(f'Addon.OpenSettings({addon_id})')
             else:
                 xbmc.log(f"LibraryGenie: FOLDER ACTION - Unknown folder option: '{selected_option}'", xbmc.LOGWARNING)
-                
+
             xbmc.log("LibraryGenie: FOLDER ACTION - Folder action handling complete", xbmc.LOGINFO)
             return # Exit after handling folder options
 
@@ -448,13 +428,15 @@ def main():
             try:
                 # Get the clean title without color formatting
                 clean_title = title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
+                clean_title = clean_title.replace('[COLOR FFF0DC8A]', '').replace('[/COLOR]', '')
+                clean_title = clean_title.replace('[COLOR FFF4BC7B]', '').replace('[/COLOR]', '')
+                clean_title = clean_title.replace('[COLOR FFECA9A7]', '').replace('[/COLOR]', '')
 
                 # Get item ID from various sources
-                item_id = (xbmc.getInfoLabel('ListItem.DBID') or 
-                          xbmc.getInfoLabel('ListItem.Property(movieid)') or 
+                item_id = (xbmc.getInfoLabel('ListItem.DBID') or
+                          xbmc.getInfoLabel('ListItem.Property(movieid)') or
                           xbmc.getInfoLabel('ListItem.Property(id)') or "")
 
-                from urllib.parse import quote_plus
                 encoded_title = quote_plus(clean_title)
                 details_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=show_item_details&title={encoded_title}&item_id={item_id})'
                 xbmc.executebuiltin(details_url)
@@ -480,15 +462,14 @@ def main():
                 media_id = xbmc.getInfoLabel('ListItem.Property(media_id)')
                 if not media_id:
                     # Fallback to other ID sources
-                    media_id = (xbmc.getInfoLabel('ListItem.DBID') or 
-                              xbmc.getInfoLabel('ListItem.Property(movieid)') or 
+                    media_id = (xbmc.getInfoLabel('ListItem.DBID') or
+                              xbmc.getInfoLabel('ListItem.Property(movieid)') or
                               xbmc.getInfoLabel('ListItem.Property(id)') or "")
 
                 xbmc.log(f"LibraryGenie: Remove from list - Title: {clean_title}, List ID: {viewing_list_id}, Media ID: {media_id}", xbmc.LOGDEBUG)
 
                 if viewing_list_id and media_id:
                     # Use RunPlugin to trigger remove_from_list action
-                    from urllib.parse import quote_plus
                     encoded_title = quote_plus(clean_title)
                     remove_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={viewing_list_id}&media_id={media_id})'
                     xbmc.executebuiltin(remove_url)
@@ -509,8 +490,8 @@ def main():
                 clean_title = clean_title.replace('[COLOR FFECA9A7]', '').replace('[/COLOR]', '')
 
                 # Get item ID from various sources
-                item_id = (xbmc.getInfoLabel('ListItem.DBID') or 
-                          xbmc.getInfoLabel('ListItem.Property(movieid)') or 
+                item_id = (xbmc.getInfoLabel('ListItem.DBID') or
+                          xbmc.getInfoLabel('ListItem.Property(movieid)') or
                           xbmc.getInfoLabel('ListItem.Property(id)') or "")
 
                 # Determine if this is a library item or plugin item
@@ -518,7 +499,6 @@ def main():
 
                 if is_library_item:
                     # Use the existing add_to_list action for library items
-                    from urllib.parse import quote_plus
                     encoded_title = quote_plus(clean_title)
                     add_to_list_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=add_to_list&title={encoded_title}&item_id={item_id})'
                     xbmc.executebuiltin(add_to_list_url)
@@ -559,11 +539,10 @@ def main():
                 clean_title = title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
 
                 # Get item ID from various sources
-                item_id = (xbmc.getInfoLabel('ListItem.DBID') or 
-                          xbmc.getInfoLabel('ListItem.Property(movieid)') or 
+                item_id = (xbmc.getInfoLabel('ListItem.DBID') or
+                          xbmc.getInfoLabel('ListItem.Property(movieid)') or
                           xbmc.getInfoLabel('ListItem.Property(id)') or "")
 
-                from urllib.parse import quote_plus
                 encoded_title = quote_plus(clean_title)
                 refresh_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=refresh_metadata&title={encoded_title}&item_id={item_id})'
                 xbmc.executebuiltin(refresh_url)
@@ -576,7 +555,6 @@ def main():
             if "(Requires Authentication)" in selected_option:
                 dialog.notification("LibraryGenie", "Please configure API settings first", xbmcgui.NOTIFICATION_WARNING, 3000)
                 return
-
             # Get the clean title without color formatting
             clean_title = title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
 
@@ -588,7 +566,6 @@ def main():
                 return
 
             # Use RunPlugin to trigger similarity search
-            from urllib.parse import quote_plus
             encoded_title = quote_plus(clean_title)
             similarity_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=find_similar&imdb_id={imdb_id}&title={encoded_title})'
             xbmc.executebuiltin(similarity_url)
@@ -597,9 +574,6 @@ def main():
             if "(Requires Authentication)" in selected_option:
                 dialog.notification("LibraryGenie", "Please configure API settings first", xbmcgui.NOTIFICATION_WARNING, 3000)
                 return
-            # Import here to avoid circular imports
-            from resources.lib.kodi.window_search import SearchWindow
-
             try:
                 # Perform search directly
                 search_window = SearchWindow("LibraryGenie Search")
@@ -620,9 +594,6 @@ def main():
         elif selected_option == "Search History":  # Search History
             # Get the Search History folder ID
             try:
-                from resources.lib.config.config_manager import Config
-                from resources.lib.data.database_manager import DatabaseManager
-
                 config = Config()
                 db_manager = DatabaseManager(config.db_path)
                 search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
@@ -634,7 +605,6 @@ def main():
                     xbmcgui.Dialog().notification("LibraryGenie", "Search History folder not found", xbmcgui.NOTIFICATION_WARNING, 3000)
 
             except Exception as e:
-                from resources.lib import utils
                 utils.log(f"Error accessing Search History: {str(e)}", "ERROR")
                 xbmcgui.Dialog().notification("LibraryGenie", "Error accessing Search History", xbmcgui.NOTIFICATION_ERROR, 3000)
         elif selected_option == "Settings":  # Settings
@@ -642,7 +612,6 @@ def main():
         # If nothing selected (selected == -1), do nothing
 
     except Exception as e:
-        from resources.lib import utils
         utils.log(f"Context menu error: {str(e)}", "ERROR")
         import traceback
         utils.log(f"Traceback: {traceback.format_exc()}", "ERROR")
@@ -652,11 +621,6 @@ def main():
 def add_plugin_item_to_list(media_info):
     """Add a plugin item (non-library) to a selected list with enhanced fallback data"""
     try:
-        # Import required modules
-        from resources.lib import utils
-        from resources.lib.config.config_manager import Config
-        from resources.lib.data.database_manager import DatabaseManager
-
         utils.log("=== ADD PLUGIN ITEM TO LIST: Starting process ===", "DEBUG")
         utils.log(f"ADD PLUGIN ITEM: Received media_info: {media_info}", "DEBUG")
 
@@ -774,7 +738,6 @@ def add_plugin_item_to_list(media_info):
             'thumbnail': media_info.get('thumbnail', ''),
             'poster': media_info.get('poster', ''),
             'fanart': media_info.get('fanart', ''),
-            'file': media_info.get('file', ''),  # Store the original plugin file path
             'art': media_info.get('art', '{}'),
             'duration': media_info.get('duration', 0),
             'votes': 0,
@@ -805,7 +768,6 @@ def add_plugin_item_to_list(media_info):
             )
 
     except Exception as e:
-        from resources.lib import utils
         utils.log(f"ADD PLUGIN ITEM TO LIST: Error: {str(e)}", "ERROR")
         import traceback
         utils.log(f"ADD PLUGIN ITEM TO LIST: Traceback: {traceback.format_exc()}", "ERROR")
@@ -815,9 +777,6 @@ def add_plugin_item_to_list(media_info):
             xbmcgui.NOTIFICATION_ERROR,
             3000
         )
-
-
-
 
 
 if __name__ == '__main__':
