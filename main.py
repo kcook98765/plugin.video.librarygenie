@@ -71,7 +71,7 @@ def run_search_flow():
 
     # Navigate only after modal is completely closed
     if target_url:
-        nav_manager.navigate_to_url(target_url)
+        nav_manager.navigate_with_back_support(target_url, "Search Results")
     else:
         log("=== NO TARGET URL - SEARCH CANCELLED OR FAILED ===", "DEBUG")
 
