@@ -1,14 +1,9 @@
 """ /main.py """
 import os
 import sys
-import urllib.parse # Import urllib.parse
 import xbmc
 import xbmcgui
 import xbmcplugin
-import xbmcaddon
-from urllib.parse import urlencode, parse_qs
-from urllib.parse import quote_plus, urlparse # Import urlparse
-import time # Import time module
 
 # Import new modules
 from resources.lib.kodi.url_builder import build_plugin_url, parse_params, detect_context
@@ -26,7 +21,8 @@ from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.utils.utils import log
 from resources.lib.core.route_handlers import (
     play_movie, show_item_details, create_list, rename_list, delete_list,
-    remove_from_list, rename_folder, move_list
+    remove_from_list, rename_folder, move_list, add_movies_to_list,
+    clear_list, export_list, delete_folder, move_folder, create_subfolder
 )
 from resources.lib.kodi.listitem_builder import ListItemBuilder
 from resources.lib.core import route_handlers
@@ -156,15 +152,10 @@ def browse_folder(params):
 def browse_list(list_id):
     """Browse items in a specific list"""
     import xbmcplugin
-    import xbmcgui
-    import json
-    from resources.lib.config.addon_ref import get_addon
-    from resources.lib.data.database_manager import DatabaseManager
     from resources.lib.config.config_manager import Config
     from resources.lib.kodi.listitem_builder import ListItemBuilder
     from resources.lib.data.query_manager import QueryManager
 
-    addon = get_addon()
     handle = int(sys.argv[1])
 
     log(f"=== BROWSE_LIST FUNCTION CALLED with list_id={list_id}, handle={handle} ===", "INFO")
@@ -182,7 +173,7 @@ def browse_list(list_id):
 
         # Set proper container properties first
         xbmcplugin.setContent(handle, "movies")
-        xbmcplugin.setPluginCategory(handle, f"Search Results")
+        xbmcplugin.setPluginCategory(handle, "Search Results")
 
         # Use policy-aware resolver
         rm = ResultsManager()
@@ -392,6 +383,30 @@ def router(paramstring):
     elif action == 'rename_folder':
         log("Routing to rename_folder action", "DEBUG")
         rename_folder(q)
+        return
+    elif action == 'delete_folder':
+        log("Routing to delete_folder action", "DEBUG")
+        delete_folder(q)
+        return
+    elif action == 'move_folder':
+        log("Routing to move_folder action", "DEBUG")
+        move_folder(q)
+        return
+    elif action == 'create_folder':
+        log("Routing to create_subfolder action", "DEBUG")
+        create_subfolder(q)
+        return
+    elif action == 'add_movies_to_list':
+        log("Routing to add_movies_to_list action", "DEBUG")
+        add_movies_to_list(q)
+        return
+    elif action == 'clear_list':
+        log("Routing to clear_list action", "DEBUG")
+        clear_list(q)
+        return
+    elif action == 'export_list':
+        log("Routing to export_list action", "DEBUG")
+        export_list(q)
         return
     elif action == 'show_item_details':
         log("Routing to show_item_details action", "DEBUG")

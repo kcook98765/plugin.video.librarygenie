@@ -25,7 +25,7 @@ def log(message, level=None):
             debug_enabled = addon.getSetting('debug_logging') == 'true'
             if not debug_enabled:
                 return
-        except:
+        except (ImportError, AttributeError, Exception):
             # If we can't get the setting, default to logging for safety
             pass
 

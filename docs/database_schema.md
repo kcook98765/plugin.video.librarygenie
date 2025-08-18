@@ -255,6 +255,50 @@ CREATE TABLE blacklist (
 
 **Status**: Schema defined but no active code usage found. May be legacy or planned feature.
 
+### 12. search_history
+**Purpose**: Tracks individual search queries and metadata for search history management.
+
+```sql
+CREATE TABLE search_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    query TEXT NOT NULL,
+    list_id INTEGER,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (list_id) REFERENCES lists (id)
+)
+```
+
+**Data Sources**:
+- **Writes**: Search operations via `DatabaseManager.add_search_history()`
+- **Reads**: Search history display and management
+
+**Key Features**:
+- Links search queries to their resulting lists
+- Provides audit trail for search operations
+- Supports search history browsing functionality
+
+### 13. user_settings
+**Purpose**: Stores user-specific settings and preferences.
+
+```sql
+CREATE TABLE user_settings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    setting_key TEXT UNIQUE NOT NULL,
+    setting_value TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)
+```
+
+**Data Sources**:
+- **Writes**: Settings management operations
+- **Reads**: Configuration retrieval
+
+**Key Features**:
+- Key-value storage for user preferences
+- Timestamp tracking for settings changes
+- Unique constraint on setting keys
+
 ## Data Flow Patterns
 
 ### Search History Flow
@@ -346,6 +390,12 @@ The `Config` class defines field mappings that align with database schema:
 - **resources.lib.integrations.jsonrpc.jsonrpc_manager.JSONRPCManager**: JSON-RPC communication with Kodi's API  
 - **resources.lib.config.config_manager.Config**: Database schema definitions and field mappings
 - **resources.lib.integrations.remote_api.imdb_upload_manager.IMDbUploadManager**: Handles server upload operations and batch management
+
+### Method Signature Updates
+
+The `fetch_folders_with_item_status` method has been updated to use proper parameter names:
+- **DatabaseManager**: `fetch_folders_with_item_status(media_item_id, parent_id=None)`
+- **QueryManager**: `fetch_folders_with_item_status(parent_id, media_item_id)`
 
 ## DAO Pattern Implementation
 

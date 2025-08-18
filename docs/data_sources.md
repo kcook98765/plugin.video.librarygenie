@@ -1,4 +1,3 @@
-
 # LibraryGenie Data Sources Documentation
 
 This document explains the data source system used in LibraryGenie's database to track and manage different types of media content. Understanding these sources is crucial for proper data handling and debugging.
@@ -382,3 +381,17 @@ For implementation details, see:
 - `resources.lib.data.query_manager.QueryManager.insert_media_item()` - Source-specific insertion and lookup
 - `resources.lib.integrations.remote_api.shortlist_importer.ShortlistImporter.convert_shortlist_item_to_media_dict()` - Source assignment logic
 - `resources.lib.data.database_manager.DatabaseManager.add_shortlist_items()` - Batch import with source handling
+
+**Note**: The shortlist_importer module is part of the remote API integration which is currently in alpha status.
+
+## Key Manager Classes
+
+- **resources.lib.data.database_manager.DatabaseManager**: High-level database operations, singleton pattern with retry logic
+- **resources.lib.data.query_manager.QueryManager**: Low-level SQL execution with connection pooling and management
+- **resources.lib.data.dao.listing_dao.ListingDAO**: Data Access Object for folder and list operations, receives injected query executor
+- **resources.lib.data.results_manager.ResultsManager**: Handles search result processing and display item building
+- **resources.lib.integrations.jsonrpc.jsonrpc_manager.JSONRPCManager**: JSON-RPC communication with Kodi's API  
+- **resources.lib.config.config_manager.Config**: Database schema definitions and field mappings
+- **resources.lib.integrations.remote_api.imdb_upload_manager.IMDbUploadManager**: Handles server upload operations and batch management
+- **resources.lib.core.navigation_manager.NavigationManager**: Manages UI navigation state and conflict prevention
+- **resources.lib.core.options_manager.OptionsManager**: Handles dynamic options menu generation and execution

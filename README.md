@@ -44,7 +44,9 @@ LibraryGenie is a comprehensive Kodi addon focused on intelligent list managemen
 ### 📊 Advanced Search Features (Alpha)
 - **Dynamic Lists**: Lists that update automatically based on search criteria
 - **Protected Search History**: Automatic permanent storage of all searches in a protected folder
-- **Intelligent Matching**: Advanced algorithms for matching search results to local content
+- **Intelligent Matching**: Advanced algorithms for matching search results to local library content
+- **Relevance Scoring**: Search results automatically ranked by semantic relevance
+- **Cross-Reference Capability**: Links search results to existing library items via IMDB IDsal content
 
 ## Installation
 
@@ -129,6 +131,15 @@ The Options & Tools menu adapts based on your authentication status:
 - **Move Lists**: Reorganize lists between folders
 - **Manual Addition**: Add specific items via context menus
 - **Remove Items**: Remove individual items from lists
+- **Add Movies to List**: Search and add additional movies to existing lists
+- **Clear Lists**: Remove all items from a list while preserving the list structure
+- **Export Lists**: Export list contents in multiple formats (TXT, CSV, JSON)
+
+#### Folder Management
+- **Create/Rename/Delete**: Full folder lifecycle management
+- **Move Folders**: Reorganize folder hierarchy with circular reference protection
+- **Nested Organization**: Create subfolders for complex library organization
+- **Protected Folders**: System folders (like Search History) are protected from deletion
 
 ### Alpha AI Features Usage (Invite-Only)
 
@@ -177,7 +188,9 @@ The Options & Tools menu adapts based on your authentication status:
 #### Alpha Components (Future Release)
 - **RemoteAPIClient**: Search API communication
 - **WindowSearch**: Modal search interface
-- **ResultsManager**: Search result processing and display
+- **ResultsManager**: Search result processing and display item building
+- **IMDbUploadManager**: Library synchronization with remote servers
+- **ShortlistImporter**: Integration with Shortlist addon for content importger**: Search result processing and display
 
 ### File Structure
 ```
@@ -196,6 +209,8 @@ resources/
 │   │   ├── route_handlers.py       # Action routing
 │   │   └── runner.py               # Core runner functionality
 │   ├── data/                   # Database operations
+│   │   ├── dao/                    # Data Access Objects
+│   │   │   └── listing_dao.py          # Folder/list data access
 │   │   ├── database_manager.py     # Local database operations
 │   │   ├── folder_list_manager.py  # Folder/list operations
 │   │   ├── query_manager.py        # SQL query management
@@ -223,7 +238,16 @@ resources/
 │   │   └── utils.py               # Logging and utilities
 │   └── context.py              # Compatibility shim for addon.xml
 ├── media/                      # Addon graphics and icons
+│   ├── banner.jpg                  # Various addon artwork files
+│   ├── icon.jpg                    # Main addon icon
+│   ├── fanart.jpg                  # Background artwork
+│   ├── list_folder.png             # Folder list icons
+│   └── list_playlist.png           # Playlist list icons
 ├── language/                   # Localization files
+│   └── resource.language.en_gb/    # English localization
+│       └── strings.po              # Translation strings
+├── docs/                       # Documentation files
+├── navigation_dialog.xml       # UI dialog definition
 └── settings.xml               # Addon configuration schema
 ```
 

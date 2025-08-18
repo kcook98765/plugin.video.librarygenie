@@ -336,6 +336,10 @@ class QueryManager(Singleton):
 
     
 
+    def insert_list_item(self, list_id, media_item_id):
+        """Insert item into list - delegates to ListingDAO"""
+        return self._listing.insert_list_item(list_id, media_item_id)
+
     def insert_media_item_and_add_to_list(self, list_id: int, media_data: Dict[str, Any]) -> bool:
         """Insert a media item and add it to a list in one operation"""
         try:
