@@ -182,18 +182,46 @@ The Options & Tools menu adapts based on your authentication status:
 ### File Structure
 ```
 resources/
-├── lib/                    # Core addon logic
-│   ├── database_manager.py     # Local database operations
-│   ├── query_manager.py        # SQL query management
-│   ├── options_manager.py      # Dynamic options menu
-│   ├── navigation_manager.py   # UI navigation control
-│   ├── folder_list_manager.py  # Folder/list operations
-│   ├── route_handlers.py       # Action routing
-│   ├── listitem_builder.py     # Kodi ListItem creation
-│   ├── remote_api_client.py    # (Alpha) Remote server integration
-│   ├── window_search.py        # (Alpha) Search modal interface
-│   ├── results_manager.py      # (Alpha) Search result processing
-│   └── utils.py               # Logging and utilities
+├── lib/                        # Core addon logic
+│   ├── config/                 # Configuration management
+│   │   ├── addon_helper.py         # Addon execution wrapper
+│   │   ├── addon_ref.py            # Addon reference utilities
+│   │   ├── config_manager.py       # Configuration management
+│   │   └── settings_manager.py     # Settings management
+│   ├── core/                   # Core functionality
+│   │   ├── context.py              # Context menu implementation
+│   │   ├── directory_builder.py    # Kodi directory construction
+│   │   ├── navigation_manager.py   # UI navigation control
+│   │   ├── options_manager.py      # Dynamic options menu
+│   │   ├── route_handlers.py       # Action routing
+│   │   └── runner.py               # Core runner functionality
+│   ├── data/                   # Database operations
+│   │   ├── database_manager.py     # Local database operations
+│   │   ├── folder_list_manager.py  # Folder/list operations
+│   │   ├── query_manager.py        # SQL query management
+│   │   └── results_manager.py      # (Alpha) Search result processing
+│   ├── integrations/           # External integrations
+│   │   ├── jsonrpc/               # Kodi JSON-RPC integration
+│   │   │   └── jsonrpc_manager.py      # JSON-RPC communication
+│   │   └── remote_api/            # (Alpha) Remote API integration
+│   │       ├── authenticate_code.py    # Authentication handling
+│   │       ├── imdb_upload_manager.py  # Library upload management
+│   │       ├── remote_api_client.py    # Remote server integration
+│   │       ├── remote_api_setup.py     # API setup workflows
+│   │       └── shortlist_importer.py   # Shortlist import functionality
+│   ├── kodi/                   # Kodi-specific utilities
+│   │   ├── context_menu_builder.py # Context menu construction
+│   │   ├── kodi_helper.py          # Kodi utility functions
+│   │   ├── listitem_builder.py     # Kodi ListItem creation
+│   │   ├── listitem_infotagvideo.py # Video info tag handling
+│   │   ├── url_builder.py          # URL construction utilities
+│   │   └── window_search.py        # (Alpha) Search modal interface
+│   ├── media/                  # Media management
+│   │   └── media_manager.py        # Media processing utilities
+│   ├── utils/                  # Utility functions
+│   │   ├── singleton_base.py       # Singleton pattern base class
+│   │   └── utils.py               # Logging and utilities
+│   └── context.py              # Compatibility shim for addon.xml
 ├── media/                      # Addon graphics and icons
 ├── language/                   # Localization files
 └── settings.xml               # Addon configuration schema

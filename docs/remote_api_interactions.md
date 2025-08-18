@@ -623,14 +623,14 @@ def find_similar_movies(reference_imdb, facets):
         "include_themes": facets.get("themes", False),
         "include_genre": facets.get("genre", False)
     }
-    
+
     response = requests.post(f"{BASE_URL}/similar_to", json=payload)
-    
+
     if response.status_code == 200:
         data = response.json()
         if data["success"]:
             return data["results"]  # List of IMDb IDs
-    
+
     return []
 
 # Example usage
@@ -687,25 +687,25 @@ def setup_addon():
     # Check if already configured
     if addon.getSetting('api_key'):
         return test_connection()
-    
+
     # Prompt for pairing code
     pairing_code = xbmcgui.Dialog().input('Enter pairing code from website:')
-    
+
     if pairing_code:
         return exchange_pairing_code(pairing_code)
-    
+
     return False
 
 def exchange_pairing_code(code):
     response = requests.post(f'{BASE_URL}/pairing-code/exchange', 
                            json={'pairing_code': code})
-    
+
     if response.status_code == 200:
         data = response.json()
         addon.setSetting('api_key', data['api_key'])
         addon.setSetting('server_url', data['server_url'])
         return True
-    
+
     return False
 ```
 
@@ -717,21 +717,21 @@ def make_api_request(endpoint, method='GET', data=None):
         'Authorization': f"ApiKey {addon.getSetting('api_key')}",
         'Content-Type': 'application/json'
     }
-    
+
     url = f"{addon.getSetting('server_url')}/{endpoint}"
-    
+
     if method == 'GET':
         response = requests.get(url, headers=headers)
     elif method == 'POST':
         response = requests.post(url, headers=headers, json=data)
     elif method == 'DELETE':
         response = requests.delete(url, headers=headers)
-    
+
     if response.status_code == 401:
         # API key invalid - prompt for reconfiguration
         reconfigure_addon()
         return None
-    
+
     return response.json() if response.status_code == 200 else None
 ```
 
@@ -746,33 +746,33 @@ from urllib.parse import urljoin
 
 def chunked_movie_upload(movie_list, mode='merge', chunk_size=500):
     """Upload user's movie collection using chunked batch upload"""
-    
+
     # Step 1: Start batch session
     session = make_kodi_api_request('library/batch/start', 'POST', {
         'mode': mode,
         'total_count': len(movie_list),
         'source': 'kodi'
     })
-    
+
     if not session or not session.get('success'):
         return {'success': False, 'error': 'Failed to start batch session'}
-    
+
     upload_id = session['upload_id']
     max_chunk = session['max_chunk']
     effective_chunk_size = min(chunk_size, max_chunk)
-    
+
     # Step 2: Split into chunks and upload
     chunks = [movie_list[i:i + effective_chunk_size] 
               for i in range(0, len(movie_list), effective_chunk_size)]
-    
+
     failed_chunks = []
-    
+
     for chunk_index, chunk in enumerate(chunks):
         # Generate unique idempotency key (without uuid dependency)
         import random
         import time
         idempotency_key = f"{int(time.time())}-{random.randint(10000, 99999)}-{chunk_index}"
-        
+
         # Format items for API - only IMDb IDs accepted
         items = []
         for movie in chunk:
@@ -785,7 +785,7 @@ def chunked_movie_upload(movie_list, mode='merge', chunk_size=500):
             else:
                 # Skip invalid items - only valid IMDb IDs accepted
                 continue
-        
+
         # Upload chunk with retry logic
         success = False
         for attempt in range(3):  # 3 retry attempts
@@ -800,23 +800,23 @@ def chunked_movie_upload(movie_list, mode='merge', chunk_size=500):
                     },
                     headers
                 )
-                
+
                 if result and result.get('success'):
                     success = True
                     break
-                    
+
             except Exception as e:
                 time.sleep(2 ** attempt)  # Exponential backoff
-        
+
         if not success:
             failed_chunks.append(chunk_index)
-    
+
     # Step 3: Commit the batch
     if not failed_chunks:
         commit_result = make_kodi_api_request(
             f'library/batch/{upload_id}/commit', 'POST'
         )
-        
+
         if commit_result and commit_result.get('success'):
             return {
                 'success': True,
@@ -824,7 +824,7 @@ def chunked_movie_upload(movie_list, mode='merge', chunk_size=500):
                 'final_tallies': commit_result['final_tallies'],
                 'user_movie_count': commit_result['user_movie_count']
             }
-    
+
     return {
         'success': False,
         'upload_id': upload_id,
@@ -837,13 +837,13 @@ def make_kodi_api_request_with_headers(endpoint, method, data=None, headers=None
     import xbmcaddon
     import json
     import xbmc
-    
+
     addon = xbmcaddon.Addon()
     api_key = addon.getSetting('api_key')
     server_url = addon.getSetting('server_url').rstrip('/')
-    
+
     url = f"{server_url}/{endpoint}"
-    
+
     # Prepare headers
     request_headers = {
         'Authorization': f"ApiKey {api_key}",
@@ -851,7 +851,7 @@ def make_kodi_api_request_with_headers(endpoint, method, data=None, headers=None
     }
     if headers:
         request_headers.update(headers)
-    
+
     try:
         # Create request object
         if data:
@@ -859,25 +859,25 @@ def make_kodi_api_request_with_headers(endpoint, method, data=None, headers=None
             request = urllib.request.Request(url, data=json_data)
         else:
             request = urllib.request.Request(url)
-        
+
         # Add headers
         for key, value in request_headers.items():
             request.add_header(key, value)
-        
+
         # Set method for non-GET requests
         if method in ['PUT', 'POST', 'DELETE']:
             request.get_method = lambda: method
-        
+
         # Make request
         response = urllib.request.urlopen(request, timeout=30)
-        
+
         if response.getcode() == 200:
             response_data = response.read().decode('utf-8')
             return json.loads(response_data)
-        
+
     except Exception as e:
         xbmc.log(f"API request failed: {str(e)}", xbmc.LOGERROR)
-    
+
     return None
 
 def make_kodi_api_request(endpoint, method='GET', data=None):
@@ -890,13 +890,13 @@ def delta_sync_movies():
     server_hash = make_kodi_api_request('library/hash')
     if not server_hash or not server_hash.get('success'):
         return full_sync_movies()
-    
+
     server_fingerprints = set(server_hash['fingerprints'])
-    
+
     # Get local movie collection
     local_movies = get_user_movie_collection()
     local_fingerprints = set()
-    
+
     # Use Kodi's built-in hash function (simple approach)
     import hashlib
     for movie in local_movies:
@@ -904,13 +904,13 @@ def delta_sync_movies():
         # Create simple hash using available libraries
         hash_obj = hashlib.sha1(imdb_id.encode('utf-8'))
         local_fingerprints.add(hash_obj.hexdigest()[:8])
-    
+
     # Find movies to upload (not on server)
     new_fingerprints = local_fingerprints - server_fingerprints
-    
+
     if not new_fingerprints:
         return {'success': True, 'message': 'Collection already up to date'}
-    
+
     # Filter movies to upload
     movies_to_upload = []
     for movie in local_movies:
@@ -918,7 +918,7 @@ def delta_sync_movies():
         hash_obj = hashlib.sha1(imdb_id.encode('utf-8'))
         if hash_obj.hexdigest()[:8] in new_fingerprints:
             movies_to_upload.append(movie)
-    
+
     # Upload only new movies
     return chunked_movie_upload(movies_to_upload, mode='merge')
 

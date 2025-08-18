@@ -340,11 +340,11 @@ The `Config` class defines field mappings that align with database schema:
 
 ## Key Manager Classes
 
-- **DatabaseManager**: High-level database operations, singleton pattern with retry logic
-- **QueryManager**: Low-level SQL execution with connection pooling and management
-- **DatabaseSyncManager**: Library synchronization operations with JSONRPC integration  
-- **Config**: Database schema definitions and field mappings
-- **IMDbUploadManager**: Handles server upload operations and batch management
+- **resources.lib.data.database_manager.DatabaseManager**: High-level database operations, singleton pattern with retry logic
+- **resources.lib.data.query_manager.QueryManager**: Low-level SQL execution with connection pooling and management
+- **resources.lib.integrations.jsonrpc.jsonrpc_manager.JSONRPCManager**: Library synchronization operations with JSONRPC integration  
+- **resources.lib.config.config_manager.Config**: Database schema definitions and field mappings
+- **resources.lib.integrations.remote_api.imdb_upload_manager.IMDbUploadManager**: Handles server upload operations and batch management
 
 ## Error Handling and Reliability
 

@@ -377,7 +377,7 @@ The source system provides flexible content management while maintaining clear p
 Understanding this distinction is essential for proper LibraryGenie operation and debugging.
 
 For implementation details, see:
-- `ResultsManager.build_display_items_for_list()` - Source-specific processing logic
-- `QueryManager.insert_media_item()` - Source-specific insertion and lookup
-- `ShortlistImporter.convert_shortlist_item_to_media_dict()` - Source assignment logic
-- `DatabaseManager.add_shortlist_items()` - Batch import with source handling
+- `resources.lib.data.results_manager.ResultsManager.build_display_items_for_list()` - Source-specific processing logic
+- `resources.lib.data.query_manager.QueryManager.insert_media_item()` - Source-specific insertion and lookup
+- `resources.lib.integrations.remote_api.shortlist_importer.ShortlistImporter.convert_shortlist_item_to_media_dict()` - Source assignment logic
+- `resources.lib.data.database_manager.DatabaseManager.add_shortlist_items()` - Batch import with source handling
