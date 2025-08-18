@@ -98,6 +98,34 @@ class ContextMenuBuilder:
 
         return cleaned
 
+    def handle_move_folder_action(self, folder_info):
+        """Handle move folder action"""
+        try:
+            folder_id = folder_info.get('folder_id')
+            if not folder_id:
+                return
+
+            from resources.lib.config.config_manager import Config
+            from resources.lib.data.database_manager import DatabaseManager
+
+            config = Config()
+            db_manager = DatabaseManager(config.db_path)
+
+            # Get current folder details
+            current_folder = db_manager.fetch_folder_by_id(folder_id)
+            if not current_folder:
+                xbmcgui.Dialog().notification('LibraryGenie', 'Folder not found', xbmcgui.NOTIFICATION_ERROR)
+                return
+
+            # Check for protected folders
+            protected_folders = ["Search History", "Imported Lists"]
+            if current_folder['name'] in protected_folders:
+                xbmcgui.Dialog().notification('LibraryGenie', 'Cannot move protected folder', xbmcgui.NOTIFICATION_ERROR)
+                return
+        except Exception as e:
+            utils.log(f"Error handling move folder action: {str(e)}", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'Error moving folder', xbmcgui.NOTIFICATION_ERROR)
+
 
 # Global instance
 _context_menu_builder = None

@@ -540,7 +540,7 @@ def delete_folder(params):
             return
 
         # Check for protected folders
-        protected_folders = ["Search History"]
+        protected_folders = ["Search History", "Imported Lists"]
         if folder_info['name'] in protected_folders:
             xbmcgui.Dialog().notification('LibraryGenie', 'Cannot delete protected folder', xbmcgui.NOTIFICATION_ERROR)
             return
@@ -622,7 +622,7 @@ def move_folder(params):
             return
 
         # Check for protected folders
-        protected_folders = ["Search History"]
+        protected_folders = ["Search History", "Imported Lists"]
         if folder_info['name'] in protected_folders:
             xbmcgui.Dialog().notification('LibraryGenie', 'Cannot move protected folder', xbmcgui.NOTIFICATION_ERROR)
             return

@@ -117,11 +117,21 @@ def build_root_directory(handle: int):
         # Get top-level lists
         top_level_lists = db_manager.fetch_lists(None) # None for root
 
-        # Add top-level folders (excluding Search History folder)
+        # Add top-level folders (excluding protected folders that are empty or accessed via Options & Tools)
         for folder in top_level_folders:
-            # Skip the Search History folder - it's accessed via Options & Tools menu
-            if folder['name'] == "Search History":
-                continue
+            # Skip protected folders - they're accessed via Options & Tools menu or hidden when empty
+            if folder['name'] in ["Search History", "Imported Lists"]:
+                # Check if the folder has any content (lists or subfolders with content)
+                folder_count = db_manager.get_folder_media_count(folder['id'])
+                subfolders = db_manager.fetch_folders(folder['id'])
+                has_subfolders = len(subfolders) > 0
+                
+                # Only show if it has content (lists or subfolders)
+                if folder_count == 0 and not has_subfolders:
+                    continue
+                # For Search History, still skip even if it has content (accessed via Options & Tools)
+                if folder['name'] == "Search History":
+                    continue
 
             li = ListItemBuilder.build_folder_item(f"📁 {folder['name']}", is_folder=True)
             li.setProperty('lg_type', 'folder')
