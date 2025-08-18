@@ -649,7 +649,7 @@ class FavoritesImporter:
                 xbmcgui.Dialog().notification("LibraryGenie", "No playable video items in Favorites", xbmcgui.NOTIFICATION_WARNING)
                 return False
 
-            progress.update(40, "Creating Imported Favorites folder...")
+            progress.update(40, "Preparing import folder...")
 
             # Ensure "Imported Favorites" folder exists
             imported_folder_result = self.db_manager.ensure_folder_exists("Imported Favorites", None)
@@ -662,7 +662,8 @@ class FavoritesImporter:
 
             utils.log(f"Imported Favorites folder ID: {imported_folder_id}", "DEBUG")
 
-            # Clear existing data in the folder
+            # Clear existing data in the folder before starting import
+            progress.update(42, "Clearing existing imports...")
             self.clear_imported_favorites_folder(imported_folder_id)
 
             # Create a dated list
