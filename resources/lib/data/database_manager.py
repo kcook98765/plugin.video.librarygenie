@@ -396,8 +396,8 @@ class DatabaseManager(Singleton):
     def fetch_list_by_id(self, list_id):
         return self.query_manager.fetch_list_by_id(list_id)
 
-    def fetch_folders_with_item_status(self, item_id):
-        return self.query_manager.fetch_folders_with_item_status(item_id)
+    def fetch_folders_with_item_status(self, media_item_id, parent_id=None):
+        return self.query_manager.fetch_folders_with_item_status(parent_id, media_item_id)
 
     def remove_media_item_from_list(self, list_id, media_item_id):
         self.query_manager.remove_media_item_from_list(list_id, media_item_id)
