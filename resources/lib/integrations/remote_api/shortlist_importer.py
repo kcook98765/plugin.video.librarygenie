@@ -695,13 +695,15 @@ class ShortlistImporter:
                 progress_percent = 50 + int((i / total_lists) * 40)
                 progress.update(progress_percent, f"Processing list: {list_name}")
 
-                utils.log(f"Processing list {i+1}/{total_lists}: {list_name} ({len(items)} items)", "INFO")
+                utils.log(f"Processing list {i+1}/{total_lists}: {dated_list_name} ({len(items)} items)", "INFO")
 
                 if progress.iscanceled():
                     break
 
-                # Create list in LibraryGenie under Shortlist subfolder
-                list_result = self.db_manager.create_list(list_name, shortlist_folder_id)
+                # Create list in LibraryGenie under Shortlist subfolder with date suffix
+                from datetime import datetime
+                dated_list_name = f"{list_name} ({datetime.now().strftime('%Y-%m-%d')})"
+                list_result = self.db_manager.create_list(dated_list_name, shortlist_folder_id)
 
                 # Handle both dictionary and integer return values
                 if isinstance(list_result, dict):
@@ -709,7 +711,7 @@ class ShortlistImporter:
                 else:
                     list_id = list_result
 
-                utils.log(f"Created LibraryGenie list: {list_name} (ID: {list_id})", "INFO")
+                utils.log(f"Created LibraryGenie list: {dated_list_name} (ID: {list_id})", "INFO")
 
                 # Process all items in the list and collect media dicts
                 media_items_to_add = []
@@ -789,11 +791,11 @@ class ShortlistImporter:
                     try:
                         success = self.db_manager.add_shortlist_items(list_id, media_items_to_add)
                         if success:
-                            utils.log(f"IMPORT_SUCCESS: Added {len(media_items_to_add)} items to list '{list_name}' in batch", "INFO")
+                            utils.log(f"IMPORT_SUCCESS: Added {len(media_items_to_add)} items to list '{dated_list_name}' in batch", "INFO")
                         else:
-                            utils.log(f"DATABASE_ERROR: Failed to add items to list '{list_name}' in batch", "ERROR")
+                            utils.log(f"DATABASE_ERROR: Failed to add items to list '{dated_list_name}' in batch", "ERROR")
                     except Exception as e:
-                        utils.log(f"DATABASE_ERROR: Failed to add items to list '{list_name}': {str(e)}", "ERROR")
+                        utils.log(f"DATABASE_ERROR: Failed to add items to list '{dated_list_name}': {str(e)}", "ERROR")
                         import traceback
                         utils.log(f"Full traceback: {traceback.format_exc()}", "ERROR")
 
