@@ -757,16 +757,51 @@ class ShortlistImporter:
                         if validation_issues:
                             utils.log(f"DATA_VALIDATION: Issues found for '{media_dict['title']}': {'; '.join(validation_issues)}", "WARNING")
 
-                        # Enhanced logging of final media dict
-                        utils.log(f"=== FINAL MEDIA_DICT for '{media_dict['title']}' ===", "INFO")
-                        important_fields = ['title', 'year', 'source', 'duration', 'rating', 'genre', 'director', 'plot', 'imdbnumber']
-                        for field in important_fields:
-                            value = media_dict.get(field, '')
-                            if value:
-                                utils.log(f"  {field}: {value}", "INFO")
-                        utils.log("=== END FINAL MEDIA_DICT ===", "INFO")
+                        # Check for existing items to avoid duplicates
+                        title = media_dict.get('title', '')
+                        year = media_dict.get('year', 0)
+                        imdb_id = media_dict.get('imdbnumber', '')
+                        source = media_dict.get('source', '')
+                        
+                        # Check if item already exists with same identifying information
+                        existing_check = False
+                        try:
+                            if source == 'kodi_library' and imdb_id:
+                                # For Kodi library items, check by IMDb ID
+                                existing_items = self.db_manager.query_manager.execute_query(
+                                    "SELECT id FROM media_items WHERE imdbnumber = ? AND source IN ('kodi_library', 'lib')",
+                                    (imdb_id,)
+                                )
+                                if existing_items:
+                                    utils.log(f"DUPLICATE_SKIP: Kodi library item '{title}' ({year}) with IMDb {imdb_id} already exists", "INFO")
+                                    existing_check = True
+                            elif source == 'shortlist_import':
+                                # For shortlist imports, check by title + year + play path
+                                play_path = media_dict.get('play', '')
+                                existing_items = self.db_manager.query_manager.execute_query(
+                                    "SELECT id FROM media_items WHERE title = ? AND year = ? AND play = ? AND source = ?",
+                                    (title, year, play_path, source)
+                                )
+                                if existing_items:
+                                    utils.log(f"DUPLICATE_SKIP: Shortlist item '{title}' ({year}) already exists", "INFO")
+                                    existing_check = True
+                        except Exception as e:
+                            utils.log(f"DUPLICATE_CHECK_ERROR: Failed to check for duplicates for '{title}': {str(e)}", "WARNING")
+                            # Continue processing even if duplicate check fails
 
-                        media_items_to_add.append(media_dict)
+                        if not existing_check:
+                            # Enhanced logging of final media dict
+                            utils.log(f"=== FINAL MEDIA_DICT for '{media_dict['title']}' ===", "INFO")
+                            important_fields = ['title', 'year', 'source', 'duration', 'rating', 'genre', 'director', 'plot', 'imdbnumber']
+                            for field in important_fields:
+                                value = media_dict.get(field, '')
+                                if value:
+                                    utils.log(f"  {field}: {value}", "INFO")
+                            utils.log("=== END FINAL MEDIA_DICT ===", "INFO")
+
+                            media_items_to_add.append(media_dict)
+                        else:
+                            utils.log(f"IMPORT_SKIP: Skipping duplicate item '{title}' ({year})", "INFO")
 
                     except Exception as e:
                         utils.log(f"CONVERSION_ERROR: Failed to convert item '{item_title}': {str(e)}", "ERROR")
