@@ -112,11 +112,11 @@ class DatabaseManager(Singleton):
     def update_list_folder(self, list_id, folder_id):
         self.query_manager.update_list_folder(list_id, folder_id)
 
-    def fetch_lists_with_item_status(self, item_id, folder_id=None):
-        return self.query_manager.fetch_lists_with_item_status(folder_id, item_id)
+    def fetch_lists_with_item_status(self, media_item_id, folder_id=None):
+        return self.query_manager.fetch_lists_with_item_status(folder_id, media_item_id)
 
-    def fetch_all_lists_with_item_status(self, item_id):
-        return self.query_manager.fetch_all_lists_with_item_status(item_id)
+    def fetch_all_lists_with_item_status(self, media_item_id):
+        return self.query_manager.fetch_all_lists_with_item_status(media_item_id)
 
     def fetch_list_items(self, list_id):
         return self.query_manager.fetch_list_items_with_details(list_id)
