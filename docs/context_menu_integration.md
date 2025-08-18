@@ -199,6 +199,18 @@ Enable debug logging in addon settings to capture:
 - API call results and timing
 - Error conditions and recovery
 
+### User Notifications
+
+The addon uses `xbmcgui.Dialog().ok()` for user feedback following Kodi's standard pattern:
+
+```python
+# Correct usage - maximum 4 parameters (title + up to 3 message lines)
+xbmcgui.Dialog().ok('LibraryGenie', f"Operation completed!\nDetails: {details}")
+
+# Alternative with separate lines
+xbmcgui.Dialog().ok('LibraryGenie', 'Operation completed!', f'Details: {details}')
+```
+
 ### Log Analysis
 
 Key log patterns to monitor:
