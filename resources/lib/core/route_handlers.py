@@ -919,6 +919,54 @@ def add_to_list(params):
         utils.log(f"Error in add_to_list: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Error adding to list', xbmcgui.NOTIFICATION_ERROR, 3000)
 
+def add_movies_to_list(params):
+    """Handler for adding multiple movies to a list - used by search results"""
+    try:
+        # Extract parameters
+        list_id = params.get('list_id', [None])[0] if params.get('list_id') else None
+        movie_data = params.get('movie_data', [None])[0] if params.get('movie_data') else None
+
+        if not list_id or not movie_data:
+            utils.log("Missing list_id or movie_data for add_movies_to_list", "ERROR")
+            return
+
+        # Parse movie data if it's a string
+        if isinstance(movie_data, str):
+            import json
+            try:
+                movie_data = json.loads(movie_data)
+            except json.JSONDecodeError:
+                utils.log("Invalid movie_data format", "ERROR")
+                return
+
+        from resources.lib.config.config_manager import Config
+        from resources.lib.data.database_manager import DatabaseManager
+
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+
+        # Add each movie to the list
+        success_count = 0
+        for movie in movie_data:
+            try:
+                success = db_manager.add_media_item(list_id, movie)
+                if success:
+                    success_count += 1
+            except Exception as e:
+                utils.log(f"Error adding movie {movie.get('title', 'Unknown')} to list: {str(e)}", "ERROR")
+
+        if success_count > 0:
+            xbmcgui.Dialog().notification('LibraryGenie', f'Added {success_count} movies to list', xbmcgui.NOTIFICATION_INFO)
+        else:
+            xbmcgui.Dialog().notification('LibraryGenie', 'Failed to add movies to list', xbmcgui.NOTIFICATION_ERROR)
+
+        # Refresh the container
+        xbmc.executebuiltin('Container.Refresh')
+
+    except Exception as e:
+        utils.log(f"Error in add_movies_to_list: {str(e)}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error adding movies to list', xbmcgui.NOTIFICATION_ERROR)
+
 def add_to_list_from_context(params):
     """Handler for adding a movie to a list from native Kodi context menu"""
     try:
