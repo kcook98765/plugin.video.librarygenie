@@ -126,7 +126,7 @@ def _set_sort_properties(li: xbmcgui.ListItem, item: MediaItem) -> None:
         # Set sort key for search results
         if item.sort_keys.get('search_score'):
             # Invert score for proper sorting (higher scores first)
-            inverted_score = 1000 - item.sort_keys.get('search_score')
+            inverted_score = 1000 - item.sort_keys.get('search_score', 0)
             li.setProperty('sort_score', f"{inverted_score:06.1f}")
         
         # Set year for sorting

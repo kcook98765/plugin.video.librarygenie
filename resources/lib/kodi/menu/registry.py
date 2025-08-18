@@ -115,7 +115,7 @@ def _get_list_item_menu(item: MediaItem) -> List[Tuple[str, str]]:
     if not list_id:
         return []
 
-    menu_items = [
+    menu_items: List[Tuple[str, str]] = [
         ("Remove from List", f"RunPlugin({build_plugin_url({'action': 'remove_from_list', 'list_id': list_id, 'media_id': item.id})})")
     ]
 

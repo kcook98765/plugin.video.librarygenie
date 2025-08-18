@@ -99,7 +99,6 @@ class KodiHelper:
         xbmcplugin.endOfDirectory(self.addon_handle)
 
     def list_folders_and_lists(self, folders, lists):
-        from resources.lib.data.normalize import from_db
         from resources.lib.kodi.listitem.factory import build_listitem
         from resources.lib.data.models import MediaItem
 
@@ -146,7 +145,6 @@ class KodiHelper:
         utils.log(f"Showing list with ID: {list_id}", "DEBUG")
         from resources.lib.data.database_manager import DatabaseManager
         from resources.lib.config.config_manager import get_config
-        from resources.lib.kodi.listitem_builder import ListItemBuilder
         config = get_config()
         db_manager = DatabaseManager(config.db_path)
         items = db_manager.fetch_list_items(list_id)
