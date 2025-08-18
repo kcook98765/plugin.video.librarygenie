@@ -785,13 +785,38 @@ class DatabaseManager(Singleton):
                     filtered_data.setdefault('source', 'shortlist_import')
                     filtered_data.setdefault('media_type', 'movie')
 
-                    # Insert media item
-                    columns = ', '.join(filtered_data.keys())
-                    placeholders = ', '.join('?' for _ in filtered_data)
-                    media_query = f'INSERT OR REPLACE INTO media_items ({columns}) VALUES ({placeholders})'
+                    # Insert or get media item - handle duplicates gracefully
+                    # First try to find existing media item to avoid foreign key constraint
+                    existing_media_query = """
+                        SELECT id FROM media_items 
+                        WHERE title = ? AND year = ? AND source = ? 
+                        AND (play = ? OR (play IS NULL AND ? IS NULL))
+                    """
+                    cursor.execute(existing_media_query, (
+                        item_data.get('title'), 
+                        item_data.get('year'), 
+                        item_data.get('source'),
+                        item_data.get('play'),
+                        item_data.get('play')
+                    ))
+                    existing_media = cursor.fetchone()
 
-                    cursor.execute(media_query, tuple(filtered_data.values()))
-                    media_id = cursor.lastrowid
+                    if existing_media:
+                        media_id = existing_media[0]
+                        utils.log(f"DATABASE: Found existing media item for '{item_data.get('title')}' with ID {media_id}", "DEBUG")
+                    else:
+                        # Insert new media item
+                        media_query = '''INSERT INTO media_items 
+                                       (title, year, plot, rating, duration, genre, director, cast, studio, mpaa, 
+                                        tagline, writer, country, premiered, dateadded, votes, trailer, path, play, 
+                                        kodi_id, media_type, source, imdbnumber, thumbnail, poster, fanart, art, 
+                                        uniqueid, stream_url, status) 
+                                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+
+                        cursor.execute(media_query, tuple(filtered_data.values()))
+                        media_id = cursor.lastrowid
+                        utils.log(f"DATABASE: Created new media item for '{item_data.get('title')}' with ID {media_id}", "DEBUG")
+
 
                     if media_id and media_id > 0:
                         # Insert list item in same transaction
@@ -907,12 +932,12 @@ class DatabaseManager(Singleton):
             descendant_ids = []
             # Get direct children
             subfolders = self.query_manager.get_folders(folder_id)
-            
+
             for subfolder in subfolders:
                 descendant_ids.append(subfolder['id'])
                 # Recursively get descendants
                 descendant_ids.extend(self.get_descendant_folder_ids(subfolder['id']))
-            
+
             return descendant_ids
         except Exception as e:
             utils.log(f"Error getting descendant folder IDs: {str(e)}", "ERROR")
