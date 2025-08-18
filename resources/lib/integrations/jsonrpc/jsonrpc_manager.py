@@ -579,6 +579,7 @@ class JSONRPC:
                 if len(movies) > 3:
                     log(f"BATCH JSON-RPC: ... and {len(movies) - 3} more matches", "INFO")
 
+                # Return raw JSON-RPC payload for normalization by from_jsonrpc()
                 return response
             else:
                 log("BATCH JSON-RPC: No movies found in response", "INFO")
