@@ -173,16 +173,34 @@ def main():
                 import traceback
                 xbmc.log(f"LibraryGenie: Folder detection traceback: {traceback.format_exc()}", xbmc.LOGERROR)
         
-        # Check if this is a LibraryGenie folder/list item (either by IsFolder=true or lg_type=folder)
+        # Check if this is a LibraryGenie folder/list item (either by IsFolder=true or lg_type=folder/list)
         is_lg_folder_item = (is_folder_item and is_librarygenie_folder) or (lg_type == 'folder' and is_librarygenie_folder)
+        is_lg_list_item = (lg_type == 'list' and 'plugin.video.librarygenie' in (current_container_path or ''))
         
         xbmc.log(f"LibraryGenie: FOLDER DEBUG - Final detection result: is_librarygenie_folder = {is_librarygenie_folder}", xbmc.LOGINFO)
         xbmc.log(f"LibraryGenie: FOLDER DEBUG - is_folder_item = {is_folder_item}", xbmc.LOGINFO)
         xbmc.log(f"LibraryGenie: FOLDER DEBUG - lg_type = {lg_type}", xbmc.LOGINFO)
         xbmc.log(f"LibraryGenie: FOLDER DEBUG - is_lg_folder_item = {is_lg_folder_item}", xbmc.LOGINFO)
+        xbmc.log(f"LibraryGenie: FOLDER DEBUG - is_lg_list_item = {is_lg_list_item}", xbmc.LOGINFO)
 
+        # If this is a LibraryGenie list item (lg_type=list), show list options
+        if is_lg_list_item:
+            xbmc.log("LibraryGenie: LIST OPTIONS - Detected LibraryGenie list item, showing list options", xbmc.LOGINFO)
+
+            # List-specific options
+            options.append("Rename List")
+            options.append("Delete List") 
+            options.append("Move List")
+            options.append("Add Movies to List")
+            options.append("Clear List")
+            options.append("Export List")
+            options.append("Information")
+            options.append("Settings")
+            
+            xbmc.log(f"LibraryGenie: LIST OPTIONS - Added {len(options)} list options: {options}", xbmc.LOGINFO)
+        
         # If this is a LibraryGenie folder item (either actual folder or lg_type=folder), show folder options
-        if is_lg_folder_item:
+        elif is_lg_folder_item:
             xbmc.log("LibraryGenie: FOLDER OPTIONS - Detected LibraryGenie folder item, showing folder options", xbmc.LOGINFO)
 
             # Folder-specific options
@@ -258,8 +276,74 @@ def main():
         selected_option = options[selected]
         xbmc.log(f"LibraryGenie: User selected option {selected}: '{selected_option}'", xbmc.LOGINFO)
 
+        # Handle list-specific actions
+        if is_lg_list_item:
+            xbmc.log(f"LibraryGenie: LIST ACTION - Handling list option: '{selected_option}'", xbmc.LOGINFO)
+            
+            if selected_option == "Rename List":
+                xbmc.log("LibraryGenie: LIST ACTION - Executing Rename List", xbmc.LOGINFO)
+                try:
+                    # Extract list_id from item path for rename operation
+                    list_id = None
+                    import re
+                    
+                    # Try to extract list_id from ListItem.FolderPath
+                    if 'list_id=' in current_item_path:
+                        match = re.search(r'list_id=(\d+)', current_item_path)
+                        if match:
+                            list_id = match.group(1)
+                    
+                    if list_id:
+                        xbmc.log(f"LibraryGenie: LIST ACTION - Extracted list_id: {list_id}", xbmc.LOGINFO)
+                        # Call rename list function
+                        rename_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={list_id})'
+                        xbmc.executebuiltin(rename_url)
+                    else:
+                        xbmc.log("LibraryGenie: LIST ACTION - Could not extract list_id for rename", xbmc.LOGERROR)
+                        xbmcgui.Dialog().notification("LibraryGenie", "Could not determine list to rename", xbmcgui.NOTIFICATION_ERROR, 3000)
+                except Exception as e:
+                    xbmc.log(f"LibraryGenie: LIST ACTION - Error in rename list: {str(e)}", xbmc.LOGERROR)
+                    
+            elif selected_option == "Delete List":
+                xbmc.log("LibraryGenie: LIST ACTION - Executing Delete List", xbmc.LOGINFO)
+                # Implement Delete List logic
+                xbmcgui.Dialog().notification("LibraryGenie", "Delete List - Not implemented yet", xbmcgui.NOTIFICATION_INFO, 3000)
+                
+            elif selected_option == "Move List":
+                xbmc.log("LibraryGenie: LIST ACTION - Executing Move List", xbmc.LOGINFO)
+                # Implement Move List logic
+                xbmcgui.Dialog().notification("LibraryGenie", "Move List - Not implemented yet", xbmcgui.NOTIFICATION_INFO, 3000)
+                
+            elif selected_option == "Add Movies to List":
+                xbmc.log("LibraryGenie: LIST ACTION - Executing Add Movies to List", xbmc.LOGINFO)
+                # Implement Add Movies to List logic
+                xbmcgui.Dialog().notification("LibraryGenie", "Add Movies to List - Not implemented yet", xbmcgui.NOTIFICATION_INFO, 3000)
+                
+            elif selected_option == "Clear List":
+                xbmc.log("LibraryGenie: LIST ACTION - Executing Clear List", xbmc.LOGINFO)
+                # Implement Clear List logic
+                xbmcgui.Dialog().notification("LibraryGenie", "Clear List - Not implemented yet", xbmcgui.NOTIFICATION_INFO, 3000)
+                
+            elif selected_option == "Export List":
+                xbmc.log("LibraryGenie: LIST ACTION - Executing Export List", xbmc.LOGINFO)
+                # Implement Export List logic
+                xbmcgui.Dialog().notification("LibraryGenie", "Export List - Not implemented yet", xbmcgui.NOTIFICATION_INFO, 3000)
+                
+            elif selected_option == "Information":
+                xbmc.log("LibraryGenie: LIST ACTION - Executing List Information", xbmc.LOGINFO)
+                xbmc.executebuiltin('Action(Info)')
+                
+            elif selected_option == "Settings":
+                xbmc.log("LibraryGenie: LIST ACTION - Executing List Settings", xbmc.LOGINFO)
+                xbmc.executebuiltin(f'Addon.OpenSettings({addon_id})')
+            else:
+                xbmc.log(f"LibraryGenie: LIST ACTION - Unknown list option: '{selected_option}'", xbmc.LOGWARNING)
+                
+            xbmc.log("LibraryGenie: LIST ACTION - List action handling complete", xbmc.LOGINFO)
+            return # Exit after handling list options
+
         # Handle folder-specific actions
-        if is_lg_folder_item:
+        elif is_lg_folder_item:
             xbmc.log(f"LibraryGenie: FOLDER ACTION - Handling folder option: '{selected_option}'", xbmc.LOGINFO)
             
             if selected_option == "Rename Folder":
