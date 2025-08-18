@@ -258,10 +258,10 @@ def main():
 
         # Show list selection dialog
         from typing import List, Union
-        typed_list_options: List[Union[str, xbmcgui.ListItem]] = options
+        typed_options: List[Union[str, xbmcgui.ListItem]] = options
         selected_index = xbmcgui.Dialog().select(
-            f"Add '{title}' to list:",
-            typed_list_options
+            f"LibraryGenie - {title}:",
+            typed_options
         )
 
         if selected_index == -1:  # User cancelled
@@ -688,9 +688,11 @@ def add_plugin_item_to_list(media_info):
             list_ids.append(list_item['id'])
 
         # Show list selection dialog
+        from typing import List, Union
+        typed_list_options: List[Union[str, xbmcgui.ListItem]] = list_options
         selected_index = xbmcgui.Dialog().select(
             f"Add '{title}' to list:",
-            list_options
+            typed_list_options
         )
 
         if selected_index == -1:  # User cancelled
