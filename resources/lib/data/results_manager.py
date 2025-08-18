@@ -283,7 +283,9 @@ class ResultsManager(Singleton):
 
                     utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Successfully created ListItem from database data ===", "DEBUG")
 
-                refs.append(list_item)
+                    # Use fallback URL for items without file path
+                    item_url = f"info://{r.get('id', 'unknown')}"
+                    display_items.append((item_url, list_item, False))
 
             # External items processed separately with stored metadata
             # Handle None search_score values that can't be compared
