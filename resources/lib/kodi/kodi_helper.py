@@ -16,13 +16,16 @@ class KodiHelper:
         self.jsonrpc = JSONRPC()
 
     def list_items(self, items, content_type='video'):
-        from resources.lib.kodi.listitem_builder import ListItemBuilder
+        from resources.lib.data.normalize import from_db
+        from resources.lib.kodi.listitem.factory import build_listitem
 
         # Set content type for proper display
         xbmcplugin.setContent(self.addon_handle, content_type)
 
         for item in items:
-            list_item = ListItemBuilder.build_video_item(item)
+            # Normalize item to MediaItem and build via factory
+            media_item = from_db(item)
+            list_item = build_listitem(media_item, 'video')
             url = f'{self.addon_url}?action=play_item&id={item.get("id")}'
 
             xbmcplugin.addDirectoryItem(

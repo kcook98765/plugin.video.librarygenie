@@ -182,7 +182,10 @@ def run_addon():
                 # Always show root directory for direct launch or unknown action
                 root_folders = db_manager.fetch_folders(None)  # Get root folders
                 root_lists = db_manager.fetch_lists(None)  # Get root lists
-                kodi_helper.list_folders_and_lists(root_folders, root_lists)
+                # Use directory builder which now uses the new factory pattern
+                from resources.lib.core.directory_builder import DirectoryBuilder
+                directory_builder = DirectoryBuilder()
+                directory_builder.build_folders_and_lists_directory(root_folders, root_lists)
                 return
 
     except Exception as e:

@@ -1,4 +1,3 @@
-
 """
 InfoTag Adapter for LibraryGenie
 Handles all InfoTag operations with Kodi version-specific behavior
@@ -7,25 +6,38 @@ Minimum supported Kodi version: 19 (Matrix)
 import xbmc
 import xbmcgui
 from typing import Dict, Any, List
-from ...data.models import MediaItem
-from ...utils import utils
+from resources.lib.data.models import MediaItem, Actor
+
+import xbmcgui
+
+# Global flag to log version detection once per session
+_version_logged = False
 
 
 def apply_infotag(item: MediaItem, li: xbmcgui.ListItem) -> None:
     """Apply InfoTag data to ListItem with version-specific handling"""
     try:
+        # Log version detection once per session
+        global _version_logged
+        if not _version_logged:
+            version = utils.get_kodi_version()
+            utils.log(f"InfoTag adapter using Kodi v{version} path", "INFO")
+            _version_logged = True
+
+        infotag = li.getVideoInfoTag()
+
         # Get Kodi version for routing
         kodi_version = utils.get_kodi_version()
-        
+
         if kodi_version >= 21:
             _apply_infotag_v21(item, li)
         elif kodi_version >= 20:
             _apply_infotag_v20(item, li)
         else:
             _apply_infotag_v19(item, li)
-            
+
         utils.log(f"Applied InfoTag using v{kodi_version} path for '{item.title}'", "DEBUG")
-        
+
     except Exception as e:
         utils.log(f"InfoTag application failed for '{item.title}': {str(e)}", "ERROR")
         # Fallback to basic info
@@ -38,7 +50,7 @@ def apply_infotag(item: MediaItem, li: xbmcgui.ListItem) -> None:
 def _apply_infotag_v21(item: MediaItem, li: xbmcgui.ListItem) -> None:
     """Apply InfoTag for Kodi v21+ using new Actor objects"""
     info_tag = li.getVideoInfoTag()
-    
+
     # Basic fields
     if item.title:
         info_tag.setTitle(item.title)
@@ -58,11 +70,11 @@ def _apply_infotag_v21(item: MediaItem, li: xbmcgui.ListItem) -> None:
         info_tag.setCountries([item.country])
     if item.genres:
         info_tag.setGenres(item.genres)
-    
+
     # Media type
     if item.media_type:
         info_tag.setMediaType(item.media_type)
-    
+
     # Unique IDs
     unique_ids = {}
     if item.imdb and item.imdb.startswith('tt'):
@@ -71,7 +83,7 @@ def _apply_infotag_v21(item: MediaItem, li: xbmcgui.ListItem) -> None:
         unique_ids['tmdb'] = item.tmdb
     if unique_ids:
         info_tag.setUniqueIDs(unique_ids)
-    
+
     # Cast using v21 Actor objects
     if item.cast:
         actors = []
@@ -88,10 +100,10 @@ def _apply_infotag_v21(item: MediaItem, li: xbmcgui.ListItem) -> None:
             except Exception as e:
                 utils.log(f"Failed to create Actor object: {e}", "WARNING")
                 continue
-        
+
         if actors:
             info_tag.setCast(actors)
-    
+
     # Stream details
     if item.stream_details:
         _apply_stream_details_v21(info_tag, item.stream_details)
@@ -100,7 +112,7 @@ def _apply_infotag_v21(item: MediaItem, li: xbmcgui.ListItem) -> None:
 def _apply_infotag_v20(item: MediaItem, li: xbmcgui.ListItem) -> None:
     """Apply InfoTag for Kodi v20 using InfoTag methods"""
     info_tag = li.getVideoInfoTag()
-    
+
     # Basic fields
     if item.title:
         info_tag.setTitle(item.title)
@@ -120,11 +132,11 @@ def _apply_infotag_v20(item: MediaItem, li: xbmcgui.ListItem) -> None:
         info_tag.setCountries([item.country])
     if item.genres:
         info_tag.setGenres(item.genres)
-    
+
     # Media type
     if item.media_type:
         info_tag.setMediaType(item.media_type)
-    
+
     # Unique IDs
     unique_ids = {}
     if item.imdb and item.imdb.startswith('tt'):
@@ -133,7 +145,7 @@ def _apply_infotag_v20(item: MediaItem, li: xbmcgui.ListItem) -> None:
         unique_ids['tmdb'] = item.tmdb
     if unique_ids:
         info_tag.setUniqueIDs(unique_ids)
-    
+
     # Cast using v20 methods
     if item.cast:
         cast_list = []
@@ -146,13 +158,13 @@ def _apply_infotag_v20(item: MediaItem, li: xbmcgui.ListItem) -> None:
                     'thumb': actor_data.get('thumb', '')
                 }
                 cast_list.append(cast_entry)
-        
+
         if cast_list:
             try:
                 info_tag.setCast(cast_list)
             except Exception as e:
                 utils.log(f"Failed to set cast in v20: {e}", "WARNING")
-    
+
     # Stream details
     if item.stream_details:
         _apply_stream_details_v20(info_tag, item.stream_details)
@@ -161,7 +173,7 @@ def _apply_infotag_v20(item: MediaItem, li: xbmcgui.ListItem) -> None:
 def _apply_infotag_v19(item: MediaItem, li: xbmcgui.ListItem) -> None:
     """Apply InfoTag for Kodi v19 using setInfo method"""
     info_dict = {}
-    
+
     # Basic fields
     if item.title:
         info_dict['title'] = item.title
@@ -181,15 +193,15 @@ def _apply_infotag_v19(item: MediaItem, li: xbmcgui.ListItem) -> None:
         info_dict['country'] = item.country
     if item.genres:
         info_dict['genre'] = item.genres
-    
+
     # Media type
     if item.media_type:
         info_dict['mediatype'] = item.media_type
-    
+
     # IMDb ID for v19
     if item.imdb and item.imdb.startswith('tt'):
         info_dict['imdbnumber'] = item.imdb
-    
+
     # Cast for v19
     if item.cast:
         cast_list = []
@@ -203,10 +215,10 @@ def _apply_infotag_v19(item: MediaItem, li: xbmcgui.ListItem) -> None:
                 }
                 cast_list.append(cast_entry)
         info_dict['cast'] = cast_list
-    
+
     # Apply the info dict
     li.setInfo('video', info_dict)
-    
+
     # Stream details for v19
     if item.stream_details:
         _apply_stream_details_v19(li, item.stream_details)
@@ -222,19 +234,19 @@ def _apply_stream_details_v21(info_tag, stream_details: Dict[str, Any]) -> None:
                     if stream.get('codec'):
                         info_tag.addVideoStream(stream)
                         break  # Usually only need first video stream
-        
+
         audio_streams = stream_details.get('audio', [])
         if audio_streams and isinstance(audio_streams, list):
             for stream in audio_streams:
                 if isinstance(stream, dict):
                     info_tag.addAudioStream(stream)
-        
+
         subtitle_streams = stream_details.get('subtitle', [])
         if subtitle_streams and isinstance(subtitle_streams, list):
             for stream in subtitle_streams:
                 if isinstance(stream, dict):
                     info_tag.addSubtitleStream(stream)
-                    
+
     except Exception as e:
         utils.log(f"Failed to apply stream details v21: {e}", "WARNING")
 
@@ -248,19 +260,19 @@ def _apply_stream_details_v20(info_tag, stream_details: Dict[str, Any]) -> None:
                 if isinstance(stream, dict):
                     info_tag.addVideoStream(stream)
                     break  # Usually only need first video stream
-        
+
         audio_streams = stream_details.get('audio', [])
         if audio_streams and isinstance(audio_streams, list):
             for stream in audio_streams:
                 if isinstance(stream, dict):
                     info_tag.addAudioStream(stream)
-        
+
         subtitle_streams = stream_details.get('subtitle', [])
         if subtitle_streams and isinstance(subtitle_streams, list):
             for stream in subtitle_streams:
                 if isinstance(stream, dict):
                     info_tag.addSubtitleStream(stream)
-                    
+
     except Exception as e:
         utils.log(f"Failed to apply stream details v20: {e}", "WARNING")
 
@@ -277,7 +289,7 @@ def _apply_stream_details_v19(li: xbmcgui.ListItem, stream_details: Dict[str, An
                         break  # Usually only need first video stream
                     except Exception:
                         pass
-        
+
         audio_streams = stream_details.get('audio', [])
         if audio_streams and isinstance(audio_streams, list):
             for stream in audio_streams:
@@ -286,7 +298,7 @@ def _apply_stream_details_v19(li: xbmcgui.ListItem, stream_details: Dict[str, An
                         li.addStreamInfo('audio', stream)
                     except Exception:
                         pass
-        
+
         subtitle_streams = stream_details.get('subtitle', [])
         if subtitle_streams and isinstance(subtitle_streams, list):
             for stream in subtitle_streams:
@@ -295,7 +307,7 @@ def _apply_stream_details_v19(li: xbmcgui.ListItem, stream_details: Dict[str, An
                         li.addStreamInfo('subtitle', stream)
                     except Exception:
                         pass
-                        
+
     except Exception as e:
         utils.log(f"Failed to apply stream details v19: {e}", "WARNING")
 
@@ -304,14 +316,14 @@ def _apply_stream_details_v19(li: xbmcgui.ListItem, stream_details: Dict[str, An
 def set_info_tag(li: xbmcgui.ListItem, info_dict: Dict[str, Any], content_type: str = 'video') -> None:
     """Legacy function - use apply_infotag with MediaItem instead"""
     utils.log("Using legacy set_info_tag - consider migrating to apply_infotag", "WARNING")
-    
+
     try:
         kodi_version = utils.get_kodi_version()
-        
+
         if kodi_version >= 20:
             # Use InfoTag methods for v20+
             info_tag = li.getVideoInfoTag()
-            
+
             # Map common fields
             if 'title' in info_dict:
                 info_tag.setTitle(info_dict['title'])
@@ -336,7 +348,7 @@ def set_info_tag(li: xbmcgui.ListItem, info_dict: Dict[str, Any], content_type: 
                 info_tag.setCountries(countries)
             if 'mediatype' in info_dict:
                 info_tag.setMediaType(info_dict['mediatype'])
-            
+
             # Handle unique IDs
             unique_ids = {}
             if 'imdbnumber' in info_dict and info_dict['imdbnumber']:
@@ -345,7 +357,7 @@ def set_info_tag(li: xbmcgui.ListItem, info_dict: Dict[str, Any], content_type: 
                 unique_ids.update(info_dict['uniqueid'])
             if unique_ids:
                 info_tag.setUniqueIDs(unique_ids)
-            
+
             # Handle cast
             if 'cast' in info_dict and info_dict['cast']:
                 cast_list = info_dict['cast']
@@ -372,7 +384,7 @@ def set_info_tag(li: xbmcgui.ListItem, info_dict: Dict[str, Any], content_type: 
         else:
             # Use setInfo for v19
             li.setInfo(content_type, info_dict)
-            
+
     except Exception as e:
         utils.log(f"Failed to set info tag: {e}", "ERROR")
         # Fallback to basic setInfo
@@ -385,7 +397,7 @@ def set_info_tag(li: xbmcgui.ListItem, info_dict: Dict[str, Any], content_type: 
 def set_art(li: xbmcgui.ListItem, art_dict: Dict[str, str]) -> None:
     """Legacy function - use apply_art with MediaItem instead"""
     utils.log("Using legacy set_art - consider migrating to apply_art", "WARNING")
-    
+
     try:
         if art_dict:
             li.setArt(art_dict)
