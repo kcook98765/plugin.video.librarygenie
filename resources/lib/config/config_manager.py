@@ -1,8 +1,8 @@
 import os
 from functools import lru_cache
-from .config.addon_ref import get_addon
+from .addon_ref import get_addon
 import xbmcvfs
-from . import utils
+from resources.lib import utils
 
 class Config:
     """ FIELDS should align with table list_items fields AND for use in listitem building """
