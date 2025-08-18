@@ -1,4 +1,3 @@
-
 """Directory building utilities for LibraryGenie addon"""
 
 import xbmc
@@ -54,7 +53,7 @@ def add_options_header_item(ctx: dict, handle: int):
             'action': 'show_options',
             'view': ctx.get('view'),
         }
-        
+
         if ctx.get('list_id'):
             url_params['list_id'] = ctx['list_id']
         if ctx.get('folder_id'):
@@ -67,7 +66,7 @@ def add_options_header_item(ctx: dict, handle: int):
         addon = get_addon()
         addon_path = addon.getAddonInfo("path")
         icon_path = f"{addon_path}/resources/media/icon.jpg"
-        
+
         options_item.art = {
             'icon': icon_path,
             'thumb': icon_path,
@@ -119,16 +118,16 @@ def build_root_directory(handle: int):
                 'title': f"📁 {folder['name']}",
                 'media_type': 'folder',
                 'is_folder': True,
-                'play_path': build_plugin_url({'action': 'browse_folder', 'folder_id': folder['id'], 'view': 'folder'})
             }
-            
+
             media_item = from_db(folder_data)
+            media_item.play_path = build_plugin_url({'action': 'browse_folder', 'folder_id': folder['id'], 'view': 'folder'})
             media_item.context_tags.add('folder')
             media_item.extras['folder_id'] = folder['id']
 
             # Build ListItem using factory
             li = build_listitem(media_item, 'folder_view')
-            
+
             xbmcplugin.addDirectoryItem(handle, media_item.play_path, li, isFolder=True)
 
         # Add top-level lists using factory pattern
@@ -143,23 +142,23 @@ def build_root_directory(handle: int):
                 display_title = list_item['name']
             else:
                 display_title = f"{list_item['name']} ({list_count})"
-            
+
             # Normalize list data to MediaItem
             list_data = {
                 'id': list_item['id'],
                 'title': f"📋 {display_title}",
                 'media_type': 'playlist',
                 'is_folder': True,
-                'play_path': build_plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
             }
-            
+
             media_item = from_db(list_data)
+            media_item.play_path = build_plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
             media_item.context_tags.add('list')
             media_item.extras['list_id'] = list_item['id']
 
             # Build ListItem using factory
             li = build_listitem(media_item, 'folder_view')
-            
+
             xbmcplugin.addDirectoryItem(handle, media_item.play_path, li, isFolder=True)
 
     except Exception as e:
@@ -181,10 +180,10 @@ def show_empty_directory(handle: int, message="No items to display."):
             is_folder=False,
             play_path=""
         )
-        
+
         # Build ListItem using factory
         li = build_listitem(empty_item, 'empty_view')
-        
+
         xbmcplugin.addDirectoryItem(handle, "", li, False)
         xbmcplugin.endOfDirectory(handle, succeeded=True)
     except Exception as e:
