@@ -1,38 +1,36 @@
 """Context Menu Builder for LibraryGenie - handles both native and ListItem context menus"""
 
 import xbmc
+from resources.lib.kodi.menu.registry import for_item
+from resources.lib.data.models import MediaItem
 from resources.lib.utils import utils
 
 
 class ContextMenuBuilder:
-    """Centralized context menu building with authentication and context awareness"""
+    """Legacy wrapper - delegates to new menu registry"""
 
     def __init__(self):
         pass
 
-    def _is_authenticated(self):
-        """Check if user is authenticated to the server"""
+    def build_context_menu(self, media_dict):
+        """Build context menu items for a media item - delegates to new registry"""
         try:
-            from resources.lib.config.addon_ref import get_addon
-            addon = get_addon()
+            # Convert media_dict to MediaItem for registry
+            media_item = MediaItem(
+                id=media_dict.get('id', 0),
+                media_type=media_dict.get('media_type', 'movie'),
+                title=media_dict.get('title', 'Unknown'),
+                imdb=media_dict.get('imdb') or media_dict.get('imdbnumber', ''),
+                tmdb=media_dict.get('tmdb', ''),
+                is_folder=media_dict.get('is_folder', False)
+            )
 
-            # Check if we have API configuration
-            api_url = addon.getSetting('remote_api_url')
-            api_key = addon.getSetting('remote_api_key')
-
-            # Also check LGS settings as backup
-            lgs_url = addon.getSetting('lgs_upload_url')
-            lgs_key = addon.getSetting('lgs_upload_key')
-
-            # User is authenticated if they have either remote API or LGS credentials
-            has_remote_api = api_url and api_key
-            has_lgs_auth = lgs_url and lgs_key
-
-            return has_remote_api or has_lgs_auth
+            # Use new registry to build menu
+            return for_item(media_item)
 
         except Exception as e:
-            utils.log(f"Error checking authentication status: {str(e)}", "ERROR")
-            return False
+            utils.log(f"Error in legacy ContextMenuBuilder: {str(e)}", "ERROR")
+            return []
 
     def build_video_context_menu(self, media_info, context=None):
         """Build context menu for video items - now returns empty since we use native context only
