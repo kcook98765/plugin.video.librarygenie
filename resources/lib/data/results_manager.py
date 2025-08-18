@@ -246,6 +246,9 @@ class ResultsManager(Singleton):
                     meta['media_id'] = r.get('id') or r.get('media_id') or meta.get('movieid')
 
                     media_item = from_jsonrpc(meta)
+                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: LIBRARY MATCH - MediaItem after from_jsonrpc - media_type: '{media_item.media_type}', title: '{media_item.title}' ===", "DEBUG")
+                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: LIBRARY MATCH - MediaItem plot length: {len(media_item.plot)}, rating: {media_item.rating} ===", "DEBUG")
+                    
                     list_item = build_listitem(media_item, 'search_history' if is_search_history else 'default')
 
                     # Determine the appropriate URL for this item
@@ -280,8 +283,13 @@ class ResultsManager(Singleton):
                     db_item['media_type'] = 'movie'
 
                     utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Creating from DB data - title: '{db_item.get('title')}', plot length: {len(str(db_item.get('plot', '')))} ===", "DEBUG")
+                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: DB item media_type before normalization: {db_item.get('media_type')} ===", "DEBUG")
+                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: DB item keys: {list(db_item.keys())[:10]}... ===", "DEBUG")
 
                     media_item = from_db(db_item)
+                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: MediaItem after from_db - media_type: '{media_item.media_type}', title: '{media_item.title}' ===", "DEBUG")
+                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: MediaItem plot length: {len(media_item.plot)}, rating: {media_item.rating} ===", "DEBUG")
+                    
                     list_item = build_listitem(media_item, 'search_history' if is_search_history else 'default')
 
                     utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Successfully created ListItem from database data ===", "DEBUG")
