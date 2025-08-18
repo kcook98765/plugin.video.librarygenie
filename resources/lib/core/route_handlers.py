@@ -1370,27 +1370,44 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
         })
 
         if target_url:
-            if from_context_menu:
-                # For context menu execution, use ActivateWindow for more reliable navigation
-                utils.log(f"=== SIMILARITY_SEARCH: Using ActivateWindow navigation from context menu: {target_url} ===", "DEBUG")
-                # Use ActivateWindow for context menu navigation
-                import threading
-                import time
+            # Always use ActivateWindow for more reliable navigation from context menu
+            utils.log(f"=== SIMILARITY_SEARCH: Using ActivateWindow navigation: {target_url} ===", "DEBUG")
+            
+            import threading
+            import time
 
-                def delayed_activate():
-                    time.sleep(1.5)  # Wait for notification to show
-                    utils.log(f"=== CONTEXT_MENU_NAVIGATION: Activating window: {target_url} ===", "DEBUG")
+            def delayed_activate():
+                try:
+                    # Wait for notification and database operations to complete
+                    time.sleep(2.0)
+                    
+                    utils.log(f"=== SIMILARITY_SEARCH_NAVIGATION: Activating window with URL: {target_url} ===", "DEBUG")
+                    
+                    # Use ActivateWindow which is more reliable for context menu operations
                     xbmc.executebuiltin(f'ActivateWindow(videos,"{target_url}",return)')
-                    utils.log("=== CONTEXT_MENU_NAVIGATION: ActivateWindow completed ===", "DEBUG")
+                    
+                    # Brief wait and try alternative navigation if needed
+                    time.sleep(1.0)
+                    
+                    # Fallback: try ReplaceWindow if ActivateWindow doesn't work
+                    utils.log("=== SIMILARITY_SEARCH_NAVIGATION: Attempting fallback navigation ===", "DEBUG")
+                    xbmc.executebuiltin(f'ReplaceWindow(videos,"{target_url}")')
+                    
+                    utils.log("=== SIMILARITY_SEARCH_NAVIGATION: Navigation sequence completed ===", "DEBUG")
+                    
+                except Exception as e:
+                    utils.log(f"Error in similarity search navigation: {str(e)}", "ERROR")
+                    # Final fallback - show helpful notification
+                    xbmcgui.Dialog().notification(
+                        'LibraryGenie', 
+                        'List created in Search History folder', 
+                        xbmcgui.NOTIFICATION_INFO,
+                        5000
+                    )
 
-                nav_thread = threading.Thread(target=delayed_activate)
-                nav_thread.daemon = True
-                nav_thread.start()
-            else:
-                # For plugin execution, use Container.Update with delayed navigation
-                utils.log(f"=== SIMILARITY_SEARCH: Using Container.Update navigation from plugin: {target_url} ===", "DEBUG")
-                # Use delayed navigation similar to SearchWindow pattern
-                _schedule_delayed_navigation(target_url)
+            nav_thread = threading.Thread(target=delayed_activate)
+            nav_thread.daemon = True
+            nav_thread.start()
         else:
             utils.log("=== SIMILARITY_SEARCH: Failed to build target URL for navigation ===", "ERROR")
 
