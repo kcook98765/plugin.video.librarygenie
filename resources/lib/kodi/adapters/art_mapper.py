@@ -1,8 +1,6 @@
 from typing import TYPE_CHECKING
 from ...utils.utils import log
-
-if TYPE_CHECKING:
-    from ...data.models import MediaItem
+from ...data.models import MediaItem
 # Assuming xbmcgui and other necessary imports are available in the environment
 # For demonstration purposes, we'll define placeholder functions if they are not
 try:
