@@ -39,8 +39,8 @@ def main():
 
         # Ensure database schema is up to date (including migrations)
         try:
-            from resources.lib.config_manager import Config
-            from resources.lib.database_manager import DatabaseManager
+            from resources.lib.config.config_manager import Config
+            from resources.lib.data.database_manager import DatabaseManager
 
             config = Config()
             db_manager = DatabaseManager(config.db_path)
@@ -53,7 +53,7 @@ def main():
         # Use existing KodiHelper to get IMDb ID (handles v19/v20+ compatibility)
         imdb_id = None
         try:
-            from resources.lib.kodi_helper import KodiHelper
+            from resources.lib.kodi.kodi_helper import KodiHelper
             kodi_helper = KodiHelper()
             imdb_id = kodi_helper.get_imdb_from_item()
             xbmc.log(f"LibraryGenie: IMDb ID from KodiHelper: {imdb_id}", xbmc.LOGDEBUG)
@@ -65,7 +65,7 @@ def main():
         options = []
 
         # Check authentication before adding API-dependent options
-        from resources.lib.context_menu_builder import get_context_menu_builder
+        from resources.lib.kodi.context_menu_builder import get_context_menu_builder
         context_builder = get_context_menu_builder()
         is_authenticated = context_builder._is_authenticated()
 
@@ -84,8 +84,8 @@ def main():
 
                     # Verify this list exists in our database
                     try:
-                        from resources.lib.config_manager import Config
-                        from resources.lib.database_manager import DatabaseManager
+                        from resources.lib.config.config_manager import Config
+                        from resources.lib.data.database_manager import DatabaseManager
 
                         config = Config()
                         db_manager = DatabaseManager(config.db_path)
@@ -400,7 +400,7 @@ def main():
                     else:
                         # Create at root level
                         xbmc.log("LibraryGenie: FOLDER ACTION - Creating list at root level", xbmc.LOGINFO)
-                        create_list_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=create_list)'
+                        create_list_url = 'RunPlugin(plugin://plugin.video.librarygenie/?action=create_list)'
                         xbmc.executebuiltin(create_list_url)
                 except Exception as e:
                     xbmc.log(f"LibraryGenie: FOLDER ACTION - Error creating list: {str(e)}", xbmc.LOGERROR)
@@ -424,7 +424,7 @@ def main():
                     else:
                         # Create at root level
                         xbmc.log("LibraryGenie: FOLDER ACTION - Creating folder at root level", xbmc.LOGINFO)
-                        create_folder_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=create_folder)'
+                        create_folder_url = 'RunPlugin(plugin://plugin.video.librarygenie/?action=create_folder)'
                         xbmc.executebuiltin(create_folder_url)
                 except Exception as e:
                     xbmc.log(f"LibraryGenie: FOLDER ACTION - Error creating subfolder: {str(e)}", xbmc.LOGERROR)
@@ -528,7 +528,7 @@ def main():
 
                     try:
                         # Get media manager to extract current item info
-                        from resources.lib.media_manager import MediaManager
+                        from resources.lib.media.media_manager import MediaManager
                         media_manager = MediaManager()
 
                         xbmc.log("LibraryGenie: Extracting media info for plugin item...", xbmc.LOGDEBUG)
@@ -598,7 +598,7 @@ def main():
                 dialog.notification("LibraryGenie", "Please configure API settings first", xbmcgui.NOTIFICATION_WARNING, 3000)
                 return
             # Import here to avoid circular imports
-            from resources.lib.window_search import SearchWindow
+            from resources.lib.kodi.window_search import SearchWindow
 
             try:
                 # Perform search directly
@@ -620,8 +620,8 @@ def main():
         elif selected_option == "Search History":  # Search History
             # Get the Search History folder ID
             try:
-                from resources.lib.config_manager import Config
-                from resources.lib.database_manager import DatabaseManager
+                from resources.lib.config.config_manager import Config
+                from resources.lib.data.database_manager import DatabaseManager
 
                 config = Config()
                 db_manager = DatabaseManager(config.db_path)
@@ -654,8 +654,8 @@ def add_plugin_item_to_list(media_info):
     try:
         # Import required modules
         from resources.lib import utils
-        from resources.lib.config_manager import Config
-        from resources.lib.database_manager import DatabaseManager
+        from resources.lib.config.config_manager import Config
+        from resources.lib.data.database_manager import DatabaseManager
 
         utils.log("=== ADD PLUGIN ITEM TO LIST: Starting process ===", "DEBUG")
         utils.log(f"ADD PLUGIN ITEM: Received media_info: {media_info}", "DEBUG")

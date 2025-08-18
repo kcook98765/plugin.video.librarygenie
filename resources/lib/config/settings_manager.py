@@ -32,7 +32,7 @@ class SettingsManager:
 
     def authenticate_with_code(self):
         """Trigger one-time code authentication"""
-        from resources.lib.authenticate_code import authenticate_with_code
+        from resources.lib.integrations.remote_api.authenticate_code import authenticate_with_code
         return authenticate_with_code()
 
     @property 
