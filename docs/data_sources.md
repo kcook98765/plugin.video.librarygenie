@@ -387,8 +387,21 @@ For implementation details, see:
 ## Key Manager Classes
 
 - **resources.lib.data.database_manager.DatabaseManager**: High-level database operations, singleton pattern with retry logic
-- **resources.lib.data.query_manager.QueryManager**: Low-level SQL execution with connection pooling and management
+- **resources.lib.data.query_manager.QueryManager**: Low-level SQL execution with connection pooling and management  
 - **resources.lib.data.dao.listing_dao.ListingDAO**: Data Access Object for folder and list operations, receives injected query executor
+
+## Recent Database Method Additions
+
+### ListingDAO Methods
+- **get_list_item_by_media_id(list_id, media_item_id)**: Retrieve specific list item by list ID and media item ID
+- **fetch_list_items_with_details(list_id)**: Fetch all items in a list with complete details
+
+### QueryManager Delegation
+- **get_list_item_by_media_id()**: Delegates to ListingDAO for list item retrieval
+- **fetch_list_items_with_details()**: Delegates to ListingDAO for detailed list fetching
+
+### DatabaseManager Integration  
+- **fetch_list_items_with_details()**: High-level access to detailed list item fetching
 - **resources.lib.data.results_manager.ResultsManager**: Handles search result processing and display item building
 - **resources.lib.integrations.jsonrpc.jsonrpc_manager.JSONRPCManager**: JSON-RPC communication with Kodi's API  
 - **resources.lib.config.config_manager.Config**: Database schema definitions and field mappings
