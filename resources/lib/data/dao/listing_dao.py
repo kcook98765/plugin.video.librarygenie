@@ -66,7 +66,7 @@ class ListingDAO:
             result = self.execute_query(sql, (current_id,), fetch_all=False)
             if not result:
                 break
-            current_id = result[0] if result[0] is not None else None
+            current_id = result[0]['parent_id'] if result[0]['parent_id'] is not None else None
             depth += 1
             
             # Prevent infinite loops
@@ -83,7 +83,8 @@ class ListingDAO:
         else:
             sql = "SELECT * FROM folders WHERE name = ? AND parent_id = ?"
             params = (name, parent_id)
-        return self.execute_query(sql, params, fetch_all=False)
+        result = self.execute_query(sql, params, fetch_all=False)
+        return result[0] if result else None
 
     def get_folder_id_by_name(self, name, parent_id=None):
         """Get folder ID by name and parent"""
@@ -118,8 +119,8 @@ class ListingDAO:
             JOIN list_items li ON l.id = li.list_id 
             WHERE l.folder_id = ?
         """
-        direct_count = self.execute_query(sql_direct, (folder_id,), fetch_all=False)
-        direct_count = direct_count[0] if direct_count and direct_count[0] else 0
+        direct_result = self.execute_query(sql_direct, (folder_id,), fetch_all=False)
+        direct_count = direct_result[0]['COUNT(DISTINCT li.media_item_id)'] if direct_result and direct_result[0] else 0
 
         # Count items in subfolders recursively
         subfolder_count = 0
@@ -132,7 +133,8 @@ class ListingDAO:
     def fetch_folder_by_id(self, folder_id):
         """Fetch folder by ID"""
         sql = "SELECT * FROM folders WHERE id = ?"
-        return self.execute_query(sql, (folder_id,), fetch_all=False)
+        result = self.execute_query(sql, (folder_id,), fetch_all=False)
+        return result[0] if result else None
 
     def update_folder_parent(self, folder_id, new_parent_id):
         """Update folder parent"""
@@ -243,7 +245,7 @@ class ListingDAO:
         """Get media count for a list"""
         sql = "SELECT COUNT(*) FROM list_items WHERE list_id = ?"
         result = self.execute_query(sql, (list_id,), fetch_all=False)
-        return result[0] if result and result[0] else 0
+        return result[0]['COUNT(*)'] if result and result[0] else 0
 
     def fetch_lists_with_item_status(self, folder_id, media_item_id):
         """Fetch lists with status for a media item"""
@@ -301,7 +303,7 @@ class ListingDAO:
             sql = "SELECT id FROM lists WHERE name = ? AND folder_id = ?"
             params = (name, folder_id)
         result = self.execute_query(sql, params, fetch_all=False)
-        return result['id'] if result else None
+        return result[0]['id'] if result else None
 
     def get_lists_for_item(self, media_item_id):
         """Get all lists containing a media item"""
@@ -323,7 +325,7 @@ class ListingDAO:
             WHERE mi.title = ? AND li.list_id = ?
         """
         result = self.execute_query(sql, (title, list_id), fetch_all=False)
-        return result['id'] if result else None
+        return result[0]['id'] if result else None
 
     def create_list(self, name, folder_id=None):
         """Create a new list"""
@@ -374,7 +376,8 @@ class ListingDAO:
     def fetch_list_by_id(self, list_id):
         """Fetch list by ID"""
         sql = "SELECT * FROM lists WHERE id = ?"
-        return self.execute_query(sql, (list_id,), fetch_all=False)
+        result = self.execute_query(sql, (list_id,), fetch_all=False)
+        return result[0] if result else None
 
     def insert_list_item(self, list_id, media_item_id):
         """Insert item into list"""
@@ -390,31 +393,7 @@ class ListingDAO:
 
     def insert_media_item_and_add_to_list(self, media_data, list_id):
         """Insert media item and add to list in one operation"""
-        # First insert the media item
-        media_sql = """
-            INSERT INTO media_items (title, year, imdb_id, file_path, kodi_id, metadata_json) 
-            VALUES (?, ?, ?, ?, ?, ?)
-        """
-        media_params = (
-            media_data.get('title'),
-            media_data.get('year'),
-            media_data.get('imdb_id'),
-            media_data.get('file_path'),
-            media_data.get('kodi_id'),
-            media_data.get('metadata_json')
-        )
-        
-        # Execute media insert and get the new ID
-        cursor = self.execute_query(media_sql, media_params, fetch_all=False)
-        
-        # For SQLite, we need to get the last insert rowid
-        # This assumes the execute_query returns a cursor or result that has lastrowid
-        # If not, we'll need to modify this approach
-        media_item_id = cursor.lastrowid if hasattr(cursor, 'lastrowid') else None
-        
-        if media_item_id:
-            # Add to list
-            self.insert_list_item(list_id, media_item_id)
-            return media_item_id
-        
-        return None
+        # This method needs to coordinate with QueryManager for the insert_media_item operation
+        # Since DAO doesn't handle connection management, we'll delegate this back
+        # This is a complex operation that spans multiple concerns
+        raise NotImplementedError("This method requires coordination with QueryManager.insert_media_item")
