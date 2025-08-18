@@ -1113,7 +1113,7 @@ def find_similar_movies(params):
             xbmcgui.Dialog().ok('LibraryGenie', "This item doesn't have a valid IMDb ID.")
             return
 
-        # Perform similarity search without context menu flag
+        # Perform similarity search with plugin navigation (not context menu)
         _perform_similarity_search(imdb_id, title, from_context_menu=False)
 
     except Exception as e:
@@ -1360,17 +1360,18 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
 
         utils.log(f"=== SIMILARITY_SEARCH: Finished processing {len(search_results)} movies into list {new_list_id} ===", "DEBUG")
 
-        # Show confirmation and navigate based on context
+        # Show confirmation and navigate to the created list
         xbmcgui.Dialog().notification('LibraryGenie', f'Created similarity list with {len(similar_movies)} movies', xbmcgui.NOTIFICATION_INFO)
 
-        if from_context_menu:
-            # For context menu execution, use ActivateWindow for more reliable navigation
-            target_url = _build_plugin_url({
-                'action': 'browse_list',
-                'list_id': new_list_id,
-            })
+        # Build target URL for navigation
+        target_url = _build_plugin_url({
+            'action': 'browse_list',
+            'list_id': new_list_id,
+        })
 
-            if target_url:
+        if target_url:
+            if from_context_menu:
+                # For context menu execution, use ActivateWindow for more reliable navigation
                 utils.log(f"=== SIMILARITY_SEARCH: Using ActivateWindow navigation from context menu: {target_url} ===", "DEBUG")
                 # Use ActivateWindow for context menu navigation
                 import threading
@@ -1385,17 +1386,13 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
                 nav_thread = threading.Thread(target=delayed_activate)
                 nav_thread.daemon = True
                 nav_thread.start()
-        else:
-            # For plugin execution, use Container.Update
-            target_url = _build_plugin_url({
-                'action': 'browse_list',
-                'list_id': new_list_id,
-            })
-
-            if target_url:
+            else:
+                # For plugin execution, use Container.Update with delayed navigation
                 utils.log(f"=== SIMILARITY_SEARCH: Using Container.Update navigation from plugin: {target_url} ===", "DEBUG")
                 # Use delayed navigation similar to SearchWindow pattern
                 _schedule_delayed_navigation(target_url)
+        else:
+            utils.log("=== SIMILARITY_SEARCH: Failed to build target URL for navigation ===", "ERROR")
 
         utils.log(f"=== SIMILARITY_SEARCH: Similarity search complete - list ID: {new_list_id} ===", "INFO")
 
@@ -1450,12 +1447,20 @@ def _schedule_delayed_navigation(target_url):
             utils.log("=== DELAYED_NAVIGATION: Using Container.Update to navigate ===", "DEBUG")
             xbmc.executebuiltin(f'Container.Update({target_url})')
 
+            # Additional fallback navigation attempt if needed
+            time.sleep(1.0)
             utils.log("=== DELAYED_NAVIGATION: Navigation completed ===", "DEBUG")
 
         except Exception as e:
             utils.log(f"Error in delayed navigation: {str(e)}", "ERROR")
             import traceback
             utils.log(f"Delayed navigation traceback: {traceback.format_exc()}", "ERROR")
+            
+            # Fallback notification on navigation failure
+            try:
+                xbmcgui.Dialog().notification('LibraryGenie', 'List created - check Search History folder', xbmcgui.NOTIFICATION_INFO)
+            except:
+                pass
 
     # Start navigation in background thread
     nav_thread = threading.Thread(target=delayed_navigate)
