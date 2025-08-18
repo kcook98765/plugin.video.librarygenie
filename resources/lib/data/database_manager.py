@@ -805,13 +805,10 @@ class DatabaseManager(Singleton):
                         media_id = existing_media[0]
                         utils.log(f"DATABASE: Found existing media item for '{item_data.get('title')}' with ID {media_id}", "DEBUG")
                     else:
-                        # Insert new media item
-                        media_query = '''INSERT INTO media_items 
-                                       (title, year, plot, rating, duration, genre, director, cast, studio, mpaa, 
-                                        tagline, writer, country, premiered, dateadded, votes, trailer, path, play, 
-                                        kodi_id, media_type, source, imdbnumber, thumbnail, poster, fanart, art, 
-                                        uniqueid, stream_url, status) 
-                                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+                        # Insert new media item using dynamic field list
+                        columns = ', '.join(filtered_data.keys())
+                        placeholders = ', '.join(['?' for _ in filtered_data])
+                        media_query = f'INSERT INTO media_items ({columns}) VALUES ({placeholders})'
 
                         cursor.execute(media_query, tuple(filtered_data.values()))
                         media_id = cursor.lastrowid
