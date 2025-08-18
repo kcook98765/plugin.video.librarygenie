@@ -3,7 +3,7 @@
 
 Hi everyone! 👋
 
-I'm excited to share **LibraryGenie**, a brand new Kodi addon focused on intelligent list management and clean navigation. Build hierarchical folders, curate lists from anywhere in Kodi via context menus, and manage collections without fighting the UI.
+I'm excited to share **LibraryGenie**, a brand new Kodi addon focused on intelligent list management and clean navigation. Build hierarchical folders, curate lists from anywhere in Kodi via context menus, and manage collections without fighting the UI. Currently handles movies and plugin playable items. Tv Shows and other media not supported.
 
 **Important:** LibraryGenie ships with a full set of list/folder features for **all users**. There's also an **invite-only Alpha** of AI-powered search. The Alpha requires access to a private server and is **not** enabled by default. Details below.
 
@@ -12,25 +12,25 @@ I'm excited to share **LibraryGenie**, a brand new Kodi addon focused on intelli
 • **Hierarchical Organization**: Create nested folders and lists with unlimited depth
 • **Manual Curation**: Add items from any addon/source via context menus with proper playback support
 • **Import from Favorites**: Scan and import playable items from Kodi favorites with rich library metadata
-• **Import from Shortlist**: Full integration with Shortlist addon - import all lists with automatic library matching
+• **Import from Shortlist**: Full integration with Shortlist addon - import all lists with automatic library matching to provide full meta data for items in your library
 • **Batch Operations**: Work efficiently with large collections using chunked processing
 • **Smart Navigation**: Modal/clean interfaces with built-in UI conflict protection
 • **Sorting & Viewing**: Proper ListItem construction and sort methods
-• **Reliable Playback**: URL generation ensures all manually added items play correctly
 • **Database**: SQLite storage with UNIQUE constraint handling, duplicate detection, and transaction safety
 • **Robust Internals**: JSON-RPC integration, detailed logging, comprehensive error handling, and settings management
 
 No remote services required. Install and start organizing immediately.
 
-## Invite-Only Alpha: AI-Powered Search (Not in general release)
+## Invite-Only Alpha: AI-Powered Search (Not in general release yet)
 
-**⚠️ Alpha Status Notice**: These features require special server access and are only available to invited testers.
-
+**⚠️ Alpha Status Notice**: These features require special server access and are only available to invited testers. Will be rolling out slowly to verify server loads with growing databse of movies that need to be processed on server before being able to include in searches/similarity features.
 • **Natural-Language Search**: "psychological thrillers with plot twists," "80s/90s comedies," etc.
-• **Semantic Matching**: Embedding-based results ranked by relevance
-• **Automatic Library Matching**: Connects results to your local Kodi library based on previously uploaded list of imdb numbers in your library
+• **Semantic Matching**: Embedding-based results ranked by relevance (will be improving/adjusting)
+• **Automatic Library Matching**: Connects results to your local Kodi library based on previously uploaded list of imdb numbers in your library, by sending back just imdbnumbers that the addon will tie back to your library.
 • **Dynamic Lists & History**: Saved searches which can be moved to standard list location.
 • **Remote API Pairing**: 8-digit code or API key; chunked/delta sync of identifiers
+• **NOTICE: upon upload of your imdbnumbers, a lot of server processing will need to happen before maximum coverage of your library is reached, depending on how many are not yet setup on server, this could take hours to a day (this will reduce as more users are added and coverage of movies expands on server)
+
 
 ### Alpha Privacy & Data (Read first)
 
@@ -73,21 +73,28 @@ No remote services required. Install and start organizing immediately.
 • Adds library metadata when available
 • Creates organized "Imported Lists/Favorites" folder structure
 • Handles various URL formats (smb://, plugin://, videodb://, etc.)
+• Imported lists can then be moved into normal directory, renamed, etc.
+• IMPORTANT: do not delete your original kodi favorites after import until this addon proves stable!
 
 **Shortlist Import:**
 • Full integration with Shortlist addon lists
-• Automatic library matching for metadata
+• Automatic library matching for metadata so that entries in your library will display richer data
 • Preserves all original Shortlist metadata for unmatched items
 • Creates organized "Imported Lists/Shortlist" folder structure
 • Batch processing with progress tracking and error recovery
 • Smart duplicate detection prevents database conflicts
+• Imported lists can then be moved into normal directory, renamed, etc.
+• IMPORTANT: do not delete your original shortlists after import until this addon proves stable!
+
+
+## Using context menu while focused on a movie in your library
+• Add to List option
+• (Alpha) "Similar Movies" with ability to mark between 1 and 4 factes for the type of similarity desired
 
 ## Using the Options & Tools Menu
 
 ### Always available
-• Create New List / Create New Folder
-• Import from Favorites (scan Kodi favorites for playable video content)
-• Import from Shortlist (import all Shortlist addon lists with library matching)
+• Create, Remove, Rename, Move Lists and Folders (Except "Search History" and "Imported Lists")
 • Settings (debug logging, performance, navigation protection, import options)
 
 ### Visible only when applicable
@@ -111,9 +118,8 @@ No remote services required. Install and start organizing immediately.
 • **Lists not displaying**: Enable debug logging and check for database messages
 • **Navigation conflicts**: Built-in protection minimizes duplicate/stacked UIs
 • **Context menu missing**: Verify the addon is installed and enabled
-• **Manual items not playing**: URL generation ensures proper file path URLs instead of invalid movieid:// protocols
 • **Import not working**: Check that source addon (Favorites/Shortlist) has content and is enabled
-• **Duplicate import results**: Import process automatically clears previous imports before adding new content
+• **Duplicate import results**: Import process automatically clears previous imports before adding new content. It is a good idea to leave original Favorites and Shortlists until you have finalized moving the imported ones to final destination. Importing again, wipes out the Imported Lists section and builds it fresh, so once done, should not need to use these options again.
 • **Shortlist import failures**: Enable debug logging to see detailed JSON-RPC analysis and library matching attempts
 • **Favorites not detected**: Only playable video content is imported - check file extensions and plugin compatibility
 • **Debug mode**: Turn on debug logging, reproduce the issue, and check Kodi logs for lines prefixed with [LibraryGenie]
@@ -130,11 +136,8 @@ No. All list/folder features including import functionality are local and availa
 **Can I import my existing Kodi favorites?**
 Yes! Use "Import from Favorites" in the Options menu to scan and import all playable video favorites with metadata.
 
-**Does Shortlist import work with all versions?**
-Yes, the import system uses comprehensive JSON-RPC calls compatible with various Shortlist addon versions.
-
 **What exactly is transmitted in the Alpha?**
-Only your library's **IMDb IDs** and the **text you type into the search field**. Nothing about playback, file paths, or watched status.
+Only your library's **IMDb IDs** and the **text you type into the search field** and auth credentials. Nothing about playback, file paths, or watched status.
 
 **What if I leave the Alpha?**
 Your search-generated lists **stay in Kodi**; they aren't stored on the server.
@@ -159,7 +162,6 @@ If you'd like to participate:
 • Import system with automatic library matching and metadata
 • Smart duplicate detection and database transaction safety
 • Clean modal UI patterns and navigation lifecycle management
-• URL generation for reliable playback across all content sources
 • Chunked processing for large import operations with progress tracking
 • Multi-source content handling (library, favorites, shortlist, external addons)
 
