@@ -459,9 +459,7 @@ class ListItemBuilder:
 
         # Build context based on available information
         context = {}
-        if hasattr(media_info, '_context_info'):
-            context = media_info._context_info
-        elif isinstance(media_info, dict) and '_context_info' in media_info:
+        if isinstance(media_info, dict) and '_context_info' in media_info:
             context = media_info['_context_info']
 
         # If this item is from a list view, ensure we have the list context
