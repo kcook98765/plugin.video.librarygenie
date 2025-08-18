@@ -2,7 +2,7 @@
 
 import xbmc
 import xbmcgui
-from resources.lib.utils import utils
+from resources.lib.utils.utils import log, show_dialog_ok, show_dialog_yesno, show_dialog_input
 from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.config.config_manager import Config
 

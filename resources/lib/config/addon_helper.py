@@ -4,7 +4,7 @@ import xbmcgui
 from .config_manager import Config
 from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.kodi.kodi_helper import KodiHelper
-from resources.lib.utils import utils
+from resources.lib.utils.utils import log
 
 _initialized = False
 

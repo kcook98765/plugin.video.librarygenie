@@ -1,7 +1,7 @@
 import xbmc
 import xbmcgui
 import time
-from resources.lib.utils import utils
+from resources.lib.utils.utils import log
 
 class SearchWindow:
     def __init__(self, title="Movie Search"):

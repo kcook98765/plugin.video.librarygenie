@@ -1,4 +1,3 @@
-
 import json
 from resources.lib.integrations.jsonrpc.jsonrpc_manager import JSONRPC
 from resources.lib.utils import utils
@@ -188,14 +187,14 @@ class ResultsManager(Singleton):
                     # Preserve search score from original item for sorting
                     meta['search_score'] = processed_ref.get('search_score', 0)
                     meta['list_item_id'] = r.get('list_item_id')
-                    
+
                     # Add context for list viewing and removal
                     meta['_viewing_list_id'] = list_id
                     meta['media_id'] = r.get('id') or r.get('media_id') or meta.get('movieid')
-                    
+
                     from resources.lib.listitem_builder import ListItemBuilder
                     list_item = ListItemBuilder.build_video_item(meta, is_search_history=is_search_history)
-                    
+
                     # Determine the appropriate URL for this item
                     # For manual items and library items, use the file path if available
                     file_path = meta.get('file')
@@ -228,7 +227,7 @@ class ResultsManager(Singleton):
                     }
                     from resources.lib.listitem_builder import ListItemBuilder
                     list_item = ListItemBuilder.build_video_item(resolved_item, is_search_history=is_search_history)
-                    
+
                     # Use info URL for non-playable items
                     item_url = f"info://{ref_imdb}" if ref_imdb else f"info://{r.get('id', 'unknown')}"
                     display_items.append((item_url, list_item, False))
@@ -239,10 +238,10 @@ class ResultsManager(Singleton):
                 # Add context for list viewing and removal
                 item['_viewing_list_id'] = list_id
                 item['media_id'] = item.get('id') or item.get('media_id')
-                
+
                 from resources.lib.listitem_builder import ListItemBuilder
                 list_item = ListItemBuilder.build_video_item(item, is_search_history=is_search_history)
-                
+
                 # Use file path or fallback URL for external items
                 item_url = item.get('file', f"external://{item.get('id', 'unknown')}")
                 display_items.append((item_url, list_item, False))
