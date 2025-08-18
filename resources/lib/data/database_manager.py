@@ -16,6 +16,7 @@ class DatabaseManager(Singleton):
             self._connect()
             self.setup_database()
             self.ensure_search_history_folder()
+            self.ensure_imported_lists_folder()
             # Initialize query_manager for direct access
             from resources.lib.data.query_manager import QueryManager
             self._query_manager = QueryManager(self.db_path)
@@ -538,6 +539,25 @@ class DatabaseManager(Singleton):
                 utils.log(f"Failed to retrieve '{search_history_folder_name}' folder after creation.", "ERROR")
         else:
             utils.log(f"'{search_history_folder_name}' folder already exists.", "INFO")
+
+    def ensure_imported_lists_folder(self):
+        """Ensures the 'Imported Lists' folder exists and is protected."""
+        imported_lists_folder_name = "Imported Lists"
+
+        # Check if the folder already exists
+        existing_folder = self.query_manager.get_folder_by_name(imported_lists_folder_name)
+
+        if not existing_folder:
+            utils.log(f"Creating '{imported_lists_folder_name}' folder.", "INFO")
+            self.query_manager.insert_folder_direct(imported_lists_folder_name, parent_id=None)
+
+            newly_created_folder = self.query_manager.get_folder_by_name(imported_lists_folder_name)
+            if newly_created_folder:
+                utils.log(f"'{imported_lists_folder_name}' folder created with ID: {newly_created_folder['id']}", "INFO")
+            else:
+                utils.log(f"Failed to retrieve '{imported_lists_folder_name}' folder after creation.", "ERROR")
+        else:
+            utils.log(f"'{imported_lists_folder_name}' folder already exists.", "INFO")
 
     def add_search_history(self, query, results):
         """Adds the search results to the 'Search History' folder as a new list. Returns the list ID."""

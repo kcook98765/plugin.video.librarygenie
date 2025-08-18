@@ -66,8 +66,9 @@ class FolderListManager:
             self.db_manager.delete_data('media_items', '1=1')
             # Preserve imdb_exports - they contain valuable library reference data
 
-            # Recreate Search History folder
+            # Recreate protected folders
             search_folder_id = self.db_manager.ensure_folder_exists("Search History", None)
+            imported_lists_folder_id = self.db_manager.ensure_folder_exists("Imported Lists", None)
 
             utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW SUCCESS NOTIFICATION ===", "DEBUG")
             xbmcgui.Dialog().notification('LibraryGenie', 'All local data cleared')

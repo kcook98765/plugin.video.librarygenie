@@ -507,6 +507,7 @@ def main():
         config = Config()
         db_manager = DatabaseManager(config.db_path)
         db_manager.ensure_folder_exists("Search History", None) # Ensure it exists at startup
+        db_manager.ensure_folder_exists("Imported Lists", None) # Ensure it exists at startup
         log("Configuration and database setup complete", "DEBUG")
 
         log("=== LibraryGenie addon startup complete ===", "INFO")
