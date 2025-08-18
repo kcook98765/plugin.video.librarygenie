@@ -3,8 +3,8 @@ import time
 import json
 from typing import List, Dict, Any, Optional
 from resources.lib import utils
-from resources.lib.singleton_base import Singleton
-from resources.lib.config_manager import Config
+from resources.lib.utils.singleton_base import Singleton
+from resources.lib.config.config_manager import Config
 
 class QueryManager(Singleton):
     def __init__(self, db_path: str):

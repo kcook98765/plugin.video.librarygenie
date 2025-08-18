@@ -2,9 +2,9 @@ import json
 import xbmc
 import xbmcgui
 from resources.lib import utils
-from resources.lib.config_manager import Config
-from resources.lib.database_manager import DatabaseManager
-from resources.lib.jsonrpc_manager import JSONRPC
+from resources.lib.config.config_manager import Config
+from resources.lib.data.database_manager import DatabaseManager
+from resources.lib.integrations.jsonrpc.jsonrpc_manager import JSONRPC
 
 
 class ShortlistImporter:

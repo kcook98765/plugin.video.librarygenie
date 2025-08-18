@@ -3,10 +3,10 @@ import sqlite3
 import json
 import time
 from resources.lib import utils
-from resources.lib.config_manager import Config
+from resources.lib.config.config_manager import Config
 from datetime import datetime # Import datetime
 
-from resources.lib.singleton_base import Singleton
+from resources.lib.utils.singleton_base import Singleton
 
 class DatabaseManager(Singleton):
     def __init__(self, db_path):
