@@ -1,4 +1,3 @@
-
 # Context Menu Integration Documentation
 
 This document explains how LibraryGenie integrates with Kodi's context menu system to provide seamless access to addon functionality from anywhere in the Kodi interface.
