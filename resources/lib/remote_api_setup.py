@@ -1,7 +1,7 @@
 import xbmcgui
 from resources.lib import utils
-from resources.lib.integrations.remote_api.remote_api_client import RemoteAPIClient
-from resources.lib.config.config_manager import Config, get_config
+from resources.lib.remote_api_client import RemoteAPIClient
+from resources.lib.config_manager import Config, get_config
 
 def setup_remote_api():
     """Setup wizard for remote API integration"""

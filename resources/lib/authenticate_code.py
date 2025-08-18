@@ -4,8 +4,8 @@ import urllib.request
 import urllib.parse
 import urllib.error
 import xbmcgui
-from resources.lib.config.addon_ref import get_addon
-from resources.lib.utils.utils import log, show_notification, show_dialog_ok
+from resources.lib.addon_ref import get_addon
+from resources.lib.utils import log, show_notification, show_dialog_ok
 
 def authenticate_with_code():
     """Handle one-time code authentication from settings"""

@@ -4,8 +4,8 @@
 import xbmc
 import xbmcgui
 from resources.lib import utils
-from resources.lib.data.database_manager import DatabaseManager
-from resources.lib.config.config_manager import Config
+from resources.lib.database_manager import DatabaseManager
+from resources.lib.config_manager import Config
 
 class FolderListManager:
     """Manages folder and list operations"""

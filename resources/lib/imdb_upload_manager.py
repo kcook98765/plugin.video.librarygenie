@@ -1,10 +1,10 @@
 import xbmcgui
 import json
 from resources.lib import utils
-from resources.lib.integrations.jsonrpc.jsonrpc_manager import JSONRPC
-from resources.lib.integrations.remote_api.remote_api_client import RemoteAPIClient
-from resources.lib.data.query_manager import QueryManager
-from resources.lib.config.config_manager import Config
+from resources.lib.jsonrpc_manager import JSONRPC
+from resources.lib.remote_api_client import RemoteAPIClient
+from resources.lib.query_manager import QueryManager
+from resources.lib.config_manager import Config
 
 class IMDbUploadManager:
     def __init__(self):

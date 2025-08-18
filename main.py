@@ -11,24 +11,24 @@ from urllib.parse import quote_plus, urlparse # Import urlparse
 import time # Import time module
 
 # Import new modules
-from resources.lib.kodi.url_builder import build_plugin_url, parse_params, detect_context
-from resources.lib.core.options_manager import OptionsManager
-from resources.lib.core.directory_builder import (
+from resources.lib.url_builder import build_plugin_url, parse_params, detect_context
+from resources.lib.options_manager import OptionsManager
+from resources.lib.directory_builder import (
     add_context_menu_for_item, add_options_header_item,
     build_root_directory, show_empty_directory
 )
-from resources.lib.core.navigation_manager import get_navigation_manager
-from resources.lib.data.folder_list_manager import get_folder_list_manager
+from resources.lib.navigation_manager import get_navigation_manager
+from resources.lib.folder_list_manager import get_folder_list_manager
 
-from resources.lib.config.addon_helper import run_addon
-from resources.lib.config.config_manager import Config
-from resources.lib.data.database_manager import DatabaseManager
+from resources.lib.addon_helper import run_addon
+from resources.lib.config_manager import Config
+from resources.lib.database_manager import DatabaseManager
 from resources.lib import utils
-from resources.lib.core.route_handlers import (
+from resources.lib.route_handlers import (
     play_movie, show_item_details, create_list, rename_list, delete_list,
     remove_from_list, rename_folder, move_list
 )
-from resources.lib.kodi.listitem_builder import ListItemBuilder
+from resources.lib.listitem_builder import ListItemBuilder
 from resources.lib import route_handlers
 
 

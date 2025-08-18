@@ -1,4 +1,4 @@
-from .config.addon_ref import get_addon
+from .addon_ref import get_addon
 import xbmcvfs
 
 class SettingsManager:

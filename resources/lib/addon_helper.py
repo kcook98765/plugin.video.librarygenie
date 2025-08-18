@@ -1,9 +1,9 @@
 import sys
 import urllib.parse
 import xbmcgui
-from .config.config_manager import Config
-from .data.database_manager import DatabaseManager
-from .kodi.kodi_helper import KodiHelper
+from .config_manager import Config
+from .database_manager import DatabaseManager
+from .kodi_helper import KodiHelper
 from . import utils
 
 _initialized = False

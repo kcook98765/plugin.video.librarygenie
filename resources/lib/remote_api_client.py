@@ -6,7 +6,7 @@ import hashlib
 import time
 import uuid
 from resources.lib import utils
-from resources.lib.config.config_manager import get_config
+from resources.lib.config_manager import get_config
 
 class RemoteAPIClient:
     def __init__(self, config=None):
