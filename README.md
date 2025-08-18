@@ -30,9 +30,11 @@ LibraryGenie is a comprehensive Kodi addon focused on intelligent list managemen
 ### 🤖 AI-Powered Search (Alpha)
 - **Natural Language Queries**: Search your media using plain English descriptions
 - **Semantic Search**: Leverages AI embeddings for intelligent movie discovery
+- **Similarity Search**: Find movies similar to any reference movie based on selected aspects (plot, mood, themes, genre)
 - **Interactive Search Interface**: Modal search window with real-time query refinement
 - **Automatic Library Matching**: Seamlessly matches search results to your local Kodi library
 - **Score-Based Results**: Search results ranked by relevance with automatic sorting
+- **Faceted Similarity**: Choose specific movie aspects to compare for more targeted similarity results
 
 ### 🔄 Remote API Integration (Alpha)
 - **Easy Pairing**: Simple 8-digit code pairing with remote servers
@@ -145,7 +147,19 @@ The Options & Tools menu adapts based on your authentication status:
 
 > ⚠️ **Alpha Access Required**: These features require special server access.
 
-#### Natural Language Search Examples
+#### Similarity Search Examples (Alpha)
+- "Find movies similar to Inception based on plot and mood"
+- "Movies with similar themes to The Dark Knight"
+- "Films with comparable genre elements to Blade Runner"
+
+#### Similarity Search Process (Alpha)
+1. Access similarity search via Options menu or context menu on any movie
+2. Select which aspects to compare: Plot, Mood/tone, Themes, Genre
+3. AI finds movies with similar characteristics using semantic analysis
+4. Results are automatically saved to "Search History" folder as a new list
+5. Navigate to the created list to view similar movies from the database
+
+#### Natural Language Search Examples (Alpha)
 - "Psychological thrillers with plot twists"
 - "Comedy movies from the 80s and 90s"
 - "Sci-fi movies about time travel"

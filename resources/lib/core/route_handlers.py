@@ -1257,13 +1257,20 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
             xbmcgui.Dialog().notification('LibraryGenie', 'Failed to find/create necessary folder', xbmcgui.NOTIFICATION_ERROR)
             return
 
+        # Handle both dict and int return types from ensure_search_history_folder
+        if isinstance(search_folder, dict):
+            search_folder_id = search_folder['id']
+        else:
+            # search_folder is just the ID (int)
+            search_folder_id = search_folder
+
         # Create unique list name
         base_name = f"Similar to {title} ({facet_desc})"
-        list_name = query_manager.get_unique_list_name(base_name, search_folder['id'])
-        utils.log(f"=== SIMILARITY_SEARCH: Creating list '{list_name}' in folder {search_folder['id']} ===", "DEBUG")
+        list_name = query_manager.get_unique_list_name(base_name, search_folder_id)
+        utils.log(f"=== SIMILARITY_SEARCH: Creating list '{list_name}' in folder {search_folder_id} ===", "DEBUG")
 
         # Create the list
-        new_list = query_manager.create_list(list_name, search_folder['id'])
+        new_list = query_manager.create_list(list_name, search_folder_id)
         if not new_list:
             xbmcgui.Dialog().ok('LibraryGenie', 'Failed to create similarity list.')
             return
