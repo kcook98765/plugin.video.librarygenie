@@ -238,7 +238,7 @@ Authorization: ApiKey YOUR_API_KEY
 
 **Endpoint:** `POST /kodi/search/movies`  
 **Authentication:** Required (API Key)  
-**Purpose:** Search for movies using MediaVault's semantic search system
+**Purpose:** Search for movies using the semantic search system
 
 **Description:**
 This endpoint uses the same advanced search process as MediaVault:

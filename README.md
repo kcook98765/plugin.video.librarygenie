@@ -196,6 +196,8 @@ resources/
 │   │   ├── route_handlers.py       # Action routing
 │   │   └── runner.py               # Core runner functionality
 │   ├── data/                   # Database operations
+│   │   ├── dao/                    # Data Access Objects
+│   │   │   └── listing_dao.py          # Folder/list data access
 │   │   ├── database_manager.py     # Local database operations
 │   │   ├── folder_list_manager.py  # Folder/list operations
 │   │   ├── query_manager.py        # SQL query management
@@ -223,7 +225,16 @@ resources/
 │   │   └── utils.py               # Logging and utilities
 │   └── context.py              # Compatibility shim for addon.xml
 ├── media/                      # Addon graphics and icons
+│   ├── banner.jpg                  # Various addon artwork files
+│   ├── icon.jpg                    # Main addon icon
+│   ├── fanart.jpg                  # Background artwork
+│   ├── list_folder.png             # Folder list icons
+│   └── list_playlist.png           # Playlist list icons
 ├── language/                   # Localization files
+│   └── resource.language.en_gb/    # English localization
+│       └── strings.po              # Translation strings
+├── docs/                       # Documentation files
+├── navigation_dialog.xml       # UI dialog definition
 └── settings.xml               # Addon configuration schema
 ```
 
