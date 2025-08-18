@@ -288,7 +288,7 @@ def move_list(params):
         # Create folder selection options
         folder_options = []
         folder_ids = []
-        
+
         # Only add "Root Folder" option if the list is NOT already at root level
         current_folder_id = list_info.get('folder_id')
         if current_folder_id is not None:  # List is not at root, so root is an option
@@ -1372,7 +1372,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
         if target_url:
             # Always use ActivateWindow for more reliable navigation from context menu
             utils.log(f"=== SIMILARITY_SEARCH: Using ActivateWindow navigation: {target_url} ===", "DEBUG")
-            
+
             import threading
             import time
 
@@ -1380,21 +1380,21 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
                 try:
                     # Wait for notification and database operations to complete
                     time.sleep(2.0)
-                    
+
                     utils.log(f"=== SIMILARITY_SEARCH_NAVIGATION: Activating window with URL: {target_url} ===", "DEBUG")
-                    
+
                     # Use ActivateWindow which is more reliable for context menu operations
                     xbmc.executebuiltin(f'ActivateWindow(videos,"{target_url}",return)')
-                    
+
                     # Brief wait and try alternative navigation if needed
                     time.sleep(1.0)
-                    
+
                     # Fallback: try ReplaceWindow if ActivateWindow doesn't work
                     utils.log("=== SIMILARITY_SEARCH_NAVIGATION: Attempting fallback navigation ===", "DEBUG")
                     xbmc.executebuiltin(f'ReplaceWindow(videos,"{target_url}")')
-                    
+
                     utils.log("=== SIMILARITY_SEARCH_NAVIGATION: Navigation sequence completed ===", "DEBUG")
-                    
+
                 except Exception as e:
                     utils.log(f"Error in similarity search navigation: {str(e)}", "ERROR")
                     # Final fallback - show helpful notification
@@ -1472,7 +1472,7 @@ def _schedule_delayed_navigation(target_url):
             utils.log(f"Error in delayed navigation: {str(e)}", "ERROR")
             import traceback
             utils.log(f"Delayed navigation traceback: {traceback.format_exc()}", "ERROR")
-            
+
             # Fallback notification on navigation failure
             try:
                 xbmcgui.Dialog().notification('LibraryGenie', 'List created - check Search History folder', xbmcgui.NOTIFICATION_INFO)
