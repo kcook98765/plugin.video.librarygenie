@@ -1,6 +1,5 @@
 """Directory building utilities for LibraryGenie addon"""
 
-import sys
 import xbmc
 import xbmcgui
 import xbmcplugin

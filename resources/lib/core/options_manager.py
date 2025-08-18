@@ -4,7 +4,6 @@ import time
 import xbmc
 import xbmcgui
 from resources.lib.utils import utils
-from resources.lib.kodi.url_builder import build_plugin_url
 
 class OptionsManager:
     """Manages the Options & Tools menu and related functionality"""
