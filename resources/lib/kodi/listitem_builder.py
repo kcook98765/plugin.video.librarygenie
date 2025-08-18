@@ -433,10 +433,14 @@ class ListItemBuilder:
             except Exception:
                 pass
 
-        # Set content properties - handle non-playable items
-        is_playable = media_info.get('playable', True)  # Default to True for backward compatibility
-        if source == 'favorites_import' and media_info.get('playable') is False:
-            is_playable = False
+        # Set content properties - handle non-playable items  
+        is_playable = True  # Default to playable
+        
+        # For favorites imports without valid file paths, mark as non-playable
+        if source == 'favorites_import':
+            file_path = media_info.get('file') or media_info.get('path') or media_info.get('play')
+            if not file_path or not str(file_path).strip():
+                is_playable = False
         
         li.setProperty('IsPlayable', 'true' if is_playable else 'false')
 
@@ -483,21 +487,31 @@ class ListItemBuilder:
             li.addContextMenuItems(context_menu_items, replaceItems=False)
 
         # Try to get play URL from different possible locations
-        # For plugin items and favorites imports, prioritize the 'file' field which contains the original URL
         play_url = None
         
-        # Check if this is a plugin item or favorites import and prioritize file field
-        if source in ('plugin_addon', 'favorites_import') and media_info.get('file'):
+        # For favorites imports, only set path if it's playable and has valid URL
+        if source == 'favorites_import':
+            if is_playable:
+                play_url = media_info.get('file') or media_info.get('path') or media_info.get('play')
+                if play_url and str(play_url).strip():
+                    li.setPath(play_url)
+                    utils.log(f"Set ListItem path for favorites import '{title}': {play_url}", "DEBUG")
+                else:
+                    utils.log(f"Favorites import '{title}' marked non-playable - no path set", "DEBUG")
+            else:
+                utils.log(f"Favorites import '{title}' is non-playable - no path set", "DEBUG")
+        elif source == 'plugin_addon' and media_info.get('file'):
             play_url = media_info.get('file')
+            li.setPath(play_url)
+            utils.log(f"Set ListItem path for plugin addon '{title}': {play_url}", "DEBUG")
         else:
             # For other items, use the standard priority order
             play_url = media_info.get('info', {}).get('play') or media_info.get('play') or media_info.get('file')
-        
-        if play_url:
-            li.setPath(play_url)
-            utils.log(f"Set ListItem path for '{title}': {play_url}", "DEBUG")
-        else:
-            utils.log(f"No play URL found for '{title}'", "DEBUG")
+            if play_url:
+                li.setPath(play_url)
+                utils.log(f"Set ListItem path for '{title}': {play_url}", "DEBUG")
+            else:
+                utils.log(f"No play URL found for '{title}'", "DEBUG")
 
 
         # Store IMDb ID as a property on the ListItem itself for context menu access

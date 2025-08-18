@@ -126,7 +126,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                     continue
                 else:
                     clean_info[key] = value
-            
+
             # Handle uniqueid separately for v19 compatibility
             uniqueid_data = info_dict.get('uniqueid')
             if uniqueid_data and isinstance(uniqueid_data, dict):

@@ -153,7 +153,21 @@ class ResultsManager(Singleton):
             for i, r in enumerate(rows):
                 # Skip items that are already handled as external
                 src = (r.get('source') or '').lower()
-                if src == 'external' or src == 'plugin_addon' or src == 'favorites_import':
+                if src in ('external', 'plugin_addon'):
+                    continue
+                
+                # Handle favorites_import items separately to avoid library lookup
+                if src == 'favorites_import':
+                    # For favorites imports, use the stored data directly
+                    r['_viewing_list_id'] = list_id
+                    r['media_id'] = r.get('id') or r.get('media_id')
+                    
+                    from resources.lib.kodi.listitem_builder import ListItemBuilder
+                    list_item = ListItemBuilder.build_video_item(r, is_search_history=is_search_history)
+                    
+                    # Use info URL for favorites imports to open information page
+                    item_url = f"info://{r.get('id', 'unknown')}"
+                    display_items.append((item_url, list_item, False))
                     continue
 
                 ref_title = r.get("title", "")
