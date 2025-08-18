@@ -20,10 +20,6 @@ translatePath = xbmcvfs.translatePath
 ADDON = xbmcaddon.Addon()
 ADDON_PATH = translatePath(ADDON.getAddonInfo("path"))
 
-# Ensure the addon root directory is in the Python path for imports to work
-if ADDON_PATH not in sys.path:
-    sys.path.insert(0, ADDON_PATH)
-
 def main():
     """Main entry point for context menu actions"""
     try:
