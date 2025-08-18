@@ -1,5 +1,6 @@
-from .config.addon_ref import get_addon
+from .addon_ref import get_addon
 import xbmcvfs
+import xbmcaddon
 
 class SettingsManager:
     def __init__(self, addon_id='plugin.video.librarygenie'):
@@ -14,7 +15,7 @@ class SettingsManager:
             self._cache[key] = self.addon.getSetting(key)
         # Only log non-sensitive settings
         if key not in ['lgs_upload_key', 'remote_api_key']:
-            from . import utils
+            from resources.lib.utils import utils
             utils.log(f"SettingsManager: Getting setting '{key}': '{self._cache[key] or default}'", "DEBUG")
         return self._cache[key] or default
 
@@ -23,7 +24,7 @@ class SettingsManager:
         self.addon.setSetting(key, str(value))
         # Only log non-sensitive settings
         if key not in ['lgs_upload_key', 'remote_api_key']:
-            from . import utils
+            from resources.lib.utils import utils
             utils.log(f"SettingsManager: Setting '{key}' to '{value}'", "DEBUG")
 
     def clear_cache(self):

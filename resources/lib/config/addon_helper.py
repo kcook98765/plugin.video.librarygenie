@@ -1,10 +1,10 @@
 import sys
 import urllib.parse
 import xbmcgui
-from .config.config_manager import Config
-from .data.database_manager import DatabaseManager
-from .kodi.kodi_helper import KodiHelper
-from . import utils
+from .config_manager import Config
+from resources.lib.data.database_manager import DatabaseManager
+from resources.lib.kodi.kodi_helper import KodiHelper
+from resources.lib.utils import utils
 
 _initialized = False
 
@@ -14,7 +14,7 @@ def clear_all_local_data():
     dialog = xbmcgui.Dialog()
     if dialog.yesno("Clear All Data", "Are you sure you want to delete ALL your lists and folders? This action cannot be undone. The 'Search History' folder will remain but all its lists will be cleared."):
         try:
-            from resources.lib.config_manager import get_config
+            from resources.lib.config.config_manager import get_config
             config = get_config()
             db_manager = DatabaseManager(config.db_path)
 
@@ -109,7 +109,7 @@ def run_addon():
 
         # Initialize config and database
         utils.log("Initializing Config and DatabaseManager", "DEBUG")
-        from resources.lib.config_manager import get_config
+        from resources.lib.config.config_manager import get_config
         config = get_config()
         db_manager = DatabaseManager(config.db_path)
 
