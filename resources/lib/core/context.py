@@ -297,13 +297,43 @@ def main():
 
             elif selected_option == "Delete List":
                 xbmc.log("LibraryGenie: LIST ACTION - Executing Delete List", xbmc.LOGINFO)
-                # Implement Delete List logic
-                xbmcgui.Dialog().notification("LibraryGenie", "Delete List - Not implemented yet", xbmcgui.NOTIFICATION_INFO, 3000)
+                try:
+                    # Extract list_id from item path for delete operation
+                    list_id = None
+                    match = re.search(r'list_id=(\d+)', current_item_path)
+                    if match:
+                        list_id = match.group(1)
+
+                    if list_id:
+                        xbmc.log(f"LibraryGenie: LIST ACTION - Extracted list_id: {list_id}", xbmc.LOGINFO)
+                        # Call delete list function
+                        delete_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_id})'
+                        xbmc.executebuiltin(delete_url)
+                    else:
+                        xbmc.log("LibraryGenie: LIST ACTION - Could not extract list_id for delete", xbmc.LOGERROR)
+                        xbmcgui.Dialog().notification("LibraryGenie", "Could not determine list to delete", xbmcgui.NOTIFICATION_ERROR, 3000)
+                except Exception as e:
+                    xbmc.log(f"LibraryGenie: LIST ACTION - Error in delete list: {str(e)}", xbmc.LOGERROR)
 
             elif selected_option == "Move List":
                 xbmc.log("LibraryGenie: LIST ACTION - Executing Move List", xbmc.LOGINFO)
-                # Implement Move List logic
-                xbmcgui.Dialog().notification("LibraryGenie", "Move List - Not implemented yet", xbmcgui.NOTIFICATION_INFO, 3000)
+                try:
+                    # Extract list_id from item path for move operation
+                    list_id = None
+                    match = re.search(r'list_id=(\d+)', current_item_path)
+                    if match:
+                        list_id = match.group(1)
+
+                    if list_id:
+                        xbmc.log(f"LibraryGenie: LIST ACTION - Extracted list_id: {list_id}", xbmc.LOGINFO)
+                        # Call move list function
+                        move_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=move_list&list_id={list_id})'
+                        xbmc.executebuiltin(move_url)
+                    else:
+                        xbmc.log("LibraryGenie: LIST ACTION - Could not extract list_id for move", xbmc.LOGERROR)
+                        xbmcgui.Dialog().notification("LibraryGenie", "Could not determine list to move", xbmcgui.NOTIFICATION_ERROR, 3000)
+                except Exception as e:
+                    xbmc.log(f"LibraryGenie: LIST ACTION - Error in move list: {str(e)}", xbmc.LOGERROR)
 
             elif selected_option == "Add Movies to List":
                 xbmc.log("LibraryGenie: LIST ACTION - Executing Add Movies to List", xbmc.LOGINFO)
