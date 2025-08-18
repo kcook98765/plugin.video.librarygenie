@@ -671,9 +671,20 @@ class ShortlistImporter:
 
             utils.log(f"Imported Lists folder ID: {imported_folder_id}", "DEBUG")
 
-            # Clear existing data in the folder
-            progress.update(40, "Clearing existing imported data...")
-            self.clear_imported_lists_folder(imported_folder_id)
+            # Ensure "Shortlist" subfolder exists under "Imported Lists"
+            shortlist_folder_result = self.db_manager.ensure_folder_exists("Shortlist", imported_folder_id)
+
+            # Extract the actual ID from the result
+            if isinstance(shortlist_folder_result, dict):
+                shortlist_folder_id = shortlist_folder_result['id']
+            else:
+                shortlist_folder_id = shortlist_folder_result
+
+            utils.log(f"Shortlist subfolder ID: {shortlist_folder_id}", "DEBUG")
+
+            # Clear existing data in the shortlist folder only
+            progress.update(40, "Clearing existing shortlist imports...")
+            self.clear_imported_lists_folder(shortlist_folder_id)
 
             # Process each list
             total_lists = len(lists)
@@ -689,8 +700,8 @@ class ShortlistImporter:
                 if progress.iscanceled():
                     break
 
-                # Create list in LibraryGenie
-                list_result = self.db_manager.create_list(list_name, imported_folder_id)
+                # Create list in LibraryGenie under Shortlist subfolder
+                list_result = self.db_manager.create_list(list_name, shortlist_folder_id)
 
                 # Handle both dictionary and integer return values
                 if isinstance(list_result, dict):
@@ -790,7 +801,7 @@ class ShortlistImporter:
             progress.close()
 
             if not progress.iscanceled():
-                message = f"Successfully imported {total_lists} lists from Shortlist to 'Imported Lists' folder"
+                message = f"Successfully imported {total_lists} lists from Shortlist to 'Imported Lists/Shortlist' folder"
                 xbmcgui.Dialog().notification("LibraryGenie", message, xbmcgui.NOTIFICATION_INFO, 5000)
                 utils.log(f"=== Shortlist import complete: {total_lists} lists imported ===", "INFO")
                 return True

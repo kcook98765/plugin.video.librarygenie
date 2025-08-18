@@ -651,8 +651,8 @@ class FavoritesImporter:
 
             progress.update(40, "Preparing import folder...")
 
-            # Ensure "Imported Favorites" folder exists
-            imported_folder_result = self.db_manager.ensure_folder_exists("Imported Favorites", None)
+            # Ensure "Imported Lists" folder exists
+            imported_folder_result = self.db_manager.ensure_folder_exists("Imported Lists", None)
 
             # Extract the actual ID from the result
             if isinstance(imported_folder_result, dict):
@@ -660,15 +660,26 @@ class FavoritesImporter:
             else:
                 imported_folder_id = imported_folder_result
 
-            utils.log(f"Imported Favorites folder ID: {imported_folder_id}", "DEBUG")
+            utils.log(f"Imported Lists folder ID: {imported_folder_id}", "DEBUG")
 
-            # Clear existing data in the folder before starting import
-            progress.update(42, "Clearing existing imports...")
-            self.clear_imported_favorites_folder(imported_folder_id)
+            # Ensure "Favorites" subfolder exists under "Imported Lists"
+            favorites_folder_result = self.db_manager.ensure_folder_exists("Favorites", imported_folder_id)
 
-            # Create a dated list
+            # Extract the actual ID from the result
+            if isinstance(favorites_folder_result, dict):
+                favorites_folder_id = favorites_folder_result['id']
+            else:
+                favorites_folder_id = favorites_folder_result
+
+            utils.log(f"Favorites subfolder ID: {favorites_folder_id}", "DEBUG")
+
+            # Clear existing data in the favorites folder only
+            progress.update(42, "Clearing existing favorites imports...")
+            self.clear_imported_favorites_folder(favorites_folder_id)
+
+            # Create a dated list under Favorites subfolder
             list_name = f"Favorites ({datetime.now().strftime('%Y-%m-%d')})"
-            list_result = self.db_manager.create_list(list_name, imported_folder_id)
+            list_result = self.db_manager.create_list(list_name, favorites_folder_id)
 
             # Handle both dictionary and integer return values
             if isinstance(list_result, dict):
@@ -790,7 +801,7 @@ class FavoritesImporter:
             progress.close()
 
             if not progress.iscanceled():
-                message = f"Imported {len(media_items_to_add)} favorites ({upgraded_count} upgraded from library)"
+                message = f"Imported {len(media_items_to_add)} favorites to 'Imported Lists/Favorites' ({upgraded_count} upgraded from library)"
                 xbmcgui.Dialog().notification("LibraryGenie", message, xbmcgui.NOTIFICATION_INFO, 5000)
                 utils.log(f"=== Favorites import complete: {message} ===", "INFO")
                 return True
