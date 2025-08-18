@@ -7,6 +7,7 @@ import time
 import uuid
 from resources.lib.utils.utils import log
 from resources.lib.utils.singleton_base import Singleton
+from resources.lib.config.config_manager import get_config
 
 class RemoteAPIClient(Singleton):
     def __init__(self, config=None):
