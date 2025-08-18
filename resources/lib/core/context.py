@@ -78,8 +78,13 @@ def main():
         lg_type = xbmc.getInfoLabel('ListItem.Property(lg_type)')
         
         # Create minimal MediaItem from current context
+        # Convert current_item_id to int if it's numeric, otherwise use None
+        parsed_item_id = None
+        if current_item_id and current_item_id.isdigit():
+            parsed_item_id = int(current_item_id)
+        
         current_item = MediaItem(
-            id=current_item_id or "context",
+            id=parsed_item_id,
             media_type="unknown", 
             title=current_title or "Context Item",
             is_folder=is_folder_item or lg_type == 'folder'
