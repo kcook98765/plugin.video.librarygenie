@@ -256,16 +256,20 @@ def main():
 
         xbmc.log(f"LibraryGenie: CONTEXT MENU - Showing {len(options)} options: {options}", xbmc.LOGINFO)
 
-        # Show selection dialog
-        dialog = xbmcgui.Dialog()
-        selected = dialog.select("LibraryGenie Options", options)
+        # Show list selection dialog
+        from typing import List, Union
+        typed_list_options: List[Union[str, xbmcgui.ListItem]] = list_options
+        selected_index = xbmcgui.Dialog().select(
+            f"Add '{title}' to list:",
+            typed_list_options
+        )
 
-        if selected == -1:  # User cancelled
+        if selected_index == -1:  # User cancelled
             xbmc.log("LibraryGenie: User cancelled context menu selection", xbmc.LOGINFO)
             return
 
-        selected_option = options[selected]
-        xbmc.log(f"LibraryGenie: User selected option {selected}: '{selected_option}'", xbmc.LOGINFO)
+        selected_option = options[selected_index]
+        xbmc.log(f"LibraryGenie: User selected option {selected_index}: '{selected_option}'", xbmc.LOGINFO)
 
         # Handle list-specific actions
         if is_lg_list_item:
@@ -426,7 +430,7 @@ def main():
                 clean_title = title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
                 clean_title = clean_title.replace('[COLOR FFF0DC8A]', '').replace('[/COLOR]', '')
                 clean_title = clean_title.replace('[COLOR FFF4BC7B]', '').replace('[/COLOR]', '')
-                clean_title = clean_title.replace('[COLOR FFECA9A7]', '').replace('[/COLOR]', '')
+                clean_title = clean_title.replace('[COLOR ECECA9A7]', '').replace('[/COLOR]', '')
 
                 # Get item ID from various sources
                 item_id = (xbmc.getInfoLabel('ListItem.DBID') or
