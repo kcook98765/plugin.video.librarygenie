@@ -176,17 +176,12 @@ class QueryManager(Singleton):
 
     def save_llm_response(self, description, response_data):
         """Save LLM API response"""
-        conn_info = self._get_connection()
-        try:
-            query = """
-                INSERT INTO original_requests (description, response_json)
-                VALUES (?, ?)
-            """
-            cursor = conn_info['connection'].execute(query, (description, json.dumps(response_data)))
-            conn_info['connection'].commit()
-            return cursor.lastrowid
-        finally:
-            self._release_connection(conn_info)
+        query = """
+            INSERT INTO original_requests (description, response_json)
+            VALUES (?, ?)
+        """
+        result = self.execute_write(query, (description, json.dumps(response_data)))
+        return result['lastrowid']
 
     def get_media_by_dbid(self, db_id: int, media_type: str = 'movie') -> Dict[str, Any]:
         """Get media details by database ID"""
@@ -372,7 +367,7 @@ class QueryManager(Singleton):
             VALUES (?, ?, ?, ?)
         """
         for movie in movies:
-            self.execute_query(
+            self.execute_write(
                 query,
                 (
                     movie.get('movieid') or movie.get('kodi_id'), 
@@ -402,7 +397,7 @@ class QueryManager(Singleton):
         is fetched on-demand via JSON-RPC when rendering lists.
         Search results (source='search') and other sources are preserved.
         """
-        self.execute_query("DELETE FROM media_items WHERE source = 'lib'")
+        self.execute_write("DELETE FROM media_items WHERE source = 'lib'")
 
     def __del__(self):
         """Clean up connections when the instance is destroyed"""
@@ -418,22 +413,17 @@ class QueryManager(Singleton):
             INSERT INTO original_requests (description, response_json)
             VALUES (?, ?)
         """
-        conn_info = self._get_connection()
-        try:
-            cursor = conn_info['connection'].cursor()
-            cursor.execute(query, (description, response_json))
-            conn_info['connection'].commit()
-            return cursor.lastrowid
-        finally:
-            self._release_connection(conn_info)
+        result = self.execute_write(query, (description, response_json))
+        return result['lastrowid']
 
-    def insert_parsed_movie(self, request_id: int, title: str, year: Optional[int], director: Optional[str]) -> None:
+    def insert_parsed_movie(self, request_id: int, title: str, year: Optional[int], director: Optional[str]) -> int:
         """Insert a parsed movie record"""
         query = """
             INSERT INTO parsed_movies (request_id, title, year, director)
             VALUES (?, ?, ?, ?)
         """
-        self.execute_query(query, (request_id, title, year, director))
+        result = self.execute_write(query, (request_id, title, year, director))
+        return result['lastrowid']
 
     def insert_media_item(self, data: Dict[str, Any]) -> Optional[int]:
         """Insert a media item and return its ID"""
@@ -644,12 +634,13 @@ class QueryManager(Singleton):
         """Insert a list item - delegate to DAO"""
         return self._listing.insert_list_item(list_id, media_item_id)
 
-    def insert_generic(self, table: str, data: Dict[str, Any]) -> None:
+    def insert_generic(self, table: str, data: Dict[str, Any]) -> int:
         """Generic table insert"""
         columns = ', '.join(data.keys())
         placeholders = ', '.join('?' for _ in data)
         query = f'INSERT INTO {table} ({columns}) VALUES ({placeholders})'
-        self.execute_query(query, tuple(data.values()))
+        result = self.execute_write(query, tuple(data.values()))
+        return result['lastrowid']
 
     def get_matched_movies(self, title: str, year: Optional[int] = None, director: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get movies matching certain criteria"""
