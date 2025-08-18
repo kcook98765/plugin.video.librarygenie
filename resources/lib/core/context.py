@@ -1,4 +1,3 @@
-import sys
 import xbmcgui
 import xbmcaddon
 import xbmcvfs
@@ -13,7 +12,7 @@ from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.kodi.window_search import SearchWindow
 from resources.lib.utils import utils
 # Updated import for menu registry
-from resources.lib.kodi.menu.registry import for_item, ContextMenuRegistry
+from resources.lib.kodi.menu.registry import ContextMenuRegistry
 
 translatePath = xbmcvfs.translatePath
 
@@ -65,7 +64,6 @@ def main():
 
         # Check authentication before adding API-dependent options
         # Updated to use menu registry for context menu building
-        from ..data.normalize import from_db
         from ..data.models import MediaItem
 
         # Get current item properties for context menu generation
