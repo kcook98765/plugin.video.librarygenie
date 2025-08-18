@@ -239,8 +239,9 @@ class ResultsManager(Singleton):
                     item_url = f"info://{ref_imdb}" if ref_imdb else f"info://{r.get('id', 'unknown')}"
                     display_items.append((item_url, list_item, False))
 
-            # Sort external items by search score as well if they have scores
-            external_sorted = sorted(external, key=lambda x: x.get('search_score', 0), reverse=True)
+            # External items processed separately with stored metadata
+            # Handle None search_score values that can't be compared
+            external_sorted = sorted(external, key=lambda x: x.get('search_score') or 0, reverse=True)
             for item in external_sorted:
                 # Add context for list viewing and removal
                 item['_viewing_list_id'] = list_id
