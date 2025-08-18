@@ -692,6 +692,10 @@ class ShortlistImporter:
                 list_name = shortlist_list['name']
                 items = shortlist_list['items']
 
+                # Create dated list name first
+                from datetime import datetime
+                dated_list_name = f"{list_name} ({datetime.now().strftime('%Y-%m-%d')})"
+
                 progress_percent = 50 + int((i / total_lists) * 40)
                 progress.update(progress_percent, f"Processing list: {list_name}")
 
@@ -701,8 +705,6 @@ class ShortlistImporter:
                     break
 
                 # Create list in LibraryGenie under Shortlist subfolder with date suffix
-                from datetime import datetime
-                dated_list_name = f"{list_name} ({datetime.now().strftime('%Y-%m-%d')})"
                 list_result = self.db_manager.create_list(dated_list_name, shortlist_folder_id)
 
                 # Handle both dictionary and integer return values
