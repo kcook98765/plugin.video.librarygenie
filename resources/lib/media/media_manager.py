@@ -107,7 +107,7 @@ class MediaManager:
             # Add file path to media info
             media_info['file'] = file_path
 
-            utils.log(f"MEDIA_MANAGER: Final media info extracted:", "DEBUG")
+            utils.log("MEDIA_MANAGER: Final media info extracted:", "DEBUG")
             utils.log(f"  Title: '{media_info['title']}'", "DEBUG")
             utils.log(f"  Source: '{media_info['source']}'", "DEBUG")
             utils.log(f"  File: '{media_info['file']}'", "DEBUG")

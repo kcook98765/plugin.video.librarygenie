@@ -132,9 +132,6 @@ class QueryManager(Singleton):
     def get_list_items(self, list_id):
         return self._listing.get_list_items(list_id)
     
-    def fetch_list_items_with_details(self, list_id):
-        return self._listing.fetch_list_items_with_details(list_id)
-    
     def get_list_media_count(self, list_id):
         return self._listing.get_list_media_count(list_id)
     
@@ -339,12 +336,6 @@ class QueryManager(Singleton):
 
     def ensure_search_history_folder(self):
         return self._listing.ensure_search_history_folder()
-
-    
-
-    def insert_list_item(self, list_id, media_item_id):
-        """Insert item into list - delegates to ListingDAO"""
-        return self._listing.insert_list_item(list_id, media_item_id)
 
     def insert_media_item_and_add_to_list(self, list_id: int, media_data: Dict[str, Any]) -> bool:
         """Insert a media item and add it to a list in one operation"""

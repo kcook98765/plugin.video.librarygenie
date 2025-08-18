@@ -285,13 +285,20 @@ def move_list(params):
                 folder['id'] != list_info.get('folder_id')):
                 available_folders.append(folder)
 
-        if not available_folders:
+        # Create folder selection options
+        folder_options = []
+        folder_ids = []
+        
+        # Only add "Root Folder" option if the list is NOT already at root level
+        current_folder_id = list_info.get('folder_id')
+        if current_folder_id is not None:  # List is not at root, so root is an option
+            folder_options.append("Root Folder")
+            folder_ids.append(None)
+
+        # Check if we have any target options available
+        if not available_folders and current_folder_id is None:
             xbmcgui.Dialog().notification('LibraryGenie', 'No target folders available', xbmcgui.NOTIFICATION_WARNING)
             return
-
-        # Create folder selection options
-        folder_options = ["Root Folder"]  # Option to move to root
-        folder_ids = [None]  # None indicates root folder
 
         for folder in available_folders:
             folder_options.append(f"{folder['name']}")
@@ -337,91 +344,7 @@ def move_list(params):
         xbmcgui.Dialog().notification('LibraryGenie', 'Error moving list', xbmcgui.NOTIFICATION_ERROR)
 
 
-def add_movies_to_list(params):
-    """Add additional movies to an existing list"""
-    try:
-        list_id = params.get('list_id', [None])[0]
-        if not list_id:
-            utils.log("No list_id provided for add_movies_to_list", "ERROR")
-            return
 
-        config = Config()
-        db_manager = DatabaseManager(config.db_path)
-
-        # Get list info
-        list_info = db_manager.fetch_list_by_id(list_id)
-        if not list_info:
-            utils.log(f"List {list_id} not found", "ERROR")
-            xbmcgui.Dialog().notification('LibraryGenie', 'List not found', xbmcgui.NOTIFICATION_ERROR)
-            return
-
-        # Show search dialog to find movies to add
-        from resources.lib.kodi.window_search import SearchWindow
-        search_window = SearchWindow(f"Add Movies to '{list_info['name']}'")
-        search_window.doModal()
-
-        # Check if search was successful and get the results
-        target_url = search_window.get_target_url()
-        if target_url and 'list_id=' in target_url:
-            # Extract the search results list ID
-            import re
-            match = re.search(r'list_id=(\d+)', target_url)
-            if match:
-                search_results_list_id = match.group(1)
-
-                # Get all items from the search results list
-                search_items = db_manager.query_manager.fetch_list_items_with_details(search_results_list_id)
-
-                if search_items:
-                    # Add each search result to the target list
-                    added_count = 0
-                    for item in search_items:
-                        # Check if item already exists in target list
-                        existing_item = db_manager.query_manager.get_list_item_by_media_id(list_id, item['id'])
-                        if not existing_item:
-                            # Create media item data from search result
-                            media_item_data = {
-                                'kodi_id': item.get('kodi_id', 0),
-                                'title': item.get('title', ''),
-                                'year': item.get('year', 0),
-                                'imdbnumber': item.get('imdbnumber', ''),
-                                'source': item.get('source', 'library'),
-                                'plot': item.get('plot', ''),
-                                'rating': item.get('rating', 0.0),
-                                'search_score': 0,  # Reset search score for manual additions
-                                'media_type': item.get('media_type', 'movie'),
-                                'genre': item.get('genre', ''),
-                                'director': item.get('director', ''),
-                                'cast': item.get('cast', '[]'),
-                                'file': item.get('file', ''),
-                                'thumbnail': item.get('thumbnail', ''),
-                                'poster': item.get('poster', ''),
-                                'fanart': item.get('fanart', ''),
-                                'art': item.get('art', '{}'),
-                                'duration': item.get('duration', 0),
-                                'votes': item.get('votes', 0),
-                                'play': item.get('play', '')
-                            }
-
-                            success = db_manager.add_media_item(list_id, media_item_data)
-                            if success:
-                                added_count += 1
-
-                    if added_count > 0:
-                        xbmcgui.Dialog().notification('LibraryGenie', f"Added {added_count} movies to '{list_info['name']}'", xbmcgui.NOTIFICATION_INFO)
-                        xbmc.executebuiltin('Container.Refresh')
-                    else:
-                        xbmcgui.Dialog().notification('LibraryGenie', 'No new movies were added', xbmcgui.NOTIFICATION_INFO)
-                else:
-                    xbmcgui.Dialog().notification('LibraryGenie', 'No search results found', xbmcgui.NOTIFICATION_WARNING)
-        else:
-            utils.log("Search was cancelled or failed", "DEBUG")
-
-    except Exception as e:
-        utils.log(f"Error in add_movies_to_list: {str(e)}", "ERROR")
-        import traceback
-        utils.log(f"add_movies_to_list traceback: {traceback.format_exc()}", "ERROR")
-        xbmcgui.Dialog().notification('LibraryGenie', 'Error adding movies to list', xbmcgui.NOTIFICATION_ERROR)
 
 
 def clear_list(params):
@@ -652,7 +575,7 @@ def delete_folder(params):
                 parent_folder_id = folder_info.get('parent_id')
 
                 for subfolder in subfolders:
-                    db_manager.move_folder_to_parent(subfolder['id'], parent_folder_id)
+                    db_manager.query_manager.update_folder_parent(subfolder['id'], parent_folder_id)
 
                 for list_item in lists:
                     db_manager.move_list_to_folder(list_item['id'], parent_folder_id)
@@ -760,7 +683,7 @@ def move_folder(params):
             return
 
         # Perform the move
-        success = db_manager.move_folder_to_parent(folder_id, target_parent_id)
+        success = db_manager.query_manager.update_folder_parent(folder_id, target_parent_id)
 
         if success:
             utils.log(f"Successfully moved folder {folder_id} to parent {target_parent_id}", "INFO")
@@ -1482,7 +1405,7 @@ def _schedule_delayed_navigation(target_url):
             utils.log("=== DELAYED_NAVIGATION: Using Container.Update to navigate ===", "DEBUG")
             xbmc.executebuiltin(f'Container.Update({target_url})')
 
-            utils.log(f"=== DELAYED_NAVIGATION: Navigation completed ===", "DEBUG")
+            utils.log("=== DELAYED_NAVIGATION: Navigation completed ===", "DEBUG")
 
         except Exception as e:
             utils.log(f"Error in delayed navigation: {str(e)}", "ERROR")

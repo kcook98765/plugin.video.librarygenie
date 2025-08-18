@@ -867,96 +867,35 @@ class DatabaseManager(Singleton):
 
     def move_list_to_folder(self, list_id, target_folder_id):
         """Move a list to a different folder"""
-        try:
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "UPDATE lists SET folder_id = ? WHERE id = ?",
-                    (target_folder_id, list_id)
-                )
-                conn.commit()
-                return cursor.rowcount > 0
-        except Exception as e:
-            self.log(f"Error moving list to folder: {str(e)}", "ERROR")
-            return False
+        return self.query_manager.update_list_folder(list_id, target_folder_id)
 
     def clear_list_items(self, list_id):
         """Remove all items from a list"""
         try:
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute("DELETE FROM list_items WHERE list_id = ?", (list_id,))
-                conn.commit()
-                return True
+            result = self.query_manager.execute_write(
+                "DELETE FROM list_items WHERE list_id = ?", 
+                (list_id,)
+            )
+            return result['rowcount'] > 0
         except Exception as e:
-            self.log(f"Error clearing list items: {str(e)}", "ERROR")
-            return False
-
-    def delete_folder(self, folder_id):
-        """Delete a folder and all its contents"""
-        try:
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-
-                # Delete all lists in this folder and their items
-                cursor.execute("SELECT id FROM lists WHERE folder_id = ?", (folder_id,))
-                list_ids = [row[0] for row in cursor.fetchall()]
-
-                for list_id in list_ids:
-                    cursor.execute("DELETE FROM list_items WHERE list_id = ?", (list_id,))
-
-                cursor.execute("DELETE FROM lists WHERE folder_id = ?", (folder_id,))
-
-                # Delete all subfolders recursively
-                cursor.execute("SELECT id FROM folders WHERE parent_id = ?", (folder_id,))
-                subfolder_ids = [row[0] for row in cursor.fetchall()]
-
-                for subfolder_id in subfolder_ids:
-                    self.delete_folder(subfolder_id)  # Recursive call
-
-                # Delete the folder itself
-                cursor.execute("DELETE FROM folders WHERE id = ?", (folder_id,))
-
-                conn.commit()
-                return True
-        except Exception as e:
-            self.log(f"Error deleting folder: {str(e)}", "ERROR")
-            return False
-
-    def move_folder_to_parent(self, folder_id, new_parent_id):
-        """Move a folder to a different parent folder"""
-        try:
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "UPDATE folders SET parent_id = ? WHERE id = ?",
-                    (new_parent_id, folder_id)
-                )
-                conn.commit()
-                return cursor.rowcount > 0
-        except Exception as e:
-            self.log(f"Error moving folder to parent: {str(e)}", "ERROR")
+            utils.log(f"Error clearing list items: {str(e)}", "ERROR")
             return False
 
     def get_descendant_folder_ids(self, folder_id):
         """Get all descendant folder IDs for a given folder"""
         try:
             descendant_ids = []
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-
-                # Get direct children
-                cursor.execute("SELECT id FROM folders WHERE parent_id = ?", (folder_id,))
-                children = [row[0] for row in cursor.fetchall()]
-
-                for child_id in children:
-                    descendant_ids.append(child_id)
-                    # Recursively get descendants
-                    descendant_ids.extend(self.get_descendant_folder_ids(child_id))
-
+            # Get direct children
+            subfolders = self.query_manager.get_folders(folder_id)
+            
+            for subfolder in subfolders:
+                descendant_ids.append(subfolder['id'])
+                # Recursively get descendants
+                descendant_ids.extend(self.get_descendant_folder_ids(subfolder['id']))
+            
             return descendant_ids
         except Exception as e:
-            self.log(f"Error getting descendant folder IDs: {str(e)}", "ERROR")
+            utils.log(f"Error getting descendant folder IDs: {str(e)}", "ERROR")
             return []
 
     def get_folder_path(self, folder_id):
@@ -965,40 +904,28 @@ class DatabaseManager(Singleton):
             path_parts = []
             current_id = folder_id
 
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-
-                while current_id:
-                    cursor.execute("SELECT name, parent_id FROM folders WHERE id = ?", (current_id,))
-                    row = cursor.fetchone()
-                    if row:
-                        path_parts.insert(0, row[0])  # Insert at beginning
-                        current_id = row[1]  # Move to parent
-                    else:
-                        break
+            while current_id:
+                folder = self.query_manager.fetch_folder_by_id(current_id)
+                if folder:
+                    path_parts.insert(0, folder['name'])  # Insert at beginning
+                    current_id = folder['parent_id']  # Move to parent
+                else:
+                    break
 
             return " / ".join(path_parts) if path_parts else "Root"
         except Exception as e:
-            self.log(f"Error getting folder path: {str(e)}", "ERROR")
+            utils.log(f"Error getting folder path: {str(e)}", "ERROR")
             return "Unknown"
 
     def create_folder(self, name, parent_id=None):
         """Create a new folder"""
         try:
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "INSERT INTO folders (name, parent_id) VALUES (?, ?)",
-                    (name, parent_id)
-                )
-                folder_id = cursor.lastrowid
-                conn.commit()
-
-                return {
-                    'id': folder_id,
-                    'name': name,
-                    'parent_id': parent_id
-                }
+            folder_id = self.query_manager.create_folder(name, parent_id)
+            return {
+                'id': folder_id,
+                'name': name,
+                'parent_id': parent_id
+            }
         except Exception as e:
-            self.log(f"Error creating folder: {str(e)}", "ERROR")
+            utils.log(f"Error creating folder: {str(e)}", "ERROR")
             return None

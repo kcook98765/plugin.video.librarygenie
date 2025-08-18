@@ -75,7 +75,6 @@ Context menu options are dynamically generated based on:
    - **Rename List**: Change the name of the current list
    - **Delete List**: Permanently remove the current list after confirmation
    - **Move List**: Move the current list to a different folder with folder selection dialog
-   - **Add Movies to List**: Add additional movies to the current list via search interface
    - **Clear List**: Remove all items from the current list with confirmation
    - **Export List**: Export list contents to text, CSV, or JSON format
 
@@ -139,11 +138,9 @@ When right-clicking on a LibraryGenie list item, additional management options b
 
 3. **Rename List**: Opens an input dialog to change the list name, with validation to prevent duplicate names within the same folder.
 
-4. **Add Movies to List**: Opens the search interface to find and add additional movies to the existing list. Search results are automatically added to the selected list.
+4. **Clear List**: Removes all items from the list after confirmation. The list structure remains but becomes empty.
 
-5. **Clear List**: Removes all items from the list after confirmation. The list structure remains but becomes empty.
-
-6. **Export List**: Exports the list contents to a file in the user's choice of format:
+5. **Export List**: Exports the list contents to a file in the user's choice of format:
    - **Plain Text (.txt)**: Simple numbered list with titles, years, and IMDb IDs
    - **CSV (.csv)**: Spreadsheet-compatible format with detailed metadata
    - **JSON (.json)**: Structured data format including all available metadata

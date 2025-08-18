@@ -182,7 +182,6 @@ def main():
             options.append("Rename List")
             options.append("Delete List")
             options.append("Move List")
-            options.append("Add Movies to List")
             options.append("Clear List")
             options.append("Export List")
             options.append("Information")
@@ -335,25 +334,7 @@ def main():
                 except Exception as e:
                     xbmc.log(f"LibraryGenie: LIST ACTION - Error in move list: {str(e)}", xbmc.LOGERROR)
 
-            elif selected_option == "Add Movies to List":
-                xbmc.log("LibraryGenie: LIST ACTION - Executing Add Movies to List", xbmc.LOGINFO)
-                try:
-                    # Extract list_id from item path for add movies operation
-                    list_id = None
-                    match = re.search(r'list_id=(\d+)', current_item_path)
-                    if match:
-                        list_id = match.group(1)
-
-                    if list_id:
-                        xbmc.log(f"LibraryGenie: LIST ACTION - Extracted list_id: {list_id}", xbmc.LOGINFO)
-                        # Call add movies to list function
-                        add_movies_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=add_movies_to_list&list_id={list_id})'
-                        xbmc.executebuiltin(add_movies_url)
-                    else:
-                        xbmc.log("LibraryGenie: LIST ACTION - Could not extract list_id for add movies", xbmc.LOGERROR)
-                        xbmcgui.Dialog().notification("LibraryGenie", "Could not determine list for adding movies", xbmcgui.NOTIFICATION_ERROR, 3000)
-                except Exception as e:
-                    xbmc.log(f"LibraryGenie: LIST ACTION - Error in add movies to list: {str(e)}", xbmc.LOGERROR)
+            
 
             elif selected_option == "Clear List":
                 xbmc.log("LibraryGenie: LIST ACTION - Executing Clear List", xbmc.LOGINFO)
