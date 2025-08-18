@@ -2,6 +2,8 @@ import json
 from resources.lib.integrations.jsonrpc.jsonrpc_manager import JSONRPC
 from resources.lib.utils import utils
 from resources.lib.utils.singleton_base import Singleton
+from resources.lib.data.normalize import from_jsonrpc, from_db
+from resources.lib.kodi.listitem.factory import build_listitem
 
 class ResultsManager(Singleton):
     def __init__(self):
@@ -155,31 +157,31 @@ class ResultsManager(Singleton):
                 src = (r.get('source') or '').lower()
                 if src in ('external', 'plugin_addon'):
                     continue
-                
+
                 # Handle favorites_import items separately to avoid library lookup
                 if src == 'favorites_import':
                     # Check if item has a valid playable path
                     playable_path = r.get('path') or r.get('play') or r.get('file')
-                    
+
                     # Skip items without valid playable paths (similar to shortlist import logic)
                     if not playable_path or not str(playable_path).strip():
                         utils.log(f"Skipping favorites import item '{r.get('title', 'Unknown')}' - no valid playable path", "DEBUG")
                         continue
-                    
+
                     # Validate the path is actually playable (basic check)
                     path_str = str(playable_path).strip()
-                    if not (path_str.startswith(('smb://', 'nfs://', 'http://', 'https://', 'ftp://', 'ftps://', 'plugin://', '/')) or 
+                    if not (path_str.startswith(('smb://', 'nfs://', 'http://', 'https://', 'ftp://', 'ftps://', 'plugin://', '/')) or
                             '\\' in path_str):  # Windows network paths
                         utils.log(f"Skipping favorites import item '{r.get('title', 'Unknown')}' - invalid path format: {path_str}", "DEBUG")
                         continue
-                    
+
                     # For favorites imports, use the stored data directly
                     r['_viewing_list_id'] = list_id
                     r['media_id'] = r.get('id') or r.get('media_id')
-                    
-                    from resources.lib.kodi.listitem_builder import ListItemBuilder
-                    list_item = ListItemBuilder.build_video_item(r, is_search_history=is_search_history)
-                    
+
+                    media_item = from_db(r)
+                    list_item = build_listitem(media_item, 'search_history' if is_search_history else 'default')
+
                     # Use the playable path directly instead of info URL
                     item_url = playable_path
                     display_items.append((item_url, list_item, False))
@@ -228,8 +230,8 @@ class ResultsManager(Singleton):
                     meta['_viewing_list_id'] = list_id
                     meta['media_id'] = r.get('id') or r.get('media_id') or meta.get('movieid')
 
-                    from resources.lib.kodi.listitem_builder import ListItemBuilder
-                    list_item = ListItemBuilder.build_video_item(meta, is_search_history=is_search_history)
+                    media_item = from_jsonrpc(meta)
+                    list_item = build_listitem(media_item, 'search_history' if is_search_history else 'default')
 
                     # Determine the appropriate URL for this item
                     # For manual items and library items, use the file path if available
@@ -245,7 +247,7 @@ class ResultsManager(Singleton):
                     if src != 'favorites_import':
                         fallback_title = processed_ref.get("title") or 'Unknown Title'
                         utils.log(f"Item {i+1}: No Kodi match for '{processed_ref.get('title')}' ({processed_ref.get('year')}), using fallback title: '{fallback_title}'", "WARNING")
-                        
+
                         resolved_item = {
                             'id': r.get('id'),
                             'title': processed_ref.get('title') or ref_imdb or 'Unknown',
@@ -263,14 +265,14 @@ class ResultsManager(Singleton):
                             'media_id': r.get('id') or r.get('media_id'),
                             'source': src
                         }
-                        
+
                         # Copy over any artwork and metadata from the original item
                         for field in ['thumbnail', 'poster', 'fanart', 'art', 'plot', 'rating', 'genre', 'director', 'cast', 'duration']:
                             if r.get(field):
                                 resolved_item[field] = r.get(field)
-                        
-                        from resources.lib.kodi.listitem_builder import ListItemBuilder
-                        list_item = ListItemBuilder.build_video_item(resolved_item, is_search_history=is_search_history)
+
+                        media_item = from_db(resolved_item) # Assuming from_db can handle this structure
+                        list_item = build_listitem(media_item, 'search_history' if is_search_history else 'default')
 
                         item_url = f"info://{ref_imdb}" if ref_imdb else f"info://{r.get('id', 'unknown')}"
                         display_items.append((item_url, list_item, False))
@@ -284,8 +286,8 @@ class ResultsManager(Singleton):
                 item['_viewing_list_id'] = list_id
                 item['media_id'] = item.get('id') or item.get('media_id')
 
-                from resources.lib.kodi.listitem_builder import ListItemBuilder
-                list_item = ListItemBuilder.build_video_item(item, is_search_history=is_search_history)
+                media_item = from_db(item) # Assuming from_db can handle external item structure
+                list_item = build_listitem(media_item, 'search_history' if is_search_history else 'default')
 
                 # Use file path or fallback URL for external items
                 item_url = item.get('file', f"external://{item.get('id', 'unknown')}")

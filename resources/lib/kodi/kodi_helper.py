@@ -77,9 +77,16 @@ class KodiHelper:
         xbmcplugin.endOfDirectory(self.addon_handle)
 
     def list_folders(self, folders):
-        from resources.lib.kodi.listitem_builder import ListItemBuilder
+        from resources.lib.data.models import MediaItem
+        from resources.lib.kodi.listitem.factory import build_listitem
         for folder in folders:
-            list_item = ListItemBuilder.build_folder_item(folder['name'], is_folder=True, item_type='folder')
+            media_item = MediaItem(
+                id=folder.get('id', 0),
+                media_type='folder',
+                title=folder['name'],
+                is_folder=True
+            )
+            list_item = build_listitem(media_item, 'folder')
             url = f'{self.addon_url}?action=show_list&list_id={folder["id"]}'
 
             xbmcplugin.addDirectoryItem(
@@ -95,7 +102,7 @@ class KodiHelper:
         from resources.lib.data.normalize import from_db
         from resources.lib.kodi.listitem.factory import build_listitem
         from resources.lib.data.models import MediaItem
-        
+
         for folder in folders:
             # Create MediaItem for folder
             folder_item = MediaItem(
@@ -195,7 +202,7 @@ class KodiHelper:
         # Add items and end directory using new factory pattern
         from resources.lib.data.normalize import from_db
         from resources.lib.kodi.listitem.factory import build_listitem
-        
+
         for item in items:
             # Convert to MediaItem and use factory
             media_item = from_db(item)
@@ -261,7 +268,7 @@ class KodiHelper:
             # Create list item using new factory pattern
             from resources.lib.data.normalize import from_db
             from resources.lib.kodi.listitem.factory import build_listitem
-            
+
             media_item = from_db(item_data)
             list_item = build_listitem(media_item, 'video')
 
@@ -506,7 +513,7 @@ class KodiHelper:
 
                     if 'result' in response and 'moviedetails' in response['result']:
                         details = response['result']['moviedetails']
-                        
+
                         # Try imdbnumber first
                         imdb_from_details = details.get('imdbnumber', '')
                         if imdb_from_details and str(imdb_from_details).startswith('tt'):
@@ -532,11 +539,11 @@ class KodiHelper:
         """Get a playable URL from item information"""
         if not item_info:
             return None
-            
+
         # Try to get URL from different possible fields
         for field in ['play', 'file', 'path', 'stream_url']:
             url = item_info.get(field)
             if url and str(url).strip():
                 return str(url).strip()
-                
+
         return None
