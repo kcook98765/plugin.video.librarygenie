@@ -757,66 +757,19 @@ class ShortlistImporter:
                         if validation_issues:
                             utils.log(f"DATA_VALIDATION: Issues found for '{media_dict['title']}': {'; '.join(validation_issues)}", "WARNING")
 
-                        # Check for existing items to avoid duplicates
-                        title = media_dict.get('title', '')
-                        year = media_dict.get('year', 0)
-                        imdb_id = media_dict.get('imdbnumber', '')
-                        source = media_dict.get('source', '')
-                        kodi_id = media_dict.get('kodi_id', 0)
-                        play_path = media_dict.get('play', '')
-                        
-                        # Check if item already exists with same identifying information
-                        existing_check = False
-                        try:
-                            # More comprehensive duplicate checking
-                            if imdb_id:
-                                # Check by IMDb ID across all sources first
-                                existing_items = self.db_manager.query_manager.execute_query(
-                                    "SELECT id FROM media_items WHERE imdbnumber = ?",
-                                    (imdb_id,)
-                                )
-                                if existing_items:
-                                    utils.log(f"DUPLICATE_SKIP: Item with IMDb {imdb_id} already exists in database", "INFO")
-                                    existing_check = True
-                            
-                            # If no IMDb match, check by other identifiers
-                            if not existing_check:
-                                if source == 'kodi_library' and kodi_id > 0:
-                                    # For Kodi library items, also check by kodi_id
-                                    existing_items = self.db_manager.query_manager.execute_query(
-                                        "SELECT id FROM media_items WHERE kodi_id = ? AND source IN ('kodi_library', 'lib')",
-                                        (kodi_id,)
-                                    )
-                                    if existing_items:
-                                        utils.log(f"DUPLICATE_SKIP: Kodi library item '{title}' ({year}) with kodi_id {kodi_id} already exists", "INFO")
-                                        existing_check = True
-                                
-                                elif source == 'shortlist_import' and play_path:
-                                    # For shortlist imports, check by title + year + play path
-                                    existing_items = self.db_manager.query_manager.execute_query(
-                                        "SELECT id FROM media_items WHERE title = ? AND year = ? AND play = ? AND source = ?",
-                                        (title, year, play_path, source)
-                                    )
-                                    if existing_items:
-                                        utils.log(f"DUPLICATE_SKIP: Shortlist item '{title}' ({year}) already exists", "INFO")
-                                        existing_check = True
-                        except Exception as e:
-                            utils.log(f"DUPLICATE_CHECK_ERROR: Failed to check for duplicates for '{title}': {str(e)}", "WARNING")
-                            # Continue processing even if duplicate check fails
+                        # Enhanced logging of final media dict
+                        utils.log(f"=== FINAL MEDIA_DICT for '{media_dict['title']}' ===", "INFO")
+                        important_fields = ['title', 'year', 'source', 'duration', 'rating', 'genre', 'director', 'plot', 'imdbnumber']
+                        for field in important_fields:
+                            value = media_dict.get(field, '')
+                            if value:
+                                utils.log(f"  {field}: {value}", "INFO")
+                        utils.log("=== END FINAL MEDIA_DICT ===", "INFO")
 
-                        if not existing_check:
-                            # Enhanced logging of final media dict
-                            utils.log(f"=== FINAL MEDIA_DICT for '{media_dict['title']}' ===", "INFO")
-                            important_fields = ['title', 'year', 'source', 'duration', 'rating', 'genre', 'director', 'plot', 'imdbnumber']
-                            for field in important_fields:
-                                value = media_dict.get(field, '')
-                                if value:
-                                    utils.log(f"  {field}: {value}", "INFO")
-                            utils.log("=== END FINAL MEDIA_DICT ===", "INFO")
-
-                            media_items_to_add.append(media_dict)
-                        else:
-                            utils.log(f"IMPORT_SKIP: Skipping duplicate item '{title}' ({year})", "INFO")
+                        # Always add items to the list - the database layer will handle media_items deduplication
+                        # but we want to create list entries for shortlist imports regardless
+                        media_items_to_add.append(media_dict)
+                        utils.log(f"IMPORT_ADD: Adding '{media_dict['title']}' ({media_dict['year']}) to import list", "INFO")
 
                     except Exception as e:
                         utils.log(f"CONVERSION_ERROR: Failed to convert item '{item_title}': {str(e)}", "ERROR")
