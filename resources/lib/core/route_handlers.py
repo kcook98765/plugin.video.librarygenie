@@ -290,11 +290,11 @@ def move_list(params):
             return
 
         # Create folder selection options
-        folder_options = ["📁 Root Folder"]  # Option to move to root
+        folder_options = ["Root Folder"]  # Option to move to root
         folder_ids = [None]  # None indicates root folder
 
         for folder in available_folders:
-            folder_options.append(f"📁 {folder['name']}")
+            folder_options.append(f"{folder['name']}")
             folder_ids.append(folder['id'])
 
         # Show folder selection dialog
