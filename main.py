@@ -1,14 +1,9 @@
 """ /main.py """
 import os
 import sys
-import urllib.parse # Import urllib.parse
 import xbmc
 import xbmcgui
 import xbmcplugin
-import xbmcaddon
-from urllib.parse import urlencode, parse_qs
-from urllib.parse import quote_plus, urlparse # Import urlparse
-import time # Import time module
 
 # Import new modules
 from resources.lib.kodi.url_builder import build_plugin_url, parse_params, detect_context
@@ -156,15 +151,10 @@ def browse_folder(params):
 def browse_list(list_id):
     """Browse items in a specific list"""
     import xbmcplugin
-    import xbmcgui
-    import json
-    from resources.lib.config.addon_ref import get_addon
-    from resources.lib.data.database_manager import DatabaseManager
     from resources.lib.config.config_manager import Config
     from resources.lib.kodi.listitem_builder import ListItemBuilder
     from resources.lib.data.query_manager import QueryManager
 
-    addon = get_addon()
     handle = int(sys.argv[1])
 
     log(f"=== BROWSE_LIST FUNCTION CALLED with list_id={list_id}, handle={handle} ===", "INFO")
@@ -182,7 +172,7 @@ def browse_list(list_id):
 
         # Set proper container properties first
         xbmcplugin.setContent(handle, "movies")
-        xbmcplugin.setPluginCategory(handle, f"Search Results")
+        xbmcplugin.setPluginCategory(handle, "Search Results")
 
         # Use policy-aware resolver
         rm = ResultsManager()
