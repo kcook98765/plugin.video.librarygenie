@@ -553,7 +553,7 @@ def main():
 
         elif "Find Similar Movies..." in selected_option:
             if "(Requires Authentication)" in selected_option:
-                dialog.notification("LibraryGenie", "Please configure API settings first", xbmcgui.NOTIFICATION_WARNING, 3000)
+                xbmcgui.Dialog().notification("LibraryGenie", "Please configure API settings first", xbmcgui.NOTIFICATION_WARNING, 3000)
                 return
             # Get the clean title without color formatting
             clean_title = title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
@@ -562,7 +562,7 @@ def main():
 
             if not imdb_id or not str(imdb_id).startswith('tt'):
                 xbmc.log("LibraryGenie [WARNING]: Similarity search failed - no valid IMDb ID found", xbmc.LOGWARNING)
-                dialog.notification("LibraryGenie", "No valid IMDb ID found for similarity search", xbmcgui.NOTIFICATION_WARNING, 3000)
+                xbmcgui.Dialog().notification("LibraryGenie", "No valid IMDb ID found for similarity search", xbmcgui.NOTIFICATION_WARNING, 3000)
                 return
 
             # Use RunPlugin to trigger similarity search
@@ -572,7 +572,7 @@ def main():
 
         elif "Search Movies..." in selected_option:  # Search Movies - use direct search instead of plugin URL
             if "(Requires Authentication)" in selected_option:
-                dialog.notification("LibraryGenie", "Please configure API settings first", xbmcgui.NOTIFICATION_WARNING, 3000)
+                xbmcgui.Dialog().notification("LibraryGenie", "Please configure API settings first", xbmcgui.NOTIFICATION_WARNING, 3000)
                 return
             try:
                 # Perform search directly
