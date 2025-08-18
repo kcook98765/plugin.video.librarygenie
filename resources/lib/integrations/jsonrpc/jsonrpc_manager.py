@@ -235,7 +235,7 @@ class JSONRPC:
 
             # v19 may not support complex filters, so always fetch all movies and filter manually
             if log.is_kodi_v19():
-                log(fDEBUG: Using v19 compatible search (manual filtering)", "DEBUG")
+                log("DEBUG: Using v19 compatible search (manual filtering)", "DEBUG")
                 return self._find_movie_by_imdb_v19(imdb_id, properties)
 
             # v20+ can use more advanced filters
