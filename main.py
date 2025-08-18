@@ -11,25 +11,25 @@ from urllib.parse import quote_plus, urlparse # Import urlparse
 import time # Import time module
 
 # Import new modules
-from resources.lib.url_builder import build_plugin_url, parse_params, detect_context
-from resources.lib.options_manager import OptionsManager
-from resources.lib.directory_builder import (
+from resources.lib.kodi.url_builder import build_plugin_url, parse_params, detect_context
+from resources.lib.core.options_manager import OptionsManager
+from resources.lib.core.directory_builder import (
     add_context_menu_for_item, add_options_header_item,
     build_root_directory, show_empty_directory
 )
-from resources.lib.navigation_manager import get_navigation_manager
-from resources.lib.folder_list_manager import get_folder_list_manager
+from resources.lib.core.navigation_manager import get_navigation_manager
+from resources.lib.data.folder_list_manager import get_folder_list_manager
 
-from resources.lib.addon_helper import run_addon
-from resources.lib.config_manager import Config
-from resources.lib.database_manager import DatabaseManager
-from resources.lib import utils
-from resources.lib.route_handlers import (
+from resources.lib.config.addon_helper import run_addon
+from resources.lib.config.config_manager import Config
+from resources.lib.data.database_manager import DatabaseManager
+from resources.lib.utils.utils import utils
+from resources.lib.core.route_handlers import (
     play_movie, show_item_details, create_list, rename_list, delete_list,
-    remove_from_list, rename_folder, refresh_movie, move_list
+    remove_from_list, rename_folder, move_list
 )
-from resources.lib.listitem_builder import ListItemBuilder
-from resources.lib import route_handlers
+from resources.lib.kodi.listitem_builder import ListItemBuilder
+from resources.lib.core import route_handlers
 
 
 # Add addon directory to Python path
@@ -54,7 +54,7 @@ def run_search_flow():
 
     target_url = None
     try:
-        from resources.lib.window_search import SearchWindow
+        from resources.lib.kodi.window_search import SearchWindow
         utils.log("=== CREATING SearchWindow INSTANCE ===", "DEBUG")
         search_window = SearchWindow()
         utils.log("=== ABOUT TO CALL SearchWindow.doModal() ===", "DEBUG")
@@ -158,11 +158,11 @@ def browse_list(list_id):
     import xbmcplugin
     import xbmcgui
     import json
-    from resources.lib.addon_ref import get_addon
-    from resources.lib.database_manager import DatabaseManager
-    from resources.lib.config_manager import Config
-    from resources.lib.listitem_builder import ListItemBuilder
-    from resources.lib.query_manager import QueryManager
+    from resources.lib.config.addon_ref import get_addon
+    from resources.lib.data.database_manager import DatabaseManager
+    from resources.lib.config.config_manager import Config
+    from resources.lib.kodi.listitem_builder import ListItemBuilder
+    from resources.lib.data.query_manager import QueryManager
 
     addon = get_addon()
     handle = int(sys.argv[1])
@@ -173,8 +173,8 @@ def browse_list(list_id):
         utils.log(f"=== BROWSE_LIST ACTION START for list_id={list_id} ===", "INFO")
         config = Config()
         query_manager = QueryManager(config.db_path)
-        from resources.lib.results_manager import ResultsManager
-        from resources.lib.listitem_builder import ListItemBuilder
+        from resources.lib.data.results_manager import ResultsManager
+        from resources.lib.kodi.listitem_builder import ListItemBuilder
 
         # Clear navigation flags - simplified
         nav_manager.clear_navigation_flags()
@@ -186,7 +186,7 @@ def browse_list(list_id):
 
         # Use policy-aware resolver
         rm = ResultsManager()
-        display_items = rm.build_display_items_for_list(list_id)
+        display_items = rm.build_display_items_for_list(list_id, handle)
 
         if not display_items:
             utils.log(f"No display items found for list {list_id}", "WARNING")
@@ -197,69 +197,25 @@ def browse_list(list_id):
 
         for i, item in enumerate(display_items):
             try:
-                # ResultsManager.build_display_items_for_list returns tuples: (li, file, media)
+                # ResultsManager.build_display_items_for_list returns tuples: (item_url, li, is_folder)
                 if isinstance(item, tuple) and len(item) >= 3:
-                    li, file_path, media_dict = item
+                    item_url, li, is_folder = item
                 else:
                     # Fallback for unexpected format
                     utils.log(f"Unexpected item format: {type(item)}", "WARNING")
                     continue
 
-                # Set additional properties
-                li.setProperty('lg_type', 'movie')
-                li.setProperty('lg_list_id', str(list_id))
-                li.setProperty('lg_movie_id', str(media_dict.get('id', '')))
-                add_context_menu_for_item(li, 'movie', list_id=list_id, movie_id=media_dict.get('id'))
+                # The ListItem is already fully built by ResultsManager, just use the URL and add to directory
+                url = item_url
+                is_playable = not is_folder
 
-                # Determine the URL and playability
-                url = file_path or media_dict.get('file') or media_dict.get('play') or ''
-                is_playable = False
-                movie_id = None
-
-                # Check if we have a valid Kodi ID for playable content
-                if media_dict.get('movieid') and str(media_dict['movieid']).isdigit() and int(media_dict['movieid']) > 0:
-                    movie_id = int(media_dict['movieid'])
-                    is_playable = True
-                elif media_dict.get('kodi_id') and str(media_dict['kodi_id']).isdigit() and int(media_dict['kodi_id']) > 0:
-                    movie_id = int(media_dict['kodi_id'])
-                    is_playable = True
-                elif url:
-                    is_playable = True
-
-                # For Kodi library items, create a plugin URL that will handle playback
-                if movie_id and is_playable:
-                    url = build_plugin_url({
-                        'action': 'play_movie',
-                        'movieid': movie_id,
-                        'list_id': list_id
-                    })
-                    # Also set the file path directly so Kodi can use its native playback if needed
-                    if file_path or media_dict.get('file'):
-                        li.setPath(file_path or media_dict.get('file'))
-                elif url and is_playable:
-                    # For items with direct file paths, use them directly
-                    if url:
-                        li.setPath(url)
-                elif not url or not is_playable:
-                    # For items without valid play URLs, create a plugin URL that will show item details
-                    url = build_plugin_url({
-                        'action': 'show_item_details',
-                        'list_id': list_id,
-                        'item_id': media_dict.get('id'),
-                        'title': media_dict.get('title', 'Unknown')
-                    })
-                    is_playable = False
-
-                # Set playability properties
                 if is_playable:
-                    li.setProperty('IsPlayable', 'true')
                     playable_count += 1
                 else:
-                    li.setProperty('IsPlayable', 'false')
                     non_playable_count += 1
 
                 # Add directory item with proper folder flag
-                xbmcplugin.addDirectoryItem(handle, url, li, isFolder=not is_playable)
+                xbmcplugin.addDirectoryItem(handle, url, li, isFolder=is_folder)
                 items_added += 1
             except Exception as e:
                 utils.log(f"Error processing item {i+1}: {str(e)}", "ERROR")
@@ -269,17 +225,12 @@ def browse_list(list_id):
         utils.log(f"Successfully added {items_added} items ({playable_count} playable, {non_playable_count} non-playable)", "INFO")
 
         # Check if this is a search results list with scores to preserve order
+        # Get the original list items to check for search scores
+        list_items = query_manager.fetch_list_items_with_details(list_id)
         has_scores = False
-        for item in display_items:
-            # Handle both tuple (li, file, media) and dict formats
-            if isinstance(item, tuple) and len(item) >= 3:
-                media_dict = item[2]  # Third element is the metadata dict
-            elif isinstance(item, dict):
-                media_dict = item
-            else:
-                media_dict = {}
-
-            if media_dict.get('search_score', 0) > 0:
+        for item in list_items:
+            search_score = item.get('search_score', 0)
+            if search_score is not None and search_score > 0:
                 has_scores = True
                 break
 
@@ -302,7 +253,7 @@ def browse_list(list_id):
         import traceback
         utils.log(f"browse_list traceback: {traceback.format_exc()}", "ERROR")
         # Show error item
-        from resources.lib.listitem_builder import ListItemBuilder
+        from resources.lib.kodi.listitem_builder import ListItemBuilder
         error_li = ListItemBuilder.build_folder_item(f"Error loading list: {str(e)}", is_folder=False)
         xbmcplugin.addDirectoryItem(handle, "", error_li, False)
         xbmcplugin.endOfDirectory(handle, succeeded=False)
@@ -312,7 +263,7 @@ def router(paramstring):
     utils.log(f"Router called with: {paramstring}", "DEBUG")
 
     # Initialize navigation manager first
-    from resources.lib.navigation_manager import get_navigation_manager
+    from resources.lib.core.navigation_manager import get_navigation_manager
     nav_manager = get_navigation_manager()
 
     params = parse_params(paramstring)
@@ -367,8 +318,8 @@ def router(paramstring):
     if action == "search":
         utils.log("Handling search action", "DEBUG")
         try:
-            from resources.lib.window_search import SearchWindow
-            from resources.lib.navigation_manager import get_navigation_manager
+            from resources.lib.kodi.window_search import SearchWindow
+            from resources.lib.core.navigation_manager import get_navigation_manager
 
             search_window = SearchWindow()
             search_window.doModal()
@@ -465,11 +416,14 @@ def router(paramstring):
         utils.log("Received separator action, doing nothing.", "DEBUG")
         pass
     elif action == 'find_similar':
-        utils.log("Handling find_similar action", "DEBUG")
-        route_handlers.find_similar_movies(q)
-    elif action == 'find_similar_from_context':
-        utils.log("Handling find_similar_from_context action", "DEBUG")
-        route_handlers.find_similar_movies_from_context(q)
+        from resources.lib.route_handlers import find_similar_movies
+        find_similar_movies(params)
+    elif action == 'find_similar_from_plugin':
+        route_handlers.find_similar_movies_from_plugin(params)
+    elif action == 'add_to_list_from_context':
+        route_handlers.add_to_list_from_context(params)
+    elif action == 'add_to_list':
+        route_handlers.add_to_list(params)
     else:
         # Default: build root directory if action is not recognized or empty
         utils.log(f"Unrecognized action '{action}' or no action specified, building root directory.", "DEBUG")

@@ -26,17 +26,10 @@
     <extension point="kodi.context.item">
       <menu id="kodi.core.main">
         <item library="resources/lib/context.py">
-            <label>LibraryGenie</label>
-            <visible>true</visible>
+          <label>LibraryGenie</label>
+          <visible>String.IsEqual(ListItem.DBTYPE,movie) | [String.StartsWith(ListItem.Path,plugin://) + !ListItem.IsFolder] | [String.Contains(ListItem.Path,plugin.video.librarygenie) + ListItem.IsFolder]</visible>
         </item>
       </menu>
     </extension>
-  <extension point="kodi.context.item">
-    <menu id="kodi.core.main">
-      <item library="context.py">
-        <label>32001</label>
-        <visible>!String.IsEmpty(ListItem.IMDBNumber) + String.StartsWith(ListItem.IMDBNumber,tt)</visible>
-      </item>
-    </menu>
-  </extension>
+  
 </addon>
