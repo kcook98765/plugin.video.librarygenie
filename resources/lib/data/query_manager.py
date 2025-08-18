@@ -14,9 +14,9 @@ class QueryManager(Singleton):
             self._connection_pool = []
             self._initialize_pool()
             
-            # Initialize DAO with query executor
+            # Initialize DAO with query and write executors
             from resources.lib.data.dao.listing_dao import ListingDAO
-            self._listing = ListingDAO(self.execute_query)
+            self._listing = ListingDAO(self.execute_query, self.execute_write)
             
             self._initialized = True
 
@@ -92,7 +92,26 @@ class QueryManager(Singleton):
         return self._listing.update_folder_parent(folder_id, new_parent_id)
     
     def delete_folder_and_contents(self, folder_id):
-        return self._listing.delete_folder_and_contents(folder_id)
+        """Delete folder and all its contents in a single transaction"""
+        conn_info = self._get_connection()
+        try:
+            # Begin transaction
+            conn_info['connection'].execute('BEGIN')
+            
+            # Perform the recursive deletion via DAO
+            result = self._listing.delete_folder_and_contents(folder_id)
+            
+            # Commit transaction
+            conn_info['connection'].commit()
+            return result
+            
+        except Exception as e:
+            # Rollback on any error
+            conn_info['connection'].rollback()
+            utils.log(f"Transaction rolled back during folder deletion: {str(e)}", "ERROR")
+            raise
+        finally:
+            self._release_connection(conn_info)
     
     def fetch_folders_with_item_status(self, parent_id, media_item_id):
         return self._listing.fetch_folders_with_item_status(parent_id, media_item_id)
@@ -176,24 +195,19 @@ class QueryManager(Singleton):
 
     def save_llm_response(self, description, response_data):
         """Save LLM API response"""
-        conn_info = self._get_connection()
-        try:
-            query = """
-                INSERT INTO original_requests (description, response_json)
-                VALUES (?, ?)
-            """
-            cursor = conn_info['connection'].execute(query, (description, json.dumps(response_data)))
-            conn_info['connection'].commit()
-            return cursor.lastrowid
-        finally:
-            self._release_connection(conn_info)
+        query = """
+            INSERT INTO original_requests (description, response_json)
+            VALUES (?, ?)
+        """
+        result = self.execute_write(query, (description, json.dumps(response_data)))
+        return result['lastrowid']
 
     def get_media_by_dbid(self, db_id: int, media_type: str = 'movie') -> Dict[str, Any]:
         """Get media details by database ID"""
         query = """
             SELECT *
             FROM media_items
-            WHERE kodi_id = ? AND type = ?
+            WHERE kodi_id = ? AND media_type = ?
         """
         conn_info = self._get_connection()
         try:
@@ -268,6 +282,24 @@ class QueryManager(Singleton):
             return []
         except Exception as e:
             utils.log(f"Query execution error: {str(e)}", "ERROR")
+            raise
+        finally:
+            self._release_connection(conn_info)
+
+    def execute_write(self, sql: str, params: tuple = ()) -> Dict[str, int]:
+        """Execute a write operation (INSERT/UPDATE/DELETE) and return metadata"""
+        conn_info = self._get_connection()
+        try:
+            cursor = conn_info['connection'].cursor()
+            cursor.execute(sql, params)
+            conn_info['connection'].commit()
+            
+            return {
+                'lastrowid': cursor.lastrowid or 0,
+                'rowcount': cursor.rowcount or 0
+            }
+        except Exception as e:
+            utils.log(f"Write execution error: {str(e)}", "ERROR")
             raise
         finally:
             self._release_connection(conn_info)
@@ -354,7 +386,7 @@ class QueryManager(Singleton):
             VALUES (?, ?, ?, ?)
         """
         for movie in movies:
-            self.execute_query(
+            self.execute_write(
                 query,
                 (
                     movie.get('movieid') or movie.get('kodi_id'), 
@@ -384,7 +416,7 @@ class QueryManager(Singleton):
         is fetched on-demand via JSON-RPC when rendering lists.
         Search results (source='search') and other sources are preserved.
         """
-        self.execute_query("DELETE FROM media_items WHERE source = 'lib'")
+        self.execute_write("DELETE FROM media_items WHERE source = 'lib'")
 
     def __del__(self):
         """Clean up connections when the instance is destroyed"""
@@ -400,22 +432,17 @@ class QueryManager(Singleton):
             INSERT INTO original_requests (description, response_json)
             VALUES (?, ?)
         """
-        conn_info = self._get_connection()
-        try:
-            cursor = conn_info['connection'].cursor()
-            cursor.execute(query, (description, response_json))
-            conn_info['connection'].commit()
-            return cursor.lastrowid
-        finally:
-            self._release_connection(conn_info)
+        result = self.execute_write(query, (description, response_json))
+        return result['lastrowid']
 
-    def insert_parsed_movie(self, request_id: int, title: str, year: Optional[int], director: Optional[str]) -> None:
+    def insert_parsed_movie(self, request_id: int, title: str, year: Optional[int], director: Optional[str]) -> int:
         """Insert a parsed movie record"""
         query = """
             INSERT INTO parsed_movies (request_id, title, year, director)
             VALUES (?, ?, ?, ?)
         """
-        self.execute_query(query, (request_id, title, year, director))
+        result = self.execute_write(query, (request_id, title, year, director))
+        return result['lastrowid']
 
     def insert_media_item(self, data: Dict[str, Any]) -> Optional[int]:
         """Insert a media item and return its ID"""
@@ -626,12 +653,13 @@ class QueryManager(Singleton):
         """Insert a list item - delegate to DAO"""
         return self._listing.insert_list_item(list_id, media_item_id)
 
-    def insert_generic(self, table: str, data: Dict[str, Any]) -> None:
+    def insert_generic(self, table: str, data: Dict[str, Any]) -> int:
         """Generic table insert"""
         columns = ', '.join(data.keys())
         placeholders = ', '.join('?' for _ in data)
         query = f'INSERT INTO {table} ({columns}) VALUES ({placeholders})'
-        self.execute_query(query, tuple(data.values()))
+        result = self.execute_write(query, tuple(data.values()))
+        return result['lastrowid']
 
     def get_matched_movies(self, title: str, year: Optional[int] = None, director: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get movies matching certain criteria"""
@@ -674,8 +702,8 @@ class QueryManager(Singleton):
 
         return results
 
-    def get_media_details(self, media_id: int, media_type: str = 'movie') -> dict:
-        """Get media details from database"""
+    def get_media_details(self, kodi_dbid: int, media_type: str = 'movie') -> dict:
+        """Get media details from database by Kodi database ID"""
         query = """
             SELECT *
             FROM media_items
@@ -683,7 +711,7 @@ class QueryManager(Singleton):
         """
         conn_info = self._get_connection()
         try:
-            cursor = conn_info['connection'].execute(query, (media_id, media_type))
+            cursor = conn_info['connection'].execute(query, (kodi_dbid, media_type))
             result = cursor.fetchone()
             return dict(result) if result else {}
         finally:

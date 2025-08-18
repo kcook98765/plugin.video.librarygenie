@@ -6,6 +6,7 @@ from resources.lib.config.config_manager import Config
 from resources.lib.data.database_manager import DatabaseManager
 import json
 import threading
+from typing import List, Union, cast
 
 def play_movie(params):
     """Play a movie from Kodi library using movieid"""
@@ -475,9 +476,10 @@ def add_to_list(params):
             list_ids.append(list_item['id'])
 
         # Show list selection dialog
+        typed_list_options = cast(List[Union[str, xbmcgui.ListItem]], list_options)
         selected_index = xbmcgui.Dialog().select(
             f"Add '{title}' to list:",
-            list_options
+            typed_list_options
         )
 
         if selected_index == -1:  # User cancelled
@@ -602,9 +604,10 @@ def add_to_list_from_context(params):
             list_ids.append(list_item['id'])
 
         # Show list selection dialog
+        typed_list_options = cast(List[Union[str, xbmcgui.ListItem]], list_options)
         selected_index = xbmcgui.Dialog().select(
             f"Add '{title}' to list:",
-            list_options
+            typed_list_options
         )
 
         if selected_index == -1:  # User cancelled
@@ -728,7 +731,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
             "Genre - Movie categories and tropes"
         ]
 
-        utils.log(f"=== SIMILARITY_SEARCH: Showing facet selection dialog ===", "DEBUG")
+        utils.log("=== SIMILARITY_SEARCH: Showing facet selection dialog ===", "DEBUG")
 
         # Load previously selected facets if available
         cached_facets_str = config.get_setting('similarity_facets')
@@ -979,7 +982,7 @@ def _schedule_delayed_navigation(target_url):
             time.sleep(0.5)
 
             # Navigate using Container.Update for reliable plugin navigation
-            utils.log(f"=== DELAYED_NAVIGATION: Using Container.Update to navigate ===", "DEBUG")
+            utils.log("=== DELAYED_NAVIGATION: Using Container.Update to navigate ===", "DEBUG")
             xbmc.executebuiltin(f'Container.Update({target_url})')
 
             utils.log(f"=== DELAYED_NAVIGATION: Navigation completed ===", "DEBUG")

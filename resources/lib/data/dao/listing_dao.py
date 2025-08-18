@@ -7,15 +7,18 @@ Extracted from QueryManager to separate concerns while maintaining the same API
 class ListingDAO:
     """Data Access Object for folder and list database operations"""
     
-    def __init__(self, execute_query_callable):
+    def __init__(self, execute_query_callable, execute_write_callable):
         """
-        Initialize DAO with injected query executor
+        Initialize DAO with injected query executors
         
         Args:
-            execute_query_callable: Function to execute SQL queries
-                                   Signature: execute_query(sql: str, params: tuple, fetch_all: bool) -> rows
+            execute_query_callable: Function to execute SELECT queries
+                                   Signature: execute_query(sql: str, params: tuple, fetch_all: bool) -> List[Dict]
+            execute_write_callable: Function to execute INSERT/UPDATE/DELETE
+                                   Signature: execute_write(sql: str, params: tuple) -> Dict[str, int]
         """
         self.execute_query = execute_query_callable
+        self.execute_write = execute_write_callable
 
     # =========================
     # FOLDER OPERATIONS
@@ -45,13 +48,15 @@ class ListingDAO:
         """Direct folder insertion"""
         sql = "INSERT INTO folders (name, parent_id) VALUES (?, ?)"
         params = (name, parent_id)
-        return self.execute_query(sql, params, fetch_all=False)
+        result = self.execute_write(sql, params)
+        return result['lastrowid']
 
     def update_folder_name_direct(self, folder_id, new_name):
         """Direct folder name update"""
         sql = "UPDATE folders SET name = ? WHERE id = ?"
         params = (new_name, folder_id)
-        return self.execute_query(sql, params, fetch_all=False)
+        result = self.execute_write(sql, params)
+        return result['rowcount']
 
     def get_folder_depth(self, folder_id):
         """Calculate folder depth in hierarchy"""
@@ -92,11 +97,11 @@ class ListingDAO:
         return folder['id'] if folder else None
 
     def ensure_search_history_folder(self):
-        """Ensure Search History folder exists"""
-        existing = self.get_folder_by_name("Search History", None)
-        if not existing:
-            return self.insert_folder_direct("Search History", None)
-        return existing
+        """Ensure Search History folder exists and return its ID"""
+        folder_id = self.get_folder_id_by_name("Search History", None)
+        if folder_id:
+            return folder_id
+        return self.insert_folder_direct("Search History", None)
 
     def insert_folder(self, name, parent_id):
         """Insert folder (alias for create_folder)"""
@@ -114,13 +119,13 @@ class ListingDAO:
         """Get total media count for folder (including subfolders and lists)"""
         # Count items in lists directly in this folder
         sql_direct = """
-            SELECT COUNT(DISTINCT li.media_item_id) 
+            SELECT COUNT(DISTINCT li.media_item_id) AS cnt
             FROM lists l 
             JOIN list_items li ON l.id = li.list_id 
             WHERE l.folder_id = ?
         """
         direct_result = self.execute_query(sql_direct, (folder_id,), fetch_all=False)
-        direct_count = direct_result[0]['COUNT(DISTINCT li.media_item_id)'] if direct_result and direct_result[0] else 0
+        direct_count = direct_result[0]['cnt'] if direct_result and direct_result[0] else 0
 
         # Count items in subfolders recursively
         subfolder_count = 0
@@ -140,10 +145,15 @@ class ListingDAO:
         """Update folder parent"""
         sql = "UPDATE folders SET parent_id = ? WHERE id = ?"
         params = (new_parent_id, folder_id)
-        return self.execute_query(sql, params, fetch_all=False)
+        result = self.execute_write(sql, params)
+        return result['rowcount']
 
     def delete_folder_and_contents(self, folder_id):
-        """Delete folder and all its contents recursively"""
+        """Delete folder and all its contents recursively
+        
+        Note: This method should be called within a transaction managed by QueryManager
+        to ensure atomicity of the entire operation.
+        """
         # Get all subfolders
         subfolders = self.get_folders(folder_id)
         
@@ -158,7 +168,8 @@ class ListingDAO:
         
         # Delete the folder itself
         sql = "DELETE FROM folders WHERE id = ?"
-        return self.execute_query(sql, (folder_id,), fetch_all=False)
+        result = self.execute_write(sql, (folder_id,))
+        return result['rowcount']
 
     def fetch_folders_with_item_status(self, parent_id, media_item_id):
         """Fetch folders with status for a media item"""
@@ -240,9 +251,9 @@ class ListingDAO:
 
     def get_list_media_count(self, list_id):
         """Get media count for a list"""
-        sql = "SELECT COUNT(*) FROM list_items WHERE list_id = ?"
+        sql = "SELECT COUNT(*) AS cnt FROM list_items WHERE list_id = ?"
         result = self.execute_query(sql, (list_id,), fetch_all=False)
-        return result[0]['COUNT(*)'] if result and result[0] else 0
+        return result[0]['cnt'] if result and result[0] else 0
 
     def fetch_lists_with_item_status(self, folder_id, media_item_id):
         """Fetch lists with status for a media item"""
@@ -289,7 +300,8 @@ class ListingDAO:
         """Update list's folder"""
         sql = "UPDATE lists SET folder_id = ? WHERE id = ?"
         params = (folder_id, list_id)
-        return self.execute_query(sql, params, fetch_all=False)
+        result = self.execute_write(sql, params)
+        return result['rowcount']
 
     def get_list_id_by_name(self, name, folder_id=None):
         """Get list ID by name and folder"""
@@ -328,7 +340,8 @@ class ListingDAO:
         """Create a new list"""
         sql = "INSERT INTO lists (name, folder_id) VALUES (?, ?)"
         params = (name, folder_id)
-        return self.execute_query(sql, params, fetch_all=False)
+        result = self.execute_write(sql, params)
+        return result['lastrowid']
 
     def get_unique_list_name(self, base_name, folder_id=None):
         """Generate a unique list name in the given folder"""
@@ -355,11 +368,12 @@ class ListingDAO:
         """Delete list and all its contents"""
         # Delete list items first
         sql_items = "DELETE FROM list_items WHERE list_id = ?"
-        self.execute_query(sql_items, (list_id,), fetch_all=False)
+        self.execute_write(sql_items, (list_id,))
         
         # Delete the list itself
         sql_list = "DELETE FROM lists WHERE id = ?"
-        return self.execute_query(sql_list, (list_id,), fetch_all=False)
+        result = self.execute_write(sql_list, (list_id,))
+        return result['rowcount']
 
     def fetch_all_lists(self):
         """Fetch all lists"""
@@ -376,17 +390,14 @@ class ListingDAO:
         """Insert item into list"""
         sql = "INSERT INTO list_items (list_id, media_item_id) VALUES (?, ?)"
         params = (list_id, media_item_id)
-        return self.execute_query(sql, params, fetch_all=False)
+        result = self.execute_write(sql, params)
+        return result['lastrowid']
 
     def remove_media_item_from_list(self, list_id, media_item_id):
         """Remove media item from list"""
         sql = "DELETE FROM list_items WHERE list_id = ? AND media_item_id = ?"
         params = (list_id, media_item_id)
-        return self.execute_query(sql, params, fetch_all=False)
+        result = self.execute_write(sql, params)
+        return result['rowcount']
 
-    def insert_media_item_and_add_to_list(self, list_id, media_data):
-        """Insert media item and add to list in one operation"""
-        # This method needs to coordinate with QueryManager for the insert_media_item operation
-        # Since DAO doesn't handle connection management, we'll delegate this back
-        # This is a complex operation that spans multiple concerns
-        raise NotImplementedError("This method requires coordination with QueryManager.insert_media_item")
+    
