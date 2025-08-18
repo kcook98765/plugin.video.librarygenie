@@ -731,7 +731,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
             "Genre - Movie categories and tropes"
         ]
 
-        utils.log(f"=== SIMILARITY_SEARCH: Showing facet selection dialog ===", "DEBUG")
+        utils.log("=== SIMILARITY_SEARCH: Showing facet selection dialog ===", "DEBUG")
 
         # Load previously selected facets if available
         cached_facets_str = config.get_setting('similarity_facets')
@@ -982,7 +982,7 @@ def _schedule_delayed_navigation(target_url):
             time.sleep(0.5)
 
             # Navigate using Container.Update for reliable plugin navigation
-            utils.log(f"=== DELAYED_NAVIGATION: Using Container.Update to navigate ===", "DEBUG")
+            utils.log("=== DELAYED_NAVIGATION: Using Container.Update to navigate ===", "DEBUG")
             xbmc.executebuiltin(f'Container.Update({target_url})')
 
             utils.log(f"=== DELAYED_NAVIGATION: Navigation completed ===", "DEBUG")
