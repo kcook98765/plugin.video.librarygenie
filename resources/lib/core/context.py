@@ -12,7 +12,7 @@ from resources.lib.kodi.context_menu_builder import get_context_menu_builder
 from resources.lib.config.config_manager import Config
 from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.kodi.window_search import SearchWindow
-from resources.lib import utils
+from resources.lib.utils import utils
 
 translatePath = xbmcvfs.translatePath
 
