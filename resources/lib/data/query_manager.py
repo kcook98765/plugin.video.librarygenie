@@ -161,33 +161,6 @@ class QueryManager(Singleton):
     def remove_media_item_from_list(self, list_id, media_item_id):
         return self._listing.remove_media_item_from_list(list_id, media_item_id)
     
-    def insert_media_item_and_add_to_list(self, list_id, media_data):
-        """Insert a media item and add it to a list in one operation"""
-        try:
-            utils.log(f"=== INSERT_MEDIA_ITEM_AND_ADD_TO_LIST: Starting for list_id {list_id} ===", "DEBUG")
-
-            # Insert the media item
-            media_item_id = self.insert_media_item(media_data)
-            if not media_item_id:
-                utils.log("=== INSERT_MEDIA_ITEM_AND_ADD_TO_LIST: Failed to insert media item ===", "ERROR")
-                return False
-
-            utils.log(f"=== INSERT_MEDIA_ITEM_AND_ADD_TO_LIST: Inserted media item with ID: {media_item_id} ===", "DEBUG")
-
-            # Add to the list using DAO
-            self._listing.insert_list_item(list_id, media_item_id)
-            utils.log(f"=== INSERT_MEDIA_ITEM_AND_ADD_TO_LIST: Added media item {media_item_id} to list {list_id} ===", "DEBUG")
-
-            return True
-
-        except Exception as e:
-            utils.log(f"=== INSERT_MEDIA_ITEM_AND_ADD_TO_LIST: Error: {str(e)} ===", "ERROR")
-            return False
-
-    
-
-
-
     def execute_rpc_query(self, rpc):
         """Execute RPC query and return results"""
         conn_info = self._get_connection()

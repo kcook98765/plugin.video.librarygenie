@@ -342,9 +342,19 @@ The `Config` class defines field mappings that align with database schema:
 
 - **resources.lib.data.database_manager.DatabaseManager**: High-level database operations, singleton pattern with retry logic
 - **resources.lib.data.query_manager.QueryManager**: Low-level SQL execution with connection pooling and management
+- **resources.lib.data.dao.listing_dao.ListingDAO**: Data Access Object for folder and list operations, receives injected query executor
 - **resources.lib.integrations.jsonrpc.jsonrpc_manager.JSONRPCManager**: JSON-RPC communication with Kodi's API  
 - **resources.lib.config.config_manager.Config**: Database schema definitions and field mappings
 - **resources.lib.integrations.remote_api.imdb_upload_manager.IMDbUploadManager**: Handles server upload operations and batch management
+
+## DAO Pattern Implementation
+
+The ListingDAO pattern separates folder and list concerns from QueryManager:
+
+- **ListingDAO**: Handles all folder and list SQL operations
+- **QueryManager**: Provides connection management and delegates to DAO
+- **Dependency Injection**: DAO receives `execute_query` callable from QueryManager
+- **API Preservation**: Public method signatures remain unchanged for backward compatibility
 
 ## Error Handling and Reliability
 

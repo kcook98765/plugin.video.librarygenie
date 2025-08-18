@@ -228,15 +228,12 @@ class ListingDAO:
         sql = """
             SELECT 
                 mi.*,
-                li.id as list_item_id,
-                sr.search_score
+                li.id as list_item_id
             FROM media_items mi
             JOIN list_items li ON mi.id = li.media_item_id
-            LEFT JOIN search_results sr ON mi.id = sr.media_item_id 
-                AND sr.list_id = li.list_id
             WHERE li.list_id = ?
             ORDER BY 
-                CASE WHEN sr.search_score IS NOT NULL THEN sr.search_score ELSE 0 END DESC,
+                CASE WHEN mi.search_score IS NOT NULL THEN mi.search_score ELSE 0 END DESC,
                 mi.title COLLATE NOCASE
         """
         return self.execute_query(sql, (list_id,), fetch_all=True)
@@ -360,10 +357,6 @@ class ListingDAO:
         sql_items = "DELETE FROM list_items WHERE list_id = ?"
         self.execute_query(sql_items, (list_id,), fetch_all=False)
         
-        # Delete search results
-        sql_search = "DELETE FROM search_results WHERE list_id = ?"
-        self.execute_query(sql_search, (list_id,), fetch_all=False)
-        
         # Delete the list itself
         sql_list = "DELETE FROM lists WHERE id = ?"
         return self.execute_query(sql_list, (list_id,), fetch_all=False)
@@ -391,7 +384,7 @@ class ListingDAO:
         params = (list_id, media_item_id)
         return self.execute_query(sql, params, fetch_all=False)
 
-    def insert_media_item_and_add_to_list(self, media_data, list_id):
+    def insert_media_item_and_add_to_list(self, list_id, media_data):
         """Insert media item and add to list in one operation"""
         # This method needs to coordinate with QueryManager for the insert_media_item operation
         # Since DAO doesn't handle connection management, we'll delegate this back
