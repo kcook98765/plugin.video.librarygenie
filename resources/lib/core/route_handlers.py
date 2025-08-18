@@ -588,7 +588,7 @@ def export_list(params):
                 f.write(content)
 
             utils.log(f"Successfully exported list to {export_path}", "INFO")
-            xbmcgui.Dialog().ok('LibraryGenie', "List exported successfully!", "File saved to:", export_path)
+            xbmcgui.Dialog().ok('LibraryGenie', "List exported successfully!", f"File saved to: {export_path}")
 
         except Exception as write_error:
             utils.log(f"Error writing export file: {str(write_error)}", "ERROR")
