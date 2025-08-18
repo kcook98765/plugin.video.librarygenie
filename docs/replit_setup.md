@@ -46,7 +46,7 @@ Your Repl should have these essential files:
 
 1. Organize your code into modules under `resources/lib/`
 2. Use clear naming conventions
-3. Keep Kodi-specific code isolated from businebusiness logic
+3. Keep Kodi-specific code isolated from business logic
 4. Comment your code thoroughly
 
 ## Version Control
