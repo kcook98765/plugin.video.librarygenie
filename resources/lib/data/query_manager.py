@@ -239,7 +239,7 @@ class QueryManager(Singleton):
 
         if year:
             conditions.append("year = ?")
-            params.append(int(year))
+            params.append(str(year))
         if director:
             conditions.append("director LIKE ?")
             params.append(f"%{director}%")
