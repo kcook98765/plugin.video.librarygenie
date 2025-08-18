@@ -1095,6 +1095,31 @@ def add_to_list_from_context(params):
         utils.log(f"Error in add_to_list_from_context: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Error adding to list', xbmcgui.NOTIFICATION_ERROR, 3000)
 
+def find_similar_movies(params):
+    """Handler for similarity search from plugin interface"""
+    try:
+        # Extract parameters from plugin call
+        imdb_id = params.get('imdb_id', [None])[0] if params.get('imdb_id') else None
+        title = params.get('title', ['Unknown'])[0] if params.get('title') else 'Unknown'
+
+        # URL decode the title
+        import urllib.parse
+        title = urllib.parse.unquote_plus(title)
+
+        utils.log(f"Plugin similarity search - Title: {title}, IMDb: {imdb_id}", "DEBUG")
+
+        if not imdb_id or not imdb_id.startswith('tt'):
+            utils.log("Plugin similarity search failed - no valid IMDb ID found", "WARNING")
+            xbmcgui.Dialog().ok('LibraryGenie', "This item doesn't have a valid IMDb ID.")
+            return
+
+        # Perform similarity search without context menu flag
+        _perform_similarity_search(imdb_id, title, from_context_menu=False)
+
+    except Exception as e:
+        utils.log(f"Error in find_similar_movies: {str(e)}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERROR)
+
 def find_similar_movies_from_context(params):
     """Handler for similarity search from native Kodi context menu"""
     try:
