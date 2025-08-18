@@ -298,9 +298,10 @@ def move_list(params):
             folder_ids.append(folder['id'])
 
         # Show folder selection dialog
+        typed_folder_options = cast(List[Union[str, xbmcgui.ListItem]], folder_options)
         selected_index = xbmcgui.Dialog().select(
             f"Move '{list_info['name']}' to folder:",
-            folder_options
+            typed_folder_options
         )
 
         if selected_index == -1:  # User cancelled
@@ -500,7 +501,8 @@ def export_list(params):
 
         # Choose export format
         export_formats = ["Plain Text (.txt)", "CSV (.csv)", "JSON (.json)"]
-        selected_format = xbmcgui.Dialog().select("Choose export format:", export_formats)
+        typed_export_formats = cast(List[Union[str, xbmcgui.ListItem]], export_formats)
+        selected_format = xbmcgui.Dialog().select("Choose export format:", typed_export_formats)
 
         if selected_format == -1:  # User cancelled
             return
@@ -637,9 +639,10 @@ def delete_folder(params):
                 "Cancel deletion"
             ]
 
+            typed_content_options = cast(List[Union[str, xbmcgui.ListItem]], content_options)
             selected_option = xbmcgui.Dialog().select(
                 f"Folder '{folder_info['name']}' contains {total_contents} items:",
-                content_options
+                typed_content_options
             )
 
             if selected_option == -1 or selected_option == 2:  # Cancel
@@ -736,9 +739,10 @@ def move_folder(params):
             return
 
         # Show folder selection dialog
+        typed_folder_options = cast(List[Union[str, xbmcgui.ListItem]], folder_options)
         selected_index = xbmcgui.Dialog().select(
             f"Move '{folder_info['name']}' to:",
-            folder_options
+            typed_folder_options
         )
 
         if selected_index == -1:  # User cancelled
@@ -1237,9 +1241,10 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
                 utils.log(f"Error loading cached facets: {e}", "WARNING")
 
         # Show multi-select dialog for facets with preselection
+        typed_facet_descriptions = cast(List[Union[str, xbmcgui.ListItem]], list(facet_descriptions))
         selected_indices = xbmcgui.Dialog().multiselect(
             f"Select similarity aspects for '{title}':",
-            list(facet_descriptions),
+            typed_facet_descriptions,
             preselect=preselected_indices
         )
 
