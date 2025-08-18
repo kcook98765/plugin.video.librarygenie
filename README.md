@@ -131,7 +131,7 @@ The Options & Tools menu adapts based on your authentication status:
 - **Move Lists**: Reorganize lists between folders
 - **Manual Addition**: Add specific items via context menus
 - **Remove Items**: Remove individual items from lists
-- **Add Movies to List**: Search and add additional movies to existing lists
+
 - **Clear Lists**: Remove all items from a list while preserving the list structure
 - **Export Lists**: Export list contents in multiple formats (TXT, CSV, JSON)
 
