@@ -72,9 +72,9 @@ class FavoritesImporter:
                 "file": path,
                 "media": "video",
                 "properties": [
-                    "file", "filetype", "title", "thumbnail", "fanart", "art",
-                    "mimetype", "duration", "runtime", "streamdetails", "resume",
-                    "dateadded", "imdbnumber"
+                    "file", "title", "thumbnail", "fanart", "art",
+                    "runtime", "streamdetails", "resume",
+                    "dateadded", "imdbnumber", "uniqueid"
                 ]
             })
             return result.get("filedetails") or {}
@@ -88,7 +88,7 @@ class FavoritesImporter:
             result = self._rpc("Files.GetDirectory", {
                 "directory": path,
                 "media": "files",
-                "properties": ["file", "filetype", "title", "thumbnail", "art", "mimetype", "duration"],
+                "properties": ["file", "title", "thumbnail", "art", "runtime"],
                 "limits": {"start": 0, "end": 200}
             })
             return result.get("files", []) or []
@@ -99,27 +99,42 @@ class FavoritesImporter:
     def _is_playable_video(self, path):
         """
         Accept if:
-          - Files.GetFileDetails.filetype == "file"
-          - OR mimetype startswith("video/")
-          - OR directory probe returns at least one child with filetype=="file"
+          - streamdetails.video is present (strongest signal)
+          - OR path has video file extension
+          - OR directory probe finds matching filename with video extension
         """
         if not path:
             return False
 
         fd = self._get_file_details(path)
-        ftype = fd.get("filetype", "")
-        mimetype = fd.get("mimetype", "")
-
-        if ftype == "file":
+        
+        # Check for streamdetails.video as strongest playable indicator
+        streamdetails = fd.get("streamdetails", {})
+        if isinstance(streamdetails, dict) and streamdetails.get("video"):
+            utils.log(f"Playable confirmed by streamdetails for: {path}", "DEBUG")
             return True
-        if isinstance(mimetype, str) and mimetype.lower().startswith("video/"):
+
+        # Check file extension for real file URLs
+        if path and any(path.lower().endswith(ext) for ext in ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.m4v', '.ts', '.mpg', '.mpeg']):
+            utils.log(f"Playable confirmed by file extension for: {path}", "DEBUG")
             return True
 
-        # Directory fallback probe
-        listing = self._get_dir_probe(path)
-        for it in listing:
-            if it.get("filetype") == "file":
-                return True
+        # For directories or unclear paths, probe parent directory
+        if "/" in path and not path.startswith(("plugin://", "videodb://", "pvr://")):
+            parent, filename = self._split_parent_and_filename(path)
+            if parent and filename:
+                listing = self._get_dir_probe(parent)
+                for item in listing:
+                    item_file = item.get("file", "")
+                    if item_file.lower().endswith(filename.lower()):
+                        # Check if this item has streamdetails or video extension
+                        item_streamdetails = item.get("streamdetails", {})
+                        if isinstance(item_streamdetails, dict) and item_streamdetails.get("video"):
+                            return True
+                        if any(item_file.lower().endswith(ext) for ext in ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.m4v', '.ts', '.mpg', '.mpeg']):
+                            return True
+
+        utils.log(f"Could not confirm playability for: {path}", "DEBUG")
         return False
 
     def _split_parent_and_filename(self, path):
@@ -438,14 +453,9 @@ class FavoritesImporter:
             title = self.safe_convert_string(fav.get('title')) or \
                    self.safe_convert_string((filedetails or {}).get('title')) or 'Unknown'
 
-            # Duration processing: handle both 'duration' and 'runtime' fields
-            duration_value = (filedetails or {}).get('duration') or (filedetails or {}).get('runtime', 0)
-            duration_seconds = self.safe_convert_int(duration_value)
-
-            # If duration seems to be in minutes (common in some sources), check if conversion needed
-            if 0 < duration_seconds < 500:  # Likely minutes if between 0-500
-                utils.log(f"DATA_CONVERSION: Duration {duration_seconds} seems to be in minutes, converting to seconds", "DEBUG")
-                duration_seconds = duration_seconds * 60
+            # Duration processing: use runtime field (in minutes) and convert to seconds
+            runtime_minutes = self.safe_convert_int((filedetails or {}).get('runtime', 0))
+            duration_seconds = runtime_minutes * 60 if runtime_minutes > 0 else 0
 
             art = (filedetails or {}).get('art', {})
             thumb = (filedetails or {}).get('thumbnail') or self.safe_convert_string(fav.get('thumbnail'))
@@ -484,7 +494,7 @@ class FavoritesImporter:
                 'status': 'available'
             }
 
-            utils.log(f"DATA_CONVERSION: Favorites data processed - Duration: {duration_value} -> {duration_seconds}s", "INFO")
+            utils.log(f"DATA_CONVERSION: Favorites data processed - Runtime: {runtime_minutes}min -> {duration_seconds}s", "INFO")
 
         utils.log(f"=== DATA_CONVERSION COMPLETE: '{media_dict['title']}' from {media_dict['source']} ===", "INFO")
         return media_dict
