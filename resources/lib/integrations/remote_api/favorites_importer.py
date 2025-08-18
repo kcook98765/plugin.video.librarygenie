@@ -92,7 +92,7 @@ class FavoritesImporter:
             result = self._rpc("Files.GetDirectory", {
                 "directory": path,
                 "media": "files",
-                "properties": ["file", "title", "thumbnail", "art", "runtime", "streamdetails"],
+                "properties": ["file", "title", "thumbnail", "art", "duration", "streamdetails"],
                 "limits": {"start": 0, "end": 200}
             })
             return result.get("files", []) or []
@@ -527,10 +527,18 @@ class FavoritesImporter:
                             utils.log(f"Duration from filedetails streamdetails: {duration_seconds}s", "DEBUG")
             
             if duration_seconds == 0:
-                # Fallback to runtime in minutes
+                # Fallback to runtime in minutes or duration in seconds
                 runtime_minutes = self.safe_convert_int((filedetails or {}).get('runtime', 0))
-                duration_seconds = runtime_minutes * 60 if runtime_minutes > 0 else 0
-                utils.log(f"Duration from runtime: {runtime_minutes}min -> {duration_seconds}s", "DEBUG")
+                duration_from_field = self.safe_convert_int((filedetails or {}).get('duration', 0))
+                
+                if duration_from_field > 0:
+                    # If duration field is present, use it (already in seconds)
+                    duration_seconds = duration_from_field
+                    utils.log(f"Duration from duration field: {duration_seconds}s", "DEBUG")
+                elif runtime_minutes > 0:
+                    # Otherwise use runtime and convert to seconds
+                    duration_seconds = runtime_minutes * 60
+                    utils.log(f"Duration from runtime: {runtime_minutes}min -> {duration_seconds}s", "DEBUG")
 
             art = (filedetails or {}).get('art', {})
             thumb = (filedetails or {}).get('thumbnail') or self.safe_convert_string(fav.get('thumbnail'))

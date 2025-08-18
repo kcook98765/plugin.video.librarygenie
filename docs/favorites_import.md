@@ -1,4 +1,3 @@
-
 # Import Favorites Feature
 
 The Import Favorites feature allows you to scan your Kodi favorites and automatically import playable video items into LibraryGenie lists with enhanced metadata.
