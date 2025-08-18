@@ -115,8 +115,8 @@ The Options & Tools menu adapts based on your authentication status:
 - **Settings**: Access addon configuration
 
 **Alpha Users Only:**
-- **Search Movies**: Available when authenticated to remote API
-- **Search History**: Available when search history exists
+- **Find Similar Movies**: Use AI to find movies similar to the current item
+- **Search Movies**: Perform AI-powered movie searches
 
 ### Managing Collections
 
