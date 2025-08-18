@@ -122,9 +122,13 @@ class ListItemBuilder:
             )
             return build_listitem(error_item)
 
-    def build_folder_item(self, title, folder_id=None):
+    def build_folder_item(self, title, folder_id=None, is_folder=None):
         """Build a basic folder ListItem - creates minimal MediaItem"""
         from resources.lib.data.models import MediaItem
+
+        # Handle legacy is_folder parameter (ignored since folders are always folders)
+        if is_folder is not None:
+            utils.log(f"Legacy is_folder parameter passed to build_folder_item, ignoring", "DEBUG")
 
         folder_item = MediaItem(
             id=folder_id or 0,
@@ -135,9 +139,15 @@ class ListItemBuilder:
 
         return build_listitem(folder_item, 'folder')
 
-    def build_list_item(self, title, list_id=None):
+    def build_list_item(self, title, list_id=None, is_folder=None, item_type=None):
         """Build a basic list ListItem - creates minimal MediaItem"""
         from resources.lib.data.models import MediaItem
+
+        # Handle legacy parameters (ignored since lists are always folders)
+        if is_folder is not None:
+            utils.log(f"Legacy is_folder parameter passed to build_list_item, ignoring", "DEBUG")
+        if item_type is not None:
+            utils.log(f"Legacy item_type parameter passed to build_list_item, ignoring", "DEBUG")
 
         list_item = MediaItem(
             id=list_id or 0,
