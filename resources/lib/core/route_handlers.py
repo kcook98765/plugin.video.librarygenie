@@ -1415,15 +1415,16 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
 
                     utils.log(f"=== SIMILARITY_SEARCH_NAVIGATION: Activating window with URL: {target_url} ===", "DEBUG")
 
-                    # Use ActivateWindow which is more reliable for context menu operations
-                    xbmc.executebuiltin(f'ActivateWindow(videos,"{target_url}",return)')
+                    # Use Container.Update WITHOUT replace to preserve back button functionality
+                    utils.log("=== SIMILARITY_SEARCH_NAVIGATION: Using Container.Update WITHOUT replace ===", "DEBUG")
+                    xbmc.executebuiltin(f'Container.Update("{target_url}")')
 
                     # Brief wait and try alternative navigation if needed
                     time.sleep(1.0)
 
-                    # Fallback: try ReplaceWindow if ActivateWindow doesn't work
+                    # Fallback: try ActivateWindow if Container.Update doesn't work
                     utils.log("=== SIMILARITY_SEARCH_NAVIGATION: Attempting fallback navigation ===", "DEBUG")
-                    xbmc.executebuiltin(f'ReplaceWindow(videos,"{target_url}")')
+                    xbmc.executebuiltin(f'ActivateWindow(videos,"{target_url}",return)')
 
                     utils.log("=== SIMILARITY_SEARCH_NAVIGATION: Navigation sequence completed ===", "DEBUG")
 

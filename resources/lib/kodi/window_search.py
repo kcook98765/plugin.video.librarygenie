@@ -263,9 +263,9 @@ class SearchWindow:
             xbmc.executebuiltin("ClearProperty(LibraryGenie.DialogActive,Home)")
             xbmc.executebuiltin("ClearProperty(LibraryGenie.SearchModalActive,Home)")
 
-            # Use Container.Update for more reliable plugin navigation
-            utils.log(f"SearchWindow: Using Container.Update to navigate to: {plugin_url}", "DEBUG")
-            xbmc.executebuiltin(f'Container.Update({plugin_url})')
+            # Use Container.Update WITHOUT replace for back button preservation
+            utils.log(f"SearchWindow: Using Container.Update WITHOUT replace to navigate to: {plugin_url}", "DEBUG")
+            xbmc.executebuiltin(f'Container.Update("{plugin_url}")')
             utils.log("SearchWindow: Container.Update command executed", "DEBUG")
             
             utils.log(f"SearchWindow: Navigation sequence completed for list ID: {list_id}", "DEBUG")
