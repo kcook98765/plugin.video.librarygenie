@@ -1,4 +1,8 @@
-"""Context Menu Builder for LibraryGenie - handles both native and ListItem context menus"""
+"""
+DEPRECATED - do not use; exists for migration only
+Use resources.lib.kodi.menu.registry directly instead
+
+Context Menu Builder for LibraryGenie - handles both native and ListItem context menus"""
 
 import xbmc
 from resources.lib.kodi.menu.registry import for_item

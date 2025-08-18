@@ -113,7 +113,16 @@ class ListItemBuilder:
 
         except Exception as e:
             utils.log(f"Error in legacy ListItemBuilder: {str(e)}", "ERROR")
-            return xbmcgui.ListItem(label="Error")
+            # Use factory for error cases too
+            from ...data.models import MediaItem
+            from .factory import build_listitem
+            error_item = MediaItem(
+                id="error",
+                media_type="unknown",
+                title="Error",
+                is_folder=False
+            )
+            return build_listitem(error_item)
 
     def build_folder_item(self, title, folder_id=None):
         """Build a basic folder ListItem - creates minimal MediaItem"""
