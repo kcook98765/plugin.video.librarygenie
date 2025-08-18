@@ -247,12 +247,12 @@ class ResultsManager(Singleton):
 
                     utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: LIBRARY MATCH - Processing JSON-RPC data for '{meta.get('title')}' ===", "DEBUG")
                     utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: LIBRARY MATCH - JSON-RPC meta keys: {list(meta.keys())[:10]}... ===", "DEBUG")
-                    
+
                     media_item = from_jsonrpc(meta)
                     utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: LIBRARY MATCH - MediaItem after from_jsonrpc - media_type: '{media_item.media_type}', title: '{media_item.title}' ===", "DEBUG")
                     utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: LIBRARY MATCH - MediaItem plot length: {len(media_item.plot)}, rating: {media_item.rating} ===", "DEBUG")
                     utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: LIBRARY MATCH - MediaItem art: {media_item.art}, runtime: {media_item.runtime} ===", "DEBUG")
-                    
+
                     list_item = build_listitem(media_item, 'search_history' if is_search_history else 'default')
                     utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: LIBRARY MATCH - ListItem created from MediaItem ===", "DEBUG")
 
@@ -283,7 +283,7 @@ class ResultsManager(Singleton):
                         db_item['title'] = processed_ref.get('title', 'Unknown')
                     if not db_item.get('year'):
                         db_item['year'] = processed_ref.get('year', 0)
-                    
+
                     # Set proper media type for rich metadata
                     db_item['media_type'] = 'movie'
 
@@ -293,12 +293,12 @@ class ResultsManager(Singleton):
 
                     utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: DB item before normalization - source: '{db_item.get('source')}', media_type: '{db_item.get('media_type')}' ===", "DEBUG")
                     utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: DB item sample fields - title: '{db_item.get('title')}', year: {db_item.get('year')}, rating: {db_item.get('rating')} ===", "DEBUG")
-                    
+
                     media_item = from_db(db_item)
                     utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: MediaItem after from_db - media_type: '{media_item.media_type}', title: '{media_item.title}' ===", "DEBUG")
                     utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: MediaItem plot length: {len(media_item.plot)}, rating: {media_item.rating} ===", "DEBUG")
                     utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: MediaItem art: {media_item.art}, runtime: {media_item.runtime} ===", "DEBUG")
-                    
+
                     list_item = build_listitem(media_item, 'search_history' if is_search_history else 'default')
                     utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: ListItem created from MediaItem ===", "DEBUG")
 
