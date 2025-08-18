@@ -5,6 +5,7 @@ import xbmcgui
 from resources.lib.utils import utils
 from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.config.config_manager import Config
+from typing import List, Union, cast
 
 class FolderListManager:
     """Manages folder and list operations"""

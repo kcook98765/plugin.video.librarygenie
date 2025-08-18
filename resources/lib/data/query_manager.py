@@ -174,6 +174,12 @@ class QueryManager(Singleton):
     def remove_media_item_from_list(self, list_id, media_item_id):
         return self._listing.remove_media_item_from_list(list_id, media_item_id)
     
+    def get_list_item_by_media_id(self, list_id, media_item_id):
+        return self._listing.get_list_item_by_media_id(list_id, media_item_id)
+    
+    def fetch_list_items_with_details(self, list_id):
+        return self._listing.fetch_list_items_with_details(list_id)
+    
     def execute_rpc_query(self, rpc):
         """Execute RPC query and return results"""
         conn_info = self._get_connection()

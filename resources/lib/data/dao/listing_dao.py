@@ -400,4 +400,11 @@ class ListingDAO:
         result = self.execute_write(sql, params)
         return result['rowcount']
 
+    def get_list_item_by_media_id(self, list_id, media_item_id):
+        """Get list item by list_id and media_item_id"""
+        sql = "SELECT * FROM list_items WHERE list_id = ? AND media_item_id = ?"
+        params = (list_id, media_item_id)
+        result = self.execute_query(sql, params, fetch_all=False)
+        return result[0] if result else None
+
     

@@ -163,7 +163,9 @@ class OptionsManager:
             # Set a property to track dialog state
             xbmc.executebuiltin("SetProperty(LibraryGenie.DialogActive,true,Home)")
 
-            selected_option = dialog.select("LibraryGenie - Options & Tools", self.options)
+            from typing import List, Union, cast
+            typed_options = cast(List[Union[str, xbmcgui.ListItem]], self.options)
+            selected_option = dialog.select("LibraryGenie - Options & Tools", typed_options)
 
             # Clear dialog state property
             xbmc.executebuiltin("ClearProperty(LibraryGenie.DialogActive,Home)")
