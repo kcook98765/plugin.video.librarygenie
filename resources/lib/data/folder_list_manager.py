@@ -92,7 +92,7 @@ class FolderListManager:
             utils.log(f"Found Search History folder with ID: {search_history_folder_id}", "DEBUG")
 
             # Navigate to the Search History folder using the existing browse_folder function
-            from resources.lib.url_builder import build_plugin_url
+            from resources.lib.kodi.url_builder import build_plugin_url
             plugin_url = build_plugin_url({
                 'action': 'browse_folder',
                 'folder_id': search_history_folder_id,

@@ -1,5 +1,5 @@
 import xbmcgui
-from resources.lib import utils
+from resources.lib.utils import utils
 from resources.lib.integrations.remote_api.remote_api_client import RemoteAPIClient
 from resources.lib.config.config_manager import Config, get_config
 

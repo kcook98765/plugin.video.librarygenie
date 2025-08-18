@@ -1,13 +1,11 @@
 import sys
 import json
 import xbmc
-import xbmcgui
 import xbmcplugin
 from resources.lib.config.addon_ref import get_addon
 from resources.lib.integrations.jsonrpc.jsonrpc_manager import JSONRPC
 from resources.lib.utils.utils import get_addon_handle
-from resources.lib import utils
-from resources.lib.kodi.listitem_infotagvideo import set_info_tag, set_art
+from resources.lib.utils import utils
 
 class KodiHelper:
 
@@ -18,7 +16,7 @@ class KodiHelper:
         self.jsonrpc = JSONRPC()
 
     def list_items(self, items, content_type='video'):
-        from resources.lib.listitem_builder import ListItemBuilder
+        from resources.lib.kodi.listitem_builder import ListItemBuilder
 
         # Set content type for proper display
         xbmcplugin.setContent(self.addon_handle, content_type)
@@ -76,7 +74,7 @@ class KodiHelper:
         xbmcplugin.endOfDirectory(self.addon_handle)
 
     def list_folders(self, folders):
-        from resources.lib.listitem_builder import ListItemBuilder
+        from resources.lib.kodi.listitem_builder import ListItemBuilder
         for folder in folders:
             list_item = ListItemBuilder.build_folder_item(folder['name'], is_folder=True, item_type='folder')
             url = f'{self.addon_url}?action=show_list&list_id={folder["id"]}'
@@ -91,7 +89,7 @@ class KodiHelper:
         xbmcplugin.endOfDirectory(self.addon_handle)
 
     def list_folders_and_lists(self, folders, lists):
-        from resources.lib.listitem_builder import ListItemBuilder
+        from resources.lib.kodi.listitem_builder import ListItemBuilder
         for folder in folders:
             list_item = ListItemBuilder.build_folder_item(folder['name'], is_folder=True, item_type='folder')
             url = f'{self.addon_url}?action=show_folder&folder_id={folder["id"]}'
@@ -117,9 +115,9 @@ class KodiHelper:
     def show_list(self, list_id):
         """Display items in a list"""
         utils.log(f"Showing list with ID: {list_id}", "DEBUG")
-        from resources.lib.database_manager import DatabaseManager
-        from resources.lib.config_manager import get_config
-        from resources.lib.listitem_builder import ListItemBuilder
+        from resources.lib.data.database_manager import DatabaseManager
+        from resources.lib.config.config_manager import get_config
+        from resources.lib.kodi.listitem_builder import ListItemBuilder
         config = get_config()
         db_manager = DatabaseManager(config.db_path)
         items = db_manager.fetch_list_items(list_id)
@@ -193,8 +191,8 @@ class KodiHelper:
                       JOIN list_items ON list_items.media_item_id = media_items.id
                       WHERE list_items.media_item_id = ?"""
 
-            from resources.lib.database_manager import DatabaseManager
-            from resources.lib.config_manager import get_config
+            from resources.lib.data.database_manager import DatabaseManager
+            from resources.lib.config.config_manager import get_config
             config = get_config()
             db = DatabaseManager(config.db_path)
 
@@ -235,11 +233,11 @@ class KodiHelper:
 
             # Create list item with proper metadata using ListItemBuilder if it's a video item
             if item_data.get('mediatype') == 'movie' or item_data.get('media_type') == 'movie':
-                from resources.lib.listitem_builder import ListItemBuilder
+                from resources.lib.kodi.listitem_builder import ListItemBuilder
                 list_item = ListItemBuilder.build_video_item(item_data)
             else:
                 # For non-video items, create basic ListItem using ListItemBuilder
-                from resources.lib.listitem_builder import ListItemBuilder
+                from resources.lib.kodi.listitem_builder import ListItemBuilder
                 info_dict = {
                     'title': item_data.get('title', ''),
                     'plot': item_data.get('plot', ''),
@@ -307,7 +305,7 @@ class KodiHelper:
         return 'video/mp4'  # Default fallback
 
     def get_focused_item_basic_info(self):
-        from resources.lib.media_manager import MediaManager
+        from resources.lib.media.media_manager import MediaManager
         media_manager = MediaManager()
         return media_manager.get_media_info()
 
@@ -410,8 +408,8 @@ class KodiHelper:
         return details
 
     def show_information(self):
-        from resources.lib.query_manager import QueryManager
-        from resources.lib.config_manager import get_config
+        from resources.lib.data.query_manager import QueryManager
+        from resources.lib.config.config_manager import get_config
 
         db_id = xbmc.getInfoLabel('ListItem.DBID')
         media_type = xbmc.getInfoLabel('ListItem.DBTYPE') or 'movie'
@@ -479,7 +477,7 @@ class KodiHelper:
             if dbid and dbid.isdigit():
                 try:
                     # Use JSON-RPC to get movie details including IMDb ID
-                    from resources.lib.jsonrpc_manager import JSONRPC
+                    from resources.lib.integrations.jsonrpc.jsonrpc_manager import JSONRPC
                     jsonrpc = JSONRPC()
                     response = jsonrpc.execute('VideoLibrary.GetMovieDetails', {
                         'movieid': int(dbid),

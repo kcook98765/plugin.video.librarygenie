@@ -5,7 +5,7 @@ import urllib.error
 import hashlib
 import time
 import uuid
-from resources.lib import utils
+from resources.lib.utils import utils
 from resources.lib.config.config_manager import get_config
 
 class RemoteAPIClient:

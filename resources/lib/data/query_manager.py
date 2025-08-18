@@ -344,7 +344,6 @@ class QueryManager(Singleton):
             # Check if the list's folder_id matches the Search History folder
             return list_data.get('folder_id') == search_history_folder_id
         except Exception as e:
-            from resources.lib import utils
             utils.log(f"Error checking if list is search history: {str(e)}", "ERROR")
             return False
 
@@ -460,7 +459,7 @@ class QueryManager(Singleton):
             # Insert the media item
             media_item_id = self.insert_media_item(media_data)
             if not media_item_id:
-                utils.log(f"=== INSERT_MEDIA_ITEM_AND_ADD_TO_LIST: Failed to insert media item ===", "ERROR")
+                utils.log("=== INSERT_MEDIA_ITEM_AND_ADD_TO_LIST: Failed to insert media item ===", "ERROR")
                 return False
 
             utils.log(f"=== INSERT_MEDIA_ITEM_AND_ADD_TO_LIST: Inserted media item with ID: {media_item_id} ===", "DEBUG")
