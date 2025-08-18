@@ -278,149 +278,165 @@ def from_remote_api(payload: Dict[str, Any]) -> MediaItem:
 def from_db(row: Dict[str, Any]) -> MediaItem:
     """Convert database row to MediaItem"""
     try:
-        # Handle different ID sources
+        # Extract basic fields
         media_id = row.get('id') or row.get('media_id') or row.get('movieid') or 0
-
-        title = row.get('title', 'Unknown')
-        year = int(row.get('year', 0)) if str(row.get('year', 0)).isdigit() else 0
+        title = row.get('title') or row.get('label', 'Unknown')
+        year = row.get('year', 0)
 
         # Handle IMDb ID
-        imdb = row.get('imdbnumber', '') or row.get('imdb', '') or row.get('imdb_id', '')
+        imdb = row.get('imdbnumber') or row.get('imdb') or row.get('imdb_id', '')
 
-        # Handle TMDb ID
-        tmdb = str(row.get('tmdb', '')) or str(row.get('tmdb_id', ''))
+        # Handle TMDb ID  
+        tmdb = row.get('tmdb') or row.get('tmdb_id', '')
 
-        # Plot
-        plot = row.get('plot', '')
+        # Content fields
+        plot = row.get('plot') or row.get('plotoutline', '')
+        if plot and len(plot) > 1000:
+            plot = plot[:997] + "..."
 
-        # Genres - handle both string and JSON array
-        genres = []
-        genre_data = row.get('genre', '')
-        if isinstance(genre_data, str):
-            if genre_data.startswith('['):
-                try:
-                    genres = json.loads(genre_data)
-                except:
-                    genres = [g.strip() for g in genre_data.split(',') if g.strip()]
-            else:
-                genres = [g.strip() for g in genre_data.split(',') if g.strip()]
-        elif isinstance(genre_data, list):
-            genres = genre_data
+        # Handle genres
+        genres = row.get('genre', [])
+        if isinstance(genres, str):
+            genres = [g.strip() for g in genres.split('/') if g.strip()]
+        elif not isinstance(genres, list):
+            genres = []
 
-        # Cast - handle JSON string
-        cast_list = []
-        cast_data = row.get('cast', '[]')
-        if isinstance(cast_data, str):
+        # Runtime handling
+        runtime = 0
+        if 'runtime' in row:
             try:
-                cast_json = json.loads(cast_data)
-                for i, actor in enumerate(cast_json):
+                runtime = int(row['runtime'])
+            except (ValueError, TypeError):
+                runtime = 0
+        elif 'duration' in row:
+            try:
+                runtime = int(row['duration']) 
+            except (ValueError, TypeError):
+                runtime = 0
+
+        # Rating
+        rating = 0.0
+        if 'rating' in row:
+            try:
+                rating = float(row['rating'])
+            except (ValueError, TypeError):
+                rating = 0.0
+
+        # Votes
+        votes = 0
+        if 'votes' in row:
+            try:
+                votes = int(row['votes'])
+            except (ValueError, TypeError):
+                votes = 0
+
+        # Other fields
+        studio = row.get('studio', '')
+        country = row.get('country', '')
+
+        # Art handling - comprehensive extraction
+        art = {}
+        art_fields = ['poster', 'fanart', 'thumb', 'banner', 'landscape', 'clearart', 'clearlogo', 'icon']
+        for field in art_fields:
+            if field in row and row[field]:
+                art[field] = str(row[field])
+
+        # Handle art as JSON string
+        if 'art' in row and row['art']:
+            try:
+                if isinstance(row['art'], str):
+                    art_data = json.loads(row['art'])
+                elif isinstance(row['art'], dict):
+                    art_data = row['art']
+                else:
+                    art_data = {}
+
+                if isinstance(art_data, dict):
+                    art.update(art_data)
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        # Cast handling
+        cast_list = []
+        if 'cast' in row and row['cast']:
+            try:
+                if isinstance(row['cast'], str):
+                    cast_data = json.loads(row['cast'])
+                elif isinstance(row['cast'], list):
+                    cast_data = row['cast']
+                else:
+                    cast_data = []
+
+                for actor in cast_data[:10]:  # Limit to 10 actors
                     if isinstance(actor, dict):
                         cast_list.append(Actor(
                             name=actor.get('name', ''),
                             role=actor.get('role', ''),
-                            order=actor.get('order', i),
-                            thumb=actor.get('thumb', '')
+                            order=actor.get('order', 0),
+                            thumb=actor.get('thumbnail', '')
                         ))
-            except:
+            except (json.JSONDecodeError, TypeError):
                 pass
-        elif isinstance(cast_data, list):
-            for i, actor in enumerate(cast_data):
-                if isinstance(actor, dict):
-                    cast_list.append(Actor(
-                        name=actor.get('name', ''),
-                        role=actor.get('role', ''),
-                        order=actor.get('order', i),
-                        thumb=actor.get('thumb', '')
-                    ))
 
-        # Art - handle JSON string
-        art = {}
-        art_data = row.get('art', '{}')
-        if isinstance(art_data, str):
-            try:
-                art = json.loads(art_data)
-            except:
-                pass
-        elif isinstance(art_data, dict):
-            art = art_data
+        # Handle director, writer, etc.
+        director = row.get('director', '')
+        if isinstance(director, list):
+            director = ' / '.join(director)
 
-        # Add individual art fields as fallbacks
-        for field in ['thumbnail', 'poster', 'fanart']:
-            if row.get(field) and field not in art:
-                art[field] = row.get(field)
+        writer = row.get('writer', '')
+        if isinstance(writer, list):
+            writer = ' / '.join(writer)
 
-        # Numeric fields
-        runtime = int(row.get('duration', 0) or row.get('runtime', 0)) if str(row.get('duration', 0)).isdigit() else 0
-        rating = float(row.get('rating', 0.0))
-        votes = int(row.get('votes', 0)) if str(row.get('votes', 0)).isdigit() else 0
+        # Determine if this is a folder
+        is_folder = row.get('is_folder', False) or row.get('media_type') == 'folder'
 
-        # Playable path
-        play_path = row.get('file', '') or row.get('play', '')
+        # Set media type
+        media_type = row.get('media_type', 'movie')
+        if is_folder and media_type != 'folder':
+            media_type = 'folder'
 
-        # Folder detection
-        is_folder = bool(row.get('is_folder', False)) or bool(row.get('isFolder', False))
-
-        # Stream details
-        stream_details = {}
-        if row.get('stream_details'):
-            if isinstance(row.get('stream_details'), str):
-                try:
-                    stream_details = json.loads(row.get('stream_details'))
-                except:
-                    pass
-            elif isinstance(row.get('stream_details'), dict):
-                stream_details = row.get('stream_details')
-
-        # Context tags for list viewing
+        # Context tags
         context_tags = set()
         if row.get('_viewing_list_id'):
             context_tags.add('in_list')
-        if row.get('search_score', 0) > 0:
-            context_tags.add('search_result')
 
         # Sort keys
         sort_keys = {}
-        if row.get('search_score'):
-            sort_keys['search_score'] = float(row.get('search_score', 0))
+        if 'search_score' in row:
+            try:
+                sort_keys['search_score'] = float(row['search_score'])
+            except (ValueError, TypeError):
+                pass
 
-        # Determine media type
-        media_type = row.get('media_type', 'movie')
-        if not media_type or media_type == 'unknown':
-            media_type = 'movie'  # Default to movie for rich metadata
+        # Extras for additional fields
+        extras = {}
+        for key, value in row.items():
+            if key not in ['id', 'media_id', 'movieid', 'title', 'label', 'year', 'imdbnumber', 'imdb', 'imdb_id', 
+                          'tmdb', 'tmdb_id', 'plot', 'plotoutline', 'genre', 'runtime', 'duration', 'rating', 
+                          'votes', 'studio', 'country', 'art', 'cast', 'director', 'writer', 'is_folder', 
+                          'media_type', 'search_score'] and value is not None:
+                extras[key] = value
 
-        # Handle additional fields from database with more comprehensive extraction
-        director = row.get('director', '')
-        writer = row.get('writer', '')
-        tagline = row.get('tagline', '')
-        set_name = row.get('set', '') or row.get('setname', '')
-        premiered = row.get('premiered', '') or row.get('releasedate', '')
-        mpaa = row.get('mpaa', '') or row.get('certification', '')
-        trailer = row.get('trailer', '')
+        # Store additional metadata in extras
+        if director:
+            extras['director'] = director
+        if writer:
+            extras['writer'] = writer
+        if row.get('tagline'):
+            extras['tagline'] = row.get('tagline')
+        if row.get('mpaa'):
+            extras['mpaa'] = row.get('mpaa')
+        if row.get('premiered'):
+            extras['premiered'] = row.get('premiered')
+        if row.get('dateadded'):
+            extras['dateadded'] = row.get('dateadded')
+        if row.get('lastplayed'):
+            extras['lastplayed'] = row.get('lastplayed')
+        if row.get('playcount'):
+            extras['playcount'] = row.get('playcount')
 
-        # Store extended metadata in extras
-        extras = {
-            'list_item_id': row.get('list_item_id'),
-            '_viewing_list_id': row.get('_viewing_list_id'),
-            'media_id': row.get('media_id') or row.get('id'),
-            'source': row.get('source', 'db'),
-            'search_score': row.get('search_score', 0),
-            'kodi_id': row.get('kodi_id') or row.get('movieid'),
-            'file': row.get('file') or row.get('path') or row.get('play'),
-            'director': director,
-            'writer': writer,
-            'tagline': tagline,
-            'set': set_name,
-            'premiered': premiered,
-            'mpaa': mpaa,
-            'trailer': trailer,
-            'dateadded': row.get('dateadded', ''),
-            'lastplayed': row.get('lastplayed', ''),
-            'playcount': row.get('playcount', 0)
-        }
-
-        # Create MediaItem with proper defaults
-        media_item = MediaItem(
-            id=row.get('id') or row.get('kodi_id') or row.get('movieid'),
+        return MediaItem(
+            id=media_id,
             media_type=media_type,
             title=title,
             year=year,
@@ -431,10 +447,10 @@ def from_db(row: Dict[str, Any]) -> MediaItem:
             runtime=runtime,
             rating=rating,
             votes=votes,
-            studio=row.get('studio', ''),
-            country=row.get('country', ''),
-            stream_details=stream_details,
-            play_path=play_path,
+            studio=studio,
+            country=country,
+            stream_details={},
+            play_path=row.get('file', ''),
             is_folder=is_folder,
             art=art,
             cast=cast_list,
@@ -443,21 +459,13 @@ def from_db(row: Dict[str, Any]) -> MediaItem:
             extras=extras
         )
 
-        # Assuming utils is available for logging
-        # if 'utils' in locals():
-        #     utils.log(f"=== FROM_DB: Created MediaItem - media_type: '{media_item.media_type}', title: '{media_item.title}' ===", "DEBUG")
-        #     utils.log(f"=== FROM_DB: MediaItem plot length: {len(media_item.plot)}, rating: {media_item.rating} ===", "DEBUG")
-        #     utils.log(f"=== FROM_DB: MediaItem art keys: {list(media_item.art.keys())}, runtime: {media_item.runtime} ===", "DEBUG")
-        #     utils.log(f"=== FROM_DB: MediaItem genres: {media_item.genres}, studio: '{media_item.studio}' ===", "DEBUG")
-
-        return media_item
-
     except Exception as e:
         # Log the error if utils is available
         # if 'utils' in locals():
         #     utils.log(f"Error converting DB row: {e}", "ERROR")
+        # Return minimal MediaItem on error
         return MediaItem(
-            id=0,
+            id=row.get('id', 0),
             media_type='unknown',
             title=str(row.get('title', 'Error')),
             is_folder=False
