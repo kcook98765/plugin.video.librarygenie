@@ -353,7 +353,9 @@ The ListingDAO pattern separates folder and list concerns from QueryManager:
 
 - **ListingDAO**: Handles all folder and list SQL operations
 - **QueryManager**: Provides connection management and delegates to DAO
-- **Dependency Injection**: DAO receives `execute_query` callable from QueryManager
+- **Dependency Injection**: DAO receives both `execute_query` and `execute_write` callables from QueryManager
+- **Separate Execution Paths**: Read operations use `execute_query`, write operations use `execute_write`
+- **Meaningful Return Values**: INSERT methods return `lastrowid`, UPDATE/DELETE methods return `rowcount`
 - **API Preservation**: Public method signatures remain unchanged for backward compatibility
 
 ## Error Handling and Reliability

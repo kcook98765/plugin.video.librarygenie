@@ -14,9 +14,9 @@ class QueryManager(Singleton):
             self._connection_pool = []
             self._initialize_pool()
             
-            # Initialize DAO with query executor
+            # Initialize DAO with query and write executors
             from resources.lib.data.dao.listing_dao import ListingDAO
-            self._listing = ListingDAO(self.execute_query)
+            self._listing = ListingDAO(self.execute_query, self.execute_write)
             
             self._initialized = True
 
@@ -193,7 +193,7 @@ class QueryManager(Singleton):
         query = """
             SELECT *
             FROM media_items
-            WHERE kodi_id = ? AND type = ?
+            WHERE kodi_id = ? AND media_type = ?
         """
         conn_info = self._get_connection()
         try:
@@ -268,6 +268,24 @@ class QueryManager(Singleton):
             return []
         except Exception as e:
             utils.log(f"Query execution error: {str(e)}", "ERROR")
+            raise
+        finally:
+            self._release_connection(conn_info)
+
+    def execute_write(self, sql: str, params: tuple = ()) -> Dict[str, int]:
+        """Execute a write operation (INSERT/UPDATE/DELETE) and return metadata"""
+        conn_info = self._get_connection()
+        try:
+            cursor = conn_info['connection'].cursor()
+            cursor.execute(sql, params)
+            conn_info['connection'].commit()
+            
+            return {
+                'lastrowid': cursor.lastrowid or 0,
+                'rowcount': cursor.rowcount or 0
+            }
+        except Exception as e:
+            utils.log(f"Write execution error: {str(e)}", "ERROR")
             raise
         finally:
             self._release_connection(conn_info)
