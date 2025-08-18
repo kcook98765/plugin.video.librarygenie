@@ -305,6 +305,16 @@ def from_db(row: Dict[str, Any]) -> MediaItem:
         if row.get('search_score'):
             sort_keys['search_score'] = float(row.get('search_score', 0))
 
+        # Determine media type
+        media_type = row.get('media_type', 'movie')
+        if not media_type or media_type == 'unknown':
+            media_type = 'movie'  # Default to movie for rich metadata
+
+        # Additional fields that were missing
+        studio = row.get('studio', '')
+        country = row.get('country', '')
+        extras = dict(row)  # Store original row data
+
         # Create MediaItem with proper defaults
         media_item = MediaItem(
             id=row.get('id') or row.get('kodi_id') or row.get('movieid'),
@@ -312,6 +322,7 @@ def from_db(row: Dict[str, Any]) -> MediaItem:
             title=title,
             year=year,
             imdb=imdb,
+            tmdb=tmdb,
             plot=plot,
             genres=genres,
             runtime=runtime,
@@ -319,10 +330,13 @@ def from_db(row: Dict[str, Any]) -> MediaItem:
             votes=votes,
             studio=studio,
             country=country,
+            stream_details=stream_details,
             play_path=play_path,
             is_folder=is_folder,
             art=art,
             cast=cast_list,
+            context_tags=context_tags,
+            sort_keys=sort_keys,
             extras=extras
         )
 
