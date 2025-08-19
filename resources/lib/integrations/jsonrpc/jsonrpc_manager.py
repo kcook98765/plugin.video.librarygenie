@@ -1,5 +1,6 @@
 import json
 import xbmc
+import time
 from resources.lib.utils.utils import log
 from typing import Dict, Any
 
@@ -38,8 +39,16 @@ class JSONRPC:
         log(f"Request params: {params}", "DEBUG")
         log(f"Full request JSON: {json.dumps(request_data, indent=2)}", "DEBUG")
 
+        # Start timing
+        start_time = time.time()
+        
         # Send JSONRPC request
         response = xbmc.executeJSONRPC(query_json)
+        
+        # End timing and log execution time
+        end_time = time.time()
+        execution_time_ms = (end_time - start_time) * 1000
+        log(f"=== JSONRPC TIMING: {method} executed in {execution_time_ms:.2f}ms ===", "INFO")
 
         # Log raw response
         log(f"=== JSONRPC RESPONSE RAW: {method} ===", "DEBUG")
