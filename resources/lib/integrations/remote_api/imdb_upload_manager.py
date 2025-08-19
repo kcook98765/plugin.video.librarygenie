@@ -295,7 +295,7 @@ class IMDbUploadManager:
                                 if kodi_movieid > 0:
                                     try:
                                         # Use the DAO to store heavy metadata
-                                        db_manager.query_manager.listing_dao.upsert_heavy_meta(
+                                        db_manager.query_manager._listing.upsert_heavy_meta(
                                             movieid=kodi_movieid,
                                             imdbnumber=imdb_id,
                                             cast_json=json.dumps(movie.get('cast', [])),
