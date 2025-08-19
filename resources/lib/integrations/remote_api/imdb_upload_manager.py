@@ -111,276 +111,29 @@ class IMDbUploadManager:
             if use_notifications:
                 utils.show_notification("LibraryGenie", "Starting movie collection scan...", time=3000)
 
-            # Use database manager instead of direct query manager to avoid connection conflicts
+            # Initialize database manager
             from resources.lib.data.database_manager import DatabaseManager
             db_manager = DatabaseManager(Config().db_path)
             utils.log("Database manager initialized successfully", "DEBUG")
 
-            # Clear existing library data first using database manager
-            try:
-                utils.log("Starting to clear existing library data from media_items table", "INFO")
+            # Clear existing data
+            self._clear_existing_library_data(db_manager)
 
-                # Check if there's existing data to clear
-                try:
-                    count_query = "SELECT COUNT(*) FROM media_items WHERE source = 'lib'"
-                    existing_count = db_manager.query_manager.execute_query(count_query)
-                    if existing_count and len(existing_count) > 0:
-                        if isinstance(existing_count[0], dict):
-                            count = existing_count[0].get('COUNT(*)', 0)
-                        elif isinstance(existing_count[0], tuple):
-                            count = existing_count[0][0]
-                        else:
-                            count = 0
-                        utils.log(f"Found {count} existing library items to clear", "INFO")
+            # Retrieve all movies from Kodi
+            all_movies = self._retrieve_all_movies_from_kodi(use_notifications)
 
-                        if count > 0:
-                            utils.log("Executing DELETE query with timeout protection", "DEBUG")
-                            # Use a more direct approach for clearing with timeout
-                            conn_info = db_manager.query_manager._get_connection()
-                            try:
-                                cursor = conn_info['connection'].cursor()
-                                cursor.execute("DELETE FROM media_items WHERE source = 'lib'")
-                                conn_info['connection'].commit()
-                                utils.log(f"Successfully cleared {count} existing library items", "INFO")
-                            except Exception as delete_error:
-                                utils.log(f"Direct delete failed: {str(delete_error)}, trying database manager", "WARNING")
-                                raise delete_error
-                            finally:
-                                db_manager.query_manager._release_connection(conn_info)
-                        else:
-                            utils.log("No existing library data to clear", "INFO")
-                    else:
-                        utils.log("No existing library data found (empty table)", "INFO")
-                except Exception as count_error:
-                    utils.log(f"Could not count existing data: {str(count_error)}, proceeding with delete anyway", "WARNING")
-                    # Fallback to original delete method
-                    db_manager.delete_data('media_items', "source = 'lib'")
+            if not all_movies:
+                utils.log("No movies retrieved from Kodi library", "WARNING")
+                return []
 
-                # Also clear heavy metadata table for fresh sync
-                try:
-                    utils.log("Clearing heavy metadata table for fresh library sync", "INFO")
-                    conn_info = db_manager.query_manager._get_connection()
-                    try:
-                        cursor = conn_info['connection'].cursor()
-                        cursor.execute("DELETE FROM movie_heavy_meta")
-                        conn_info['connection'].commit()
-                        utils.log("Successfully cleared heavy metadata table", "INFO")
-                    except Exception as heavy_delete_error:
-                        utils.log(f"Warning: Failed to clear heavy metadata table: {str(heavy_delete_error)}", "WARNING")
-                    finally:
-                        db_manager.query_manager._release_connection(conn_info)
-                except Exception as e:
-                    utils.log(f"Warning: Could not clear heavy metadata table: {str(e)}", "WARNING")
+            # Process and store movies
+            valid_movies, stored_count = self._process_and_store_movies(all_movies, db_manager, use_notifications)
 
-                utils.log("Library data clearing completed successfully", "INFO")
-            except Exception as e:
-                utils.log(f"Warning: Could not clear existing library data: {str(e)}", "WARNING")
-                utils.log("Continuing with upload process despite clearing failure", "INFO")
-
-            utils.log("Getting all movies with IMDb information from Kodi library", "INFO")
-
-            batch_size = 100
-            start = 0
-            all_movies = []
-            last_progress_log = 0
-            last_notification = 0
-            batch_count = 0
-
-            utils.log(f"Starting movie retrieval loop with batch size {batch_size}", "INFO")
-            utils.log("About to begin JSON-RPC movie retrieval loop", "DEBUG")
-
-            total = 0  # Initialize total to avoid unbound variable error
-            
-            while True:
-                batch_count += 1
-                # Only log every 10th batch to reduce spam
-                if batch_count % 10 == 0 or batch_count == 1:
-                    total_display = total if total > 0 else '?'
-                    utils.log(f"Movie retrieval progress: {len(all_movies)}/{total_display} movies (batch {batch_count})", "INFO")
-
-                params = {
-                    "properties": ["title", "year", "file", "imdbnumber", "uniqueid", "cast", "ratings", "showlink", "streamdetails", "tag"],
-                    "limits": {"start": start, "end": start + batch_size}
-                }
-
-                utils.log(f"Making JSON-RPC call to VideoLibrary.GetMovies with params: {params}", "DEBUG")
-                response = self.jsonrpc.execute("VideoLibrary.GetMovies", params)
-                utils.log(f"JSON-RPC response received, checking for movies...", "DEBUG")
-
-                if 'result' not in response or 'movies' not in response['result']:
-                    utils.log(f"No movies found in response: {response}", "DEBUG")
-                    break
-
-                movies = response['result']['movies']
-                total = response['result']['limits']['total']
-                utils.log(f"Retrieved {len(movies)} movies in this batch, total available: {total}", "DEBUG")
-
-                # Log progress every 1000 movies or at significant milestones
-                current_count = len(all_movies) + len(movies)
-                if (current_count - last_progress_log >= 1000) or (start == 0) or (len(movies) < batch_size):
-                    utils.log(f"Movie retrieval progress: {current_count}/{total} movies", "INFO")
-                    last_progress_log = current_count
-
-                    # Show notification every 2000 movies
-                    if use_notifications and (current_count - last_notification >= 2000):
-                        utils.show_notification("LibraryGenie", f"Scanned {current_count} of {total} movies...", time=2000)
-                        last_notification = current_count
-
-                all_movies.extend(movies)
-                utils.log(f"Total movies collected so far: {len(all_movies)}", "DEBUG")
-
-                if len(movies) < batch_size or start + batch_size >= total:
-                    utils.log(f"Retrieval complete: got {len(movies)} movies (batch_size={batch_size}), total={total}", "INFO")
-                    break
-
-                start += batch_size
-                utils.log(f"Moving to next batch, new start position: {start}", "DEBUG")
-
-            if use_notifications:
-                utils.show_notification("LibraryGenie", f"Scan complete! Processing {len(all_movies)} movies...", time=3000)
-
-            utils.log("=== STARTING MOVIE PROCESSING PHASE ===", "INFO")
-            utils.log(f"Total movies to process: {len(all_movies)}", "INFO")
-
-            valid_movies = []
-            stored_count = 0
-            last_notification_stored = 0
-
-            # Process movies with transaction batching for performance
-            batch_size = 500  # Larger batches for better performance
-            utils.log(f"Processing movies in batches of {batch_size}", "INFO")
-
-            for batch_start in range(0, len(all_movies), batch_size):
-                batch_end = min(batch_start + batch_size, len(all_movies))
-                batch_movies = all_movies[batch_start:batch_end]
-                batch_num = (batch_start // batch_size) + 1
-                total_movies = len(all_movies)
-
-                # Only log every 5th batch to reduce spam
-                if batch_num % 5 == 0 or batch_num == 1:
-                    utils.log(f"Processing batch {batch_num}: movies {batch_start+1}-{batch_end} of {total_movies}", "INFO")
-
-                # Begin transaction for this batch
-                try:
-                    utils.log(f"Beginning database transaction for batch {batch_num}", "DEBUG")
-
-                    # Use a fresh connection for each batch to avoid locks
-                    conn_info = db_manager.query_manager._get_connection()
-                    try:
-                        conn_info['connection'].execute("BEGIN IMMEDIATE")
-
-                        batch_data = []
-                        utils.log(f"Processing {len(batch_movies)} movies in batch {batch_num}", "DEBUG")
-
-                        for i, movie in enumerate(batch_movies):
-                            if i % 100 == 0:  # Log every 100 movies within batch
-                                utils.log(f"Processing movie {i+1}/{len(batch_movies)} in current batch", "DEBUG")
-
-                            # Prioritize uniqueid.imdb over imdbnumber for v19 compatibility
-                            imdb_id = ''
-                            if 'uniqueid' in movie and isinstance(movie.get('uniqueid'), dict):
-                                imdb_id = movie.get('uniqueid', {}).get('imdb', '')
-
-                            # Fallback to imdbnumber only if it looks like an IMDb ID
-                            if not imdb_id:
-                                fallback_id = movie.get('imdbnumber', '')
-                                if fallback_id and str(fallback_id).strip().startswith('tt'):
-                                    imdb_id = str(fallback_id).strip()
-
-                            if imdb_id and imdb_id.startswith('tt') and len(imdb_id) > 2:
-                                movie['imdbnumber'] = imdb_id
-                                valid_movies.append(movie)
-
-                                movie_data = {
-                                    'kodi_id': movie.get('movieid', 0),
-                                    'title': movie.get('title', ''),
-                                    'year': movie.get('year', 0),
-                                    'imdbnumber': imdb_id,
-                                    'source': 'lib',
-                                    'play': movie.get('file', ''),
-                                    'poster': movie.get('art', {}).get('poster', '') if movie.get('art') else '',
-                                    'fanart': movie.get('art', {}).get('fanart', '') if movie.get('art') else '',
-                                    'plot': movie.get('plot', ''),
-                                    'rating': float(movie.get('rating', 0)),
-                                    'votes': int(movie.get('votes', 0)),
-                                    'duration': int(movie.get('runtime', 0)),
-                                    'mpaa': movie.get('mpaa', ''),
-                                    'genre': ','.join(movie.get('genre', [])) if isinstance(movie.get('genre'), list) else movie.get('genre', ''),
-                                    'director': ','.join(movie.get('director', [])) if isinstance(movie.get('director'), list) else movie.get('director', ''),
-                                    'studio': ','.join(movie.get('studio', [])) if isinstance(movie.get('studio'), list) else movie.get('studio', ''),
-                                    'country': ','.join(movie.get('country', [])) if isinstance(movie.get('country'), list) else movie.get('country', ''),
-                                    'writer': ','.join(movie.get('writer', [])) if isinstance(movie.get('writer'), list) else movie.get('writer', ''),
-                                    'cast': json.dumps(movie.get('cast', [])),
-                                    'art': json.dumps(movie.get('art', {}))
-                                }
-                                batch_data.append(movie_data)
-
-                                # Store heavy metadata if available
-                                kodi_movieid = movie.get('movieid', 0)
-                                if kodi_movieid > 0:
-                                    try:
-                                        # Use the DAO to store heavy metadata
-                                        db_manager.query_manager._listing.upsert_heavy_meta(
-                                            movieid=kodi_movieid,
-                                            imdbnumber=imdb_id,
-                                            cast_json=json.dumps(movie.get('cast', [])),
-                                            ratings_json=json.dumps(movie.get('ratings', {})),
-                                            showlink_json=json.dumps(movie.get('showlink', [])),
-                                            stream_json=json.dumps(movie.get('streamdetails', {})),
-                                            uniqueid_json=json.dumps(movie.get('uniqueid', {})),
-                                            tags_json=json.dumps(movie.get('tag', []))
-                                        )
-                                        utils.log(f"Stored heavy metadata for movie ID {kodi_movieid}", "DEBUG")
-                                    except Exception as meta_error:
-                                        utils.log(f"Error storing heavy metadata for movie ID {kodi_movieid}: {str(meta_error)}", "WARNING")
-
-                        # Bulk insert the batch using executemany for better performance
-                        if batch_data:
-                            utils.log(f"Inserting {len(batch_data)} valid movies into database", "DEBUG")
-                            columns = ', '.join(batch_data[0].keys())
-                            placeholders = ', '.join(['?' for _ in batch_data[0]])
-                            query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
-
-                            values_list = [tuple(movie_data.values()) for movie_data in batch_data]
-                            cursor = conn_info['connection'].cursor()
-                            cursor.executemany(query, values_list)
-                            stored_count += len(batch_data)
-                            utils.log(f"Successfully inserted {len(batch_data)} movies", "DEBUG")
-
-                            # Show progress notification every 1000 stored movies
-                            if use_notifications and (stored_count - last_notification_stored >= 1000):
-                                utils.show_notification("LibraryGenie", f"Processed {stored_count} movies with IMDb IDs...", time=2000)
-                                last_notification_stored = stored_count
-
-                        # Commit the transaction
-                        conn_info['connection'].commit()
-                        utils.log(f"Transaction committed for batch {batch_num}", "DEBUG")
-
-                        # Log progress every batch
-                        utils.log(f"Batch {batch_num} complete - stored {len(batch_data)} movies (total: {stored_count})", "INFO")
-
-                    except Exception as e:
-                        utils.log(f"Error processing batch {batch_start}-{batch_end}: {str(e)}", "ERROR")
-                        # Continue with next batch instead of failing entirely
-                    finally:
-                        # Always release the connection
-                        db_manager.query_manager._release_connection(conn_info)
-                        utils.log(f"Released database connection for batch {batch_num}", "DEBUG")
-
-            utils.log("=== MOVIE PROCESSING PHASE COMPLETE ===", "INFO")
-            utils.log(f"Processing summary: {stored_count} movies stored, {len(valid_movies)} valid movies found", "INFO")
+            # Populate search exports table
+            self._populate_imdb_exports(valid_movies, db_manager)
 
             if use_notifications:
                 utils.show_notification("LibraryGenie", f"Collection complete! Found {stored_count} movies with IMDb IDs", time=5000)
-
-            # Also populate imdb_exports table for search history lookup
-            if valid_movies:
-                try:
-                    utils.log("Populating imdb_exports table for search functionality", "INFO")
-                    db_manager.insert_imdb_export(valid_movies)
-                    utils.log(f"Populated imdb_exports table with {len(valid_movies)} entries", "INFO")
-                except Exception as e:
-                    utils.log(f"Error populating imdb_exports table: {str(e)}", "WARNING")
 
             utils.log(f"=== COLLECTION AND STORAGE COMPLETE: {stored_count} movies stored ===", "INFO")
             return valid_movies
@@ -391,6 +144,290 @@ class IMDbUploadManager:
                 utils.show_notification("LibraryGenie", f"Error during collection: {str(e)}", time=5000)
             return []
 
+    def _clear_existing_library_data(self, db_manager):
+        """Clear existing library data from database tables."""
+        try:
+            utils.log("Starting to clear existing library data from media_items table", "INFO")
+
+            # Clear media_items table
+            count_query = "SELECT COUNT(*) FROM media_items WHERE source = 'lib'"
+            existing_count = db_manager.query_manager.execute_query(count_query)
+
+            if existing_count and len(existing_count) > 0:
+                count = self._extract_count_from_result(existing_count[0])
+                utils.log(f"Found {count} existing library items to clear", "INFO")
+
+                if count > 0:
+                    self._execute_direct_delete(db_manager, "DELETE FROM media_items WHERE source = 'lib'")
+                    utils.log(f"Successfully cleared {count} existing library items", "INFO")
+
+            # Clear heavy metadata table
+            self._execute_direct_delete(db_manager, "DELETE FROM movie_heavy_meta")
+            utils.log("Successfully cleared heavy metadata table", "INFO")
+
+        except Exception as e:
+            utils.log(f"Warning: Could not clear existing library data: {str(e)}", "WARNING")
+            utils.log("Continuing with upload process despite clearing failure", "INFO")
+
+    def _extract_count_from_result(self, result):
+        """Extract count value from database result."""
+        if isinstance(result, dict):
+            return result.get('COUNT(*)', 0)
+        elif isinstance(result, tuple):
+            return result[0]
+        else:
+            return 0
+
+    def _execute_direct_delete(self, db_manager, sql):
+        """Execute delete query with direct connection management."""
+        conn_info = db_manager.query_manager._get_connection()
+        try:
+            cursor = conn_info['connection'].cursor()
+            cursor.execute(sql)
+            conn_info['connection'].commit()
+        finally:
+            db_manager.query_manager._release_connection(conn_info)
+
+    def _retrieve_all_movies_from_kodi(self, use_notifications):
+        """Retrieve all movies from Kodi library using JSON-RPC."""
+        utils.log("Getting all movies with IMDb information from Kodi library", "INFO")
+
+        batch_size = 100
+        start = 0
+        all_movies = []
+        last_progress_log = 0
+        last_notification = 0
+        batch_count = 0
+        total = 0
+
+        utils.log(f"Starting movie retrieval loop with batch size {batch_size}", "INFO")
+
+        while True:
+            batch_count += 1
+
+            # Progress logging
+            if batch_count % 10 == 0 or batch_count == 1:
+                total_display = total if total > 0 else '?'
+                utils.log(f"Movie retrieval progress: {len(all_movies)}/{total_display} movies (batch {batch_count})", "INFO")
+
+            # Execute JSON-RPC call
+            params = {
+                "properties": ["title", "year", "file", "imdbnumber", "uniqueid", "cast", "ratings", "showlink", "streamdetails", "tag"],
+                "limits": {"start": start, "end": start + batch_size}
+            }
+
+            response = self.jsonrpc.execute("VideoLibrary.GetMovies", params)
+
+            if 'result' not in response or 'movies' not in response['result']:
+                utils.log(f"No movies found in response: {response}", "DEBUG")
+                break
+
+            movies = response['result']['movies']
+            total = response['result']['limits']['total']
+
+            # Update progress tracking
+            current_count = len(all_movies) + len(movies)
+            if (current_count - last_progress_log >= 1000) or (start == 0) or (len(movies) < batch_size):
+                utils.log(f"Movie retrieval progress: {current_count}/{total} movies", "INFO")
+                last_progress_log = current_count
+
+                if use_notifications and (current_count - last_notification >= 2000):
+                    utils.show_notification("LibraryGenie", f"Scanned {current_count} of {total} movies...", time=2000)
+                    last_notification = current_count
+
+            all_movies.extend(movies)
+
+            # Check if we're done
+            if len(movies) < batch_size or start + batch_size >= total:
+                utils.log(f"Retrieval complete: got {len(movies)} movies (batch_size={batch_size}), total={total}", "INFO")
+                break
+
+            start += batch_size
+
+        if use_notifications:
+            utils.show_notification("LibraryGenie", f"Scan complete! Processing {len(all_movies)} movies...", time=3000)
+
+        return all_movies
+
+    def _process_and_store_movies(self, all_movies, db_manager, use_notifications):
+        """Process movies and store them in database with batching."""
+        utils.log("=== STARTING MOVIE PROCESSING PHASE ===", "INFO")
+        utils.log(f"Total movies to process: {len(all_movies)}", "INFO")
+
+        valid_movies = []
+        stored_count = 0
+        last_notification_stored = 0
+        batch_size = 500
+
+        utils.log(f"Processing movies in batches of {batch_size}", "INFO")
+
+        for batch_start in range(0, len(all_movies), batch_size):
+            batch_end = min(batch_start + batch_size, len(all_movies))
+            batch_movies = all_movies[batch_start:batch_end]
+            batch_num = (batch_start // batch_size) + 1
+
+            # Progress logging
+            if batch_num % 5 == 0 or batch_num == 1:
+                utils.log(f"Processing batch {batch_num}: movies {batch_start+1}-{batch_end} of {len(all_movies)}", "INFO")
+
+            # Process this batch
+            batch_valid_movies, batch_stored_count = self._process_movie_batch(
+                batch_movies, batch_num, db_manager
+            )
+
+            valid_movies.extend(batch_valid_movies)
+            stored_count += batch_stored_count
+
+            # Show progress notifications
+            if use_notifications and (stored_count - last_notification_stored >= 1000):
+                utils.show_notification("LibraryGenie", f"Processed {stored_count} movies with IMDb IDs...", time=2000)
+                last_notification_stored = stored_count
+
+        utils.log("=== MOVIE PROCESSING PHASE COMPLETE ===", "INFO")
+        utils.log(f"Processing summary: {stored_count} movies stored, {len(valid_movies)} valid movies found", "INFO")
+
+        return valid_movies, stored_count
+
+    def _process_movie_batch(self, batch_movies, batch_num, db_manager):
+        """Process a single batch of movies with transaction management."""
+        batch_valid_movies = []
+        batch_stored_count = 0
+
+        try:
+            utils.log(f"Beginning database transaction for batch {batch_num}", "DEBUG")
+
+            conn_info = db_manager.query_manager._get_connection()
+            try:
+                conn_info['connection'].execute("BEGIN IMMEDIATE")
+                batch_data = []
+
+                for i, movie in enumerate(batch_movies):
+                    if i % 100 == 0:
+                        utils.log(f"Processing movie {i+1}/{len(batch_movies)} in current batch", "DEBUG")
+
+                    # Extract and validate IMDb ID
+                    imdb_id = self._extract_imdb_id(movie)
+
+                    if imdb_id:
+                        movie['imdbnumber'] = imdb_id
+                        batch_valid_movies.append(movie)
+
+                        # Prepare movie data for database
+                        movie_data = self._prepare_movie_data(movie, imdb_id)
+                        batch_data.append(movie_data)
+
+                        # Store heavy metadata
+                        self._store_heavy_metadata(movie, imdb_id, db_manager)
+
+                # Bulk insert batch data
+                if batch_data:
+                    batch_stored_count = self._bulk_insert_movies(batch_data, conn_info)
+                    utils.log(f"Successfully inserted {batch_stored_count} movies", "DEBUG")
+
+                # Commit transaction
+                conn_info['connection'].commit()
+                utils.log(f"Transaction committed for batch {batch_num}", "DEBUG")
+
+            except Exception as e:
+                utils.log(f"Error processing batch {batch_num}: {str(e)}", "ERROR")
+                conn_info['connection'].rollback()
+            finally:
+                db_manager.query_manager._release_connection(conn_info)
+
+        except Exception as e:
+            utils.log(f"Error processing batch {batch_num}: {str(e)}", "ERROR")
+
+        return batch_valid_movies, batch_stored_count
+
+    def _extract_imdb_id(self, movie):
+        """Extract IMDb ID from movie data with v19/v20+ compatibility."""
+        imdb_id = ''
+
+        # Method 1: uniqueid.imdb (preferred for v19 compatibility)
+        if 'uniqueid' in movie and isinstance(movie.get('uniqueid'), dict):
+            imdb_id = movie.get('uniqueid', {}).get('imdb', '')
+
+        # Method 2: imdbnumber fallback (only if it looks like an IMDb ID)
+        if not imdb_id:
+            fallback_id = movie.get('imdbnumber', '')
+            if fallback_id and str(fallback_id).strip().startswith('tt'):
+                imdb_id = str(fallback_id).strip()
+
+        # Validate IMDb ID format
+        if imdb_id and imdb_id.startswith('tt') and len(imdb_id) > 2:
+            return imdb_id
+
+        return None
+
+    def _prepare_movie_data(self, movie, imdb_id):
+        """Prepare movie data dictionary for database insertion."""
+        return {
+            'kodi_id': movie.get('movieid', 0),
+            'title': movie.get('title', ''),
+            'year': movie.get('year', 0),
+            'imdbnumber': imdb_id,
+            'source': 'lib',
+            'play': movie.get('file', ''),
+            'poster': movie.get('art', {}).get('poster', '') if movie.get('art') else '',
+            'fanart': movie.get('art', {}).get('fanart', '') if movie.get('art') else '',
+            'plot': movie.get('plot', ''),
+            'rating': float(movie.get('rating', 0)),
+            'votes': int(movie.get('votes', 0)),
+            'duration': int(movie.get('runtime', 0)),
+            'mpaa': movie.get('mpaa', ''),
+            'genre': ','.join(movie.get('genre', [])) if isinstance(movie.get('genre'), list) else movie.get('genre', ''),
+            'director': ','.join(movie.get('director', [])) if isinstance(movie.get('director'), list) else movie.get('director', ''),
+            'studio': ','.join(movie.get('studio', [])) if isinstance(movie.get('studio'), list) else movie.get('studio', ''),
+            'country': ','.join(movie.get('country', [])) if isinstance(movie.get('country'), list) else movie.get('country', ''),
+            'writer': ','.join(movie.get('writer', [])) if isinstance(movie.get('writer'), list) else movie.get('writer', ''),
+            'cast': json.dumps(movie.get('cast', [])),
+            'art': json.dumps(movie.get('art', {}))
+        }
+
+    def _store_heavy_metadata(self, movie, imdb_id, db_manager):
+        """Store heavy metadata for a movie."""
+        kodi_movieid = movie.get('movieid', 0)
+        if kodi_movieid > 0:
+            try:
+                db_manager.query_manager._listing.upsert_heavy_meta(
+                    movieid=kodi_movieid,
+                    imdbnumber=imdb_id,
+                    cast_json=json.dumps(movie.get('cast', [])),
+                    ratings_json=json.dumps(movie.get('ratings', {})),
+                    showlink_json=json.dumps(movie.get('showlink', [])),
+                    stream_json=json.dumps(movie.get('streamdetails', {})),
+                    uniqueid_json=json.dumps(movie.get('uniqueid', {})),
+                    tags_json=json.dumps(movie.get('tag', []))
+                )
+                utils.log(f"Stored heavy metadata for movie ID {kodi_movieid}", "DEBUG")
+            except Exception as meta_error:
+                utils.log(f"Error storing heavy metadata for movie ID {kodi_movieid}: {str(meta_error)}", "WARNING")
+
+    def _bulk_insert_movies(self, batch_data, conn_info):
+        """Bulk insert movie data into database."""
+        if not batch_data:
+            return 0
+
+        utils.log(f"Inserting {len(batch_data)} valid movies into database", "DEBUG")
+        columns = ', '.join(batch_data[0].keys())
+        placeholders = ', '.join(['?' for _ in batch_data[0]])
+        query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
+
+        values_list = [tuple(movie_data.values()) for movie_data in batch_data]
+        cursor = conn_info['connection'].cursor()
+        cursor.executemany(query, values_list)
+
+        return len(batch_data)
+
+    def _populate_imdb_exports(self, valid_movies, db_manager):
+        """Populate imdb_exports table for search functionality."""
+        if valid_movies:
+            try:
+                utils.log("Populating imdb_exports table for search functionality", "INFO")
+                db_manager.insert_imdb_export(valid_movies)
+                utils.log(f"Populated imdb_exports table with {len(valid_movies)} entries", "INFO")
+            except Exception as e:
+                utils.log(f"Error populating imdb_exports table: {str(e)}", "WARNING")
 
     def upload_library_full_sync(self):
         """Upload entire Kodi library (authoritative replacement)"""
