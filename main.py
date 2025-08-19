@@ -71,8 +71,49 @@ def run_search_flow():
 
     # Navigate only after modal is completely closed
     if target_url:
-        # Use delayed navigation to ensure proper modal cleanup and back button functionality
-        nav_manager.navigate_to_list_delayed(target_url.split('list_id=')[1], delay_seconds=1.0)
+        # Extract list ID for navigation
+        list_id = target_url.split('list_id=')[1]
+        log(f"=== MAIN: Scheduling navigation to list {list_id} ===", "DEBUG")
+        
+        # Use background thread navigation with proper Kodi integration
+        import threading
+        import time
+        
+        def navigate_to_list():
+            try:
+                # Wait for all modal cleanup to complete
+                time.sleep(2.5)  # Longer delay for complete cleanup
+                
+                log(f"=== MAIN_NAVIGATION: Starting navigation to list {list_id} ===", "DEBUG")
+                
+                # Build the target URL
+                from resources.lib.config.addon_ref import get_addon
+                from urllib.parse import urlencode
+                addon = get_addon()
+                addon_id = addon.getAddonInfo("id")
+                params = urlencode({'action': 'browse_list', 'list_id': str(list_id)})
+                final_url = f"plugin://{addon_id}/?{params}"
+                
+                log(f"=== MAIN_NAVIGATION: Target URL: {final_url} ===", "DEBUG")
+                
+                # Clear any dialog states
+                xbmc.executebuiltin("Dialog.Close(all,true)")
+                time.sleep(0.2)
+                
+                # Use Kodi's built-in navigation that preserves back button
+                xbmc.executebuiltin(f'ActivateWindow(videos,"{final_url}",return)')
+                
+                log(f"=== MAIN_NAVIGATION: Navigation completed ===", "DEBUG")
+                
+            except Exception as e:
+                log(f"Error in main navigation thread: {str(e)}", "ERROR")
+                import traceback
+                log(f"Main navigation traceback: {traceback.format_exc()}", "ERROR")
+        
+        # Start navigation in background
+        nav_thread = threading.Thread(target=navigate_to_list)
+        nav_thread.daemon = True
+        nav_thread.start()
     else:
         log("=== NO TARGET URL - SEARCH CANCELLED OR FAILED ===", "DEBUG")
 
