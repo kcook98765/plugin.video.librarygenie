@@ -31,19 +31,42 @@ class DatabaseManager(Singleton):
             if not os.path.exists(db_dir):
                 os.makedirs(db_dir)
 
-            self.connection = sqlite3.connect(self.db_path, timeout=30.0)
+            self.connection = sqlite3.connect(self.db_path, timeout=60.0)  # Increased timeout
             self.cursor = self.connection.cursor()
 
             # Performance optimizations for bulk operations
             self.cursor.execute('PRAGMA foreign_keys = ON')
             self.cursor.execute('PRAGMA journal_mode = WAL')  # Write-Ahead Logging for better concurrency
             self.cursor.execute('PRAGMA synchronous = NORMAL')  # Faster writes
-            self.cursor.execute('PRAGMA cache_size = 10000')  # Larger cache
+            self.cursor.execute('PRAGMA cache_size = 20000')  # Larger cache for heavy operations
             self.cursor.execute('PRAGMA temp_store = MEMORY')  # Use memory for temp tables
+            self.cursor.execute('PRAGMA busy_timeout = 60000')  # 60 second busy timeout
 
         except Exception as e:
             utils.log(f"Database connection error: {str(e)}", "ERROR")
             raise
+
+    def optimize_for_heavy_operations(self):
+        """Optimize database settings for heavy batch operations"""
+        try:
+            utils.log("Optimizing database for heavy operations", "INFO")
+            self.cursor.execute('PRAGMA synchronous = OFF')  # Fastest writes for bulk operations
+            self.cursor.execute('PRAGMA cache_size = 50000')  # Even larger cache
+            self.cursor.execute('PRAGMA locking_mode = EXCLUSIVE')  # Exclusive access during bulk ops
+            utils.log("Database optimized for heavy operations", "DEBUG")
+        except Exception as e:
+            utils.log(f"Error optimizing database: {str(e)}", "WARNING")
+
+    def restore_normal_operations(self):
+        """Restore normal database settings after heavy operations"""
+        try:
+            utils.log("Restoring normal database settings", "INFO")
+            self.cursor.execute('PRAGMA synchronous = NORMAL')
+            self.cursor.execute('PRAGMA cache_size = 20000')
+            self.cursor.execute('PRAGMA locking_mode = NORMAL')
+            utils.log("Database settings restored to normal", "DEBUG")
+        except Exception as e:
+            utils.log(f"Error restoring database settings: {str(e)}", "WARNING")
 
     @property
     def query_manager(self):
@@ -54,16 +77,24 @@ class DatabaseManager(Singleton):
         return self._query_manager
 
     def _execute_with_retry(self, func, *args, **kwargs):
-        retries = 10  # Increase retry count
+        retries = 20  # Increase retry count for heavy operations
         for i in range(retries):
             try:
                 return func(*args, **kwargs)
             except sqlite3.OperationalError as e:
                 if 'database is locked' in str(e):
-                    # Exponential backoff: 0.1, 0.2, 0.4, 0.8, 1.6... seconds
-                    wait_time = min(0.1 * (2 ** i), 2.0)  # Cap at 2 seconds
-                    utils.log(f"Database is locked, retrying in {wait_time}s... ({i+1}/{retries})", "WARNING")
+                    # More aggressive exponential backoff for heavy operations
+                    wait_time = min(0.2 * (1.5 ** i), 5.0)  # Cap at 5 seconds
+                    utils.log(f"Database is locked, retrying in {wait_time:.2f}s... ({i+1}/{retries})", "WARNING")
                     time.sleep(wait_time)
+                    
+                    # Force a checkpoint every 5 retries to help with WAL mode
+                    if i > 0 and i % 5 == 0:
+                        try:
+                            self.cursor.execute('PRAGMA wal_checkpoint(TRUNCATE)')
+                            utils.log("Forced WAL checkpoint to help with database locks", "DEBUG")
+                        except:
+                            pass  # Ignore checkpoint errors
                 else:
                     utils.log(f"Database error (non-lock): {str(e)}", "ERROR")
                     raise

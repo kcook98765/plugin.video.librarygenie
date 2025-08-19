@@ -427,8 +427,8 @@ class ListingDAO:
         update_params = (imdbnumber, cast_json, ratings_json, showlink_json, 
                         stream_json, uniqueid_json, tags_json, int(time.time()), movieid)
         
-        # Retry logic for database operations
-        max_retries = 5
+        # Enhanced retry logic for database operations
+        max_retries = 10  # Increased retries for heavy operations
         for attempt in range(max_retries):
             try:
                 result = self.execute_write(update_sql, update_params)
@@ -450,7 +450,9 @@ class ListingDAO:
             except Exception as e:
                 if 'database is locked' in str(e) and attempt < max_retries - 1:
                     import time
-                    wait_time = 0.1 * (2 ** attempt)  # Exponential backoff
+                    # More aggressive backoff for heavy metadata operations
+                    wait_time = 0.2 * (1.5 ** attempt)  # Slower growth, longer waits
+                    wait_time = min(wait_time, 3.0)  # Cap at 3 seconds
                     time.sleep(wait_time)
                     continue
                 else:

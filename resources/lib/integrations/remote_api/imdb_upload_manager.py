@@ -254,12 +254,17 @@ class IMDbUploadManager:
         utils.log("=== STARTING MOVIE PROCESSING PHASE ===", "INFO")
         utils.log(f"Total movies to process: {len(all_movies)}", "INFO")
 
+        # Optimize database for heavy operations
+        db_manager.optimize_for_heavy_operations()
+
+        # Reduced batch size to prevent database locks
+        batch_size = 100  # Reduced from 500 to 100
+        utils.log(f"Processing movies in batches of {batch_size}", "INFO")
+
         valid_movies = []
         stored_count = 0
         last_notification_stored = 0
-        batch_size = 500
-
-        utils.log(f"Processing movies in batches of {batch_size}", "INFO")
+        total_processed = 0
 
         for batch_start in range(0, len(all_movies), batch_size):
             batch_end = min(batch_start + batch_size, len(all_movies))
@@ -267,7 +272,7 @@ class IMDbUploadManager:
             batch_num = (batch_start // batch_size) + 1
 
             # Progress logging
-            if batch_num % 5 == 0 or batch_num == 1:
+            if batch_num % 10 == 0 or batch_num == 1:
                 utils.log(f"Processing batch {batch_num}: movies {batch_start+1}-{batch_end} of {len(all_movies)}", "INFO")
 
             # Process this batch
@@ -277,14 +282,21 @@ class IMDbUploadManager:
 
             valid_movies.extend(batch_valid_movies)
             stored_count += batch_stored_count
+            total_processed += len(batch_movies)
 
             # Show progress notifications
             if use_notifications and (stored_count - last_notification_stored >= 1000):
                 utils.show_notification("LibraryGenie", f"Processed {stored_count} movies with IMDb IDs...", time=2000)
                 last_notification_stored = stored_count
 
-        utils.log("=== MOVIE PROCESSING PHASE COMPLETE ===", "INFO")
-        utils.log(f"Processing summary: {stored_count} movies stored, {len(valid_movies)} valid movies found", "INFO")
+        utils.log(f"Processing complete. Total processed: {total_processed}", "INFO")
+        utils.log(f"=== MOVIE PROCESSING PHASE COMPLETE ===", "INFO")
+
+        # Restore normal database settings
+        try:
+            db_manager.restore_normal_operations()
+        except Exception as e:
+            utils.log(f"Error restoring database settings: {str(e)}", "WARNING")
 
         return valid_movies, stored_count
 
