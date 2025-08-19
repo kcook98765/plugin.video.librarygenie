@@ -75,26 +75,37 @@ class DatabaseManager(Singleton):
     def setup_database(self):
         """Initialize database with required tables"""
         try:
-            conn_info = self._get_connection()
-            cursor = conn_info['connection'].cursor()
+            utils.log(f"Setting up database schema version {self.SCHEMA_VERSION}...", "DEBUG")
 
-            # Check current schema version
-            cursor.execute("PRAGMA user_version")
-            current_version = cursor.fetchone()[0]
-            utils.log(f"Current database schema version: {current_version}", "DEBUG")
+            conn_info = self.query_manager._get_connection()
+            conn_info['connection'].execute("BEGIN IMMEDIATE")
 
-            # Create tables if they don't exist
-            self._create_tables(cursor)
+            try:
+                # Create tables if they don't exist
+                self._create_tables(conn_info['connection'].cursor())
 
-            # Run migrations if needed
-            if current_version < self.SCHEMA_VERSION:
-                utils.log(f"Running database migrations from version {current_version} to {self.SCHEMA_VERSION}", "INFO")
-                self._run_migrations(cursor, current_version)
-                cursor.execute(f"PRAGMA user_version = {self.SCHEMA_VERSION}")
-                conn_info['connection'].commit()
-                utils.log("Database migrations completed successfully", "INFO")
+                # Check current schema version
+                conn_info['connection'].cursor().execute("PRAGMA user_version")
+                current_version = conn_info['connection'].cursor().fetchone()[0]
+                utils.log(f"Current database schema version: {current_version}", "DEBUG")
 
-            self._release_connection(conn_info)
+                # Run migrations if needed
+                if current_version < self.SCHEMA_VERSION:
+                    utils.log(f"Running database migrations from version {current_version} to {self.SCHEMA_VERSION}", "INFO")
+                    self._run_migrations(conn_info['connection'].cursor(), current_version)
+                    conn_info['connection'].cursor().execute(f"PRAGMA user_version = {self.SCHEMA_VERSION}")
+                    conn_info['connection'].commit()
+                    utils.log("Database migrations completed successfully", "INFO")
+                else:
+                    utils.log("Database schema is up-to-date.", "INFO")
+
+            except Exception as e:
+                conn_info['connection'].rollback()
+                utils.log(f"Database setup transaction failed: {str(e)}", "ERROR")
+                raise
+            finally:
+                self.query_manager._release_connection(conn_info)
+
             utils.log("Database setup completed successfully", "DEBUG")
         except Exception as e:
             utils.log(f"Database setup failed: {str(e)}", "ERROR")
