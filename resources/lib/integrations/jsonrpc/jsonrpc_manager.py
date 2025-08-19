@@ -56,21 +56,14 @@ class JSONRPC:
 
         parsed_response = json.loads(response)
 
-        # Log parsed response details
-        log(f"=== JSONRPC RESPONSE PARSED: {method} ===", "DEBUG")
-        if 'result' in parsed_response:
-            result = parsed_response['result']
-            if isinstance(result, dict):
-                log(f"Response result keys: {list(result.keys())}", "DEBUG")
-                # Log movie count for movie-related methods
-                if method in ['VideoLibrary.GetMovies', 'VideoLibrary.GetMovieDetails']:
-                    if 'movies' in result:
-                        log(f"Movies returned: {len(result['movies'])}", "DEBUG")
-                        if result['movies']:
-                            # Log first movie sample with detailed IMDb analysis
-                            first_movie = result['movies'][0]
-                            log(f"First movie sample keys: {list(first_movie.keys())}", "DEBUG")
-                            log(f"First movie title: {first_movie.get('title', 'N/A')}", "DEBUG")
+        # Log parsed response details (reduced verbosity)
+        if level in ['DEBUG'] and method not in ['VideoLibrary.GetMovies']:
+            # Only log detailed response info for non-batch operations
+            log(f"=== JSONRPC RESPONSE PARSED: {method} ===", "DEBUG")
+            if 'result' in parsed_response:
+                result = parsed_response['result']
+                if isinstance(result, dict):
+                    log(f"Response result keys: {list(result.keys())}", "DEBUG")
 
 
                     elif 'moviedetails' in result:

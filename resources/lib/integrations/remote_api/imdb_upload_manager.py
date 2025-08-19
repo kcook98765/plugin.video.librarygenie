@@ -118,7 +118,7 @@ class IMDbUploadManager:
             # Clear existing library data first using database manager
             try:
                 utils.log("Starting to clear existing library data from media_items table", "INFO")
-                
+
                 # Check if there's existing data to clear
                 try:
                     count_query = "SELECT COUNT(*) FROM media_items WHERE source = 'lib'"
@@ -126,7 +126,7 @@ class IMDbUploadManager:
                     if existing_count and len(existing_count) > 0:
                         count = existing_count[0][0] if isinstance(existing_count[0], tuple) else existing_count[0].get('COUNT(*)', 0)
                         utils.log(f"Found {count} existing library items to clear", "INFO")
-                        
+
                         if count > 0:
                             utils.log("Executing DELETE query with timeout protection", "DEBUG")
                             # Use a more direct approach for clearing with timeout
@@ -149,7 +149,7 @@ class IMDbUploadManager:
                     utils.log(f"Could not count existing data: {str(count_error)}, proceeding with delete anyway", "WARNING")
                     # Fallback to original delete method
                     db_manager.delete_data('media_items', "source = 'lib'")
-                
+
                 utils.log("Library data clearing completed successfully", "INFO")
             except Exception as e:
                 utils.log(f"Warning: Could not clear existing library data: {str(e)}", "WARNING")
@@ -162,13 +162,16 @@ class IMDbUploadManager:
             all_movies = []
             last_progress_log = 0
             last_notification = 0
+            batch_count = 0
 
             utils.log(f"Starting movie retrieval loop with batch size {batch_size}", "INFO")
             utils.log("About to begin JSON-RPC movie retrieval loop", "DEBUG")
 
             while True:
-                utils.log(f"=== BATCH RETRIEVAL LOOP ITERATION: start={start}, end={start + batch_size} ===", "INFO")
-                utils.log(f"Fetching movies batch: start={start}, end={start + batch_size}", "DEBUG")
+                batch_count += 1
+                # Only log every 10th batch to reduce spam
+                if batch_count % 10 == 0 or batch_count == 1:
+                    utils.log(f"Movie retrieval progress: {len(all_movies)}/{'?' if 'total' not in locals() else total} movies (batch {batch_count})", "INFO")
 
                 params = {
                     "properties": ["title", "year", "file", "imdbnumber", "uniqueid"],
@@ -211,7 +214,7 @@ class IMDbUploadManager:
             if use_notifications:
                 utils.show_notification("LibraryGenie", f"Scan complete! Processing {len(all_movies)} movies...", time=3000)
 
-            utils.log(f"=== STARTING MOVIE PROCESSING PHASE ===", "INFO")
+            utils.log("=== STARTING MOVIE PROCESSING PHASE ===", "INFO")
             utils.log(f"Total movies to process: {len(all_movies)}", "INFO")
 
             valid_movies = []
@@ -225,12 +228,16 @@ class IMDbUploadManager:
             for batch_start in range(0, len(all_movies), batch_size):
                 batch_end = min(batch_start + batch_size, len(all_movies))
                 batch_movies = all_movies[batch_start:batch_end]
+                batch_num = (batch_start // batch_size) + 1
+                total_movies = len(all_movies)
 
-                utils.log(f"Processing batch {batch_start//batch_size + 1}: movies {batch_start+1}-{batch_end} of {len(all_movies)}", "INFO")
+                # Only log every 5th batch to reduce spam
+                if batch_num % 5 == 0 or batch_num == 1:
+                    utils.log(f"Processing batch {batch_num}: movies {batch_start+1}-{batch_end} of {total_movies}", "INFO")
 
                 # Begin transaction for this batch
                 try:
-                    utils.log(f"Beginning database transaction for batch {batch_start//batch_size + 1}", "DEBUG")
+                    utils.log(f"Beginning database transaction for batch {batch_num}", "DEBUG")
 
                     # Use a fresh connection for each batch to avoid locks
                     conn_info = db_manager.query_manager._get_connection()
@@ -238,7 +245,7 @@ class IMDbUploadManager:
                         conn_info['connection'].execute("BEGIN IMMEDIATE")
 
                         batch_data = []
-                        utils.log(f"Processing {len(batch_movies)} movies in batch {batch_start//batch_size + 1}", "DEBUG")
+                        utils.log(f"Processing {len(batch_movies)} movies in batch {batch_num}", "DEBUG")
 
                         for i, movie in enumerate(batch_movies):
                             if i % 100 == 0:  # Log every 100 movies within batch
@@ -303,21 +310,21 @@ class IMDbUploadManager:
 
                         # Commit the transaction
                         conn_info['connection'].commit()
-                        utils.log(f"Transaction committed for batch {batch_start//batch_size + 1}", "DEBUG")
+                        utils.log(f"Transaction committed for batch {batch_num}", "DEBUG")
 
                         # Log progress every batch
-                        utils.log(f"Batch {batch_start//batch_size + 1} complete - stored {len(batch_data)} movies (total: {stored_count})", "INFO")
+                        utils.log(f"Batch {batch_num} complete - stored {len(batch_data)} movies (total: {stored_count})", "INFO")
 
                     except Exception as e:
                         # Rollback on error and continue with next batch
                         try:
                             conn_info['connection'].rollback()
-                            utils.log(f"Transaction rolled back for batch {batch_start//batch_size + 1}", "WARNING")
+                            utils.log(f"Transaction rolled back for batch {batch_num}", "WARNING")
                         except Exception as rollback_error:
                             utils.log(f"Error during rollback: {str(rollback_error)}", "ERROR")
 
                         utils.log(f"Error storing batch {batch_start}-{batch_end}: {str(e)}", "WARNING")
-                        utils.log(f"Attempting individual inserts for batch {batch_start//batch_size + 1}", "INFO")
+                        utils.log(f"Attempting individual inserts for batch {batch_num}", "INFO")
 
                         # Fall back to individual inserts for this batch
                         for j, movie in enumerate(batch_movies):
@@ -381,7 +388,7 @@ class IMDbUploadManager:
                 finally:
                     # Always release the connection
                     db_manager.query_manager._release_connection(conn_info)
-                    utils.log(f"Released database connection for batch {batch_start//batch_size + 1}", "DEBUG")
+                    utils.log(f"Released database connection for batch {batch_num}", "DEBUG")
 
             utils.log("=== MOVIE PROCESSING PHASE COMPLETE ===", "INFO")
             utils.log(f"Processing summary: {stored_count} movies stored, {len(valid_movies)} valid movies found", "INFO")
@@ -457,7 +464,10 @@ class IMDbUploadManager:
                 if current_item:
                     message += f"\nProcessing: {current_item}"
 
-                utils.log(f"Progress update: {percent}% - {message}", "DEBUG")
+                # Only log every 4th chunk to reduce spam
+                if current_chunk % 4 == 0 or current_chunk == 1 or current_chunk == total_chunks:
+                    utils.log(f"Upload progress: {percent}% - Chunk {current_chunk}/{total_chunks}", "INFO")
+                
                 progress.update(percent, message)
                 return True  # Continue uploading
 
@@ -530,7 +540,10 @@ class IMDbUploadManager:
                 if current_item:
                     message += f"\nProcessing: {current_item}"
 
-                utils.log(f"Progress update: {percent}% - {message}", "DEBUG")
+                # Only log every 4th chunk to reduce spam
+                if current_chunk % 4 == 0 or current_chunk == 1 or current_chunk == total_chunks:
+                    utils.log(f"Sync progress: {percent}% - Chunk {current_chunk}/{total_chunks}", "INFO")
+                
                 progress.update(percent, message)
                 return True  # Continue syncing
 

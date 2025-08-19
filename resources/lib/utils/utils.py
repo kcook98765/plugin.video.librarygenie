@@ -65,7 +65,29 @@ def log(message, level=None):
             "Set ListItem path for",
             "Setting context for list viewing:",
             "=== BUILD_DISPLAY_ITEMS: Created",
-            "display items ==="
+            "display items ===",
+            # Batch operation spam patterns
+            "=== BATCH RETRIEVAL LOOP ITERATION:",
+            "Fetching movies batch:",
+            "Making JSON-RPC call to VideoLibrary.GetMovies with params:",
+            "Movies returned:",
+            "First movie title:",
+            "=== JSONRPC SUCCESS: VideoLibrary.GetMovies ===",
+            "JSON-RPC response received, checking for movies...",
+            "Retrieved",
+            "Movie retrieval progress:",
+            "Total movies collected so far:",
+            "Moving to next batch, new start position:",
+            "Processing batch",
+            "Beginning database transaction for batch",
+            "Processing movie",
+            "Inserting",
+            "Successfully inserted",
+            "Transaction committed for batch",
+            "Batch",
+            "Released database connection for batch",
+            "Progress update:",
+            "Processing: Uploading movies"
         ]
 
         # Allow JSON-RPC request logging to always show through
@@ -116,6 +138,9 @@ def is_debug_enabled():
 # Global cache for Kodi version to avoid repeated detection
 _KODI_VERSION_CACHE = None
 
+# Global cache for initialization logging to prevent spam
+_INIT_LOGGED = set()
+
 def get_kodi_version():
     """Get the major version number of the current Kodi installation with caching"""
     global _KODI_VERSION_CACHE
@@ -133,6 +158,13 @@ def get_kodi_version():
         _KODI_VERSION_CACHE = 21  # Default to latest if detection fails
         log(f"Could not detect Kodi version, defaulting to v{_KODI_VERSION_CACHE}: {str(e)}", "WARNING")
         return _KODI_VERSION_CACHE
+
+def log_once(key, message, level="DEBUG"):
+    """Log a message only once per session to prevent spam"""
+    global _INIT_LOGGED
+    if key not in _INIT_LOGGED:
+        log(message, level)
+        _INIT_LOGGED.add(key)
 
 def is_kodi_v19():
     """Check if running on Kodi v19 (Matrix)"""
