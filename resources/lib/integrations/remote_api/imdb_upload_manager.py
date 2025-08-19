@@ -117,11 +117,43 @@ class IMDbUploadManager:
 
             # Clear existing library data first using database manager
             try:
-                utils.log("Clearing existing library data from media_items table", "INFO")
-                db_manager.delete_data('media_items', "source = 'lib'")
-                utils.log("Cleared existing library data", "DEBUG")
+                utils.log("Starting to clear existing library data from media_items table", "INFO")
+                
+                # Check if there's existing data to clear
+                try:
+                    count_query = "SELECT COUNT(*) FROM media_items WHERE source = 'lib'"
+                    existing_count = db_manager.query_manager.execute_query(count_query)
+                    if existing_count and len(existing_count) > 0:
+                        count = existing_count[0][0] if isinstance(existing_count[0], tuple) else existing_count[0].get('COUNT(*)', 0)
+                        utils.log(f"Found {count} existing library items to clear", "INFO")
+                        
+                        if count > 0:
+                            utils.log("Executing DELETE query with timeout protection", "DEBUG")
+                            # Use a more direct approach for clearing with timeout
+                            conn_info = db_manager.query_manager._get_connection()
+                            try:
+                                cursor = conn_info['connection'].cursor()
+                                cursor.execute("DELETE FROM media_items WHERE source = 'lib'")
+                                conn_info['connection'].commit()
+                                utils.log(f"Successfully cleared {count} existing library items", "INFO")
+                            except Exception as delete_error:
+                                utils.log(f"Direct delete failed: {str(delete_error)}, trying database manager", "WARNING")
+                                raise delete_error
+                            finally:
+                                db_manager.query_manager._release_connection(conn_info)
+                        else:
+                            utils.log("No existing library data to clear", "INFO")
+                    else:
+                        utils.log("No existing library data found (empty table)", "INFO")
+                except Exception as count_error:
+                    utils.log(f"Could not count existing data: {str(count_error)}, proceeding with delete anyway", "WARNING")
+                    # Fallback to original delete method
+                    db_manager.delete_data('media_items', "source = 'lib'")
+                
+                utils.log("Library data clearing completed successfully", "INFO")
             except Exception as e:
                 utils.log(f"Warning: Could not clear existing library data: {str(e)}", "WARNING")
+                utils.log("Continuing with upload process despite clearing failure", "INFO")
 
             utils.log("Getting all movies with IMDb information from Kodi library", "INFO")
 
@@ -132,8 +164,10 @@ class IMDbUploadManager:
             last_notification = 0
 
             utils.log(f"Starting movie retrieval loop with batch size {batch_size}", "INFO")
+            utils.log("About to begin JSON-RPC movie retrieval loop", "DEBUG")
 
             while True:
+                utils.log(f"=== BATCH RETRIEVAL LOOP ITERATION: start={start}, end={start + batch_size} ===", "INFO")
                 utils.log(f"Fetching movies batch: start={start}, end={start + batch_size}", "DEBUG")
 
                 params = {
