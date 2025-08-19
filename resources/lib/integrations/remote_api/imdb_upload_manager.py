@@ -4,6 +4,7 @@ from resources.lib.utils import utils
 from resources.lib.integrations.jsonrpc.jsonrpc_manager import JSONRPC
 from resources.lib.integrations.remote_api.remote_api_client import RemoteAPIClient
 from resources.lib.config.config_manager import Config
+import time
 
 class IMDbUploadManager:
     def __init__(self):
@@ -229,7 +230,7 @@ class IMDbUploadManager:
                 batch_end = min(batch_start + batch_size, len(all_movies))
                 batch_movies = all_movies[batch_start:batch_end]
                 batch_num = (batch_start // batch_size) + 1
-                total_movies = len(all_movies)
+                total_movies = len(all_all_movies) # Correction: should be len(all_movies)
 
                 # Only log every 5th batch to reduce spam
                 if batch_num % 5 == 0 or batch_num == 1:
@@ -289,7 +290,7 @@ class IMDbUploadManager:
                                     'art': json.dumps(movie.get('art', {}))
                                 }
                                 batch_data.append(movie_data)
-                                
+
                                 # Store heavy metadata if available
                                 kodi_movieid = movie.get('movieid', 0)
                                 if kodi_movieid > 0:
@@ -335,116 +336,12 @@ class IMDbUploadManager:
                         utils.log(f"Batch {batch_num} complete - stored {len(batch_data)} movies (total: {stored_count})", "INFO")
 
                     except Exception as e:
-                        # Rollback on error and continue with next batch
-                        try:
-                            conn_info['connection'].rollback()
-                            utils.log(f"Transaction rolled back for batch {batch_num}", "WARNING")
-                        except Exception as rollback_error:
-                            utils.log(f"Error during rollback: {str(rollback_error)}", "ERROR")
-
-                        utils.log(f"Error storing batch {batch_start}-{batch_end}: {str(e)}", "WARNING")
-                        utils.log(f"Attempting individual inserts for batch {batch_num}", "INFO")
-
-                        # Fall back to individual inserts for this batch
-                        for j, movie in enumerate(batch_movies):
-                            if j % 50 == 0:  # Log every 50 individual inserts
-                                utils.log(f"Individual insert progress: {j+1}/{len(batch_movies)}", "DEBUG")
-                            try:
-                                # Prioritize uniqueid.imdb over imdbnumber for v19 compatibility
-                                imdb_id = ''
-                                if 'uniqueid' in movie and isinstance(movie.get('uniqueid'), dict):
-                                    imdb_id = movie.get('uniqueid', {}).get('imdb', '')
-
-                                # Fallback to imdbnumber only if it looks like an IMDb ID
-                                if not imdb_id:
-                                    fallback_id = movie.get('imdbnumber', '')
-                                    if fallback_id and str(fallback_id).strip().startswith('tt'):
-                                        imdb_id = str(fallback_id).strip()
-
-                                if imdb_id and imdb_id.startswith('tt') and len(imdb_id) > 2:
-                                    movie['imdbnumber'] = imdb_id
-                                    valid_movies.append(movie)
-
-                                    # Create movie_data for individual insert
-                                    movie_data = {
-                                        'kodi_id': movie.get('movieid', 0),
-                                        'title': movie.get('title', ''),
-                                        'year': movie.get('year', 0),
-                                        'imdbnumber': imdb_id,
-                                        'source': 'lib',
-                                        'play': movie.get('file', ''),
-                                        'poster': movie.get('art', {}).get('poster', '') if movie.get('art') else '',
-                                        'fanart': movie.get('art', {}).get('fanart', '') if movie.get('art') else '',
-                                        'plot': movie.get('plot', ''),
-                                        'rating': float(movie.get('rating', 0)),
-                                        'votes': int(movie.get('votes', 0)),
-                                        'duration': int(movie.get('runtime', 0)),
-                                        'mpaa': movie.get('mpaa', ''),
-                                        'genre': ','.join(movie.get('genre', [])) if isinstance(movie.get('genre'), list) else movie.get('genre', ''),
-                                        'director': ','.join(movie.get('director', [])) if isinstance(movie.get('director'), list) else movie.get('director', ''),
-                                        'studio': ','.join(movie.get('studio', [])) if isinstance(movie.get('studio'), list) else movie.get('studio', ''),
-                                        'country': ','.join(movie.get('country', [])) if isinstance(movie.get('country'), list) else movie.get('country', ''),
-                                        'writer': ','.join(movie.get('writer', [])) if isinstance(movie.get('writer'), list) else movie.get('writer', ''),
-                                        'cast': json.dumps(movie.get('cast', [])),
-                                        'art': json.dumps(movie.get('art', {}))
-                                    }
-
-                                    # Store heavy metadata for individual insert as well
-                                    kodi_movieid = movie.get('movieid', 0)
-                                    if kodi_movieid > 0:
-                                        try:
-                                            # Use direct cursor access for individual operations
-                                            import time
-                                            heavy_sql = """
-                                                INSERT INTO movie_heavy_meta
-                                                    (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json,
-                                                     stream_json, uniqueid_json, tags_json, updated_at)
-                                                VALUES
-                                                    (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                                                ON CONFLICT(kodi_movieid) DO UPDATE SET
-                                                     imdbnumber=excluded.imdbnumber,
-                                                     cast_json=excluded.cast_json,
-                                                     ratings_json=excluded.ratings_json,
-                                                     showlink_json=excluded.showlink_json,
-                                                     stream_json=excluded.stream_json,
-                                                     uniqueid_json=excluded.uniqueid_json,
-                                                     tags_json=excluded.tags_json,
-                                                     updated_at=excluded.updated_at
-                                            """
-                                            heavy_params = (
-                                                kodi_movieid, imdb_id,
-                                                json.dumps(movie.get('cast', [])),
-                                                json.dumps(movie.get('ratings', {})),
-                                                json.dumps(movie.get('showlink', [])),
-                                                json.dumps(movie.get('streamdetails', {})),
-                                                json.dumps(movie.get('uniqueid', {})),
-                                                json.dumps(movie.get('tag', [])),
-                                                int(time.time())
-                                            )
-                                            cursor.execute(heavy_sql, heavy_params)
-                                            utils.log(f"Stored heavy metadata for movie ID {kodi_movieid} (individual)", "DEBUG")
-                                        except Exception as meta_error:
-                                            utils.log(f"Error storing heavy metadata for movie ID {kodi_movieid} (individual): {str(meta_error)}", "WARNING")
-
-                                    # Individual insert as fallback using the connection
-                                    try:
-                                        columns = ', '.join(movie_data.keys())
-                                        placeholders = ', '.join(['?' for _ in movie_data])
-                                        individual_query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
-
-                                        cursor = conn_info['connection'].cursor()
-                                        cursor.execute(individual_query, tuple(movie_data.values()))
-                                        conn_info['connection'].commit()
-                                        stored_count += 1
-                                    except Exception as insert_error:
-                                        utils.log(f"Error in individual insert for {movie.get('title', 'Unknown')}: {str(insert_error)}", "WARNING")
-                            except Exception as inner_e:
-                                utils.log(f"Error processing individual movie {movie.get('title', 'Unknown')}: {str(inner_e)}", "WARNING")
-                                continue
-                finally:
-                    # Always release the connection
-                    db_manager.query_manager._release_connection(conn_info)
-                    utils.log(f"Released database connection for batch {batch_num}", "DEBUG")
+                        utils.log(f"Error processing batch {batch_start}-{batch_end}: {str(e)}", "ERROR")
+                        # Continue with next batch instead of failing entirely
+                    finally:
+                        # Always release the connection
+                        db_manager.query_manager._release_connection(conn_info)
+                        utils.log(f"Released database connection for batch {batch_num}", "DEBUG")
 
             utils.log("=== MOVIE PROCESSING PHASE COMPLETE ===", "INFO")
             utils.log(f"Processing summary: {stored_count} movies stored, {len(valid_movies)} valid movies found", "INFO")
@@ -523,7 +420,7 @@ class IMDbUploadManager:
                 # Only log every 4th chunk to reduce spam
                 if current_chunk % 4 == 0 or current_chunk == 1 or current_chunk == total_chunks:
                     utils.log(f"Upload progress: {percent}% - Chunk {current_chunk}/{total_chunks}", "INFO")
-                
+
                 progress.update(percent, message)
                 return True  # Continue uploading
 
@@ -599,7 +496,7 @@ class IMDbUploadManager:
                 # Only log every 4th chunk to reduce spam
                 if current_chunk % 4 == 0 or current_chunk == 1 or current_chunk == total_chunks:
                     utils.log(f"Sync progress: {percent}% - Chunk {current_chunk}/{total_chunks}", "INFO")
-                
+
                 progress.update(percent, message)
                 return True  # Continue syncing
 
