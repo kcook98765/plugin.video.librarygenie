@@ -415,9 +415,6 @@ class ListingDAO:
         """Upsert heavy metadata for a movie - can use existing connection to avoid locks"""
         import time
 
-        utils.log(f"=== UPSERT HEAVY META START: Movie ID {movieid} ===", "DEBUG")
-        utils.log(f"IMDb ID: {imdbnumber}", "DEBUG")
-
         try:
             # Try update first
             update_sql = """
@@ -437,18 +434,14 @@ class ListingDAO:
 
             if connection:
                 # Use existing connection directly to avoid lock conflicts
-                utils.log(f"Using existing connection for heavy meta update", "DEBUG")
                 cursor = connection.cursor()
                 cursor.execute(update_sql, update_params)
                 rowcount = cursor.rowcount
-                utils.log(f"Direct update rowcount: {rowcount}", "DEBUG")
                 
                 if rowcount > 0:
-                    utils.log(f"Heavy meta UPDATE successful for movie {movieid}", "DEBUG")
                     return movieid
 
                 # No rows updated, try insert
-                utils.log(f"No rows updated, trying INSERT for movie {movieid}", "DEBUG")
                 insert_sql = """
                     INSERT OR IGNORE INTO movie_heavy_meta
                         (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json,
@@ -458,18 +451,15 @@ class ListingDAO:
                 insert_params = (movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
                                stream_json, uniqueid_json, tags_json, int(time.time()))
                 cursor.execute(insert_sql, insert_params)
-                utils.log(f"Heavy meta INSERT successful for movie {movieid}", "DEBUG")
                 return movieid
             else:
                 # Fall back to execute_write for backwards compatibility
                 result = self.execute_write(update_sql, update_params)
 
                 if result['rowcount'] > 0:
-                    utils.log(f"Heavy meta UPDATE successful for movie {movieid}", "DEBUG")
                     return movieid
 
                 # No rows updated, try insert
-                utils.log(f"No rows updated, trying INSERT for movie {movieid}", "DEBUG")
                 insert_sql = """
                     INSERT OR IGNORE INTO movie_heavy_meta
                         (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json,
@@ -479,7 +469,6 @@ class ListingDAO:
                 insert_params = (movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
                                stream_json, uniqueid_json, tags_json, int(time.time()))
                 result = self.execute_write(insert_sql, insert_params)
-                utils.log(f"Heavy meta INSERT successful for movie {movieid}", "DEBUG")
                 return result['lastrowid'] or movieid
 
         except Exception as e:
