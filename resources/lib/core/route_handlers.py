@@ -296,7 +296,7 @@ def move_list(params):
         # Filter out Search History folder and current folder
         available_folders = []
         for folder in all_folders:
-            if (folder['id'] != search_history_folder_id and 
+            if (folder['id'] != search_history_folder_id and
                 folder['id'] != list_info.get('folder_id')):
                 available_folders.append(folder)
 
@@ -662,7 +662,7 @@ def move_folder(params):
         # Filter available folders
         available_folders = []
         for folder in all_folders:
-            if (folder['id'] != search_history_folder_id and 
+            if (folder['id'] != search_history_folder_id and
                 folder['id'] not in descendant_ids and
                 folder['id'] != current_parent_id):
                 available_folders.append(folder)
@@ -802,9 +802,6 @@ def rename_folder(params):
     except Exception as e:
         utils.log(f"Error renaming folder: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Rename failed')
-
-
-
 
 
 def add_to_list(params):
@@ -1153,47 +1150,168 @@ def find_similar_movies(params):
         xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERROR)
 
 def find_similar_movies_from_context(params):
-    """Handler for similarity search from native Kodi context menu"""
+    """Handle similarity search from context menu"""
     try:
-        # Get focused item info from Kodi
-        import xbmc
+        imdb_id = params.get('imdb_id')
+        title = params.get('title', '')
 
-        # Get IMDb ID from our custom property (set by listitem_builder.py)
-        imdb_id = xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)')
-
-        # Simple fallback for non-LibraryGenie items
-        if not imdb_id:
-            fallback_candidates = [
-                xbmc.getInfoLabel('ListItem.IMDBNumber'),
-                xbmc.getInfoLabel('ListItem.UniqueID(imdb)')
-            ]
-            for candidate in fallback_candidates:
-                if candidate and str(candidate).startswith('tt'):
-                    imdb_id = candidate
-                    break
-
-        if imdb_id:
-            utils.log(f"Similarity search found IMDb ID: {imdb_id}", "INFO")
-
-        title = xbmc.getInfoLabel('ListItem.Title')
-        year = xbmc.getInfoLabel('ListItem.Year')
-
-        utils.log(f"Similarity search - Title: {title}, Year: {year}, IMDb: {imdb_id}", "DEBUG")
-
-        if not imdb_id or not imdb_id.startswith('tt'):
-            utils.log("Similarity search failed - no valid IMDb ID found", "WARNING")
-            xbmcgui.Dialog().ok('LibraryGenie', "This item doesn't have a valid IMDb ID.")
+        if not imdb_id or not str(imdb_id).startswith('tt'):
+            xbmcgui.Dialog().notification('LibraryGenie', 'No valid IMDb ID found', xbmcgui.NOTIFICATION_ERROR, 3000)
             return
 
-        # Use title with year if available
-        display_title = f"{title} ({year})" if year and year != '0' else title
+        # Get display title for the search
+        display_title = title if title else imdb_id
 
-        # Perform similarity search with context menu flag
+        xbmc.log(f"LibraryGenie: Context similarity search for {display_title} (IMDb: {imdb_id})", xbmc.LOGINFO)
+
+      # Perform similarity search with context menu flag
         _perform_similarity_search(imdb_id, display_title, from_context_menu=True)
 
     except Exception as e:
         utils.log(f"Error in find_similar_movies_from_context: {str(e)}", "ERROR")
-        xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERROR)
+        xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERROR, 3000)
+
+
+def dev_display_imdb_data(params):
+    """Display all database data for an IMDb ID"""
+    try:
+        imdb_id = params.get('imdb_id')
+        title = params.get('title', '')
+
+        if not imdb_id or not str(imdb_id).startswith('tt'):
+            xbmcgui.Dialog().notification('LibraryGenie', 'No valid IMDb ID found', xbmcgui.NOTIFICATION_ERROR, 3000)
+            return
+
+        utils.log(f"LibraryGenie: Dev Display for {title} (IMDb: {imdb_id})", xbmc.LOGINFO)
+
+        # Get database manager
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+
+        # Collect data from all tables with IMDb references
+        display_data = []
+
+        # Table 1: media_items
+        try:
+            media_items_query = "SELECT * FROM media_items WHERE imdbnumber = ?"
+            db_manager._execute_with_retry(db_manager.cursor.execute, media_items_query, (imdb_id,))
+            media_items_rows = db_manager.cursor.fetchall()
+
+            if media_items_rows:
+                # Get column names
+                columns = [description[0] for description in db_manager.cursor.description]
+                display_data.append("=== MEDIA_ITEMS TABLE ===")
+                for i, row in enumerate(media_items_rows):
+                    display_data.append(f"Row {i+1}:")
+                    for col_name, value in zip(columns, row):
+                        display_data.append(f"  {col_name}: {value}")
+                    display_data.append("")
+            else:
+                display_data.append("=== MEDIA_ITEMS TABLE ===")
+                display_data.append("No records found")
+                display_data.append("")
+        except Exception as e:
+            display_data.append(f"=== MEDIA_ITEMS TABLE ===")
+            display_data.append(f"Error querying table: {str(e)}")
+            display_data.append("")
+
+        # Table 2: imdb_exports
+        try:
+            imdb_exports_query = "SELECT * FROM imdb_exports WHERE imdb_id = ?"
+            db_manager._execute_with_retry(db_manager.cursor.execute, imdb_exports_query, (imdb_id,))
+            imdb_exports_rows = db_manager.cursor.fetchall()
+
+            if imdb_exports_rows:
+                columns = [description[0] for description in db_manager.cursor.description]
+                display_data.append("=== IMDB_EXPORTS TABLE ===")
+                for i, row in enumerate(imdb_exports_rows):
+                    display_data.append(f"Row {i+1}:")
+                    for col_name, value in zip(columns, row):
+                        display_data.append(f"  {col_name}: {value}")
+                    display_data.append("")
+            else:
+                display_data.append("=== IMDB_EXPORTS TABLE ===")
+                display_data.append("No records found")
+                display_data.append("")
+        except Exception as e:
+            display_data.append(f"=== IMDB_EXPORTS TABLE ===")
+            display_data.append(f"Error querying table: {str(e)}")
+            display_data.append("")
+
+        # Table 3: movie_heavy_meta
+        try:
+            heavy_meta_query = "SELECT * FROM movie_heavy_meta WHERE imdbnumber = ?"
+            db_manager._execute_with_retry(db_manager.cursor.execute, heavy_meta_query, (imdb_id,))
+            heavy_meta_rows = db_manager.cursor.fetchall()
+
+            if heavy_meta_rows:
+                columns = [description[0] for description in db_manager.cursor.description]
+                display_data.append("=== MOVIE_HEAVY_META TABLE ===")
+                for i, row in enumerate(heavy_meta_rows):
+                    display_data.append(f"Row {i+1}:")
+                    for col_name, value in zip(columns, row):
+                        # Truncate very long JSON fields for readability
+                        if col_name.endswith('_json') and value and len(str(value)) > 200:
+                            truncated_value = str(value)[:200] + "... [TRUNCATED]"
+                            display_data.append(f"  {col_name}: {truncated_value}")
+                        else:
+                            display_data.append(f"  {col_name}: {value}")
+                    display_data.append("")
+            else:
+                display_data.append("=== MOVIE_HEAVY_META TABLE ===")
+                display_data.append("No records found")
+                display_data.append("")
+        except Exception as e:
+            display_data.append(f"=== MOVIE_HEAVY_META TABLE ===")
+            display_data.append(f"Error querying table: {str(e)}")
+            display_data.append("")
+
+        # Check for any list associations
+        try:
+            list_associations_query = """
+                SELECT l.name as list_name, f.name as folder_name, li.list_id, li.media_item_id
+                FROM list_items li
+                JOIN lists l ON li.list_id = l.id
+                LEFT JOIN folders f ON l.folder_id = f.id
+                JOIN media_items mi ON li.media_item_id = mi.id
+                WHERE mi.imdbnumber = ?
+            """
+            db_manager._execute_with_retry(db_manager.cursor.execute, list_associations_query, (imdb_id,))
+            list_rows = db_manager.cursor.fetchall()
+
+            if list_rows:
+                columns = [description[0] for description in db_manager.cursor.description]
+                display_data.append("=== LIST ASSOCIATIONS ===")
+                for i, row in enumerate(list_rows):
+                    display_data.append(f"Association {i+1}:")
+                    for col_name, value in zip(columns, row):
+                        display_data.append(f"  {col_name}: {value}")
+                    display_data.append("")
+            else:
+                display_data.append("=== LIST ASSOCIATIONS ===")
+                display_data.append("No list associations found")
+                display_data.append("")
+        except Exception as e:
+            display_data.append(f"=== LIST ASSOCIATIONS ===")
+            display_data.append(f"Error querying associations: {str(e)}")
+            display_data.append("")
+
+        # Create the display text
+        if not display_data:
+            display_text = f"No data found for IMDb ID: {imdb_id}"
+        else:
+            header = f"DEV DISPLAY - IMDb ID: {imdb_id}\nTitle: {title}\n\n"
+            display_text = header + "\n".join(display_data)
+
+        # Show in a text viewer dialog
+        xbmcgui.Dialog().textviewer(f"Dev Display - {imdb_id}", display_text)
+
+    except Exception as e:
+        utils.log(f"Error in dev_display_imdb_data: {str(e)}", "ERROR")
+        import traceback
+        utils.log(f"Dev Display traceback: {traceback.format_exc()}", "ERROR")
+        xbmcgui.Dialog().notification('LibraryGenie', 'Dev Display error', xbmcgui.NOTIFICATION_ERROR, 3000)
+
 
 def _perform_similarity_search(imdb_id, title, from_context_menu=False):
     """Perform the actual similarity search and create list"""
@@ -1402,45 +1520,10 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
         })
 
         if target_url:
-            # Always use ActivateWindow for more reliable navigation from context menu
-            utils.log(f"=== SIMILARITY_SEARCH: Using ActivateWindow navigation: {target_url} ===", "DEBUG")
-
-            import threading
-            import time
-
-            def delayed_activate():
-                try:
-                    # Wait for notification and database operations to complete
-                    time.sleep(2.0)
-
-                    utils.log(f"=== SIMILARITY_SEARCH_NAVIGATION: Activating window with URL: {target_url} ===", "DEBUG")
-
-                    # Use Container.Update WITHOUT replace to preserve back button functionality
-                    utils.log("=== SIMILARITY_SEARCH_NAVIGATION: Using Container.Update WITHOUT replace ===", "DEBUG")
-                    xbmc.executebuiltin(f'Container.Update("{target_url}")')
-
-                    # Brief wait and try alternative navigation if needed
-                    time.sleep(1.0)
-
-                    # Fallback: try ActivateWindow if Container.Update doesn't work
-                    utils.log("=== SIMILARITY_SEARCH_NAVIGATION: Attempting fallback navigation ===", "DEBUG")
-                    xbmc.executebuiltin(f'ActivateWindow(videos,"{target_url}",return)')
-
-                    utils.log("=== SIMILARITY_SEARCH_NAVIGATION: Navigation sequence completed ===", "DEBUG")
-
-                except Exception as e:
-                    utils.log(f"Error in similarity search navigation: {str(e)}", "ERROR")
-                    # Final fallback - show helpful notification
-                    xbmcgui.Dialog().notification(
-                        'LibraryGenie', 
-                        'List created in Search History folder', 
-                        xbmcgui.NOTIFICATION_INFO,
-                        5000
-                    )
-
-            nav_thread = threading.Thread(target=delayed_activate)
-            nav_thread.daemon = True
-            nav_thread.start()
+            # Use navigation manager for consistent logging
+            from resources.lib.core.navigation_manager import get_navigation_manager
+            nav_manager = get_navigation_manager()
+            nav_manager.navigate(target_url, "Similarity List Created")
         else:
             utils.log("=== SIMILARITY_SEARCH: Failed to build target URL for navigation ===", "ERROR")
 
@@ -1516,3 +1599,48 @@ def _schedule_delayed_navigation(target_url):
     nav_thread = threading.Thread(target=delayed_navigate)
     nav_thread.daemon = True
     nav_thread.start()
+
+def route_action(action, params):
+    """Main router for plugin actions"""
+    utils.log(f"Routing action: {action} with params: {params}", "DEBUG")
+
+    if action == 'play_movie':
+        play_movie(params)
+    elif action == 'show_item_details':
+        show_item_details(params)
+    elif action == 'create_list':
+        create_list(params)
+    elif action == 'rename_list':
+        rename_list(params)
+    elif action == 'delete_list':
+        delete_list(params)
+    elif action == 'remove_from_list':
+        remove_from_list(params)
+    elif action == 'move_list':
+        move_list(params)
+    elif action == 'clear_list':
+        clear_list(params)
+    elif action == 'export_list':
+        export_list(params)
+    elif action == 'delete_folder':
+        delete_folder(params)
+    elif action == 'move_folder':
+        move_folder(params)
+    elif action == 'create_subfolder':
+        create_subfolder(params)
+    elif action == 'rename_folder':
+        rename_folder(params)
+    elif action == 'add_to_list':
+        add_to_list(params)
+    elif action == 'add_movies_to_list':
+        add_movies_to_list(params)
+    elif action == 'add_to_list_from_context':
+        add_to_list_from_context(params)
+    elif action == 'find_similar':
+        find_similar_movies_from_context(params)
+
+    elif action == 'dev_display':
+        dev_display_imdb_data(params)
+
+    else:
+        utils.log(f"Unknown action: {action}", "WARNING")

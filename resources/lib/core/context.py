@@ -232,6 +232,10 @@ def main():
                 else:
                     options.append("Find Similar Movies... (Requires Authentication)")
 
+            # Dev Display - only if has valid IMDb ID
+            if imdb_id and str(imdb_id).startswith('tt'):
+                options.append("Dev Display")
+
         # Refresh Metadata - always available (unless it's a LibraryGenie folder, then it's handled by folder options)
         if not is_lg_folder_item:
             options.append("Refresh Metadata")
@@ -334,7 +338,7 @@ def main():
                 except Exception as e:
                     xbmc.log(f"LibraryGenie: LIST ACTION - Error in move list: {str(e)}", xbmc.LOGERROR)
 
-            
+
 
             elif selected_option == "Clear List":
                 xbmc.log("LibraryGenie: LIST ACTION - Executing Clear List", xbmc.LOGINFO)
@@ -655,6 +659,58 @@ def main():
             encoded_title = quote_plus(clean_title)
             similarity_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=find_similar&imdb_id={imdb_id}&title={encoded_title})'
             xbmc.executebuiltin(similarity_url)
+            
+        elif selected_option == "Dev Display":
+            xbmc.log(f"LibraryGenie: Dev Display - IMDb ID: {imdb_id}", xbmc.LOGINFO)
+            if imdb_id and str(imdb_id).startswith('tt'):
+                try:
+                    config = Config()
+                    db_manager = DatabaseManager(config.db_path)
+                    
+                    # Fetch data from all tables that might contain IMDb IDs
+                    # This is a placeholder; you'll need to map table names and known fields
+                    all_imdb_data = {}
+                    
+                    # Example: Fetching from a hypothetical 'movies' table
+                    movie_data = db_manager.fetch_all_imdb_data_from_table('movies', imdb_id)
+                    if movie_data:
+                        all_imdb_data['movies'] = movie_data
+
+                    # Example: Fetching from a hypothetical 'tv_shows' table
+                    tv_show_data = db_manager.fetch_all_imdb_data_from_table('tv_shows', imdb_id)
+                    if tv_show_data:
+                        all_imdb_data['tv_shows'] = tv_show_data
+
+                    # Add more table fetches as needed...
+                    # For example:
+                    # actors_data = db_manager.fetch_all_imdb_data_from_table('actors', imdb_id)
+                    # if actors_data:
+                    #     all_imdb_data['actors'] = actors_data
+
+                    # Prepare data for display
+                    display_text = f"Dev Display for IMDb ID: {imdb_id}\n\n"
+                    if all_imdb_data:
+                        for table_name, rows in all_imdb_data.items():
+                            display_text += f"--- Table: {table_name} ---\n"
+                            if rows:
+                                for row in rows:
+                                    for key, value in row.items():
+                                        display_text += f"{key}: {value}\n"
+                            else:
+                                display_text += "No data found.\n"
+                            display_text += "\n"
+                    else:
+                        display_text += "No related data found in any tracked tables."
+
+                    # Display the data in a dialog
+                    xbmcgui.Dialog().textviewer(f"Dev Display: {title}", display_text)
+
+                except Exception as dev_display_error:
+                    xbmc.log(f"LibraryGenie: Error in Dev Display: {str(dev_display_error)}", xbmc.LOGERROR)
+                    xbmcgui.Dialog().notification("LibraryGenie", "Error displaying Dev Display data", xbmcgui.NOTIFICATION_ERROR, 3000)
+            else:
+                xbmcgui.Dialog().notification("LibraryGenie", "No valid IMDb ID to display data for", xbmcgui.NOTIFICATION_WARNING, 3000)
+
 
         elif "Search Movies..." in selected_option:  # Search Movies - use direct search instead of plugin URL
             if "(Requires Authentication)" in selected_option:
