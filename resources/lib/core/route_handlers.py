@@ -1182,7 +1182,7 @@ def dev_display_imdb_data(params):
             xbmcgui.Dialog().notification('LibraryGenie', 'No valid IMDb ID found', xbmcgui.NOTIFICATION_ERROR, 3000)
             return
 
-        utils.log(f"LibraryGenie: Dev Display for {title} (IMDb: {imdb_id})", xbmc.LOGINFO)
+        utils.log(f"LibraryGenie: Dev Display for {title} (IMDb: {imdb_id})", "INFO")
 
         # Get database manager
         config = Config()
