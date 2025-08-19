@@ -663,6 +663,12 @@ def main():
         elif selected_option == "Dev Display":
             utils.log(f"LibraryGenie: Dev Display - IMDb ID: {imdb_id}", "INFO")
 
+            # Get the clean title without color formatting
+            clean_title = title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
+            clean_title = clean_title.replace('[COLOR FFF0DC8A]', '').replace('[/COLOR]', '')
+            clean_title = clean_title.replace('[COLOR FFF4BC7B]', '').replace('[/COLOR]', '')
+            clean_title = clean_title.replace('[COLOR FFECA9A7]', '').replace('[/COLOR]', '')
+
             # Navigate to directory-based dev display
             from resources.lib.kodi.url_builder import build_plugin_url
             from urllib.parse import quote_plus
