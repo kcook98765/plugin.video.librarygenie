@@ -485,6 +485,11 @@ def router(paramstring):
         from resources.lib.integrations.remote_api.favorites_importer import import_from_favorites
         import_from_favorites()
         return
+    elif action == 'dev_display_directory':
+        log("Routing to dev_display_directory action", "DEBUG")
+        from resources.lib.core.route_handlers import dev_display_imdb_data_directory
+        dev_display_imdb_data_directory(q)
+        return
     else:
         # Default: build root directory if action is not recognized or empty
         log(f"Unrecognized action '{action}' or no action specified, building root directory.", "DEBUG")

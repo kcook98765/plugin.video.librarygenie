@@ -663,12 +663,16 @@ def main():
         elif selected_option == "Dev Display":
             utils.log(f"LibraryGenie: Dev Display - IMDb ID: {imdb_id}", "INFO")
 
-            # Call the route handler for dev display
-            from resources.lib.core.route_handlers import dev_display_imdb_data
-            dev_display_imdb_data({
+            # Navigate to directory-based dev display
+            from resources.lib.kodi.url_builder import build_plugin_url
+            from urllib.parse import quote_plus
+            encoded_title = quote_plus(clean_title)
+            dev_url = build_plugin_url({
+                'action': 'dev_display_directory',
                 'imdb_id': imdb_id,
-                'title': title
+                'title': encoded_title
             })
+            xbmc.executebuiltin(f'ActivateWindow(videos,"{dev_url}",return)')
 
         elif "Search Movies..." in selected_option:  # Search Movies - use direct search instead of plugin URL
             if "(Requires Authentication)" in selected_option:

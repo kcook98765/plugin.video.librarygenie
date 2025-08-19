@@ -1172,150 +1172,13 @@ def find_similar_movies_from_context(params):
         xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERROR, 3000)
 
 
-def dev_display_imdb_data(params):
-    """Display all database data for an IMDb ID"""
-    try:
-        imdb_id = params.get('imdb_id')
-        title = params.get('title', '')
+def dev_display_imdb_data_directory(params):
+    """Route handler for directory-based dev display"""
+    from resources.lib.utils.dev_helper import display_imdb_data_as_directory
+    import sys
 
-        if not imdb_id or not str(imdb_id).startswith('tt'):
-            xbmcgui.Dialog().notification('LibraryGenie', 'No valid IMDb ID found', xbmcgui.NOTIFICATION_ERROR, 3000)
-            return
-
-        utils.log(f"LibraryGenie: Dev Display for {title} (IMDb: {imdb_id})", "INFO")
-
-        # Get database manager
-        config = Config()
-        db_manager = DatabaseManager(config.db_path)
-
-        # Collect data from all tables with IMDb references
-        display_data = []
-
-        # Table 1: media_items
-        try:
-            media_items_query = "SELECT * FROM media_items WHERE imdbnumber = ?"
-            db_manager._execute_with_retry(db_manager.cursor.execute, media_items_query, (imdb_id,))
-            media_items_rows = db_manager.cursor.fetchall()
-
-            if media_items_rows:
-                # Get column names
-                columns = [description[0] for description in db_manager.cursor.description]
-                display_data.append("=== MEDIA_ITEMS TABLE ===")
-                for i, row in enumerate(media_items_rows):
-                    display_data.append(f"Row {i+1}:")
-                    for col_name, value in zip(columns, row):
-                        display_data.append(f"  {col_name}: {value}")
-                    display_data.append("")
-            else:
-                display_data.append("=== MEDIA_ITEMS TABLE ===")
-                display_data.append("No records found")
-                display_data.append("")
-        except Exception as e:
-            display_data.append(f"=== MEDIA_ITEMS TABLE ===")
-            display_data.append(f"Error querying table: {str(e)}")
-            display_data.append("")
-
-        # Table 2: imdb_exports
-        try:
-            imdb_exports_query = "SELECT * FROM imdb_exports WHERE imdb_id = ?"
-            db_manager._execute_with_retry(db_manager.cursor.execute, imdb_exports_query, (imdb_id,))
-            imdb_exports_rows = db_manager.cursor.fetchall()
-
-            if imdb_exports_rows:
-                columns = [description[0] for description in db_manager.cursor.description]
-                display_data.append("=== IMDB_EXPORTS TABLE ===")
-                for i, row in enumerate(imdb_exports_rows):
-                    display_data.append(f"Row {i+1}:")
-                    for col_name, value in zip(columns, row):
-                        display_data.append(f"  {col_name}: {value}")
-                    display_data.append("")
-            else:
-                display_data.append("=== IMDB_EXPORTS TABLE ===")
-                display_data.append("No records found")
-                display_data.append("")
-        except Exception as e:
-            display_data.append(f"=== IMDB_EXPORTS TABLE ===")
-            display_data.append(f"Error querying table: {str(e)}")
-            display_data.append("")
-
-        # Table 3: movie_heavy_meta
-        try:
-            heavy_meta_query = "SELECT * FROM movie_heavy_meta WHERE imdbnumber = ?"
-            db_manager._execute_with_retry(db_manager.cursor.execute, heavy_meta_query, (imdb_id,))
-            heavy_meta_rows = db_manager.cursor.fetchall()
-
-            if heavy_meta_rows:
-                columns = [description[0] for description in db_manager.cursor.description]
-                display_data.append("=== MOVIE_HEAVY_META TABLE ===")
-                for i, row in enumerate(heavy_meta_rows):
-                    display_data.append(f"Row {i+1}:")
-                    for col_name, value in zip(columns, row):
-                        # Truncate very long JSON fields for readability
-                        if col_name.endswith('_json') and value and len(str(value)) > 200:
-                            truncated_value = str(value)[:200] + "... [TRUNCATED]"
-                            display_data.append(f"  {col_name}: {truncated_value}")
-                        else:
-                            display_data.append(f"  {col_name}: {value}")
-                    display_data.append("")
-            else:
-                display_data.append("=== MOVIE_HEAVY_META TABLE ===")
-                display_data.append("No records found")
-                display_data.append("")
-        except Exception as e:
-            display_data.append(f"=== MOVIE_HEAVY_META TABLE ===")
-            display_data.append(f"Error querying table: {str(e)}")
-            display_data.append("")
-
-        # Check for any list associations
-        try:
-            list_associations_query = """
-                SELECT l.name as list_name, f.name as folder_name, li.list_id, li.media_item_id
-                FROM list_items li
-                JOIN lists l ON li.list_id = l.id
-                LEFT JOIN folders f ON l.folder_id = f.id
-                JOIN media_items mi ON li.media_item_id = mi.id
-                WHERE mi.imdbnumber = ?
-            """
-            db_manager._execute_with_retry(db_manager.cursor.execute, list_associations_query, (imdb_id,))
-            list_rows = db_manager.cursor.fetchall()
-
-            if list_rows:
-                columns = [description[0] for description in db_manager.cursor.description]
-                display_data.append("=== LIST ASSOCIATIONS ===")
-                for i, row in enumerate(list_rows):
-                    display_data.append(f"Association {i+1}:")
-                    for col_name, value in zip(columns, row):
-                        display_data.append(f"  {col_name}: {value}")
-                    display_data.append("")
-            else:
-                display_data.append("=== LIST ASSOCIATIONS ===")
-                display_data.append("No list associations found")
-                display_data.append("")
-        except Exception as e:
-            display_data.append(f"=== LIST ASSOCIATIONS ===")
-            display_data.append(f"Error querying associations: {str(e)}")
-            display_data.append("")
-
-        # Create the display text
-        if not display_data:
-            display_text = f"No data found for IMDb ID: {imdb_id}"
-        else:
-            header = f"DEV DISPLAY - IMDb ID: {imdb_id}\nTitle: {title}\n\n"
-            display_text = header + "\n".join(display_data)
-
-        # Log the full display text to Kodi logs
-        utils.log(f"=== DEV DISPLAY DATA START - {imdb_id} ===", "INFO")
-        utils.log(display_text, "INFO")
-        utils.log(f"=== DEV DISPLAY DATA END - {imdb_id} ===", "INFO")
-
-        # Show full data directly in textviewer (fullscreen scrollable like Kodi log viewer)
-        xbmcgui.Dialog().textviewer(f"Dev Display - {imdb_id}", display_text)
-
-    except Exception as e:
-        utils.log(f"Error in dev_display_imdb_data: {str(e)}", "ERROR")
-        import traceback
-        utils.log(f"Dev Display traceback: {traceback.format_exc()}", "ERROR")
-        xbmcgui.Dialog().notification('LibraryGenie', 'Dev Display error', xbmcgui.NOTIFICATION_ERROR, 3000)
+    handle = int(sys.argv[1])
+    display_imdb_data_as_directory(params, handle)
 
 
 def _perform_similarity_search(imdb_id, title, from_context_menu=False):
@@ -1645,7 +1508,7 @@ def route_action(action, params):
         find_similar_movies_from_context(params)
 
     elif action == 'dev_display':
-        dev_display_imdb_data(params)
+        dev_display_imdb_data_directory(params)
 
     else:
         utils.log(f"Unknown action: {action}", "WARNING")
