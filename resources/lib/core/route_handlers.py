@@ -1343,29 +1343,23 @@ def dev_display_imdb_data(params):
             if selected_chunk == -1:  # User cancelled
                 return
             elif selected_chunk == len(chunks):  # View full data
-                # Show full data in text input for copying
-                xbmcgui.Dialog().input(
+                # Show full data in textviewer
+                xbmcgui.Dialog().textviewer(
                     f"Dev Display - {imdb_id} (Full Data)",
-                    defaultt=display_text,
-                    type=xbmcgui.INPUT_ALPHANUM,
-                    option=xbmcgui.ALPHANUM_HIDE_INPUT
+                    display_text
                 )
             else:
                 # Show selected chunk
                 section_title, section_data = chunks[selected_chunk]
-                xbmcgui.Dialog().input(
+                xbmcgui.Dialog().textviewer(
                     f"Dev Display - {section_title}",
-                    defaultt=section_data,
-                    type=xbmcgui.INPUT_ALPHANUM,
-                    option=xbmcgui.ALPHANUM_HIDE_INPUT
+                    section_data
                 )
         else:
-            # Fallback to simple text input
-            xbmcgui.Dialog().input(
+            # Fallback to simple textviewer
+            xbmcgui.Dialog().textviewer(
                 f"Dev Display - {imdb_id}",
-                defaultt=display_text,
-                type=xbmcgui.INPUT_ALPHANUM,
-                option=xbmcgui.ALPHANUM_HIDE_INPUT
+                display_text
             )
 
     except Exception as e:
