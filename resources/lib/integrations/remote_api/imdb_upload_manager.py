@@ -151,6 +151,22 @@ class IMDbUploadManager:
                     # Fallback to original delete method
                     db_manager.delete_data('media_items', "source = 'lib'")
 
+                # Also clear heavy metadata table for fresh sync
+                try:
+                    utils.log("Clearing heavy metadata table for fresh library sync", "INFO")
+                    conn_info = db_manager.query_manager._get_connection()
+                    try:
+                        cursor = conn_info['connection'].cursor()
+                        cursor.execute("DELETE FROM movie_heavy_meta")
+                        conn_info['connection'].commit()
+                        utils.log("Successfully cleared heavy metadata table", "INFO")
+                    except Exception as heavy_delete_error:
+                        utils.log(f"Warning: Failed to clear heavy metadata table: {str(heavy_delete_error)}", "WARNING")
+                    finally:
+                        db_manager.query_manager._release_connection(conn_info)
+                except Exception as e:
+                    utils.log(f"Warning: Could not clear heavy metadata table: {str(e)}", "WARNING")
+
                 utils.log("Library data clearing completed successfully", "INFO")
             except Exception as e:
                 utils.log(f"Warning: Could not clear existing library data: {str(e)}", "WARNING")
