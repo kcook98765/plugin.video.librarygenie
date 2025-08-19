@@ -412,75 +412,53 @@ class ListingDAO:
         return result[0] if result else None
 
     def upsert_heavy_meta(self, movieid, imdbnumber, cast_json, ratings_json, showlink_json, stream_json, uniqueid_json, tags_json):
-        """Upsert heavy metadata for a movie with retry logic"""
+        """Upsert heavy metadata for a movie - uses execute_write which handles connection management"""
         import time
 
         utils.log(f"=== UPSERT HEAVY META START: Movie ID {movieid} ===", "DEBUG")
         utils.log(f"IMDb ID: {imdbnumber}", "DEBUG")
 
-        # First try to update existing record
-        update_sql = """
-            UPDATE movie_heavy_meta SET
-                imdbnumber = ?,
-                cast_json = ?,
-                ratings_json = ?,
-                showlink_json = ?,
-                stream_json = ?,
-                uniqueid_json = ?,
-                tags_json = ?,
-                updated_at = ?
-            WHERE kodi_movieid = ?
-        """
-        update_params = (imdbnumber, cast_json, ratings_json, showlink_json, 
-                        stream_json, uniqueid_json, tags_json, int(time.time()), movieid)
+        try:
+            # Try update first
+            update_sql = """
+                UPDATE movie_heavy_meta SET
+                    imdbnumber = ?,
+                    cast_json = ?,
+                    ratings_json = ?,
+                    showlink_json = ?,
+                    stream_json = ?,
+                    uniqueid_json = ?,
+                    tags_json = ?,
+                    updated_at = ?
+                WHERE kodi_movieid = ?
+            """
+            update_params = (imdbnumber, cast_json, ratings_json, showlink_json, 
+                            stream_json, uniqueid_json, tags_json, int(time.time()), movieid)
 
-        # Enhanced retry logic for database operations
-        max_retries = 10  # Increased retries for heavy operations
-        for attempt in range(max_retries):
-            try:
-                utils.log(f"Heavy meta UPDATE attempt {attempt+1}/{max_retries} for movie {movieid}", "DEBUG")
-                result = self.execute_write(update_sql, update_params)
+            result = self.execute_write(update_sql, update_params)
 
-                if result['rowcount'] > 0:
-                    utils.log(f"Heavy meta UPDATE successful for movie {movieid}", "DEBUG")
-                    return movieid  # Successfully updated
+            if result['rowcount'] > 0:
+                utils.log(f"Heavy meta UPDATE successful for movie {movieid}", "DEBUG")
+                return movieid
 
-                # No rows updated, try insert
-                utils.log(f"No rows updated, trying INSERT for movie {movieid}", "DEBUG")
-                insert_sql = """
-                    INSERT OR IGNORE INTO movie_heavy_meta
-                        (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json,
-                         stream_json, uniqueid_json, tags_json, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """
-                insert_params = (movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
-                               stream_json, uniqueid_json, tags_json, int(time.time()))
-                result = self.execute_write(insert_sql, insert_params)
-                utils.log(f"Heavy meta INSERT successful for movie {movieid}", "DEBUG")
-                return result['lastrowid'] or movieid
+            # No rows updated, try insert
+            utils.log(f"No rows updated, trying INSERT for movie {movieid}", "DEBUG")
+            insert_sql = """
+                INSERT OR IGNORE INTO movie_heavy_meta
+                    (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json,
+                     stream_json, uniqueid_json, tags_json, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            insert_params = (movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
+                           stream_json, uniqueid_json, tags_json, int(time.time()))
+            result = self.execute_write(insert_sql, insert_params)
+            utils.log(f"Heavy meta INSERT successful for movie {movieid}", "DEBUG")
+            return result['lastrowid'] or movieid
 
-            except Exception as e:
-                if 'database is locked' in str(e) and attempt < max_retries - 1:
-                    utils.log(f"=== HEAVY META LOCK: Movie {movieid} attempt {attempt+1} ===", "ERROR")
-                    utils.log(f"Lock error: {str(e)}", "ERROR")
-
-                    import time
-                    # More aggressive backoff for heavy metadata operations
-                    wait_time = 0.2 * (1.5 ** attempt)  # Slower growth, longer waits
-                    wait_time = min(wait_time, 3.0)  # Cap at 3 seconds
-                    utils.log(f"Waiting {wait_time:.2f}s before retry for movie {movieid}", "ERROR")
-                    time.sleep(wait_time)
-                    continue
-                else:
-                    utils.log(f"=== HEAVY META FAILED: Movie {movieid} ===", "ERROR")
-                    utils.log(f"Final error: {str(e)}", "ERROR")
-                    utils.log(f"Attempt: {attempt+1}/{max_retries}", "ERROR")
-                    # Re-raise the exception if it's not a lock or we've exhausted retries
-                    raise
-
-        # If we get here, all retries failed
-        utils.log(f"=== HEAVY META EXHAUSTED: Movie {movieid} after {max_retries} attempts ===", "ERROR")
-        raise Exception(f"Failed to upsert heavy metadata for movie {movieid} after {max_retries} attempts")
+        except Exception as e:
+            utils.log(f"Error storing heavy metadata for movie ID {movieid}: {str(e)}", "WARNING")
+            # Don't re-raise - this is not critical for the upload process
+            return movieid
 
     def get_heavy_meta_by_movieids(self, movieids):
         """Get heavy metadata for multiple movie IDs"""
