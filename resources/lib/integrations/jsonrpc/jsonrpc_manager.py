@@ -666,14 +666,28 @@ class JSONRPC:
                         
                         # Merge heavy fields back into light movies
                         merged_count = 0
+                        missing_count = 0
                         for movie in light_movies:
                             movieid = movie.get('movieid')
                             if movieid and movieid in heavy_by_id:
                                 heavy_fields = heavy_by_id[movieid]
                                 movie.update(heavy_fields)
                                 merged_count += 1
+                            else:
+                                # Fallback: Add empty/null values for missing heavy data
+                                movie.update({
+                                    'cast': [],
+                                    'ratings': {},
+                                    'showlink': [],
+                                    'streamdetails': {},
+                                    'uniqueid': {},
+                                    'tag': []
+                                })
+                                missing_count += 1
                         
                         log(f"BATCH JSON-RPC: Merged heavy fields for {merged_count}/{len(light_movies)} movies", "INFO")
+                        if missing_count > 0:
+                            log(f"BATCH JSON-RPC: Used fallback empty values for {missing_count} movies with missing heavy data", "WARNING")
                         
                     except Exception as e:
                         log(f"BATCH JSON-RPC: Warning - Failed to merge heavy fields: {str(e)}", "WARNING")
