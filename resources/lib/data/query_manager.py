@@ -178,19 +178,34 @@ class QueryManager(Singleton):
         """Delete folder and all its contents in a single transaction"""
         conn_info = self._get_connection()
         try:
-            # Begin transaction
-            conn_info['connection'].execute('BEGIN')
+            # Check if already in transaction
+            in_transaction = False
+            try:
+                conn_info['connection'].execute("SAVEPOINT test_transaction")
+                conn_info['connection'].execute("ROLLBACK TO test_transaction")
+                conn_info['connection'].execute("RELEASE test_transaction")
+            except:
+                in_transaction = True
+
+            # Only start transaction if not already in one
+            if not in_transaction:
+                conn_info['connection'].execute('BEGIN')
 
             # Perform the recursive deletion via DAO
             result = self._listing.delete_folder_and_contents(folder_id)
 
-            # Commit transaction
-            conn_info['connection'].commit()
+            # Only commit if we started the transaction
+            if not in_transaction:
+                conn_info['connection'].commit()
             return result
 
         except Exception as e:
-            # Rollback on any error
-            conn_info['connection'].rollback()
+            # Only rollback if we're in a transaction
+            try:
+                if not in_transaction:
+                    conn_info['connection'].rollback()
+            except:
+                pass
             utils.log(f"Transaction rolled back during folder deletion: {str(e)}", "ERROR")
             raise
         finally:

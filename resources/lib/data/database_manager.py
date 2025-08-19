@@ -141,9 +141,21 @@ class DatabaseManager(Singleton):
             utils.log(f"Setting up database schema version {self.SCHEMA_VERSION}...", "DEBUG")
 
             conn_info = self.query_manager._get_connection()
-            conn_info['connection'].execute("BEGIN IMMEDIATE")
-
+            
             try:
+                # Check if already in transaction by testing a rollback
+                in_transaction = False
+                try:
+                    conn_info['connection'].execute("SAVEPOINT test_transaction")
+                    conn_info['connection'].execute("ROLLBACK TO test_transaction")
+                    conn_info['connection'].execute("RELEASE test_transaction")
+                except:
+                    in_transaction = True
+
+                # Only start transaction if not already in one
+                if not in_transaction:
+                    conn_info['connection'].execute("BEGIN IMMEDIATE")
+
                 # Create tables if they don't exist
                 self._create_tables(conn_info['connection'].cursor())
 
@@ -159,13 +171,19 @@ class DatabaseManager(Singleton):
                     utils.log(f"Running database migrations from version {current_version} to {self.SCHEMA_VERSION}", "INFO")
                     self._run_migrations(conn_info['connection'].cursor(), current_version)
                     conn_info['connection'].cursor().execute(f"PRAGMA user_version = {self.SCHEMA_VERSION}")
-                    conn_info['connection'].commit()
                     utils.log("Database migrations completed successfully", "INFO")
                 else:
                     utils.log("Database schema is up-to-date.", "INFO")
 
+                # Only commit if we started the transaction
+                if not in_transaction:
+                    conn_info['connection'].commit()
+
             except Exception as e:
-                conn_info['connection'].rollback()
+                try:
+                    conn_info['connection'].rollback()
+                except:
+                    pass  # Rollback might fail if no transaction was started
                 utils.log(f"Database setup transaction failed: {str(e)}", "ERROR")
                 raise
             finally:
