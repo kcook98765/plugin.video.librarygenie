@@ -203,11 +203,47 @@ class JSONRPC:
             if total_estimated is None and total > 0:
                 total_estimated = total
 
-            # Cache heavy fields for each movie in this batch
+            # Cache heavy fields for each movie in this batch with transaction batching
             batch_cached = 0
-            for movie in movies:
-                if self.cache_heavy_meta(movie):
-                    batch_cached += 1
+            try:
+                # Import here to avoid circular imports
+                from resources.lib.data.query_manager import QueryManager
+                from resources.lib.config.config_manager import Config
+                query_manager = QueryManager(Config().db_path)
+                
+                # Begin transaction for this batch of movies
+                conn_info = query_manager._get_connection()
+                conn_info['connection'].execute("BEGIN IMMEDIATE")
+                
+                try:
+                    for movie in movies:
+                        if self.cache_heavy_meta(movie):
+                            batch_cached += 1
+                    
+                    # Commit the transaction for this batch
+                    conn_info['connection'].commit()
+                    log(f"Committed heavy metadata transaction for batch of {len(movies)} movies", "DEBUG")
+                    
+                except Exception as e:
+                    conn_info['connection'].rollback()
+                    log(f"Rolled back heavy metadata transaction: {str(e)}", "WARNING")
+                    # Fall back to individual inserts without transaction
+                    for movie in movies:
+                        try:
+                            if self.cache_heavy_meta(movie):
+                                batch_cached += 1
+                        except Exception as movie_error:
+                            log(f"Failed to cache heavy metadata for movie {movie.get('movieid', 'unknown')}: {str(movie_error)}", "WARNING")
+                finally:
+                    query_manager._release_connection(conn_info)
+                    
+            except Exception as e:
+                log(f"Error setting up heavy metadata transaction: {str(e)}", "WARNING")
+                # Fall back to original individual caching
+                for movie in movies:
+                    if self.cache_heavy_meta(movie):
+                        batch_cached += 1
+            
             cached_count += batch_cached
 
             # Log summary only every 500 movies to reduce spam
@@ -504,8 +540,8 @@ class JSONRPC:
 
     def cache_heavy_meta(self, movie_data):
         """Cache heavy metadata fields for a movie"""
+        movieid = movie_data.get('movieid')
         try:
-            movieid = movie_data.get('movieid')
             if not movieid:
                 return False
             
@@ -516,14 +552,39 @@ class JSONRPC:
             
             import json
             
-            # Extract heavy fields
-            imdbnumber = movie_data.get('imdbnumber', '')
-            cast_json = json.dumps(movie_data.get('cast', []))
-            ratings_json = json.dumps(movie_data.get('ratings', {}))
-            showlink_json = json.dumps(movie_data.get('showlink', []))
-            stream_json = json.dumps(movie_data.get('streamdetails', {}))
-            uniqueid_json = json.dumps(movie_data.get('uniqueid', {}))
-            tags_json = json.dumps(movie_data.get('tag', []))
+            # Extract heavy fields with safe JSON serialization
+            imdbnumber = str(movie_data.get('imdbnumber', ''))
+            
+            # Safely serialize heavy fields, handling potential serialization errors
+            try:
+                cast_json = json.dumps(movie_data.get('cast', []), ensure_ascii=False)
+            except (TypeError, ValueError):
+                cast_json = '[]'
+                
+            try:
+                ratings_json = json.dumps(movie_data.get('ratings', {}), ensure_ascii=False)
+            except (TypeError, ValueError):
+                ratings_json = '{}'
+                
+            try:
+                showlink_json = json.dumps(movie_data.get('showlink', []), ensure_ascii=False)
+            except (TypeError, ValueError):
+                showlink_json = '[]'
+                
+            try:
+                stream_json = json.dumps(movie_data.get('streamdetails', {}), ensure_ascii=False)
+            except (TypeError, ValueError):
+                stream_json = '{}'
+                
+            try:
+                uniqueid_json = json.dumps(movie_data.get('uniqueid', {}), ensure_ascii=False)
+            except (TypeError, ValueError):
+                uniqueid_json = '{}'
+                
+            try:
+                tags_json = json.dumps(movie_data.get('tag', []), ensure_ascii=False)
+            except (TypeError, ValueError):
+                tags_json = '[]'
             
             # Cache the heavy fields
             query_manager._listing.upsert_heavy_meta(
@@ -534,7 +595,7 @@ class JSONRPC:
             return True
             
         except Exception as e:
-            log(f"Error caching heavy metadata for movie {movieid}: {str(e)}", "ERROR")
+            log(f"Error caching heavy metadata for movie {movieid}: {str(e)}", "WARNING")
             return False
 
 
@@ -569,9 +630,37 @@ class JSONRPC:
             if len(title_year_pairs) > 3:
                 log(f"BATCH JSON-RPC: ... and {len(title_year_pairs) - 3} more", "INFO")
 
-            # Use light properties for faster response
-            properties = self.get_light_properties()
-            log(f"BATCH JSON-RPC: Using {len(properties)} light properties (excluding heavy fields)", "INFO")
+            # Use light properties for faster response with version compatibility
+            base_properties = self.get_light_properties()
+            
+            # Apply version compatibility filtering like other JSON-RPC calls
+            try:
+                # Test with a small subset first to detect invalid properties
+                test_filter = {
+                    'field': 'title',
+                    'operator': 'contains', 
+                    'value': 'test_query_for_property_validation'
+                }
+                test_response = self.execute('VideoLibrary.GetMovies', {
+                    'properties': base_properties[:5],  # Test with first 5 properties
+                    'filter': test_filter,
+                    'limits': {'start': 0, 'end': 1}
+                })
+                
+                if 'error' in test_response:
+                    # Check for invalid property error
+                    invalid_index = self._extract_invalid_prop_index(test_response)
+                    if invalid_index is not None and invalid_index < len(base_properties):
+                        invalid_prop = base_properties[invalid_index]
+                        log(f"BATCH JSON-RPC: Removing invalid property '{invalid_prop}' for this Kodi version", "WARNING")
+                        base_properties = [p for p in base_properties if p != invalid_prop]
+                
+                properties = base_properties
+                log(f"BATCH JSON-RPC: Using {len(properties)} compatible light properties (excluding heavy fields)", "INFO")
+                
+            except Exception as e:
+                log(f"BATCH JSON-RPC: Property compatibility check failed, using basic properties: {str(e)}", "WARNING")
+                properties = ["title", "year", "movieid", "file"]
 
             # Build OR filter for all title-year combinations using proper Kodi JSON-RPC syntax
             filter_conditions = []
