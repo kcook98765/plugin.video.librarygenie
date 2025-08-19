@@ -246,7 +246,7 @@ class IMDbUploadManager:
                 batch_end = min(batch_start + batch_size, len(all_movies))
                 batch_movies = all_movies[batch_start:batch_end]
                 batch_num = (batch_start // batch_size) + 1
-                total_movies = len(all_movies)  # Fixed: was len(all_all_movies)
+                total_movies = len(all_movies)
 
                 # Only log every 5th batch to reduce spam
                 if batch_num % 5 == 0 or batch_num == 1:
