@@ -408,28 +408,57 @@ class ListingDAO:
         return result[0] if result else None
 
     def upsert_heavy_meta(self, movieid, imdbnumber, cast_json, ratings_json, showlink_json, stream_json, uniqueid_json, tags_json):
-        """Upsert heavy metadata for a movie"""
+        """Upsert heavy metadata for a movie with retry logic"""
         import time
-        sql = """
-            INSERT INTO movie_heavy_meta
-                (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json,
-                 stream_json, uniqueid_json, tags_json, updated_at)
-            VALUES
-                (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(kodi_movieid) DO UPDATE SET
-                 imdbnumber=excluded.imdbnumber,
-                 cast_json=excluded.cast_json,
-                 ratings_json=excluded.ratings_json,
-                 showlink_json=excluded.showlink_json,
-                 stream_json=excluded.stream_json,
-                 uniqueid_json=excluded.uniqueid_json,
-                 tags_json=excluded.tags_json,
-                 updated_at=excluded.updated_at
+        
+        # First try to update existing record
+        update_sql = """
+            UPDATE movie_heavy_meta SET
+                imdbnumber = ?,
+                cast_json = ?,
+                ratings_json = ?,
+                showlink_json = ?,
+                stream_json = ?,
+                uniqueid_json = ?,
+                tags_json = ?,
+                updated_at = ?
+            WHERE kodi_movieid = ?
         """
-        params = (movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
-                 stream_json, uniqueid_json, tags_json, int(time.time()))
-        result = self.execute_write(sql, params)
-        return result['lastrowid']
+        update_params = (imdbnumber, cast_json, ratings_json, showlink_json, 
+                        stream_json, uniqueid_json, tags_json, int(time.time()), movieid)
+        
+        # Retry logic for database operations
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                result = self.execute_write(update_sql, update_params)
+                if result['rowcount'] > 0:
+                    return movieid  # Successfully updated
+                
+                # No rows updated, try insert
+                insert_sql = """
+                    INSERT OR IGNORE INTO movie_heavy_meta
+                        (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json,
+                         stream_json, uniqueid_json, tags_json, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """
+                insert_params = (movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
+                               stream_json, uniqueid_json, tags_json, int(time.time()))
+                result = self.execute_write(insert_sql, insert_params)
+                return result['lastrowid'] or movieid
+                
+            except Exception as e:
+                if 'database is locked' in str(e) and attempt < max_retries - 1:
+                    import time
+                    wait_time = 0.1 * (2 ** attempt)  # Exponential backoff
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    # Re-raise the exception if it's not a lock or we've exhausted retries
+                    raise
+        
+        # If we get here, all retries failed
+        raise Exception(f"Failed to upsert heavy metadata after {max_retries} attempts")
 
     def get_heavy_meta_by_movieids(self, movieids):
         """Get heavy metadata for multiple movie IDs"""
