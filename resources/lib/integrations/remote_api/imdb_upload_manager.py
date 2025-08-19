@@ -71,7 +71,7 @@ class IMDbUploadManager:
                 if imdb_id and imdb_id.startswith('tt') and len(imdb_id) > 2:
                     movie['imdbnumber'] = imdb_id
                     valid_movies.append(movie)
-                    
+
                     # Log only for first movie to avoid spam
                     if len(valid_movies) == 1:
                         utils.log(f"IMDb extraction method working - first valid ID: '{imdb_id}' for '{movie.get('title', 'Unknown')}'", "INFO")
@@ -102,13 +102,13 @@ class IMDbUploadManager:
             return []
 
 
-    def get_full_kodi_movie_collection_and_store_locally(self, progress_dialog=None):
+    def get_full_kodi_movie_collection_and_store_locally(self, use_notifications=False):
         """Get all movies from Kodi library and store them locally in one efficient operation."""
         try:
             utils.log("=== STARTING MOVIE COLLECTION AND STORAGE ===", "INFO")
-            
-            if progress_dialog:
-                progress_dialog.update(0, "Scanning Kodi library and storing locally...")
+
+            if use_notifications:
+                utils.show_notification("LibraryGenie", "Starting movie collection scan...", time=3000)
 
             # Use database manager instead of direct query manager to avoid connection conflicts
             from resources.lib.data.database_manager import DatabaseManager
@@ -129,12 +129,13 @@ class IMDbUploadManager:
             start = 0
             all_movies = []
             last_progress_log = 0
+            last_notification = 0
 
             utils.log(f"Starting movie retrieval loop with batch size {batch_size}", "INFO")
-            
+
             while True:
                 utils.log(f"Fetching movies batch: start={start}, end={start + batch_size}", "DEBUG")
-                
+
                 params = {
                     "properties": ["title", "year", "file", "imdbnumber", "uniqueid"],
                     "limits": {"start": start, "end": start + batch_size}
@@ -158,6 +159,11 @@ class IMDbUploadManager:
                     utils.log(f"Movie retrieval progress: {current_count}/{total} movies", "INFO")
                     last_progress_log = current_count
 
+                    # Show notification every 2000 movies
+                    if use_notifications and (current_count - last_notification >= 2000):
+                        utils.show_notification("LibraryGenie", f"Scanned {current_count} of {total} movies...", time=2000)
+                        last_notification = current_count
+
                 all_movies.extend(movies)
                 utils.log(f"Total movies collected so far: {len(all_movies)}", "DEBUG")
 
@@ -168,49 +174,42 @@ class IMDbUploadManager:
                 start += batch_size
                 utils.log(f"Moving to next batch, new start position: {start}", "DEBUG")
 
+            if use_notifications:
+                utils.show_notification("LibraryGenie", f"Scan complete! Processing {len(all_movies)} movies...", time=3000)
 
             utils.log(f"=== STARTING MOVIE PROCESSING PHASE ===", "INFO")
             utils.log(f"Total movies to process: {len(all_movies)}", "INFO")
-            
-            if progress_dialog:
-                progress_dialog.update(80, "Processing and storing movie data locally...")
 
             valid_movies = []
             stored_count = 0
+            last_notification_stored = 0
 
             # Process movies with transaction batching for performance
             batch_size = 500  # Larger batches for better performance
             utils.log(f"Processing movies in batches of {batch_size}", "INFO")
-            
+
             for batch_start in range(0, len(all_movies), batch_size):
                 batch_end = min(batch_start + batch_size, len(all_movies))
                 batch_movies = all_movies[batch_start:batch_end]
-                
-                utils.log(f"Processing batch {batch_start//batch_size + 1}: movies {batch_start+1}-{batch_end} of {len(all_movies)}", "INFO")
 
-                if progress_dialog:
-                    percent = 80 + int((batch_start / len(all_movies)) * 15)
-                    progress_dialog.update(percent, f"Storing batch details {batch_start+1}-{batch_end} of {len(all_movies)}...")
-                    if progress_dialog.iscanceled():
-                        utils.log("Upload cancelled by user during processing", "INFO")
-                        return valid_movies
+                utils.log(f"Processing batch {batch_start//batch_size + 1}: movies {batch_start+1}-{batch_end} of {len(all_movies)}", "INFO")
 
                 # Begin transaction for this batch
                 try:
                     utils.log(f"Beginning database transaction for batch {batch_start//batch_size + 1}", "DEBUG")
-                    
+
                     # Use a fresh connection for each batch to avoid locks
                     conn_info = db_manager.query_manager._get_connection()
                     try:
                         conn_info['connection'].execute("BEGIN IMMEDIATE")
 
-                    batch_data = []
+                        batch_data = []
                         utils.log(f"Processing {len(batch_movies)} movies in batch {batch_start//batch_size + 1}", "DEBUG")
-                        
+
                         for i, movie in enumerate(batch_movies):
                             if i % 100 == 0:  # Log every 100 movies within batch
                                 utils.log(f"Processing movie {i+1}/{len(batch_movies)} in current batch", "DEBUG")
-                                
+
                             # Prioritize uniqueid.imdb over imdbnumber for v19 compatibility
                             imdb_id = ''
                             if 'uniqueid' in movie and isinstance(movie.get('uniqueid'), dict):
@@ -263,6 +262,11 @@ class IMDbUploadManager:
                             stored_count += len(batch_data)
                             utils.log(f"Successfully inserted {len(batch_data)} movies", "DEBUG")
 
+                            # Show progress notification every 1000 stored movies
+                            if use_notifications and (stored_count - last_notification_stored >= 1000):
+                                utils.show_notification("LibraryGenie", f"Processed {stored_count} movies with IMDb IDs...", time=2000)
+                                last_notification_stored = stored_count
+
                         # Commit the transaction
                         conn_info['connection'].commit()
                         utils.log(f"Transaction committed for batch {batch_start//batch_size + 1}", "DEBUG")
@@ -270,87 +274,86 @@ class IMDbUploadManager:
                         # Log progress every batch
                         utils.log(f"Batch {batch_start//batch_size + 1} complete - stored {len(batch_data)} movies (total: {stored_count})", "INFO")
 
-                except Exception as e:
+                    except Exception as e:
                         # Rollback on error and continue with next batch
                         try:
                             conn_info['connection'].rollback()
                             utils.log(f"Transaction rolled back for batch {batch_start//batch_size + 1}", "WARNING")
                         except Exception as rollback_error:
                             utils.log(f"Error during rollback: {str(rollback_error)}", "ERROR")
-                        
+
                         utils.log(f"Error storing batch {batch_start}-{batch_end}: {str(e)}", "WARNING")
                         utils.log(f"Attempting individual inserts for batch {batch_start//batch_size + 1}", "INFO")
-                        
+
                         # Fall back to individual inserts for this batch
                         for j, movie in enumerate(batch_movies):
                             if j % 50 == 0:  # Log every 50 individual inserts
                                 utils.log(f"Individual insert progress: {j+1}/{len(batch_movies)}", "DEBUG")
-                        try:
-                            # Prioritize uniqueid.imdb over imdbnumber for v19 compatibility
-                            imdb_id = ''
-                            if 'uniqueid' in movie and isinstance(movie.get('uniqueid'), dict):
-                                imdb_id = movie.get('uniqueid', {}).get('imdb', '')
+                            try:
+                                # Prioritize uniqueid.imdb over imdbnumber for v19 compatibility
+                                imdb_id = ''
+                                if 'uniqueid' in movie and isinstance(movie.get('uniqueid'), dict):
+                                    imdb_id = movie.get('uniqueid', {}).get('imdb', '')
 
-                            # Fallback to imdbnumber only if it looks like an IMDb ID
-                            if not imdb_id:
-                                fallback_id = movie.get('imdbnumber', '')
-                                if fallback_id and str(fallback_id).strip().startswith('tt'):
-                                    imdb_id = str(fallback_id).strip()
+                                # Fallback to imdbnumber only if it looks like an IMDb ID
+                                if not imdb_id:
+                                    fallback_id = movie.get('imdbnumber', '')
+                                    if fallback_id and str(fallback_id).strip().startswith('tt'):
+                                        imdb_id = str(fallback_id).strip()
 
-                            if imdb_id and imdb_id.startswith('tt') and len(imdb_id) > 2:
-                                movie['imdbnumber'] = imdb_id
-                                valid_movies.append(movie)
+                                if imdb_id and imdb_id.startswith('tt') and len(imdb_id) > 2:
+                                    movie['imdbnumber'] = imdb_id
+                                    valid_movies.append(movie)
 
-                                # Create movie_data for individual insert
-                                movie_data = {
-                                    'kodi_id': movie.get('movieid', 0),
-                                    'title': movie.get('title', ''),
-                                    'year': movie.get('year', 0),
-                                    'imdbnumber': imdb_id,
-                                    'source': 'lib',
-                                    'play': movie.get('file', ''),
-                                    'poster': movie.get('art', {}).get('poster', '') if movie.get('art') else '',
-                                    'fanart': movie.get('art', {}).get('fanart', '') if movie.get('art') else '',
-                                    'plot': movie.get('plot', ''),
-                                    'rating': float(movie.get('rating', 0)),
-                                    'votes': int(movie.get('votes', 0)),
-                                    'duration': int(movie.get('runtime', 0)),
-                                    'mpaa': movie.get('mpaa', ''),
-                                    'genre': ','.join(movie.get('genre', [])) if isinstance(movie.get('genre'), list) else movie.get('genre', ''),
-                                    'director': ','.join(movie.get('director', [])) if isinstance(movie.get('director'), list) else movie.get('director', ''),
-                                    'studio': ','.join(movie.get('studio', [])) if isinstance(movie.get('studio'), list) else movie.get('studio', ''),
-                                    'country': ','.join(movie.get('country', [])) if isinstance(movie.get('country'), list) else movie.get('country', ''),
-                                    'writer': ','.join(movie.get('writer', [])) if isinstance(movie.get('writer'), list) else movie.get('writer', ''),
-                                    'cast': json.dumps(movie.get('cast', [])),
-                                    'art': json.dumps(movie.get('art', {}))
-                                }
+                                    # Create movie_data for individual insert
+                                    movie_data = {
+                                        'kodi_id': movie.get('movieid', 0),
+                                        'title': movie.get('title', ''),
+                                        'year': movie.get('year', 0),
+                                        'imdbnumber': imdb_id,
+                                        'source': 'lib',
+                                        'play': movie.get('file', ''),
+                                        'poster': movie.get('art', {}).get('poster', '') if movie.get('art') else '',
+                                        'fanart': movie.get('art', {}).get('fanart', '') if movie.get('art') else '',
+                                        'plot': movie.get('plot', ''),
+                                        'rating': float(movie.get('rating', 0)),
+                                        'votes': int(movie.get('votes', 0)),
+                                        'duration': int(movie.get('runtime', 0)),
+                                        'mpaa': movie.get('mpaa', ''),
+                                        'genre': ','.join(movie.get('genre', [])) if isinstance(movie.get('genre'), list) else movie.get('genre', ''),
+                                        'director': ','.join(movie.get('director', [])) if isinstance(movie.get('director'), list) else movie.get('director', ''),
+                                        'studio': ','.join(movie.get('studio', [])) if isinstance(movie.get('studio'), list) else movie.get('studio', ''),
+                                        'country': ','.join(movie.get('country', [])) if isinstance(movie.get('country'), list) else movie.get('country', ''),
+                                        'writer': ','.join(movie.get('writer', [])) if isinstance(movie.get('writer'), list) else movie.get('writer', ''),
+                                        'cast': json.dumps(movie.get('cast', [])),
+                                        'art': json.dumps(movie.get('art', {}))
+                                    }
 
-                                # Individual insert as fallback using the connection
-                                try:
-                                    columns = ', '.join(movie_data.keys())
-                                    placeholders = ', '.join(['?' for _ in movie_data])
-                                    individual_query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
-                                    
-                                    cursor = conn_info['connection'].cursor()
-                                    cursor.execute(individual_query, tuple(movie_data.values()))
-                                    conn_info['connection'].commit()
-                                    stored_count += 1
-                                except Exception as insert_error:
-                                    utils.log(f"Error in individual insert for {movie.get('title', 'Unknown')}: {str(insert_error)}", "WARNING")
+                                    # Individual insert as fallback using the connection
+                                    try:
+                                        columns = ', '.join(movie_data.keys())
+                                        placeholders = ', '.join(['?' for _ in movie_data])
+                                        individual_query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
+
+                                        cursor = conn_info['connection'].cursor()
+                                        cursor.execute(individual_query, tuple(movie_data.values()))
+                                        conn_info['connection'].commit()
+                                        stored_count += 1
+                                    except Exception as insert_error:
+                                        utils.log(f"Error in individual insert for {movie.get('title', 'Unknown')}: {str(insert_error)}", "WARNING")
                             except Exception as inner_e:
                                 utils.log(f"Error processing individual movie {movie.get('title', 'Unknown')}: {str(inner_e)}", "WARNING")
                                 continue
-                    finally:
-                        # Always release the connection
-                        db_manager.query_manager._release_connection(conn_info)
-                        utils.log(f"Released database connection for batch {batch_start//batch_size + 1}", "DEBUG")
-
+                finally:
+                    # Always release the connection
+                    db_manager.query_manager._release_connection(conn_info)
+                    utils.log(f"Released database connection for batch {batch_start//batch_size + 1}", "DEBUG")
 
             utils.log("=== MOVIE PROCESSING PHASE COMPLETE ===", "INFO")
             utils.log(f"Processing summary: {stored_count} movies stored, {len(valid_movies)} valid movies found", "INFO")
-            
-            if progress_dialog:
-                progress_dialog.update(100, f"Found and stored {stored_count} movies with valid IMDb IDs")
+
+            if use_notifications:
+                utils.show_notification("LibraryGenie", f"Collection complete! Found {stored_count} movies with IMDb IDs", time=5000)
 
             # Also populate imdb_exports table for search history lookup
             if valid_movies:
@@ -366,6 +369,8 @@ class IMDbUploadManager:
 
         except Exception as e:
             utils.log(f"Error getting Kodi movie collection and storing locally: {str(e)}", "ERROR")
+            if use_notifications:
+                utils.show_notification("LibraryGenie", f"Error during collection: {str(e)}", time=5000)
             return []
 
 
@@ -380,8 +385,8 @@ class IMDbUploadManager:
         collection_progress.create("Preparing Upload", "Gathering movies from Kodi library...")
 
         try:
-            # Get full movie data and store locally in single efficient step
-            full_movies = self.get_full_kodi_movie_collection_and_store_locally(collection_progress)
+            # Get full movie data and store locally in single efficient step, using notifications
+            full_movies = self.get_full_kodi_movie_collection_and_store_locally(use_notifications=True)
             collection_progress.close()
 
             if not full_movies:
@@ -397,7 +402,7 @@ class IMDbUploadManager:
             xbmcgui.Dialog().ok("Error", f"Failed to gather movie collection: {str(e)}")
             return False
 
-        # Show confirmation dialog
+        # Show confirmation dialog before upload
         if not xbmcgui.Dialog().yesno(
             "Full Library Sync",
             f"This will upload {len(movies)} movies to the server and replace your existing collection.\n\nContinue?"
@@ -460,8 +465,8 @@ class IMDbUploadManager:
         collection_progress.create("Preparing Sync", "Gathering movies from Kodi library...")
 
         try:
-            # Get full movie data and store locally in single efficient step
-            full_movies = self.get_full_kodi_movie_collection_and_store_locally(collection_progress)
+            # Get full movie data and store locally in single efficient step, using notifications
+            full_movies = self.get_full_kodi_movie_collection_and_store_locally(use_notifications=True)
             collection_progress.close()
 
             if not full_movies:
