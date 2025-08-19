@@ -119,7 +119,7 @@ class NavigationManager:
                     
                     # Navigate using Container.Update WITHOUT replace to preserve back button
                     utils.log(f"=== DELAYED_LIST_NAVIGATION: Using Container.Update WITHOUT replace ===", "DEBUG")
-                    xbmc.executebuiltin(f'Container.Update({target_url})')
+                    xbmc.executebuiltin(f'Container.Update("{target_url}")')
                     
                     utils.log(f"=== DELAYED_LIST_NAVIGATION: Navigation completed for list {list_id} ===", "DEBUG")
                     
