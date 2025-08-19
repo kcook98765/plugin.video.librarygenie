@@ -1303,6 +1303,11 @@ def dev_display_imdb_data(params):
             header = f"DEV DISPLAY - IMDb ID: {imdb_id}\nTitle: {title}\n\n"
             display_text = header + "\n".join(display_data)
 
+        # Log the full display text to Kodi logs
+        utils.log(f"=== DEV DISPLAY DATA START - {imdb_id} ===", "INFO")
+        utils.log(display_text, "INFO")
+        utils.log(f"=== DEV DISPLAY DATA END - {imdb_id} ===", "INFO")
+
         # Show full data directly in textviewer (fullscreen scrollable like Kodi log viewer)
         xbmcgui.Dialog().textviewer(f"Dev Display - {imdb_id}", display_text)
 
