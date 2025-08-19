@@ -183,7 +183,7 @@ class DatabaseManager(Singleton):
                 media_item_id INTEGER NOT NULL,
                 PRIMARY KEY (list_id, media_item_id),
                 FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE,
-                FOREIGNKEY (media_item_id) REFERENCES media_items(id) ON DELETE CASCADE
+                FOREIGN KEY (media_item_id) REFERENCES media_items(id) ON DELETE CASCADE
             )
         ''')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_list_items_media_item_id ON list_items (media_item_id)')
