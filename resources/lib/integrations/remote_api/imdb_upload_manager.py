@@ -174,7 +174,7 @@ class IMDbUploadManager:
                     utils.log(f"Movie retrieval progress: {len(all_movies)}/{'?' if 'total' not in locals() else total} movies (batch {batch_count})", "INFO")
 
                 params = {
-                    "properties": ["title", "year", "file", "imdbnumber", "uniqueid"],
+                    "properties": ["title", "year", "file", "imdbnumber", "uniqueid", "cast", "ratings", "showlink", "streamdetails", "tag"],
                     "limits": {"start": start, "end": start + batch_size}
                 }
 
@@ -289,6 +289,25 @@ class IMDbUploadManager:
                                     'art': json.dumps(movie.get('art', {}))
                                 }
                                 batch_data.append(movie_data)
+                                
+                                # Store heavy metadata if available
+                                kodi_movieid = movie.get('movieid', 0)
+                                if kodi_movieid > 0:
+                                    try:
+                                        # Use the DAO to store heavy metadata
+                                        db_manager.query_manager.listing_dao.upsert_heavy_meta(
+                                            movieid=kodi_movieid,
+                                            imdbnumber=imdb_id,
+                                            cast_json=json.dumps(movie.get('cast', [])),
+                                            ratings_json=json.dumps(movie.get('ratings', {})),
+                                            showlink_json=json.dumps(movie.get('showlink', [])),
+                                            stream_json=json.dumps(movie.get('streamdetails', {})),
+                                            uniqueid_json=json.dumps(movie.get('uniqueid', {})),
+                                            tags_json=json.dumps(movie.get('tag', []))
+                                        )
+                                        utils.log(f"Stored heavy metadata for movie ID {kodi_movieid}", "DEBUG")
+                                    except Exception as meta_error:
+                                        utils.log(f"Error storing heavy metadata for movie ID {kodi_movieid}: {str(meta_error)}", "WARNING")
 
                         # Bulk insert the batch using executemany for better performance
                         if batch_data:
@@ -369,6 +388,43 @@ class IMDbUploadManager:
                                         'cast': json.dumps(movie.get('cast', [])),
                                         'art': json.dumps(movie.get('art', {}))
                                     }
+
+                                    # Store heavy metadata for individual insert as well
+                                    kodi_movieid = movie.get('movieid', 0)
+                                    if kodi_movieid > 0:
+                                        try:
+                                            # Use direct cursor access for individual operations
+                                            import time
+                                            heavy_sql = """
+                                                INSERT INTO movie_heavy_meta
+                                                    (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json,
+                                                     stream_json, uniqueid_json, tags_json, updated_at)
+                                                VALUES
+                                                    (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                                ON CONFLICT(kodi_movieid) DO UPDATE SET
+                                                     imdbnumber=excluded.imdbnumber,
+                                                     cast_json=excluded.cast_json,
+                                                     ratings_json=excluded.ratings_json,
+                                                     showlink_json=excluded.showlink_json,
+                                                     stream_json=excluded.stream_json,
+                                                     uniqueid_json=excluded.uniqueid_json,
+                                                     tags_json=excluded.tags_json,
+                                                     updated_at=excluded.updated_at
+                                            """
+                                            heavy_params = (
+                                                kodi_movieid, imdb_id,
+                                                json.dumps(movie.get('cast', [])),
+                                                json.dumps(movie.get('ratings', {})),
+                                                json.dumps(movie.get('showlink', [])),
+                                                json.dumps(movie.get('streamdetails', {})),
+                                                json.dumps(movie.get('uniqueid', {})),
+                                                json.dumps(movie.get('tag', [])),
+                                                int(time.time())
+                                            )
+                                            cursor.execute(heavy_sql, heavy_params)
+                                            utils.log(f"Stored heavy metadata for movie ID {kodi_movieid} (individual)", "DEBUG")
+                                        except Exception as meta_error:
+                                            utils.log(f"Error storing heavy metadata for movie ID {kodi_movieid} (individual): {str(meta_error)}", "WARNING")
 
                                     # Individual insert as fallback using the connection
                                     try:
