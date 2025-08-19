@@ -85,8 +85,10 @@ class DatabaseManager(Singleton):
                 self._create_tables(conn_info['connection'].cursor())
 
                 # Check current schema version
-                conn_info['connection'].cursor().execute("PRAGMA user_version")
-                current_version = conn_info['connection'].cursor().fetchone()[0]
+                cursor = conn_info['connection'].cursor()
+                cursor.execute("PRAGMA user_version")
+                version_result = cursor.fetchone()
+                current_version = version_result[0] if version_result else 0
                 utils.log(f"Current database schema version: {current_version}", "DEBUG")
 
                 # Run migrations if needed
