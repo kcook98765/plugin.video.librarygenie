@@ -162,10 +162,7 @@ class DatabaseManager(Singleton):
                 duration INTEGER DEFAULT 0,
                 votes INTEGER DEFAULT 0,
                 play TEXT,
-                media_type TEXT DEFAULT 'movie',
-                UNIQUE(kodi_id, kodi_id) WHERE kodi_id > 0,
-                UNIQUE(imdbnumber, imdbnumber) WHERE imdbnumber IS NOT NULL AND imdbnumber != '',
-                UNIQUE(play, play) WHERE play IS NOT NULL AND play != ''
+                media_type TEXT DEFAULT 'movie'
             )
         ''')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_media_items_kodi_id ON media_items (kodi_id)')
