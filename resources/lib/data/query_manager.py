@@ -59,14 +59,16 @@ class QueryManager(Singleton):
     def _get_connection(self):
         """Get a database connection from the pool"""
         with self._lock:
-            utils.log(f"=== CONNECTION REQUEST ===", "DEBUG")
-            utils.log(f"Available connections: {len(self._available_connections)}", "DEBUG")
-            utils.log(f"Total connections: {self._total_connections}/{self._max_connections}", "DEBUG")
+            # Reduced connection logging to avoid spam during bulk operations
+            # utils.log(f"=== CONNECTION REQUEST ===", "DEBUG")
+            # utils.log(f"Available connections: {len(self._available_connections)}", "DEBUG")
+            # utils.log(f"Total connections: {self._total_connections}/{self._max_connections}", "DEBUG")
 
             if self._available_connections:
                 conn_info = self._available_connections.pop()
                 conn_info['in_use'] = True
-                utils.log(f"Reusing connection ID {conn_info['id']}", "DEBUG")
+                # Connection reused
+                # utils.log(f"Reusing connection ID {conn_info['id']}", "DEBUG")
                 return conn_info
             else:
                 # Create new connection if under max limit
@@ -119,7 +121,8 @@ class QueryManager(Singleton):
         """Release a connection back to the pool"""
         if conn_info:
             with self._lock:
-                utils.log(f"Releasing connection ID {conn_info['id']}", "DEBUG")
+                # Reduced connection logging to avoid spam during bulk operations
+                # utils.log(f"Releasing connection ID {conn_info['id']}", "DEBUG")
                 conn_info['in_use'] = False
                 # Add back to available connections only if pool is not full or if the connection is still valid
                 if len(self._available_connections) < self._max_connections:

@@ -437,7 +437,7 @@ class ListingDAO:
                 cursor = connection.cursor()
                 cursor.execute(update_sql, update_params)
                 rowcount = cursor.rowcount
-                
+
                 if rowcount > 0:
                     return movieid
 
