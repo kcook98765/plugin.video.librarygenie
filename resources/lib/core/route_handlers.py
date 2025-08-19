@@ -1303,8 +1303,70 @@ def dev_display_imdb_data(params):
             header = f"DEV DISPLAY - IMDb ID: {imdb_id}\nTitle: {title}\n\n"
             display_text = header + "\n".join(display_data)
 
-        # Show in a text viewer dialog
-        xbmcgui.Dialog().textviewer(f"Dev Display - {imdb_id}", display_text)
+        # Break the data into manageable chunks for better navigation
+        lines = display_text.split('\n')
+        chunk_size = 20  # Show 20 lines at a time
+        chunks = []
+
+        current_chunk = []
+        current_section = ""
+
+        for line in lines:
+            if line.startswith("===") and line.endswith("==="):
+                # Start of new section
+                if current_chunk:
+                    chunks.append((current_section, '\n'.join(current_chunk)))
+                current_section = line.replace("===", "").strip()
+                current_chunk = [line]
+            else:
+                current_chunk.append(line)
+
+            # If chunk gets too long, split it
+            if len(current_chunk) >= chunk_size and not line.startswith("==="):
+                chunks.append((f"{current_section} (Part {len([c for c in chunks if c[0].startswith(current_section)]) + 1})", '\n'.join(current_chunk)))
+                current_chunk = []
+
+        # Add final chunk
+        if current_chunk:
+            chunks.append((current_section, '\n'.join(current_chunk)))
+
+        # Show chunks in a select dialog
+        if chunks:
+            chunk_titles = [f"📋 {title}" for title, _ in chunks]
+            chunk_titles.append("📄 View Full Data")
+
+            selected_chunk = xbmcgui.Dialog().select(
+                f"Dev Display - {imdb_id} (Select section):",
+                chunk_titles
+            )
+
+            if selected_chunk == -1:  # User cancelled
+                return
+            elif selected_chunk == len(chunks):  # View full data
+                # Show full data in text input for copying
+                xbmcgui.Dialog().input(
+                    f"Dev Display - {imdb_id} (Full Data)",
+                    defaultt=display_text,
+                    type=xbmcgui.INPUT_ALPHANUM,
+                    option=xbmcgui.ALPHANUM_HIDE_INPUT
+                )
+            else:
+                # Show selected chunk
+                section_title, section_data = chunks[selected_chunk]
+                xbmcgui.Dialog().input(
+                    f"Dev Display - {section_title}",
+                    defaultt=section_data,
+                    type=xbmcgui.INPUT_ALPHANUM,
+                    option=xbmcgui.ALPHANUM_HIDE_INPUT
+                )
+        else:
+            # Fallback to simple text input
+            xbmcgui.Dialog().input(
+                f"Dev Display - {imdb_id}",
+                defaultt=display_text,
+                type=xbmcgui.INPUT_ALPHANUM,
+                option=xbmcgui.ALPHANUM_HIDE_INPUT
+            )
 
     except Exception as e:
         utils.log(f"Error in dev_display_imdb_data: {str(e)}", "ERROR")
