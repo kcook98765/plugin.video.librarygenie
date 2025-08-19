@@ -407,4 +407,58 @@ class ListingDAO:
         result = self.execute_query(sql, params, fetch_all=False)
         return result[0] if result else None
 
+    def upsert_heavy_meta(self, movieid, imdbnumber, cast_json, ratings_json, showlink_json, stream_json, uniqueid_json, tags_json):
+        """Upsert heavy metadata for a movie"""
+        import time
+        sql = """
+            INSERT INTO movie_heavy_meta
+                (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json,
+                 stream_json, uniqueid_json, tags_json, updated_at)
+            VALUES
+                (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(kodi_movieid) DO UPDATE SET
+                 imdbnumber=excluded.imdbnumber,
+                 cast_json=excluded.cast_json,
+                 ratings_json=excluded.ratings_json,
+                 showlink_json=excluded.showlink_json,
+                 stream_json=excluded.stream_json,
+                 uniqueid_json=excluded.uniqueid_json,
+                 tags_json=excluded.tags_json,
+                 updated_at=excluded.updated_at
+        """
+        params = (movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
+                 stream_json, uniqueid_json, tags_json, int(time.time()))
+        result = self.execute_write(sql, params)
+        return result['lastrowid']
+
+    def get_heavy_meta_by_movieids(self, movieids):
+        """Get heavy metadata for multiple movie IDs"""
+        if not movieids:
+            return {}
+        
+        placeholders = ','.join(['?'] * len(movieids))
+        sql = f"""
+            SELECT kodi_movieid, cast_json, ratings_json, showlink_json, 
+                   stream_json, uniqueid_json, tags_json
+            FROM movie_heavy_meta 
+            WHERE kodi_movieid IN ({placeholders})
+        """
+        
+        rows = self.execute_query(sql, movieids, fetch_all=True)
+        
+        heavy_by_id = {}
+        for row in rows:
+            import json
+            movieid = row['kodi_movieid']
+            heavy_by_id[movieid] = {
+                'cast': json.loads(row['cast_json']) if row['cast_json'] else [],
+                'ratings': json.loads(row['ratings_json']) if row['ratings_json'] else {},
+                'showlink': json.loads(row['showlink_json']) if row['showlink_json'] else [],
+                'streamdetails': json.loads(row['stream_json']) if row['stream_json'] else {},
+                'uniqueid': json.loads(row['uniqueid_json']) if row['uniqueid_json'] else {},
+                'tag': json.loads(row['tags_json']) if row['tags_json'] else []
+            }
+        
+        return heavy_by_id
+
     

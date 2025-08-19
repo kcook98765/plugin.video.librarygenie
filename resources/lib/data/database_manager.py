@@ -9,6 +9,8 @@ from datetime import datetime # Import datetime
 from resources.lib.utils.singleton_base import Singleton
 
 class DatabaseManager(Singleton):
+    SCHEMA_VERSION = 2
+
     def __init__(self, db_path):
         if not hasattr(self, '_initialized'):
             self.db_path = db_path
@@ -71,8 +73,198 @@ class DatabaseManager(Singleton):
         raise sqlite3.OperationalError("Database is locked - operation failed after retries")
 
     def setup_database(self):
-        """Initialize database by delegating to query manager"""
-        self.query_manager.setup_database()
+        """Initialize database with required tables"""
+        try:
+            conn_info = self._get_connection()
+            cursor = conn_info['connection'].cursor()
+
+            # Check current schema version
+            cursor.execute("PRAGMA user_version")
+            current_version = cursor.fetchone()[0]
+            utils.log(f"Current database schema version: {current_version}", "DEBUG")
+
+            # Create tables if they don't exist
+            self._create_tables(cursor)
+
+            # Run migrations if needed
+            if current_version < self.SCHEMA_VERSION:
+                utils.log(f"Running database migrations from version {current_version} to {self.SCHEMA_VERSION}", "INFO")
+                self._run_migrations(cursor, current_version)
+                cursor.execute(f"PRAGMA user_version = {self.SCHEMA_VERSION}")
+                conn_info['connection'].commit()
+                utils.log("Database migrations completed successfully", "INFO")
+
+            self._release_connection(conn_info)
+            utils.log("Database setup completed successfully", "DEBUG")
+        except Exception as e:
+            utils.log(f"Database setup failed: {str(e)}", "ERROR")
+            raise
+
+    def _create_tables(self, cursor):
+        """Create all necessary tables if they do not exist"""
+        # Create folders table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS folders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                parent_id INTEGER,
+                FOREIGN KEY (parent_id) REFERENCES folders(id) ON DELETE CASCADE
+            )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_folders_parent_id ON folders (parent_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_folders_name ON folders (name)')
+
+        # Create lists table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS lists (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                folder_id INTEGER,
+                protected INTEGER DEFAULT 0,
+                FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE
+            )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_lists_folder_id ON lists (folder_id)')
+
+        # Create media_items table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS media_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                kodi_id INTEGER DEFAULT 0,
+                title TEXT,
+                year INTEGER DEFAULT 0,
+                rating REAL DEFAULT 0.0,
+                plot TEXT,
+                tagline TEXT,
+                genre TEXT,
+                director TEXT,
+                studio TEXT,
+                writer TEXT,
+                country TEXT,
+                cast TEXT,
+                imdbnumber TEXT,
+                art TEXT,
+                poster TEXT,
+                fanart TEXT,
+                source TEXT,
+                search_score INTEGER DEFAULT 0,
+                duration INTEGER DEFAULT 0,
+                votes INTEGER DEFAULT 0,
+                play TEXT,
+                media_type TEXT DEFAULT 'movie',
+                UNIQUE(kodi_id, kodi_id) WHERE kodi_id > 0,
+                UNIQUE(imdbnumber, imdbnumber) WHERE imdbnumber IS NOT NULL AND imdbnumber != '',
+                UNIQUE(play, play) WHERE play IS NOT NULL AND play != ''
+            )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_media_items_kodi_id ON media_items (kodi_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_media_items_title ON media_items (title)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_media_items_imdbnumber ON media_items (imdbnumber)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_media_items_play ON media_items (play)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_media_items_source ON media_items (source)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_media_items_media_type ON media_items (media_type)')
+
+
+        # Create list_items junction table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS list_items (
+                list_id INTEGER NOT NULL,
+                media_item_id INTEGER NOT NULL,
+                PRIMARY KEY (list_id, media_item_id),
+                FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE,
+                FOREIGNKEY (media_item_id) REFERENCES media_items(id) ON DELETE CASCADE
+            )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_list_items_media_item_id ON list_items (media_item_id)')
+
+        # Create original_requests table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS original_requests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                description TEXT,
+                response_json TEXT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        # Create parsed_movies table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS parsed_movies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                request_id INTEGER,
+                title TEXT,
+                year INTEGER,
+                director TEXT,
+                FOREIGN KEY (request_id) REFERENCES original_requests(id) ON DELETE CASCADE
+            )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_parsed_movies_request_id ON parsed_movies (request_id)')
+
+        # Create imdb_exports table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS imdb_exports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                imdb_id TEXT NOT NULL,
+                title TEXT,
+                year INTEGER,
+                genre TEXT,
+                plot TEXT,
+                rating REAL,
+                votes INTEGER,
+                director TEXT,
+                cast TEXT,
+                runtime INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_imdb_exports_imdb_id ON imdb_exports (imdb_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_imdb_exports_title_year ON imdb_exports (title, year)')
+
+        # Create movie_heavy_meta table for caching expensive fields
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS movie_heavy_meta (
+                kodi_movieid INTEGER PRIMARY KEY,
+                imdbnumber TEXT,
+                cast_json TEXT,
+                ratings_json TEXT,
+                showlink_json TEXT,
+                stream_json TEXT,
+                uniqueid_json TEXT,
+                tags_json TEXT,
+                updated_at INTEGER NOT NULL
+            )
+        ''')
+
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_heavy_imdb ON movie_heavy_meta (imdbnumber)')
+
+
+    def _run_migrations(self, cursor, from_version):
+        """Run database migrations"""
+        if from_version < 1:
+            # Migration to version 1
+            utils.log("Running migration to version 1", "DEBUG")
+            # Add any schema changes for version 1 here
+            pass
+
+        if from_version < 2:
+            # Migration to version 2 - add movie_heavy_meta table
+            utils.log("Running migration to version 2 - adding movie_heavy_meta table", "INFO")
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS movie_heavy_meta (
+                    kodi_movieid INTEGER PRIMARY KEY,
+                    imdbnumber TEXT,
+                    cast_json TEXT,
+                    ratings_json TEXT,
+                    showlink_json TEXT,
+                    stream_json TEXT,
+                    uniqueid_json TEXT,
+                    tags_json TEXT,
+                    updated_at INTEGER NOT NULL
+                )
+            ''')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_heavy_imdb ON movie_heavy_meta (imdbnumber)')
+            utils.log("Movie heavy meta table created successfully", "INFO")
 
     def fetch_folders(self, parent_id=None):
         return self.query_manager.fetch_folders_direct(parent_id)
@@ -814,7 +1006,7 @@ class DatabaseManager(Singleton):
 
                         cursor.execute(media_query, tuple(filtered_data.values()))
                         media_id = cursor.lastrowid
-                        
+
                         # If INSERT OR IGNORE didn't create a new record, find the existing one
                         if not media_id or media_id == 0:
                             cursor.execute(existing_media_query, (
