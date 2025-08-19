@@ -165,6 +165,10 @@ class IMDbUploadManager:
             self._execute_direct_delete(db_manager, "DELETE FROM movie_heavy_meta")
             utils.log("Successfully cleared heavy metadata table", "INFO")
 
+            # Clear imdb_exports table
+            self._execute_direct_delete(db_manager, "DELETE FROM imdb_exports")
+            utils.log("Successfully cleared imdb_exports table", "INFO")
+
         except Exception as e:
             utils.log(f"Warning: Could not clear existing library data: {str(e)}", "WARNING")
             utils.log("Continuing with upload process despite clearing failure", "INFO")
