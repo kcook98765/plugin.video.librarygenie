@@ -305,7 +305,8 @@ class DatabaseManager(Singleton):
                 director TEXT,
                 cast TEXT,
                 runtime INTEGER,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(kodi_id, imdb_id)
             )
         ''')
 

@@ -492,7 +492,7 @@ class QueryManager(Singleton):
     def insert_imdb_export(self, movies: List[Dict[str, Any]]) -> None:
         """Insert multiple movies into imdb_exports table"""
         query = """
-            INSERT OR REPLACE INTO imdb_exports
+            INSERT OR IGNORE INTO imdb_exports
             (kodi_id, imdb_id, title, year)
             VALUES (?, ?, ?, ?)
         """
