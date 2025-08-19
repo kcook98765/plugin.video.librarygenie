@@ -1507,7 +1507,7 @@ def route_action(action, params):
     elif action == 'find_similar':
         find_similar_movies_from_context(params)
 
-    elif action == 'dev_display':
+    elif action == 'dev_display_directory':
         dev_display_imdb_data_directory(params)
 
     else:
