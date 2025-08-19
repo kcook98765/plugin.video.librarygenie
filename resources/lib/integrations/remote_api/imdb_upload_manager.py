@@ -339,7 +339,7 @@ class IMDbUploadManager:
                         # Store heavy metadata with detailed logging
                         try:
                             utils.log(f"=== STORING HEAVY METADATA: Movie {i+1} (ID: {movie.get('movieid', 'N/A')}) ===", "DEBUG")
-                            self._store_heavy_metadata(movie, imdb_id, db_manager)
+                            self._store_heavy_metadata(movie, imdb_id, db_manager, conn_info['connection'])
                             heavy_meta_operations += 1
                             utils.log(f"Heavy metadata stored successfully for movie {i+1}", "DEBUG")
                         except Exception as meta_error:
@@ -433,7 +433,7 @@ class IMDbUploadManager:
             'art': json.dumps(movie.get('art', {}))
         }
 
-    def _store_heavy_metadata(self, movie, imdb_id, db_manager):
+    def _store_heavy_metadata(self, movie, imdb_id, db_manager, connection=None):
         """Store heavy metadata for a movie."""
         kodi_movieid = movie.get('movieid', 0)
         if kodi_movieid > 0:
@@ -446,7 +446,8 @@ class IMDbUploadManager:
                     showlink_json=json.dumps(movie.get('showlink', [])),
                     stream_json=json.dumps(movie.get('streamdetails', {})),
                     uniqueid_json=json.dumps(movie.get('uniqueid', {})),
-                    tags_json=json.dumps(movie.get('tag', []))
+                    tags_json=json.dumps(movie.get('tag', [])),
+                    connection=connection
                 )
                 utils.log(f"Stored heavy metadata for movie ID {kodi_movieid}", "DEBUG")
             except Exception as meta_error:
