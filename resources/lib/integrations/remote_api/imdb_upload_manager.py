@@ -189,11 +189,14 @@ class IMDbUploadManager:
             utils.log(f"Starting movie retrieval loop with batch size {batch_size}", "INFO")
             utils.log("About to begin JSON-RPC movie retrieval loop", "DEBUG")
 
+            total = 0  # Initialize total to avoid unbound variable error
+            
             while True:
                 batch_count += 1
                 # Only log every 10th batch to reduce spam
                 if batch_count % 10 == 0 or batch_count == 1:
-                    utils.log(f"Movie retrieval progress: {len(all_movies)}/{'?' if 'total' not in locals() else total} movies (batch {batch_count})", "INFO")
+                    total_display = total if total > 0 else '?'
+                    utils.log(f"Movie retrieval progress: {len(all_movies)}/{total_display} movies (batch {batch_count})", "INFO")
 
                 params = {
                     "properties": ["title", "year", "file", "imdbnumber", "uniqueid", "cast", "ratings", "showlink", "streamdetails", "tag"],
