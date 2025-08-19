@@ -302,20 +302,28 @@ class IMDbUploadManager:
 
     def _process_movie_batch(self, batch_movies, batch_num, db_manager):
         """Process a single batch of movies with transaction management."""
+        utils.log(f"=== BATCH {batch_num} PROCESSING START ===", "INFO")
+        utils.log(f"Batch size: {len(batch_movies)} movies", "INFO")
+        
         batch_valid_movies = []
         batch_stored_count = 0
 
         try:
-            utils.log(f"Beginning database transaction for batch {batch_num}", "DEBUG")
-
+            utils.log(f"=== GETTING DB CONNECTION FOR BATCH {batch_num} ===", "DEBUG")
             conn_info = db_manager.query_manager._get_connection()
+            utils.log(f"Connection acquired for batch {batch_num}", "DEBUG")
+            
             try:
+                utils.log(f"=== STARTING TRANSACTION FOR BATCH {batch_num} ===", "DEBUG")
                 conn_info['connection'].execute("BEGIN IMMEDIATE")
+                utils.log(f"BEGIN IMMEDIATE executed for batch {batch_num}", "DEBUG")
+                
                 batch_data = []
+                heavy_meta_operations = 0
 
                 for i, movie in enumerate(batch_movies):
-                    if i % 100 == 0:
-                        utils.log(f"Processing movie {i+1}/{len(batch_movies)} in current batch", "DEBUG")
+                    if i % 50 == 0:  # More frequent logging
+                        utils.log(f"Processing movie {i+1}/{len(batch_movies)} in batch {batch_num}", "DEBUG")
 
                     # Extract and validate IMDb ID
                     imdb_id = self._extract_imdb_id(movie)
@@ -328,27 +336,56 @@ class IMDbUploadManager:
                         movie_data = self._prepare_movie_data(movie, imdb_id)
                         batch_data.append(movie_data)
 
-                        # Store heavy metadata
-                        self._store_heavy_metadata(movie, imdb_id, db_manager)
+                        # Store heavy metadata with detailed logging
+                        try:
+                            utils.log(f"=== STORING HEAVY METADATA: Movie {i+1} (ID: {movie.get('movieid', 'N/A')}) ===", "DEBUG")
+                            self._store_heavy_metadata(movie, imdb_id, db_manager)
+                            heavy_meta_operations += 1
+                            utils.log(f"Heavy metadata stored successfully for movie {i+1}", "DEBUG")
+                        except Exception as meta_error:
+                            utils.log(f"=== HEAVY METADATA ERROR: Movie {i+1} ===", "ERROR")
+                            utils.log(f"Error: {str(meta_error)}", "ERROR")
+                            utils.log(f"Movie ID: {movie.get('movieid', 'N/A')}", "ERROR")
+                            utils.log(f"IMDb ID: {imdb_id}", "ERROR")
+                            # Continue processing other movies
+                            pass
+
+                utils.log(f"=== BATCH {batch_num} DATA PREPARATION COMPLETE ===", "INFO")
+                utils.log(f"Valid movies: {len(batch_valid_movies)}", "INFO")
+                utils.log(f"Heavy metadata operations: {heavy_meta_operations}", "INFO")
 
                 # Bulk insert batch data
                 if batch_data:
+                    utils.log(f"=== BULK INSERTING {len(batch_data)} MOVIES FOR BATCH {batch_num} ===", "DEBUG")
                     batch_stored_count = self._bulk_insert_movies(batch_data, conn_info)
-                    utils.log(f"Successfully inserted {batch_stored_count} movies", "DEBUG")
+                    utils.log(f"Bulk insert completed: {batch_stored_count} movies", "DEBUG")
 
                 # Commit transaction
+                utils.log(f"=== COMMITTING TRANSACTION FOR BATCH {batch_num} ===", "DEBUG")
                 conn_info['connection'].commit()
-                utils.log(f"Transaction committed for batch {batch_num}", "DEBUG")
+                utils.log(f"Transaction committed successfully for batch {batch_num}", "INFO")
 
             except Exception as e:
-                utils.log(f"Error processing batch {batch_num}: {str(e)}", "ERROR")
-                conn_info['connection'].rollback()
+                utils.log(f"=== BATCH {batch_num} ERROR - ROLLING BACK ===", "ERROR")
+                utils.log(f"Error details: {str(e)}", "ERROR")
+                utils.log(f"Error type: {type(e).__name__}", "ERROR")
+                try:
+                    conn_info['connection'].rollback()
+                    utils.log(f"Rollback completed for batch {batch_num}", "INFO")
+                except Exception as rollback_error:
+                    utils.log(f"Rollback failed for batch {batch_num}: {str(rollback_error)}", "ERROR")
+                raise  # Re-raise the original error
             finally:
+                utils.log(f"=== RELEASING CONNECTION FOR BATCH {batch_num} ===", "DEBUG")
                 db_manager.query_manager._release_connection(conn_info)
+                utils.log(f"Connection released for batch {batch_num}", "DEBUG")
 
         except Exception as e:
-            utils.log(f"Error processing batch {batch_num}: {str(e)}", "ERROR")
+            utils.log(f"=== BATCH {batch_num} OUTER ERROR ===", "ERROR")
+            utils.log(f"Outer error: {str(e)}", "ERROR")
 
+        utils.log(f"=== BATCH {batch_num} PROCESSING COMPLETE ===", "INFO")
+        utils.log(f"Results: {len(batch_valid_movies)} valid, {batch_stored_count} stored", "INFO")
         return batch_valid_movies, batch_stored_count
 
     def _extract_imdb_id(self, movie):

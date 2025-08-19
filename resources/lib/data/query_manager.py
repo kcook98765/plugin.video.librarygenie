@@ -5,106 +5,189 @@ from typing import List, Dict, Any, Optional
 from resources.lib.utils import utils
 from resources.lib.utils.singleton_base import Singleton
 from resources.lib.config.config_manager import Config
+import threading
 
 class QueryManager(Singleton):
     def __init__(self, db_path: str):
         if not hasattr(self, '_initialized'):
             self.db_path = db_path
-            self.pool_size = 5
-            self._connection_pool = []
+            # Initialize connection pool parameters
+            self._max_connections = 5  # Maximum number of concurrent connections
+            self._connection_pool = []  # List to hold connection info dictionaries
+            self._available_connections = [] # List of available connections
+            self._total_connections = 0  # Current number of active connections
+            self._next_conn_id = 1  # Counter for assigning unique connection IDs
+            self._lock = threading.Lock() # Lock for thread-safe access to the pool
+
             self._initialize_pool()
-            
+
             # Initialize DAO with query and write executors
             from resources.lib.data.dao.listing_dao import ListingDAO
             self._listing = ListingDAO(self.execute_query, self.execute_write)
-            
+
             self._initialized = True
 
     def _initialize_pool(self):
-        """Initialize the connection pool"""
-        for _ in range(self.pool_size):
-            conn = sqlite3.connect(self.db_path, timeout=30.0, check_same_thread=False)
-            conn.row_factory = sqlite3.Row
-            conn.execute('PRAGMA foreign_keys = ON')
-            self._connection_pool.append({'connection': conn, 'in_use': False})
+        """Initialize the connection pool with a set of connections"""
+        utils.log("Initializing connection pool...", "DEBUG")
+        for _ in range(self._max_connections):
+            try:
+                conn = sqlite3.connect(self.db_path, timeout=30.0, check_same_thread=False)
+                conn.row_factory = sqlite3.Row
+                conn.execute('PRAGMA foreign_keys = ON')
+                conn.execute('PRAGMA journal_mode = WAL') # Use Write-Ahead Logging for better concurrency
+                conn.execute('PRAGMA synchronous = NORMAL') # Trade some durability for speed
+                conn.execute('PRAGMA cache_size = 10000') # Cache more pages
+                conn.execute('PRAGMA temp_store = MEMORY') # Use memory for temporary tables
+                conn.execute('PRAGMA busy_timeout = 30000') # Set busy timeout to 30 seconds
+
+                conn_info = {
+                    'connection': conn,
+                    'id': self._next_conn_id,
+                    'in_use': False,
+                    'created_at': time.time()
+                }
+                self._available_connections.append(conn_info)
+                self._next_conn_id += 1
+                self._total_connections += 1 # Count initially created connections
+
+            except Exception as e:
+                utils.log(f"Failed to initialize connection {_ + 1}: {str(e)}", "ERROR")
+        utils.log(f"Connection pool initialized with {self._total_connections} connections.", "DEBUG")
+
 
     def _get_connection(self):
-        """Get an available connection from the pool"""
-        max_retries = 10
-        retry_count = 0
+        """Get a database connection from the pool"""
+        with self._lock:
+            utils.log(f"=== CONNECTION REQUEST ===", "DEBUG")
+            utils.log(f"Available connections: {len(self._available_connections)}", "DEBUG")
+            utils.log(f"Total connections: {self._total_connections}/{self._max_connections}", "DEBUG")
 
-        while retry_count < max_retries:
-            for conn_info in self._connection_pool:
-                if not conn_info['in_use']:
+            if self._available_connections:
+                conn_info = self._available_connections.pop()
+                conn_info['in_use'] = True
+                utils.log(f"Reusing connection ID {conn_info['id']}", "DEBUG")
+                return conn_info
+            else:
+                # Create new connection if under max limit
+                if self._total_connections < self._max_connections:
+                    utils.log(f"Creating new connection (will be #{self._next_conn_id})", "DEBUG")
+                    conn = sqlite3.connect(self.db_path, timeout=30.0)
+                    conn.row_factory = sqlite3.Row
+
+                    # Same pragmas as DatabaseManager
+                    conn.execute('PRAGMA foreign_keys = ON')
+                    conn.execute('PRAGMA journal_mode = WAL')
+                    conn.execute('PRAGMA synchronous = NORMAL')
+                    conn.execute('PRAGMA cache_size = 10000')
+                    conn.execute('PRAGMA temp_store = MEMORY')
+                    conn.execute('PRAGMA busy_timeout = 30000')
+
+                    conn_info = {
+                        'connection': conn,
+                        'id': self._next_conn_id,
+                        'in_use': True,
+                        'created_at': time.time()
+                    }
+                    self._next_conn_id += 1
+                    self._total_connections += 1
+                    utils.log(f"New connection created with ID {conn_info['id']}", "DEBUG")
+                    return conn_info
+                else:
+                    # Wait for a connection to become available
+                    utils.log(f"=== CONNECTION POOL EXHAUSTED ===", "WARNING")
+                    utils.log(f"Max connections reached: {self._max_connections}", "WARNING")
+                    utils.log("Waiting for available connection...", "WARNING")
+
+        # If we get here, we need to wait for a connection
+        start_time = time.time()
+        while time.time() - start_time < 30:  # 30 second timeout
+            time.sleep(0.1)
+            with self._lock:
+                if self._available_connections:
+                    conn_info = self._available_connections.pop()
                     conn_info['in_use'] = True
+                    utils.log(f"Got connection ID {conn_info['id']} after waiting", "INFO")
                     return conn_info
 
-            time.sleep(0.1)
-            retry_count += 1
-
-        raise Exception("No available connections in the pool")
+        utils.log("=== CONNECTION TIMEOUT ===", "ERROR")
+        utils.log(f"Could not get connection within 30 seconds", "ERROR")
+        utils.log(f"Pool status - Available: {len(self._available_connections)}, Total: {self._total_connections}", "ERROR")
+        raise Exception("Could not get database connection within timeout")
 
     def _release_connection(self, conn_info):
         """Release a connection back to the pool"""
-        conn_info['in_use'] = False
+        if conn_info:
+            with self._lock:
+                utils.log(f"Releasing connection ID {conn_info['id']}", "DEBUG")
+                conn_info['in_use'] = False
+                # Add back to available connections only if pool is not full or if the connection is still valid
+                if len(self._available_connections) < self._max_connections:
+                    self._available_connections.append(conn_info)
+                else:
+                    # If pool is full, we might need to close excess connections, but for now, just log it
+                    utils.log(f"Connection pool is full, not adding connection {conn_info['id']} back immediately.", "DEBUG")
+                    # Optionally, close the connection if it's older and pool is full
+                    # For simplicity, we'll keep it in memory for now. A more robust solution might close old idle connections.
+
 
     # =========================
     # FOLDER DELEGATION METHODS
     # =========================
-    
+
     def get_folders(self, parent_id=None):
         return self._listing.get_folders(parent_id)
-    
+
     def fetch_folders_direct(self, parent_id=None):
         return self._listing.fetch_folders_direct(parent_id)
-    
+
     def insert_folder_direct(self, name, parent_id):
         return self._listing.insert_folder_direct(name, parent_id)
-    
+
     def update_folder_name_direct(self, folder_id, new_name):
         return self._listing.update_folder_name_direct(folder_id, new_name)
-    
+
     def get_folder_depth(self, folder_id):
         return self._listing.get_folder_depth(folder_id)
-    
+
     def get_folder_by_name(self, name, parent_id=None):
         return self._listing.get_folder_by_name(name, parent_id)
-    
+
     def get_folder_id_by_name(self, name, parent_id=None):
         return self._listing.get_folder_id_by_name(name, parent_id)
-    
+
     def insert_folder(self, name, parent_id):
         return self._listing.insert_folder(name, parent_id)
-    
+
     def create_folder(self, name, parent_id):
         return self._listing.create_folder(name, parent_id)
-    
+
     def update_folder_name(self, folder_id, new_name):
         return self._listing.update_folder_name(folder_id, new_name)
-    
+
     def get_folder_media_count(self, folder_id):
         return self._listing.get_folder_media_count(folder_id)
-    
+
     def fetch_folder_by_id(self, folder_id):
         return self._listing.fetch_folder_by_id(folder_id)
-    
+
     def update_folder_parent(self, folder_id, new_parent_id):
         return self._listing.update_folder_parent(folder_id, new_parent_id)
-    
+
     def delete_folder_and_contents(self, folder_id):
         """Delete folder and all its contents in a single transaction"""
         conn_info = self._get_connection()
         try:
             # Begin transaction
             conn_info['connection'].execute('BEGIN')
-            
+
             # Perform the recursive deletion via DAO
             result = self._listing.delete_folder_and_contents(folder_id)
-            
+
             # Commit transaction
             conn_info['connection'].commit()
             return result
-            
+
         except Exception as e:
             # Rollback on any error
             conn_info['connection'].rollback()
@@ -112,71 +195,71 @@ class QueryManager(Singleton):
             raise
         finally:
             self._release_connection(conn_info)
-    
+
     def fetch_folders_with_item_status(self, parent_id, media_item_id):
         return self._listing.fetch_folders_with_item_status(parent_id, media_item_id)
-    
+
     def fetch_all_folders(self):
         return self._listing.fetch_all_folders()
 
     # =========================
     # LIST DELEGATION METHODS
     # =========================
-    
+
     def get_lists(self, folder_id=None):
         return self._listing.get_lists(folder_id)
-    
+
     def fetch_lists_direct(self, folder_id=None):
         return self._listing.fetch_lists_direct(folder_id)
-    
+
     def get_list_items(self, list_id):
         return self._listing.get_list_items(list_id)
-    
+
     def get_list_media_count(self, list_id):
         return self._listing.get_list_media_count(list_id)
-    
+
     def fetch_lists_with_item_status(self, folder_id, media_item_id):
         return self._listing.fetch_lists_with_item_status(folder_id, media_item_id)
-    
+
     def fetch_all_lists_with_item_status(self, media_item_id):
         return self._listing.fetch_all_lists_with_item_status(media_item_id)
-    
+
     def update_list_folder(self, list_id, folder_id):
         return self._listing.update_list_folder(list_id, folder_id)
-    
+
     def get_list_id_by_name(self, name, folder_id=None):
         return self._listing.get_list_id_by_name(name, folder_id)
-    
+
     def get_lists_for_item(self, media_item_id):
         return self._listing.get_lists_for_item(media_item_id)
-    
+
     def get_item_id_by_title_and_list(self, title, list_id):
         return self._listing.get_item_id_by_title_and_list(title, list_id)
-    
+
     def create_list(self, name, folder_id=None):
         return self._listing.create_list(name, folder_id)
-    
+
     def get_unique_list_name(self, base_name, folder_id=None):
         return self._listing.get_unique_list_name(base_name, folder_id)
-    
+
     def delete_list_and_contents(self, list_id):
         return self._listing.delete_list_and_contents(list_id)
-    
+
     def fetch_all_lists(self):
         return self._listing.fetch_all_lists()
-    
+
     def fetch_list_by_id(self, list_id):
         return self._listing.fetch_list_by_id(list_id)
-    
+
     def remove_media_item_from_list(self, list_id, media_item_id):
         return self._listing.remove_media_item_from_list(list_id, media_item_id)
-    
+
     def get_list_item_by_media_id(self, list_id, media_item_id):
         return self._listing.get_list_item_by_media_id(list_id, media_item_id)
-    
+
     def fetch_list_items_with_details(self, list_id):
         return self._listing.fetch_list_items_with_details(list_id)
-    
+
     def execute_rpc_query(self, rpc):
         """Execute RPC query and return results"""
         conn_info = self._get_connection()
@@ -185,8 +268,8 @@ class QueryManager(Singleton):
                 SELECT *
                 FROM media_items
                 WHERE id IN (
-                    SELECT media_item_id 
-                    FROM list_items 
+                    SELECT media_item_id
+                    FROM list_items
                     WHERE list_id = ?
                 )
             """
@@ -250,7 +333,7 @@ class QueryManager(Singleton):
         where_clause = " AND ".join(conditions)
         query = f"""
             SELECT DISTINCT *
-            FROM media_items 
+            FROM media_items
             WHERE {where_clause}
             ORDER BY title COLLATE NOCASE
         """
@@ -275,7 +358,11 @@ class QueryManager(Singleton):
             else:
                 results = cursor.fetchone()
 
-            conn_info['connection'].commit()
+            # Commit is generally not needed for SELECT statements unless we are in a transaction
+            # If this method is called outside a transaction, committing here might be problematic.
+            # If it's meant to be part of a transaction managed elsewhere, this commit should be removed.
+            # For now, assuming SELECTs don't need commit. If this is for writes, it should be in execute_write.
+            # conn_info['connection'].commit()
 
             if results:
                 if fetch_all:
@@ -285,6 +372,9 @@ class QueryManager(Singleton):
             return []
         except Exception as e:
             utils.log(f"Query execution error: {str(e)}", "ERROR")
+            # Log query and params for debugging
+            utils.log(f"Query: {query}", "ERROR")
+            utils.log(f"Params: {params}", "ERROR")
             raise
         finally:
             self._release_connection(conn_info)
@@ -296,24 +386,26 @@ class QueryManager(Singleton):
             cursor = conn_info['connection'].cursor()
             cursor.execute(sql, params)
             conn_info['connection'].commit()
-            
+
             return {
                 'lastrowid': cursor.lastrowid or 0,
                 'rowcount': cursor.rowcount or 0
             }
         except Exception as e:
             utils.log(f"Write execution error: {str(e)}", "ERROR")
+            # Log SQL and params for debugging
+            utils.log(f"SQL: {sql}", "ERROR")
+            utils.log(f"Params: {params}", "ERROR")
+            # Attempt rollback on error if it's a write operation
+            try:
+                conn_info['connection'].rollback()
+                utils.log("Attempted rollback on write error.", "DEBUG")
+            except Exception as rb_e:
+                utils.log(f"Rollback failed: {str(rb_e)}", "ERROR")
             raise
         finally:
             self._release_connection(conn_info)
 
-    
-
-
-
-    
-
-    
 
     def is_search_history(self, list_id):
         """Check if a list is in the Search History folder"""
@@ -360,12 +452,12 @@ class QueryManager(Singleton):
             utils.log(f"=== INSERT_MEDIA_ITEM_AND_ADD_TO_LIST: Error: {str(e)} ===", "ERROR")
             return False
 
-    
+
 
     def get_imdb_export_stats(self) -> Dict[str, Any]:
         """Get statistics about IMDB numbers in exports"""
         query = """
-            SELECT 
+            SELECT
                 COUNT(*) as total,
                 SUM(CASE WHEN imdb_id IS NOT NULL AND imdb_id != '' AND imdb_id LIKE 'tt%' THEN 1 ELSE 0 END) as valid_imdb
             FROM imdb_exports
@@ -382,7 +474,7 @@ class QueryManager(Singleton):
     def insert_imdb_export(self, movies: List[Dict[str, Any]]) -> None:
         """Insert multiple movies into imdb_exports table"""
         query = """
-            INSERT OR REPLACE INTO imdb_exports 
+            INSERT OR REPLACE INTO imdb_exports
             (kodi_id, imdb_id, title, year)
             VALUES (?, ?, ?, ?)
         """
@@ -390,7 +482,7 @@ class QueryManager(Singleton):
             self.execute_write(
                 query,
                 (
-                    movie.get('movieid') or movie.get('kodi_id'), 
+                    movie.get('movieid') or movie.get('kodi_id'),
                     movie.get('imdbnumber'),
                     movie.get('title'),
                     movie.get('year')
@@ -402,8 +494,8 @@ class QueryManager(Singleton):
         query = """
             SELECT imdb_id
             FROM imdb_exports
-            WHERE imdb_id IS NOT NULL 
-            AND imdb_id != '' 
+            WHERE imdb_id IS NOT NULL
+            AND imdb_id != ''
             AND imdb_id LIKE 'tt%'
             ORDER BY imdb_id
         """
@@ -421,11 +513,15 @@ class QueryManager(Singleton):
 
     def __del__(self):
         """Clean up connections when the instance is destroyed"""
+        utils.log("Cleaning up database connections...", "DEBUG")
         for conn_info in self._connection_pool:
             try:
-                conn_info['connection'].close()
-            except sqlite3.Error:
-                pass  # Ignore errors during cleanup
+                if conn_info['connection']:
+                    conn_info['connection'].close()
+            except sqlite3.Error as e:
+                utils.log(f"Error closing connection {conn_info.get('id', 'N/A')}: {str(e)}", "ERROR")
+        utils.log("Database connections cleaned up.", "DEBUG")
+
 
     def insert_original_request(self, description: str, response_json: str) -> int:
         """Insert an original request and return its ID"""
@@ -676,7 +772,7 @@ class QueryManager(Singleton):
 
         where_clause = " AND ".join(conditions)
         query = f"""
-            SELECT DISTINCT 
+            SELECT DISTINCT
                 id, kodi_id, title, year, plot, genre, director, cast,
                 rating, file, thumbnail, fanart, duration, tagline,
                 writer, imdbnumber, premiered, mpaa, trailer, votes,

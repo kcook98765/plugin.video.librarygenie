@@ -49,11 +49,29 @@ class DatabaseManager(Singleton):
     def optimize_for_heavy_operations(self):
         """Optimize database settings for heavy batch operations"""
         try:
-            utils.log("Optimizing database for heavy operations", "INFO")
+            utils.log("=== OPTIMIZING DATABASE FOR HEAVY OPERATIONS ===", "INFO")
+            
+            # Check initial WAL state
+            self.cursor.execute('PRAGMA wal_checkpoint')
+            utils.log("Initial WAL checkpoint completed", "DEBUG")
+            
             self.cursor.execute('PRAGMA synchronous = OFF')  # Fastest writes for bulk operations
+            utils.log("Set synchronous = OFF", "DEBUG")
+            
             self.cursor.execute('PRAGMA cache_size = 50000')  # Even larger cache
+            utils.log("Set cache_size = 50000", "DEBUG")
+            
             self.cursor.execute('PRAGMA locking_mode = EXCLUSIVE')  # Exclusive access during bulk ops
-            utils.log("Database optimized for heavy operations", "DEBUG")
+            utils.log("Set locking_mode = EXCLUSIVE", "DEBUG")
+            
+            # Verify settings
+            self.cursor.execute('PRAGMA synchronous')
+            sync_mode = self.cursor.fetchone()[0]
+            self.cursor.execute('PRAGMA locking_mode')
+            lock_mode = self.cursor.fetchone()[0]
+            
+            utils.log(f"Verified settings - synchronous: {sync_mode}, locking_mode: {lock_mode}", "INFO")
+            utils.log("Database optimization complete", "INFO")
         except Exception as e:
             utils.log(f"Error optimizing database: {str(e)}", "WARNING")
 
@@ -78,30 +96,44 @@ class DatabaseManager(Singleton):
 
     def _execute_with_retry(self, func, *args, **kwargs):
         retries = 20  # Increase retry count for heavy operations
+        operation_name = func.__name__ if hasattr(func, '__name__') else str(func)
+        utils.log(f"=== RETRY OPERATION START: {operation_name} ===", "DEBUG")
+        
         for i in range(retries):
             try:
-                return func(*args, **kwargs)
+                utils.log(f"Executing {operation_name} attempt {i+1}/{retries}", "DEBUG")
+                result = func(*args, **kwargs)
+                if i > 0:  # Only log if we had to retry
+                    utils.log(f"=== RETRY SUCCESS: {operation_name} succeeded on attempt {i+1} ===", "INFO")
+                return result
             except sqlite3.OperationalError as e:
                 if 'database is locked' in str(e):
                     # More aggressive exponential backoff for heavy operations
                     wait_time = min(0.2 * (1.5 ** i), 5.0)  # Cap at 5 seconds
-                    utils.log(f"Database is locked, retrying in {wait_time:.2f}s... ({i+1}/{retries})", "WARNING")
+                    utils.log(f"=== DATABASE LOCK DETECTED ===", "ERROR")
+                    utils.log(f"Operation: {operation_name}", "ERROR")
+                    utils.log(f"Attempt: {i+1}/{retries}", "ERROR")
+                    utils.log(f"Args: {args[:2] if args else 'None'}", "ERROR")  # Log first 2 args only
+                    utils.log(f"Wait time: {wait_time:.2f}s", "ERROR")
+                    utils.log(f"=== END DATABASE LOCK INFO ===", "ERROR")
+                    
                     time.sleep(wait_time)
                     
                     # Force a checkpoint every 5 retries to help with WAL mode
                     if i > 0 and i % 5 == 0:
                         try:
+                            utils.log(f"Forcing WAL checkpoint on attempt {i+1}", "INFO")
                             self.cursor.execute('PRAGMA wal_checkpoint(TRUNCATE)')
-                            utils.log("Forced WAL checkpoint to help with database locks", "DEBUG")
-                        except:
-                            pass  # Ignore checkpoint errors
+                            utils.log("WAL checkpoint completed successfully", "INFO")
+                        except Exception as checkpoint_error:
+                            utils.log(f"WAL checkpoint failed: {str(checkpoint_error)}", "WARNING")
                 else:
-                    utils.log(f"Database error (non-lock): {str(e)}", "ERROR")
+                    utils.log(f"Database error (non-lock) in {operation_name}: {str(e)}", "ERROR")
                     raise
 
         # If all retries failed
-        utils.log(f"Database operation failed after {retries} retries", "ERROR")
-        raise sqlite3.OperationalError("Database is locked - operation failed after retries")
+        utils.log(f"=== RETRY OPERATION FAILED: {operation_name} after {retries} attempts ===", "ERROR")
+        raise sqlite3.OperationalError(f"Database is locked - {operation_name} failed after retries")
 
     def setup_database(self):
         """Initialize database with required tables"""
