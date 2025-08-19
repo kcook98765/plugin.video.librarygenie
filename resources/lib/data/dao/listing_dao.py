@@ -1,16 +1,20 @@
-
 """
 ListingDAO - Data Access Object for folder and list operations
 Extracted from QueryManager to separate concerns while maintaining the same API
 """
 
+import sqlite3
+import time
+from contextlib import contextmanager
+from resources.lib.utils import utils
+
 class ListingDAO:
     """Data Access Object for folder and list database operations"""
-    
+
     def __init__(self, execute_query_callable, execute_write_callable):
         """
         Initialize DAO with injected query executors
-        
+
         Args:
             execute_query_callable: Function to execute SELECT queries
                                    Signature: execute_query(sql: str, params: tuple, fetch_all: bool) -> List[Dict]
@@ -62,10 +66,10 @@ class ListingDAO:
         """Calculate folder depth in hierarchy"""
         if folder_id is None:
             return 0
-        
+
         depth = 0
         current_id = folder_id
-        
+
         while current_id is not None:
             sql = "SELECT parent_id FROM folders WHERE id = ?"
             result = self.execute_query(sql, (current_id,), fetch_all=False)
@@ -73,11 +77,11 @@ class ListingDAO:
                 break
             current_id = result[0]['parent_id'] if result[0]['parent_id'] is not None else None
             depth += 1
-            
+
             # Prevent infinite loops
             if depth > 50:
                 break
-                
+
         return depth
 
     def get_folder_by_name(self, name, parent_id=None):
@@ -150,22 +154,22 @@ class ListingDAO:
 
     def delete_folder_and_contents(self, folder_id):
         """Delete folder and all its contents recursively
-        
+
         Note: This method should be called within a transaction managed by QueryManager
         to ensure atomicity of the entire operation.
         """
         # Get all subfolders
         subfolders = self.get_folders(folder_id)
-        
+
         # Recursively delete subfolders
         for subfolder in subfolders:
             self.delete_folder_and_contents(subfolder['id'])
-        
+
         # Delete all lists in this folder
         lists_in_folder = self.get_lists(folder_id)
         for list_item in lists_in_folder:
             self.delete_list_and_contents(list_item['id'])
-        
+
         # Delete the folder itself
         sql = "DELETE FROM folders WHERE id = ?"
         result = self.execute_write(sql, (folder_id,))
@@ -349,7 +353,7 @@ class ListingDAO:
         existing = self.get_list_id_by_name(base_name, folder_id)
         if not existing:
             return base_name
-        
+
         # Generate numbered variants
         counter = 1
         while True:
@@ -358,7 +362,7 @@ class ListingDAO:
             if not existing:
                 return candidate
             counter += 1
-            
+
             # Safety valve
             if counter > 1000:
                 import time
@@ -369,7 +373,7 @@ class ListingDAO:
         # Delete list items first
         sql_items = "DELETE FROM list_items WHERE list_id = ?"
         self.execute_write(sql_items, (list_id,))
-        
+
         # Delete the list itself
         sql_list = "DELETE FROM lists WHERE id = ?"
         result = self.execute_write(sql_list, (list_id,))
@@ -410,10 +414,10 @@ class ListingDAO:
     def upsert_heavy_meta(self, movieid, imdbnumber, cast_json, ratings_json, showlink_json, stream_json, uniqueid_json, tags_json):
         """Upsert heavy metadata for a movie with retry logic"""
         import time
-        
+
         utils.log(f"=== UPSERT HEAVY META START: Movie ID {movieid} ===", "DEBUG")
         utils.log(f"IMDb ID: {imdbnumber}", "DEBUG")
-        
+
         # First try to update existing record
         update_sql = """
             UPDATE movie_heavy_meta SET
@@ -429,18 +433,18 @@ class ListingDAO:
         """
         update_params = (imdbnumber, cast_json, ratings_json, showlink_json, 
                         stream_json, uniqueid_json, tags_json, int(time.time()), movieid)
-        
+
         # Enhanced retry logic for database operations
         max_retries = 10  # Increased retries for heavy operations
         for attempt in range(max_retries):
             try:
                 utils.log(f"Heavy meta UPDATE attempt {attempt+1}/{max_retries} for movie {movieid}", "DEBUG")
                 result = self.execute_write(update_sql, update_params)
-                
+
                 if result['rowcount'] > 0:
                     utils.log(f"Heavy meta UPDATE successful for movie {movieid}", "DEBUG")
                     return movieid  # Successfully updated
-                
+
                 # No rows updated, try insert
                 utils.log(f"No rows updated, trying INSERT for movie {movieid}", "DEBUG")
                 insert_sql = """
@@ -454,12 +458,12 @@ class ListingDAO:
                 result = self.execute_write(insert_sql, insert_params)
                 utils.log(f"Heavy meta INSERT successful for movie {movieid}", "DEBUG")
                 return result['lastrowid'] or movieid
-                
+
             except Exception as e:
                 if 'database is locked' in str(e) and attempt < max_retries - 1:
                     utils.log(f"=== HEAVY META LOCK: Movie {movieid} attempt {attempt+1} ===", "ERROR")
                     utils.log(f"Lock error: {str(e)}", "ERROR")
-                    
+
                     import time
                     # More aggressive backoff for heavy metadata operations
                     wait_time = 0.2 * (1.5 ** attempt)  # Slower growth, longer waits
@@ -473,7 +477,7 @@ class ListingDAO:
                     utils.log(f"Attempt: {attempt+1}/{max_retries}", "ERROR")
                     # Re-raise the exception if it's not a lock or we've exhausted retries
                     raise
-        
+
         # If we get here, all retries failed
         utils.log(f"=== HEAVY META EXHAUSTED: Movie {movieid} after {max_retries} attempts ===", "ERROR")
         raise Exception(f"Failed to upsert heavy metadata for movie {movieid} after {max_retries} attempts")
@@ -482,7 +486,7 @@ class ListingDAO:
         """Get heavy metadata for multiple movie IDs"""
         if not movieids:
             return {}
-        
+
         placeholders = ','.join(['?'] * len(movieids))
         sql = f"""
             SELECT kodi_movieid, cast_json, ratings_json, showlink_json, 
@@ -490,9 +494,9 @@ class ListingDAO:
             FROM movie_heavy_meta 
             WHERE kodi_movieid IN ({placeholders})
         """
-        
+
         rows = self.execute_query(sql, movieids, fetch_all=True)
-        
+
         heavy_by_id = {}
         for row in rows:
             import json
@@ -505,7 +509,5 @@ class ListingDAO:
                 'uniqueid': json.loads(row['uniqueid_json']) if row['uniqueid_json'] else {},
                 'tag': json.loads(row['tags_json']) if row['tags_json'] else []
             }
-        
-        return heavy_by_id
 
-    
+        return heavy_by_id
