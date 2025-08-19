@@ -125,10 +125,10 @@ class IMDbUploadManager:
                     count_query = "SELECT COUNT(*) FROM media_items WHERE source = 'lib'"
                     existing_count = db_manager.query_manager.execute_query(count_query)
                     if existing_count and len(existing_count) > 0:
-                        if isinstance(existing_count[0], tuple):
-                            count = existing_count[0][0]
-                        elif isinstance(existing_count[0], dict):
+                        if isinstance(existing_count[0], dict):
                             count = existing_count[0].get('COUNT(*)', 0)
+                        elif isinstance(existing_count[0], tuple):
+                            count = existing_count[0][0]
                         else:
                             count = 0
                         utils.log(f"Found {count} existing library items to clear", "INFO")
