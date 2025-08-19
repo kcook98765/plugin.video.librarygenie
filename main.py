@@ -81,9 +81,6 @@ def run_search_flow():
         
         def navigate_to_list():
             try:
-                # Wait for all modal cleanup to complete
-                time.sleep(2.5)  # Longer delay for complete cleanup
-                
                 log(f"=== MAIN_NAVIGATION: Starting navigation to list {list_id} ===", "DEBUG")
                 
                 # Build the target URL
