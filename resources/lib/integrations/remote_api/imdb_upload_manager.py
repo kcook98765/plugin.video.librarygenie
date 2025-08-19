@@ -395,7 +395,7 @@ class IMDbUploadManager:
                     tags_json=json.dumps(movie.get('tag', [])),
                     connection=connection
                 )
-                utils.log(f"Stored heavy metadata for movie ID {kodi_movieid}", "DEBUG")
+                # Heavy metadata stored successfully (log removed to reduce spam)
             except Exception as meta_error:
                 utils.log(f"Error storing heavy metadata for movie ID {kodi_movieid}: {str(meta_error)}", "WARNING")
 
