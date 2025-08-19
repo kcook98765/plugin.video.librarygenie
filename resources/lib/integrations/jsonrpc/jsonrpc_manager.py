@@ -57,16 +57,14 @@ class JSONRPC:
         parsed_response = json.loads(response)
 
         # Log parsed response details (reduced verbosity)
-        if level in ['DEBUG'] and method not in ['VideoLibrary.GetMovies']:
+        if 'result' in parsed_response and method not in ['VideoLibrary.GetMovies']:
             # Only log detailed response info for non-batch operations
             log(f"=== JSONRPC RESPONSE PARSED: {method} ===", "DEBUG")
-            if 'result' in parsed_response:
-                result = parsed_response['result']
-                if isinstance(result, dict):
-                    log(f"Response result keys: {list(result.keys())}", "DEBUG")
-
-
-                    elif 'moviedetails' in result:
+            result = parsed_response['result']
+            if isinstance(result, dict):
+                log(f"Response result keys: {list(result.keys())}", "DEBUG")
+                
+                if 'moviedetails' in result:
                         movie = result['moviedetails']
                         log(f"Movie details keys: {list(movie.keys())}", "DEBUG")
                         log(f"Movie title: {movie.get('title', 'N/A')}", "DEBUG")
