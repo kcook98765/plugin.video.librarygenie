@@ -24,7 +24,8 @@ class IMDbUploadManager:
             if progress_dialog:
                 progress_dialog.update(0, "Scanning Kodi library for movies...")
 
-            movies = self.jsonrpc.get_movies_with_imdb(progress_callback=progress_dialog)
+            # Use the internal method to retrieve movies
+            movies = self._retrieve_all_movies_from_kodi(use_notifications=False)
 
             if progress_dialog:
                 progress_dialog.update(90, "Processing movie data...")
@@ -108,8 +109,8 @@ class IMDbUploadManager:
         try:
             utils.log("=== STARTING FULL KODI MOVIE COLLECTION AND LOCAL STORAGE ===", "INFO")
 
-            # Get movie data using existing method
-            full_movies = self.jsonrpc.get_movies_with_imdb()
+            # Get movie data using JSONRPC manager
+            full_movies = self._retrieve_all_movies_from_kodi(use_notifications)
 
             if not full_movies:
                 utils.log("No movies found in Kodi library", "WARNING")
