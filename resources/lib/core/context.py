@@ -62,18 +62,13 @@ def main():
 
         options = []
 
-        # Check authentication before adding API-dependent options
-        context_builder = get_context_menu_builder()
-
+        # Check authentication before adding API-dependent options using OptionsManager
         try:
-            # Check authentication status - handle case where context_builder is None
-            if context_builder is None:
-                utils.log("Context builder is None, defaulting to unauthenticated state", "DEBUG")
-                is_authenticated = False
-            else:
-                is_authenticated = context_builder._is_authenticated()
+            from resources.lib.core.options_manager import OptionsManager
+            options_manager = OptionsManager()
+            is_authenticated = options_manager._is_authenticated()
+            utils.log(f"Authentication status: {is_authenticated}", "DEBUG")
         except Exception as e:
-            # This catch is primarily for unexpected errors within _is_authenticated itself
             utils.log(f"Error checking authentication status: {e}", "ERROR")
             is_authenticated = False # Default to unauthenticated on error
 
