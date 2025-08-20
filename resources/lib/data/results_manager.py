@@ -36,8 +36,16 @@ class ResultsManager(Singleton):
             if list_items:
                 first_item = list_items[0]
                 utils.log(f"=== BUILD_DISPLAY_ITEMS: First item keys: {list(first_item.keys())} ===", "DEBUG")
-                sample_data = {k: v for k, v in list(first_item.items())[:4]}
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: First item sample data: {sample_data} ===", "DEBUG")
+                # Show more relevant fields for debugging
+                debug_data = {
+                    'id': first_item.get('id'),
+                    'title': first_item.get('title'),
+                    'year': first_item.get('year'),
+                    'imdbnumber': first_item.get('imdbnumber'),
+                    'source': first_item.get('source'),
+                    'search_score': first_item.get('search_score')
+                }
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: First item debug data: {debug_data} ===", "DEBUG")
 
             # Check if this is from Search History folder
             list_info = self.query_manager.fetch_list_by_id(list_id)
@@ -81,25 +89,23 @@ class ResultsManager(Singleton):
                 # Fallback to stored data if imdb lookup failed
                 if not title:
                     title = r.get('title') or ''
-                    utils.log(f"Using fallback title: {title}", "DEBUG")
+                    if title and title.strip():
+                        utils.log(f"Using fallback title: {title}", "DEBUG")
+                    else:
+                        # Use IMDb ID as title if no title is available
+                        title = f"Movie {imdb}" if imdb else "Unknown Movie"
+                        utils.log(f"No title found, using IMDb ID fallback: {title}", "WARNING")
 
                 if not year:
                     try:
                         year = int(r.get('year') or 0)
-                        utils.log(f"Using fallback year: {year}", "DEBUG")
+                        if year > 0:
+                            utils.log(f"Using fallback year: {year}", "DEBUG")
+                        else:
+                            utils.log(f"No valid year found, using 0", "DEBUG")
                     except Exception:
                         year = 0
-
-                # If we still have no title, try to extract from the original stored data
-                if not title or title == '':
-                    # Check if there's any identifying information we can use
-                    stored_title = r.get('title', '')
-                    if stored_title and stored_title.strip():
-                        title = stored_title.strip()
-                        utils.log(f"Using stored title as final fallback: {title}", "DEBUG")
-                    else:
-                        title = f"IMDB: {imdb}" if imdb else "Unknown Movie"
-                        utils.log(f"Using IMDB ID as title fallback: {title}", "WARNING")
+                        utils.log(f"Error parsing year, using 0", "DEBUG")
 
                 refs.append({'imdb': imdb, 'title': title, 'year': year, 'search_score': r.get('search_score', 0)})
 
