@@ -936,22 +936,61 @@ class DatabaseManager(Singleton):
                 media_items_to_insert.append(media_item_data)
 
             if media_items_to_insert:
-                # Insert media items and link them to the new list
+                success_count = 0
+                error_count = 0
                 for item_data in media_items_to_insert:
+                    imdb_id = item_data.get('imdbnumber', 'N/A')
                     try:
-                        media_item_id = self.query_manager.insert_media_item(item_data)
-                        if media_item_id and media_item_id > 0:
-                            self.query_manager.insert_list_item(final_list_id, media_item_id)
-                            utils.log(f"Successfully added search result {item_data.get('imdbnumber', 'N/A')} to list", "DEBUG")
-                        else:
-                            utils.log(f"Failed to insert media item for: {item_data.get('imdbnumber', 'N/A')}", "ERROR")
+                        # Ensure all required fields are present and not None
+                        for field in ['title', 'year', 'imdbnumber', 'source', 'media_type']:
+                            if field not in item_data or item_data[field] is None:
+                                if field == 'title':
+                                    item_data[field] = f"IMDB: {imdb_id}"
+                                elif field == 'year':
+                                    item_data[field] = 0
+                                elif field == 'imdbnumber':
+                                    item_data[field] = imdb_id
+                                elif field == 'source':
+                                    item_data[field] = 'search'
+                                elif field == 'media_type':
+                                    item_data[field] = 'movie'
+
+                        # Insert media item
+                        media_id = self.insert_data('media_items', item_data)
+                        if not media_id:
+                            utils.log(f"Failed to insert media item {imdb_id} - insert_data returned None/False", "ERROR")
+                            error_count += 1
+                            continue
+
+                        utils.log(f"Successfully inserted media item {imdb_id} with ID: {media_id}", "DEBUG")
+
+                        # Add to the list
+                        list_item_data = {
+                            'list_id': final_list_id,
+                            'media_item_id': media_id,
+                            'added_date': datetime.now().isoformat()
+                        }
+
+                        list_item_id = self.insert_data('list_items', list_item_data)
+                        if not list_item_id:
+                            utils.log(f"Failed to add media item {media_id} to list {final_list_id} - insert_data returned None/False", "ERROR")
+                            error_count += 1
+                            continue
+
+                        utils.log(f"Successfully added media item {media_id} to list {final_list_id} with list_item_id: {list_item_id}", "DEBUG")
+
+                        success_count += 1
+
                     except Exception as e:
-                        utils.log(f"Error inserting search result {item_data.get('imdbnumber', 'N/A')}: {str(e)}", "ERROR")
-                        # Continue with next item instead of failing entire operation
+                        utils.log(f"Error inserting search result {imdb_id}: {str(e)}", "ERROR")
+                        # Log the full media_item_data for debugging
+                        utils.log(f"Failed data: {item_data}", "ERROR")
+                        error_count += 1
                 utils.log("=== SEARCH HISTORY SAVE COMPLETE ===", "INFO")
                 utils.log(f"List Name: '{list_name}'", "INFO")
                 utils.log(f"List ID: {final_list_id}", "INFO")
-                utils.log(f"Items Saved: {len(media_items_to_insert)}", "INFO")
+                utils.log(f"Items Saved: {success_count}", "INFO")
+                utils.log(f"Items Failed: {error_count}", "INFO")
                 utils.log(f"Query: '{query}'", "INFO")
                 utils.log("=== END SEARCH HISTORY SAVE ===", "INFO")
                 return final_list_id
@@ -1120,7 +1159,7 @@ class DatabaseManager(Singleton):
                         # Insert list item in same transaction
                         list_query = 'INSERT INTO list_items (list_id, media_item_id) VALUES (?, ?)'
                         cursor.execute(list_query, (list_id, media_id))
-                        utils.log(f"DATABASE: Added shortlist item '{item_data.get('title', 'Unknown')}' with media_id {media_id}", "DEBUG")
+                        utils.log(f"DATABASE: Added shortlist item '{item_data.get('title')}' with media_id {media_id}", "DEBUG")
                     else:
                         utils.log(f"DATABASE WARNING: Failed to get media_id for '{item_data.get('title', 'Unknown')}'", "WARNING")
 
