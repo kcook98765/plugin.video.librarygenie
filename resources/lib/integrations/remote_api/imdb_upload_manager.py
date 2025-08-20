@@ -108,69 +108,29 @@ class IMDbUploadManager:
         try:
             utils.log("=== STARTING FULL KODI MOVIE COLLECTION AND LOCAL STORAGE ===", "INFO")
 
-            # Get light movie data first (fast query)
-            light_movies = self.jsonrpc.get_all_movies_light()
+            # Get movie data using existing method
+            full_movies = self.jsonrpc.get_movies_with_imdb()
 
-            if not light_movies:
+            if not full_movies:
                 utils.log("No movies found in Kodi library", "WARNING")
                 return []
 
-            utils.log(f"Retrieved {len(light_movies)} light movies from Kodi", "INFO")
+            utils.log(f"Retrieved {len(full_movies)} movies from Kodi", "INFO")
 
             if use_notifications:
-                notification_manager = NotificationManager()
-                notification_manager.show_notification(f"Processing {len(light_movies)} movies...", "LibraryGenie")
+                from resources.lib.utils import utils as notification_utils
+                notification_utils.show_notification("LibraryGenie", f"Processing {len(full_movies)} movies...", time=3000)
 
-            # Log sample light movie data
-            if light_movies:
-                utils.log("=== SAMPLE LIGHT MOVIE DATA ===", "INFO")
-                sample_light = light_movies[0]
-                for key, value in sample_light.items():
-                    utils.log(f"LIGHT_DATA: {key} = {repr(value)}", "INFO")
-                utils.log("=== END SAMPLE LIGHT MOVIE DATA ===", "INFO")
-
-            # Get heavy metadata for all movies in batch
-            movieids = [movie.get('movieid') for movie in light_movies if movie.get('movieid')]
-
-            # Get heavy metadata from cache or fetch fresh
-            heavy_metadata = {}
-            if movieids:
-                utils.log(f"Fetching heavy metadata for {len(movieids)} movies", "INFO")
-                heavy_metadata = self.database.query_manager._listing.get_heavy_meta_by_movieids(movieids, refresh=True)
-                utils.log(f"Retrieved heavy metadata for {len(heavy_metadata)} movies", "INFO")
-
-                # Log sample heavy metadata
-                if heavy_metadata:
-                    first_movieid = list(heavy_metadata.keys())[0]
-                    sample_heavy = heavy_metadata[first_movieid]
-                    utils.log("=== SAMPLE HEAVY METADATA ===", "INFO")
-                    for key, value in sample_heavy.items():
-                        if isinstance(value, str) and len(value) > 200:
-                            utils.log(f"HEAVY_DATA: {key} = {value[:200]}... (truncated)", "INFO")
-                        else:
-                            utils.log(f"HEAVY_DATA: {key} = {repr(value)}", "INFO")
-                    utils.log("=== END SAMPLE HEAVY METADATA ===", "INFO")
-
-            # Merge light and heavy data
-            full_movies = []
-            for movie in light_movies:
-                movieid = movie.get('movieid')
-                if movieid and movieid in heavy_metadata:
-                    # Merge heavy fields into light movie data
-                    movie.update(heavy_metadata[movieid])
-
-                full_movies.append(movie)
-
-            # Log sample merged movie data
+            # Log sample movie data
             if full_movies:
-                utils.log("=== SAMPLE MERGED MOVIE DATA ===", "INFO")
-                sample_merged = full_movies[0]
-                for key, value in sample_merged.items():
+                utils.log("=== SAMPLE MOVIE DATA ===", "INFO")
+                sample_movie = full_movies[0]
+                for key, value in sample_movie.items():
                     if isinstance(value, str) and len(value) > 200:
-                        utils.log(f"MERGED_DATA: {key} = {value[:200]}... (truncated)", "INFO")
+                        utils.log(f"MOVIE_DATA: {key} = {value[:200]}... (truncated)", "INFO")
                     else:
-                        utils.log(f"MERGED_DATA: {key} = {repr(value)}", "INFO")
-                utils.log("=== END SAMPLE MERGED MOVIE DATA ===", "INFO")
+                        utils.log(f"MOVIE_DATA: {key} = {repr(value)}", "INFO")
+                utils.log("=== END SAMPLE MOVIE DATA ===", "INFO")
 
             # Store in imdb_exports table for reference
             export_movies = []
@@ -202,14 +162,17 @@ class IMDbUploadManager:
                         utils.log(f"EXPORT_DATA: {key} = {repr(value)}", "INFO")
                     utils.log("=== END SAMPLE EXPORT DATA ===", "INFO")
 
-                self.database.query_manager.insert_imdb_export(export_movies)
+                # Get database manager from config
+                from resources.lib.data.database_manager import DatabaseManager
+                db_manager = DatabaseManager()
+                db_manager.query_manager.insert_imdb_export(export_movies)
 
                 # Verify what was actually stored
                 utils.log("=== VERIFYING STORED DATA IN IMDB_EXPORTS ===", "INFO")
                 sample_imdb = export_movies[0]['imdb_id']
-                stored_data = self.database.query_manager.execute_read(
+                stored_data = db_manager.query_manager.execute_query(
                     "SELECT * FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1",
-                    (sample_imdb,)
+                    (sample_imdb,), fetch_all=False
                 )
                 if stored_data:
                     stored_row = stored_data[0]
@@ -217,26 +180,6 @@ class IMDbUploadManager:
                     for key, value in stored_row.items():
                         utils.log(f"STORED: {key} = {repr(value)}", "INFO")
                     utils.log("=== END STORED DATA VERIFICATION ===", "INFO")
-
-            # Check if heavy metadata was properly cached
-            utils.log("=== VERIFYING HEAVY METADATA CACHE ===", "INFO")
-            if movieids:
-                sample_movieid = movieids[0]
-                cached_heavy = self.database.query_manager.execute_read(
-                    "SELECT * FROM movie_heavy_meta WHERE kodi_movieid = ?",
-                    (sample_movieid,)
-                )
-                if cached_heavy:
-                    cached_row = cached_heavy[0]
-                    utils.log("=== CACHED HEAVY METADATA ===", "INFO")
-                    for key, value in cached_row.items():
-                        if isinstance(value, str) and len(value) > 200:
-                            utils.log(f"CACHED_HEAVY: {key} = {value[:200]}... (truncated)", "INFO")
-                        else:
-                            utils.log(f"CACHED_HEAVY: {key} = {repr(value)}", "INFO")
-                    utils.log("=== END CACHED HEAVY METADATA ===", "INFO")
-                else:
-                    utils.log(f"ERROR: No heavy metadata found in cache for movieid {sample_movieid}", "ERROR")
 
             utils.log(f"Successfully processed {len(full_movies)} movies with complete metadata", "INFO")
             return full_movies
