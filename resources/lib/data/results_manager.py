@@ -174,27 +174,47 @@ class ResultsManager(Singleton):
                 title = r.get('title', '').strip() if r.get('title') else ''
                 year = 0
                 try:
-                    year = int(r.get('year') or 0)
-                except Exception:
+                    year_val = r.get('year')
+                    if year_val and str(year_val).strip() and str(year_val) != 'None':
+                        year = int(year_val)
+                except (ValueError, TypeError):
                     year = 0
+
+                # Clean up IMDb ID - handle None, empty, or invalid values
+                clean_imdb = None
+                if imdb and str(imdb).strip() and str(imdb) != 'None':
+                    imdb_str = str(imdb).strip()
+                    if imdb_str.startswith('tt') and len(imdb_str) > 2:
+                        clean_imdb = imdb_str
+                
+                # Clean up search score
+                search_score = 0
+                try:
+                    score_val = r.get('search_score')
+                    if score_val is not None and str(score_val) != 'None':
+                        search_score = float(score_val)
+                except (ValueError, TypeError):
+                    search_score = 0
 
                 # Track data quality
                 if title in ['Unknown', ''] or not title:
                     unknown_count += 1
 
-                utils.log(f"Item {len(refs)+1}: title='{title}', year={year}, imdb='{imdb}', source='{src}'", "DEBUG")
+                utils.log(f"Item {len(refs)+1}: title='{title}', year={year}, imdb='{clean_imdb}', source='{src}', score={search_score}", "DEBUG")
 
-                # Use stored data as-is - no fallbacks or enhancements
+                # Use cleaned data
                 final_title = title
                 final_year = year
 
                 # Log data quality issues but don't mask them
                 if not final_title or final_title.strip() == '':
-                    utils.log(f"DATA_QUALITY_ERROR: Item {len(refs)+1} has missing/empty title. IMDB: {imdb}, Source: {src}", "ERROR")
+                    utils.log(f"DATA_QUALITY_ERROR: Item {len(refs)+1} has missing/empty title. IMDB: {clean_imdb}, Source: {src}", "ERROR")
                 if final_year == 0:
-                    utils.log(f"DATA_QUALITY_ERROR: Item {len(refs)+1} has missing/zero year. Title: {final_title}, IMDB: {imdb}", "ERROR")
+                    utils.log(f"DATA_QUALITY_WARNING: Item {len(refs)+1} has missing/zero year. Title: {final_title}, IMDB: {clean_imdb}", "WARNING")
+                if not clean_imdb:
+                    utils.log(f"DATA_QUALITY_WARNING: Item {len(refs)+1} has missing/invalid IMDb ID. Title: {final_title}, Raw IMDB: {repr(imdb)}", "WARNING")
 
-                refs.append({'imdb': imdb, 'title': final_title, 'year': final_year, 'search_score': r.get('search_score', 0), 'row_id': r.get('id')})
+                refs.append({'imdb': clean_imdb, 'title': final_title, 'year': final_year, 'search_score': search_score, 'row_id': r.get('id')})
 
             # Log data quality summary
             if unknown_count > 0:
@@ -379,10 +399,10 @@ class ResultsManager(Singleton):
 
                 ref_title = processed_ref.get("title", "")
                 ref_year = processed_ref.get("year", 0)
-                ref_imdb = processed_ref.get("imdb", "")
+                ref_imdb = processed_ref.get("imdb")  # Can be None
                 row_id = processed_ref.get("row_id", r.get('id'))
 
-                utils.log(f"=== MOVIE_MATCHING: Item {i+1}: ref_title='{ref_title}', ref_year={ref_year}, ref_imdb='{ref_imdb}', row_id={row_id} ===", "INFO")
+                utils.log(f"=== MOVIE_MATCHING: Item {i+1}: ref_title='{ref_title}', ref_year={ref_year}, ref_imdb={repr(ref_imdb)}, row_id={row_id} ===", "INFO")
 
                 k_exact = _key(ref_title, ref_year)
                 k_title = _key(ref_title, 0)
@@ -476,19 +496,21 @@ class ResultsManager(Singleton):
 
                     # Set a fallback play URL if no file path is directly available
                     if not item_dict.get('play'):
-                        item_dict['play'] = f"info://{ref_imdb or row_id or 'unknown'}"
+                        fallback_id = ref_imdb or row_id or 'unknown'
+                        item_dict['play'] = f"info://{fallback_id}"
 
                     utils.log(f"Item {i+1}: No Kodi match for '{display_title}' ({display_year}), using search result data - Score: {item_dict['search_score']}", "DEBUG")
 
                 # Add unique identification to prevent duplicates in display
-                item_dict['_unique_id'] = f"{row_id}_{ref_imdb}_{i}"  # Ensure each item is unique
+                imdb_part = ref_imdb if ref_imdb else 'no_imdb'
+                item_dict['_unique_id'] = f"{row_id}_{imdb_part}_{i}"  # Ensure each item is unique
                 item_dict['_viewing_list_id'] = list_id
                 item_dict['media_id'] = row_id or item_dict.get('kodi_id') # Use row_id for unique identification
 
                 # Ensure IMDb ID is set for uniqueid fallback if not already present
                 if not item_dict.get('imdbnumber') and ref_imdb:
                     item_dict['imdbnumber'] = ref_imdb
-                    if 'uniqueid' not in item_dict or not item_dict['uniqueid'].get('imdb'):
+                    if 'uniqueid' not in item_dict or not item_dict.get('uniqueid', {}).get('imdb'):
                         item_dict['uniqueid'] = item_dict.get('uniqueid', {}) # Ensure uniqueid is a dict
                         item_dict['uniqueid']['imdb'] = ref_imdb
 
