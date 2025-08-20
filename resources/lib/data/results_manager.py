@@ -104,7 +104,32 @@ class ResultsManager(Singleton):
                 refs.append({'imdb': imdb, 'title': title, 'year': year, 'search_score': r.get('search_score', 0)})
 
             # ---- Batch resolve via one JSON-RPC call using OR of (title AND year) ----
-            batch_pairs = [{"title": r.get("title"), "year": r.get("year")} for r in refs]
+            batch_pairs = []
+            for r in rows:
+                # Extract reference data for matching - use actual stored values
+                ref_title = r.get('title')
+                ref_year = r.get('year') 
+                ref_imdb = r.get('imdbnumber')
+
+                # Log what we actually have in the database
+                if not ref_title:
+                    utils.log(f"Item {len(batch_pairs)+1}: No title in database, using fallback", "DEBUG")
+                    ref_title = "Unknown"
+                else:
+                    utils.log(f"Item {len(batch_pairs)+1}: Found title in database: '{ref_title}'", "DEBUG")
+
+                if not ref_year or ref_year == 0:
+                    utils.log(f"Item {len(batch_pairs)+1}: No year in database, using fallback", "DEBUG") 
+                    ref_year = 0
+                else:
+                    utils.log(f"Item {len(batch_pairs)+1}: Found year in database: {ref_year}", "DEBUG")
+
+                batch_pairs.append({
+                    'title': ref_title,
+                    'year': ref_year
+                })
+
+
             utils.log(f"=== BUILD_DISPLAY_ITEMS: Batch lookup pairs count: {len(batch_pairs)} ===", "DEBUG")
             utils.log(f"=== BUILD_DISPLAY_ITEMS: First 3 batch pairs: {batch_pairs[:3]} ===", "DEBUG")
 
@@ -212,9 +237,6 @@ class ResultsManager(Singleton):
                 # Prepare a base dictionary for the item, starting with data from the row (r)
                 item_dict = dict(r) # Create a mutable copy
 
-                # If a Kodi match was found, we merge its data into item_dict
-                imdb_id = item_dict.get('imdbnumber', '') # Ensure imdb_id is available for uniqueid fallback
-
                 # Merge library data if found
                 if kodi_movie:
                     # Library match found - merge all metadata
@@ -270,8 +292,15 @@ class ResultsManager(Singleton):
                         utils.log(f"No file path for library match '{item_dict.get('title')}', using search_history protocol", "DEBUG")
                 else:
                     # No Kodi match found, use available data from the row (r) and processed_ref
-                    item_dict['title'] = processed_ref.get('title') or item_dict.get('title', 'Unknown Title')
-                    item_dict['year'] = processed_ref.get('year', 0) or item_dict.get('year', 0)
+                    original_title = r.get('title') 
+                    original_year = r.get('year')
+
+                    # Log what we're actually using
+                    display_title = original_title if original_title else 'Unknown Title'
+                    display_year = original_year if original_year else 0
+
+                    item_dict['title'] = display_title
+                    item_dict['year'] = display_year
                     item_dict['imdbnumber'] = processed_ref.get('imdb') or item_dict.get('imdbnumber', '')
                     item_dict['search_score'] = processed_ref.get('search_score', 0)
                     item_dict['kodi_id'] = None
@@ -281,7 +310,7 @@ class ResultsManager(Singleton):
                     if not item_dict.get('play'):
                         item_dict['play'] = f"info://{item_dict.get('imdbnumber', item_dict.get('id', 'unknown'))}"
 
-                    utils.log(f"Item {i+1}: No Kodi match for '{processed_ref.get('title')}' ({processed_ref.get('year')}), using available data.", "WARNING")
+                    utils.log(f"Item {i+1}: No Kodi match for '{display_title}' ({display_year}), using search result data - Score: {item_dict['search_score']}", "DEBUG")
 
 
                 # Add context for list viewing and removal
