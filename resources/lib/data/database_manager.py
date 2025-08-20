@@ -15,15 +15,12 @@ class DatabaseManager(Singleton):
         if not hasattr(self, '_initialized'):
             self.db_path = db_path
             self.connection = None
-            # Initialize QueryManager for better media item handling
-            from resources.lib.data.query_manager import QueryManager
-            self.query_manager = QueryManager(db_path)
             self.config = Config()  # Instantiate Config to access FIELDS
             self._connect()
             self.setup_database()
             self.ensure_search_history_folder()
             self.ensure_imported_lists_folder()
-            # Initialize query_manager for direct access
+            # Initialize query_manager for direct access - do this last
             from resources.lib.data.query_manager import QueryManager
             self._query_manager = QueryManager(self.db_path)
             self._initialized = True
