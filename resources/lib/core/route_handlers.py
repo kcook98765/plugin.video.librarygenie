@@ -1468,6 +1468,50 @@ def _schedule_delayed_navigation(target_url):
     nav_thread.daemon = True
     nav_thread.start()
 
+def browse_folder(params):
+    """Browse a specific folder and display its contents"""
+    try:
+        import sys
+        from resources.lib.core.directory_builder import DirectoryBuilder
+        
+        folder_id = params.get('folder_id', [None])[0]
+        if not folder_id:
+            utils.log("No folder_id provided for browse_folder", "ERROR")
+            return
+
+        utils.log(f"Browsing folder with ID: {folder_id}", "DEBUG")
+        
+        handle = int(sys.argv[1])
+        directory_builder = DirectoryBuilder()
+        directory_builder.build_folder_directory(folder_id, handle)
+        
+    except Exception as e:
+        utils.log(f"Error in browse_folder: {str(e)}", "ERROR")
+        import traceback
+        utils.log(f"browse_folder traceback: {traceback.format_exc()}", "ERROR")
+
+def browse_list(params):
+    """Browse a specific list and display its contents"""
+    try:
+        import sys
+        from resources.lib.core.directory_builder import DirectoryBuilder
+        
+        list_id = params.get('list_id', [None])[0]
+        if not list_id:
+            utils.log("No list_id provided for browse_list", "ERROR")
+            return
+
+        utils.log(f"Browsing list with ID: {list_id}", "DEBUG")
+        
+        handle = int(sys.argv[1])
+        directory_builder = DirectoryBuilder()
+        directory_builder.build_list_directory(list_id, handle)
+        
+    except Exception as e:
+        utils.log(f"Error in browse_list: {str(e)}", "ERROR")
+        import traceback
+        utils.log(f"browse_list traceback: {traceback.format_exc()}", "ERROR")
+
 def route_action(action, params):
     """Main router for plugin actions"""
     utils.log(f"Routing action: {action} with params: {params}", "DEBUG")
@@ -1476,6 +1520,10 @@ def route_action(action, params):
         play_movie(params)
     elif action == 'show_item_details':
         show_item_details(params)
+    elif action == 'browse_folder':
+        browse_folder(params)
+    elif action == 'browse_list':
+        browse_list(params)
     elif action == 'create_list':
         create_list(params)
     elif action == 'rename_list':
