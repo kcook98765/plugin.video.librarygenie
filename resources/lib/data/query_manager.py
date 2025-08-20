@@ -512,19 +512,12 @@ class QueryManager(Singleton):
             for movie in movies:
                 cursor.execute("""
                     INSERT OR REPLACE INTO imdb_exports 
-                    (imdb_id, title, year, genre, plot, rating, votes, director, cast, runtime)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (imdb_id, title, year)
+                    VALUES (?, ?, ?)
                 """, (
                     movie.get('imdb_id', ''),
                     movie.get('title', ''),
-                    movie.get('year', 0),
-                    movie.get('genre', ''),
-                    movie.get('plot', ''),
-                    movie.get('rating', 0.0),
-                    movie.get('votes', 0),
-                    movie.get('director', ''),
-                    movie.get('cast', ''),
-                    movie.get('runtime', 0)
+                    movie.get('year', 0)
                 ))
 
             conn_info['connection'].commit()

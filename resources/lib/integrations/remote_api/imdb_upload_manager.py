@@ -133,27 +133,28 @@ class IMDbUploadManager:
                         utils.log(f"MOVIE_DATA: {key} = {repr(value)}", "INFO")
                 utils.log("=== END SAMPLE MOVIE DATA ===", "INFO")
 
-            # Store in imdb_exports table for reference
+            # Store basic data in imdb_exports table (only light fields for search)
             export_movies = []
+            heavy_metadata_list = []
+            
             for movie in full_movies:
                 imdb_id = movie.get('imdbnumber', '')
                 if imdb_id and imdb_id.startswith('tt'):
+                    # Only store basic search data in imdb_exports
                     export_movie = {
                         'imdb_id': imdb_id,
                         'title': movie.get('title', ''),
-                        'year': movie.get('year', 0),
-                        'genre': ', '.join(movie.get('genre', [])) if isinstance(movie.get('genre'), list) else movie.get('genre', ''),
-                        'plot': movie.get('plot', ''),
-                        'rating': movie.get('rating', 0.0),
-                        'votes': movie.get('votes', 0),
-                        'director': ', '.join(movie.get('director', [])) if isinstance(movie.get('director'), list) else movie.get('director', ''),
-                        'cast': json.dumps(movie.get('cast', [])),
-                        'runtime': movie.get('runtime', 0)
+                        'year': movie.get('year', 0)
                     }
                     export_movies.append(export_movie)
+                    
+                    # Prepare heavy metadata for separate storage
+                    movieid = movie.get('movieid')
+                    if movieid:
+                        heavy_metadata_list.append(movie)
 
             if export_movies:
-                utils.log(f"Storing {len(export_movies)} movies in imdb_exports table", "INFO")
+                utils.log(f"Storing {len(export_movies)} movies in imdb_exports table (light fields only)", "INFO")
 
                 # Log sample export data before storage
                 if export_movies:
@@ -168,6 +169,11 @@ class IMDbUploadManager:
                 config = Config()
                 db_manager = DatabaseManager(config.db_path)
                 db_manager.insert_imdb_export(export_movies)
+                
+                # Store heavy metadata separately in movie_heavy_meta table
+                if heavy_metadata_list:
+                    utils.log(f"Storing heavy metadata for {len(heavy_metadata_list)} movies", "INFO")
+                    db_manager.query_manager.store_heavy_meta_batch(heavy_metadata_list)
 
                 # Verify what was actually stored
                 utils.log("=== VERIFYING STORED DATA IN IMDB_EXPORTS ===", "INFO")
@@ -360,11 +366,7 @@ class IMDbUploadManager:
                         movie_data = self._prepare_movie_data(movie, imdb_id)
                         batch_data.append(movie_data)
 
-                        # Store heavy metadata
-                        try:
-                            self._store_heavy_metadata(movie, imdb_id, db_manager, conn_info['connection'])
-                        except Exception as meta_error:
-                            utils.log(f"Error storing heavy metadata for movie ID {movie.get('movieid', 'N/A')}: {str(meta_error)}", "WARNING")
+                        # Heavy metadata will be stored in batch after all processing is complete
 
                 # Bulk insert batch data
                 if batch_data:

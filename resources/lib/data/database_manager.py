@@ -291,22 +291,15 @@ class DatabaseManager(Singleton):
         ''')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_parsed_movies_request_id ON parsed_movies (request_id)')
 
-        # Create imdb_exports table
+        # Create imdb_exports table (only basic search fields)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS imdb_exports (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 imdb_id TEXT NOT NULL,
                 title TEXT,
                 year INTEGER,
-                genre TEXT,
-                plot TEXT,
-                rating REAL,
-                votes INTEGER,
-                director TEXT,
-                cast TEXT,
-                runtime INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(kodi_id, imdb_id)
+                UNIQUE(imdb_id)
             )
         ''')
 
