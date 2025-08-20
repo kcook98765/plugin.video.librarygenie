@@ -497,14 +497,33 @@ def router(paramstring):
 def build_root_directory(handle):
     """Build the root directory listing"""
     try:
+        log("=== BUILD_ROOT_DIRECTORY (main.py): Function entry ===", "DEBUG")
+        log(f"=== BUILD_ROOT_DIRECTORY (main.py): Handle received: {handle} ===", "DEBUG")
+        
         from resources.lib.config.config_manager import Config
         from resources.lib.data.database_manager import DatabaseManager
+        from resources.lib.core.directory_builder import add_options_header_item
+        from resources.lib.kodi.url_builder import detect_context
         
         config = Config()
         db_manager = DatabaseManager(config.db_path)
         
+        # Add Options & Tools header first
+        log("=== BUILD_ROOT_DIRECTORY (main.py): Adding Options & Tools header ===", "DEBUG")
+        ctx = detect_context({'view': 'root'})
+        log(f"=== BUILD_ROOT_DIRECTORY (main.py): Context detected: {ctx} ===", "DEBUG")
+        
+        try:
+            add_options_header_item(ctx, handle)
+            log("=== BUILD_ROOT_DIRECTORY (main.py): Options & Tools header added successfully ===", "DEBUG")
+        except Exception as header_error:
+            log(f"=== BUILD_ROOT_DIRECTORY (main.py): Error adding Options & Tools header: {str(header_error)} ===", "ERROR")
+            import traceback
+            log(f"=== BUILD_ROOT_DIRECTORY (main.py): Header error traceback: {traceback.format_exc()} ===", "ERROR")
+        
         # Get root folders
         folders = db_manager.fetch_folders(None)  # None = root level
+        log(f"=== BUILD_ROOT_DIRECTORY (main.py): Found {len(folders)} root folders ===", "DEBUG")
         
         # Add root folders
         for folder in folders:
@@ -534,12 +553,14 @@ def build_root_directory(handle):
             url = build_plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
             xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
         
+        log(f"=== BUILD_ROOT_DIRECTORY (main.py): About to call endOfDirectory with handle {handle} ===", "DEBUG")
         xbmcplugin.endOfDirectory(handle)
+        log("=== BUILD_ROOT_DIRECTORY (main.py): Successfully completed root directory build ===", "DEBUG")
         
     except Exception as e:
-        log(f"Error building root directory: {str(e)}", "ERROR")
+        log(f"=== BUILD_ROOT_DIRECTORY (main.py): ERROR in root directory build: {str(e)} ===", "ERROR")
         import traceback
-        log(f"Root directory traceback: {traceback.format_exc()}", "ERROR")
+        log(f"=== BUILD_ROOT_DIRECTORY (main.py): Root directory traceback: {traceback.format_exc()} ===", "ERROR")
         show_empty_directory(handle, "Error loading root directory")
 
 def show_empty_directory(handle, message="No items found"):
