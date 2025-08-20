@@ -9,8 +9,9 @@ import xbmcplugin
 from resources.lib.kodi.url_builder import build_plugin_url, parse_params, detect_context
 from resources.lib.core.options_manager import OptionsManager
 from resources.lib.core.directory_builder import (
-    add_context_menu_for_item, add_options_header_item,
-    build_root_directory, show_empty_directory
+    build_directory_listing,
+    build_folder_directory,
+    build_list_directory
 )
 from resources.lib.core.navigation_manager import get_navigation_manager
 from resources.lib.data.folder_list_manager import get_folder_list_manager
@@ -74,15 +75,15 @@ def run_search_flow():
         # Extract list ID for navigation
         list_id = target_url.split('list_id=')[1]
         log(f"=== MAIN: Scheduling navigation to list {list_id} ===", "DEBUG")
-        
+
         # Use background thread navigation with proper Kodi integration
         import threading
         import time
-        
+
         def navigate_to_list():
             try:
                 log(f"=== MAIN_NAVIGATION: Starting navigation to list {list_id} ===", "DEBUG")
-                
+
                 # Build the target URL
                 from resources.lib.config.addon_ref import get_addon
                 from urllib.parse import urlencode
@@ -90,23 +91,23 @@ def run_search_flow():
                 addon_id = addon.getAddonInfo("id")
                 params = urlencode({'action': 'browse_list', 'list_id': str(list_id)})
                 final_url = f"plugin://{addon_id}/?{params}"
-                
+
                 log(f"=== MAIN_NAVIGATION: Target URL: {final_url} ===", "DEBUG")
-                
+
                 # Clear any dialog states
                 xbmc.executebuiltin("Dialog.Close(all,true)")
                 time.sleep(0.2)
-                
+
                 # Use Kodi's built-in navigation that preserves back button
                 xbmc.executebuiltin(f'ActivateWindow(videos,"{final_url}",return)')
-                
+
                 log(f"=== MAIN_NAVIGATION: Navigation completed ===", "DEBUG")
-                
+
             except Exception as e:
                 log(f"Error in main navigation thread: {str(e)}", "ERROR")
                 import traceback
                 log(f"Main navigation traceback: {traceback.format_exc()}", "ERROR")
-        
+
         # Start navigation in background
         nav_thread = threading.Thread(target=navigate_to_list)
         nav_thread.daemon = True
@@ -143,8 +144,10 @@ def browse_folder(params):
 
         # Add options header with folder context - pass the actual folder_id
         ctx = detect_context({'view': 'folder', 'folder_id': folder_id})
-        add_options_header_item(ctx, ADDON_HANDLE)
-
+        # Context menus now handled entirely by native system via addon.xml
+        # No programmatic context menu items needed
+        # add_context_menu_for_item(li, 'folder', folder_id=subfolder['id']) # This line was removed as it was calling a deleted function
+        
         # Get subfolders
         subfolders = db_manager.fetch_folders(folder_id)
 
@@ -155,7 +158,7 @@ def browse_folder(params):
         for subfolder in subfolders:
             li = ListItemBuilder.build_folder_item(f"📁 {subfolder['name']}", is_folder=True)
             li.setProperty('lg_type', 'folder')
-            add_context_menu_for_item(li, 'folder', folder_id=subfolder['id'])
+            # add_context_menu_for_item(li, 'folder', folder_id=subfolder['id']) # This line was removed as it was calling a deleted function
             url = build_plugin_url({'action': 'browse_folder', 'folder_id': subfolder['id'], 'view': 'folder'})
             xbmcplugin.addDirectoryItem(ADDON_HANDLE, url, li, isFolder=True)
 
@@ -176,7 +179,7 @@ def browse_folder(params):
 
             li = ListItemBuilder.build_folder_item(f"📋 {display_title}", is_folder=True, item_type='playlist')
             li.setProperty('lg_type', 'list')
-            add_context_menu_for_item(li, 'list', list_id=list_item['id'])
+            # add_context_menu_for_item(li, 'list', list_id=list_item['id']) # This line was removed as it was calling a deleted function
             url = build_plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
             xbmcplugin.addDirectoryItem(ADDON_HANDLE, url, li, isFolder=True)
 
