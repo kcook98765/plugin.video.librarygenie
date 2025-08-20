@@ -521,12 +521,13 @@ class JSONRPC:
     def get_light_properties(self):
         """Get fast properties excluding heavy fields for batch operations"""
         # Exclude slow fields: cast, ratings, showlink, streamdetails, uniqueid, tag
+        # Note: movieid is automatically included and should not be explicitly listed
         return [
             "title", "genre", "year", "rating", "director", "trailer", "tagline", "plot",
             "plotoutline", "originaltitle", "lastplayed", "playcount", "writer", "studio",
             "mpaa", "country", "imdbnumber", "runtime", "set", "top250", "votes", 
             "fanart", "thumbnail", "file", "sorttitle", "resume", "setid", "dateadded", 
-            "art", "userrating", "premiered", "movieid"
+            "art", "userrating", "premiered"
         ]
 
     def cache_heavy_meta(self, movie_data):

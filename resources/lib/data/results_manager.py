@@ -155,31 +155,31 @@ class ResultsManager(Singleton):
                 src = (r.get('source') or '').lower()
                 if src in ('external', 'plugin_addon'):
                     continue
-                
+
                 # Handle favorites_import items separately to avoid library lookup
                 if src == 'favorites_import':
                     # Check if item has a valid playable path
                     playable_path = r.get('path') or r.get('play') or r.get('file')
-                    
+
                     # Skip items without valid playable paths (similar to shortlist import logic)
                     if not playable_path or not str(playable_path).strip():
                         utils.log(f"Skipping favorites import item '{r.get('title', 'Unknown')}' - no valid playable path", "DEBUG")
                         continue
-                    
+
                     # Validate the path is actually playable (basic check)
                     path_str = str(playable_path).strip()
-                    if not (path_str.startswith(('smb://', 'nfs://', 'http://', 'https://', 'ftp://', 'ftps://', 'plugin://', '/')) or 
+                    if not (path_str.startswith(('smb://', 'nfs://', 'http://', 'https://', 'ftp://', 'ftps://', 'plugin://', '/')) or
                             '\\' in path_str):  # Windows network paths
                         utils.log(f"Skipping favorites import item '{r.get('title', 'Unknown')}' - invalid path format: {path_str}", "DEBUG")
                         continue
-                    
+
                     # For favorites imports, use the stored data directly
                     r['_viewing_list_id'] = list_id
                     r['media_id'] = r.get('id') or r.get('media_id')
-                    
+
                     from resources.lib.kodi.listitem_builder import ListItemBuilder
                     list_item = ListItemBuilder.build_video_item(r, is_search_history=is_search_history)
-                    
+
                     # Use the playable path directly instead of info URL
                     item_url = playable_path
                     display_items.append((item_url, list_item, False))
@@ -205,76 +205,107 @@ class ResultsManager(Singleton):
                 utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Lookup keys - exact: {k_exact}, title: {k_title} ===", "DEBUG")
 
                 cand = (idx_ty.get(k_exact) or idx_t.get(k_title) or [])
-                meta = cand[0] if cand else None
+                kodi_movie = cand[0] if cand else None
 
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Found {len(cand)} candidates, meta exists: {meta is not None} ===", "DEBUG")
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Found {len(cand)} candidates, kodi_movie exists: {kodi_movie is not None} ===", "DEBUG")
 
-                if meta:
-                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Found Kodi match - title: {meta.get('title')}, movieid: {meta.get('movieid')} ===", "DEBUG")
-                    # Found in Kodi library via JSON-RPC
-                    cast = meta.get('cast') or []
-                    if isinstance(cast, list):
-                        cast = [{'name': a.get('name'),
-                                 'role': a.get('role'),
-                                 'thumbnail': a.get('thumbnail')} for a in cast]
-                    meta['cast'] = cast
-                    if isinstance(meta.get('writer'), list):
-                        meta['writer'] = ' / '.join(meta['writer'])
-                    # Preserve search score from original item for sorting
-                    meta['search_score'] = processed_ref.get('search_score', 0)
-                    meta['list_item_id'] = r.get('list_item_id')
+                # Prepare a base dictionary for the item, starting with data from the row (r)
+                item_dict = dict(r) # Create a mutable copy
 
-                    # Add context for list viewing and removal
-                    meta['_viewing_list_id'] = list_id
-                    meta['media_id'] = r.get('id') or r.get('media_id') or meta.get('movieid')
+                # If a Kodi match was found, we merge its data into item_dict
+                imdb_id = item_dict.get('imdbnumber', '') # Ensure imdb_id is available for uniqueid fallback
 
-                    from resources.lib.kodi.listitem_builder import ListItemBuilder
-                    list_item = ListItemBuilder.build_video_item(meta, is_search_history=is_search_history)
+                # Merge library data if found
+                if kodi_movie:
+                    # Library match found - merge all metadata
+                    item_dict.update({
+                        'kodi_id': kodi_movie.get('movieid', 0),
+                        'is_library_match': True,
+                        'file': kodi_movie.get('file', ''),
+                        'title': kodi_movie.get('title', item_dict.get('title', '')),
+                        'year': kodi_movie.get('year', item_dict.get('year', 0)),
+                        'rating': kodi_movie.get('rating', 0.0),
+                        'votes': kodi_movie.get('votes', 0),
+                        'plot': kodi_movie.get('plot', ''),
+                        'tagline': kodi_movie.get('tagline', ''),
+                        'genre': kodi_movie.get('genre', []),
+                        'director': kodi_movie.get('director', []),
+                        'writer': kodi_movie.get('writer', []),
+                        'studio': kodi_movie.get('studio', []),
+                        'country': kodi_movie.get('country', []),
+                        'mpaa': kodi_movie.get('mpaa', ''),
+                        'runtime': kodi_movie.get('runtime', 0),
+                        'premiered': kodi_movie.get('premiered', ''),
+                        'dateadded': kodi_movie.get('dateadded', ''),
+                        'thumbnail': kodi_movie.get('thumbnail', ''),
+                        'fanart': kodi_movie.get('fanart', ''),
+                        'art': kodi_movie.get('art', {}),
+                        'trailer': kodi_movie.get('trailer', ''),
+                        'userrating': kodi_movie.get('userrating', 0),
+                        'top250': kodi_movie.get('top250', 0),
+                        'set': kodi_movie.get('set', ''),
+                        'setid': kodi_movie.get('setid', 0),
+                        'lastplayed': kodi_movie.get('lastplayed', ''),
+                        'playcount': kodi_movie.get('playcount', 0),
+                        'resume': kodi_movie.get('resume', {}),
+                        'originaltitle': kodi_movie.get('originaltitle', ''),
+                        'sorttitle': kodi_movie.get('sorttitle', ''),
+                        'imdbnumber': kodi_movie.get('imdbnumber', imdb_id),
+                        'uniqueid': kodi_movie.get('uniqueid', {'imdb': imdb_id}),
+                        'cast': kodi_movie.get('cast', []),
+                        'ratings': kodi_movie.get('ratings', {}),
+                        'streamdetails': kodi_movie.get('streamdetails', {}),
+                        'showlink': kodi_movie.get('showlink', []),
+                        'tag': kodi_movie.get('tag', [])
+                    })
 
-                    # Determine the appropriate URL for this item
-                    # For manual items and library items, use the file path if available
-                    file_path = meta.get('file')
+                    # Set proper play URL for library matches
+                    file_path = kodi_movie.get('file')
                     if file_path:
-                        item_url = file_path
+                        item_dict['play'] = file_path
+                        utils.log(f"Set library file path for search result '{item_dict.get('title')}': {file_path}", "DEBUG")
                     else:
-                        # Fallback for items without file path
-                        item_url = f"info://{r.get('id', 'unknown')}"
-                    display_items.append((item_url, list_item, False))
+                        # Fallback to search_history protocol for non-playable library matches
+                        item_dict['play'] = f"search_history://{imdb_id}"
+                        utils.log(f"No file path for library match '{item_dict.get('title')}', using search_history protocol", "DEBUG")
                 else:
-                    # No Kodi match found - only process non-favorites imports here
-                    if src != 'favorites_import':
-                        fallback_title = processed_ref.get("title") or 'Unknown Title'
-                        utils.log(f"Item {i+1}: No Kodi match for '{processed_ref.get('title')}' ({processed_ref.get('year')}), using fallback title: '{fallback_title}'", "WARNING")
-                        
-                        resolved_item = {
-                            'id': r.get('id'),
-                            'title': processed_ref.get('title') or ref_imdb or 'Unknown',
-                            'year': processed_ref.get('year', 0) or 0,
-                            'plot': f"IMDb ID: {ref_imdb}" if ref_imdb else "No library match found",
-                            'rating': 0.0,
-                            'kodi_id': None,
-                            'file': None,
-                            'genre': '',
-                            'cast': [],
-                            'art': {},
-                            'search_score': processed_ref.get('search_score', 0),
-                            'list_item_id': r.get('list_item_id'),
-                            '_viewing_list_id': list_id,
-                            'media_id': r.get('id') or r.get('media_id'),
-                            'source': src
-                        }
-                        
-                        # Copy over any artwork and metadata from the original item
-                        for field in ['thumbnail', 'poster', 'fanart', 'art', 'plot', 'rating', 'genre', 'director', 'cast', 'duration']:
-                            if r.get(field):
-                                resolved_item[field] = r.get(field)
-                        
-                        from resources.lib.kodi.listitem_builder import ListItemBuilder
-                        list_item = ListItemBuilder.build_video_item(resolved_item, is_search_history=is_search_history)
+                    # No Kodi match found, use available data from the row (r) and processed_ref
+                    item_dict['title'] = processed_ref.get('title') or item_dict.get('title', 'Unknown Title')
+                    item_dict['year'] = processed_ref.get('year', 0) or item_dict.get('year', 0)
+                    item_dict['imdbnumber'] = processed_ref.get('imdb') or item_dict.get('imdbnumber', '')
+                    item_dict['search_score'] = processed_ref.get('search_score', 0)
+                    item_dict['kodi_id'] = None
+                    item_dict['is_library_match'] = False
 
-                        item_url = f"info://{ref_imdb}" if ref_imdb else f"info://{r.get('id', 'unknown')}"
-                        display_items.append((item_url, list_item, False))
-                    # Favorites imports are already handled above, skip here to avoid duplication
+                    # Set a fallback play URL if no file path is directly available
+                    if not item_dict.get('play'):
+                        item_dict['play'] = f"info://{item_dict.get('imdbnumber', item_dict.get('id', 'unknown'))}"
+
+                    utils.log(f"Item {i+1}: No Kodi match for '{processed_ref.get('title')}' ({processed_ref.get('year')}), using available data.", "WARNING")
+
+
+                # Add context for list viewing and removal
+                item_dict['_viewing_list_id'] = list_id
+                item_dict['media_id'] = r.get('id') or r.get('media_id') or item_dict.get('kodi_id') # Use kodi_id if available
+
+                # Ensure IMDb ID is set for uniqueid fallback if not already present
+                if not item_dict.get('imdbnumber') and ref_imdb:
+                    item_dict['imdbnumber'] = ref_imdb
+                    if 'uniqueid' not in item_dict or not item_dict['uniqueid'].get('imdb'):
+                        item_dict['uniqueid'] = item_dict.get('uniqueid', {}) # Ensure uniqueid is a dict
+                        item_dict['uniqueid']['imdb'] = ref_imdb
+
+                from resources.lib.kodi.listitem_builder import ListItemBuilder
+                list_item = ListItemBuilder.build_video_item(item_dict, is_search_history=is_search_history)
+
+                # Determine the appropriate URL for this item
+                # Use the 'play' key which is now reliably set
+                item_url = item_dict.get('play')
+                if not item_url: # Final fallback if 'play' is missing
+                    item_url = f"info://{item_dict.get('id', 'unknown')}"
+
+                display_items.append((item_url, list_item, False))
+
 
             # External items processed separately with stored metadata
             # Handle None search_score values that can't be compared

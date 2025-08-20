@@ -346,6 +346,38 @@ class ListItemBuilder:
 
             except Exception:
                 info_dict['cast'] = []
+        
+        # Handle other heavy metadata fields for search results
+        if source == 'search' or source == 'lib':
+            # Process ratings from heavy metadata
+            ratings = media_info.get('ratings', {})
+            if isinstance(ratings, str):
+                try:
+                    ratings = json.loads(ratings)
+                except json.JSONDecodeError:
+                    ratings = {}
+            if isinstance(ratings, dict) and ratings:
+                info_dict['ratings'] = ratings
+            
+            # Process streamdetails from heavy metadata
+            streamdetails = media_info.get('streamdetails', {})
+            if isinstance(streamdetails, str):
+                try:
+                    streamdetails = json.loads(streamdetails)
+                except json.JSONDecodeError:
+                    streamdetails = {}
+            if isinstance(streamdetails, dict) and streamdetails:
+                info_dict['streamdetails'] = streamdetails
+                
+            # Process uniqueid from heavy metadata
+            uniqueid = media_info.get('uniqueid', {})
+            if isinstance(uniqueid, str):
+                try:
+                    uniqueid = json.loads(uniqueid)
+                except json.JSONDecodeError:
+                    uniqueid = {}
+            if isinstance(uniqueid, dict) and uniqueid:
+                info_dict['uniqueid'] = uniqueid
 
         # Process plot information
         if media_info.get('plot'):
@@ -356,6 +388,10 @@ class ListItemBuilder:
         source2 = media_info.get('uniqueid', {}).get('imdb', '') if isinstance(media_info.get('uniqueid'), dict) else ''
         source3 = media_info.get('info', {}).get('imdbnumber', '') if media_info.get('info') else ''
         source4 = media_info.get('imdb_id', '')
+        
+        # For search results, prioritize the stored imdbnumber field
+        if source == 'search' and source1:
+            source4 = source1  # Use imdbnumber as primary for search results
 
         # Prioritize uniqueid.imdb over other sources for v19 compatibility
         final_imdb_id = ''
@@ -489,8 +525,18 @@ class ListItemBuilder:
         # Try to get play URL from different possible locations
         play_url = None
         
+        # For search results, don't set invalid info:// URLs
+        if source == 'search':
+            # Search results are non-playable by design - they're for discovery
+            play_url = media_info.get('play')
+            if play_url and not str(play_url).startswith('info://'):
+                li.setPath(play_url)
+                utils.log(f"Set valid ListItem path for search result '{title}': {play_url}", "DEBUG")
+            else:
+                # Don't set invalid URLs that Kodi can't handle
+                utils.log(f"Search result '{title}' - skipping invalid play URL: {play_url}", "DEBUG")
         # For favorites imports, only set path if it's playable and has valid URL
-        if source == 'favorites_import':
+        elif source == 'favorites_import':
             if is_playable:
                 play_url = media_info.get('file') or media_info.get('path') or media_info.get('play')
                 if play_url and str(play_url).strip():
