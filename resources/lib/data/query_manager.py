@@ -583,19 +583,23 @@ class QueryManager(Singleton):
         # Extract field names from config
         field_names = [field.split()[0] for field in Config.FIELDS]
 
-        # Filter out None values and empty strings to prevent SQL issues
+        # Filter out None values but preserve actual data
         filtered_data = {}
         for key in field_names:
             if key in data:
                 value = data[key]
-                # Convert None to empty string and ensure we have valid data
-                if value is None:
-                    value = ''
-                elif isinstance(value, str) and value.strip() == '':
-                    value = ''
-                # Only include non-empty values or essential fields (including title, imdbnumber, source for search results)
-                if value != '' or key in ['kodi_id', 'year', 'rating', 'duration', 'votes', 'title', 'imdbnumber', 'source']:
-                    filtered_data[key] = value
+                # Keep the actual value if it's not None, otherwise use appropriate default
+                if value is not None:
+                    # For strings, keep them even if empty (they might be intentionally empty)
+                    if isinstance(value, str):
+                        filtered_data[key] = value
+                    else:
+                        # For non-strings, keep the value as-is
+                        filtered_data[key] = value
+                else:
+                    # Only set default for essential fields when value is actually None
+                    if key in ['kodi_id', 'year', 'rating', 'duration', 'votes']:
+                        filtered_data[key] = 0 if key != 'rating' else 0.0
 
         media_data = filtered_data
 
@@ -610,12 +614,12 @@ class QueryManager(Singleton):
         media_data.setdefault('votes', 0)
         media_data.setdefault('media_type', 'movie')
         
-        # Only set defaults for title, year, and source if they're not already provided
-        if 'title' not in media_data or not media_data['title']:
+        # Only set defaults for title, year, and source if they're actually missing or empty
+        if not media_data.get('title') or str(media_data.get('title')).strip() == '':
             media_data['title'] = 'Unknown'
-        if 'year' not in media_data:
+        if 'year' not in media_data or media_data.get('year') is None:
             media_data['year'] = 0
-        if 'source' not in media_data or not media_data['source']:
+        if not media_data.get('source') or str(media_data.get('source')).strip() == '':
             media_data['source'] = 'unknown'
             
         # Debug logging after default setting for search results

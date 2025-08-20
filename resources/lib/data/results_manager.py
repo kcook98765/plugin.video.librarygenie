@@ -110,26 +110,36 @@ class ResultsManager(Singleton):
                     except Exception as e:
                         utils.log(f"=== TITLE_YEAR_LOOKUP: Error querying imdb_exports for {imdb}: {str(e)} ===", "ERROR")
 
-                # Fallback to stored data if imdb lookup failed
-                if not title:
-                    title = r.get('title') or ''
-                    if title and title.strip():
-                        utils.log(f"Using fallback title: {title}", "DEBUG")
-                    else:
-                        # Use IMDb ID as title if no title is available
-                        title = f"Movie {imdb}" if imdb else "Unknown Movie"
-                        utils.log(f"No title found, using IMDb ID fallback: {title}", "WARNING")
+                # Always use stored data first, regardless of imdb lookup
+                stored_title = r.get('title') or ''
+                stored_year = r.get('year') or 0
+                
+                # Use stored title if available and not empty
+                if stored_title and str(stored_title).strip() and str(stored_title).strip() != 'Unknown':
+                    title = stored_title
+                    utils.log(f"Using stored title: {title}", "DEBUG")
+                elif not title and stored_title:
+                    title = stored_title
+                    utils.log(f"Using stored title as fallback: {title}", "DEBUG")
+                elif not title:
+                    # Use IMDb ID as title if no title is available
+                    title = f"Movie {imdb}" if imdb else "Unknown Movie"
+                    utils.log(f"No title found, using IMDb ID fallback: {title}", "WARNING")
 
-                if not year:
-                    try:
-                        year = int(r.get('year') or 0)
-                        if year > 0:
-                            utils.log(f"Using fallback year: {year}", "DEBUG")
-                        else:
-                            utils.log(f"No valid year found, using 0", "DEBUG")
-                    except Exception:
-                        year = 0
-                        utils.log(f"Error parsing year, using 0", "DEBUG")
+                # Use stored year if available
+                try:
+                    if stored_year and int(stored_year) > 0:
+                        year = int(stored_year)
+                        utils.log(f"Using stored year: {year}", "DEBUG")
+                    elif not year and stored_year:
+                        year = int(stored_year) if stored_year else 0
+                        utils.log(f"Using stored year as fallback: {year}", "DEBUG")
+                    else:
+                        year = year or 0
+                        utils.log(f"Using imdb_exports year or default: {year}", "DEBUG")
+                except Exception:
+                    year = 0
+                    utils.log(f"Error parsing year, using 0", "DEBUG")
 
                 refs.append({'imdb': imdb, 'title': title, 'year': year, 'search_score': r.get('search_score', 0)})
 
