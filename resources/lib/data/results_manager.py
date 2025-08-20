@@ -43,9 +43,22 @@ class ResultsManager(Singleton):
                     'year': first_item.get('year'),
                     'imdbnumber': first_item.get('imdbnumber'),
                     'source': first_item.get('source'),
-                    'search_score': first_item.get('search_score')
+                    'search_score': first_item.get('search_score'),
+                    'kodi_id': first_item.get('kodi_id')
                 }
                 utils.log(f"=== BUILD_DISPLAY_ITEMS: First item debug data: {debug_data} ===", "DEBUG")
+                
+                # Also check what's in the imdb_exports table for comparison
+                imdb_id = first_item.get('imdbnumber')
+                if imdb_id:
+                    q = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? LIMIT 1"""
+                    export_data = self.query_manager.execute_query(q, (imdb_id,))
+                    if export_data:
+                        export_title = export_data[0].get('title', 'N/A')
+                        export_year = export_data[0].get('year', 'N/A')
+                        utils.log(f"=== BUILD_DISPLAY_ITEMS: IMDB_EXPORTS comparison for {imdb_id}: title='{export_title}', year={export_year} ===", "DEBUG")
+                    else:
+                        utils.log(f"=== BUILD_DISPLAY_ITEMS: No IMDB_EXPORTS entry for {imdb_id} ===", "DEBUG")
 
             # Check if this is from Search History folder
             list_info = self.query_manager.fetch_list_by_id(list_id)
