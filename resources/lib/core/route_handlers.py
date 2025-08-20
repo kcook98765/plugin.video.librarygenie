@@ -1483,7 +1483,7 @@ def browse_folder(params):
         
         handle = int(sys.argv[1])
         directory_builder = DirectoryBuilder()
-        directory_builder.build_folder_directory(folder_id, handle)
+        directory_builder.build_folder_directory(int(folder_id), handle)
         
     except Exception as e:
         utils.log(f"Error in browse_folder: {str(e)}", "ERROR")
@@ -1505,7 +1505,7 @@ def browse_list(params):
         
         handle = int(sys.argv[1])
         directory_builder = DirectoryBuilder()
-        directory_builder.build_list_directory(list_id, handle)
+        directory_builder.build_list_directory(int(list_id), handle)
         
     except Exception as e:
         utils.log(f"Error in browse_list: {str(e)}", "ERROR")
