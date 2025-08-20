@@ -74,15 +74,26 @@ class ResultsManager(Singleton):
                 if imdb:
                     utils.log(f"=== TITLE_YEAR_LOOKUP: Looking up IMDB {imdb} in imdb_exports ===", "DEBUG")
                     try:
+                        # First check if any data exists in imdb_exports at all
+                        count_q = """SELECT COUNT(*) as total FROM imdb_exports"""
+                        count_result = self.query_manager.execute_query(count_q, ()) or []
+                        total_exports = count_result[0].get('total', 0) if count_result else 0
+                        utils.log(f"=== TITLE_YEAR_LOOKUP: Total imdb_exports entries: {total_exports} ===", "DEBUG")
+                        
                         q = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
                         hit = self.query_manager.execute_query(q, (imdb,)) or []
                         if hit:
                             rec = hit[0]
                             title = (rec.get('title') if isinstance(rec, dict) else rec[0]) or ''
                             year = int((rec.get('year') if isinstance(rec, dict) else rec[1]) or 0)
-                            utils.log(f"=== TITLE_YEAR_LOOKUP: Found in imdb_exports: {title} ({year}) for IMDB {imdb} ===", "DEBUG")
+                            utils.log(f"=== TITLE_YEAR_LOOKUP: Found in imdb_exports: '{title}' ({year}) for IMDB {imdb} ===", "DEBUG")
                         else:
                             utils.log(f"=== TITLE_YEAR_LOOKUP: No imdb_exports entry found for IMDB {imdb} ===", "DEBUG")
+                            # Also check what IMDb IDs do exist (sample)
+                            sample_q = """SELECT imdb_id FROM imdb_exports LIMIT 5"""
+                            sample_result = self.query_manager.execute_query(sample_q, ()) or []
+                            sample_ids = [r.get('imdb_id', 'N/A') for r in sample_result]
+                            utils.log(f"=== TITLE_YEAR_LOOKUP: Sample existing IMDb IDs: {sample_ids} ===", "DEBUG")
                     except Exception as e:
                         utils.log(f"=== TITLE_YEAR_LOOKUP: Error querying imdb_exports for {imdb}: {str(e)} ===", "ERROR")
 

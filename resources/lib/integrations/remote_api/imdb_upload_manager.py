@@ -423,9 +423,26 @@ class IMDbUploadManager:
         """Populate imdb_exports table for search functionality."""
         if valid_movies:
             try:
-                utils.log("Populating imdb_exports table for search functionality", "INFO")
+                utils.log("=== POPULATING IMDB_EXPORTS TABLE ===", "INFO")
+                utils.log(f"Processing {len(valid_movies)} movies for imdb_exports", "INFO")
+                
+                # Log first few movies to verify title/year data
+                for i, movie in enumerate(valid_movies[:5]):
+                    title = movie.get('title', 'MISSING')
+                    year = movie.get('year', 'MISSING')
+                    imdb = movie.get('imdbnumber', 'MISSING')
+                    utils.log(f"Sample {i+1}: Title='{title}', Year='{year}', IMDb='{imdb}'", "INFO")
+                
+                if len(valid_movies) > 5:
+                    utils.log(f"... and {len(valid_movies) - 5} more movies", "INFO")
+                
                 db_manager.insert_imdb_export(valid_movies)
-                utils.log(f"Populated imdb_exports table with {len(valid_movies)} entries", "INFO")
+                utils.log(f"Successfully populated imdb_exports table with {len(valid_movies)} entries", "INFO")
+                
+                # Verify the data was stored correctly
+                stats = db_manager.get_imdb_export_stats()
+                utils.log(f"IMDB_EXPORTS verification: {stats['total']} total entries, {stats['valid_imdb']} with valid IMDb IDs", "INFO")
+                utils.log("=== IMDB_EXPORTS POPULATION COMPLETE ===", "INFO")
             except Exception as e:
                 utils.log(f"Error populating imdb_exports table: {str(e)}", "WARNING")
 

@@ -496,16 +496,31 @@ class QueryManager(Singleton):
             (kodi_id, imdb_id, title, year)
             VALUES (?, ?, ?, ?)
         """
-        for movie in movies:
-            self.execute_write(
-                query,
-                (
-                    movie.get('movieid') or movie.get('kodi_id'),
-                    movie.get('imdbnumber'),
-                    movie.get('title'),
-                    movie.get('year')
-                )
-            )
+        utils.log(f"=== INSERTING {len(movies)} MOVIES INTO IMDB_EXPORTS ===", "INFO")
+        
+        successful_inserts = 0
+        failed_inserts = 0
+        
+        for i, movie in enumerate(movies):
+            kodi_id = movie.get('movieid') or movie.get('kodi_id')
+            imdb_id = movie.get('imdbnumber')
+            title = movie.get('title')
+            year = movie.get('year')
+            
+            # Log detailed info for first few entries
+            if i < 5:
+                utils.log(f"Insert {i+1}: kodi_id={kodi_id}, imdb_id='{imdb_id}', title='{title}', year={year}", "INFO")
+            
+            try:
+                self.execute_write(query, (kodi_id, imdb_id, title, year))
+                successful_inserts += 1
+            except Exception as e:
+                failed_inserts += 1
+                if i < 5:  # Only log details for first few failures
+                    utils.log(f"Failed to insert movie {i+1}: {str(e)}", "ERROR")
+        
+        utils.log(f"IMDB_EXPORTS insertion complete: {successful_inserts} successful, {failed_inserts} failed", "INFO")
+        utils.log("=== IMDB_EXPORTS INSERTION COMPLETE ===", "INFO")
 
     def get_valid_imdb_numbers(self) -> List[str]:
         """Get all valid IMDB numbers from exports table"""
