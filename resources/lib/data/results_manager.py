@@ -144,6 +144,10 @@ class ResultsManager(Singleton):
             rows = list_items  # Renamed for consistency with original logic
             external, refs = [], []
 
+            # Track data quality issues
+            unknown_count = 0
+            total_items = len(rows)
+
             for r in rows:
                 src = (r.get('source') or '').lower()
                 # Sources that don't use Kodi library processing: external, plugin_addon
@@ -151,6 +155,7 @@ class ResultsManager(Singleton):
                 if src in ('external', 'plugin_addon'):
                     external.append(r)
                     continue
+                
                 imdb = r.get('imdbnumber')
                 title, year = '', 0
 
@@ -162,9 +167,17 @@ class ResultsManager(Singleton):
                 except Exception:
                     year = 0
 
-                utils.log(f"Using stored metadata: title='{title}', year={year}", "DEBUG")
+                # Track data quality
+                if title in ['Unknown', ''] or not title:
+                    unknown_count += 1
 
-                # Only try imdb_exports as enhancement if we have missing data
+                utils.log(f"Item {len(refs)+1}: title='{title}', year={year}, imdb='{imdb}', source='{src}'", "DEBUG")
+
+                # Enhanced data recovery for missing/corrupted titles
+                enhanced_title = title
+                enhanced_year = year
+                
+                # Try imdb_exports enhancement for poor quality data
                 if (not title or title in ['Unknown', '']) and imdb:
                     utils.log(f"=== TITLE_YEAR_LOOKUP: Enhancing from imdb_exports for IMDB {imdb} ===", "DEBUG")
                     try:
@@ -175,48 +188,55 @@ class ResultsManager(Singleton):
                             export_title = (rec.get('title') if isinstance(rec, dict) else rec[0]) or ''
                             export_year = int((rec.get('year') if isinstance(rec, dict) else rec[1]) or 0)
                             if export_title and export_title not in ['Unknown', '']:
-                                title = export_title
-                                utils.log(f"Enhanced title from imdb_exports: {title}", "DEBUG")
+                                enhanced_title = export_title
+                                utils.log(f"Enhanced title from imdb_exports: {enhanced_title}", "INFO")
                             if export_year > 0 and year == 0:
-                                year = export_year
-                                utils.log(f"Enhanced year from imdb_exports: {year}", "DEBUG")
+                                enhanced_year = export_year
+                                utils.log(f"Enhanced year from imdb_exports: {enhanced_year}", "INFO")
                         else:
                             utils.log(f"=== TITLE_YEAR_LOOKUP: No imdb_exports entry found for IMDB {imdb} ===", "DEBUG")
                     except Exception as e:
                         utils.log(f"=== TITLE_YEAR_LOOKUP: Error querying imdb_exports for {imdb}: {str(e)} ===", "ERROR")
 
-                # Final fallback only if we still have no useful title
-                if not title or title.strip() == '':
-                    title = f"IMDB: {imdb}" if imdb else "Unknown Movie"
-                    utils.log(f"Using final fallback title: {title}", "WARNING")
+                # Use enhanced data for final reference
+                final_title = enhanced_title
+                final_year = enhanced_year
 
-                refs.append({'imdb': imdb, 'title': title, 'year': year, 'search_score': r.get('search_score', 0)})
+                # Final fallback only if we still have no useful title
+                if not final_title or final_title.strip() == '':
+                    final_title = f"IMDB: {imdb}" if imdb else f"Unknown Movie #{len(refs)+1}"
+                    utils.log(f"Using final fallback title: {final_title}", "WARNING")
+
+                refs.append({'imdb': imdb, 'title': final_title, 'year': final_year, 'search_score': r.get('search_score', 0), 'row_id': r.get('id')})
+
+            # Log data quality summary
+            if unknown_count > 0:
+                utils.log(f"=== DATA QUALITY WARNING: {unknown_count}/{total_items} items have missing/corrupted titles ===", "WARNING")
 
             # ---- Step 1: Light JSON-RPC batch call (avoiding heavy fields) ----
-            batch_pairs = []
-            for r in rows:
-                # Extract reference data for matching - use actual stored values
-                ref_title = r.get('title')
-                ref_year = r.get('year') 
-                ref_imdb = r.get('imdbnumber')
+            # Create unique batch pairs to avoid duplicate lookups
+            unique_pairs = {}
+            refs_to_pairs = {}
+            
+            for i, ref in enumerate(refs):
+                # Use enhanced data from refs instead of raw row data
+                ref_title = ref.get('title', '')
+                ref_year = ref.get('year', 0)
+                
+                # Create a unique key for deduplication
+                pair_key = (ref_title.lower().strip(), int(ref_year or 0))
+                
+                if pair_key not in unique_pairs:
+                    unique_pairs[pair_key] = {
+                        'title': ref_title,
+                        'year': ref_year
+                    }
+                
+                # Map this ref to its pair key for later lookup
+                refs_to_pairs[i] = pair_key
 
-                # Log what we actually have in the database
-                if not ref_title:
-                    utils.log(f"Item {len(batch_pairs)+1}: No title in database, using fallback", "DEBUG")
-                    ref_title = "Unknown"
-                else:
-                    utils.log(f"Item {len(batch_pairs)+1}: Found title in database: '{ref_title}'", "DEBUG")
-
-                if not ref_year or ref_year == 0:
-                    utils.log(f"Item {len(batch_pairs)+1}: No year in database, using fallback", "DEBUG") 
-                    ref_year = 0
-                else:
-                    utils.log(f"Item {len(batch_pairs)+1}: Found year in database: {ref_year}", "DEBUG")
-
-                batch_pairs.append({
-                    'title': ref_title,
-                    'year': ref_year
-                })
+            batch_pairs = list(unique_pairs.values())
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Reduced {len(refs)} items to {len(batch_pairs)} unique pairs for JSON-RPC ===", "INFO")
 
             utils.log(f"=== BUILD_DISPLAY_ITEMS: Making LIGHT JSON-RPC batch call for {len(batch_pairs)} pairs ===", "DEBUG")
             utils.log(f"=== BUILD_DISPLAY_ITEMS: First 3 batch pairs: {batch_pairs[:3]} ===", "DEBUG")
@@ -290,10 +310,13 @@ class ResultsManager(Singleton):
                 kt = _key(m.get("title"), 0)
                 idx_t.setdefault(kt, []).append(m)
 
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Indexed {len(batch_movies)} movies into {len(idx_ty)} title+year keys and {len(idx_t)} title-only keys ===", "DEBUG")
+
             # Rebuild resolved list in the original refs order (already sorted by search score from query)
             display_items = []
             utils.log(f"=== BUILD_DISPLAY_ITEMS: Starting movie matching for {len(rows)} items ===", "DEBUG")
 
+            ref_index = 0  # Track which ref we're processing
             for i, r in enumerate(rows):
                 # Skip items that are already handled as external
                 src = (r.get('source') or '').lower()
@@ -329,23 +352,23 @@ class ResultsManager(Singleton):
                     display_items.append((item_url, list_item, False))
                     continue
 
-                ref_title = r.get("title", "")
-                ref_year = r.get("year", 0)
-                ref_imdb = r.get("imdbnumber", "")
+                # Get the corresponding processed ref data by index
+                if ref_index >= len(refs):
+                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: ref_index {ref_index} exceeds refs length {len(refs)} ===", "ERROR")
+                    continue
+                
+                processed_ref = refs[ref_index]
+                ref_index += 1
 
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: ref_title='{ref_title}', ref_year={ref_year}, ref_imdb='{ref_imdb}' ===", "DEBUG")
+                ref_title = processed_ref.get("title", "")
+                ref_year = processed_ref.get("year", 0)
+                ref_imdb = processed_ref.get("imdb", "")
+                row_id = processed_ref.get("row_id", r.get('id'))
 
-                # Find the corresponding processed ref data
-                processed_ref = next((ref for ref in refs if ref.get('imdb') == ref_imdb and ref.get('title') == ref_title and ref.get('year') == ref_year), None)
-                if not processed_ref:
-                    # Fallback if processed_ref is somehow not found, use original row data
-                    processed_ref = {'title': ref_title, 'year': ref_year, 'imdb': ref_imdb, 'search_score': r.get('search_score', 0)}
-                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Using fallback processed_ref ===", "WARNING")
-                else:
-                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Found matching processed_ref ===", "DEBUG")
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: ref_title='{ref_title}', ref_year={ref_year}, ref_imdb='{ref_imdb}', row_id={row_id} ===", "DEBUG")
 
-                k_exact = _key(processed_ref.get("title"), processed_ref.get("year"))
-                k_title = _key(processed_ref.get("title"), 0)
+                k_exact = _key(ref_title, ref_year)
+                k_title = _key(ref_title, 0)
                 utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Lookup keys - exact: {k_exact}, title: {k_title} ===", "DEBUG")
 
                 cand = (idx_ty.get(k_exact) or idx_t.get(k_title) or [])
@@ -407,34 +430,32 @@ class ResultsManager(Singleton):
                         utils.log(f"Set library file path for search result '{item_dict.get('title')}': {file_path}", "DEBUG")
                     else:
                         # Fallback to search_history protocol for non-playable library matches
-                        item_dict['play'] = f"search_history://{imdb_id}"
+                        item_dict['play'] = f"search_history://{ref_imdb}"
                         utils.log(f"No file path for library match '{item_dict.get('title')}', using search_history protocol", "DEBUG")
                 else:
-                    # No Kodi match found, use available data from the row (r) and processed_ref
-                    original_title = r.get('title') 
-                    original_year = r.get('year')
+                    # No Kodi match found, use processed ref data
+                    display_title = ref_title if ref_title else 'Unknown Title'
+                    display_year = ref_year if ref_year else 0
 
-                    # Log what we're actually using
-                    display_title = original_title if original_title else 'Unknown Title'
-                    display_year = original_year if original_year else 0
-
-                    item_dict['title'] = display_title
-                    item_dict['year'] = display_year
-                    item_dict['imdbnumber'] = processed_ref.get('imdb') or item_dict.get('imdbnumber', '')
-                    item_dict['search_score'] = processed_ref.get('search_score', 0)
-                    item_dict['kodi_id'] = None
-                    item_dict['is_library_match'] = False
+                    item_dict.update({
+                        'title': display_title,
+                        'year': display_year,
+                        'imdbnumber': ref_imdb,
+                        'search_score': processed_ref.get('search_score', 0),
+                        'kodi_id': None,
+                        'is_library_match': False
+                    })
 
                     # Set a fallback play URL if no file path is directly available
                     if not item_dict.get('play'):
-                        item_dict['play'] = f"info://{item_dict.get('imdbnumber', item_dict.get('id', 'unknown'))}"
+                        item_dict['play'] = f"info://{ref_imdb or row_id or 'unknown'}"
 
                     utils.log(f"Item {i+1}: No Kodi match for '{display_title}' ({display_year}), using search result data - Score: {item_dict['search_score']}", "DEBUG")
 
-
-                # Add context for list viewing and removal
+                # Add unique identification to prevent duplicates in display
+                item_dict['_unique_id'] = f"{row_id}_{ref_imdb}_{i}"  # Ensure each item is unique
                 item_dict['_viewing_list_id'] = list_id
-                item_dict['media_id'] = r.get('id') or r.get('media_id') or item_dict.get('kodi_id') # Use kodi_id if available
+                item_dict['media_id'] = row_id or item_dict.get('kodi_id') # Use row_id for unique identification
 
                 # Ensure IMDb ID is set for uniqueid fallback if not already present
                 if not item_dict.get('imdbnumber') and ref_imdb:
