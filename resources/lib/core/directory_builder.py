@@ -61,13 +61,14 @@ def add_options_header_item(ctx: dict, handle: int):
             utils.log(f"Added folder_id to URL params: {ctx['folder_id']}", "INFO")
 
         utils.log(f"FOLDER_CONTEXT_DEBUG: Building options URL with params: {url_params}", "INFO")
-        plugin_url = build_plugin_url(url_params)
-        url = f"RunPlugin({plugin_url})"
-        utils.log(f"FOLDER_CONTEXT_DEBUG: Built RunPlugin URL: {url}", "INFO")
+        url = build_plugin_url(url_params)
+        utils.log(f"FOLDER_CONTEXT_DEBUG: Built plugin URL: {url}", "INFO")
 
-        # Add as non-folder item for RunPlugin behavior
+        # Add as folder item to prevent Kodi from trying to play it
+        # This will make it navigable but not playable
+        li.setIsFolder(True)
         utils.log(f"=== ADD_OPTIONS_HEADER: About to add directory item with URL: {url} ===", "INFO")
-        result = xbmcplugin.addDirectoryItem(handle, url, li, isFolder=False)
+        result = xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
         utils.log(f"=== ADD_OPTIONS_HEADER: addDirectoryItem returned: {result} ===", "INFO")
         utils.log("=== ADD_OPTIONS_HEADER: Options & Tools header successfully added to directory ===", "INFO")
 
