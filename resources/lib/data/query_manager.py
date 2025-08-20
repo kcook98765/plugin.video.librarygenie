@@ -846,17 +846,7 @@ class QueryManager(Singleton):
                 imdb_id TEXT,
                 exported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )''',
-            # IMDB holding table for upload process, likely not needed, comment out for now
-#            '''CREATE TABLE IF NOT EXISTS imdb_holding (
-#                id INTEGER PRIMARY KEY AUTOINCREMENT,
-#                kodi_id INTEGER,
-#                title TEXT,
-#                year INTEGER,
-#                imdb_id TEXT,
-#                raw_uniqueid TEXT,
-#                raw_imdbnumber TEXT,
-#                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-#            )''',
+            
             """CREATE TABLE IF NOT EXISTS folders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT UNIQUE,

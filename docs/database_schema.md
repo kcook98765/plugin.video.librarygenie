@@ -189,53 +189,7 @@ CREATE TABLE imdb_exports (
 - **Writes**: Library export operations (`DatabaseManager.insert_imdb_export`)
 - **Reads**: Export statistics and validation (`DatabaseManager.get_imdb_export_stats`)
 
-### 9. imdb_holding
-**Purpose**: Temporary holding table during IMDB data processing (currently commented out).
-
-```sql
-CREATE TABLE imdb_holding (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    kodi_id INTEGER,
-    title TEXT,
-    year INTEGER,
-    imdb_id TEXT,
-    raw_uniqueid TEXT,
-    raw_imdbnumber TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)
-```
-
-**Note**: This table is currently commented out in the schema creation but preserved for future use.
-
-### 10. whitelist ⚠️ **POTENTIALLY UNUSED**
-**Purpose**: Stores whitelist entries for list filtering.
-
-```sql
-CREATE TABLE whitelist (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    list_id INTEGER,
-    title TEXT,
-    FOREIGN KEY (list_id) REFERENCES lists (id)
-)
-```
-
-**Status**: Schema defined but no active code usage found. May be legacy or planned feature.
-
-### 11. blacklist ⚠️ **POTENTIALLY UNUSED**
-**Purpose**: Stores blacklist entries for list filtering.
-
-```sql
-CREATE TABLE blacklist (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    list_id INTEGER,
-    title TEXT,
-    FOREIGN KEY (list_id) REFERENCES lists (id)
-)
-```
-
-**Status**: Schema defined but no active code usage found. May be legacy or planned feature.
-
-### 12. search_history
+### 9. search_history
 **Purpose**: Tracks individual search queries and metadata for search history management.
 
 ```sql
@@ -257,7 +211,7 @@ CREATE TABLE search_history (
 - Provides audit trail for search operations
 - Supports search history browsing functionality
 
-### 13. user_settings
+### 10. user_settings
 **Purpose**: Stores user-specific settings and preferences.
 
 ```sql

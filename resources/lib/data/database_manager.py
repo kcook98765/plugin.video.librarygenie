@@ -50,26 +50,26 @@ class DatabaseManager(Singleton):
         """Optimize database settings for heavy batch operations"""
         try:
             utils.log("=== OPTIMIZING DATABASE FOR HEAVY OPERATIONS ===", "INFO")
-            
+
             # Check initial WAL state
             self.cursor.execute('PRAGMA wal_checkpoint')
             utils.log("Initial WAL checkpoint completed", "DEBUG")
-            
+
             self.cursor.execute('PRAGMA synchronous = OFF')  # Fastest writes for bulk operations
             utils.log("Set synchronous = OFF", "DEBUG")
-            
+
             self.cursor.execute('PRAGMA cache_size = 50000')  # Even larger cache
             utils.log("Set cache_size = 50000", "DEBUG")
-            
+
             self.cursor.execute('PRAGMA locking_mode = EXCLUSIVE')  # Exclusive access during bulk ops
             utils.log("Set locking_mode = EXCLUSIVE", "DEBUG")
-            
+
             # Verify settings
             self.cursor.execute('PRAGMA synchronous')
             sync_mode = self.cursor.fetchone()[0]
             self.cursor.execute('PRAGMA locking_mode')
             lock_mode = self.cursor.fetchone()[0]
-            
+
             utils.log(f"Verified settings - synchronous: {sync_mode}, locking_mode: {lock_mode}", "INFO")
             utils.log("Database optimization complete", "INFO")
         except Exception as e:
@@ -98,7 +98,7 @@ class DatabaseManager(Singleton):
         retries = 20  # Increase retry count for heavy operations
         operation_name = func.__name__ if hasattr(func, '__name__') else str(func)
         utils.log(f"=== RETRY OPERATION START: {operation_name} ===", "DEBUG")
-        
+
         for i in range(retries):
             try:
                 utils.log(f"Executing {operation_name} attempt {i+1}/{retries}", "DEBUG")
@@ -116,9 +116,9 @@ class DatabaseManager(Singleton):
                     utils.log(f"Args: {args[:2] if args else 'None'}", "ERROR")  # Log first 2 args only
                     utils.log(f"Wait time: {wait_time:.2f}s", "ERROR")
                     utils.log(f"=== END DATABASE LOCK INFO ===", "ERROR")
-                    
+
                     time.sleep(wait_time)
-                    
+
                     # Force a checkpoint every 5 retries to help with WAL mode
                     if i > 0 and i % 5 == 0:
                         try:
@@ -141,7 +141,7 @@ class DatabaseManager(Singleton):
             utils.log(f"Setting up database schema version {self.SCHEMA_VERSION}...", "DEBUG")
 
             conn_info = self.query_manager._get_connection()
-            
+
             try:
                 # Check if already in transaction by testing a rollback
                 in_transaction = False
