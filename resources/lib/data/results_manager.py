@@ -19,6 +19,98 @@ class ResultsManager(Singleton):
             utils.log(f"Error searching movies: {e}", "ERROR")
             return []
 
+    def _get_light_movies_batch(self, title_year_pairs):
+        """Light JSON-RPC batch lookup without heavy fields"""
+        if not title_year_pairs:
+            return {"result": {"movies": []}}
+
+        try:
+            utils.log(f"=== LIGHT_JSONRPC: Starting light batch lookup for {len(title_year_pairs)} pairs ===", "INFO")
+
+            # Use only light properties for fast response
+            properties = self.jsonrpc.get_light_properties()
+            utils.log(f"=== LIGHT_JSONRPC: Using {len(properties)} light properties ===", "INFO")
+
+            # Build OR filter for all title-year combinations
+            filter_conditions = []
+            for pair in title_year_pairs:
+                title = (pair.get('title') or '').strip()
+                year = pair.get('year') or 0
+
+                if not title:
+                    continue
+
+                if year and str(year).isdigit():
+                    # AND condition for both title and year
+                    and_condition = [
+                        {
+                            'field': 'title',
+                            'operator': 'is',
+                            'value': title
+                        },
+                        {
+                            'field': 'year',
+                            'operator': 'is',
+                            'value': str(year)
+                        }
+                    ]
+                    filter_conditions.append(and_condition)
+                else:
+                    # Just title condition
+                    title_condition = [
+                        {
+                            'field': 'title',
+                            'operator': 'is',
+                            'value': title
+                        }
+                    ]
+                    filter_conditions.append(title_condition)
+
+            if not filter_conditions:
+                utils.log("LIGHT_JSONRPC: No valid filter conditions created", "WARNING")
+                return {"result": {"movies": []}}
+
+            # Create the proper Kodi JSON-RPC filter structure
+            if len(filter_conditions) == 1:
+                if len(filter_conditions[0]) == 1:
+                    search_filter = filter_conditions[0][0]
+                else:
+                    search_filter = {
+                        'and': filter_conditions[0]
+                    }
+            else:
+                or_list = []
+                for condition_group in filter_conditions:
+                    if len(condition_group) == 1:
+                        or_list.append(condition_group[0])
+                    else:
+                        or_list.append({
+                            'and': condition_group
+                        })
+
+                search_filter = {
+                    'or': or_list
+                }
+
+            utils.log(f"LIGHT_JSONRPC: Built OR filter with {len(filter_conditions)} conditions", "INFO")
+
+            response = self.jsonrpc.execute('VideoLibrary.GetMovies', {
+                'properties': properties,
+                'filter': search_filter
+            })
+
+            if 'result' in response and 'movies' in response['result']:
+                light_movies = response['result']['movies']
+                utils.log(f"=== LIGHT_JSONRPC: SUCCESS - Got {len(light_movies)} light movies ===", "INFO")
+                return {"result": {"movies": light_movies, "limits": response['result'].get('limits', {})}}
+            else:
+                utils.log("LIGHT_JSONRPC: No movies found in response", "INFO")
+                return {"result": {"movies": []}}
+
+        except Exception as e:
+            utils.log(f"=== LIGHT_JSONRPC: ERROR - {str(e)} ===", "ERROR")
+            return {"result": {"movies": []}}
+
     def build_display_items_for_list(self, list_id, handle):
         """Build display items for a specific list with proper error handling"""
         try:
@@ -100,7 +192,7 @@ class ResultsManager(Singleton):
 
                 refs.append({'imdb': imdb, 'title': title, 'year': year, 'search_score': r.get('search_score', 0)})
 
-            # ---- Batch resolve via one JSON-RPC call using OR of (title AND year) ----
+            # ---- Step 1: Light JSON-RPC batch call (avoiding heavy fields) ----
             batch_pairs = []
             for r in rows:
                 # Extract reference data for matching - use actual stored values
@@ -126,23 +218,53 @@ class ResultsManager(Singleton):
                     'year': ref_year
                 })
 
-
-            utils.log(f"=== BUILD_DISPLAY_ITEMS: Batch lookup pairs count: {len(batch_pairs)} ===", "DEBUG")
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Making LIGHT JSON-RPC batch call for {len(batch_pairs)} pairs ===", "DEBUG")
             utils.log(f"=== BUILD_DISPLAY_ITEMS: First 3 batch pairs: {batch_pairs[:3]} ===", "DEBUG")
 
-            utils.log("=== BUILD_DISPLAY_ITEMS: Calling get_movies_by_title_year_batch ===", "DEBUG")
+            # Make light JSON-RPC call using the existing batch method but force light mode
             try:
-                batch_resp = self.jsonrpc.get_movies_by_title_year_batch(batch_pairs) or {}
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: Batch response keys: {list(batch_resp.keys()) if batch_resp else 'None'} ===", "DEBUG")
-            except AttributeError as e:
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: Method not found error: {str(e)} ===", "ERROR")
-                batch_resp = {}
+                batch_resp = self._get_light_movies_batch(batch_pairs) or {}
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: Light batch response keys: {list(batch_resp.keys()) if batch_resp else 'None'} ===", "DEBUG")
             except Exception as e:
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: Batch lookup failed: {str(e)} ===", "ERROR")
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: Light batch lookup failed: {str(e)} ===", "ERROR")
                 batch_resp = {}
 
-            batch_movies = (batch_resp.get("result") or {}).get("movies") or []
-            utils.log(f"=== BUILD_DISPLAY_ITEMS: JSON-RPC returned {len(batch_movies)} movies from batch lookup ===", "DEBUG")
+            light_movies = (batch_resp.get("result") or {}).get("movies") or []
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Light JSON-RPC returned {len(light_movies)} movies ===", "DEBUG")
+
+            # ---- Step 2: Get heavy metadata from cache ----
+            movieids = [m.get('movieid') for m in light_movies if m.get('movieid')]
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Fetching heavy fields for {len(movieids)} movies from cache ===", "DEBUG")
+
+            heavy_by_id = {}
+            if movieids:
+                try:
+                    heavy_by_id = self.query_manager._listing.get_heavy_meta_by_movieids(movieids)
+                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Retrieved heavy fields for {len(heavy_by_id)} movies from cache ===", "DEBUG")
+                except Exception as e:
+                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Failed to get heavy fields from cache: {str(e)} ===", "WARNING")
+
+            # ---- Step 3: Merge light + heavy data ----
+            merged_count = 0
+            for movie in light_movies:
+                movieid = movie.get('movieid')
+                if movieid and movieid in heavy_by_id:
+                    heavy_fields = heavy_by_id[movieid]
+                    movie.update(heavy_fields)
+                    merged_count += 1
+                else:
+                    # Add empty values for missing heavy data
+                    movie.update({
+                        'cast': [],
+                        'ratings': {},
+                        'showlink': [],
+                        'streamdetails': {},
+                        'uniqueid': {},
+                        'tag': []
+                    })
+
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Merged heavy fields for {merged_count}/{len(light_movies)} movies ===", "DEBUG")
+            batch_movies = light_movies
 
             if batch_movies:
                 # Log sample of first returned movie
