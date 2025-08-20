@@ -169,3 +169,145 @@ def show_empty_directory(handle: int, message="No items to display."):
         utils.log(f"Error showing empty directory: {str(e)}", "ERROR")
         # Fallback: just end directory to prevent hanging
         xbmcplugin.endOfDirectory(handle, succeeded=False)
+
+
+class DirectoryBuilder:
+    """Handles building Kodi directory listings for folders and lists"""
+    
+    def __init__(self):
+        self.config = Config()
+        self.db_manager = DatabaseManager(self.config.db_path)
+    
+    def build_folder_directory(self, folder_id: int, handle: int):
+        """Build directory listing for a specific folder"""
+        try:
+            utils.log(f"Building folder directory for folder_id: {folder_id}", "DEBUG")
+            
+            # Get folder details
+            folder = self.db_manager.fetch_folder_by_id(folder_id)
+            if not folder:
+                utils.log(f"Folder {folder_id} not found", "ERROR")
+                show_empty_directory(handle, "Folder not found")
+                return
+            
+            utils.log(f"Found folder: {folder['name']}", "DEBUG")
+            
+            # Add options header with folder context
+            ctx = detect_context({'view': 'folder', 'folder_id': folder_id})
+            add_options_header_item(ctx, handle)
+            
+            # Get subfolders
+            subfolders = self.db_manager.fetch_folders(folder_id)
+            utils.log(f"Found {len(subfolders)} subfolders", "DEBUG")
+            
+            # Get lists in this folder
+            lists = self.db_manager.fetch_lists(folder_id)
+            utils.log(f"Found {len(lists)} lists", "DEBUG")
+            
+            # Add subfolders
+            for subfolder in subfolders:
+                li = ListItemBuilder.build_folder_item(f"📁 {subfolder['name']}", is_folder=True)
+                li.setProperty('lg_type', 'folder')
+                url = build_plugin_url({'action': 'browse_folder', 'folder_id': subfolder['id'], 'view': 'folder'})
+                xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
+            
+            # Add lists
+            for list_item in lists:
+                list_count = self.db_manager.get_list_media_count(list_item['id'])
+                
+                # Check if this list contains a count pattern like "(number)" at the end
+                import re
+                has_count_in_name = re.search(r'\(\d+\)$', list_item['name'])
+                
+                if has_count_in_name:
+                    # List already has count in name (likely search history), use as-is
+                    display_title = list_item['name']
+                else:
+                    # Regular list, add count
+                    display_title = f"{list_item['name']} ({list_count})"
+                
+                li = ListItemBuilder.build_folder_item(f"📋 {display_title}", is_folder=True, item_type='playlist')
+                li.setProperty('lg_type', 'list')
+                url = build_plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
+                xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
+            
+            # Set content type and end directory
+            xbmcplugin.setContent(handle, 'files')
+            xbmcplugin.endOfDirectory(handle)
+            utils.log(f"Successfully built folder directory for {folder['name']}", "DEBUG")
+            
+        except Exception as e:
+            utils.log(f"Error building folder directory: {str(e)}", "ERROR")
+            import traceback
+            utils.log(f"build_folder_directory traceback: {traceback.format_exc()}", "ERROR")
+            show_empty_directory(handle, "Error loading folder contents")
+    
+    def build_list_directory(self, list_id: int, handle: int):
+        """Build directory listing for a specific list"""
+        try:
+            utils.log(f"Building list directory for list_id: {list_id}", "DEBUG")
+            
+            # Get list details
+            list_info = self.db_manager.fetch_list_by_id(list_id)
+            if not list_info:
+                utils.log(f"List {list_id} not found", "ERROR")
+                show_empty_directory(handle, "List not found")
+                return
+            
+            utils.log(f"Found list: {list_info['name']}", "DEBUG")
+            
+            # Add options header with list context
+            ctx = detect_context({'view': 'list', 'list_id': list_id})
+            add_options_header_item(ctx, handle)
+            
+            # Get list items with details
+            list_items = self.db_manager.fetch_list_items_with_details(list_id)
+            utils.log(f"Found {len(list_items)} items in list", "DEBUG")
+            
+            if not list_items:
+                show_empty_directory(handle, "This list is empty")
+                return
+            
+            # Add each item in the list
+            for item in list_items:
+                try:
+                    # Build list item using ListItemBuilder
+                    li = ListItemBuilder.build_media_item(item)
+                    
+                    # Determine if item is playable based on kodi_id
+                    kodi_id = item.get('kodi_id', 0)
+                    if kodi_id and int(kodi_id) > 0:
+                        # Item exists in Kodi library - make it playable
+                        li.setProperty('IsPlayable', 'true')
+                        url = build_plugin_url({
+                            'action': 'play_movie',
+                            'movieid': kodi_id
+                        })
+                        is_folder = False
+                    else:
+                        # Item not in library - show details only
+                        li.setProperty('IsPlayable', 'false')
+                        url = build_plugin_url({
+                            'action': 'show_item_details',
+                            'title': item.get('title', 'Unknown'),
+                            'list_id': list_id,
+                            'item_id': item.get('id')
+                        })
+                        is_folder = False
+                    
+                    xbmcplugin.addDirectoryItem(handle, url, li, is_folder)
+                    
+                except Exception as item_error:
+                    utils.log(f"Error building list item: {str(item_error)}", "ERROR")
+                    continue
+            
+            # Set content type and end directory
+            xbmcplugin.setContent(handle, 'movies')
+            xbmcplugin.endOfDirectory(handle)
+            utils.log(f"Successfully built list directory for {list_info['name']}", "DEBUG")
+            
+        except Exception as e:
+            utils.log(f"Error building list directory: {str(e)}", "ERROR")
+            import traceback
+            utils.log(f"build_list_directory traceback: {traceback.format_exc()}", "ERROR")
+            show_empty_directory(handle, "Error loading list contents")
