@@ -9,31 +9,8 @@ from resources.lib.config.config_manager import Config
 from resources.lib.kodi.url_builder import build_plugin_url, detect_context
 from resources.lib.kodi.listitem_builder import ListItemBuilder
 
-def add_context_menu_for_item(li: xbmcgui.ListItem, item_type: str, **ids):
-    """
-    Attach context actions per item type using centralized context menu builder.
-    item_type: 'list' | 'movie' | 'folder'
-    ids may include: list_id, movie_id, folder_id
-    """
-    from resources.lib.kodi.context_menu_builder import get_context_menu_builder
-    context_builder = get_context_menu_builder()
-
-    cm = []
-    if item_type == 'list':
-        list_info = {'list_id': ids.get('list_id', '')}
-        cm = context_builder.build_list_context_menu(list_info, ids.get('context', {}))
-
-    elif item_type == 'movie':
-        media_info = ids.get('media_info', {})
-        context_info = ids.get('context', {})
-        cm = context_builder.build_video_context_menu(media_info, context_info)
-
-    elif item_type == 'folder':
-        folder_info = {'folder_id': ids.get('folder_id', '')}
-        cm = context_builder.build_folder_context_menu(folder_info, ids.get('context', {}))
-    if cm:
-        li.addContextMenuItems(cm, replaceItems=False)
-    return li
+# Context menus now handled entirely by native system via addon.xml
+# No programmatic context menu items needed
 
 def add_options_header_item(ctx: dict, handle: int):
     """Add the options and tools header item as a non-folder RunPlugin item"""
@@ -135,7 +112,7 @@ def build_root_directory(handle: int):
 
             li = ListItemBuilder.build_folder_item(f"📁 {folder['name']}", is_folder=True)
             li.setProperty('lg_type', 'folder')
-            add_context_menu_for_item(li, 'folder', folder_id=folder['id']) # Pass folder_id
+            # Context menus handled by native system via addon.xml
             url = build_plugin_url({'action': 'browse_folder', 'folder_id': folder['id'], 'view': 'folder'})
             xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
 
@@ -156,7 +133,7 @@ def build_root_directory(handle: int):
                 display_title = f"{list_item['name']} ({list_count})"
             li = ListItemBuilder.build_folder_item(f"📋 {display_title}", is_folder=True, item_type='playlist')
             li.setProperty('lg_type', 'list')
-            add_context_menu_for_item(li, 'list', list_id=list_item['id'])
+            # Context menus handled by native system via addon.xml
             url = build_plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
             xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
 

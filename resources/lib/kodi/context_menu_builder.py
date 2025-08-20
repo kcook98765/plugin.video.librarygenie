@@ -1,16 +1,21 @@
-"""Context Menu Builder for LibraryGenie - handles both native and ListItem context menus"""
+
+"""Context Menu Utilities for LibraryGenie - utility methods only
+
+Note: LibraryGenie uses the native Kodi context menu system exclusively (via addon.xml).
+This module contains utility methods that may be useful elsewhere in the codebase.
+"""
 
 import xbmc
 from resources.lib.utils import utils
 
 
-class ContextMenuBuilder:
-    """Centralized context menu building with authentication and context awareness"""
+class ContextMenuUtils:
+    """Utility methods for context menu related functionality"""
 
     def __init__(self):
         pass
 
-    def _is_authenticated(self):
+    def is_authenticated(self):
         """Check if user is authenticated to the server"""
         try:
             from resources.lib.config.addon_ref import get_addon
@@ -34,26 +39,7 @@ class ContextMenuBuilder:
             utils.log(f"Error checking authentication status: {str(e)}", "ERROR")
             return False
 
-    def build_video_context_menu(self, media_info, context=None):
-        """Build context menu for video items - now returns empty since we use native context only
-
-        All context menu functionality has been moved to the native context menu
-        in addon.xml and handled by resources/lib/context.py
-        """
-        # Return empty context menu since we're using native context only
-        return []
-
-    def build_list_context_menu(self, list_info, context=None):
-        """Build context menu for list items - now returns empty since we use native context only"""
-        # Return empty context menu since we're using native context only
-        return []
-
-    def build_folder_context_menu(self, folder_info, context=None):
-        """Build context menu for folder items - now returns empty since we use native context only"""
-        # Return empty context menu since we're using native context only
-        return []
-
-    def _extract_imdb_id(self, media_info):
+    def extract_imdb_id(self, media_info):
         """Extract IMDb ID from media info with proper priority for v19+ compatibility"""
         # First try uniqueid.imdb (most reliable for actual IMDb IDs in v19+)
         if isinstance(media_info.get('uniqueid'), dict):
@@ -74,7 +60,7 @@ class ContextMenuBuilder:
 
         return None
 
-    def _clean_title(self, title):
+    def clean_title(self, title):
         """Clean title for URL encoding"""
         import re
         if not title:
@@ -128,12 +114,24 @@ class ContextMenuBuilder:
 
 
 # Global instance
-_context_menu_builder = None
+_context_menu_utils = None
 
 
+def get_context_menu_utils():
+    """Get global context menu utils instance"""
+    global _context_menu_utils
+    if _context_menu_utils is None:
+        _context_menu_utils = ContextMenuUtils()
+    return _context_menu_utils
+
+
+# Backward compatibility aliases (deprecated - use get_context_menu_utils instead)
 def get_context_menu_builder():
-    """Get global context menu builder instance"""
-    global _context_menu_builder
-    if _context_menu_builder is None:
-        _context_menu_builder = ContextMenuBuilder()
-    return _context_menu_builder
+    """Deprecated: Use get_context_menu_utils() instead"""
+    return get_context_menu_utils()
+
+
+# Legacy ContextMenuBuilder class for backward compatibility
+class ContextMenuBuilder(ContextMenuUtils):
+    """Deprecated: Use ContextMenuUtils instead"""
+    pass
