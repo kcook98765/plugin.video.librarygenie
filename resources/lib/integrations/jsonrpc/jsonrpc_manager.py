@@ -41,10 +41,10 @@ class JSONRPC:
 
         # Start timing
         start_time = time.time()
-        
+
         # Send JSONRPC request
         response = xbmc.executeJSONRPC(query_json)
-        
+
         # End timing and log execution time
         end_time = time.time()
         execution_time_ms = (end_time - start_time) * 1000
@@ -63,7 +63,7 @@ class JSONRPC:
             result = parsed_response['result']
             if isinstance(result, dict):
                 log(f"Response result keys: {list(result.keys())}", "DEBUG")
-                
+
                 if 'moviedetails' in result:
                         movie = result['moviedetails']
                         log(f"Movie details keys: {list(movie.keys())}", "DEBUG")
@@ -201,20 +201,20 @@ class JSONRPC:
                 from resources.lib.data.query_manager import QueryManager
                 from resources.lib.config.config_manager import Config
                 query_manager = QueryManager(Config().db_path)
-                
+
                 # Begin transaction for this batch of movies
                 conn_info = query_manager._get_connection()
                 conn_info['connection'].execute("BEGIN IMMEDIATE")
-                
+
                 try:
                     for movie in movies:
                         if self.cache_heavy_meta(movie):
                             batch_cached += 1
-                    
+
                     # Commit the transaction for this batch
                     conn_info['connection'].commit()
                     log(f"Committed heavy metadata transaction for batch of {len(movies)} movies", "DEBUG")
-                    
+
                 except Exception as e:
                     conn_info['connection'].rollback()
                     log(f"Rolled back heavy metadata transaction: {str(e)}", "WARNING")
@@ -227,14 +227,14 @@ class JSONRPC:
                             log(f"Failed to cache heavy metadata for movie {movie.get('movieid', 'unknown')}: {str(movie_error)}", "WARNING")
                 finally:
                     query_manager._release_connection(conn_info)
-                    
+
             except Exception as e:
                 log(f"Error setting up heavy metadata transaction: {str(e)}", "WARNING")
                 # Fall back to original individual caching
                 for movie in movies:
                     if self.cache_heavy_meta(movie):
                         batch_cached += 1
-            
+
             cached_count += batch_cached
 
             # Log summary only every 500 movies to reduce spam
@@ -521,13 +521,15 @@ class JSONRPC:
     def get_light_properties(self):
         """Get fast properties excluding heavy fields for batch operations"""
         # Exclude slow fields: cast, ratings, showlink, streamdetails, uniqueid, tag
-        return [
-            "title", "genre", "year", "rating", "director", "trailer", "tagline", "plot",
-            "plotoutline", "originaltitle", "lastplayed", "playcount", "writer", "studio",
-            "mpaa", "country", "imdbnumber", "runtime", "set", "top250", "votes", 
-            "fanart", "thumbnail", "file", "sorttitle", "resume", "setid", "dateadded", 
-            "art", "userrating", "premiered", "movieid"
+        # Remove 'movieid' as it's not a valid property name, should be retrieved automatically
+        light_properties = [
+            "title", "genre", "year", "rating", "director", "trailer", "tagline",
+            "plot", "plotoutline", "originaltitle", "lastplayed", "playcount",
+            "writer", "studio", "mpaa", "country", "imdbnumber", "runtime",
+            "set", "top250", "votes", "fanart", "thumbnail", "file", "sorttitle",
+            "resume", "setid", "dateadded", "art", "userrating", "premiered"
         ]
+        return light_properties
 
     def cache_heavy_meta(self, movie_data):
         """Cache heavy metadata fields for a movie"""
@@ -535,56 +537,56 @@ class JSONRPC:
         try:
             if not movieid:
                 return False
-            
+
             # Import here to avoid circular imports
             from resources.lib.data.query_manager import QueryManager
             from resources.lib.config.config_manager import Config
             query_manager = QueryManager(Config().db_path)
-            
+
             import json
-            
+
             # Extract heavy fields with safe JSON serialization
             imdbnumber = str(movie_data.get('imdbnumber', ''))
-            
+
             # Safely serialize heavy fields, handling potential serialization errors
             try:
                 cast_json = json.dumps(movie_data.get('cast', []), ensure_ascii=False)
             except (TypeError, ValueError):
                 cast_json = '[]'
-                
+
             try:
                 ratings_json = json.dumps(movie_data.get('ratings', {}), ensure_ascii=False)
             except (TypeError, ValueError):
                 ratings_json = '{}'
-                
+
             try:
                 showlink_json = json.dumps(movie_data.get('showlink', []), ensure_ascii=False)
             except (TypeError, ValueError):
                 showlink_json = '[]'
-                
+
             try:
                 stream_json = json.dumps(movie_data.get('streamdetails', {}), ensure_ascii=False)
             except (TypeError, ValueError):
                 stream_json = '{}'
-                
+
             try:
                 uniqueid_json = json.dumps(movie_data.get('uniqueid', {}), ensure_ascii=False)
             except (TypeError, ValueError):
                 uniqueid_json = '{}'
-                
+
             try:
                 tags_json = json.dumps(movie_data.get('tag', []), ensure_ascii=False)
             except (TypeError, ValueError):
                 tags_json = '[]'
-            
+
             # Cache the heavy fields
             query_manager._listing.upsert_heavy_meta(
-                movieid, imdbnumber, cast_json, ratings_json, 
+                movieid, imdbnumber, cast_json, ratings_json,
                 showlink_json, stream_json, uniqueid_json, tags_json
             )
-            
+
             return True
-            
+
         except Exception as e:
             log(f"Error caching heavy metadata for movie {movieid}: {str(e)}", "WARNING")
             return False
@@ -595,7 +597,7 @@ class JSONRPC:
     def get_movie_details_comprehensive(self, movie_id):
         properties = self.get_comprehensive_properties()
         response = self.get_movie_details(movie_id, properties=properties)
-        
+
         # Cache heavy fields if we got a successful response
         if 'result' in response and 'moviedetails' in response['result']:
             movie_data = response['result']['moviedetails']
@@ -603,7 +605,7 @@ class JSONRPC:
             if 'movieid' not in movie_data:
                 movie_data['movieid'] = movie_id
             self.cache_heavy_meta(movie_data)
-        
+
         return response
 
     def get_movies_by_title_year_batch(self, title_year_pairs):
@@ -623,13 +625,13 @@ class JSONRPC:
 
             # Use light properties for faster response with version compatibility
             base_properties = self.get_light_properties()
-            
+
             # Apply version compatibility filtering like other JSON-RPC calls
             try:
                 # Test with a small subset first to detect invalid properties
                 test_filter = {
                     'field': 'title',
-                    'operator': 'contains', 
+                    'operator': 'contains',
                     'value': 'test_query_for_property_validation'
                 }
                 test_response = self.execute('VideoLibrary.GetMovies', {
@@ -637,7 +639,7 @@ class JSONRPC:
                     'filter': test_filter,
                     'limits': {'start': 0, 'end': 1}
                 })
-                
+
                 if 'error' in test_response:
                     # Check for invalid property error
                     invalid_index = self._extract_invalid_prop_index(test_response)
@@ -645,10 +647,10 @@ class JSONRPC:
                         invalid_prop = base_properties[invalid_index]
                         log(f"BATCH JSON-RPC: Removing invalid property '{invalid_prop}' for this Kodi version", "WARNING")
                         base_properties = [p for p in base_properties if p != invalid_prop]
-                
+
                 properties = base_properties
                 log(f"BATCH JSON-RPC: Using {len(properties)} compatible light properties (excluding heavy fields)", "INFO")
-                
+
             except Exception as e:
                 log(f"BATCH JSON-RPC: Property compatibility check failed, using basic properties: {str(e)}", "WARNING")
                 properties = ["title", "year", "movieid", "file"]
@@ -739,11 +741,11 @@ class JSONRPC:
                         from resources.lib.data.query_manager import QueryManager
                         from resources.lib.config.config_manager import Config
                         query_manager = QueryManager(Config().db_path)
-                        
+
                         # Get heavy fields from cache in one DB call
                         heavy_by_id = query_manager._listing.get_heavy_meta_by_movieids(movieids)
                         log(f"BATCH JSON-RPC: Retrieved heavy fields for {len(heavy_by_id)} movies from cache", "INFO")
-                        
+
                         # Merge heavy fields back into light movies
                         merged_count = 0
                         missing_count = 0
@@ -764,11 +766,11 @@ class JSONRPC:
                                     'tag': []
                                 })
                                 missing_count += 1
-                        
+
                         log(f"BATCH JSON-RPC: Merged heavy fields for {merged_count}/{len(light_movies)} movies", "INFO")
                         if missing_count > 0:
                             log(f"BATCH JSON-RPC: Used fallback empty values for {missing_count} movies with missing heavy data", "WARNING")
-                        
+
                     except Exception as e:
                         log(f"BATCH JSON-RPC: Warning - Failed to merge heavy fields: {str(e)}", "WARNING")
                         # Continue with light movies even if heavy field merge fails
