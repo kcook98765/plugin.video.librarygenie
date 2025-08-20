@@ -155,31 +155,31 @@ class ResultsManager(Singleton):
                 src = (r.get('source') or '').lower()
                 if src in ('external', 'plugin_addon'):
                     continue
-                
+
                 # Handle favorites_import items separately to avoid library lookup
                 if src == 'favorites_import':
                     # Check if item has a valid playable path
                     playable_path = r.get('path') or r.get('play') or r.get('file')
-                    
+
                     # Skip items without valid playable paths (similar to shortlist import logic)
                     if not playable_path or not str(playable_path).strip():
                         utils.log(f"Skipping favorites import item '{r.get('title', 'Unknown')}' - no valid playable path", "DEBUG")
                         continue
-                    
+
                     # Validate the path is actually playable (basic check)
                     path_str = str(playable_path).strip()
-                    if not (path_str.startswith(('smb://', 'nfs://', 'http://', 'https://', 'ftp://', 'ftps://', 'plugin://', '/')) or 
+                    if not (path_str.startswith(('smb://', 'nfs://', 'http://', 'https://', 'ftp://', 'ftps://', 'plugin://', '/')) or
                             '\\' in path_str):  # Windows network paths
                         utils.log(f"Skipping favorites import item '{r.get('title', 'Unknown')}' - invalid path format: {path_str}", "DEBUG")
                         continue
-                    
+
                     # For favorites imports, use the stored data directly
                     r['_viewing_list_id'] = list_id
                     r['media_id'] = r.get('id') or r.get('media_id')
-                    
+
                     from resources.lib.kodi.listitem_builder import ListItemBuilder
                     list_item = ListItemBuilder.build_video_item(r, is_search_history=is_search_history)
-                    
+
                     # Use the playable path directly instead of info URL
                     item_url = playable_path
                     display_items.append((item_url, list_item, False))
@@ -245,7 +245,7 @@ class ResultsManager(Singleton):
                     if src != 'favorites_import':
                         fallback_title = processed_ref.get("title") or 'Unknown Title'
                         utils.log(f"Item {i+1}: No Kodi match for '{processed_ref.get('title')}' ({processed_ref.get('year')}), using fallback title: '{fallback_title}'", "WARNING")
-                        
+
                         resolved_item = {
                             'id': r.get('id'),
                             'title': processed_ref.get('title') or ref_imdb or 'Unknown',
@@ -263,12 +263,12 @@ class ResultsManager(Singleton):
                             'media_id': r.get('id') or r.get('media_id'),
                             'source': src
                         }
-                        
+
                         # Copy over any artwork and metadata from the original item
                         for field in ['thumbnail', 'poster', 'fanart', 'art', 'plot', 'rating', 'genre', 'director', 'cast', 'duration']:
                             if r.get(field):
                                 resolved_item[field] = r.get(field)
-                        
+
                         from resources.lib.kodi.listitem_builder import ListItemBuilder
                         list_item = ListItemBuilder.build_video_item(resolved_item, is_search_history=is_search_history)
 
@@ -299,3 +299,44 @@ class ResultsManager(Singleton):
             import traceback
             utils.log(f"Traceback: {traceback.format_exc()}", "ERROR")
             return []
+
+    def create_display_item(self, info_dict, is_search_history):
+        """Helper to build a display item from a dictionary, preserving search data"""
+        try:
+            from resources.lib.kodi.listitem_builder import ListItemBuilder
+
+            # Ensure essential fields exist for ListItemBuilder
+            info_dict.setdefault('title', 'Unknown Title')
+            info_dict.setdefault('year', 0)
+            info_dict.setdefault('plot', 'No plot available.')
+            info_dict.setdefault('rating', 0.0)
+            info_dict.setdefault('genre', '')
+            info_dict.setdefault('art', {})
+            info_dict.setdefault('cast', [])
+            info_dict.setdefault('duration', 0)
+            info_dict.setdefault('kodi_id', None)
+            info_dict.setdefault('media_id', info_dict.get('id') or info_dict.get('movieid'))
+            info_dict.setdefault('source', 'unknown')
+            info_dict.setdefault('search_score', 0)
+
+            list_item = ListItemBuilder.build_video_item(info_dict, is_search_history=is_search_history)
+
+            # Determine the appropriate URL for this item
+            # Prioritize file path if available, otherwise use a generated info URL
+            item_url = info_dict.get('file')
+            if not item_url:
+                # Use IMDb ID if available, otherwise the original item ID
+                imdb_id = info_dict.get('imdb') or info_dict.get('imdbnumber')
+                item_id = info_dict.get('media_id') or info_dict.get('list_item_id') or info_dict.get('id')
+                if imdb_id:
+                    item_url = f"info://{imdb_id}"
+                elif item_id:
+                    item_url = f"info://{item_id}"
+                else:
+                    item_url = "info://unknown" # Fallback if no identifier is found
+
+            return (item_url, list_item, False)
+
+        except Exception as e:
+            utils.log(f"Error creating display item for '{info_dict.get('title', 'Unknown')}': {str(e)}", "ERROR")
+            return None
