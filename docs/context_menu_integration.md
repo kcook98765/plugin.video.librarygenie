@@ -8,18 +8,48 @@ LibraryGenie registers context menu entries that appear when users right-click o
 
 ## Context Menu Registration
 
-The context menu integration is configured in `addon.xml` to use native Kodi context menu system:
+LibraryGenie uses a **dual approach** for context menu integration:
+
+### 1. Native Context Menu (addon.xml)
+
+The primary context menu integration is configured in `addon.xml` using Kodi's native context menu system:
 
 ```xml
-<extension point="kodi.context.item" library="resources/lib/context.py">
-    <item>
-        <label>32001</label>
-        <visible>true</visible>
+<extension point="kodi.context.item">
+  <menu id="kodi.core.main">
+    <item library="resources/lib/context.py">
+      <label>LibraryGenie</label>
+      <visible>String.IsEqual(ListItem.DBTYPE,movie) | [String.StartsWith(ListItem.Path,plugin://) + !ListItem.IsFolder] | [String.Contains(ListItem.Path,plugin.video.librarygenie) + ListItem.IsFolder]</visible>
     </item>
+  </menu>
 </extension>
 ```
 
-**Important**: LibraryGenie uses the native Kodi context menu system exclusively. All context menu functionality is handled through the native interface rather than programmatic context menus.
+**Visibility Conditions:**
+- `String.IsEqual(ListItem.DBTYPE,movie)`: Shows on Kodi library movies
+- `String.StartsWith(ListItem.Path,plugin://) + !ListItem.IsFolder`: Shows on plugin items that aren't folders
+- `String.Contains(ListItem.Path,plugin.video.librarygenie) + ListItem.IsFolder`: Shows on LibraryGenie's own folder items
+
+### 2. Programmatic Context Menu (ListItem Building)
+
+Additionally, LibraryGenie adds programmatic context menu entries during ListItem creation in `ListItemBuilder.build_video_item()`:
+
+```python
+# Use centralized context menu builder
+from resources.lib.kodi.context_menu_builder import get_context_menu_builder
+context_builder = get_context_menu_builder()
+
+# Get context menu items from centralized builder
+context_menu_items = context_builder.build_video_context_menu(media_info, context)
+
+# Add context menu to ListItem with v19 compatibility fix
+if utils.is_kodi_v19():
+    li.addContextMenuItems(context_menu_items, replaceItems=True)
+else:
+    li.addContextMenuItems(context_menu_items, replaceItems=False)
+```
+
+**Current Implementation Note:** The `ContextMenuBuilder` methods currently return empty arrays since LibraryGenie prioritizes the native context menu system, but the infrastructure exists for programmatic context menus when needed.
 
 ## Entry Point
 
