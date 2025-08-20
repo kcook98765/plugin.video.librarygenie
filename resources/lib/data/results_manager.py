@@ -241,27 +241,36 @@ class ResultsManager(Singleton):
                         item_url = f"info://{r.get('id', 'unknown')}"
                     display_items.append((item_url, list_item, False))
                 else:
-                    # No Kodi match found - only process non-favorites imports here
+                    # No Kodi match found - create fallback item for all non-favorites imports
                     if src != 'favorites_import':
-                        fallback_title = processed_ref.get("title") or 'Unknown Title'
-                        utils.log(f"Item {i+1}: No Kodi match for '{processed_ref.get('title')}' ({processed_ref.get('year')}), using fallback title: '{fallback_title}'", "WARNING")
+                        # Use the processed ref title if available, otherwise use the IMDb ID or a fallback
+                        fallback_title = processed_ref.get("title")
+                        if not fallback_title or fallback_title == ref_imdb:
+                            # If no title or title is just the IMDb ID, try to create a better display name
+                            if ref_imdb:
+                                fallback_title = f"Movie {ref_imdb}"
+                            else:
+                                fallback_title = "Unknown Movie"
+                        
+                        utils.log(f"Item {i+1}: No Kodi match for '{processed_ref.get('title')}' ({processed_ref.get('year')}), using fallback: '{fallback_title}'", "WARNING")
 
                         resolved_item = {
                             'id': r.get('id'),
-                            'title': processed_ref.get('title') or ref_imdb or 'Unknown',
+                            'title': fallback_title,
                             'year': processed_ref.get('year', 0) or 0,
-                            'plot': f"IMDb ID: {ref_imdb}" if ref_imdb else "No library match found",
+                            'plot': f"Search result from AI query.\nIMDb ID: {ref_imdb}" if ref_imdb else "Search result - no library match found",
                             'rating': 0.0,
                             'kodi_id': None,
                             'file': None,
-                            'genre': '',
+                            'genre': 'Search Result',
                             'cast': [],
                             'art': {},
                             'search_score': processed_ref.get('search_score', 0),
                             'list_item_id': r.get('list_item_id'),
                             '_viewing_list_id': list_id,
                             'media_id': r.get('id') or r.get('media_id'),
-                            'source': src
+                            'source': src,
+                            'imdbnumber': ref_imdb
                         }
 
                         # Copy over any artwork and metadata from the original item
@@ -274,6 +283,7 @@ class ResultsManager(Singleton):
 
                         item_url = f"info://{ref_imdb}" if ref_imdb else f"info://{r.get('id', 'unknown')}"
                         display_items.append((item_url, list_item, False))
+                        utils.log(f"Item {i+1}: Added fallback item '{fallback_title}' to display_items", "DEBUG")
                     # Favorites imports are already handled above, skip here to avoid duplication
 
             # External items processed separately with stored metadata
