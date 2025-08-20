@@ -21,7 +21,7 @@ LibraryGenie uses a `source` field in the `media_items` table to categorize cont
 **Data Flow**:
 1. **Library Sync**: Removes all `source = 'lib'` records during sync operations
 2. **Library References**: Created via `QueryManager.insert_media_item()`
-3. **Display**: Full metadata retrieved from Kodi when displaying library items
+3. **Display**: Light metadata fetched via JSON-RPC, merged with cached heavy fields from `movie_heavy_meta` table
 
 ### 2. Manual (`manual`) - User-Curated Library Content
 
@@ -39,7 +39,7 @@ LibraryGenie uses a `source` field in the `media_items` table to categorize cont
 1. User selects "Add to List" from LibraryGenie context menu on library item
 2. Item stored with `source = 'manual'` and library metadata
 3. **Processed through library item display path** in `ResultsManager`
-4. Matched against Kodi library via JSON-RPC for full metadata
+4. Light metadata fetched via JSON-RPC, merged with cached heavy fields from `movie_heavy_meta` table
 5. **Uses file path from JSON-RPC response for playable URL**
 
 **URL Generation**:
@@ -63,7 +63,7 @@ LibraryGenie uses a `source` field in the `media_items` table to categorize cont
 **Data Flow**:
 1. **Search Results**: Saved with `source = 'search'` and `search_score` field, organized into timestamped lists
 2. **Search History**: Automatically organized into "Search History" folder
-3. **Display**: Full metadata retrieved from Kodi when displaying search results
+3. **Display**: Light metadata fetched via JSON-RPC, merged with cached heavy fields from `movie_heavy_meta` table
 
 ### 4. Kodi Library (`kodi_library`) - Shortlist Import Library Matches
 
@@ -79,7 +79,7 @@ LibraryGenie uses a `source` field in the `media_items` table to categorize cont
 **Data Flow**:
 1. **Shortlist Import**: Items looked up in Kodi library via JSON-RPC
 2. **Library Match Found**: Stored with `source = 'kodi_library'` and Kodi metadata
-3. **Display Processing**: Follows library item processing path with JSON-RPC lookup
+3. **Display Processing**: Light metadata fetched via JSON-RPC, merged with cached heavy fields
 4. **URL Generation**: Uses file paths from Kodi library
 
 **Processing Logic**:
@@ -178,10 +178,11 @@ if src in ('external', 'plugin_addon'):
 
 **Processing steps**:
 1. Title/year lookup from `imdb_exports` table
-2. Batch JSON-RPC lookup for library metadata
-3. File path URL generation for playback
-4. Search score preservation for ordering
-5. Enhanced duplicate detection for imports
+2. **Batch JSON-RPC lookup for light metadata fields only**
+3. **Merge with cached heavy fields from `movie_heavy_meta` table**
+4. File path URL generation for playback
+5. Search score preservation for ordering
+6. Enhanced duplicate detection for imports
 
 ### External Processing Path
 ```python
