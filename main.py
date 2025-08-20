@@ -8,11 +8,7 @@ import xbmcplugin
 # Import new modules
 from resources.lib.kodi.url_builder import build_plugin_url, parse_params, detect_context
 from resources.lib.core.options_manager import OptionsManager
-from resources.lib.core.directory_builder import (
-    build_directory_listing,
-    build_folder_directory,
-    build_list_directory
-)
+# Directory building functions are handled by other modules
 from resources.lib.core.navigation_manager import get_navigation_manager
 from resources.lib.data.folder_list_manager import get_folder_list_manager
 
@@ -451,6 +447,62 @@ def router(paramstring):
         export_list(q)
         return
     elif action == 'show_item_details':
+
+
+def build_root_directory(handle):
+    """Build the root directory listing"""
+    try:
+        from resources.lib.config.config_manager import Config
+        from resources.lib.data.database_manager import DatabaseManager
+        
+        config = Config()
+        db_manager = DatabaseManager(config.db_path)
+        
+        # Get root folders
+        folders = db_manager.fetch_folders(None)  # None = root level
+        
+        # Add root folders
+        for folder in folders:
+            li = ListItemBuilder.build_folder_item(f"📁 {folder['name']}", is_folder=True)
+            li.setProperty('lg_type', 'folder')
+            url = build_plugin_url({'action': 'browse_folder', 'folder_id': folder['id'], 'view': 'folder'})
+            xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
+        
+        # Get root lists
+        lists = db_manager.fetch_lists(None)  # None = root level
+        
+        # Add root lists  
+        for list_item in lists:
+            list_count = db_manager.get_list_media_count(list_item['id'])
+            
+            # Check if this list contains a count pattern like "(number)" at the end
+            import re
+            has_count_in_name = re.search(r'\(\d+\)$', list_item['name'])
+            
+            if has_count_in_name:
+                display_title = list_item['name']
+            else:
+                display_title = f"{list_item['name']} ({list_count})"
+            
+            li = ListItemBuilder.build_folder_item(f"📋 {display_title}", is_folder=True, item_type='playlist')
+            li.setProperty('lg_type', 'list')
+            url = build_plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
+            xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
+        
+        xbmcplugin.endOfDirectory(handle)
+        
+    except Exception as e:
+        log(f"Error building root directory: {str(e)}", "ERROR")
+        import traceback
+        log(f"Root directory traceback: {traceback.format_exc()}", "ERROR")
+        show_empty_directory(handle, "Error loading root directory")
+
+def show_empty_directory(handle, message="No items found"):
+    """Show an empty directory with a message"""
+    li = ListItemBuilder.build_folder_item(message, is_folder=False)
+    xbmcplugin.addDirectoryItem(handle, "", li, False)
+    xbmcplugin.endOfDirectory(handle)
+
         log("Routing to show_item_details action", "DEBUG")
         show_item_details(q)
         return
