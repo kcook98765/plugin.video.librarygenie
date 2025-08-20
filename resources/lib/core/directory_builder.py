@@ -68,8 +68,9 @@ def add_options_header_item(ctx: dict, handle: int):
             utils.log(f"Added folder_id to URL params: {ctx['folder_id']}", "INFO")
 
         utils.log(f"FOLDER_CONTEXT_DEBUG: Building options URL with params: {url_params}", "INFO")
-        url = build_plugin_url(url_params)
-        utils.log(f"FOLDER_CONTEXT_DEBUG: Built options URL: {url}", "INFO")
+        plugin_url = build_plugin_url(url_params)
+        url = f"RunPlugin({plugin_url})"
+        utils.log(f"FOLDER_CONTEXT_DEBUG: Built RunPlugin URL: {url}", "INFO")
 
         # Add as non-folder item for RunPlugin behavior
         xbmcplugin.addDirectoryItem(handle, url, li, isFolder=False)
