@@ -15,13 +15,13 @@ from resources.lib.kodi.listitem_builder import ListItemBuilder
 def add_options_header_item(ctx: dict, handle: int):
     """Add the options and tools header item as a non-folder RunPlugin item"""
     try:
-        utils.log("=== ADD_OPTIONS_HEADER: Starting Options & Tools header creation ===", "DEBUG")
-        utils.log(f"Context received: {ctx}", "DEBUG")
-        utils.log(f"Handle received: {handle}", "DEBUG")
+        utils.log("=== ADD_OPTIONS_HEADER: Starting Options & Tools header creation ===", "INFO")
+        utils.log(f"ADD_OPTIONS_HEADER: Context received: {ctx}", "INFO")
+        utils.log(f"ADD_OPTIONS_HEADER: Handle received: {handle}", "INFO")
 
         # Create list item for options as non-folder
         li = xbmcgui.ListItem(label="[B]Options & Tools[/B]")
-        utils.log("=== ADD_OPTIONS_HEADER: Created ListItem with label '[B]Options & Tools[/B]' ===", "DEBUG")
+        utils.log("=== ADD_OPTIONS_HEADER: Created ListItem with label '[B]Options & Tools[/B]' ===", "INFO")
 
         # For Kodi v19, avoid setting video info entirely to prevent video info dialog
         if utils.is_kodi_v19():
@@ -71,10 +71,10 @@ def add_options_header_item(ctx: dict, handle: int):
         utils.log(f"FOLDER_CONTEXT_DEBUG: Built RunPlugin URL: {url}", "INFO")
 
         # Add as non-folder item for RunPlugin behavior
-        utils.log(f"=== ADD_OPTIONS_HEADER: About to add directory item with URL: {url} ===", "DEBUG")
+        utils.log(f"=== ADD_OPTIONS_HEADER: About to add directory item with URL: {url} ===", "INFO")
         result = xbmcplugin.addDirectoryItem(handle, url, li, isFolder=False)
-        utils.log(f"=== ADD_OPTIONS_HEADER: addDirectoryItem returned: {result} ===", "DEBUG")
-        utils.log("=== ADD_OPTIONS_HEADER: Options & Tools header successfully added to directory ===", "DEBUG")
+        utils.log(f"=== ADD_OPTIONS_HEADER: addDirectoryItem returned: {result} ===", "INFO")
+        utils.log("=== ADD_OPTIONS_HEADER: Options & Tools header successfully added to directory ===", "INFO")
 
     except Exception as e:
         utils.log(f"=== ADD_OPTIONS_HEADER: ERROR in Options & Tools ListItem build: {str(e)} ===", "ERROR")
@@ -83,15 +83,21 @@ def add_options_header_item(ctx: dict, handle: int):
 
 def build_root_directory(handle: int):
     """Build the root directory with search option"""
-    utils.log("=== BUILD_ROOT_DIRECTORY: Starting root directory build ===", "DEBUG")
+    utils.log("=== BUILD_ROOT_DIRECTORY: FUNCTION ENTRY - Starting root directory build ===", "DEBUG")
+    utils.log(f"=== BUILD_ROOT_DIRECTORY: Handle received: {handle} ===", "DEBUG")
     
     # Add options header
     ctx = detect_context({'view': 'root'})
-    utils.log(f"Detected context for root: {ctx}", "DEBUG")
+    utils.log(f"=== BUILD_ROOT_DIRECTORY: Detected context for root: {ctx} ===", "DEBUG")
     
     utils.log("=== BUILD_ROOT_DIRECTORY: About to add Options & Tools header ===", "DEBUG")
-    add_options_header_item(ctx, handle)
-    utils.log("=== BUILD_ROOT_DIRECTORY: Options & Tools header added ===", "DEBUG")
+    try:
+        add_options_header_item(ctx, handle)
+        utils.log("=== BUILD_ROOT_DIRECTORY: Options & Tools header call completed successfully ===", "DEBUG")
+    except Exception as e:
+        utils.log(f"=== BUILD_ROOT_DIRECTORY: ERROR calling add_options_header_item: {str(e)} ===", "ERROR")
+        import traceback
+        utils.log(f"=== BUILD_ROOT_DIRECTORY: Traceback: {traceback.format_exc()} ===", "ERROR")
 
     # Add list and folder items here based on existing database content
     try:
