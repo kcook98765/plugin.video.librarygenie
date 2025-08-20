@@ -36,8 +36,10 @@ def add_options_header_item(ctx: dict, handle: int):
             li.setInfo('video', info_dict)
             utils.log("Successfully called li.setInfo('video', info_dict)", "INFO")
 
+        # Explicitly mark as non-playable to prevent Kodi from trying to play it
+        li.setProperty('IsPlayable', 'false')
+        
         # Set custom icon for Options & Tools
-
         from resources.lib.config.addon_ref import get_addon
         addon = get_addon()
         addon_path = addon.getAddonInfo("path")

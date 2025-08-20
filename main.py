@@ -525,8 +525,25 @@ def build_root_directory(handle):
         folders = db_manager.fetch_folders(None)  # None = root level
         log(f"=== BUILD_ROOT_DIRECTORY (main.py): Found {len(folders)} root folders ===", "DEBUG")
         
-        # Add root folders
+        # Add root folders (excluding protected folders)
         for folder in folders:
+            # Skip protected folders - they're accessed via Options & Tools menu only
+            if folder['name'] in ["Search History", "Imported Lists"]:
+                # Always skip Search History - it's only accessible via Options & Tools
+                if folder['name'] == "Search History":
+                    log(f"=== BUILD_ROOT_DIRECTORY (main.py): Skipping Search History folder ===", "DEBUG")
+                    continue
+                
+                # For Imported Lists, only show if it has content
+                folder_count = db_manager.get_folder_media_count(folder['id'])
+                subfolders = db_manager.fetch_folders(folder['id'])
+                has_subfolders = len(subfolders) > 0
+                
+                # Only show if it has content (lists or subfolders)
+                if folder_count == 0 and not has_subfolders:
+                    log(f"=== BUILD_ROOT_DIRECTORY (main.py): Skipping empty Imported Lists folder ===", "DEBUG")
+                    continue
+
             li = ListItemBuilder.build_folder_item(f"📁 {folder['name']}", is_folder=True)
             li.setProperty('lg_type', 'folder')
             url = build_plugin_url({'action': 'browse_folder', 'folder_id': folder['id'], 'view': 'folder'})
