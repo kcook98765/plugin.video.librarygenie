@@ -15,11 +15,13 @@ from resources.lib.kodi.listitem_builder import ListItemBuilder
 def add_options_header_item(ctx: dict, handle: int):
     """Add the options and tools header item as a non-folder RunPlugin item"""
     try:
-        utils.log("Adding Options & Tools header item to directory", "DEBUG")
+        utils.log("=== ADD_OPTIONS_HEADER: Starting Options & Tools header creation ===", "DEBUG")
+        utils.log(f"Context received: {ctx}", "DEBUG")
+        utils.log(f"Handle received: {handle}", "DEBUG")
 
         # Create list item for options as non-folder
         li = xbmcgui.ListItem(label="[B]Options & Tools[/B]")
-        utils.log("Adding Options & Tools header item", "DEBUG")
+        utils.log("=== ADD_OPTIONS_HEADER: Created ListItem with label '[B]Options & Tools[/B]' ===", "DEBUG")
 
         # For Kodi v19, avoid setting video info entirely to prevent video info dialog
         if utils.is_kodi_v19():
@@ -69,16 +71,27 @@ def add_options_header_item(ctx: dict, handle: int):
         utils.log(f"FOLDER_CONTEXT_DEBUG: Built RunPlugin URL: {url}", "INFO")
 
         # Add as non-folder item for RunPlugin behavior
-        xbmcplugin.addDirectoryItem(handle, url, li, isFolder=False)
+        utils.log(f"=== ADD_OPTIONS_HEADER: About to add directory item with URL: {url} ===", "DEBUG")
+        result = xbmcplugin.addDirectoryItem(handle, url, li, isFolder=False)
+        utils.log(f"=== ADD_OPTIONS_HEADER: addDirectoryItem returned: {result} ===", "DEBUG")
+        utils.log("=== ADD_OPTIONS_HEADER: Options & Tools header successfully added to directory ===", "DEBUG")
 
     except Exception as e:
-        utils.log(f"Error in Options & Tools ListItem build: {str(e)}", "ERROR")
+        utils.log(f"=== ADD_OPTIONS_HEADER: ERROR in Options & Tools ListItem build: {str(e)} ===", "ERROR")
+        import traceback
+        utils.log(f"=== ADD_OPTIONS_HEADER: Traceback: {traceback.format_exc()} ===", "ERROR")
 
 def build_root_directory(handle: int):
     """Build the root directory with search option"""
+    utils.log("=== BUILD_ROOT_DIRECTORY: Starting root directory build ===", "DEBUG")
+    
     # Add options header
     ctx = detect_context({'view': 'root'})
+    utils.log(f"Detected context for root: {ctx}", "DEBUG")
+    
+    utils.log("=== BUILD_ROOT_DIRECTORY: About to add Options & Tools header ===", "DEBUG")
     add_options_header_item(ctx, handle)
+    utils.log("=== BUILD_ROOT_DIRECTORY: Options & Tools header added ===", "DEBUG")
 
     # Add list and folder items here based on existing database content
     try:
@@ -91,20 +104,21 @@ def build_root_directory(handle: int):
         # Get top-level lists
         top_level_lists = db_manager.fetch_lists(None) # None for root
 
-        # Add top-level folders (excluding protected folders that are empty or accessed via Options & Tools)
+        # Add top-level folders (excluding protected folders)
         for folder in top_level_folders:
-            # Skip protected folders - they're accessed via Options & Tools menu or hidden when empty
+            # Skip protected folders - they're accessed via Options & Tools menu only
             if folder['name'] in ["Search History", "Imported Lists"]:
-                # Check if the folder has any content (lists or subfolders with content)
+                # Always skip Search History - it's only accessible via Options & Tools
+                if folder['name'] == "Search History":
+                    continue
+                
+                # For Imported Lists, only show if it has content
                 folder_count = db_manager.get_folder_media_count(folder['id'])
                 subfolders = db_manager.fetch_folders(folder['id'])
                 has_subfolders = len(subfolders) > 0
                 
                 # Only show if it has content (lists or subfolders)
                 if folder_count == 0 and not has_subfolders:
-                    continue
-                # For Search History, still skip even if it has content (accessed via Options & Tools)
-                if folder['name'] == "Search History":
                     continue
 
             li = ListItemBuilder.build_folder_item(f"📁 {folder['name']}", is_folder=True)
