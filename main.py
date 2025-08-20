@@ -447,7 +447,52 @@ def router(paramstring):
         export_list(q)
         return
     elif action == 'show_item_details':
-
+        log("Routing to show_item_details action", "DEBUG")
+        show_item_details(q)
+        return
+    elif action == 'play_movie':
+        log("Routing to play_movie action", "DEBUG")
+        play_movie(q)
+        return
+    elif action == 'browse_list':
+        list_id = q.get('list_id', [None])[0]
+        if list_id:
+            # Set proper content for list view
+            xbmcplugin.setPluginCategory(ADDON_HANDLE, "Search Results")
+            xbmcplugin.setContent(ADDON_HANDLE, "movies")
+            nav_manager.set_navigation_in_progress(False)
+            browse_list(list_id)
+        else:
+            log("No list_id provided for browse_list action", "WARNING")
+            show_empty_directory(ADDON_HANDLE)
+        return
+    elif action == 'separator':
+        # Do nothing for separator items
+        log("Received separator action, doing nothing.", "DEBUG")
+        pass
+    elif action == 'find_similar':
+        from resources.lib.core.route_handlers import find_similar_movies
+        find_similar_movies(params)
+    elif action == 'find_similar_from_plugin':
+        route_handlers.find_similar_movies_from_plugin(params)
+    elif action == 'add_to_list_from_context':
+        route_handlers.add_to_list_from_context(params)
+    elif action == 'add_to_list':
+        route_handlers.add_to_list(params)
+    elif action == 'import_favorites':
+        log("Routing to import_favorites action", "DEBUG")
+        from resources.lib.integrations.remote_api.favorites_importer import import_from_favorites
+        import_from_favorites()
+        return
+    elif action == 'dev_display_directory':
+        log("Routing to dev_display_directory action", "DEBUG")
+        from resources.lib.core.route_handlers import dev_display_imdb_data_directory
+        dev_display_imdb_data_directory(q)
+        return
+    else:
+        # Default: build root directory if action is not recognized or empty
+        log(f"Unrecognized action '{action}' or no action specified, building root directory.", "DEBUG")
+        build_root_directory(ADDON_HANDLE)
 
 def build_root_directory(handle):
     """Build the root directory listing"""
@@ -502,53 +547,6 @@ def show_empty_directory(handle, message="No items found"):
     li = ListItemBuilder.build_folder_item(message, is_folder=False)
     xbmcplugin.addDirectoryItem(handle, "", li, False)
     xbmcplugin.endOfDirectory(handle)
-
-        log("Routing to show_item_details action", "DEBUG")
-        show_item_details(q)
-        return
-    elif action == 'play_movie':
-        log("Routing to play_movie action", "DEBUG")
-        play_movie(q)
-        return
-    elif action == 'browse_list':
-        list_id = q.get('list_id', [None])[0]
-        if list_id:
-            # Set proper content for list view
-            xbmcplugin.setPluginCategory(ADDON_HANDLE, "Search Results")
-            xbmcplugin.setContent(ADDON_HANDLE, "movies")
-            nav_manager.set_navigation_in_progress(False)
-            browse_list(list_id)
-        else:
-            log("No list_id provided for browse_list action", "WARNING")
-            show_empty_directory(ADDON_HANDLE)
-        return
-    elif action == 'separator':
-        # Do nothing for separator items
-        log("Received separator action, doing nothing.", "DEBUG")
-        pass
-    elif action == 'find_similar':
-        from resources.lib.core.route_handlers import find_similar_movies
-        find_similar_movies(params)
-    elif action == 'find_similar_from_plugin':
-        route_handlers.find_similar_movies_from_plugin(params)
-    elif action == 'add_to_list_from_context':
-        route_handlers.add_to_list_from_context(params)
-    elif action == 'add_to_list':
-        route_handlers.add_to_list(params)
-    elif action == 'import_favorites':
-        log("Routing to import_favorites action", "DEBUG")
-        from resources.lib.integrations.remote_api.favorites_importer import import_from_favorites
-        import_from_favorites()
-        return
-    elif action == 'dev_display_directory':
-        log("Routing to dev_display_directory action", "DEBUG")
-        from resources.lib.core.route_handlers import dev_display_imdb_data_directory
-        dev_display_imdb_data_directory(q)
-        return
-    else:
-        # Default: build root directory if action is not recognized or empty
-        log(f"Unrecognized action '{action}' or no action specified, building root directory.", "DEBUG")
-        build_root_directory(ADDON_HANDLE)
 
 # Expose functions that other modules need to import
 def create_new_folder_at_root():
