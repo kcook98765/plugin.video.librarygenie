@@ -287,16 +287,16 @@ class ResultsManager(Singleton):
                     }
 
                     # Copy over any artwork and metadata from the original item
-                        for field in ['thumbnail', 'poster', 'fanart', 'art', 'plot', 'rating', 'genre', 'director', 'cast', 'duration']:
-                            if r.get(field):
-                                resolved_item[field] = r.get(field)
+                    for field in ['thumbnail', 'poster', 'fanart', 'art', 'plot', 'rating', 'genre', 'director', 'cast', 'duration']:
+                        if r.get(field):
+                            resolved_item[field] = r.get(field)
 
-                        from resources.lib.kodi.listitem_builder import ListItemBuilder
-                        list_item = ListItemBuilder.build_video_item(resolved_item, is_search_history=is_search_history)
+                    from resources.lib.kodi.listitem_builder import ListItemBuilder
+                    list_item = ListItemBuilder.build_video_item(resolved_item, is_search_history=is_search_history)
 
-                        item_url = f"info://{ref_imdb}" if ref_imdb else f"info://{r.get('id', 'unknown')}"
-                        display_items.append((item_url, list_item, False))
-                        utils.log(f"Item {i+1}: Added fallback item '{fallback_title}' to display_items", "DEBUG")
+                    item_url = f"info://{ref_imdb}" if ref_imdb else f"info://{r.get('id', 'unknown')}"
+                    display_items.append((item_url, list_item, False))
+                    utils.log(f"Item {i+1}: Added fallback item '{fallback_title}' to display_items", "DEBUG")
 
             # External items processed separately with stored metadata
             # Handle None search_score values that can't be compared
