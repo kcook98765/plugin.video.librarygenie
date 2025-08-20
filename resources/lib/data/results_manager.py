@@ -62,44 +62,41 @@ class ResultsManager(Singleton):
                 imdb = r.get('imdbnumber')
                 title, year = '', 0
 
-                # Try to get title/year from imdb_exports first
-                if imdb:
-                    utils.log(f"=== TITLE_YEAR_LOOKUP: Looking up IMDB {imdb} in imdb_exports ===", "DEBUG")
+                # Use stored data as primary source - it contains the actual movie information
+                title = r.get('title', '').strip() if r.get('title') else ''
+                year = 0
+                try:
+                    year = int(r.get('year') or 0)
+                except Exception:
+                    year = 0
+
+                utils.log(f"Using stored metadata: title='{title}', year={year}", "DEBUG")
+
+                # Only try imdb_exports as enhancement if we have missing data
+                if (not title or title in ['Unknown', '']) and imdb:
+                    utils.log(f"=== TITLE_YEAR_LOOKUP: Enhancing from imdb_exports for IMDB {imdb} ===", "DEBUG")
                     try:
                         q = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
                         hit = self.query_manager.execute_query(q, (imdb,)) or []
                         if hit:
                             rec = hit[0]
-                            title = (rec.get('title') if isinstance(rec, dict) else rec[0]) or ''
-                            year = int((rec.get('year') if isinstance(rec, dict) else rec[1]) or 0)
-                            utils.log(f"=== TITLE_YEAR_LOOKUP: Found in imdb_exports: {title} ({year}) for IMDB {imdb} ===", "DEBUG")
+                            export_title = (rec.get('title') if isinstance(rec, dict) else rec[0]) or ''
+                            export_year = int((rec.get('year') if isinstance(rec, dict) else rec[1]) or 0)
+                            if export_title and export_title not in ['Unknown', '']:
+                                title = export_title
+                                utils.log(f"Enhanced title from imdb_exports: {title}", "DEBUG")
+                            if export_year > 0 and year == 0:
+                                year = export_year
+                                utils.log(f"Enhanced year from imdb_exports: {year}", "DEBUG")
                         else:
                             utils.log(f"=== TITLE_YEAR_LOOKUP: No imdb_exports entry found for IMDB {imdb} ===", "DEBUG")
                     except Exception as e:
                         utils.log(f"=== TITLE_YEAR_LOOKUP: Error querying imdb_exports for {imdb}: {str(e)} ===", "ERROR")
 
-                # Fallback to stored data if imdb lookup failed
-                if not title:
-                    title = r.get('title') or ''
-                    utils.log(f"Using fallback title: {title}", "DEBUG")
-
-                if not year:
-                    try:
-                        year = int(r.get('year') or 0)
-                        utils.log(f"Using fallback year: {year}", "DEBUG")
-                    except Exception:
-                        year = 0
-
-                # If we still have no title, try to extract from the original stored data
-                if not title or title == '':
-                    # Check if there's any identifying information we can use
-                    stored_title = r.get('title', '')
-                    if stored_title and stored_title.strip():
-                        title = stored_title.strip()
-                        utils.log(f"Using stored title as final fallback: {title}", "DEBUG")
-                    else:
-                        title = f"IMDB: {imdb}" if imdb else "Unknown Movie"
-                        utils.log(f"Using IMDB ID as title fallback: {title}", "WARNING")
+                # Final fallback only if we still have no useful title
+                if not title or title.strip() == '':
+                    title = f"IMDB: {imdb}" if imdb else "Unknown Movie"
+                    utils.log(f"Using final fallback title: {title}", "WARNING")
 
                 refs.append({'imdb': imdb, 'title': title, 'year': year, 'search_score': r.get('search_score', 0)})
 
