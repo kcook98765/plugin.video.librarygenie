@@ -66,29 +66,9 @@ CREATE TABLE media_items (
     genre TEXT,
     imdbnumber TEXT,
     kodi_id INTEGER,
-    media_type TEXT,
-    mpaa TEXT,
-    path TEXT,
-    play TEXT,
-    plot TEXT,
-    premiered TEXT,
-    rating REAL,
-    source TEXT,
-    status TEXT,
-    stream_url TEXT,
-    studio TEXT,
-    tagline TEXT,
-    thumbnail TEXT,
-    poster TEXT,
-    art TEXT,
-    title TEXT,
-    trailer TEXT,
-    uniqueid TEXT,
-    votes INTEGER,
-    writer TEXT,
-    year INTEGER,
-    search_score REAL
-)
+    media_type TEXT DEFAULT 'movie',
+        file TEXT
+    )
 ```
 
 **Data Sources**:

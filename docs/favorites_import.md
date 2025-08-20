@@ -43,16 +43,28 @@ The Import Favorites feature allows you to scan your Kodi favorites and automati
 4. **Metadata Enrichment**: Enhances matched items with full library details
 
 ### Supported Formats
-- **File Types**: Video files (MP4, MKV, AVI, etc.)
+- **File Types**: Video files with recognized extensions (MP4, MKV, AVI, WMV, MOV, FLV, etc.)
+- **Network Paths**: SMB, NFS, FTP, FTPS network shares
 - **Streaming**: HTTP/HTTPS URLs for streamable content
-- **Plugins**: Playable content from other Kodi addons
-- **Library Items**: Movies and TV shows in your Kodi library
+- **Plugins**: Plugin video URLs (plugin://plugin.video.*)
+- **Library Items**: videodb:// URLs and files in your Kodi library
+- **Local Files**: File:// URLs and local file paths
+
+### Path Validation
+The import process validates paths using multiple criteria:
+- **Plugin URLs**: Always accepted as playable
+- **videodb URLs**: Always accepted as playable
+- **File Extensions**: Quick validation for common video formats
+- **Streamdetails**: JSON-RPC verification of video stream information
+- **Directory Probing**: Fallback verification for unclear paths
 
 ### Import Options
-- **Selective Import**: Choose which favorites to import
-- **List Selection**: Import to existing lists or create new ones
-- **Duplicate Handling**: Automatic detection and handling of duplicate items
-- **Batch Processing**: Efficient import of large favorite collections
+- **Automatic Import**: All playable favorites are imported automatically
+- **Organized Structure**: Creates timestamped list under "Imported Lists/Favorites" folder
+- **Library Enhancement**: Favorites matching library content get full metadata
+- **Path Validation**: Only imports items with valid playable paths
+- **Batch Processing**: Efficient single-transaction import of large favorite collections
+- **Clear and Replace**: Each import clears previous favorites imports before adding new content
 
 ## Troubleshooting
 

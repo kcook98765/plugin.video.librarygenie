@@ -162,13 +162,19 @@ The `ResultsManager.build_display_items_for_list()` method uses a clear branchin
 ```python
 src = (r.get('source') or '').lower()
 # Only external and plugin_addon sources go to external processing
-# All other sources (lib, manual, search, kodi_library, shortlist_import) follow library item processing path
-if src in ('external', 'plugin_addon', 'favorites_import'):
+# All other sources follow library item processing path with special handling for favorites_import
+if src in ('external', 'plugin_addon'):
     external.append(r)
     continue
 ```
 
-**Sources using library processing**: `lib`, `manual`, `search`, `kodi_library`, `shortlist_import`
+**Sources using library processing**: `lib`, `manual`, `search`, `kodi_library`, `shortlist_import`, `favorites_import`
+
+**Special handling for favorites_import**:
+- Validates playable paths before processing
+- Skips items without valid playable paths
+- Uses stored playable path directly for URL generation
+- Continues through library processing path but with path validation
 
 **Processing steps**:
 1. Title/year lookup from `imdb_exports` table
@@ -325,10 +331,11 @@ item_url = item.get('file', f"external://{item.get('id', 'unknown')}")
 **Characteristics**:
 - Source set to `favorites_import` during import process
 - Converts various Kodi favorite types to standardized media items
-- Uses external processing path due to varied URL formats
+- **Special handling in processing path**: Skips library lookup for items without valid playable paths
 - Preserves original favorite URLs and metadata
+- **Path validation**: Checks for valid playable paths (smb://, nfs://, http://, https://, ftp://, ftps://, plugin://, file paths)
 
-**Processing Path**: External processing path (uses stored metadata)
+**Processing Path**: **Special processing within library path** - handled separately to avoid library lookup while still using main processing flow
 
 ### 9. Search Results (`search`) - AI-Powered Search Results
 

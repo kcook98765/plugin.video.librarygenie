@@ -8,7 +8,7 @@ LibraryGenie registers context menu entries that appear when users right-click o
 
 ## Context Menu Registration
 
-The context menu integration is configured in `addon.xml`:
+The context menu integration is configured in `addon.xml` to use native Kodi context menu system:
 
 ```xml
 <extension point="kodi.context.item" library="resources/lib/context.py">
@@ -18,6 +18,8 @@ The context menu integration is configured in `addon.xml`:
     </item>
 </extension>
 ```
+
+**Important**: LibraryGenie uses the native Kodi context menu system exclusively. All context menu functionality is handled through the native interface rather than programmatic context menus.
 
 ## Entry Point
 
@@ -34,14 +36,17 @@ The actual implementation is in `resources.lib.core.context.py`.
 
 ## Context Menu Builder
 
-The `ContextMenuBuilder` class (`resources.lib.kodi.context_menu_builder.py`) handles the construction and display of context menu options:
+The `ContextMenuBuilder` class (`resources.lib.kodi.context_menu_builder.py`) supports the native context menu system:
 
 ### Key Methods
 
-- `show_context_menu()`: Main entry point for displaying context options
-- `_build_context_options()`: Constructs available options based on current state
+- `build_video_context_menu()`: Returns empty - uses native context only
+- `build_list_context_menu()`: Returns empty - uses native context only  
+- `build_folder_context_menu()`: Returns empty - uses native context only
 - `_is_authenticated()`: Checks remote API authentication status
-- `_detect_viewing_context()`: Determines if user is viewing a LibraryGenie list
+- `_extract_imdb_id()`: Extracts IMDb IDs with v19+ compatibility
+
+**Note**: All context menu building methods now return empty arrays as LibraryGenie uses the native Kodi context menu system exclusively.
 
 ### Dynamic Options
 
