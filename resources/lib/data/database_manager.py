@@ -910,8 +910,8 @@ class DatabaseManager(Singleton):
 
                 media_item_data = {
                     'kodi_id': 0,  # No Kodi ID for search results
-                    'title': title_from_exports if title_from_exports else imdb_id,
-                    'year': year_from_exports,    # Year from imdb_exports lookup
+                    'title': title_from_exports if title_from_exports else f'Movie {imdb_id}',
+                    'year': year_from_exports or 0,    # Year from imdb_exports lookup with fallback
                     'rating': 0.0,
                     'plot': plot_text,
                     'tagline': 'Search result from LibraryGenie',

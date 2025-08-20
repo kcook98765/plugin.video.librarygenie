@@ -1354,8 +1354,8 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
                 # Create media item with available data
                 media_item_data = {
                     'kodi_id': 0,
-                    'title': title_lookup or f'IMDB: {imdb_id}',
-                    'year': year_lookup,
+                    'title': title_lookup or f'Movie {imdb_id}',
+                    'year': year_lookup or 0,
                     'imdbnumber': imdb_id,
                     'source': 'search',
                     'plot': '',
