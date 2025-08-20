@@ -15,11 +15,7 @@ from resources.lib.kodi.listitem_builder import ListItemBuilder
 def add_options_header_item(ctx: dict, handle: int):
     """Add the options and tools header item as a non-folder RunPlugin item"""
     try:
-        # Check if navigation is in progress - skip adding options header during navigation
-        navigating = xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.Navigating)")
-        if navigating == "true":
-            utils.log("Navigation in progress, skipping options header item", "DEBUG")
-            return
+        utils.log("Adding Options & Tools header item to directory", "DEBUG")
 
         # Create list item for options as non-folder
         li = xbmcgui.ListItem(label="[B]Options & Tools[/B]")
