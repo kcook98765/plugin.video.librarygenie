@@ -476,32 +476,76 @@ class ListingDAO:
             # Don't re-raise - this is not critical for the upload process
             return movieid
 
-    def get_heavy_meta_by_movieids(self, movieids):
-        """Get heavy metadata for multiple movie IDs"""
+    def get_heavy_meta_by_movieids(self, movieids, refresh=False):
+        """Get heavy metadata for multiple movie IDs with caching"""
         if not movieids:
             return {}
 
-        placeholders = ','.join(['?'] * len(movieids))
-        sql = f"""
-            SELECT kodi_movieid, cast_json, ratings_json, showlink_json, 
-                   stream_json, uniqueid_json, tags_json
-            FROM movie_heavy_meta 
-            WHERE kodi_movieid IN ({placeholders})
-        """
+        utils.log(f"=== GET_HEAVY_META_BY_MOVIEIDS: Processing {len(movieids)} movie IDs (refresh={refresh}) ===", "INFO")
 
-        rows = self.execute_query(sql, movieids, fetch_all=True)
+        # Convert single ID to list
+        if isinstance(movieids, (int, str)):
+            movieids = [movieids]
 
-        heavy_by_id = {}
-        for row in rows:
-            import json
-            movieid = row['kodi_movieid']
-            heavy_by_id[movieid] = {
-                'cast': json.loads(row['cast_json']) if row['cast_json'] else [],
-                'ratings': json.loads(row['ratings_json']) if row['ratings_json'] else {},
-                'showlink': json.loads(row['showlink_json']) if row['showlink_json'] else [],
-                'streamdetails': json.loads(row['stream_json']) if row['stream_json'] else {},
-                'uniqueid': json.loads(row['uniqueid_json']) if row['uniqueid_json'] else {},
-                'tag': json.loads(row['tags_json']) if row['tags_json'] else []
-            }
+        movieids = [int(mid) for mid in movieids if mid]
+        if not movieids:
+            return {}
 
-        return heavy_by_id
+        utils.log(f"HEAVY_META: Valid movieids: {movieids[:10]}{'...' if len(movieids) > 10 else ''}", "INFO")
+
+        # Check cache first unless refresh is requested
+        cached_data = {}
+        missing_ids = movieids[:]
+
+        if not refresh:
+            cached_data = self._get_cached_heavy_meta(movieids)
+            missing_ids = [mid for mid in movieids if mid not in cached_data]
+            utils.log(f"HEAVY_META: Found {len(cached_data)} in cache, {len(missing_ids)} missing", "INFO")
+        else:
+            utils.log("HEAVY_META: Refresh requested, bypassing cache", "INFO")
+
+        # Fetch missing data from Kodi
+        fresh_data = {}
+        if missing_ids:
+            utils.log(f"HEAVY_META: Fetching {len(missing_ids)} movies from Kodi", "INFO")
+            fresh_data = self._fetch_heavy_meta_from_kodi(missing_ids)
+            utils.log(f"HEAVY_META: Retrieved {len(fresh_data)} fresh movies from Kodi", "INFO")
+
+            # Log sample fresh data
+            if fresh_data:
+                first_movieid = list(fresh_data.keys())[0]
+                sample_fresh = fresh_data[first_movieid]
+                utils.log("=== SAMPLE FRESH HEAVY DATA FROM KODI ===", "INFO")
+                for key, value in sample_fresh.items():
+                    if isinstance(value, str) and len(value) > 200:
+                        utils.log(f"FRESH_HEAVY: {key} = {value[:200]}... (truncated)", "INFO")
+                    else:
+                        utils.log(f"FRESH_HEAVY: {key} = {repr(value)}", "INFO")
+                utils.log("=== END SAMPLE FRESH HEAVY DATA ===", "INFO")
+
+            # Store fresh data in cache
+            if fresh_data:
+                fresh_list = [data for data in fresh_data.values()]
+                utils.log(f"HEAVY_META: Storing {len(fresh_list)} movies in cache", "INFO")
+                self.query_manager.store_heavy_meta_batch(fresh_list)
+
+        # Combine cached and fresh data
+        result = {}
+        result.update(cached_data)
+        result.update(fresh_data)
+
+        utils.log(f"HEAVY_META: Final result contains {len(result)} movies", "INFO")
+
+        # Log sample final result
+        if result:
+            first_result_id = list(result.keys())[0]
+            sample_result = result[first_result_id]
+            utils.log("=== SAMPLE FINAL HEAVY METADATA RESULT ===", "INFO")
+            for key, value in sample_result.items():
+                if isinstance(value, str) and len(value) > 200:
+                    utils.log(f"FINAL_HEAVY: {key} = {value[:200]}... (truncated)", "INFO")
+                else:
+                    utils.log(f"FINAL_HEAVY: {key} = {repr(value)}", "INFO")
+            utils.log("=== END SAMPLE FINAL HEAVY METADATA ===", "INFO")
+
+        return result

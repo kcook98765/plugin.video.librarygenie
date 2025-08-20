@@ -491,21 +491,68 @@ class QueryManager(Singleton):
 
     def insert_imdb_export(self, movies: List[Dict[str, Any]]) -> None:
         """Insert multiple movies into imdb_exports table"""
-        query = """
-            INSERT OR IGNORE INTO imdb_exports
-            (kodi_id, imdb_id, title, year)
-            VALUES (?, ?, ?, ?)
-        """
-        for movie in movies:
-            self.execute_write(
-                query,
-                (
-                    movie.get('movieid') or movie.get('kodi_id'),
-                    movie.get('imdbnumber'),
-                    movie.get('title'),
-                    movie.get('year')
-                )
-            )
+        if not movies:
+            return
+
+        utils.log(f"=== INSERTING {len(movies)} MOVIES INTO IMDB_EXPORTS ===", "INFO")
+
+        conn_info = self._get_connection()
+        try:
+            conn_info['connection'].execute("BEGIN")
+            cursor = conn_info['connection'].cursor()
+
+            # Log sample data before insertion
+            if movies:
+                sample_movie = movies[0]
+                utils.log("=== SAMPLE MOVIE DATA FOR IMDB_EXPORTS ===", "INFO")
+                for key, value in sample_movie.items():
+                    utils.log(f"EXPORT_INSERT: {key} = {repr(value)}", "INFO")
+                utils.log("=== END SAMPLE MOVIE DATA ===", "INFO")
+
+            for movie in movies:
+                cursor.execute("""
+                    INSERT OR REPLACE INTO imdb_exports 
+                    (imdb_id, title, year, genre, plot, rating, votes, director, cast, runtime)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    movie.get('imdb_id', ''),
+                    movie.get('title', ''),
+                    movie.get('year', 0),
+                    movie.get('genre', ''),
+                    movie.get('plot', ''),
+                    movie.get('rating', 0.0),
+                    movie.get('votes', 0),
+                    movie.get('director', ''),
+                    movie.get('cast', ''),
+                    movie.get('runtime', 0)
+                ))
+
+            conn_info['connection'].commit()
+            utils.log(f"Successfully inserted {len(movies)} movies into imdb_exports", "INFO")
+
+            # Verify insertion by checking first movie
+            if movies:
+                first_imdb = movies[0].get('imdb_id', '')
+                if first_imdb:
+                    cursor.execute("SELECT * FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1", (first_imdb,))
+                    stored_row = cursor.fetchone()
+                    if stored_row:
+                        # Get column names
+                        column_names = [description[0] for description in cursor.description]
+                        stored_dict = dict(zip(column_names, stored_row))
+                        utils.log("=== VERIFICATION OF IMDB_EXPORTS INSERTION ===", "INFO")
+                        for key, value in stored_dict.items():
+                            utils.log(f"EXPORTS_VERIFY: {key} = {repr(value)}", "INFO")
+                        utils.log("=== END EXPORTS VERIFICATION ===", "INFO")
+                    else:
+                        utils.log(f"ERROR: No stored export data found for imdb_id {first_imdb}", "ERROR")
+
+        except Exception as e:
+            conn_info['connection'].rollback()
+            utils.log(f"Error inserting imdb exports: {str(e)}", "ERROR")
+            raise
+        finally:
+            self._release_connection(conn_info)
 
     def get_valid_imdb_numbers(self) -> List[str]:
         """Get all valid IMDB numbers from exports table"""
@@ -846,7 +893,7 @@ class QueryManager(Singleton):
                 imdb_id TEXT,
                 exported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )''',
-            
+
             """CREATE TABLE IF NOT EXISTS folders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT UNIQUE,
@@ -976,5 +1023,102 @@ class QueryManager(Singleton):
             cursor.execute(create_file_index_sql)
 
             conn_info['connection'].commit()
+        finally:
+            self._release_connection(conn_info)
+
+    def store_heavy_meta_batch(self, heavy_metadata_list):
+        """Store heavy metadata for multiple movies in batch"""
+        if not heavy_metadata_list:
+            return
+
+        utils.log(f"=== STORING HEAVY METADATA BATCH: {len(heavy_metadata_list)} movies ===", "INFO")
+
+        conn_info = self._get_connection()
+        try:
+            conn_info['connection'].execute("BEGIN")
+            cursor = conn_info['connection'].cursor()
+
+            current_time = int(time.time())
+
+            # Log sample data before storage
+            if heavy_metadata_list:
+                sample_movie = heavy_metadata_list[0]
+                utils.log("=== SAMPLE HEAVY METADATA BEFORE STORAGE ===", "INFO")
+                for key, value in sample_movie.items():
+                    if isinstance(value, str) and len(value) > 200:
+                        utils.log(f"BEFORE_STORAGE: {key} = {value[:200]}... (truncated)", "INFO")
+                    else:
+                        utils.log(f"BEFORE_STORAGE: {key} = {repr(value)}", "INFO")
+                utils.log("=== END SAMPLE BEFORE STORAGE ===", "INFO")
+
+            for movie_data in heavy_metadata_list:
+                movieid = movie_data.get('movieid')
+                if not movieid:
+                    continue
+
+                # Convert complex fields to JSON
+                cast_json = json.dumps(movie_data.get('cast', []))
+                ratings_json = json.dumps(movie_data.get('ratings', {}))
+                showlink_json = json.dumps(movie_data.get('showlink', []))
+                stream_json = json.dumps(movie_data.get('streamdetails', {}))
+                uniqueid_json = json.dumps(movie_data.get('uniqueid', {}))
+                tags_json = json.dumps(movie_data.get('tag', []))
+
+                # Log what's being stored for first movie
+                if movie_data == heavy_metadata_list[0]:
+                    utils.log("=== JSON FIELDS BEING STORED ===", "INFO")
+                    utils.log(f"STORAGE_JSON: cast_json = {cast_json[:200]}{'...' if len(cast_json) > 200 else ''}", "INFO")
+                    utils.log(f"STORAGE_JSON: ratings_json = {ratings_json}", "INFO")
+                    utils.log(f"STORAGE_JSON: showlink_json = {showlink_json}", "INFO")
+                    utils.log(f"STORAGE_JSON: stream_json = {stream_json[:200]}{'...' if len(stream_json) > 200 else ''}", "INFO")
+                    utils.log(f"STORAGE_JSON: uniqueid_json = {uniqueid_json}", "INFO")
+                    utils.log(f"STORAGE_JSON: tags_json = {tags_json}", "INFO")
+                    utils.log("=== END JSON FIELDS BEING STORED ===", "INFO")
+
+                # Insert or replace heavy metadata
+                cursor.execute("""
+                    INSERT OR REPLACE INTO movie_heavy_meta 
+                    (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
+                     stream_json, uniqueid_json, tags_json, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    movieid,
+                    movie_data.get('imdbnumber', ''),
+                    cast_json,
+                    ratings_json, 
+                    showlink_json,
+                    stream_json,
+                    uniqueid_json,
+                    tags_json,
+                    current_time
+                ))
+
+            conn_info['connection'].commit()
+            utils.log(f"Successfully stored heavy metadata for {len(heavy_metadata_list)} movies", "INFO")
+
+            # Verify storage by checking first movie
+            if heavy_metadata_list:
+                first_movieid = heavy_metadata_list[0].get('movieid')
+                if first_movieid:
+                    cursor.execute("SELECT * FROM movie_heavy_meta WHERE kodi_movieid = ?", (first_movieid,))
+                    stored_row = cursor.fetchone()
+                    if stored_row:
+                        # Get column names
+                        column_names = [description[0] for description in cursor.description]
+                        stored_dict = dict(zip(column_names, stored_row))
+                        utils.log("=== VERIFICATION OF STORED HEAVY METADATA ===", "INFO")
+                        for key, value in stored_dict.items():
+                            if isinstance(value, str) and len(value) > 200:
+                                utils.log(f"STORED_VERIFY: {key} = {value[:200]}... (truncated)", "INFO")
+                            else:
+                                utils.log(f"STORED_VERIFY: {key} = {repr(value)}", "INFO")
+                        utils.log("=== END VERIFICATION ===", "INFO")
+                    else:
+                        utils.log(f"ERROR: No stored heavy metadata found for movieid {first_movieid}", "ERROR")
+
+        except Exception as e:
+            conn_info['connection'].rollback()
+            utils.log(f"Error storing heavy metadata batch: {str(e)}", "ERROR")
+            raise
         finally:
             self._release_connection(conn_info)

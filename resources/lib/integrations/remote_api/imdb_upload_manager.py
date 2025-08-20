@@ -104,44 +104,147 @@ class IMDbUploadManager:
 
 
     def get_full_kodi_movie_collection_and_store_locally(self, use_notifications=False):
-        """Get all movies from Kodi library and store them locally in one efficient operation."""
+        """Get complete Kodi movie collection with all metadata and store locally for caching"""
         try:
-            utils.log("=== STARTING MOVIE COLLECTION AND STORAGE ===", "INFO")
+            utils.log("=== STARTING FULL KODI MOVIE COLLECTION AND LOCAL STORAGE ===", "INFO")
 
-            if use_notifications:
-                utils.show_notification("LibraryGenie", "Starting movie collection scan...", time=3000)
+            # Get light movie data first (fast query)
+            light_movies = self.jsonrpc.get_all_movies_light()
 
-            # Initialize database manager
-            from resources.lib.data.database_manager import DatabaseManager
-            db_manager = DatabaseManager(Config().db_path)
-            utils.log("Database manager initialized successfully", "DEBUG")
-
-            # Clear existing data
-            self._clear_existing_library_data(db_manager)
-
-            # Retrieve all movies from Kodi
-            all_movies = self._retrieve_all_movies_from_kodi(use_notifications)
-
-            if not all_movies:
-                utils.log("No movies retrieved from Kodi library", "WARNING")
+            if not light_movies:
+                utils.log("No movies found in Kodi library", "WARNING")
                 return []
 
-            # Process and store movies
-            valid_movies, stored_count = self._process_and_store_movies(all_movies, db_manager, use_notifications)
-
-            # Populate search exports table
-            self._populate_imdb_exports(valid_movies, db_manager)
+            utils.log(f"Retrieved {len(light_movies)} light movies from Kodi", "INFO")
 
             if use_notifications:
-                utils.show_notification("LibraryGenie", f"Collection complete! Found {stored_count} movies with IMDb IDs", time=5000)
+                notification_manager = NotificationManager()
+                notification_manager.show_notification(f"Processing {len(light_movies)} movies...", "LibraryGenie")
 
-            utils.log(f"=== COLLECTION AND STORAGE COMPLETE: {stored_count} movies stored ===", "INFO")
-            return valid_movies
+            # Log sample light movie data
+            if light_movies:
+                utils.log("=== SAMPLE LIGHT MOVIE DATA ===", "INFO")
+                sample_light = light_movies[0]
+                for key, value in sample_light.items():
+                    utils.log(f"LIGHT_DATA: {key} = {repr(value)}", "INFO")
+                utils.log("=== END SAMPLE LIGHT MOVIE DATA ===", "INFO")
+
+            # Get heavy metadata for all movies in batch
+            movieids = [movie.get('movieid') for movie in light_movies if movie.get('movieid')]
+
+            # Get heavy metadata from cache or fetch fresh
+            heavy_metadata = {}
+            if movieids:
+                utils.log(f"Fetching heavy metadata for {len(movieids)} movies", "INFO")
+                heavy_metadata = self.database.query_manager._listing.get_heavy_meta_by_movieids(movieids, refresh=True)
+                utils.log(f"Retrieved heavy metadata for {len(heavy_metadata)} movies", "INFO")
+
+                # Log sample heavy metadata
+                if heavy_metadata:
+                    first_movieid = list(heavy_metadata.keys())[0]
+                    sample_heavy = heavy_metadata[first_movieid]
+                    utils.log("=== SAMPLE HEAVY METADATA ===", "INFO")
+                    for key, value in sample_heavy.items():
+                        if isinstance(value, str) and len(value) > 200:
+                            utils.log(f"HEAVY_DATA: {key} = {value[:200]}... (truncated)", "INFO")
+                        else:
+                            utils.log(f"HEAVY_DATA: {key} = {repr(value)}", "INFO")
+                    utils.log("=== END SAMPLE HEAVY METADATA ===", "INFO")
+
+            # Merge light and heavy data
+            full_movies = []
+            for movie in light_movies:
+                movieid = movie.get('movieid')
+                if movieid and movieid in heavy_metadata:
+                    # Merge heavy fields into light movie data
+                    movie.update(heavy_metadata[movieid])
+
+                full_movies.append(movie)
+
+            # Log sample merged movie data
+            if full_movies:
+                utils.log("=== SAMPLE MERGED MOVIE DATA ===", "INFO")
+                sample_merged = full_movies[0]
+                for key, value in sample_merged.items():
+                    if isinstance(value, str) and len(value) > 200:
+                        utils.log(f"MERGED_DATA: {key} = {value[:200]}... (truncated)", "INFO")
+                    else:
+                        utils.log(f"MERGED_DATA: {key} = {repr(value)}", "INFO")
+                utils.log("=== END SAMPLE MERGED MOVIE DATA ===", "INFO")
+
+            # Store in imdb_exports table for reference
+            export_movies = []
+            for movie in full_movies:
+                imdb_id = movie.get('imdbnumber', '')
+                if imdb_id and imdb_id.startswith('tt'):
+                    export_movie = {
+                        'imdb_id': imdb_id,
+                        'title': movie.get('title', ''),
+                        'year': movie.get('year', 0),
+                        'genre': ', '.join(movie.get('genre', [])) if isinstance(movie.get('genre'), list) else movie.get('genre', ''),
+                        'plot': movie.get('plot', ''),
+                        'rating': movie.get('rating', 0.0),
+                        'votes': movie.get('votes', 0),
+                        'director': ', '.join(movie.get('director', [])) if isinstance(movie.get('director'), list) else movie.get('director', ''),
+                        'cast': json.dumps(movie.get('cast', [])),
+                        'runtime': movie.get('runtime', 0)
+                    }
+                    export_movies.append(export_movie)
+
+            if export_movies:
+                utils.log(f"Storing {len(export_movies)} movies in imdb_exports table", "INFO")
+
+                # Log sample export data before storage
+                if export_movies:
+                    utils.log("=== SAMPLE EXPORT DATA FOR IMDB_EXPORTS TABLE ===", "INFO")
+                    sample_export = export_movies[0]
+                    for key, value in sample_export.items():
+                        utils.log(f"EXPORT_DATA: {key} = {repr(value)}", "INFO")
+                    utils.log("=== END SAMPLE EXPORT DATA ===", "INFO")
+
+                self.database.query_manager.insert_imdb_export(export_movies)
+
+                # Verify what was actually stored
+                utils.log("=== VERIFYING STORED DATA IN IMDB_EXPORTS ===", "INFO")
+                sample_imdb = export_movies[0]['imdb_id']
+                stored_data = self.database.query_manager.execute_read(
+                    "SELECT * FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1",
+                    (sample_imdb,)
+                )
+                if stored_data:
+                    stored_row = stored_data[0]
+                    utils.log("=== STORED DATA VERIFICATION ===", "INFO")
+                    for key, value in stored_row.items():
+                        utils.log(f"STORED: {key} = {repr(value)}", "INFO")
+                    utils.log("=== END STORED DATA VERIFICATION ===", "INFO")
+
+            # Check if heavy metadata was properly cached
+            utils.log("=== VERIFYING HEAVY METADATA CACHE ===", "INFO")
+            if movieids:
+                sample_movieid = movieids[0]
+                cached_heavy = self.database.query_manager.execute_read(
+                    "SELECT * FROM movie_heavy_meta WHERE kodi_movieid = ?",
+                    (sample_movieid,)
+                )
+                if cached_heavy:
+                    cached_row = cached_heavy[0]
+                    utils.log("=== CACHED HEAVY METADATA ===", "INFO")
+                    for key, value in cached_row.items():
+                        if isinstance(value, str) and len(value) > 200:
+                            utils.log(f"CACHED_HEAVY: {key} = {value[:200]}... (truncated)", "INFO")
+                        else:
+                            utils.log(f"CACHED_HEAVY: {key} = {repr(value)}", "INFO")
+                    utils.log("=== END CACHED HEAVY METADATA ===", "INFO")
+                else:
+                    utils.log(f"ERROR: No heavy metadata found in cache for movieid {sample_movieid}", "ERROR")
+
+            utils.log(f"Successfully processed {len(full_movies)} movies with complete metadata", "INFO")
+            return full_movies
 
         except Exception as e:
-            utils.log(f"Error getting Kodi movie collection and storing locally: {str(e)}", "ERROR")
-            if use_notifications:
-                utils.show_notification("LibraryGenie", f"Error during collection: {str(e)}", time=5000)
+            utils.log(f"Error getting full Kodi movie collection: {str(e)}", "ERROR")
+            import traceback
+            utils.log(f"Traceback: {traceback.format_exc()}", "ERROR")
             return []
 
     def _clear_existing_library_data(self, db_manager):
@@ -162,10 +265,12 @@ class IMDbUploadManager:
                     utils.log(f"Successfully cleared {count} existing library items", "INFO")
 
             # Clear heavy metadata table
+            utils.log("Clearing movie_heavy_meta table...", "INFO")
             self._execute_direct_delete(db_manager, "DELETE FROM movie_heavy_meta")
-            utils.log("Successfully cleared heavy metadata table", "INFO")
+            utils.log("Successfully cleared movie_heavy_meta table", "INFO")
 
             # Clear imdb_exports table
+            utils.log("Clearing imdb_exports table...", "INFO")
             self._execute_direct_delete(db_manager, "DELETE FROM imdb_exports")
             utils.log("Successfully cleared imdb_exports table", "INFO")
 
@@ -292,10 +397,10 @@ class IMDbUploadManager:
 
         try:
             conn_info = db_manager.query_manager._get_connection()
-            
+
             try:
                 conn_info['connection'].execute("BEGIN IMMEDIATE")
-                
+
                 batch_data = []
 
                 for movie in batch_movies:
