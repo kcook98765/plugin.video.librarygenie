@@ -163,10 +163,11 @@ class IMDbUploadManager:
                         utils.log(f"EXPORT_DATA: {key} = {repr(value)}", "INFO")
                     utils.log("=== END SAMPLE EXPORT DATA ===", "INFO")
 
-                # Get database manager from config
+                # Use standard method to get DatabaseManager with proper db_path
                 from resources.lib.data.database_manager import DatabaseManager
-                db_manager = DatabaseManager()
-                db_manager.query_manager.insert_imdb_export(export_movies)
+                config = Config()
+                db_manager = DatabaseManager(config.db_path)
+                db_manager.insert_imdb_export(export_movies)
 
                 # Verify what was actually stored
                 utils.log("=== VERIFYING STORED DATA IN IMDB_EXPORTS ===", "INFO")
