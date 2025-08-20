@@ -62,16 +62,9 @@ def main():
 
         options = []
 
-        # Check authentication before adding API-dependent options using OptionsManager
-        try:
-            from resources.lib.core.options_manager import OptionsManager
-            options_manager = OptionsManager()
-            is_authenticated = options_manager._is_authenticated()
-            utils.log(f"Authentication status: {is_authenticated}", "DEBUG")
-        except Exception as e:
-            utils.log(f"Error checking authentication status: {e}", "ERROR")
-            is_authenticated = False # Default to unauthenticated on error
-
+        # Check authentication before adding API-dependent options
+        context_builder = get_context_menu_builder()
+        is_authenticated = context_builder._is_authenticated()
 
         # Check if we're currently viewing a LibraryGenie list (to offer Remove option)
         current_container_path = xbmc.getInfoLabel('Container.FolderPath')

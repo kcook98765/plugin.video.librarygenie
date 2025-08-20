@@ -104,7 +104,7 @@ class FolderListManager:
             utils.log(f"Navigating to Search History folder: {plugin_url}", "DEBUG")
 
             # Use Container.Update to navigate to the folder
-            xbmc.executebuiltin(f'Container.Update("{plugin_url}")')
+            xbmc.executebuiltin(f'Container.Update({plugin_url})')
 
             utils.log("=== BROWSE_SEARCH_HISTORY FUNCTION COMPLETE ===", "INFO")
 

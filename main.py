@@ -8,7 +8,10 @@ import xbmcplugin
 # Import new modules
 from resources.lib.kodi.url_builder import build_plugin_url, parse_params, detect_context
 from resources.lib.core.options_manager import OptionsManager
-# Directory building functions are handled by other modules
+from resources.lib.core.directory_builder import (
+    add_context_menu_for_item, add_options_header_item,
+    build_root_directory, show_empty_directory
+)
 from resources.lib.core.navigation_manager import get_navigation_manager
 from resources.lib.data.folder_list_manager import get_folder_list_manager
 
@@ -71,15 +74,15 @@ def run_search_flow():
         # Extract list ID for navigation
         list_id = target_url.split('list_id=')[1]
         log(f"=== MAIN: Scheduling navigation to list {list_id} ===", "DEBUG")
-
+        
         # Use background thread navigation with proper Kodi integration
         import threading
         import time
-
+        
         def navigate_to_list():
             try:
                 log(f"=== MAIN_NAVIGATION: Starting navigation to list {list_id} ===", "DEBUG")
-
+                
                 # Build the target URL
                 from resources.lib.config.addon_ref import get_addon
                 from urllib.parse import urlencode
@@ -87,23 +90,23 @@ def run_search_flow():
                 addon_id = addon.getAddonInfo("id")
                 params = urlencode({'action': 'browse_list', 'list_id': str(list_id)})
                 final_url = f"plugin://{addon_id}/?{params}"
-
+                
                 log(f"=== MAIN_NAVIGATION: Target URL: {final_url} ===", "DEBUG")
-
+                
                 # Clear any dialog states
                 xbmc.executebuiltin("Dialog.Close(all,true)")
                 time.sleep(0.2)
-
+                
                 # Use Kodi's built-in navigation that preserves back button
                 xbmc.executebuiltin(f'ActivateWindow(videos,"{final_url}",return)')
-
+                
                 log(f"=== MAIN_NAVIGATION: Navigation completed ===", "DEBUG")
-
+                
             except Exception as e:
                 log(f"Error in main navigation thread: {str(e)}", "ERROR")
                 import traceback
                 log(f"Main navigation traceback: {traceback.format_exc()}", "ERROR")
-
+        
         # Start navigation in background
         nav_thread = threading.Thread(target=navigate_to_list)
         nav_thread.daemon = True
@@ -140,10 +143,8 @@ def browse_folder(params):
 
         # Add options header with folder context - pass the actual folder_id
         ctx = detect_context({'view': 'folder', 'folder_id': folder_id})
-        # Context menus now handled entirely by native system via addon.xml
-        # No programmatic context menu items needed
-        # add_context_menu_for_item(li, 'folder', folder_id=subfolder['id']) # This line was removed as it was calling a deleted function
-        
+        add_options_header_item(ctx, ADDON_HANDLE)
+
         # Get subfolders
         subfolders = db_manager.fetch_folders(folder_id)
 
@@ -154,7 +155,7 @@ def browse_folder(params):
         for subfolder in subfolders:
             li = ListItemBuilder.build_folder_item(f"📁 {subfolder['name']}", is_folder=True)
             li.setProperty('lg_type', 'folder')
-            # add_context_menu_for_item(li, 'folder', folder_id=subfolder['id']) # This line was removed as it was calling a deleted function
+            add_context_menu_for_item(li, 'folder', folder_id=subfolder['id'])
             url = build_plugin_url({'action': 'browse_folder', 'folder_id': subfolder['id'], 'view': 'folder'})
             xbmcplugin.addDirectoryItem(ADDON_HANDLE, url, li, isFolder=True)
 
@@ -175,7 +176,7 @@ def browse_folder(params):
 
             li = ListItemBuilder.build_folder_item(f"📋 {display_title}", is_folder=True, item_type='playlist')
             li.setProperty('lg_type', 'list')
-            # add_context_menu_for_item(li, 'list', list_id=list_item['id']) # This line was removed as it was calling a deleted function
+            add_context_menu_for_item(li, 'list', list_id=list_item['id'])
             url = build_plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
             xbmcplugin.addDirectoryItem(ADDON_HANDLE, url, li, isFolder=True)
 
@@ -493,98 +494,6 @@ def router(paramstring):
         # Default: build root directory if action is not recognized or empty
         log(f"Unrecognized action '{action}' or no action specified, building root directory.", "DEBUG")
         build_root_directory(ADDON_HANDLE)
-
-def build_root_directory(handle):
-    """Build the root directory listing"""
-    try:
-        log("=== BUILD_ROOT_DIRECTORY (main.py): Function entry ===", "DEBUG")
-        log(f"=== BUILD_ROOT_DIRECTORY (main.py): Handle received: {handle} ===", "DEBUG")
-        
-        from resources.lib.config.config_manager import Config
-        from resources.lib.data.database_manager import DatabaseManager
-        from resources.lib.core.directory_builder import add_options_header_item
-        from resources.lib.kodi.url_builder import detect_context
-        
-        config = Config()
-        db_manager = DatabaseManager(config.db_path)
-        
-        # Add Options & Tools header first
-        log("=== BUILD_ROOT_DIRECTORY (main.py): Adding Options & Tools header ===", "DEBUG")
-        ctx = detect_context({'view': 'root'})
-        log(f"=== BUILD_ROOT_DIRECTORY (main.py): Context detected: {ctx} ===", "DEBUG")
-        
-        try:
-            add_options_header_item(ctx, handle)
-            log("=== BUILD_ROOT_DIRECTORY (main.py): Options & Tools header added successfully ===", "DEBUG")
-        except Exception as header_error:
-            log(f"=== BUILD_ROOT_DIRECTORY (main.py): Error adding Options & Tools header: {str(header_error)} ===", "ERROR")
-            import traceback
-            log(f"=== BUILD_ROOT_DIRECTORY (main.py): Header error traceback: {traceback.format_exc()} ===", "ERROR")
-        
-        # Get root folders
-        folders = db_manager.fetch_folders(None)  # None = root level
-        log(f"=== BUILD_ROOT_DIRECTORY (main.py): Found {len(folders)} root folders ===", "DEBUG")
-        
-        # Add root folders (excluding protected folders)
-        for folder in folders:
-            # Skip protected folders - they're accessed via Options & Tools menu only
-            if folder['name'] in ["Search History", "Imported Lists"]:
-                # Always skip Search History - it's only accessible via Options & Tools
-                if folder['name'] == "Search History":
-                    log(f"=== BUILD_ROOT_DIRECTORY (main.py): Skipping Search History folder ===", "DEBUG")
-                    continue
-                
-                # For Imported Lists, only show if it has content
-                folder_count = db_manager.get_folder_media_count(folder['id'])
-                subfolders = db_manager.fetch_folders(folder['id'])
-                has_subfolders = len(subfolders) > 0
-                
-                # Only show if it has content (lists or subfolders)
-                if folder_count == 0 and not has_subfolders:
-                    log(f"=== BUILD_ROOT_DIRECTORY (main.py): Skipping empty Imported Lists folder ===", "DEBUG")
-                    continue
-
-            li = ListItemBuilder.build_folder_item(f"📁 {folder['name']}", is_folder=True)
-            li.setProperty('lg_type', 'folder')
-            url = build_plugin_url({'action': 'browse_folder', 'folder_id': folder['id'], 'view': 'folder'})
-            xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
-        
-        # Get root lists
-        lists = db_manager.fetch_lists(None)  # None = root level
-        
-        # Add root lists  
-        for list_item in lists:
-            list_count = db_manager.get_list_media_count(list_item['id'])
-            
-            # Check if this list contains a count pattern like "(number)" at the end
-            import re
-            has_count_in_name = re.search(r'\(\d+\)$', list_item['name'])
-            
-            if has_count_in_name:
-                display_title = list_item['name']
-            else:
-                display_title = f"{list_item['name']} ({list_count})"
-            
-            li = ListItemBuilder.build_folder_item(f"📋 {display_title}", is_folder=True, item_type='playlist')
-            li.setProperty('lg_type', 'list')
-            url = build_plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
-            xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
-        
-        log(f"=== BUILD_ROOT_DIRECTORY (main.py): About to call endOfDirectory with handle {handle} ===", "DEBUG")
-        xbmcplugin.endOfDirectory(handle)
-        log("=== BUILD_ROOT_DIRECTORY (main.py): Successfully completed root directory build ===", "DEBUG")
-        
-    except Exception as e:
-        log(f"=== BUILD_ROOT_DIRECTORY (main.py): ERROR in root directory build: {str(e)} ===", "ERROR")
-        import traceback
-        log(f"=== BUILD_ROOT_DIRECTORY (main.py): Root directory traceback: {traceback.format_exc()} ===", "ERROR")
-        show_empty_directory(handle, "Error loading root directory")
-
-def show_empty_directory(handle, message="No items found"):
-    """Show an empty directory with a message"""
-    li = ListItemBuilder.build_folder_item(message, is_folder=False)
-    xbmcplugin.addDirectoryItem(handle, "", li, False)
-    xbmcplugin.endOfDirectory(handle)
 
 # Expose functions that other modules need to import
 def create_new_folder_at_root():

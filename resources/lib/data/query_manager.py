@@ -496,31 +496,16 @@ class QueryManager(Singleton):
             (kodi_id, imdb_id, title, year)
             VALUES (?, ?, ?, ?)
         """
-        utils.log(f"=== INSERTING {len(movies)} MOVIES INTO IMDB_EXPORTS ===", "INFO")
-        
-        successful_inserts = 0
-        failed_inserts = 0
-        
-        for i, movie in enumerate(movies):
-            kodi_id = movie.get('movieid') or movie.get('kodi_id')
-            imdb_id = movie.get('imdbnumber')
-            title = movie.get('title')
-            year = movie.get('year')
-            
-            # Log detailed info for first few entries
-            if i < 5:
-                utils.log(f"Insert {i+1}: kodi_id={kodi_id}, imdb_id='{imdb_id}', title='{title}', year={year}", "INFO")
-            
-            try:
-                self.execute_write(query, (kodi_id, imdb_id, title, year))
-                successful_inserts += 1
-            except Exception as e:
-                failed_inserts += 1
-                if i < 5:  # Only log details for first few failures
-                    utils.log(f"Failed to insert movie {i+1}: {str(e)}", "ERROR")
-        
-        utils.log(f"IMDB_EXPORTS insertion complete: {successful_inserts} successful, {failed_inserts} failed", "INFO")
-        utils.log("=== IMDB_EXPORTS INSERTION COMPLETE ===", "INFO")
+        for movie in movies:
+            self.execute_write(
+                query,
+                (
+                    movie.get('movieid') or movie.get('kodi_id'),
+                    movie.get('imdbnumber'),
+                    movie.get('title'),
+                    movie.get('year')
+                )
+            )
 
     def get_valid_imdb_numbers(self) -> List[str]:
         """Get all valid IMDB numbers from exports table"""
@@ -576,55 +561,34 @@ class QueryManager(Singleton):
 
     def insert_media_item(self, data: Dict[str, Any]) -> Optional[int]:
         """Insert a media item and return its ID"""
-        # Debug logging for search results
-        if data.get('source') == 'search':
-            utils.log(f"=== INSERT_MEDIA_ITEM: Search result input data: title='{data.get('title')}', year={data.get('year')}, imdb='{data.get('imdbnumber')}' ===", "DEBUG")
-        
         # Extract field names from config
         field_names = [field.split()[0] for field in Config.FIELDS]
 
-        # Filter out None values but preserve actual data
+        # Filter out None values and empty strings to prevent SQL issues
         filtered_data = {}
         for key in field_names:
             if key in data:
                 value = data[key]
-                # Keep the actual value if it's not None, otherwise use appropriate default
-                if value is not None:
-                    # For strings, keep them even if empty (they might be intentionally empty)
-                    if isinstance(value, str):
-                        filtered_data[key] = value
-                    else:
-                        # For non-strings, keep the value as-is
-                        filtered_data[key] = value
-                else:
-                    # Only set default for essential fields when value is actually None
-                    if key in ['kodi_id', 'year', 'rating', 'duration', 'votes']:
-                        filtered_data[key] = 0 if key != 'rating' else 0.0
+                # Convert None to empty string and ensure we have valid data
+                if value is None:
+                    value = ''
+                elif isinstance(value, str) and value.strip() == '':
+                    value = ''
+                # Only include non-empty values or essential fields
+                if value != '' or key in ['kodi_id', 'year', 'rating', 'duration', 'votes']:
+                    filtered_data[key] = value
 
         media_data = filtered_data
 
-        # Debug logging after field filtering for search results
-        if data.get('source') == 'search':
-            utils.log(f"=== INSERT_MEDIA_ITEM: After filtering: title='{media_data.get('title')}', year={media_data.get('year')}, imdb='{media_data.get('imdbnumber')}' ===", "DEBUG")
-
-        # Ensure essential fields have default values, but don't override existing values
+        # Ensure essential fields have default values
         media_data.setdefault('kodi_id', 0)
+        media_data.setdefault('year', 0)
         media_data.setdefault('rating', 0.0)
         media_data.setdefault('duration', 0)
         media_data.setdefault('votes', 0)
+        media_data.setdefault('title', 'Unknown')
+        media_data.setdefault('source', 'unknown')
         media_data.setdefault('media_type', 'movie')
-        
-        # Only set defaults for title, year, and source if they're actually missing or empty
-        if not media_data.get('title') or str(media_data.get('title')).strip() == '':
-            media_data['title'] = 'Unknown'
-        if 'year' not in media_data or media_data.get('year') is None:
-            media_data['year'] = 0
-        if not media_data.get('source') or str(media_data.get('source')).strip() == '':
-            media_data['source'] = 'unknown'
-            
-        # Debug logging after default setting for search results
-        if data.get('source') == 'search':
-            utils.log(f"=== INSERT_MEDIA_ITEM: Final data before insertion: title='{media_data.get('title')}', year={media_data.get('year')}, imdb='{media_data.get('imdbnumber')}' ===", "DEBUG")
 
         # Ensure search_score is included if present in input data
         if 'search_score' in data and 'search_score' not in media_data:

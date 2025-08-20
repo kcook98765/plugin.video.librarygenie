@@ -360,44 +360,25 @@ class IMDbUploadManager:
 
     def _prepare_movie_data(self, movie, imdb_id):
         """Prepare movie data dictionary for database insertion."""
-        # Extract and validate core fields to ensure we're not storing empty data
-        title = movie.get('title', '').strip()
-        year = movie.get('year', 0)
-        
-        # Ensure we have valid title and year
-        if not title:
-            title = f"Movie {imdb_id}" if imdb_id else "Unknown Movie"
-            utils.log(f"WARNING: Empty title for IMDb {imdb_id}, using fallback: {title}", "WARNING")
-        
-        # Validate year
-        try:
-            year = int(year) if year else 0
-        except (ValueError, TypeError):
-            year = 0
-        
-        # Log first few movies to verify data extraction
-        if movie.get('movieid', 0) <= 5:
-            utils.log(f"MOVIE_DATA_PREP: Movie {movie.get('movieid')}: title='{title}', year={year}, imdb='{imdb_id}'", "INFO")
-        
         return {
             'kodi_id': movie.get('movieid', 0),
-            'title': title,
-            'year': year,
+            'title': movie.get('title', ''),
+            'year': movie.get('year', 0),
             'imdbnumber': imdb_id,
             'source': 'lib',
             'play': movie.get('file', ''),
             'poster': movie.get('art', {}).get('poster', '') if movie.get('art') else '',
             'fanart': movie.get('art', {}).get('fanart', '') if movie.get('art') else '',
             'plot': movie.get('plot', ''),
-            'rating': float(movie.get('rating', 0)) if movie.get('rating') else 0.0,
-            'votes': int(movie.get('votes', 0)) if movie.get('votes') else 0,
-            'duration': int(movie.get('runtime', 0)) if movie.get('runtime') else 0,
+            'rating': float(movie.get('rating', 0)),
+            'votes': int(movie.get('votes', 0)),
+            'duration': int(movie.get('runtime', 0)),
             'mpaa': movie.get('mpaa', ''),
-            'genre': ','.join(movie.get('genre', [])) if isinstance(movie.get('genre'), list) else str(movie.get('genre', '')),
-            'director': ','.join(movie.get('director', [])) if isinstance(movie.get('director'), list) else str(movie.get('director', '')),
-            'studio': ','.join(movie.get('studio', [])) if isinstance(movie.get('studio'), list) else str(movie.get('studio', '')),
-            'country': ','.join(movie.get('country', [])) if isinstance(movie.get('country'), list) else str(movie.get('country', '')),
-            'writer': ','.join(movie.get('writer', [])) if isinstance(movie.get('writer'), list) else str(movie.get('writer', '')),
+            'genre': ','.join(movie.get('genre', [])) if isinstance(movie.get('genre'), list) else movie.get('genre', ''),
+            'director': ','.join(movie.get('director', [])) if isinstance(movie.get('director'), list) else movie.get('director', ''),
+            'studio': ','.join(movie.get('studio', [])) if isinstance(movie.get('studio'), list) else movie.get('studio', ''),
+            'country': ','.join(movie.get('country', [])) if isinstance(movie.get('country'), list) else movie.get('country', ''),
+            'writer': ','.join(movie.get('writer', [])) if isinstance(movie.get('writer'), list) else movie.get('writer', ''),
             'cast': json.dumps(movie.get('cast', [])),
             'art': json.dumps(movie.get('art', {}))
         }
@@ -428,15 +409,6 @@ class IMDbUploadManager:
             return 0
 
         utils.log(f"Inserting {len(batch_data)} valid movies into database", "DEBUG")
-        
-        # Log first few entries to verify data integrity
-        for i, movie_data in enumerate(batch_data[:3]):
-            title = movie_data.get('title', 'MISSING')
-            year = movie_data.get('year', 'MISSING')
-            imdb = movie_data.get('imdbnumber', 'MISSING')
-            kodi_id = movie_data.get('kodi_id', 'MISSING')
-            utils.log(f"BULK_INSERT_SAMPLE {i+1}: kodi_id={kodi_id}, title='{title}', year={year}, imdb='{imdb}'", "INFO")
-        
         columns = ', '.join(batch_data[0].keys())
         placeholders = ', '.join(['?' for _ in batch_data[0]])
         query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
@@ -445,42 +417,15 @@ class IMDbUploadManager:
         cursor = conn_info['connection'].cursor()
         cursor.executemany(query, values_list)
 
-        # Verify insertion by checking a few records
-        if batch_data:
-            first_kodi_id = batch_data[0].get('kodi_id')
-            cursor.execute("SELECT kodi_id, title, year, imdbnumber FROM media_items WHERE kodi_id = ? AND source = 'lib'", (first_kodi_id,))
-            result = cursor.fetchone()
-            if result:
-                utils.log(f"BULK_INSERT_VERIFY: Stored kodi_id={result[0]}, title='{result[1]}', year={result[2]}, imdb='{result[3]}'", "INFO")
-            else:
-                utils.log(f"BULK_INSERT_VERIFY: No record found for kodi_id={first_kodi_id}", "WARNING")
-
         return len(batch_data)
 
     def _populate_imdb_exports(self, valid_movies, db_manager):
         """Populate imdb_exports table for search functionality."""
         if valid_movies:
             try:
-                utils.log("=== POPULATING IMDB_EXPORTS TABLE ===", "INFO")
-                utils.log(f"Processing {len(valid_movies)} movies for imdb_exports", "INFO")
-                
-                # Log first few movies to verify title/year data
-                for i, movie in enumerate(valid_movies[:5]):
-                    title = movie.get('title', 'MISSING')
-                    year = movie.get('year', 'MISSING')
-                    imdb = movie.get('imdbnumber', 'MISSING')
-                    utils.log(f"Sample {i+1}: Title='{title}', Year='{year}', IMDb='{imdb}'", "INFO")
-                
-                if len(valid_movies) > 5:
-                    utils.log(f"... and {len(valid_movies) - 5} more movies", "INFO")
-                
+                utils.log("Populating imdb_exports table for search functionality", "INFO")
                 db_manager.insert_imdb_export(valid_movies)
-                utils.log(f"Successfully populated imdb_exports table with {len(valid_movies)} entries", "INFO")
-                
-                # Verify the data was stored correctly
-                stats = db_manager.get_imdb_export_stats()
-                utils.log(f"IMDB_EXPORTS verification: {stats['total']} total entries, {stats['valid_imdb']} with valid IMDb IDs", "INFO")
-                utils.log("=== IMDB_EXPORTS POPULATION COMPLETE ===", "INFO")
+                utils.log(f"Populated imdb_exports table with {len(valid_movies)} entries", "INFO")
             except Exception as e:
                 utils.log(f"Error populating imdb_exports table: {str(e)}", "WARNING")
 

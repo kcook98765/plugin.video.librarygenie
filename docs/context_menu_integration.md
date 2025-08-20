@@ -49,7 +49,7 @@ else:
     li.addContextMenuItems(context_menu_items, replaceItems=False)
 ```
 
-**Implementation Note:** LibraryGenie uses the native context menu system exclusively. The programmatic context menu infrastructure has been removed to clean up the codebase.
+**Current Implementation Note:** The `ContextMenuBuilder` methods currently return empty arrays since LibraryGenie prioritizes the native context menu system, but the infrastructure exists for programmatic context menus when needed.
 
 ## Entry Point
 
@@ -64,18 +64,19 @@ def run(*args, **kwargs):
 
 The actual implementation is in `resources.lib.core.context.py`.
 
-## Context Menu Utilities
+## Context Menu Builder
 
-The `ContextMenuUtils` class (`resources.lib.kodi.context_menu_builder.py`) provides utility methods:
+The `ContextMenuBuilder` class (`resources.lib.kodi.context_menu_builder.py`) supports the native context menu system:
 
-### Available Methods
+### Key Methods
 
-- `is_authenticated()`: Checks remote API authentication status
-- `extract_imdb_id()`: Extracts IMDb IDs with v19+ compatibility
-- `clean_title()`: Cleans titles for URL encoding
-- `handle_move_folder_action()`: Handles folder operations
+- `build_video_context_menu()`: Returns empty - uses native context only
+- `build_list_context_menu()`: Returns empty - uses native context only  
+- `build_folder_context_menu()`: Returns empty - uses native context only
+- `_is_authenticated()`: Checks remote API authentication status
+- `_extract_imdb_id()`: Extracts IMDb IDs with v19+ compatibility
 
-**Note**: The programmatic context menu building functionality has been removed since LibraryGenie uses the native Kodi context menu system exclusively.
+**Note**: All context menu building methods now return empty arrays as LibraryGenie uses the native Kodi context menu system exclusively.
 
 ### Dynamic Options
 

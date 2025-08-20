@@ -36,29 +36,8 @@ class ResultsManager(Singleton):
             if list_items:
                 first_item = list_items[0]
                 utils.log(f"=== BUILD_DISPLAY_ITEMS: First item keys: {list(first_item.keys())} ===", "DEBUG")
-                # Show more relevant fields for debugging
-                debug_data = {
-                    'id': first_item.get('id'),
-                    'title': first_item.get('title'),
-                    'year': first_item.get('year'),
-                    'imdbnumber': first_item.get('imdbnumber'),
-                    'source': first_item.get('source'),
-                    'search_score': first_item.get('search_score'),
-                    'kodi_id': first_item.get('kodi_id')
-                }
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: First item debug data: {debug_data} ===", "DEBUG")
-                
-                # Also check what's in the imdb_exports table for comparison
-                imdb_id = first_item.get('imdbnumber')
-                if imdb_id:
-                    q = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? LIMIT 1"""
-                    export_data = self.query_manager.execute_query(q, (imdb_id,))
-                    if export_data:
-                        export_title = export_data[0].get('title', 'N/A')
-                        export_year = export_data[0].get('year', 'N/A')
-                        utils.log(f"=== BUILD_DISPLAY_ITEMS: IMDB_EXPORTS comparison for {imdb_id}: title='{export_title}', year={export_year} ===", "DEBUG")
-                    else:
-                        utils.log(f"=== BUILD_DISPLAY_ITEMS: No IMDB_EXPORTS entry for {imdb_id} ===", "DEBUG")
+                sample_data = {k: v for k, v in list(first_item.items())[:4]}
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: First item sample data: {sample_data} ===", "DEBUG")
 
             # Check if this is from Search History folder
             list_info = self.query_manager.fetch_list_by_id(list_id)
@@ -87,59 +66,40 @@ class ResultsManager(Singleton):
                 if imdb:
                     utils.log(f"=== TITLE_YEAR_LOOKUP: Looking up IMDB {imdb} in imdb_exports ===", "DEBUG")
                     try:
-                        # First check if any data exists in imdb_exports at all
-                        count_q = """SELECT COUNT(*) as total FROM imdb_exports"""
-                        count_result = self.query_manager.execute_query(count_q, ()) or []
-                        total_exports = count_result[0].get('total', 0) if count_result else 0
-                        utils.log(f"=== TITLE_YEAR_LOOKUP: Total imdb_exports entries: {total_exports} ===", "DEBUG")
-                        
                         q = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
                         hit = self.query_manager.execute_query(q, (imdb,)) or []
                         if hit:
                             rec = hit[0]
                             title = (rec.get('title') if isinstance(rec, dict) else rec[0]) or ''
                             year = int((rec.get('year') if isinstance(rec, dict) else rec[1]) or 0)
-                            utils.log(f"=== TITLE_YEAR_LOOKUP: Found in imdb_exports: '{title}' ({year}) for IMDB {imdb} ===", "DEBUG")
+                            utils.log(f"=== TITLE_YEAR_LOOKUP: Found in imdb_exports: {title} ({year}) for IMDB {imdb} ===", "DEBUG")
                         else:
                             utils.log(f"=== TITLE_YEAR_LOOKUP: No imdb_exports entry found for IMDB {imdb} ===", "DEBUG")
-                            # Also check what IMDb IDs do exist (sample)
-                            sample_q = """SELECT imdb_id FROM imdb_exports LIMIT 5"""
-                            sample_result = self.query_manager.execute_query(sample_q, ()) or []
-                            sample_ids = [r.get('imdb_id', 'N/A') for r in sample_result]
-                            utils.log(f"=== TITLE_YEAR_LOOKUP: Sample existing IMDb IDs: {sample_ids} ===", "DEBUG")
                     except Exception as e:
                         utils.log(f"=== TITLE_YEAR_LOOKUP: Error querying imdb_exports for {imdb}: {str(e)} ===", "ERROR")
 
-                # Always use stored data first, regardless of imdb lookup
-                stored_title = r.get('title') or ''
-                stored_year = r.get('year') or 0
-                
-                # Use stored title if available and not empty
-                if stored_title and str(stored_title).strip() and str(stored_title).strip() != 'Unknown':
-                    title = stored_title
-                    utils.log(f"Using stored title: {title}", "DEBUG")
-                elif not title and stored_title:
-                    title = stored_title
-                    utils.log(f"Using stored title as fallback: {title}", "DEBUG")
-                elif not title:
-                    # Use IMDb ID as title if no title is available
-                    title = f"Movie {imdb}" if imdb else "Unknown Movie"
-                    utils.log(f"No title found, using IMDb ID fallback: {title}", "WARNING")
+                # Fallback to stored data if imdb lookup failed
+                if not title:
+                    title = r.get('title') or ''
+                    utils.log(f"Using fallback title: {title}", "DEBUG")
 
-                # Use stored year if available
-                try:
-                    if stored_year and int(stored_year) > 0:
-                        year = int(stored_year)
-                        utils.log(f"Using stored year: {year}", "DEBUG")
-                    elif not year and stored_year:
-                        year = int(stored_year) if stored_year else 0
-                        utils.log(f"Using stored year as fallback: {year}", "DEBUG")
+                if not year:
+                    try:
+                        year = int(r.get('year') or 0)
+                        utils.log(f"Using fallback year: {year}", "DEBUG")
+                    except Exception:
+                        year = 0
+
+                # If we still have no title, try to extract from the original stored data
+                if not title or title == '':
+                    # Check if there's any identifying information we can use
+                    stored_title = r.get('title', '')
+                    if stored_title and stored_title.strip():
+                        title = stored_title.strip()
+                        utils.log(f"Using stored title as final fallback: {title}", "DEBUG")
                     else:
-                        year = year or 0
-                        utils.log(f"Using imdb_exports year or default: {year}", "DEBUG")
-                except Exception:
-                    year = 0
-                    utils.log(f"Error parsing year, using 0", "DEBUG")
+                        title = f"IMDB: {imdb}" if imdb else "Unknown Movie"
+                        utils.log(f"Using IMDB ID as title fallback: {title}", "WARNING")
 
                 refs.append({'imdb': imdb, 'title': title, 'year': year, 'search_score': r.get('search_score', 0)})
 
@@ -195,31 +155,31 @@ class ResultsManager(Singleton):
                 src = (r.get('source') or '').lower()
                 if src in ('external', 'plugin_addon'):
                     continue
-
+                
                 # Handle favorites_import items separately to avoid library lookup
                 if src == 'favorites_import':
                     # Check if item has a valid playable path
                     playable_path = r.get('path') or r.get('play') or r.get('file')
-
+                    
                     # Skip items without valid playable paths (similar to shortlist import logic)
                     if not playable_path or not str(playable_path).strip():
                         utils.log(f"Skipping favorites import item '{r.get('title', 'Unknown')}' - no valid playable path", "DEBUG")
                         continue
-
+                    
                     # Validate the path is actually playable (basic check)
                     path_str = str(playable_path).strip()
-                    if not (path_str.startswith(('smb://', 'nfs://', 'http://', 'https://', 'ftp://', 'ftps://', 'plugin://', '/')) or
+                    if not (path_str.startswith(('smb://', 'nfs://', 'http://', 'https://', 'ftp://', 'ftps://', 'plugin://', '/')) or 
                             '\\' in path_str):  # Windows network paths
                         utils.log(f"Skipping favorites import item '{r.get('title', 'Unknown')}' - invalid path format: {path_str}", "DEBUG")
                         continue
-
+                    
                     # For favorites imports, use the stored data directly
                     r['_viewing_list_id'] = list_id
                     r['media_id'] = r.get('id') or r.get('media_id')
-
+                    
                     from resources.lib.kodi.listitem_builder import ListItemBuilder
                     list_item = ListItemBuilder.build_video_item(r, is_search_history=is_search_history)
-
+                    
                     # Use the playable path directly instead of info URL
                     item_url = playable_path
                     display_items.append((item_url, list_item, False))
@@ -281,62 +241,40 @@ class ResultsManager(Singleton):
                         item_url = f"info://{r.get('id', 'unknown')}"
                     display_items.append((item_url, list_item, False))
                 else:
-                    # No Kodi match found - create fallback item for all sources
-                    # Use the processed ref title if available, otherwise use the IMDb ID or a fallback
-                    fallback_title = processed_ref.get("title")
-                    if not fallback_title or fallback_title == ref_imdb:
-                        # If no title or title is just the IMDb ID, try to create a better display name
-                        if ref_imdb:
-                            fallback_title = f"Movie {ref_imdb}"
-                        else:
-                            fallback_title = "Unknown Movie"
-                    
-                    utils.log(f"Item {i+1}: No Kodi match for '{processed_ref.get('title')}' ({processed_ref.get('year')}), using fallback: '{fallback_title}'", "INFO")
+                    # No Kodi match found - only process non-favorites imports here
+                    if src != 'favorites_import':
+                        fallback_title = processed_ref.get("title") or 'Unknown Title'
+                        utils.log(f"Item {i+1}: No Kodi match for '{processed_ref.get('title')}' ({processed_ref.get('year')}), using fallback title: '{fallback_title}'", "WARNING")
+                        
+                        resolved_item = {
+                            'id': r.get('id'),
+                            'title': processed_ref.get('title') or ref_imdb or 'Unknown',
+                            'year': processed_ref.get('year', 0) or 0,
+                            'plot': f"IMDb ID: {ref_imdb}" if ref_imdb else "No library match found",
+                            'rating': 0.0,
+                            'kodi_id': None,
+                            'file': None,
+                            'genre': '',
+                            'cast': [],
+                            'art': {},
+                            'search_score': processed_ref.get('search_score', 0),
+                            'list_item_id': r.get('list_item_id'),
+                            '_viewing_list_id': list_id,
+                            'media_id': r.get('id') or r.get('media_id'),
+                            'source': src
+                        }
+                        
+                        # Copy over any artwork and metadata from the original item
+                        for field in ['thumbnail', 'poster', 'fanart', 'art', 'plot', 'rating', 'genre', 'director', 'cast', 'duration']:
+                            if r.get(field):
+                                resolved_item[field] = r.get(field)
+                        
+                        from resources.lib.kodi.listitem_builder import ListItemBuilder
+                        list_item = ListItemBuilder.build_video_item(resolved_item, is_search_history=is_search_history)
 
-                    # Determine plot based on source
-                    if src == 'search':
-                        plot_text = f"Search result from AI query.\nIMDb ID: {ref_imdb}" if ref_imdb else "Search result - no library match found"
-                        genre_text = 'Search Result'
-                    elif src == 'favorites_import':
-                        plot_text = f"Imported from Kodi favorites.\nIMDb ID: {ref_imdb}" if ref_imdb else "Favorites import - no library match found"
-                        genre_text = 'Favorites Import'
-                    elif src == 'shortlist_import':
-                        plot_text = f"Imported from Shortlist addon.\nIMDb ID: {ref_imdb}" if ref_imdb else "Shortlist import - no library match found"
-                        genre_text = 'Shortlist Import'
-                    else:
-                        plot_text = f"Media item from {src}.\nIMDb ID: {ref_imdb}" if ref_imdb else f"Media item from {src} - no library match found"
-                        genre_text = src.title() if src else 'Unknown'
-
-                    resolved_item = {
-                        'id': r.get('id'),
-                        'title': fallback_title,
-                        'year': processed_ref.get('year', 0) or 0,
-                        'plot': plot_text,
-                        'rating': 0.0,
-                        'kodi_id': None,
-                        'file': None,
-                        'genre': genre_text,
-                        'cast': [],
-                        'art': {},
-                        'search_score': processed_ref.get('search_score', 0),
-                        'list_item_id': r.get('list_item_id'),
-                        '_viewing_list_id': list_id,
-                        'media_id': r.get('id') or r.get('media_id'),
-                        'source': src,
-                        'imdbnumber': ref_imdb
-                    }
-
-                    # Copy over any artwork and metadata from the original item
-                    for field in ['thumbnail', 'poster', 'fanart', 'art', 'plot', 'rating', 'genre', 'director', 'cast', 'duration']:
-                        if r.get(field):
-                            resolved_item[field] = r.get(field)
-
-                    from resources.lib.kodi.listitem_builder import ListItemBuilder
-                    list_item = ListItemBuilder.build_video_item(resolved_item, is_search_history=is_search_history)
-
-                    item_url = f"info://{ref_imdb}" if ref_imdb else f"info://{r.get('id', 'unknown')}"
-                    display_items.append((item_url, list_item, False))
-                    utils.log(f"Item {i+1}: Added fallback item '{fallback_title}' to display_items", "DEBUG")
+                        item_url = f"info://{ref_imdb}" if ref_imdb else f"info://{r.get('id', 'unknown')}"
+                        display_items.append((item_url, list_item, False))
+                    # Favorites imports are already handled above, skip here to avoid duplication
 
             # External items processed separately with stored metadata
             # Handle None search_score values that can't be compared
@@ -361,44 +299,3 @@ class ResultsManager(Singleton):
             import traceback
             utils.log(f"Traceback: {traceback.format_exc()}", "ERROR")
             return []
-
-    def create_display_item(self, info_dict, is_search_history):
-        """Helper to build a display item from a dictionary, preserving search data"""
-        try:
-            from resources.lib.kodi.listitem_builder import ListItemBuilder
-
-            # Ensure essential fields exist for ListItemBuilder
-            info_dict.setdefault('title', 'Unknown Title')
-            info_dict.setdefault('year', 0)
-            info_dict.setdefault('plot', 'No plot available.')
-            info_dict.setdefault('rating', 0.0)
-            info_dict.setdefault('genre', '')
-            info_dict.setdefault('art', {})
-            info_dict.setdefault('cast', [])
-            info_dict.setdefault('duration', 0)
-            info_dict.setdefault('kodi_id', None)
-            info_dict.setdefault('media_id', info_dict.get('id') or info_dict.get('movieid'))
-            info_dict.setdefault('source', 'unknown')
-            info_dict.setdefault('search_score', 0)
-
-            list_item = ListItemBuilder.build_video_item(info_dict, is_search_history=is_search_history)
-
-            # Determine the appropriate URL for this item
-            # Prioritize file path if available, otherwise use a generated info URL
-            item_url = info_dict.get('file')
-            if not item_url:
-                # Use IMDb ID if available, otherwise the original item ID
-                imdb_id = info_dict.get('imdb') or info_dict.get('imdbnumber')
-                item_id = info_dict.get('media_id') or info_dict.get('list_item_id') or info_dict.get('id')
-                if imdb_id:
-                    item_url = f"info://{imdb_id}"
-                elif item_id:
-                    item_url = f"info://{item_id}"
-                else:
-                    item_url = "info://unknown" # Fallback if no identifier is found
-
-            return (item_url, list_item, False)
-
-        except Exception as e:
-            utils.log(f"Error creating display item for '{info_dict.get('title', 'Unknown')}': {str(e)}", "ERROR")
-            return None

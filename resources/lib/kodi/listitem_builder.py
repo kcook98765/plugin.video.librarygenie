@@ -461,8 +461,30 @@ class ListItemBuilder:
         media_type = info_dict.get('mediatype', 'movie')
         li.setProperty('MediaType', media_type)
 
-        # Context menus are handled entirely by the native system via addon.xml
-        # No programmatic context menu items needed since all methods return empty arrays
+        # Use centralized context menu builder
+        from resources.lib.kodi.context_menu_builder import get_context_menu_builder
+        context_builder = get_context_menu_builder()
+
+        # Build context based on available information
+        context = {}
+        if isinstance(media_info, dict) and '_context_info' in media_info:
+            context = media_info['_context_info']
+
+        # If this item is from a list view, ensure we have the list context
+        if media_info.get('_viewing_list_id'):
+            context['current_list_id'] = media_info['_viewing_list_id']
+            utils.log(f"Setting context for list viewing: list_id={media_info['_viewing_list_id']}, media_id={media_info.get('media_id')}", "DEBUG")
+
+        # Get context menu items from centralized builder
+        context_menu_items = context_builder.build_video_context_menu(media_info, context)
+
+        # Add context menu to ListItem with v19 compatibility fix
+        if utils.is_kodi_v19():
+            # v19 requires replaceItems=True for reliable context menu display
+            li.addContextMenuItems(context_menu_items, replaceItems=True)
+        else:
+            # v20+ can use replaceItems=False to preserve existing items
+            li.addContextMenuItems(context_menu_items, replaceItems=False)
 
         # Try to get play URL from different possible locations
         play_url = None

@@ -14,13 +14,12 @@ class DatabaseManager(Singleton):
     def __init__(self, db_path):
         if not hasattr(self, '_initialized'):
             self.db_path = db_path
-            self.connection = None
             self.config = Config()  # Instantiate Config to access FIELDS
             self._connect()
             self.setup_database()
             self.ensure_search_history_folder()
             self.ensure_imported_lists_folder()
-            # Initialize query_manager for direct access - do this last
+            # Initialize query_manager for direct access
             from resources.lib.data.query_manager import QueryManager
             self._query_manager = QueryManager(self.db_path)
             self._initialized = True
@@ -911,8 +910,8 @@ class DatabaseManager(Singleton):
 
                 media_item_data = {
                     'kodi_id': 0,  # No Kodi ID for search results
-                    'title': title_from_exports if title_from_exports else f'Movie {imdb_id}',
-                    'year': year_from_exports or 0,    # Year from imdb_exports lookup with fallback
+                    'title': title_from_exports if title_from_exports else imdb_id,
+                    'year': year_from_exports,    # Year from imdb_exports lookup
                     'rating': 0.0,
                     'plot': plot_text,
                     'tagline': 'Search result from LibraryGenie',
@@ -936,40 +935,32 @@ class DatabaseManager(Singleton):
 
                 media_items_to_insert.append(media_item_data)
 
-            success_count = 0
-            error_count = 0
-
-            # Insert media items and add them to the list
-            for i, item_data in enumerate(media_items_to_insert):
-                try:
-                    # Insert media item using QueryManager for better handling
-                    media_item_id = self.query_manager.insert_media_item(item_data)
-
-                    if media_item_id:
-                        # Add to list using QueryManager
-                        try:
+            if media_items_to_insert:
+                # Insert media items and link them to the new list
+                for item_data in media_items_to_insert:
+                    try:
+                        media_item_id = self.query_manager.insert_media_item(item_data)
+                        if media_item_id and media_item_id > 0:
                             self.query_manager.insert_list_item(final_list_id, media_item_id)
-                            success_count += 1
-                            utils.log(f"Successfully added media item {media_item_id} to list {final_list_id}", "DEBUG")
-                        except Exception as list_error:
-                            utils.log(f"Failed to add media item {media_item_id} to list {final_list_id}: {str(list_error)}", "ERROR")
-                            error_count += 1
-                    else:
-                        utils.log(f"Failed to insert media item for IMDb ID {item_data.get('imdbnumber', 'unknown')}", "ERROR")
-                        error_count += 1
-                except Exception as e:
-                    utils.log(f"Error processing search result {i+1} (IMDb ID: {item_data.get('imdbnumber', 'unknown')}): {str(e)}", "ERROR")
-                    error_count += 1
-
-
-            utils.log("=== SEARCH HISTORY SAVE COMPLETE ===", "INFO")
-            utils.log(f"List Name: '{list_name}'", "INFO")
-            utils.log(f"List ID: {final_list_id}", "INFO")
-            utils.log(f"Items Saved: {success_count}", "INFO")
-            utils.log(f"Items Failed: {error_count}", "INFO")
-            utils.log(f"Query: '{query}'", "INFO")
-            utils.log("=== END SEARCH HISTORY SAVE ===", "INFO")
-            return final_list_id
+                            utils.log(f"Successfully added search result {item_data.get('imdbnumber', 'N/A')} to list", "DEBUG")
+                        else:
+                            utils.log(f"Failed to insert media item for: {item_data.get('imdbnumber', 'N/A')}", "ERROR")
+                    except Exception as e:
+                        utils.log(f"Error inserting search result {item_data.get('imdbnumber', 'N/A')}: {str(e)}", "ERROR")
+                        # Continue with next item instead of failing entire operation
+                utils.log("=== SEARCH HISTORY SAVE COMPLETE ===", "INFO")
+                utils.log(f"List Name: '{list_name}'", "INFO")
+                utils.log(f"List ID: {final_list_id}", "INFO")
+                utils.log(f"Items Saved: {len(media_items_to_insert)}", "INFO")
+                utils.log(f"Query: '{query}'", "INFO")
+                utils.log("=== END SEARCH HISTORY SAVE ===", "INFO")
+                return final_list_id
+            else:
+                utils.log(f"No valid media items to save for search query '{query}'.", "WARNING")
+                # Delete the empty list if no items were added
+                self.delete_list(final_list_id)
+                utils.log(f"Deleted empty list '{list_name}' as no items were saved.", "INFO")
+                return None
 
         else:
             utils.log(f"Failed to create list '{list_name}' for search history.", "ERROR")
@@ -1081,15 +1072,15 @@ class DatabaseManager(Singleton):
                     # Insert or get media item - handle duplicates gracefully
                     # Check for existing media item using multiple strategies to avoid UNIQUE constraint violation
                     existing_media_query = """
-                        SELECT id FROM media_items
-                        WHERE (title = ? AND year = ? AND source = ?)
+                        SELECT id FROM media_items 
+                        WHERE (title = ? AND year = ? AND source = ?) 
                         OR (kodi_id = ? AND kodi_id > 0)
                         OR (play = ? AND play IS NOT NULL AND play != '')
                         LIMIT 1
                     """
                     cursor.execute(existing_media_query, (
-                        item_data.get('title', ''),
-                        item_data.get('year', 0),
+                        item_data.get('title', ''), 
+                        item_data.get('year', 0), 
                         item_data.get('source', ''),
                         item_data.get('kodi_id', 0),
                         item_data.get('play', '')
@@ -1111,8 +1102,8 @@ class DatabaseManager(Singleton):
                         # If INSERT OR IGNORE didn't create a new record, find the existing one
                         if not media_id or media_id == 0:
                             cursor.execute(existing_media_query, (
-                                item_data.get('title', ''),
-                                item_data.get('year', 0),
+                                item_data.get('title', ''), 
+                                item_data.get('year', 0), 
                                 item_data.get('source', ''),
                                 item_data.get('kodi_id', 0),
                                 item_data.get('play', '')
@@ -1129,7 +1120,7 @@ class DatabaseManager(Singleton):
                         # Insert list item in same transaction
                         list_query = 'INSERT INTO list_items (list_id, media_item_id) VALUES (?, ?)'
                         cursor.execute(list_query, (list_id, media_id))
-                        utils.log(f"DATABASE: Added shortlist item '{item_data.get('title')}' with media_id {media_id}", "DEBUG")
+                        utils.log(f"DATABASE: Added shortlist item '{item_data.get('title', 'Unknown')}' with media_id {media_id}", "DEBUG")
                     else:
                         utils.log(f"DATABASE WARNING: Failed to get media_id for '{item_data.get('title', 'Unknown')}'", "WARNING")
 
@@ -1225,7 +1216,7 @@ class DatabaseManager(Singleton):
         """Remove all items from a list"""
         try:
             result = self.query_manager.execute_write(
-                "DELETE FROM list_items WHERE list_id = ?",
+                "DELETE FROM list_items WHERE list_id = ?", 
                 (list_id,)
             )
             return result['rowcount'] > 0
