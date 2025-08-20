@@ -151,6 +151,15 @@ class ListItemBuilder:
         if not isinstance(media_info, dict):
             media_info = {}
 
+        # Log what the ListItem builder actually receives
+        utils.log(f"=== LISTITEM_BUILDER_INPUT: Received data for ListItem building ===", "INFO")
+        for key, value in media_info.items():
+            if isinstance(value, str) and len(value) > 200:
+                utils.log(f"LISTITEM_BUILDER_INPUT: {key} = {value[:200]}... (truncated)", "INFO")
+            else:
+                utils.log(f"LISTITEM_BUILDER_INPUT: {key} = {repr(value)}", "INFO")
+        utils.log(f"=== END LISTITEM_BUILDER_INPUT ===", "INFO")
+
         # Basic info extraction
         title = str(media_info.get('title', 'Unknown'))
         source = media_info.get('source')

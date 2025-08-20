@@ -102,9 +102,19 @@ class ResultsManager(Singleton):
             if 'result' in response and 'movies' in response['result']:
                 light_movies = response['result']['movies']
                 utils.log(f"=== LIGHT_JSONRPC: SUCCESS - Got {len(light_movies)} light movies ===", "INFO")
+                
+                # Log first movie's complete light data
+                if light_movies:
+                    first_movie = light_movies[0]
+                    utils.log(f"=== JSONRPC_LIGHT_DATA: First movie complete light data ===", "INFO")
+                    for key, value in first_movie.items():
+                        utils.log(f"JSONRPC_LIGHT_DATA: {key} = {repr(value)}", "INFO")
+                    utils.log(f"=== END JSONRPC_LIGHT_DATA ===", "INFO")
+                
                 return {"result": {"movies": light_movies, "limits": response['result'].get('limits', {})}}
             else:
                 utils.log("LIGHT_JSONRPC: No movies found in response", "INFO")
+                utils.log(f"LIGHT_JSONRPC: Full response structure: {response}", "INFO")
                 return {"result": {"movies": []}}
 
         except Exception as e:
@@ -114,22 +124,23 @@ class ResultsManager(Singleton):
     def build_display_items_for_list(self, list_id, handle):
         """Build display items for a specific list with proper error handling"""
         try:
-            utils.log(f"=== BUILD_DISPLAY_ITEMS: Starting for list_id {list_id} ===", "DEBUG")
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Starting for list_id {list_id} ===", "INFO")
 
             # Get list items from database
             list_items = self.query_manager.fetch_list_items_with_details(list_id)
-            utils.log(f"=== BUILD_DISPLAY_ITEMS: Retrieved {len(list_items)} list items ===", "DEBUG")
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Retrieved {len(list_items)} list items ===", "INFO")
 
             if not list_items:
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: No items found for list {list_id} ===", "DEBUG")
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: No items found for list {list_id} ===", "INFO")
                 return []
 
-            # Log first item structure for debugging
+            # Log complete first item structure for debugging
             if list_items:
                 first_item = list_items[0]
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: First item keys: {list(first_item.keys())} ===", "DEBUG")
-                sample_data = {k: v for k, v in list(first_item.items())[:4]}
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: First item sample data: {sample_data} ===", "DEBUG")
+                utils.log(f"=== DATABASE_DATA: First item complete structure ===", "INFO")
+                for key, value in first_item.items():
+                    utils.log(f"DATABASE_DATA: {key} = {repr(value)}", "INFO")
+                utils.log(f"=== END DATABASE_DATA ===", "INFO")
 
             # Check if this is from Search History folder
             list_info = self.query_manager.fetch_list_by_id(list_id)
@@ -173,39 +184,15 @@ class ResultsManager(Singleton):
 
                 utils.log(f"Item {len(refs)+1}: title='{title}', year={year}, imdb='{imdb}', source='{src}'", "DEBUG")
 
-                # Enhanced data recovery for missing/corrupted titles
-                enhanced_title = title
-                enhanced_year = year
-                
-                # Try imdb_exports enhancement for poor quality data
-                if (not title or title in ['Unknown', '']) and imdb:
-                    utils.log(f"=== TITLE_YEAR_LOOKUP: Enhancing from imdb_exports for IMDB {imdb} ===", "DEBUG")
-                    try:
-                        q = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
-                        hit = self.query_manager.execute_query(q, (imdb,)) or []
-                        if hit:
-                            rec = hit[0]
-                            export_title = (rec.get('title') if isinstance(rec, dict) else rec[0]) or ''
-                            export_year = int((rec.get('year') if isinstance(rec, dict) else rec[1]) or 0)
-                            if export_title and export_title not in ['Unknown', '']:
-                                enhanced_title = export_title
-                                utils.log(f"Enhanced title from imdb_exports: {enhanced_title}", "INFO")
-                            if export_year > 0 and year == 0:
-                                enhanced_year = export_year
-                                utils.log(f"Enhanced year from imdb_exports: {enhanced_year}", "INFO")
-                        else:
-                            utils.log(f"=== TITLE_YEAR_LOOKUP: No imdb_exports entry found for IMDB {imdb} ===", "DEBUG")
-                    except Exception as e:
-                        utils.log(f"=== TITLE_YEAR_LOOKUP: Error querying imdb_exports for {imdb}: {str(e)} ===", "ERROR")
+                # Use stored data as-is - no fallbacks or enhancements
+                final_title = title
+                final_year = year
 
-                # Use enhanced data for final reference
-                final_title = enhanced_title
-                final_year = enhanced_year
-
-                # Final fallback only if we still have no useful title
+                # Log data quality issues but don't mask them
                 if not final_title or final_title.strip() == '':
-                    final_title = f"IMDB: {imdb}" if imdb else f"Unknown Movie #{len(refs)+1}"
-                    utils.log(f"Using final fallback title: {final_title}", "WARNING")
+                    utils.log(f"DATA_QUALITY_ERROR: Item {len(refs)+1} has missing/empty title. IMDB: {imdb}, Source: {src}", "ERROR")
+                if final_year == 0:
+                    utils.log(f"DATA_QUALITY_ERROR: Item {len(refs)+1} has missing/zero year. Title: {final_title}, IMDB: {imdb}", "ERROR")
 
                 refs.append({'imdb': imdb, 'title': final_title, 'year': final_year, 'search_score': r.get('search_score', 0), 'row_id': r.get('id')})
 
@@ -254,43 +241,73 @@ class ResultsManager(Singleton):
 
             # ---- Step 2: Get heavy metadata from cache ----
             movieids = [m.get('movieid') for m in light_movies if m.get('movieid')]
-            utils.log(f"=== BUILD_DISPLAY_ITEMS: Fetching heavy fields for {len(movieids)} movies from cache ===", "DEBUG")
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Fetching heavy fields for {len(movieids)} movies from cache ===", "INFO")
+            utils.log(f"=== HEAVY_CACHE_LOOKUP: MovieIDs to lookup: {movieids} ===", "INFO")
 
             heavy_by_id = {}
             if movieids:
                 try:
                     heavy_by_id = self.query_manager._listing.get_heavy_meta_by_movieids(movieids)
-                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Retrieved heavy fields for {len(heavy_by_id)} movies from cache ===", "DEBUG")
+                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Retrieved heavy fields for {len(heavy_by_id)} movies from cache ===", "INFO")
+                    
+                    # Log heavy data for first movie
+                    if heavy_by_id:
+                        first_movieid = list(heavy_by_id.keys())[0]
+                        first_heavy = heavy_by_id[first_movieid]
+                        utils.log(f"=== HEAVY_CACHE_DATA: First movie heavy data (ID {first_movieid}) ===", "INFO")
+                        for key, value in first_heavy.items():
+                            # Truncate very long JSON strings for readability
+                            if isinstance(value, str) and len(value) > 200:
+                                utils.log(f"HEAVY_CACHE_DATA: {key} = {value[:200]}... (truncated)", "INFO")
+                            else:
+                                utils.log(f"HEAVY_CACHE_DATA: {key} = {repr(value)}", "INFO")
+                        utils.log(f"=== END HEAVY_CACHE_DATA ===", "INFO")
+                    else:
+                        utils.log(f"=== HEAVY_CACHE_DATA: No heavy data found for any movieids ===", "ERROR")
+                        
                 except Exception as e:
-                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Failed to get heavy fields from cache: {str(e)} ===", "WARNING")
+                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Failed to get heavy fields from cache: {str(e)} ===", "ERROR")
 
             # ---- Step 3: Merge light + heavy data ----
             merged_count = 0
+            missing_heavy_movieids = []
+            
             for movie in light_movies:
                 movieid = movie.get('movieid')
                 if movieid and movieid in heavy_by_id:
                     heavy_fields = heavy_by_id[movieid]
+                    utils.log(f"MERGE_DATA: Merging heavy fields for movieid {movieid}", "INFO")
                     movie.update(heavy_fields)
                     merged_count += 1
                 else:
-                    # Add empty values for missing heavy data
-                    movie.update({
-                        'cast': [],
-                        'ratings': {},
-                        'showlink': [],
-                        'streamdetails': {},
-                        'uniqueid': {},
-                        'tag': []
-                    })
+                    missing_heavy_movieids.append(movieid)
+                    utils.log(f"MERGE_DATA: ERROR - No heavy data found for movieid {movieid}", "ERROR")
+                    # DO NOT add empty fallback values - let the error be visible
+                    # movie.update({
+                    #     'cast': [],
+                    #     'ratings': {},
+                    #     'showlink': [],
+                    #     'streamdetails': {},
+                    #     'uniqueid': {},
+                    #     'tag': []
+                    # })
 
-            utils.log(f"=== BUILD_DISPLAY_ITEMS: Merged heavy fields for {merged_count}/{len(light_movies)} movies ===", "DEBUG")
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Merged heavy fields for {merged_count}/{len(light_movies)} movies ===", "INFO")
+            if missing_heavy_movieids:
+                utils.log(f"=== MERGE_ERROR: Missing heavy data for movieids: {missing_heavy_movieids} ===", "ERROR")
             batch_movies = light_movies
 
             if batch_movies:
-                # Log sample of first returned movie
+                # Log complete merged data for first movie
                 first_movie = batch_movies[0]
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: First returned movie keys: {list(first_movie.keys())} ===", "DEBUG")
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: First movie title/year: {first_movie.get('title')}/{first_movie.get('year')} ===", "DEBUG")
+                utils.log(f"=== MERGED_DATA: First movie complete merged data ===", "INFO")
+                for key, value in first_movie.items():
+                    # Truncate very long values for readability
+                    if isinstance(value, str) and len(value) > 200:
+                        utils.log(f"MERGED_DATA: {key} = {value[:200]}... (truncated)", "INFO")
+                    else:
+                        utils.log(f"MERGED_DATA: {key} = {repr(value)}", "INFO")
+                utils.log(f"=== END MERGED_DATA ===", "INFO")
 
             # Build a simple matcher key: (normalized_title, year_int)
             def _key(t, y):
@@ -365,16 +382,27 @@ class ResultsManager(Singleton):
                 ref_imdb = processed_ref.get("imdb", "")
                 row_id = processed_ref.get("row_id", r.get('id'))
 
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: ref_title='{ref_title}', ref_year={ref_year}, ref_imdb='{ref_imdb}', row_id={row_id} ===", "DEBUG")
+                utils.log(f"=== MOVIE_MATCHING: Item {i+1}: ref_title='{ref_title}', ref_year={ref_year}, ref_imdb='{ref_imdb}', row_id={row_id} ===", "INFO")
 
                 k_exact = _key(ref_title, ref_year)
                 k_title = _key(ref_title, 0)
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Lookup keys - exact: {k_exact}, title: {k_title} ===", "DEBUG")
+                utils.log(f"=== MOVIE_MATCHING: Item {i+1}: Lookup keys - exact: {k_exact}, title: {k_title} ===", "INFO")
 
                 cand = (idx_ty.get(k_exact) or idx_t.get(k_title) or [])
                 kodi_movie = cand[0] if cand else None
 
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Found {len(cand)} candidates, kodi_movie exists: {kodi_movie is not None} ===", "DEBUG")
+                utils.log(f"=== MOVIE_MATCHING: Item {i+1}: Found {len(cand)} candidates, kodi_movie exists: {kodi_movie is not None} ===", "INFO")
+                
+                if kodi_movie:
+                    utils.log(f"=== KODI_MATCH_DATA: Item {i+1} matched to Kodi movie ===", "INFO")
+                    for key, value in kodi_movie.items():
+                        if isinstance(value, str) and len(value) > 200:
+                            utils.log(f"KODI_MATCH_DATA: {key} = {value[:200]}... (truncated)", "INFO")
+                        else:
+                            utils.log(f"KODI_MATCH_DATA: {key} = {repr(value)}", "INFO")
+                    utils.log(f"=== END KODI_MATCH_DATA ===", "INFO")
+                else:
+                    utils.log(f"=== KODI_MATCH_ERROR: Item {i+1} NO MATCH FOUND in Kodi library ===", "ERROR")
 
                 # Prepare a base dictionary for the item, starting with data from the row (r)
                 item_dict = dict(r) # Create a mutable copy
@@ -464,13 +492,23 @@ class ResultsManager(Singleton):
                         item_dict['uniqueid'] = item_dict.get('uniqueid', {}) # Ensure uniqueid is a dict
                         item_dict['uniqueid']['imdb'] = ref_imdb
 
+                # Log complete data going to ListItem builder
+                utils.log(f"=== LISTITEM_INPUT_DATA: Item {i+1} data for ListItem builder ===", "INFO")
+                for key, value in item_dict.items():
+                    if isinstance(value, str) and len(value) > 200:
+                        utils.log(f"LISTITEM_INPUT_DATA: {key} = {value[:200]}... (truncated)", "INFO")
+                    else:
+                        utils.log(f"LISTITEM_INPUT_DATA: {key} = {repr(value)}", "INFO")
+                utils.log(f"=== END LISTITEM_INPUT_DATA ===", "INFO")
+
                 from resources.lib.kodi.listitem_builder import ListItemBuilder
                 list_item = ListItemBuilder.build_video_item(item_dict, is_search_history=is_search_history)
 
                 # Determine the appropriate URL for this item
                 # Use the 'play' key which is now reliably set
                 item_url = item_dict.get('play')
-                if not item_url: # Final fallback if 'play' is missing
+                if not item_url:
+                    utils.log(f"LISTITEM_ERROR: Item {i+1} has no play URL", "ERROR")
                     item_url = f"info://{item_dict.get('id', 'unknown')}"
 
                 display_items.append((item_url, list_item, False))
