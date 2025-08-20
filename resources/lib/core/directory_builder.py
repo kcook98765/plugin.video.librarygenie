@@ -19,25 +19,18 @@ def add_options_header_item(ctx: dict, handle: int):
         utils.log(f"ADD_OPTIONS_HEADER: Context received: {ctx}", "INFO")
         utils.log(f"ADD_OPTIONS_HEADER: Handle received: {handle}", "INFO")
 
-        # Create list item for options as non-folder
+        # Create list item for options as non-folder - avoid any video-related configuration
         li = xbmcgui.ListItem(label="[B]Options & Tools[/B]")
         utils.log("=== ADD_OPTIONS_HEADER: Created ListItem with label '[B]Options & Tools[/B]' ===", "INFO")
 
-        # For Kodi v19, avoid setting video info entirely to prevent video info dialog
-        if utils.is_kodi_v19():
-            utils.log("Kodi v19 detected - skipping video info to prevent dialog issues", "INFO")
-        else:
-            # Set info dictionary for v20+ - NO mediatype to avoid video info dialog
-            info_dict = {
-                'title': 'Options & Tools',
-                'plot': 'Access list management tools, search options, and addon settings.'
-            }
-            utils.log(f"=== SETTING INFO WITH DICT: {info_dict} ===", "INFO")
-            li.setInfo('video', info_dict)
-            utils.log("Successfully called li.setInfo('video', info_dict)", "INFO")
-
+        # Do NOT set any video info to prevent Kodi from treating this as media content
+        # Do NOT call setInfo with 'video' type as this triggers media player behavior
+        
         # Explicitly mark as non-playable to prevent Kodi from trying to play it
         li.setProperty('IsPlayable', 'false')
+        
+        # Set content type to indicate this is not media content
+        li.setProperty('folder', 'false')
         
         # Set custom icon for Options & Tools
         from resources.lib.config.addon_ref import get_addon
