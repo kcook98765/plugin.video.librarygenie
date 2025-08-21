@@ -104,23 +104,16 @@ class QueryManager(Singleton):
 
             utils.log("QueryManager: SQLite connection established with optimized settings", "DEBUG")
 
-    def _acquire_connection(self):
-        """Get the connection for internal use"""
-        with self._lock:
-            self._ensure_connection()
-            return self._connection
-
-    def _release_connection(self, conn):
-        """Release connection (placeholder for future pooling)"""
-        # Currently no-op since we use single connection
-        # Future: return connection to pool
-        pass
+    def _get_connection(self):
+        """Internal method to get the managed connection"""
+        self._ensure_connection()
+        return self._connection
 
     def execute_query(self, sql: str, params: Tuple = (), fetch_one: bool = False, fetch_all: bool = False) -> Union[Dict, List[Dict], None]:
         """Execute a SELECT query and return results"""
         with self._lock:
             try:
-                conn = self._acquire_connection()
+                conn = self._get_connection()
                 cursor = conn.execute(sql, params)
 
                 if fetch_one:
@@ -135,7 +128,6 @@ class QueryManager(Singleton):
                     result = [dict(row) for row in rows]
 
                 cursor.close()
-                self._release_connection(conn)
                 return result
 
             except Exception as e:
@@ -147,12 +139,11 @@ class QueryManager(Singleton):
         """Execute an INSERT/UPDATE/DELETE and return lastrowid"""
         with self._lock:
             try:
-                conn = self._acquire_connection()
+                conn = self._get_connection()
                 cursor = conn.execute(sql, params)
                 lastrowid = cursor.lastrowid
                 conn.commit()
                 cursor.close()
-                self._release_connection(conn)
                 return lastrowid
 
             except Exception as e:
@@ -165,12 +156,11 @@ class QueryManager(Singleton):
         """Execute multiple statements and return rowcount"""
         with self._lock:
             try:
-                conn = self._acquire_connection()
+                conn = self._get_connection()
                 cursor = conn.executemany(sql, seq_of_params)
                 rowcount = cursor.rowcount
                 conn.commit()
                 cursor.close()
-                self._release_connection(conn)
                 return rowcount
 
             except Exception as e:
@@ -183,7 +173,7 @@ class QueryManager(Singleton):
     def transaction(self):
         """Transaction context manager for atomic operations"""
         with self._lock:
-            conn = self._acquire_connection()
+            conn = self._get_connection()
             try:
                 conn.execute('BEGIN')
                 yield conn
@@ -191,8 +181,6 @@ class QueryManager(Singleton):
             except Exception:
                 conn.rollback()
                 raise
-            finally:
-                self._release_connection(conn)
 
     # Legacy compatibility methods (to be removed later)
     def fetch_data(self, table: str, condition: str = "", params: Tuple = ()) -> List[Dict]:
@@ -827,8 +815,8 @@ class QueryManager(Singleton):
             )"""
         ]
 
-        conn = self._acquire_connection()
-        try:
+        with self._lock:
+            conn = self._get_connection()
             cursor = conn.cursor()
             for create_sql in table_creations:
                 utils.log(f"Executing SQL: {create_sql}", "DEBUG")
@@ -860,16 +848,13 @@ class QueryManager(Singleton):
             except sqlite3.OperationalError:
                 pass
 
-        finally:
-            self._release_connection(conn)
-
         # Setup movies reference table as well
         self.setup_movies_reference_table()
 
     def setup_movies_reference_table(self):
         """Create movies_reference table and indexes"""
-        conn = self._acquire_connection()
-        try:
+        with self._lock:
+            conn = self._get_connection()
             cursor = conn.cursor()
 
             # Create table
@@ -907,8 +892,6 @@ class QueryManager(Singleton):
             cursor.execute(create_file_index_sql)
 
             conn.commit()
-        finally:
-            self._release_connection(conn)
 
     def store_heavy_meta_batch(self, heavy_metadata_list):
         """Store heavy metadata for multiple movies in batch"""
@@ -917,95 +900,96 @@ class QueryManager(Singleton):
 
         utils.log(f"=== STORING HEAVY METADATA BATCH: {len(heavy_metadata_list)} movies ===", "INFO")
 
-        conn = self._acquire_connection()
-        try:
-            conn.execute("BEGIN")
-            cursor = conn.cursor()
+        import time
+        
+        with self._lock:
+            conn = self._get_connection()
+            try:
+                conn.execute("BEGIN")
+                cursor = conn.cursor()
 
-            current_time = int(time.time())
+                current_time = int(time.time())
 
-            # Log sample data before storage
-            if heavy_metadata_list:
-                sample_movie = heavy_metadata_list[0]
-                utils.log("=== SAMPLE HEAVY METADATA BEFORE STORAGE ===", "INFO")
-                for key, value in sample_movie.items():
-                    if isinstance(value, str) and len(value) > 200:
-                        utils.log(f"BEFORE_STORAGE: {key} = {value[:200]}... (truncated)", "INFO")
-                    else:
-                        utils.log(f"BEFORE_STORAGE: {key} = {repr(value)}", "INFO")
-                utils.log("=== END SAMPLE BEFORE STORAGE ===", "INFO")
+                # Log sample data before storage
+                if heavy_metadata_list:
+                    sample_movie = heavy_metadata_list[0]
+                    utils.log("=== SAMPLE HEAVY METADATA BEFORE STORAGE ===", "INFO")
+                    for key, value in sample_movie.items():
+                        if isinstance(value, str) and len(value) > 200:
+                            utils.log(f"BEFORE_STORAGE: {key} = {value[:200]}... (truncated)", "INFO")
+                        else:
+                            utils.log(f"BEFORE_STORAGE: {key} = {repr(value)}", "INFO")
+                    utils.log("=== END SAMPLE BEFORE STORAGE ===", "INFO")
 
-            for movie_data in heavy_metadata_list:
-                movieid = movie_data.get('movieid')
-                if not movieid:
-                    continue
+                for movie_data in heavy_metadata_list:
+                    movieid = movie_data.get('movieid')
+                    if not movieid:
+                        continue
 
-                # Convert complex fields to JSON
-                cast_json = json.dumps(movie_data.get('cast', []))
-                ratings_json = json.dumps(movie_data.get('ratings', {}))
-                showlink_json = json.dumps(movie_data.get('showlink', []))
-                stream_json = json.dumps(movie_data.get('streamdetails', {}))
-                uniqueid_json = json.dumps(movie_data.get('uniqueid', {}))
-                tags_json = json.dumps(movie_data.get('tag', []))
+                    # Convert complex fields to JSON
+                    cast_json = json.dumps(movie_data.get('cast', []))
+                    ratings_json = json.dumps(movie_data.get('ratings', {}))
+                    showlink_json = json.dumps(movie_data.get('showlink', []))
+                    stream_json = json.dumps(movie_data.get('streamdetails', {}))
+                    uniqueid_json = json.dumps(movie_data.get('uniqueid', {}))
+                    tags_json = json.dumps(movie_data.get('tag', []))
 
-                # Log what's being stored for first movie
-                if movie_data == heavy_metadata_list[0]:
-                    utils.log("=== JSON FIELDS BEING STORED ===", "INFO")
-                    utils.log(f"STORAGE_JSON: cast_json = {cast_json[:200]}{'...' if len(cast_json) > 200 else ''}", "INFO")
-                    utils.log(f"STORAGE_JSON: ratings_json = {ratings_json}", "INFO")
-                    utils.log(f"STORAGE_JSON: showlink_json = {showlink_json}", "INFO")
-                    utils.log(f"STORAGE_JSON: stream_json = {stream_json[:200]}{'...' if len(stream_json) > 200 else ''}", "INFO")
-                    utils.log(f"STORAGE_JSON: uniqueid_json = {uniqueid_json}", "INFO")
-                    utils.log(f"STORAGE_JSON: tags_json = {tags_json}", "INFO")
-                    utils.log("=== END JSON FIELDS BEING STORED ===", "INFO")
+                    # Log what's being stored for first movie
+                    if movie_data == heavy_metadata_list[0]:
+                        utils.log("=== JSON FIELDS BEING STORED ===", "INFO")
+                        utils.log(f"STORAGE_JSON: cast_json = {cast_json[:200]}{'...' if len(cast_json) > 200 else ''}", "INFO")
+                        utils.log(f"STORAGE_JSON: ratings_json = {ratings_json}", "INFO")
+                        utils.log(f"STORAGE_JSON: showlink_json = {showlink_json}", "INFO")
+                        utils.log(f"STORAGE_JSON: stream_json = {stream_json[:200]}{'...' if len(stream_json) > 200 else ''}", "INFO")
+                        utils.log(f"STORAGE_JSON: uniqueid_json = {uniqueid_json}", "INFO")
+                        utils.log(f"STORAGE_JSON: tags_json = {tags_json}", "INFO")
+                        utils.log("=== END JSON FIELDS BEING STORED ===", "INFO")
 
-                # Insert or replace heavy metadata
-                cursor.execute("""
-                    INSERT OR REPLACE INTO movie_heavy_meta 
-                    (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
-                     stream_json, uniqueid_json, tags_json, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    movieid,
-                    movie_data.get('imdbnumber', ''),
-                    cast_json,
-                    ratings_json, 
-                    showlink_json,
-                    stream_json,
-                    uniqueid_json,
-                    tags_json,
-                    current_time
-                ))
+                    # Insert or replace heavy metadata
+                    cursor.execute("""
+                        INSERT OR REPLACE INTO movie_heavy_meta 
+                        (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
+                         stream_json, uniqueid_json, tags_json, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        movieid,
+                        movie_data.get('imdbnumber', ''),
+                        cast_json,
+                        ratings_json, 
+                        showlink_json,
+                        stream_json,
+                        uniqueid_json,
+                        tags_json,
+                        current_time
+                    ))
 
-            conn.commit()
-            utils.log(f"Successfully stored heavy metadata for {len(heavy_metadata_list)} movies", "INFO")
+                conn.commit()
+                utils.log(f"Successfully stored heavy metadata for {len(heavy_metadata_list)} movies", "INFO")
 
-            # Verify storage by checking first movie
-            if heavy_metadata_list:
-                first_movieid = heavy_metadata_list[0].get('movieid')
-                if first_movieid:
-                    cursor.execute("SELECT * FROM movie_heavy_meta WHERE kodi_movieid = ?", (first_movieid,))
-                    stored_row = cursor.fetchone()
-                    if stored_row:
-                        # Get column names
-                        column_names = [description[0] for description in cursor.description]
-                        stored_dict = dict(zip(column_names, stored_row))
-                        utils.log("=== VERIFICATION OF STORED HEAVY METADATA ===", "INFO")
-                        for key, value in stored_dict.items():
-                            if isinstance(value, str) and len(value) > 200:
-                                utils.log(f"STORED_VERIFY: {key} = {value[:200]}... (truncated)", "INFO")
-                            else:
-                                utils.log(f"STORED_VERIFY: {key} = {repr(value)}", "INFO")
-                        utils.log("=== END VERIFICATION ===", "INFO")
-                    else:
-                        utils.log(f"ERROR: No stored heavy metadata found for movieid {first_movieid}", "ERROR")
+                # Verify storage by checking first movie
+                if heavy_metadata_list:
+                    first_movieid = heavy_metadata_list[0].get('movieid')
+                    if first_movieid:
+                        cursor.execute("SELECT * FROM movie_heavy_meta WHERE kodi_movieid = ?", (first_movieid,))
+                        stored_row = cursor.fetchone()
+                        if stored_row:
+                            # Get column names
+                            column_names = [description[0] for description in cursor.description]
+                            stored_dict = dict(zip(column_names, stored_row))
+                            utils.log("=== VERIFICATION OF STORED HEAVY METADATA ===", "INFO")
+                            for key, value in stored_dict.items():
+                                if isinstance(value, str) and len(value) > 200:
+                                    utils.log(f"STORED_VERIFY: {key} = {value[:200]}... (truncated)", "INFO")
+                                else:
+                                    utils.log(f"STORED_VERIFY: {key} = {repr(value)}", "INFO")
+                            utils.log("=== END VERIFICATION ===", "INFO")
+                        else:
+                            utils.log(f"ERROR: No stored heavy metadata found for movieid {first_movieid}", "ERROR")
 
-        except Exception as e:
-            conn.rollback()
-            utils.log(f"Error storing heavy metadata batch: {str(e)}", "ERROR")
-            raise
-        finally:
-            self._release_connection(conn)
+            except Exception as e:
+                conn.rollback()
+                utils.log(f"Error storing heavy metadata batch: {str(e)}", "ERROR")
+                raise
 
     def get_heavy_meta_by_movieids(self, movieids, refresh=False):
         """Get heavy metadata for multiple movie IDs with caching"""
