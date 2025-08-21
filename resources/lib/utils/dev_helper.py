@@ -4,7 +4,6 @@ import xbmcgui
 import xbmcplugin
 import re
 from resources.lib.config.config_manager import Config
-from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.utils import utils
 
 def _validate_sql_identifier(identifier):
