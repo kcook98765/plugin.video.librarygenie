@@ -116,9 +116,10 @@ class KodiHelper:
         """Display items in a list"""
         utils.log(f"Showing list with ID: {list_id}", "DEBUG")
         from resources.lib.config.config_manager import get_config
+        from resources.lib.data.query_manager import QueryManager
         from resources.lib.kodi.listitem_builder import ListItemBuilder
         config = get_config()
-        db_manager = DatabaseManager(config.db_path)
+        db_manager = QueryManager(config.db_path)
         items = db_manager.query_manager.fetch_list_items_with_details(list_id)
 
         # Set content type and force views
@@ -186,8 +187,9 @@ class KodiHelper:
             utils.log(f"Play item called with item_id: {item_id} (type: {type(item_id)})", "DEBUG")
 
             from resources.lib.config.config_manager import get_config
+            from resources.lib.data.query_manager import QueryManager
             config = get_config()
-            db_manager = DatabaseManager(config.db_path)
+            db_manager = QueryManager(config.db_path)
 
             # Handle item_id from various input types and ensure valid integer
             utils.log(f"Original item_id: {item_id}", "DEBUG")
