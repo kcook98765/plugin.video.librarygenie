@@ -7,6 +7,45 @@ from resources.lib.integrations.remote_api.remote_api_client import RemoteAPICli
 import time
 import datetime
 
+def show_scrollable_status_dialog(title, status_lines):
+    """Show status information in a scrollable dialog with keyboard navigation support"""
+    try:
+        # Convert status lines to display format for select dialog
+        display_lines = []
+        for line in status_lines:
+            if line.strip():  # Skip empty lines for cleaner display
+                display_lines.append(line)
+            else:
+                display_lines.append("─" * 50)  # Visual separator for empty lines
+        
+        # Add navigation instructions at the top
+        instructions = [
+            "═══ NAVIGATION HELP ═══",
+            "↑↓ Arrow keys: Scroll up/down",
+            "Page Up/Down: Fast scroll",
+            "Esc: Close dialog",
+            "═" * 50
+        ]
+        
+        # Combine instructions with status
+        all_lines = instructions + [""] + display_lines
+        
+        # Show as select dialog which supports better keyboard navigation
+        selected = xbmcgui.Dialog().select(
+            title, 
+            all_lines,
+            preselect=len(instructions) + 1  # Start at first status line
+        )
+        
+        # Dialog returns -1 when cancelled, which is expected behavior
+        utils.log(f"LIBRARY_STATUS: Status dialog closed (selection: {selected})", "DEBUG")
+        
+    except Exception as e:
+        utils.log(f"Error showing scrollable status dialog: {str(e)}", "ERROR")
+        # Fallback to simple OK dialog with summary
+        summary = f"Library: {len([l for l in status_lines if 'Total library items:' in l])}"
+        xbmcgui.Dialog().ok('Library Status', f'Status generated successfully.\n{summary}\nCheck log for details.')
+
 def show_library_status():
     """Show comprehensive library status dialog"""
     try:
@@ -157,13 +196,11 @@ def show_library_status():
                 f"  • This explains difference between total ({items_with_imdb:,}) and uploaded counts",
             ])
         
-        status_text = "\n".join(status_lines)
-        
         utils.log("LIBRARY_STATUS: Status summary generated successfully", "INFO")
         utils.log(f"LIBRARY_STATUS: Total: {total_library_items}, IMDb: {items_with_imdb}, Unique IMDb: {unique_imdb_count}, Duplicates: {duplicate_imdb_count}, Authenticated: {is_authenticated}, Server: {server_count if is_authenticated else 'N/A'}", "INFO")
         
-        # Show the dialog
-        xbmcgui.Dialog().textviewer('Addon Library Status', status_text)
+        # Show scrollable dialog using select method for better keyboard navigation
+        show_scrollable_status_dialog('Addon Library Status', status_lines)
         
     except Exception as e:
         utils.log(f"Error showing library status: {str(e)}", "ERROR")
