@@ -10,8 +10,8 @@ from resources.lib.kodi.kodi_helper import KodiHelper
 from resources.lib.config.addon_ref import get_addon
 from resources.lib.kodi.context_menu_builder import get_context_menu_builder
 from resources.lib.config.config_manager import Config
-from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.kodi.window_search import SearchWindow
+from resources.lib.data.query_manager import QueryManager
 from resources.lib.utils import utils
 
 translatePath = xbmcvfs.translatePath
@@ -42,9 +42,9 @@ def main():
         # Ensure database schema is up to date (including migrations)
         try:
             config = Config()
-            db_manager = DatabaseManager(config.db_path)
+            query_manager = QueryManager(config.db_path)
             # This will run any pending migrations including the 'file' column
-            db_manager.setup_database()
+            query_manager.setup_database()
             xbmc.log("LibraryGenie: Database schema check completed for context menu", xbmc.LOGDEBUG)
         except Exception as e:
             xbmc.log(f"LibraryGenie: Error setting up database schema: {str(e)}", xbmc.LOGERROR)
@@ -75,14 +75,14 @@ def main():
             try:
                 match = re.search(r'list_id=(\d+)', current_container_path)
                 if match:
-                    extracted_list_id = match.group(1)
+                    extracted_list_id = int(match.group(1))
                     xbmc.log(f"LibraryGenie: Detected potential list_id: {extracted_list_id}", xbmc.LOGDEBUG)
 
                     # Verify this list exists in our database
                     try:
                         config = Config()
-                        db_manager = DatabaseManager(config.db_path)
-                        list_data = db_manager.fetch_list_by_id(extracted_list_id)
+                        query_manager = QueryManager(config.db_path)
+                        list_data = query_manager.fetch_list_by_id(extracted_list_id)
 
                         if list_data:
                             viewing_list_id = extracted_list_id
@@ -671,7 +671,6 @@ def main():
 
             # Navigate to directory-based dev display
             from resources.lib.kodi.url_builder import build_plugin_url
-            from urllib.parse import quote_plus
             encoded_title = quote_plus(clean_title)
             dev_url = build_plugin_url({
                 'action': 'dev_display_directory',
@@ -705,8 +704,8 @@ def main():
             # Get the Search History folder ID
             try:
                 config = Config()
-                db_manager = DatabaseManager(config.db_path)
-                search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
+                query_manager = QueryManager(config.db_path)
+                search_history_folder_id = query_manager.get_folder_id_by_name("Search History")
 
                 if search_history_folder_id:
                     url = f"plugin://{addon_id}/?action=browse_folder&folder_id={search_history_folder_id}&view=folder"
@@ -761,15 +760,15 @@ def add_plugin_item_to_list(media_info):
             else:
                 media_info['plot'] = f"[Plugin Item] - Added from {media_info.get('source', 'external addon')}"
 
-        # Use the database manager directly for plugin items
+        # Use the query manager directly for plugin items
         config = Config()
-        db_manager = DatabaseManager(config.db_path)
+        query_manager = QueryManager(config.db_path)
 
         # Get all available lists for user selection
-        all_lists = db_manager.fetch_all_lists()
+        all_lists = query_manager.fetch_all_lists()
 
         # Get Search History folder ID to exclude its lists
-        search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
+        search_history_folder_id = query_manager.get_folder_id_by_name("Search History")
 
         # Filter out Search History lists
         filtered_lists = []
@@ -790,7 +789,7 @@ def add_plugin_item_to_list(media_info):
             # Get folder path for display
             folder_path = ""
             if list_item.get('folder_id'):
-                folder = db_manager.fetch_folder_by_id(list_item['folder_id'])
+                folder = query_manager.fetch_folder_by_id(list_item['folder_id'])
                 if folder:
                     folder_path = f"[{folder['name']}] "
 
@@ -819,7 +818,7 @@ def add_plugin_item_to_list(media_info):
                 return
 
             # Create new list at root level (folder_id=None)
-            new_list_result = db_manager.create_list(new_list_name, None)
+            new_list_result = query_manager.create_list(new_list_name, None)
             if not new_list_result:
                 xbmcgui.Dialog().notification('LibraryGenie', 'Failed to create new list', xbmcgui.NOTIFICATION_ERROR)
                 return
@@ -859,7 +858,7 @@ def add_plugin_item_to_list(media_info):
         utils.log(f"ADD PLUGIN ITEM: Creating media item for '{title}' with data: {media_item_data}", "DEBUG")
 
         # Add the media item to the selected list
-        success = db_manager.add_media_item(selected_list_id, media_item_data)
+        success = query_manager.insert_media_item_and_add_to_list(selected_list_id, media_item_data)
 
         if success:
             selected_list_name = next((lst['name'] for lst in filtered_lists if lst['id'] == selected_list_id), 'New List')

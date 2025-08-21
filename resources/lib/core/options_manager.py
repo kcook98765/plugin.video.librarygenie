@@ -61,19 +61,19 @@ class OptionsManager:
         """Check if there are any search history entries"""
         try:
             from resources.lib.config.config_manager import Config
-            from resources.lib.data.database_manager import DatabaseManager
+            from resources.lib.data.query_manager import QueryManager
 
             config = Config()
-            db_manager = DatabaseManager(config.db_path)
+            query_manager = QueryManager(config.db_path)
 
             # Get the Search History folder ID
-            search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
+            search_history_folder_id = query_manager.get_folder_id_by_name("Search History")
 
             if not search_history_folder_id:
                 return False
 
             # Check if there are any lists in the Search History folder
-            search_history_lists = db_manager.fetch_lists_by_folder(search_history_folder_id)
+            search_history_lists = query_manager.fetch_lists(search_history_folder_id)
 
             return len(search_history_lists) > 0
 

@@ -151,11 +151,11 @@ class SearchWindow:
     def save_to_search_history(self, query, search_results):
         """Save search results to search history and return the created list ID"""
         try:
-            from resources.lib.data.database_manager import DatabaseManager
+            from resources.lib.data.query_manager import QueryManager
             from resources.lib.config.config_manager import Config
 
             config = Config()
-            db_manager = DatabaseManager(config.db_path)
+            query_manager = QueryManager(config.db_path)
 
             # Extract matches from search results
             matches = search_results.get('matches', [])
@@ -163,18 +163,41 @@ class SearchWindow:
             if matches:
                 utils.log(f"SearchWindow: Saving {len(matches)} search results to history", "DEBUG")
 
-                # Convert matches to the format expected by add_search_history
-                formatted_results = []
-                for match in matches:
-                    formatted_result = {
-                        'imdbnumber': match.get('imdb_id', ''),
-                        'score': match.get('score', 0),
-                        'search_score': match.get('score', 0)
-                    }
-                    formatted_results.append(formatted_result)
+                # Ensure Search History folder exists
+                search_folder = query_manager.ensure_search_history_folder()
+                search_folder_id = search_folder['id'] if isinstance(search_folder, dict) else search_folder
 
-                # Use the existing add_search_history method - it creates only ONE list
-                created_list_id = db_manager.add_search_history(query, formatted_results)
+                # Create unique list name for this search
+                base_name = f"Search: {query}"
+                list_name = query_manager.get_unique_list_name(base_name, search_folder_id)
+
+                # Create the list
+                new_list = query_manager.create_list(list_name, search_folder_id)
+                created_list_id = new_list['id'] if isinstance(new_list, dict) else new_list
+
+                # Add each match to the list
+                for match in matches:
+                    # Prepare media item data
+                    media_item_data = {
+                        'title': match.get('title', 'Unknown'),
+                        'year': match.get('year', 0),
+                        'imdbnumber': match.get('imdb_id', ''),
+                        'source': 'search',
+                        'media_type': 'movie',
+                        'search_score': match.get('score', 0),
+                        'plot': match.get('plot', ''),
+                        'genre': match.get('genre', ''),
+                        'director': match.get('director', ''),
+                        'cast': match.get('cast', ''),
+                        'rating': match.get('rating', 0.0),
+                        'poster': match.get('poster', ''),
+                        'thumbnail': match.get('thumbnail', ''),
+                        'fanart': match.get('fanart', ''),
+                        'kodi_id': 0
+                    }
+
+                    # Insert media item and add to list atomically
+                    query_manager.insert_media_item_and_add_to_list(created_list_id, media_item_data)
 
                 if created_list_id:
                     utils.log(f"SearchWindow: Successfully saved search results to list ID: {created_list_id}", "DEBUG")

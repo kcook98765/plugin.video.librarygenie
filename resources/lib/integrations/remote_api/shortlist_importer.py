@@ -3,14 +3,14 @@ import xbmc
 import xbmcgui
 from resources.lib.utils import utils
 from resources.lib.config.config_manager import Config
-from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.integrations.jsonrpc.jsonrpc_manager import JSONRPC
+from resources.lib.data.query_manager import QueryManager
 
 
 class ShortlistImporter:
     def __init__(self):
         self.config = Config()
-        self.db_manager = DatabaseManager(self.config.db_path)
+        self.query_manager = QueryManager(self.config.db_path)
         self.jsonrpc = JSONRPC()
 
     def _rpc(self, method, params):
@@ -621,18 +621,18 @@ class ShortlistImporter:
         utils.log(f"Clearing contents of Imported Lists folder (ID: {imported_folder_id})", "INFO")
 
         # Get all subfolders and lists in the imported folder
-        subfolders = self.db_manager.fetch_folders(imported_folder_id)
-        lists = self.db_manager.fetch_lists(imported_folder_id)
+        subfolders = self.query_manager.fetch_folders(imported_folder_id)
+        lists = self.query_manager.fetch_lists(imported_folder_id)
 
         # Delete all lists first
         for list_item in lists:
             utils.log(f"Deleting list: {list_item['name']} (ID: {list_item['id']})", "DEBUG")
-            self.db_manager.delete_list(list_item['id'])
+            self.query_manager.delete_list_and_contents(list_item['id'])
 
         # Delete all subfolders (this will cascade to their contents)
         for folder in subfolders:
             utils.log(f"Deleting folder: {folder['name']} (ID: {folder['id']})", "DEBUG")
-            self.db_manager.delete_folder(folder['id'])
+            self.query_manager.delete_folder(folder['id'])
 
         utils.log("Imported Lists folder cleared", "INFO")
 
@@ -661,24 +661,18 @@ class ShortlistImporter:
             progress.update(30, "Creating Imported Lists folder...")
 
             # Ensure "Imported Lists" folder exists
-            imported_folder_result = self.db_manager.ensure_folder_exists("Imported Lists", None)
-
-            # Extract the actual ID from the result
-            if isinstance(imported_folder_result, dict):
+            imported_folder_id = self.query_manager.get_folder_id_by_name("Imported Lists")
+            if not imported_folder_id:
+                imported_folder_result = self.query_manager.create_folder("Imported Lists", None)
                 imported_folder_id = imported_folder_result['id']
-            else:
-                imported_folder_id = imported_folder_result
 
             utils.log(f"Imported Lists folder ID: {imported_folder_id}", "DEBUG")
 
             # Ensure "Shortlist" subfolder exists under "Imported Lists"
-            shortlist_folder_result = self.db_manager.ensure_folder_exists("Shortlist", imported_folder_id)
-
-            # Extract the actual ID from the result
-            if isinstance(shortlist_folder_result, dict):
+            shortlist_folder_id = self.query_manager.get_folder_id_by_name("Shortlist", imported_folder_id)
+            if not shortlist_folder_id:
+                shortlist_folder_result = self.query_manager.create_folder("Shortlist", imported_folder_id)
                 shortlist_folder_id = shortlist_folder_result['id']
-            else:
-                shortlist_folder_id = shortlist_folder_result
 
             utils.log(f"Shortlist subfolder ID: {shortlist_folder_id}", "DEBUG")
 
@@ -705,7 +699,7 @@ class ShortlistImporter:
                     break
 
                 # Create list in LibraryGenie under Shortlist subfolder with date suffix
-                list_result = self.db_manager.create_list(dated_list_name, shortlist_folder_id)
+                list_result = self.query_manager.create_list(dated_list_name, shortlist_folder_id)
 
                 # Handle both dictionary and integer return values
                 if isinstance(list_result, dict):
@@ -791,14 +785,18 @@ class ShortlistImporter:
                         utils.log(f"CONVERSION_FALLBACK: Using minimal data for '{media_dict['title']}'", "WARNING")
                         media_items_to_add.append(media_dict)
 
-                # Add all items to list using batch transaction method
+                # Add all items to list using query manager method
                 if media_items_to_add:
                     try:
-                        success = self.db_manager.add_shortlist_items(list_id, media_items_to_add)
-                        if success:
+                        success_count = 0
+                        for media_item in media_items_to_add:
+                            if self.query_manager.insert_media_item_and_add_to_list(list_id, media_item):
+                                success_count += 1
+                        
+                        if success_count == len(media_items_to_add):
                             utils.log(f"IMPORT_SUCCESS: Added {len(media_items_to_add)} items to list '{dated_list_name}' in batch", "INFO")
                         else:
-                            utils.log(f"DATABASE_ERROR: Failed to add items to list '{dated_list_name}' in batch", "ERROR")
+                            utils.log(f"DATABASE_PARTIAL: Added {success_count}/{len(media_items_to_add)} items to list '{dated_list_name}'", "WARNING")
                     except Exception as e:
                         utils.log(f"DATABASE_ERROR: Failed to add items to list '{dated_list_name}': {str(e)}", "ERROR")
                         import traceback

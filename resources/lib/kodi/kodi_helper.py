@@ -226,34 +226,54 @@ class KodiHelper:
                 utils.log(f"Item not found for id: {item_id}", "ERROR")
                 return False
 
-            # Result is already a dict from the row object
-            item_data = result
+            # Handle result type - ensure we have a dictionary
+            if isinstance(result, list):
+                if len(result) == 0:
+                    utils.log(f"Item not found for id: {item_id}", "ERROR")
+                    return False
+                item_data = result[0]  # Take first item from list
+            elif isinstance(result, dict):
+                item_data = result
+            else:
+                utils.log(f"Unexpected result type from database query: {type(result)}", "ERROR")
+                return False
 
             # Create list item with proper metadata using ListItemBuilder if it's a video item
-            if item_data.get('mediatype') == 'movie' or item_data.get('media_type') == 'movie':
+            if isinstance(item_data, dict) and (item_data.get('mediatype') == 'movie' or item_data.get('media_type') == 'movie'):
                 from resources.lib.kodi.listitem_builder import ListItemBuilder
                 list_item = ListItemBuilder.build_video_item(item_data)
             else:
                 # For non-video items, create basic ListItem using ListItemBuilder
                 from resources.lib.kodi.listitem_builder import ListItemBuilder
-                info_dict = {
-                    'title': item_data.get('title', ''),
-                    'plot': item_data.get('plot', ''),
-                    'mediatype': item_data.get('mediatype', item_data.get('media_type', 'video'))
-                }
+                if isinstance(item_data, dict):
+                    info_dict = {
+                        'title': item_data.get('title', ''),
+                        'plot': item_data.get('plot', ''),
+                        'mediatype': item_data.get('mediatype', item_data.get('media_type', 'video'))
+                    }
+                else:
+                    info_dict = {
+                        'title': 'Unknown',
+                        'plot': '',
+                        'mediatype': 'video'
+                    }
                 list_item = ListItemBuilder.build_video_item(info_dict)
 
             # Get play URL and check validity
-            folder_path = item_data.get('path', '')
-            play_url = None
+            if isinstance(item_data, dict):
+                folder_path = item_data.get('path', '')
+                play_url = None
 
-            # Try to get play URL from different fields
-            if 'play' in item_data and item_data['play']:
-                play_url = item_data['play']
-            elif 'file' in item_data and item_data['file']:
-                play_url = item_data['file']
-            elif folder_path:
-                play_url = folder_path
+                # Try to get play URL from different fields
+                if 'play' in item_data and item_data['play']:
+                    play_url = item_data['play']
+                elif 'file' in item_data and item_data['file']:
+                    play_url = item_data['file']
+                elif folder_path:
+                    play_url = folder_path
+            else:
+                folder_path = ''
+                play_url = None
 
             if not play_url:
                 utils.log("No play URL found", "ERROR")
@@ -276,7 +296,7 @@ class KodiHelper:
             list_item.setProperty('inputstream', 'inputstream.adaptive')
 
             # Set additional properties if available
-            if 'duration' in item_data and item_data['duration']:
+            if isinstance(item_data, dict) and 'duration' in item_data and item_data['duration']:
                 try:
                     duration = int(item_data['duration'])
                     duration = str(duration)

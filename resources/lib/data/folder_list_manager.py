@@ -1,18 +1,20 @@
+
 """Folder and list management utilities for LibraryGenie addon"""
 
 import xbmc
 import xbmcgui
 from resources.lib.utils import utils
-from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.config.config_manager import Config
+from resources.lib.data.query_manager import QueryManager
 from typing import List, Union, cast
+
 
 class FolderListManager:
     """Manages folder and list operations"""
 
     def __init__(self):
         self.config = Config()
-        self.db_manager = DatabaseManager(self.config.db_path)
+        self.db_manager = QueryManager(self.config.db_path)
 
     def create_new_folder_at_root(self):
         """Create a new folder at root level"""
@@ -67,8 +69,13 @@ class FolderListManager:
             # Preserve imdb_exports - they contain valuable library reference data
 
             # Recreate protected folders
-            search_folder_id = self.db_manager.ensure_folder_exists("Search History", None)
-            imported_lists_folder_id = self.db_manager.ensure_folder_exists("Imported Lists", None)
+            search_folder_id = self.db_manager.get_folder_id_by_name("Search History")
+            if not search_folder_id:
+                search_folder_id = self.db_manager.insert_folder("Search History", None)
+            
+            imported_lists_folder_id = self.db_manager.get_folder_id_by_name("Imported Lists")
+            if not imported_lists_folder_id:
+                imported_lists_folder_id = self.db_manager.insert_folder("Imported Lists", None)
 
             utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW SUCCESS NOTIFICATION ===", "DEBUG")
             xbmcgui.Dialog().notification('LibraryGenie', 'All local data cleared')
@@ -114,8 +121,10 @@ class FolderListManager:
             utils.log(f"Traceback: {traceback.format_exc()}", "ERROR")
             xbmcgui.Dialog().notification('LibraryGenie', 'Error accessing search history', xbmcgui.NOTIFICATION_ERROR)
 
+
 # Global instance
 _folder_list_manager = None
+
 
 def get_folder_list_manager():
     """Get the singleton folder list manager instance"""

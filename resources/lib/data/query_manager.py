@@ -174,6 +174,8 @@ class QueryManager(Singleton):
         """Transaction context manager for atomic operations"""
         with self._lock:
             conn = self._get_connection()
+            if conn is None:
+                raise RuntimeError("Failed to establish database connection")
             try:
                 conn.execute('BEGIN')
                 yield conn
@@ -734,6 +736,11 @@ class QueryManager(Singleton):
 
     def setup_database(self):
         """Setup all database tables"""
+        # Ensure database directory exists first
+        db_dir = os.path.dirname(self.db_path)
+        if not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
+            
         fields_str = ', '.join(Config.FIELDS)
 
         table_creations = [

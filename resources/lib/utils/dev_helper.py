@@ -51,6 +51,11 @@ def display_imdb_data_as_directory(handle):
             fetch_all=True
         )
 
+        # Ensure tables is not None before iterating
+        if tables is None:
+            utils.log("No tables retrieved from the database", "ERROR")
+            tables = []
+
         for table_info in tables:
             # Ensure dict representation for consistent access
             table_dict = dict(table_info) if table_info else {}
@@ -74,6 +79,10 @@ def display_imdb_data_as_directory(handle):
                     fetch_all=True
                 )
 
+                # Ensure table_structure is not None before using
+                if table_structure is None:
+                    table_structure = []
+
                 # Count rows using parameterized query with validated table name and explicit alias
                 count_result = query_manager.execute_query(
                     f"SELECT COUNT(*) as row_count FROM {table_name}",
@@ -81,8 +90,10 @@ def display_imdb_data_as_directory(handle):
                 )
                 # Ensure we work with dict representation for consistent access
                 if count_result:
-                    count_dict = dict(count_result)
-                    row_count = count_dict.get('row_count', 0)
+                    # Handle case where result might be a list with one item or a dict
+                    if isinstance(count_result, list) and len(count_result) > 0:
+                        count_result = count_result[0]
+                    row_count = count_result.get('row_count', 0) if isinstance(count_result, dict) else 0
                 else:
                     row_count = 0
 
@@ -107,6 +118,11 @@ def display_imdb_data_as_directory(handle):
                         f"SELECT * FROM {table_name} LIMIT 3",
                         fetch_all=True
                     )
+                    
+                    # Ensure sample_rows is not None before iterating
+                    if sample_rows is None:
+                        sample_rows = []
+                        
                     for i, row in enumerate(sample_rows):
                         # Ensure we always work with dict representation
                         if row:

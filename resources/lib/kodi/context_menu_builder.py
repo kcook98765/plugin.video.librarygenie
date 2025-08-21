@@ -1,6 +1,6 @@
 """Context Menu Builder for LibraryGenie - handles both native and ListItem context menus"""
 
-import xbmc
+import xbmcgui
 from resources.lib.utils import utils
 
 
@@ -106,7 +106,6 @@ class ContextMenuBuilder:
                 return
 
             from resources.lib.config.config_manager import Config
-            from resources.lib.data.database_manager import DatabaseManager
 
             config = Config()
             db_manager = DatabaseManager(config.db_path)

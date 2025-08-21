@@ -321,7 +321,7 @@ class IMDbUploadManager:
 
         try:
             # Use public transaction context manager
-            with db_manager.query_manager.transaction():
+            with query_manager.transaction():
                 batch_data = []
                 heavy_metadata_list = []
 

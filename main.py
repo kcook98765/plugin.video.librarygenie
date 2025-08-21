@@ -17,7 +17,7 @@ from resources.lib.data.folder_list_manager import get_folder_list_manager
 
 from resources.lib.config.addon_helper import run_addon
 from resources.lib.config.config_manager import Config
-from resources.lib.data.database_manager import DatabaseManager
+from resources.lib.data.query_manager import QueryManager
 from resources.lib.utils.utils import log
 from resources.lib.core.route_handlers import (
     play_movie, show_item_details, create_list, rename_list, delete_list,
@@ -132,10 +132,10 @@ def browse_folder(params):
         log(f"Browsing folder {folder_id}", "DEBUG")
 
         config = Config()
-        db_manager = DatabaseManager(config.db_path)
+        query_manager = QueryManager(config.db_path)
 
         # Get folder details
-        folder = db_manager.fetch_folder_by_id(folder_id)
+        folder = query_manager.fetch_folder_by_id(folder_id)
         if not folder:
             log(f"Folder {folder_id} not found", "ERROR")
             xbmcgui.Dialog().notification('LibraryGenie', 'Folder not found')
@@ -146,10 +146,10 @@ def browse_folder(params):
         add_options_header_item(ctx, ADDON_HANDLE)
 
         # Get subfolders
-        subfolders = db_manager.fetch_folders(folder_id)
+        subfolders = query_manager.fetch_folders(folder_id)
 
         # Get lists in this folder
-        lists = db_manager.fetch_lists(folder_id)
+        lists = query_manager.fetch_lists(folder_id)
 
         # Add subfolders
         for subfolder in subfolders:
@@ -161,7 +161,7 @@ def browse_folder(params):
 
         # Add lists
         for list_item in lists:
-            list_count = db_manager.get_list_media_count(list_item['id'])
+            list_count = query_manager.get_list_media_count(list_item['id'])
 
             # Check if this list contains a count pattern like "(number)" at the end
             import re
@@ -549,9 +549,13 @@ def main():
         # Ensure Search History folder exists
         log("Setting up configuration and database for first run", "DEBUG")
         config = Config()
-        db_manager = DatabaseManager(config.db_path)
-        db_manager.ensure_folder_exists("Search History", None) # Ensure it exists at startup
-        db_manager.ensure_folder_exists("Imported Lists", None) # Ensure it exists at startup
+        query_manager = QueryManager(config.db_path)
+        query_manager.setup_database()  # Ensure database is set up
+        # Create folders if they don't exist
+        query_manager.ensure_search_history_folder()
+        folder_id = query_manager.get_folder_id_by_name("Imported Lists")
+        if not folder_id:
+            query_manager.create_folder("Imported Lists", None)
         log("Configuration and database setup complete", "DEBUG")
 
         log("=== LibraryGenie addon startup complete ===", "INFO")
