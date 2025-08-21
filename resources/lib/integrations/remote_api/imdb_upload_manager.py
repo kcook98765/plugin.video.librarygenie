@@ -556,7 +556,7 @@ class IMDbUploadManager:
             for field in ['plot', 'genre', 'director', 'rating', 'duration', 'premiered', 'votes']:
                 if field in movie:
                     value = movie[field]
-                    
+
                     # Convert lists to comma-separated strings for database storage
                     if isinstance(value, list):
                         if field in ['genre', 'director']:
@@ -579,7 +579,11 @@ class IMDbUploadManager:
         if not heavy_metadata_list:
             return
 
-        utils.log(f"Storing heavy metadata for {len(heavy_metadata_list)} movies in transaction", "DEBUG")
+        # Only log for first few batches and summary to reduce spam
+        if len(heavy_metadata_list) <= 5:
+            utils.log(f"=== STORING HEAVY METADATA BATCH: {len(heavy_metadata_list)} movies ===", "INFO")
+        elif len(heavy_metadata_list) % 1000 == 0:
+            utils.log(f"=== STORING HEAVY METADATA BATCH: {len(heavy_metadata_list)} movies ===", "INFO")
 
         # Use QueryManager's store_heavy_meta_batch method
         self.query_manager.store_heavy_meta_batch(heavy_metadata_list)

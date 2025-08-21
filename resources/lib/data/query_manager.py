@@ -883,16 +883,16 @@ class QueryManager(Singleton):
 
                 current_time = int(time.time())
 
-                # Log sample data before storage
-                if heavy_metadata_list:
+                # Log sample data before storage (only for first batch to reduce spam)
+                if heavy_metadata_list and len(heavy_metadata_list) == 1:
                     sample_movie = heavy_metadata_list[0]
-                    utils.log("=== SAMPLE HEAVY METADATA BEFORE STORAGE ===", "INFO")
+                    utils.log("=== SAMPLE HEAVY METADATA BEFORE STORAGE ===", "DEBUG")
                     for key, value in sample_movie.items():
                         if isinstance(value, str) and len(value) > 200:
-                            utils.log(f"BEFORE_STORAGE: {key} = {value[:200]}... (truncated)", "INFO")
+                            utils.log(f"BEFORE_STORAGE: {key} = {value[:200]}... (truncated)", "DEBUG")
                         else:
-                            utils.log(f"BEFORE_STORAGE: {key} = {repr(value)}", "INFO")
-                    utils.log("=== END SAMPLE BEFORE STORAGE ===", "INFO")
+                            utils.log(f"BEFORE_STORAGE: {key} = {repr(value)}", "DEBUG")
+                    utils.log("=== END SAMPLE BEFORE STORAGE ===", "DEBUG")
 
                 for movie_data in heavy_metadata_list:
                     movieid = movie_data.get('movieid')
@@ -907,16 +907,16 @@ class QueryManager(Singleton):
                     uniqueid_json = json.dumps(movie_data.get('uniqueid', {}))
                     tags_json = json.dumps(movie_data.get('tag', []))
 
-                    # Log what's being stored for first movie
-                    if movie_data == heavy_metadata_list[0]:
-                        utils.log("=== JSON FIELDS BEING STORED ===", "INFO")
-                        utils.log(f"STORAGE_JSON: cast_json = {cast_json[:200]}{'...' if len(cast_json) > 200 else ''}", "INFO")
-                        utils.log(f"STORAGE_JSON: ratings_json = {ratings_json}", "INFO")
-                        utils.log(f"STORAGE_JSON: showlink_json = {showlink_json}", "INFO")
-                        utils.log(f"STORAGE_JSON: stream_json = {stream_json[:200]}{'...' if len(stream_json) > 200 else ''}", "INFO")
-                        utils.log(f"STORAGE_JSON: uniqueid_json = {uniqueid_json}", "INFO")
-                        utils.log(f"STORAGE_JSON: tags_json = {tags_json}", "INFO")
-                        utils.log("=== END JSON FIELDS BEING STORED ===", "INFO")
+                    # Log what's being stored for first movie (only for single movie batches to reduce spam)
+                    if movie_data == heavy_metadata_list[0] and len(heavy_metadata_list) == 1:
+                        utils.log("=== JSON FIELDS BEING STORED ===", "DEBUG")
+                        utils.log(f"STORAGE_JSON: cast_json = {cast_json[:200]}{'...' if len(cast_json) > 200 else ''}", "DEBUG")
+                        utils.log(f"STORAGE_JSON: ratings_json = {ratings_json}", "DEBUG")
+                        utils.log(f"STORAGE_JSON: showlink_json = {showlink_json}", "DEBUG")
+                        utils.log(f"STORAGE_JSON: stream_json = {stream_json[:200]}{'...' if len(stream_json) > 200 else ''}", "DEBUG")
+                        utils.log(f"STORAGE_JSON: uniqueid_json = {uniqueid_json}", "DEBUG")
+                        utils.log(f"STORAGE_JSON: tags_json = {tags_json}", "DEBUG")
+                        utils.log("=== END JSON FIELDS BEING STORED ===", "DEBUG")
 
                     # Insert or replace heavy metadata
                     cursor.execute("""
@@ -939,8 +939,8 @@ class QueryManager(Singleton):
                 conn.commit()
                 utils.log(f"Successfully stored heavy metadata for {len(heavy_metadata_list)} movies", "INFO")
 
-                # Verify storage by checking first movie
-                if heavy_metadata_list:
+                # Verify storage by checking first movie (only for first batch to reduce spam)
+                if heavy_metadata_list and len(heavy_metadata_list) == 1:
                     first_movieid = heavy_metadata_list[0].get('movieid')
                     if first_movieid:
                         cursor.execute("SELECT * FROM movie_heavy_meta WHERE kodi_movieid = ?", (first_movieid,))
@@ -949,13 +949,13 @@ class QueryManager(Singleton):
                             # Get column names
                             column_names = [description[0] for description in cursor.description]
                             stored_dict = dict(zip(column_names, stored_row))
-                            utils.log("=== VERIFICATION OF STORED HEAVY METADATA ===", "INFO")
+                            utils.log("=== VERIFICATION OF STORED HEAVY METADATA ===", "DEBUG")
                             for key, value in stored_dict.items():
                                 if isinstance(value, str) and len(value) > 200:
-                                    utils.log(f"STORED_VERIFY: {key} = {value[:200]}... (truncated)", "INFO")
+                                    utils.log(f"STORED_VERIFY: {key} = {value[:200]}... (truncated)", "DEBUG")
                                 else:
-                                    utils.log(f"STORED_VERIFY: {key} = {repr(value)}", "INFO")
-                            utils.log("=== END VERIFICATION ===", "INFO")
+                                    utils.log(f"STORED_VERIFY: {key} = {repr(value)}", "DEBUG")
+                            utils.log("=== END VERIFICATION ===", "DEBUG")
                         else:
                             utils.log(f"ERROR: No stored heavy metadata found for movieid {first_movieid}", "ERROR")
 
