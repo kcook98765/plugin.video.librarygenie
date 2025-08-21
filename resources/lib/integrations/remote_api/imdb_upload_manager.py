@@ -1,10 +1,12 @@
 
+
 import xbmcgui
 import json
 from resources.lib.utils import utils
 from resources.lib.integrations.jsonrpc.jsonrpc_manager import JSONRPC
-from resources.lib.integrations.remote_api.remote_client import RemoteAPIClient
+from resources.lib.integrations.remote_api.remote_api_client import RemoteAPIClient
 from resources.lib.config.config_manager import Config
+from resources.lib.data.query_manager import QueryManager
 import time
 
 class IMDbUploadManager:
@@ -12,6 +14,7 @@ class IMDbUploadManager:
         self.config = Config()
         self.remote_client = RemoteAPIClient()
         self.jsonrpc = JSONRPC()
+        self.query_manager = QueryManager(self.config.db_path)
 
     def get_kodi_movie_collection(self, progress_dialog=None):
         """Get all movies from Kodi library with IMDb IDs (for compatibility)"""
@@ -165,20 +168,18 @@ class IMDbUploadManager:
                         utils.log(f"EXPORT_DATA: {key} = {repr(value)}", "INFO")
                     utils.log("=== END SAMPLE EXPORT DATA ===", "INFO")
 
-                # Use standard method to get QueryManager with proper db_path
-                config = Config()
-                db_manager = QueryManager(config.db_path)
-                db_manager.insert_imdb_export(export_movies)
+                # Use QueryManager to store data
+                self.query_manager.insert_imdb_export(export_movies)
 
                 # Store heavy metadata separately in movie_heavy_meta table
                 if heavy_metadata_list:
                     utils.log(f"Storing heavy metadata for {len(heavy_metadata_list)} movies", "INFO")
-                    db_manager.query_manager.store_heavy_meta_batch(heavy_metadata_list)
+                    self.query_manager.store_heavy_meta_batch(heavy_metadata_list)
 
                 # Verify what was actually stored
                 utils.log("=== VERIFYING STORED DATA IN IMDB_EXPORTS ===", "INFO")
                 sample_imdb = export_movies[0]['imdb_id']
-                stored_data = db_manager.query_manager.execute_query(
+                stored_data = self.query_manager.execute_query(
                     "SELECT * FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1",
                     (sample_imdb,), fetch_one=True
                 )
@@ -197,13 +198,13 @@ class IMDbUploadManager:
             utils.log(f"Traceback: {traceback.format_exc()}", "ERROR")
             return []
 
-    def _clear_existing_library_data(self, db_manager):
+    def _clear_existing_library_data(self):
         """Clear existing library data from database tables atomically."""
         try:
             utils.log("Starting atomic clear of existing library data", "INFO")
 
             # Get existing count for logging with explicit alias
-            count_result = db_manager.query_manager.execute_query(
+            count_result = self.query_manager.execute_query(
                 "SELECT COUNT(*) as lib_count FROM media_items WHERE source = 'lib'",
                 fetch_one=True
             )
@@ -213,15 +214,15 @@ class IMDbUploadManager:
                 utils.log(f"Found {existing_count} existing library items to clear", "INFO")
 
             # Clear all library data in a single transaction using public transaction context
-            with db_manager.query_manager.transaction():
+            with self.query_manager.transaction():
                 # Clear media_items table
-                db_manager.query_manager.execute_write("DELETE FROM media_items WHERE source = 'lib'")
+                self.query_manager.execute_write("DELETE FROM media_items WHERE source = 'lib'")
                 
                 # Clear heavy metadata table
-                db_manager.query_manager.execute_write("DELETE FROM movie_heavy_meta")
+                self.query_manager.execute_write("DELETE FROM movie_heavy_meta")
                 
                 # Clear imdb_exports table
-                db_manager.query_manager.execute_write("DELETE FROM imdb_exports")
+                self.query_manager.execute_write("DELETE FROM imdb_exports")
 
             utils.log(f"Successfully cleared {existing_count} library items and all related data", "INFO")
 
@@ -275,7 +276,7 @@ class IMDbUploadManager:
 
         return all_movies
 
-    def _process_and_store_movies(self, all_movies, db_manager, use_notifications):
+    def _process_and_store_movies(self, all_movies, use_notifications):
         """Process movies and store them in database with batching."""
         utils.log("Starting movie processing and storage phase", "INFO")
 
@@ -292,7 +293,7 @@ class IMDbUploadManager:
 
             # Process this batch
             batch_valid_movies, batch_stored_count = self._process_movie_batch(
-                batch_movies, batch_num, db_manager
+                batch_movies, batch_num
             )
 
             valid_movies.extend(batch_valid_movies)
@@ -313,14 +314,14 @@ class IMDbUploadManager:
 
         return valid_movies, stored_count
 
-    def _process_movie_batch(self, batch_movies, batch_num, db_manager):
+    def _process_movie_batch(self, batch_movies, batch_num):
         """Process a single batch of movies with transaction management."""        
         batch_valid_movies = []
         batch_stored_count = 0
 
         try:
             # Use public transaction context manager
-            with query_manager.transaction():
+            with self.query_manager.transaction():
                 batch_data = []
                 heavy_metadata_list = []
 
@@ -343,11 +344,11 @@ class IMDbUploadManager:
 
                 # Bulk insert batch data using public executemany_write
                 if batch_data:
-                    batch_stored_count = self._bulk_insert_movies(batch_data, db_manager)
+                    batch_stored_count = self._bulk_insert_movies(batch_data)
 
                 # Store heavy metadata in same transaction using public methods
                 if heavy_metadata_list:
-                    self._store_heavy_metadata_batch(heavy_metadata_list, db_manager)
+                    self._store_heavy_metadata_batch(heavy_metadata_list)
 
         except Exception as e:
             utils.log(f"Batch {batch_num} error: {str(e)}", "ERROR")
@@ -399,60 +400,18 @@ class IMDbUploadManager:
             'art': json.dumps(movie.get('art', {}))
         }
 
-    def _store_heavy_metadata_batch(self, heavy_metadata_list, db_manager):
-        """Store heavy metadata for multiple movies in batch using public executemany_write."""
+    def _store_heavy_metadata_batch(self, heavy_metadata_list):
+        """Store heavy metadata for multiple movies in batch using QueryManager."""
         if not heavy_metadata_list:
             return
 
         utils.log(f"Storing heavy metadata for {len(heavy_metadata_list)} movies in transaction", "DEBUG")
+        
+        # Use QueryManager's store_heavy_meta_batch method
+        self.query_manager.store_heavy_meta_batch(heavy_metadata_list)
 
-        try:
-            import time
-            current_time = int(time.time())
-
-            # Prepare batch data for executemany
-            heavy_meta_values = []
-            for movie_data in heavy_metadata_list:
-                movieid = movie_data.get('movieid')
-                if not movieid:
-                    continue
-
-                # Convert complex fields to JSON
-                cast_json = json.dumps(movie_data.get('cast', []))
-                ratings_json = json.dumps(movie_data.get('ratings', {}))
-                showlink_json = json.dumps(movie_data.get('showlink', []))
-                stream_json = json.dumps(movie_data.get('streamdetails', {}))
-                uniqueid_json = json.dumps(movie_data.get('uniqueid', {}))
-                tags_json = json.dumps(movie_data.get('tag', []))
-
-                heavy_meta_values.append((
-                    movieid,
-                    movie_data.get('imdbnumber', ''),
-                    cast_json,
-                    ratings_json, 
-                    showlink_json,
-                    stream_json,
-                    uniqueid_json,
-                    tags_json,
-                    current_time
-                ))
-
-            # Bulk insert using public executemany_write
-            if heavy_meta_values:
-                query = """
-                    INSERT OR REPLACE INTO movie_heavy_meta 
-                    (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
-                     stream_json, uniqueid_json, tags_json, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """
-                db_manager.query_manager.executemany_write(query, heavy_meta_values)
-
-        except Exception as e:
-            utils.log(f"Error storing heavy metadata batch: {str(e)}", "ERROR")
-            raise
-
-    def _bulk_insert_movies(self, batch_data, db_manager):
-        """Bulk insert movie data into database using public executemany_write."""
+    def _bulk_insert_movies(self, batch_data):
+        """Bulk insert movie data into database using QueryManager."""
         if not batch_data:
             return 0
 
@@ -462,16 +421,16 @@ class IMDbUploadManager:
         query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
 
         values_list = [tuple(movie_data.values()) for movie_data in batch_data]
-        db_manager.query_manager.executemany_write(query, values_list)
+        self.query_manager.executemany_write(query, values_list)
 
         return len(batch_data)
 
-    def _populate_imdb_exports(self, valid_movies, db_manager):
+    def _populate_imdb_exports(self, valid_movies):
         """Populate imdb_exports table for search functionality."""
         if valid_movies:
             try:
                 utils.log("Populating imdb_exports table for search functionality", "INFO")
-                db_manager.insert_imdb_export(valid_movies)
+                self.query_manager.insert_imdb_export(valid_movies)
                 utils.log(f"Populated imdb_exports table with {len(valid_movies)} entries", "INFO")
             except Exception as e:
                 utils.log(f"Error populating imdb_exports table: {str(e)}", "WARNING")
@@ -704,3 +663,4 @@ class IMDbUploadManager:
             utils.log(f"Error clearing server library: {str(e)}", "ERROR")
             xbmcgui.Dialog().ok("Error", f"Failed to clear library: {str(e)}")
             return False
+
