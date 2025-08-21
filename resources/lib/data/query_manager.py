@@ -174,6 +174,8 @@ class QueryManager(Singleton):
         """Transaction context manager for atomic operations"""
         with self._lock:
             conn = self._get_connection()
+            if conn is None:
+                raise RuntimeError("Failed to establish database connection")
             try:
                 conn.execute('BEGIN')
                 yield conn

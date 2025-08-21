@@ -177,10 +177,11 @@ def delete_list(params):
         return
     try:
         config = Config()
-        db_manager = DatabaseManager(config.db_path)
+        from resources.lib.data.query_manager import QueryManager
+        query_manager = QueryManager(config.db_path)
 
         # Use transaction for atomic delete operation
-        with db_manager.query_manager.transaction() as conn:
+        with query_manager.transaction() as conn:
             # Delete list items first
             cursor = conn.execute("DELETE FROM list_items WHERE list_id = ?", (int(list_id),))
             items_deleted = cursor.rowcount
