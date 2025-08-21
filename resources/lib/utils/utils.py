@@ -98,7 +98,19 @@ def log(message, level=None):
             "Batch",
             "Released database connection for batch",
             "Progress update:",
-            "Processing: Uploading movies"
+            "Processing: Uploading movies",
+            # Kodi match data spam patterns
+            "=== KODI_MATCH_DATA: Item",
+            "KODI_MATCH_DATA:",
+            "=== END KODI_MATCH_DATA ===",
+            "=== LISTITEM_INPUT_DATA: Item",
+            "LISTITEM_INPUT_DATA:",
+            "=== END LISTITEM_INPUT_DATA ===",
+            "=== LISTITEM_BUILDER_INPUT:",
+            "LISTITEM_BUILDER_INPUT:",
+            "=== END LISTITEM_BUILDER_INPUT ===",
+            "Set library file path for search result",
+            "Set valid ListItem path for search result"
         ]
 
         # Allow JSON-RPC request logging to always show through
