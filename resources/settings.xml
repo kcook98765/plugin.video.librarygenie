@@ -26,4 +26,11 @@
         <setting id="upload_library_full" type="action" label="Upload Full Library (Replace)" action="RunScript(plugin.video.librarygenie,upload_library_full)" />
         <setting id="upload_status" type="action" label="View Upload Status" action="RunScript(plugin.video.librarygenie,upload_status)" />
     </category>
+
+    <category label="Background Service">
+        <setting id="service_enabled" label="Enable background service" type="bool" default="true"/>
+        <setting id="poll_interval_sec" label="Check interval (seconds)" type="number" default="300"/>
+        <setting id="init_done" type="bool" default="false" visible="false"/>
+        <setting id="schema_version" type="number" default="0" visible="false"/>
+    </category>
 </settings>
