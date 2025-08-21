@@ -791,14 +791,18 @@ class ShortlistImporter:
                         utils.log(f"CONVERSION_FALLBACK: Using minimal data for '{media_dict['title']}'", "WARNING")
                         media_items_to_add.append(media_dict)
 
-                # Add all items to list using batch transaction method
+                # Add all items to list using query manager method
                 if media_items_to_add:
                     try:
-                        success = self.db_manager.add_shortlist_items(list_id, media_items_to_add)
-                        if success:
+                        success_count = 0
+                        for media_item in media_items_to_add:
+                            if self.db_manager.query_manager.insert_media_item_and_add_to_list(list_id, media_item):
+                                success_count += 1
+                        
+                        if success_count == len(media_items_to_add):
                             utils.log(f"IMPORT_SUCCESS: Added {len(media_items_to_add)} items to list '{dated_list_name}' in batch", "INFO")
                         else:
-                            utils.log(f"DATABASE_ERROR: Failed to add items to list '{dated_list_name}' in batch", "ERROR")
+                            utils.log(f"DATABASE_PARTIAL: Added {success_count}/{len(media_items_to_add)} items to list '{dated_list_name}'", "WARNING")
                     except Exception as e:
                         utils.log(f"DATABASE_ERROR: Failed to add items to list '{dated_list_name}': {str(e)}", "ERROR")
                         import traceback
