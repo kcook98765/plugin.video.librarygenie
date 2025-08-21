@@ -287,49 +287,45 @@ class IMDbUploadManager:
         last_notification = 0
         total = 0
 
-        # Use version-compatible properties with fallbacks
-        base_properties = ["title", "year", "file", "imdbnumber", "uniqueid", "movieid"]
-        extended_properties = ["cast", "ratings", "showlink", "streamdetails", "tag", "plot", "rating", "votes", 
-                             "runtime", "mpaa", "genre", "director", "studio", "country", "writer", "art", "premiered"]
-        
-        # Test with basic properties first
-        test_params = {
-            "properties": base_properties,
-            "limits": {"start": 0, "end": 1}
-        }
-        
-        test_response = self.jsonrpc.execute("VideoLibrary.GetMovies", test_params)
-        
-        if 'error' in test_response:
-            utils.log(f"JSON-RPC test failed with basic properties: {test_response.get('error', {}).get('message', 'Unknown error')}", "ERROR")
-            # Fallback to minimal properties
-            properties = ["title", "year", "file", "movieid"]
-        else:
-            # Basic properties work, try adding extended ones
-            properties = base_properties + extended_properties
-            utils.log(f"Using {len(properties)} properties for movie retrieval", "INFO")
-
         while True:
             # Execute JSON-RPC call
             params = {
-                "properties": properties,
+                "properties": ["title", "year", "file", "imdbnumber", "uniqueid", "cast", "ratings", "showlink", "streamdetails", "tag"],
                 "limits": {"start": start, "end": start + batch_size}
             }
 
             response = self.jsonrpc.execute("VideoLibrary.GetMovies", params)
             
-            # Debug first batch to see what we're getting
-            if start == 0 and 'result' in response and 'movies' in response['result']:
-                movies = response['result']['movies']
-                if movies:
-                    sample_movie = movies[0]
-                    utils.log("=== SAMPLE MOVIE FROM JSON-RPC ===", "INFO")
-                    for key, value in sample_movie.items():
-                        if isinstance(value, str) and len(value) > 100:
-                            utils.log(f"SAMPLE_MOVIE: {key} = {value[:100]}... (truncated)", "INFO")
-                        else:
-                            utils.log(f"SAMPLE_MOVIE: {key} = {repr(value)}", "INFO")
-                    utils.log("=== END SAMPLE MOVIE ===", "INFO")
+            # Log detailed response data for first batch only
+            if start == 0:
+                utils.log("=== JSON-RPC RESPONSE ANALYSIS (FIRST BATCH ONLY) ===", "INFO")
+                utils.log(f"Response keys: {list(response.keys())}", "INFO")
+                
+                if 'result' in response:
+                    result = response['result']
+                    utils.log(f"Result keys: {list(result.keys())}", "INFO")
+                    
+                    if 'movies' in result:
+                        movies = result['movies']
+                        utils.log(f"Number of movies in first batch: {len(movies)}", "INFO")
+                        
+                        # Log first 3 movies in detail
+                        for i, movie in enumerate(movies[:3]):
+                            utils.log(f"=== MOVIE {i+1} DETAILED DATA ===", "INFO")
+                            for key, value in movie.items():
+                                if isinstance(value, str) and len(value) > 200:
+                                    utils.log(f"MOVIE_{i+1}: {key} = {value[:200]}... (truncated)", "INFO")
+                                else:
+                                    utils.log(f"MOVIE_{i+1}: {key} = {repr(value)}", "INFO")
+                            utils.log(f"=== END MOVIE {i+1} DATA ===", "INFO")
+                    else:
+                        utils.log("No 'movies' key found in result", "ERROR")
+                else:
+                    utils.log("No 'result' key found in response", "ERROR")
+                    if 'error' in response:
+                        utils.log(f"Error in response: {response['error']}", "ERROR")
+                
+                utils.log("=== END JSON-RPC RESPONSE ANALYSIS ===", "INFO")
 
             if 'result' not in response or 'movies' not in response['result']:
                 break
@@ -459,40 +455,10 @@ class IMDbUploadManager:
 
     def _prepare_movie_data(self, movie, imdb_id):
         """Prepare movie data dictionary for database insertion."""
-        # Extract title with fallbacks
-        title = movie.get('title', '').strip()
-        if not title:
-            title = movie.get('label', '').strip()  # Kodi sometimes uses 'label'
-        if not title:
-            # Extract from file path as last resort
-            file_path = movie.get('file', '')
-            if file_path:
-                import os
-                title = os.path.splitext(os.path.basename(file_path))[0]
-        if not title:
-            title = 'Unknown Title'
-        
-        # Extract year with validation
-        year = movie.get('year', 0)
-        if not year or year == 0:
-            # Try to extract from premiered date
-            premiered = movie.get('premiered', '')
-            if premiered and len(premiered) >= 4:
-                try:
-                    year = int(premiered[:4])
-                except (ValueError, TypeError):
-                    year = 0
-        
-        # Log missing critical fields for debugging
-        if not movie.get('title'):
-            utils.log(f"WARNING: Missing title for movie {movie.get('movieid', 'unknown')} - using fallback: '{title}'", "WARNING")
-        if not movie.get('year'):
-            utils.log(f"WARNING: Missing year for movie '{title}' - using fallback: {year}", "WARNING")
-        
         return {
             'kodi_id': movie.get('movieid', 0),
-            'title': title,
-            'year': year,
+            'title': movie.get('title', ''),
+            'year': movie.get('year', 0),
             'imdbnumber': imdb_id,
             'source': 'lib',
             'play': movie.get('file', ''),
