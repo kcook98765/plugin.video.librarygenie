@@ -181,13 +181,13 @@ def start_library_scan():
                     _set_bool('library_scanned', True)
                     utils.log("Background library scan completed successfully", "INFO")
                     
-                    # Show completion notification
+                    # Show simple completion notification since detailed modal will follow
                     import xbmcgui
                     xbmcgui.Dialog().notification(
                         "LibraryGenie", 
-                        "Library scan complete! Addon is ready to use.", 
+                        "Scan complete!", 
                         xbmcgui.NOTIFICATION_INFO,
-                        5000
+                        3000
                     )
                     
                     # Show addon status modal after scan completion
