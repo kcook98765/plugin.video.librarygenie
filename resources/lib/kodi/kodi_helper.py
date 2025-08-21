@@ -115,7 +115,6 @@ class KodiHelper:
     def show_list(self, list_id):
         """Display items in a list"""
         utils.log(f"Showing list with ID: {list_id}", "DEBUG")
-        from resources.lib.data.database_manager import DatabaseManager
         from resources.lib.config.config_manager import get_config
         from resources.lib.kodi.listitem_builder import ListItemBuilder
         config = get_config()
@@ -186,7 +185,6 @@ class KodiHelper:
         try:
             utils.log(f"Play item called with item_id: {item_id} (type: {type(item_id)})", "DEBUG")
 
-            from resources.lib.data.database_manager import DatabaseManager
             from resources.lib.config.config_manager import get_config
             config = get_config()
             db_manager = DatabaseManager(config.db_path)
