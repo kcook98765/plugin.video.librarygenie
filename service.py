@@ -26,19 +26,10 @@ def _set_int(k, v):
 def init_once():
     """Idempotent: create/upgrade schema + seed baseline data."""
     try:
-        config = Config()
-        query_manager = QueryManager(config.db_path)
-
-        # Ensure database schema is up to date
-        query_manager.setup_database()
-        
-        # Ensure required folders exist
-        query_manager.ensure_search_history_folder()
-        
-        # Create Imported Lists folder if it doesn't exist
-        folder_id = query_manager.get_folder_id_by_name("Imported Lists")
-        if not folder_id:
-            query_manager.create_folder("Imported Lists", None)
+        # Ensure database is properly set up
+        if not ensure_database_ready():
+            utils.log(f"{ID} database setup failed during init", "ERROR")
+            return
 
         # Mark initialization as complete
         if not _get_bool('init_done', False):
@@ -63,6 +54,34 @@ def handle_periodic_tasks():
         
     except Exception as e:
         utils.log(f"{ID} periodic task error: {e}", "ERROR")
+
+def ensure_database_ready():
+    """Ensure database and all required tables/folders are properly set up"""
+    try:
+        config = Config()
+        query_manager = QueryManager(config.db_path)
+
+        # Setup all database tables
+        query_manager.setup_database()
+        
+        # Ensure required system folders exist
+        search_history_folder = query_manager.ensure_search_history_folder()
+        utils.log(f"Search History folder ensured: {search_history_folder}", "DEBUG")
+        
+        # Create Imported Lists folder if it doesn't exist
+        imported_lists_folder_id = query_manager.get_folder_id_by_name("Imported Lists")
+        if not imported_lists_folder_id:
+            imported_lists_folder = query_manager.create_folder("Imported Lists", None)
+            utils.log(f"Created Imported Lists folder: {imported_lists_folder}", "DEBUG")
+        else:
+            utils.log("Imported Lists folder already exists", "DEBUG")
+
+        utils.log("Database setup completed successfully", "INFO")
+        return True
+        
+    except Exception as e:
+        utils.log(f"Error ensuring database ready: {e}", "ERROR")
+        return False
 
 def handle_command(topic, message):
     """

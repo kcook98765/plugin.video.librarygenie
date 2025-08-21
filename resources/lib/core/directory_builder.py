@@ -109,9 +109,8 @@ def build_root_directory(handle: int):
     # Add list and folder items here based on existing database content
     try:
         config = Config()
-        # Initialize query manager and setup database
+        # Get query manager - database setup is handled by service
         query_manager = QueryManager(config.db_path)
-        query_manager.setup_database()
 
         # Get top-level folders
         top_level_folders = query_manager.fetch_folders(None) # None for root

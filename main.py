@@ -546,17 +546,7 @@ def main():
         log("No specific action detected, running default addon helper.", "DEBUG")
         run_addon()
 
-        # Ensure Search History folder exists
-        log("Setting up configuration and database for first run", "DEBUG")
-        config = Config()
-        query_manager = QueryManager(config.db_path)
-        query_manager.setup_database()  # Ensure database is set up
-        # Create folders if they don't exist
-        query_manager.ensure_search_history_folder()
-        folder_id = query_manager.get_folder_id_by_name("Imported Lists")
-        if not folder_id:
-            query_manager.create_folder("Imported Lists", None)
-        log("Configuration and database setup complete", "DEBUG")
+        log("Configuration initialized - database setup is handled by background service", "DEBUG")
 
         log("=== LibraryGenie addon startup complete ===", "INFO")
     except Exception as e:
