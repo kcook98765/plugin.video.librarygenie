@@ -10,7 +10,6 @@ from resources.lib.kodi.kodi_helper import KodiHelper
 from resources.lib.config.addon_ref import get_addon
 from resources.lib.kodi.context_menu_builder import get_context_menu_builder
 from resources.lib.config.config_manager import Config
-from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.kodi.window_search import SearchWindow
 from resources.lib.utils import utils
 
