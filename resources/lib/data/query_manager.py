@@ -501,7 +501,13 @@ class QueryManager(Singleton):
         """
         return self.execute_write(query, (description, response_json))
 
-    
+    def insert_parsed_movie(self, request_id: int, title: str, year: Optional[int], director: Optional[str]) -> int:
+        """Insert a parsed movie record"""
+        query = """
+            INSERT INTO parsed_movies (request_id, title, year, director)
+            VALUES (?, ?, ?, ?)
+        """
+        return self.execute_write(query, (request_id, title, year, director))
 
     def insert_media_item(self, data: Dict[str, Any]) -> Optional[int]:
         """Insert a media item and return its ID"""
@@ -782,6 +788,14 @@ class QueryManager(Singleton):
                 description TEXT,
                 response_json TEXT,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )""",
+            """CREATE TABLE IF NOT EXISTS parsed_movies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                request_id INTEGER,
+                title TEXT,
+                year INTEGER,
+                director TEXT,
+                FOREIGN KEY (request_id) REFERENCES original_requests (id)
             )""",
             
             """CREATE TABLE IF NOT EXISTS movie_heavy_meta (

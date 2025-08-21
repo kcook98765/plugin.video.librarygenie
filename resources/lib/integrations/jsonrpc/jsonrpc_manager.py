@@ -609,166 +609,186 @@ class JSONRPC:
 
         return response
 
-    def get_movies_by_imdb_batch(self, imdb_ids):
-        """Optimized lookup using IMDb IDs with title/year from imdb_exports and cached heavy fields"""
-        if not imdb_ids:
+    def get_movies_by_title_year_batch(self, title_year_pairs):
+        """Optimized lookup using OR filter for title-year combinations with cached heavy fields"""
+        if not title_year_pairs:
             return {"result": {"movies": []}}
 
         try:
-            log(f"=== BATCH JSON-RPC: Starting IMDb batch lookup for {len(imdb_ids)} IMDb IDs ===", "INFO")
+            log(f"=== BATCH JSON-RPC: Starting FAST batch lookup for {len(title_year_pairs)} title/year pairs ===", "INFO")
 
             # Log sample of what we're looking for
-            sample_ids = imdb_ids[:3]
-            for i, imdb_id in enumerate(sample_ids):
-                log(f"BATCH JSON-RPC: Sample {i+1}: '{imdb_id}'", "INFO")
-            if len(imdb_ids) > 3:
-                log(f"BATCH JSON-RPC: ... and {len(imdb_ids) - 3} more", "INFO")
+            sample_pairs = title_year_pairs[:3]
+            for i, pair in enumerate(sample_pairs):
+                log(f"BATCH JSON-RPC: Sample {i+1}: '{pair.get('title', 'N/A')}' ({pair.get('year', 'N/A')})", "INFO")
+            if len(title_year_pairs) > 3:
+                log(f"BATCH JSON-RPC: ... and {len(title_year_pairs) - 3} more", "INFO")
 
-            # Step 1: Get title/year data from imdb_exports
-            log("BATCH JSON-RPC: Getting title/year data from imdb_exports table", "INFO")
-            
-            # Import here to avoid circular imports
-            from resources.lib.data.query_manager import QueryManager
-            from resources.lib.config.config_manager import Config
-            query_manager = QueryManager(Config().db_path)
+            # Use light properties for faster response with version compatibility
+            base_properties = self.get_light_properties()
 
-            # Build query for all IMDb IDs
-            placeholders = ','.join(['?' for _ in imdb_ids])
-            export_query = f"""
-                SELECT imdb_id, title, year, kodi_id
-                FROM imdb_exports 
-                WHERE imdb_id IN ({placeholders})
-            """
-            export_results = query_manager.execute_query(export_query, tuple(imdb_ids), fetch_all=True)
-            
-            # Create lookup dict for export data
-            export_lookup = {}
-            kodi_ids_to_fetch = []
-            
-            for result in export_results:
-                imdb_id = result['imdb_id']
-                export_lookup[imdb_id] = {
-                    'title': result['title'],
-                    'year': result['year'],
-                    'kodi_id': result.get('kodi_id', 0)
+            # Apply version compatibility filtering like other JSON-RPC calls
+            try:
+                # Test with a small subset first to detect invalid properties
+                test_filter = {
+                    'field': 'title',
+                    'operator': 'contains', 
+                    'value': 'test_query_for_property_validation'
                 }
-                if result.get('kodi_id'):
-                    kodi_ids_to_fetch.append(result['kodi_id'])
-
-            log(f"BATCH JSON-RPC: Found export data for {len(export_lookup)} IMDb IDs", "INFO")
-            log(f"BATCH JSON-RPC: Will fetch Kodi data for {len(kodi_ids_to_fetch)} movies with kodi_ids", "INFO")
-
-            # Step 2: Get light Kodi data for movies that have kodi_ids
-            light_movies = []
-            if kodi_ids_to_fetch:
-                # Use light properties for faster response
-                base_properties = self.get_light_properties()
-                
-                # Build filter for kodi_ids (use movieid field)
-                if len(kodi_ids_to_fetch) == 1:
-                    search_filter = {
-                        'field': 'movieid',
-                        'operator': 'is',
-                        'value': str(kodi_ids_to_fetch[0])
-                    }
-                else:
-                    or_conditions = []
-                    for kodi_id in kodi_ids_to_fetch:
-                        or_conditions.append({
-                            'field': 'movieid', 
-                            'operator': 'is',
-                            'value': str(kodi_id)
-                        })
-                    search_filter = {'or': or_conditions}
-
-                log("BATCH JSON-RPC: Making JSON-RPC call to get Kodi movie data", "INFO")
-                
-                response = self.execute('VideoLibrary.GetMovies', {
-                    'properties': base_properties,
-                    'filter': search_filter
+                test_response = self.execute('VideoLibrary.GetMovies', {
+                    'properties': base_properties[:5],  # Test with first 5 properties
+                    'filter': test_filter,
+                    'limits': {'start': 0, 'end': 1}
                 })
 
-                if 'result' in response and 'movies' in response['result']:
-                    light_movies = response['result']['movies']
-                    log(f"BATCH JSON-RPC: Got {len(light_movies)} movies from Kodi", "INFO")
+                if 'error' in test_response:
+                    # Check for invalid property error
+                    invalid_index = self._extract_invalid_prop_index(test_response)
+                    if invalid_index is not None and invalid_index < len(base_properties):
+                        invalid_prop = base_properties[invalid_index]
+                        log(f"BATCH JSON-RPC: Removing invalid property '{invalid_prop}' for this Kodi version", "WARNING")
+                        base_properties = [p for p in base_properties if p != invalid_prop]
 
-            # Step 3: Merge heavy fields for movies we found in Kodi
-            if light_movies:
+                properties = base_properties
+                log(f"BATCH JSON-RPC: Using {len(properties)} compatible light properties (excluding heavy fields)", "INFO")
+
+            except Exception as e:
+                log(f"BATCH JSON-RPC: Property compatibility check failed, using basic properties: {str(e)}", "WARNING")
+                properties = ["title", "year", "movieid", "file"]
+
+            # Build OR filter for all title-year combinations using proper Kodi JSON-RPC syntax
+            filter_conditions = []
+            for pair in title_year_pairs:
+                title = (pair.get('title') or '').strip()
+                year = pair.get('year') or 0
+
+                if not title:
+                    continue
+
+                if year and str(year).isdigit():
+                    # AND condition for both title and year - use proper Kodi syntax
+                    # NOTE: All values must be strings for Kodi JSON-RPC
+                    and_condition = [
+                        {
+                            'field': 'title',
+                            'operator': 'is',
+                            'value': title
+                        },
+                        {
+                            'field': 'year',
+                            'operator': 'is',
+                            'value': str(year)
+                        }
+                    ]
+                    filter_conditions.append(and_condition)
+                else:
+                    # Just title condition - wrap in array for consistency
+                    title_condition = [
+                        {
+                            'field': 'title',
+                            'operator': 'is',
+                            'value': title
+                        }
+                    ]
+                    filter_conditions.append(title_condition)
+
+            if not filter_conditions:
+                log("BATCH JSON-RPC: No valid filter conditions created", "WARNING")
+                return {"result": {"movies": []}}
+
+            # Create the proper Kodi JSON-RPC filter structure
+            if len(filter_conditions) == 1:
+                # Single condition - use AND if multiple fields, single field if one
+                if len(filter_conditions[0]) == 1:
+                    search_filter = filter_conditions[0][0]
+                else:
+                    search_filter = {
+                        'and': filter_conditions[0]
+                    }
+            else:
+                # Multiple conditions - use OR with AND subconditions
+                or_list = []
+                for condition_group in filter_conditions:
+                    if len(condition_group) == 1:
+                        or_list.append(condition_group[0])
+                    else:
+                        or_list.append({
+                            'and': condition_group
+                        })
+
+                search_filter = {
+                    'or': or_list
+                }
+
+            log(f"BATCH JSON-RPC: Built OR filter with {len(filter_conditions)} conditions", "INFO")
+            log("BATCH JSON-RPC: Making FAST JSONRPC call to VideoLibrary.GetMovies", "INFO")
+
+            response = self.execute('VideoLibrary.GetMovies', {
+                'properties': properties,
+                'filter': search_filter
+            })
+
+            if 'result' in response and 'movies' in response['result']:
+                light_movies = response['result']['movies']
+                log(f"=== BATCH JSON-RPC: Got {len(light_movies)} light movies from fast call ===", "INFO")
+
+                # Step 2: Merge cached heavy fields
                 movieids = [m.get('movieid') for m in light_movies if m.get('movieid')]
                 log(f"BATCH JSON-RPC: Fetching heavy fields for {len(movieids)} movies from cache", "INFO")
 
-                try:
-                    # Get heavy fields from cache in one DB call
-                    heavy_by_id = query_manager._listing.get_heavy_meta_by_movieids(movieids)
-                    log(f"BATCH JSON-RPC: Retrieved heavy fields for {len(heavy_by_id)} movies from cache", "INFO")
+                if movieids:
+                    try:
+                        # Import here to avoid circular imports
+                        from resources.lib.data.query_manager import QueryManager
+                        from resources.lib.config.config_manager import Config
+                        query_manager = QueryManager(Config().db_path)
 
-                    # Merge heavy fields back into light movies
-                    for movie in light_movies:
-                        movieid = movie.get('movieid')
-                        if movieid and movieid in heavy_by_id:
-                            heavy_fields = heavy_by_id[movieid]
-                            movie.update(heavy_fields)
+                        # Get heavy fields from cache in one DB call
+                        heavy_by_id = query_manager._listing.get_heavy_meta_by_movieids(movieids)
+                        log(f"BATCH JSON-RPC: Retrieved heavy fields for {len(heavy_by_id)} movies from cache", "INFO")
 
-                except Exception as e:
-                    log(f"BATCH JSON-RPC: Warning - Failed to merge heavy fields: {str(e)}", "WARNING")
+                        # Merge heavy fields back into light movies
+                        merged_count = 0
+                        missing_count = 0
+                        for movie in light_movies:
+                            movieid = movie.get('movieid')
+                            if movieid and movieid in heavy_by_id:
+                                heavy_fields = heavy_by_id[movieid]
+                                movie.update(heavy_fields)
+                                merged_count += 1
+                            else:
+                                # Fallback: Add empty/null values for missing heavy data
+                                movie.update({
+                                    'cast': [],
+                                    'ratings': {},
+                                    'showlink': [],
+                                    'streamdetails': {},
+                                    'uniqueid': {},
+                                    'tag': []
+                                })
+                                missing_count += 1
 
-            # Step 4: Create combined results using export data as authoritative source for title/year
-            combined_movies = []
-            kodi_by_id = {str(m.get('movieid', 0)): m for m in light_movies}
-            
-            for imdb_id in imdb_ids:
-                if imdb_id not in export_lookup:
-                    continue
-                    
-                export_data = export_lookup[imdb_id]
-                kodi_id = export_data.get('kodi_id', 0)
-                
-                # Start with export data (authoritative for title/year)
-                combined_movie = {
-                    'title': export_data['title'],
-                    'year': export_data['year'],
-                    'movieid': kodi_id,
-                    'imdbnumber': imdb_id,
-                    'uniqueid': {'imdb': imdb_id}
-                }
-                
-                # Merge in Kodi data if available (excluding title/year)
-                if str(kodi_id) in kodi_by_id:
-                    kodi_movie = kodi_by_id[str(kodi_id)]
-                    for key, value in kodi_movie.items():
-                        if key not in ['title', 'year', 'movieid']:  # Keep export data for these
-                            combined_movie[key] = value
-                else:
-                    # Add default values for missing Kodi data
-                    combined_movie.update({
-                        'file': '',
-                        'plot': '',
-                        'genre': '',
-                        'director': '',
-                        'cast': [],
-                        'rating': 0.0,
-                        'runtime': 0,
-                        'fanart': '',
-                        'thumbnail': '',
-                        'art': {},
-                        'streamdetails': {},
-                        'ratings': {},
-                        'showlink': [],
-                        'tag': []
-                    })
-                
-                combined_movies.append(combined_movie)
+                        log(f"BATCH JSON-RPC: Merged heavy fields for {merged_count}/{len(light_movies)} movies", "INFO")
+                        if missing_count > 0:
+                            log(f"BATCH JSON-RPC: Used fallback empty values for {missing_count} movies with missing heavy data", "WARNING")
 
-            log(f"=== BATCH JSON-RPC: SUCCESS - Created {len(combined_movies)} combined movie records ===", "INFO")
-            
-            # Log sample results
-            for i, movie in enumerate(combined_movies[:3]):
-                has_kodi_data = bool(movie.get('file', ''))
-                log(f"BATCH JSON-RPC: Result {i+1}: '{movie.get('title', 'N/A')}' ({movie.get('year', 'N/A')}) IMDb:{movie.get('imdbnumber', 'N/A')} [kodi_data:{has_kodi_data}]", "INFO")
-            if len(combined_movies) > 3:
-                log(f"BATCH JSON-RPC: ... and {len(combined_movies) - 3} more results", "INFO")
+                    except Exception as e:
+                        log(f"BATCH JSON-RPC: Warning - Failed to merge heavy fields: {str(e)}", "WARNING")
+                        # Continue with light movies even if heavy field merge fails
 
-            return {"result": {"movies": combined_movies, "limits": {"total": len(combined_movies)}}}
+                # Log sample matches
+                for i, movie in enumerate(light_movies[:3]):
+                    has_cast = len(movie.get('cast', [])) > 0
+                    has_uniqueid = bool(movie.get('uniqueid', {}))
+                    log(f"BATCH JSON-RPC: Match {i+1}: '{movie.get('title', 'N/A')}' ({movie.get('year', 'N/A')}) [cast:{has_cast}, uniqueid:{has_uniqueid}]", "INFO")
+                if len(light_movies) > 3:
+                    log(f"BATCH JSON-RPC: ... and {len(light_movies) - 3} more matches", "INFO")
+
+                log(f"=== BATCH JSON-RPC: SUCCESS - Completed FAST batch with heavy field merge ===", "INFO")
+                return {"result": {"movies": light_movies, "limits": response['result'].get('limits', {})}}
+            else:
+                log("BATCH JSON-RPC: No movies found in response", "INFO")
+                return {"result": {"movies": []}}
 
         except Exception as e:
             log(f"=== BATCH JSON-RPC: ERROR - {str(e)} ===", "ERROR")

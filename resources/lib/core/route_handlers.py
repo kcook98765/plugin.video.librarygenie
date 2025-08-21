@@ -1365,58 +1365,27 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
             # Step 2: Create media items for each search result following the search pattern
             utils.log(f"=== SIMILARITY_SEARCH: Creating media items for {len(search_results)} results ===", "DEBUG")
 
-            # Extract IMDb IDs from search results
-            imdb_ids = []
-            score_lookup = {}
-
             for i, result in enumerate(search_results):
-                imdb_id = result.get('imdb_id', '').strip()
-                search_score = float(result.get('score', 0.0))
-
-                if not imdb_id:
-                    utils.log(f"=== SIMILARITY_SEARCH: Skipping result {i+1} - no IMDb ID ===", "DEBUG")
-                    continue
+                imdb_id = result['imdb_id']
+                search_score = float(result.get('search_score', 0))
 
                 utils.log(f"=== SIMILARITY_SEARCH: Processing result {i+1}/{len(search_results)}: {imdb_id} (score: {search_score}) ===", "DEBUG")
 
-                imdb_ids.append(imdb_id)
-                score_lookup[imdb_id] = search_score
+                # Look up title and year from imdb_exports if available
+                title_lookup = ''
+                year_lookup = 0
 
-            # Use new batch lookup method to get title/year from imdb_exports plus Kodi data
-            utils.log(f"=== SIMILARITY_SEARCH: Using batch lookup for {len(imdb_ids)} IMDb IDs ===", "DEBUG")
-
-            from resources.lib.integrations.jsonrpc.jsonrpc_manager import JSONRPC
-            jsonrpc = JSONRPC()
-            batch_response = jsonrpc.get_movies_by_imdb_batch(imdb_ids)
-
-            # Process batch results and add search scores
-            processed_results = []
-            if 'result' in batch_response and 'movies' in batch_response['result']:
-                movies = batch_response['result']['movies']
-                utils.log(f"=== SIMILARITY_SEARCH: Got {len(movies)} movies from batch lookup ===", "DEBUG")
-
-                for movie in movies:
-                    imdb_id = movie.get('imdbnumber', '')
-                    if imdb_id in score_lookup:
-                        processed_results.append({
-                            'imdb_id': imdb_id,
-                            'title': movie.get('title', ''),
-                            'year': movie.get('year', 0),
-                            'score': score_lookup[imdb_id]
-                        })
-
-            utils.log(f"=== SIMILARITY_SEARCH: Created {len(processed_results)} processed results ===", "DEBUG")
-
-
-            for i, result in enumerate(processed_results):
-                imdb_id = result.get('imdb_id', '').strip()
-                title_lookup = result.get('title', '')
-                year_lookup = result.get('year', 0)
-                search_score = float(result.get('score', 0.0))
-
-                if not imdb_id:
-                    utils.log(f"=== SIMILARITY_SEARCH: Skipping processed result {i+1} - no IMDb ID ===", "DEBUG")
-                    continue
+                try:
+                    lookup_query = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
+                    lookup_result = query_manager.execute_query(lookup_query, (imdb_id,), fetch_one=True)
+                    if lookup_result:
+                        title_lookup = lookup_result.get('title', '')
+                        year_lookup = int(lookup_result.get('year', 0) or 0)
+                        utils.log(f"=== SIMILARITY_SEARCH: Found title/year for {imdb_id}: '{title_lookup}' ({year_lookup}) ===", "DEBUG")
+                    else:
+                        utils.log(f"=== SIMILARITY_SEARCH: No imdb_exports entry for {imdb_id} ===", "DEBUG")
+                except Exception as e:
+                    utils.log(f"=== SIMILARITY_SEARCH: Error looking up title/year for {imdb_id}: {str(e)} ===", "ERROR")
 
                 # Create media item data with search metadata - use looked up data if available
                 media_item_data = {
