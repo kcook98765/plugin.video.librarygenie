@@ -1,3 +1,4 @@
+
 import xbmc
 import xbmcgui
 import xbmcplugin
@@ -7,9 +8,10 @@ from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.utils import utils
 
 def _validate_sql_identifier(identifier):
-    """Validate SQL identifier against safe pattern and sqlite_master"""
-    import re
-
+    """Validate SQL identifier against safe pattern"""
+    if not identifier or not isinstance(identifier, str):
+        return False
+        
     # Check safe name pattern: alphanumeric, underscore, no spaces, reasonable length
     if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', identifier) or len(identifier) > 64:
         return False
@@ -21,17 +23,15 @@ def _validate_sql_identifier(identifier):
         'where', 'join', 'union', 'group', 'order', 'having', 'limit'
     }
 
-    if identifier.lower() in sql_keywords:
-        return False
+    return identifier.lower() not in sql_keywords
 
-    return True
-
-def _validate_table_exists(db_manager, table_name):
-    """Validate table exists in sqlite_master"""
+def _validate_table_exists(query_manager, table_name):
+    """Validate table exists in sqlite_master using query_manager"""
     if not _validate_sql_identifier(table_name):
+        utils.log(f"Invalid table identifier: {table_name}", "ERROR")
         return False
 
-    result = db_manager.query_manager.execute_query(
+    result = query_manager.execute_query(
         "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
         (table_name,),
         fetch_one=True
@@ -39,18 +39,14 @@ def _validate_table_exists(db_manager, table_name):
     return result is not None
 
 def display_imdb_data_as_directory(handle):
-    """Display database structure and sample data"""
-    from resources.lib.data.database_manager import DatabaseManager
-    from resources.lib.config.config_manager import Config
-    import xbmcgui
-    import xbmcplugin
-
+    """Display database structure and sample data using only query_manager"""
     try:
         config = Config()
         db_manager = DatabaseManager(config.db_path)
+        query_manager = db_manager.query_manager
 
-        # Get all table names from the database (parameterized query)
-        tables = db_manager.query_manager.execute_query(
+        # Get all table names from the database using query_manager
+        tables = query_manager.execute_query(
             "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name", 
             fetch_all=True
         )
@@ -62,22 +58,25 @@ def display_imdb_data_as_directory(handle):
                 continue  # Skip system table
 
             # Validate table name for security
-            if not _validate_table_exists(db_manager, table_name):
+            if not _validate_table_exists(query_manager, table_name):
                 error_li = xbmcgui.ListItem(label=f"Invalid table name: {table_name}")
                 error_li.setProperty('IsPlayable', 'false')
                 xbmcplugin.addDirectoryItem(handle, "", error_li, False)
                 continue
 
             try:
-                # Get table info using parameterized PRAGMA (table name validated above)
-                table_structure = db_manager.query_manager.execute_query(
+                # Get table info using query_manager with validated table name
+                # Use the query_manager's internal validation since table name is already validated
+                table_structure = query_manager.execute_query(
                     f"PRAGMA table_info({table_name})", 
                     fetch_all=True
                 )
 
                 # Count rows using parameterized query with validated table name
-                count_query = f"SELECT COUNT(*) as count FROM {table_name}"
-                count_result = db_manager.query_manager.execute_query(count_query, fetch_one=True)
+                count_result = query_manager.execute_query(
+                    f"SELECT COUNT(*) as count FROM {table_name}",
+                    fetch_one=True
+                )
                 row_count = count_result['count'] if count_result else 0
 
                 # Create list item for table
@@ -94,12 +93,14 @@ def display_imdb_data_as_directory(handle):
                     col_li.setProperty('IsPlayable', 'false')
                     xbmcplugin.addDirectoryItem(handle, "", col_li, False)
 
-                # Show sample data using validated table name
+                # Show sample data using validated table name and query_manager
                 try:
-                    sample_query = f"SELECT * FROM {table_name} LIMIT 3"
-                    sample_rows = db_manager.query_manager.execute_query(sample_query, fetch_all=True)
+                    sample_rows = query_manager.execute_query(
+                        f"SELECT * FROM {table_name} LIMIT 3",
+                        fetch_all=True
+                    )
                     for i, row in enumerate(sample_rows):
-                        row_dict = row
+                        row_dict = dict(row) if row else {}
                         row_str = str(row_dict)[:100] + "..." if len(str(row_dict)) > 100 else str(row_dict)
                         row_li = xbmcgui.ListItem(label=f"    Row {i+1}: {row_str}")
                         row_li.setProperty('IsPlayable', 'false')
@@ -113,7 +114,7 @@ def display_imdb_data_as_directory(handle):
                 error_table_li = xbmcgui.ListItem(label=f"Error processing table {table_name}: {str(table_e)}")
                 error_table_li.setProperty('IsPlayable', 'false')
                 xbmcplugin.addDirectoryItem(handle, "", error_table_li, False)
-                continue  # Skip tables that can't be queried
+                continue
 
         xbmcplugin.endOfDirectory(handle)
 
