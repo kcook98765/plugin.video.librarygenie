@@ -123,7 +123,7 @@ def build_root_directory(handle: int):
         for folder in top_level_folders:
             # Skip protected folders - they're accessed via Options & Tools menu or hidden when empty
             if folder['name'] in ["Search History", "Imported Lists"]:
-                # Check if the folder has any content (lists or subfolders with content)
+                # Check if the folder has any content (lists or subfolders)
                 folder_count = query_manager.get_folder_media_count(folder['id'])
                 subfolders = query_manager.fetch_folders(folder['id'])
                 has_subfolders = len(subfolders) > 0
@@ -176,7 +176,7 @@ def show_empty_directory(handle: int, message="No items to display."):
         li = ListItemBuilder.build_folder_item(message, is_folder=False)
         li.setProperty('IsPlayable', 'false')
         xbmcplugin.addDirectoryItem(handle, "", li, False)
-        xbmcplugin.endOfDirectory(handle, succeeded=True)
+        xbmcbmcplugin.endOfDirectory(handle, succeeded=True)
     except Exception as e:
         utils.log(f"Error showing empty directory: {str(e)}", "ERROR")
         # Fallback: just end directory to prevent hanging
