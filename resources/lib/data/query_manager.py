@@ -776,6 +776,7 @@ class QueryManager(Singleton):
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 list_id INTEGER,
                 media_item_id INTEGER,
+                search_score REAL DEFAULT 0,
                 flagged INTEGER DEFAULT 0,
                 FOREIGN KEY (list_id) REFERENCES lists (id),
                 FOREIGN KEY (media_item_id) REFERENCES media_items (id)
