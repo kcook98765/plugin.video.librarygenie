@@ -1408,7 +1408,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
             # Use navigation manager for consistent logging
             from resources.lib.core.navigation_manager import get_navigation_manager
             nav_manager = get_navigation_manager()
-            nav_manager.navigate(target_url, "Similarity List Created")
+            nav_manager.navigate_with_back_support(target_url, "Similarity List Created")
         else:
             utils.log("=== SIMILARITY_SEARCH: Failed to build target URL for navigation ===", "ERROR")
 
