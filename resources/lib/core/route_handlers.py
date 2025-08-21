@@ -885,7 +885,7 @@ def add_to_list(params):
             folder_path = ""
             if list_item.get('folder_id'):
                 folder = query_manager.execute_query('SELECT * FROM folders WHERE id = ?', (list_item['folder_id'],), fetch_one=True)
-                if folder:
+                if folder and isinstance(folder, dict) and 'name' in folder:
                     folder_path = f"[{folder['name']}] "
 
             list_options.append(f"{folder_path}{list_item['name']}")
@@ -1059,7 +1059,7 @@ def add_to_list_from_context(params):
             folder_path = ""
             if list_item.get('folder_id'):
                 folder = query_manager.execute_query('SELECT * FROM folders WHERE id = ?', (list_item['folder_id'],), fetch_one=True)
-                if folder:
+                if folder and isinstance(folder, dict) and 'name' in folder:
                     folder_path = f"[{folder['name']}] "
 
             list_options.append(f"{folder_path}{list_item['name']}")
