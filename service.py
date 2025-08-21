@@ -89,10 +89,6 @@ def ensure_database_ready():
 def check_and_prompt_library_scan():
     """Check if library data exists and prompt user for initial scan if needed"""
     try:
-        # Skip if already scanned or user previously declined
-        if _get_bool('library_scanned', False) or _get_bool('library_scan_declined', False):
-            return
-
         config = Config()
         query_manager = QueryManager(config.db_path)
         
@@ -103,15 +99,19 @@ def check_and_prompt_library_scan():
         )
         
         library_count = result['count'] if result else 0
+        utils.log(f"Library data check: found {library_count} items in imdb_exports", "INFO")
         
         if library_count == 0:
-            # No library data exists - prompt user
-            utils.log("No library data found - prompting user for initial scan", "INFO")
+            # No library data exists - reset flags and prompt user
+            utils.log("No library data found - resetting scan flags and prompting user", "INFO")
+            _set_bool('library_scanned', False)
+            _set_bool('library_scan_declined', False)
             prompt_user_for_library_scan()
         else:
-            # Library data exists - mark as scanned
+            # Library data exists - mark as scanned and clear decline flag
             _set_bool('library_scanned', True)
-            utils.log(f"Library data exists ({library_count} items) - skipping scan prompt", "INFO")
+            _set_bool('library_scan_declined', False)
+            utils.log(f"Library data exists ({library_count} items) - marking as scanned", "INFO")
             
     except Exception as e:
         utils.log(f"Error checking library scan status: {e}", "ERROR")
