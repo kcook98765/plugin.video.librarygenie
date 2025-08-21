@@ -90,7 +90,10 @@ def display_imdb_data_as_directory(handle):
                 )
                 # Ensure we work with dict representation for consistent access
                 if count_result:
-                    row_count = count_result.get('row_count', 0)
+                    # Handle case where result might be a list with one item or a dict
+                    if isinstance(count_result, list) and len(count_result) > 0:
+                        count_result = count_result[0]
+                    row_count = count_result.get('row_count', 0) if isinstance(count_result, dict) else 0
                 else:
                     row_count = 0
 
