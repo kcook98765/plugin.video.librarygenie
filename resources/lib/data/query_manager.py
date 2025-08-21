@@ -736,6 +736,11 @@ class QueryManager(Singleton):
 
     def setup_database(self):
         """Setup all database tables"""
+        # Ensure database directory exists first
+        db_dir = os.path.dirname(self.db_path)
+        if not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
+            
         fields_str = ', '.join(Config.FIELDS)
 
         table_creations = [

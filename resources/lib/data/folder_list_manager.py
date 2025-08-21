@@ -3,9 +3,70 @@
 import xbmc
 import xbmcgui
 from resources.lib.utils import utils
-from resources.lib.data.database_manager import DatabaseManager
+from resources.lib.data.query_manager import QueryManager
 from resources.lib.config.config_manager import Config
 from typing import List, Union, cast
+
+
+class FolderListManager:
+    """Manager for folder and list operations"""
+    
+    def __init__(self):
+        self.config = Config()
+        self.query_manager = QueryManager(self.config.db_path)
+    
+    def create_new_folder_at_root(self):
+        """Create a new folder at root level"""
+        dialog = xbmcgui.Dialog()
+        folder_name = dialog.input("Enter folder name:", type=xbmcgui.INPUT_ALPHANUM)
+        
+        if folder_name:
+            try:
+                folder = self.query_manager.create_folder(folder_name, None)
+                utils.log(f"Created new folder: {folder_name}", "INFO")
+                return folder
+            except Exception as e:
+                utils.log(f"Error creating folder: {str(e)}", "ERROR")
+                dialog.notification("LibraryGenie", "Failed to create folder", xbmcgui.NOTIFICATION_ERROR)
+        return None
+    
+    def clear_all_local_data(self):
+        """Clear all local data from database"""
+        dialog = xbmcgui.Dialog()
+        if dialog.yesno("LibraryGenie", "Are you sure you want to clear all local data?"):
+            try:
+                # Clear all tables
+                with self.query_manager.transaction() as conn:
+                    conn.execute("DELETE FROM list_items")
+                    conn.execute("DELETE FROM lists") 
+                    conn.execute("DELETE FROM folders")
+                    conn.execute("DELETE FROM media_items")
+                utils.log("Cleared all local data", "INFO")
+                dialog.notification("LibraryGenie", "Local data cleared", xbmcgui.NOTIFICATION_INFO)
+            except Exception as e:
+                utils.log(f"Error clearing data: {str(e)}", "ERROR")
+                dialog.notification("LibraryGenie", "Failed to clear data", xbmcgui.NOTIFICATION_ERROR)
+    
+    def browse_search_history(self):
+        """Browse search history folder"""
+        try:
+            folder = self.query_manager.ensure_search_history_folder()
+            return folder['id']
+        except Exception as e:
+            utils.log(f"Error accessing search history: {str(e)}", "ERROR")
+            return None
+
+
+# Global instance
+_folder_list_manager = None
+
+
+def get_folder_list_manager():
+    """Get the singleton folder list manager instance"""
+    global _folder_list_manager
+    if _folder_list_manager is None:
+        _folder_list_manager = FolderListManager()
+    return _folder_list_manager
 
 class FolderListManager:
     """Manages folder and list operations"""
