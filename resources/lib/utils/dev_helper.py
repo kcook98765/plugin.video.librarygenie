@@ -52,7 +52,9 @@ def display_imdb_data_as_directory(handle):
         )
 
         for table_info in tables:
-            table_name = table_info['name']
+            # Ensure dict representation for consistent access
+            table_dict = dict(table_info) if table_info else {}
+            table_name = table_dict.get('name', 'unknown')
 
             if table_name == 'sqlite_sequence':
                 continue  # Skip system table
@@ -72,23 +74,29 @@ def display_imdb_data_as_directory(handle):
                     fetch_all=True
                 )
 
-                # Count rows using parameterized query with validated table name
+                # Count rows using parameterized query with validated table name and explicit alias
                 count_result = query_manager.execute_query(
-                    f"SELECT COUNT(*) as count FROM {table_name}",
+                    f"SELECT COUNT(*) as row_count FROM {table_name}",
                     fetch_one=True
                 )
-                row_count = count_result['count'] if count_result else 0
+                # Ensure we work with dict representation for consistent access
+                if count_result:
+                    count_dict = dict(count_result)
+                    row_count = count_dict.get('row_count', 0)
+                else:
+                    row_count = 0
 
                 # Create list item for table
                 table_li = xbmcgui.ListItem(label=f"Table: {table_name} ({row_count} rows)")
                 table_li.setProperty('IsPlayable', 'false')
                 xbmcplugin.addDirectoryItem(handle, "", table_li, False)
 
-                # Show structure
+                # Show structure - ensure dict representation
                 for col in table_structure:
-                    col_name = col.get('name', 'unknown')
-                    col_type = col.get('type', 'unknown')
-                    col_nullable = "NOT NULL" if col.get('notnull', 0) else "NULL"
+                    col_dict = dict(col) if col else {}
+                    col_name = col_dict.get('name', 'unknown')
+                    col_type = col_dict.get('type', 'unknown')
+                    col_nullable = "NOT NULL" if col_dict.get('notnull', 0) else "NULL"
                     col_li = xbmcgui.ListItem(label=f"  Column: {col_name} ({col_type}, {col_nullable})")
                     col_li.setProperty('IsPlayable', 'false')
                     xbmcplugin.addDirectoryItem(handle, "", col_li, False)
@@ -100,8 +108,12 @@ def display_imdb_data_as_directory(handle):
                         fetch_all=True
                     )
                     for i, row in enumerate(sample_rows):
-                        row_dict = dict(row) if row else {}
-                        row_str = str(row_dict)[:100] + "..." if len(str(row_dict)) > 100 else str(row_dict)
+                        # Ensure we always work with dict representation
+                        if row:
+                            row_dict = dict(row)
+                            row_str = str(row_dict)[:100] + "..." if len(str(row_dict)) > 100 else str(row_dict)
+                        else:
+                            row_str = "Empty row"
                         row_li = xbmcgui.ListItem(label=f"    Row {i+1}: {row_str}")
                         row_li.setProperty('IsPlayable', 'false')
                         xbmcplugin.addDirectoryItem(handle, "", row_li, False)
