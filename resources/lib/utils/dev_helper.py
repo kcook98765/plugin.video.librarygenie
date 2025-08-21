@@ -1,5 +1,4 @@
 
-```python
 import xbmc
 import xbmcgui
 import xbmcplugin
@@ -100,15 +99,14 @@ def display_imdb_data_as_directory(params, handle):
                 no_source_data_li.setProperty('IsPlayable', 'false')
                 xbmcplugin.addDirectoryItem(handle, "", no_source_data_li, False)
 
-
             # Fetch and display specific media items
             media_items_query = "SELECT * FROM media_items WHERE imdbnumber = ?"
             media_items_rows = db_manager.query_manager.execute_query(media_items_query, (imdb_id,), fetch_all=True)
 
             if media_items_rows:
                 for i, row in enumerate(media_items_rows):
-                    # Convert row to dict
-                    row_dict = dict(row)
+                    # Row is already a dict from query manager
+                    row_dict = row
 
                     # Create summary line
                     row_title = row_dict.get('title', 'Unknown')
@@ -167,10 +165,9 @@ def display_imdb_data_as_directory(params, handle):
             section_li2.setProperty('IsPlayable', 'false')
             xbmcplugin.addDirectoryItem(handle, "", section_li2, False)
 
-
             if list_items_rows:
                 for i, row in enumerate(list_items_rows):
-                    row_dict = dict(row)
+                    row_dict = row
 
                     list_name = row_dict.get('list_name', 'Unknown List')
                     media_title = row_dict.get('media_title', 'Unknown Title')
@@ -203,7 +200,7 @@ def display_imdb_data_as_directory(params, handle):
 
         # Table 3: movie_heavy_meta (heavy metadata)
         try:
-            # Check if table exists first
+            # Check if table exists first via query manager
             table_exists_result = db_manager.query_manager.execute_query("SELECT name FROM sqlite_master WHERE type='table' AND name='movie_heavy_meta'", fetch_one=True)
             table_exists = table_exists_result is not None
 
@@ -211,24 +208,24 @@ def display_imdb_data_as_directory(params, handle):
             section_li3.setProperty('IsPlayable', 'false')
             xbmcplugin.addDirectoryItem(handle, "", section_li3, False)
 
-            # Get total heavy meta records
-            heavy_total_result = db_manager.query_manager.execute_query("SELECT COUNT(*) as count FROM movie_heavy_meta", fetch_one=True)
-            total_heavy = heavy_total_result['count'] if heavy_total_result else 0
-
-            # Get count with IMDb numbers in heavy meta
-            heavy_imdb_result = db_manager.query_manager.execute_query(
-                "SELECT COUNT(*) as count FROM movie_heavy_meta WHERE imdbnumber IS NOT NULL AND imdbnumber != '' AND imdbnumber LIKE 'tt%'",
-                fetch_one=True
-            )
-            heavy_with_imdb = heavy_imdb_result['count'] if heavy_imdb_result else 0
-
             if table_exists:
+                # Get total heavy meta records
+                heavy_total_result = db_manager.query_manager.execute_query("SELECT COUNT(*) as count FROM movie_heavy_meta", fetch_one=True)
+                total_heavy = heavy_total_result['count'] if heavy_total_result else 0
+
+                # Get count with IMDb numbers in heavy meta
+                heavy_imdb_result = db_manager.query_manager.execute_query(
+                    "SELECT COUNT(*) as count FROM movie_heavy_meta WHERE imdbnumber IS NOT NULL AND imdbnumber != '' AND imdbnumber LIKE 'tt%'",
+                    fetch_one=True
+                )
+                heavy_with_imdb = heavy_imdb_result['count'] if heavy_imdb_result else 0
+
                 heavy_meta_query = "SELECT * FROM movie_heavy_meta WHERE imdbnumber = ?"
                 heavy_meta_rows = db_manager.query_manager.execute_query(heavy_meta_query, (imdb_id,), fetch_all=True)
 
                 if heavy_meta_rows:
                     for i, row in enumerate(heavy_meta_rows):
-                        row_dict = dict(row)
+                        row_dict = row
 
                         kodi_movieid = row_dict.get('kodi_movieid', 'N/A')
                         updated_at = row_dict.get('updated_at', 'N/A')
@@ -281,7 +278,7 @@ def display_imdb_data_as_directory(params, handle):
 
         # Table 4: imdb_exports
         try:
-            # Check if table exists first
+            # Check if table exists first via query manager
             table_exists_result4 = db_manager.query_manager.execute_query("SELECT name FROM sqlite_master WHERE type='table' AND name='imdb_exports'", fetch_one=True)
             table_exists4 = table_exists_result4 is not None
 
@@ -289,24 +286,24 @@ def display_imdb_data_as_directory(params, handle):
             section_li4.setProperty('IsPlayable', 'false')
             xbmcplugin.addDirectoryItem(handle, "", section_li4, False)
 
-            # Get total exports
-            exports_total_result = db_manager.query_manager.execute_query("SELECT COUNT(*) as count FROM imdb_exports", fetch_one=True)
-            total_exports = exports_total_result['count'] if exports_total_result else 0
-
-            # Get valid IMDb exports
-            exports_valid_result = db_manager.query_manager.execute_query(
-                "SELECT COUNT(*) as count FROM imdb_exports WHERE imdb_id IS NOT NULL AND imdb_id != '' AND imdb_id LIKE 'tt%'",
-                fetch_one=True
-            )
-            valid_exports = exports_valid_result['count'] if exports_valid_result else 0
-
             if table_exists4:
+                # Get total exports
+                exports_total_result = db_manager.query_manager.execute_query("SELECT COUNT(*) as count FROM imdb_exports", fetch_one=True)
+                total_exports = exports_total_result['count'] if exports_total_result else 0
+
+                # Get valid IMDb exports
+                exports_valid_result = db_manager.query_manager.execute_query(
+                    "SELECT COUNT(*) as count FROM imdb_exports WHERE imdb_id IS NOT NULL AND imdb_id != '' AND imdb_id LIKE 'tt%'",
+                    fetch_one=True
+                )
+                valid_exports = exports_valid_result['count'] if exports_valid_result else 0
+
                 imdb_exports_query = "SELECT * FROM imdb_exports WHERE imdb_id = ?"
                 imdb_exports_rows = db_manager.query_manager.execute_query(imdb_exports_query, (imdb_id,), fetch_all=True)
 
                 if imdb_exports_rows:
                     for i, row in enumerate(imdb_exports_rows):
-                        row_dict = dict(row)
+                        row_dict = row
 
                         export_title = row_dict.get('title', 'Unknown')
                         export_year = row_dict.get('year', 'N/A')
@@ -347,7 +344,7 @@ def display_imdb_data_as_directory(params, handle):
             section_li5.setProperty('IsPlayable', 'false')
             xbmcplugin.addDirectoryItem(handle, "", section_li5, False)
 
-            # Get all table names
+            # Get all table names via query manager
             all_tables_result = db_manager.query_manager.execute_query("SELECT name FROM sqlite_master WHERE type='table'", fetch_all=True)
             all_tables = [row['name'] for row in all_tables_result]
 
@@ -364,9 +361,8 @@ def display_imdb_data_as_directory(params, handle):
                     utils.log(f"Skipping table with unsafe name: {table_name}", "WARNING")
                     continue
 
-                # Get column info for this table
+                # Get column info for this table via query manager (PRAGMA via query manager)
                 try:
-                    # Safe to use table name directly since we validated it with regex
                     columns = db_manager.query_manager.execute_query(f"PRAGMA table_info({table_name})", fetch_all=True)
 
                     # Check if any column might contain IMDb data
@@ -387,11 +383,11 @@ def display_imdb_data_as_directory(params, handle):
                             col_li.setProperty('IsPlayable', 'false')
                             xbmcplugin.addDirectoryItem(handle, "", col_li, False)
 
-                        # Show sample data - safe to use table name since we validated it
+                        # Show sample data via query manager
                         try:
                             sample_rows = db_manager.query_manager.execute_query(f"SELECT * FROM {table_name} LIMIT 3", fetch_all=True)
                             for i, row in enumerate(sample_rows):
-                                row_dict = dict(row)
+                                row_dict = row
                                 row_str = str(row_dict)[:100] + "..." if len(str(row_dict)) > 100 else str(row_dict)
                                 row_li = xbmcgui.ListItem(label=f"    Row {i+1}: {row_str}")
                                 row_li.setProperty('IsPlayable', 'false')
@@ -400,7 +396,6 @@ def display_imdb_data_as_directory(params, handle):
                             error_sample_li = xbmcgui.ListItem(label=f"    Error getting sample data for {table_name}: {str(sample_e)}")
                             error_sample_li.setProperty('IsPlayable', 'false')
                             xbmcplugin.addDirectoryItem(handle, "", error_sample_li, False)
-
 
                 except Exception as table_e:
                     error_table_li = xbmcgui.ListItem(label=f"Error processing table {table_name}: {str(table_e)}")
@@ -441,4 +436,3 @@ def display_imdb_data_as_directory(params, handle):
         error_li.setProperty('IsPlayable', 'false')
         xbmcplugin.addDirectoryItem(handle, "", error_li, False)
         xbmcplugin.endOfDirectory(handle)
-```
