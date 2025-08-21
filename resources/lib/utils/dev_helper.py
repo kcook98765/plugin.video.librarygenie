@@ -4,6 +4,7 @@ import xbmcgui
 import xbmcplugin
 import re
 from resources.lib.config.config_manager import Config
+from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.utils import utils
 
 def _validate_sql_identifier(identifier):
@@ -41,8 +42,8 @@ def display_imdb_data_as_directory(handle):
     """Display database structure and sample data using only query_manager"""
     try:
         config = Config()
-        db_manager = DatabaseManager(config.db_path)
-        query_manager = db_manager.query_manager
+        from resources.lib.data.query_manager import QueryManager
+        query_manager = QueryManager(config.db_path)
 
         # Get all table names from the database using query_manager
         tables = query_manager.execute_query(
