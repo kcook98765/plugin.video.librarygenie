@@ -468,6 +468,15 @@ def router(paramstring):
 
             log(f"=== LIST_TIMING: Starting list processing for list_id: {list_id} ===", "INFO")
 
+            # Initialize database manager
+            from resources.lib.config.config_manager import Config
+            from resources.lib.data.database_manager import DatabaseManager
+            from resources.lib.data.query_manager import QueryManager
+            
+            config = Config()
+            db_manager = DatabaseManager(config.db_path)
+            query_manager = QueryManager(config.db_path)
+            
             # Get list info for context
             list_info = db_manager.fetch_list_by_id(list_id)
             if not list_info:
@@ -574,7 +583,7 @@ def router(paramstring):
             xbmcgui.Dialog().notification("LibraryGenie", "Error browsing list", xbmcgui.NOTIFICATION_ERROR)
 
             # Ensure endOfDirectory is called even on error to prevent Kodi hanging
-            xbmcplugin.endOfDirectory(handle, succeeded=False)
+            xbmcplugin.endOfDirectory(ADDON_HANDLE, succeeded=False)
 
         return
     elif action == 'separator':
