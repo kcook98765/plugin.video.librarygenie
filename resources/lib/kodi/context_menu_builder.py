@@ -106,12 +106,13 @@ class ContextMenuBuilder:
                 return
 
             from resources.lib.config.config_manager import Config
+            from resources.lib.data.query_manager import QueryManager
 
             config = Config()
-            db_manager = DatabaseManager(config.db_path)
+            query_manager = QueryManager(config.db_path)
 
             # Get current folder details
-            current_folder = db_manager.fetch_folder_by_id(folder_id)
+            current_folder = query_manager.fetch_folder_by_id(folder_id)
             if not current_folder:
                 xbmcgui.Dialog().notification('LibraryGenie', 'Folder not found', xbmcgui.NOTIFICATION_ERROR)
                 return
