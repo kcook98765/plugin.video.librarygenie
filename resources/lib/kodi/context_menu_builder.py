@@ -1,6 +1,6 @@
 """Context Menu Builder for LibraryGenie - handles both native and ListItem context menus"""
 
-import xbmc
+import xbmcgui
 from resources.lib.utils import utils
 
 
