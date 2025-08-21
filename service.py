@@ -89,36 +89,39 @@ def ensure_database_ready():
 def check_and_prompt_library_scan():
     """Check if library data exists and prompt user for initial scan if needed"""
     try:
-        # Check if scan was already completed or declined
-        if _get_bool('library_scanned', False):
-            utils.log("Library already scanned - skipping scan check", "DEBUG")
-            return
-            
-        if _get_bool('library_scan_declined', False):
-            utils.log("Library scan was declined - skipping scan check", "DEBUG")
-            return
-        
         config = Config()
         query_manager = QueryManager(config.db_path)
         
-        # Check if we have any library data
-        result = query_manager.execute_query(
+        # Always check actual database content - don't rely solely on settings
+        # Check if we have any library data in both tables
+        imdb_result = query_manager.execute_query(
             "SELECT COUNT(*) as count FROM imdb_exports",
             fetch_one=True
         )
         
-        library_count = result['count'] if result else 0
-        utils.log(f"Library data check: found {library_count} items in imdb_exports", "INFO")
+        media_result = query_manager.execute_query(
+            "SELECT COUNT(*) as count FROM media_items WHERE source = 'lib'",
+            fetch_one=True
+        )
         
-        if library_count == 0:
-            # No library data exists - prompt user only if not already declined
+        imdb_count = imdb_result['count'] if imdb_result else 0
+        media_count = media_result['count'] if media_result else 0
+        
+        utils.log(f"Library data check: found {imdb_count} items in imdb_exports, {media_count} items in media_items", "INFO")
+        
+        # If no actual data exists, reset settings and prompt for scan
+        if imdb_count == 0 and media_count == 0:
+            # Reset scan settings since database is empty
+            _set_bool('library_scanned', False)
+            _set_bool('library_scan_declined', False)
+            
             utils.log("No library data found - prompting user for scan", "INFO")
             prompt_user_for_library_scan()
         else:
             # Library data exists - mark as scanned and clear decline flag
             _set_bool('library_scanned', True)
             _set_bool('library_scan_declined', False)
-            utils.log(f"Library data exists ({library_count} items) - marking as scanned", "INFO")
+            utils.log(f"Library data exists (imdb_exports: {imdb_count}, media_items: {media_count}) - marking as scanned", "INFO")
             
     except Exception as e:
         utils.log(f"Error checking library scan status: {e}", "ERROR")
