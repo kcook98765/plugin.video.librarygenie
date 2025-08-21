@@ -124,8 +124,6 @@ class ResultsManager(Singleton):
     def build_display_items_for_list(self, list_id, handle):
         """Build display items for a specific list with proper error handling"""
         try:
-            import time
-            build_start_time = time.time()
             utils.log(f"=== BUILD_DISPLAY_ITEMS: Starting for list_id {list_id} ===", "INFO")
 
             # Get list items from database
@@ -551,16 +549,11 @@ class ResultsManager(Singleton):
                 item_url = item.get('file', f"external://{item.get('id', 'unknown')}")
                 display_items.append((item_url, list_item, False))
 
-            build_end_time = time.time()
-            build_processing_time = build_end_time - build_start_time
-            utils.log(f"=== BUILD_DISPLAY_ITEMS: Completed in {build_processing_time:.3f} seconds - returning {len(display_items)} display items ===", "INFO")
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Created {len(display_items)} display items ===", "DEBUG")
             return display_items
 
         except Exception as e:
-            build_end_time = time.time()
-            build_processing_time = build_end_time - build_start_time
-            utils.log(f"=== BUILD_DISPLAY_ITEMS: FAILED after {build_processing_time:.3f} seconds ===", "ERROR")
             utils.log(f"Error in build_display_items_for_list: {str(e)}", "ERROR")
             import traceback
-            utils.log(f"build_display_items_for_list traceback: {traceback.format_exc()}", "ERROR")
+            utils.log(f"Traceback: {traceback.format_exc()}", "ERROR")
             return []

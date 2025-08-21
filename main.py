@@ -74,15 +74,15 @@ def run_search_flow():
         # Extract list ID for navigation
         list_id = target_url.split('list_id=')[1]
         log(f"=== MAIN: Scheduling navigation to list {list_id} ===", "DEBUG")
-
+        
         # Use background thread navigation with proper Kodi integration
         import threading
         import time
-
+        
         def navigate_to_list():
             try:
                 log(f"=== MAIN_NAVIGATION: Starting navigation to list {list_id} ===", "DEBUG")
-
+                
                 # Build the target URL
                 from resources.lib.config.addon_ref import get_addon
                 from urllib.parse import urlencode
@@ -90,23 +90,23 @@ def run_search_flow():
                 addon_id = addon.getAddonInfo("id")
                 params = urlencode({'action': 'browse_list', 'list_id': str(list_id)})
                 final_url = f"plugin://{addon_id}/?{params}"
-
+                
                 log(f"=== MAIN_NAVIGATION: Target URL: {final_url} ===", "DEBUG")
-
+                
                 # Clear any dialog states
                 xbmc.executebuiltin("Dialog.Close(all,true)")
                 time.sleep(0.2)
-
+                
                 # Use Kodi's built-in navigation that preserves back button
                 xbmc.executebuiltin(f'ActivateWindow(videos,"{final_url}",return)')
-
+                
                 log(f"=== MAIN_NAVIGATION: Navigation completed ===", "DEBUG")
-
+                
             except Exception as e:
                 log(f"Error in main navigation thread: {str(e)}", "ERROR")
                 import traceback
                 log(f"Main navigation traceback: {traceback.format_exc()}", "ERROR")
-
+        
         # Start navigation in background
         nav_thread = threading.Thread(target=navigate_to_list)
         nav_thread.daemon = True
@@ -131,12 +131,11 @@ def browse_folder(params):
         folder_id = int(folder_id)
         log(f"Browsing folder {folder_id}", "DEBUG")
 
-        # Use singleton instances through Config
         config = Config()
-        query_manager = config.query_manager
+        db_manager = DatabaseManager(config.db_path)
 
-        # Get folder details using QueryManager
-        folder = query_manager.fetch_folder_by_id(folder_id)
+        # Get folder details
+        folder = db_manager.fetch_folder_by_id(folder_id)
         if not folder:
             log(f"Folder {folder_id} not found", "ERROR")
             xbmcgui.Dialog().notification('LibraryGenie', 'Folder not found')
@@ -146,11 +145,11 @@ def browse_folder(params):
         ctx = detect_context({'view': 'folder', 'folder_id': folder_id})
         add_options_header_item(ctx, ADDON_HANDLE)
 
-        # Get subfolders using QueryManager
-        subfolders = query_manager.fetch_folders_direct(folder_id)
+        # Get subfolders
+        subfolders = db_manager.fetch_folders(folder_id)
 
-        # Get lists in this folder using QueryManager
-        lists = query_manager.fetch_lists_direct(folder_id)
+        # Get lists in this folder
+        lists = db_manager.fetch_lists(folder_id)
 
         # Add subfolders
         for subfolder in subfolders:
@@ -162,8 +161,7 @@ def browse_folder(params):
 
         # Add lists
         for list_item in lists:
-            # Get list count using QueryManager
-            list_count = query_manager.get_list_media_count(list_item['id'])
+            list_count = db_manager.get_list_media_count(list_item['id'])
 
             # Check if this list contains a count pattern like "(number)" at the end
             import re
@@ -196,7 +194,6 @@ def browse_list(list_id):
     from resources.lib.config.config_manager import Config
     from resources.lib.kodi.listitem_builder import ListItemBuilder
     from resources.lib.data.query_manager import QueryManager
-    from resources.lib.data.results_manager import ResultsManager
 
     handle = int(sys.argv[1])
 
@@ -206,7 +203,9 @@ def browse_list(list_id):
         log(f"=== BROWSE_LIST ACTION START for list_id={list_id} ===", "INFO")
         config = Config()
         query_manager = QueryManager(config.db_path)
-        
+        from resources.lib.data.results_manager import ResultsManager
+        from resources.lib.kodi.listitem_builder import ListItemBuilder
+
         # Clear navigation flags - simplified
         nav_manager.clear_navigation_flags()
         log("Cleared navigation flags at browse_list entry", "DEBUG")
@@ -457,132 +456,16 @@ def router(paramstring):
         play_movie(q)
         return
     elif action == 'browse_list':
-        # Start timing for list processing
-        import time
-        list_processing_start = time.time()
-
-        try:
-            list_id = q.get('list_id', [None])[0]
-            if not list_id:
-                log("No list_id provided for browse_list", "ERROR")
-                xbmcgui.Dialog().notification("LibraryGenie", "No list ID provided", xbmcgui.NOTIFICATION_ERROR)
-                return
-
-            log(f"=== LIST_TIMING: Starting list processing for list_id: {list_id} ===", "INFO")
-
-            # Use existing singleton instances instead of creating new ones
-            config = Config()
-            query_manager = config.query_manager  # Use singleton instance
-            
-            # Get list info for context using QueryManager
-            list_info = query_manager.fetch_list_by_id(list_id)
-            if not list_info:
-                log(f"List {list_id} not found", "ERROR")
-                xbmcgui.Dialog().notification("LibraryGenie", "List not found", xbmcgui.NOTIFICATION_ERROR)
-                return
-
-            # Build context for the list view
-            ctx = detect_context({
-                'view': 'list',
-                'list_id': list_id
-            })
-
-            # Add options header
-            add_options_header_item(ctx, ADDON_HANDLE)
-
-            # Use ResultsManager to build display items - it will use the same singleton instances
-            from resources.lib.data.results_manager import ResultsManager
-            results_manager = ResultsManager()
-            display_items = results_manager.build_display_items_for_list(list_id)
-
-            if not display_items:
-                log(f"No display items found for list {list_id}", "WARNING")
-                # Log timing completion even if no items are displayed
-                list_processing_end = time.time()
-                processing_time = list_processing_end - list_processing_start
-                log(f"=== LIST_TIMING: List processing completed for list_id: {list_id} in {processing_time:.3f} seconds (0 items found) ===", "INFO")
-                return
-
-            items_added = 0
-            playable_count = 0
-            non_playable_count = 0
-
-            for i, item in enumerate(display_items):
-                try:
-                    # ResultsManager.build_display_items_for_list returns tuples: (item_url, li, is_folder)
-                    if isinstance(item, tuple) and len(item) >= 3:
-                        item_url, li, is_folder = item
-                    else:
-                        # Fallback for unexpected format
-                        log(f"Unexpected item format: {type(item)}", "WARNING")
-                        continue
-
-                    # The ListItem is already fully built by ResultsManager, just use the URL and add to directory
-                    url = item_url
-                    is_playable = not is_folder
-
-                    if is_playable:
-                        playable_count += 1
-                    else:
-                        non_playable_count += 1
-
-                    # Add directory item with proper folder flag
-                    xbmcplugin.addDirectoryItem(ADDON_HANDLE, url, li, isFolder=is_folder)
-                    items_added += 1
-                except Exception as e:
-                    log(f"Error processing item {i+1}: {str(e)}", "ERROR")
-                    import traceback
-                    log(f"Item processing traceback: {traceback.format_exc()}", "ERROR")
-                    # Continue to next item even if one fails
-
-            log(f"Successfully prepared {items_added} items ({playable_count} playable, {non_playable_count} non-playable)", "INFO")
-
-            # Check if this is a search results list with scores to preserve order
-            # Get the original list items to check for search scores
-            list_items = query_manager.fetch_list_items_with_details(list_id)
-            has_scores = False
-            for item in list_items:
-                search_score = item.get('search_score', 0)
-                if search_score is not None and search_score > 0:
-                    has_scores = True
-                    break
-
-            # Always enable sort methods so users can override the default order
-            xbmcplugin.addSortMethod(ADDON_HANDLE, xbmcplugin.SORT_METHOD_LABEL)
-            xbmcplugin.addSortMethod(ADDON_HANDLE, xbmcplugin.SORT_METHOD_TITLE)
-            xbmcplugin.addSortMethod(ADDON_HANDLE, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
-            xbmcplugin.addSortMethod(ADDON_HANDLE, xbmcplugin.SORT_METHOD_GENRE)
-            xbmcplugin.addSortMethod(ADDON_HANDLE, xbmcplugin.SORT_METHOD_VIDEO_RATING)
-            xbmcplugin.addSortMethod(ADDON_HANDLE, xbmcplugin.SORT_METHOD_DATEADDED)
-
-            if has_scores:
-                # For search results, add unsorted method to preserve score order as default
-                xbmcplugin.addSortMethod(ADDON_HANDLE, xbmcplugin.SORT_METHOD_UNSORTED)
-
-            # Set content and finish directory
-            xbmcplugin.setContent(ADDON_HANDLE, 'movies')
-            xbmcplugin.endOfDirectory(ADDON_HANDLE, succeeded=True, cacheToDisc=False, updateListing=True)
-
-            # Log timing completion
-            list_processing_end = time.time()
-            processing_time = list_processing_end - list_processing_start
-            log(f"=== LIST_TIMING: List processing completed for list_id: {list_id} in {processing_time:.3f} seconds ===", "INFO")
-            log(f"=== LIST_TIMING: Processed {len(display_items)} items, added {items_added} to directory ===", "INFO")
-
-        except Exception as e:
-            # Log timing even on error
-            list_processing_end = time.time()
-            processing_time = list_processing_end - list_processing_start
-            log(f"=== LIST_TIMING: List processing FAILED for list_id: {list_id} after {processing_time:.3f} seconds ===", "ERROR")
-
-            log(f"Error in browse_list action: {str(e)}", "ERROR")
-            import traceback
-            log(f"browse_list traceback: {traceback.format_exc()}", "ERROR")
-            xbmcgui.Dialog().notification("LibraryGenie", "Error browsing list", xbmcgui.NOTIFICATION_ERROR)
-
-            # Ensure endOfDirectory is called even on error to prevent Kodi hanging
-            xbmcplugin.endOfDirectory(ADDON_HANDLE, succeeded=False)
-
+        list_id = q.get('list_id', [None])[0]
+        if list_id:
+            # Set proper content for list view
+            xbmcplugin.setPluginCategory(ADDON_HANDLE, "Search Results")
+            xbmcplugin.setContent(ADDON_HANDLE, "movies")
+            nav_manager.set_navigation_in_progress(False)
+            browse_list(list_id)
+        else:
+            log("No list_id provided for browse_list action", "WARNING")
+            show_empty_directory(ADDON_HANDLE)
         return
     elif action == 'separator':
         # Do nothing for separator items

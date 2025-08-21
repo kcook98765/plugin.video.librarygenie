@@ -104,11 +104,10 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
     # For Kodi v19, use setInfo directly since InfoTag setters are unreliable
     if utils.is_kodi_v19():
         try:
-            # Enhanced clean up info_dict for setInfo compatibility across all platforms
+            # Clean up info_dict for setInfo compatibility
             clean_info = {}
             for key, value in info_dict.items():
-                # Strict value validation for cross-platform compatibility
-                if value is None or value == "" or value == []:
+                if not value:  # Skip empty values
                     continue
 
                 # Handle cast with v19 ListItem.setCast() which supports thumbnails
@@ -116,53 +115,17 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                     _set_full_cast(list_item, value)
                     continue  # Don't add cast to clean_info since it's handled separately
                 elif key in ['country', 'director', 'genre', 'studio'] and isinstance(value, list):
-                    # Convert lists to comma-separated strings for setInfo with strict validation
-                    if value and all(item for item in value):  # Ensure no empty items
-                        clean_info[key] = ' / '.join(str(item).strip() for item in value if str(item).strip())
-                elif key in ['year', 'runtime', 'duration', 'votes', 'playcount', 'top250', 'setid']:
-                    # Strict numeric field handling for platform compatibility
-                    try:
-                        if isinstance(value, str) and value.strip().isdigit():
-                            clean_info[key] = int(value.strip())
-                        elif isinstance(value, (int, float)) and value > 0:
-                            clean_info[key] = int(value)
-                        # Skip invalid numeric values completely
-                    except (ValueError, TypeError):
-                        continue
-                elif key in ['rating', 'userrating']:
-                    # Strict float field handling
-                    try:
-                        if isinstance(value, str) and value.strip():
-                            float_val = float(value.strip())
-                            if 0.0 <= float_val <= 10.0:  # Reasonable rating range
-                                clean_info[key] = float_val
-                        elif isinstance(value, (int, float)) and 0.0 <= value <= 10.0:
-                            clean_info[key] = float(value)
-                    except (ValueError, TypeError):
-                        continue
+                    # Convert lists to comma-separated strings for setInfo
+                    clean_info[key] = ' / '.join(str(item) for item in value if item)
                 elif key == 'mediatype':
-                    # Skip mediatype for v19 setInfo - can cause conversion issues
+                    # Skip mediatype for v19 setInfo
                     continue
                 elif key == 'uniqueid':
-                    # Skip uniqueid for v19 setInfo - handle separately to avoid conversion errors
+                    # Handle uniqueid for v19 - setInfo expects it as a dict but may not handle it properly
+                    # Skip for setInfo and handle separately
                     continue
-                elif key == 'resume':
-                    # Skip resume data for setInfo - handle separately
-                    continue
-                elif isinstance(value, str):
-                    # String values - ensure they're properly encoded and not empty
-                    clean_value = str(value).strip()
-                    if clean_value:
-                        clean_info[key] = clean_value
                 else:
-                    # For other types, convert to string and validate
-                    try:
-                        clean_value = str(value).strip()
-                        if clean_value and clean_value != 'None':
-                            clean_info[key] = clean_value
-                    except (UnicodeDecodeError, UnicodeEncodeError):
-                        # Skip values that can't be properly encoded
-                        continue
+                    clean_info[key] = value
 
             # Handle uniqueid separately for v19 compatibility
             uniqueid_data = info_dict.get('uniqueid')
@@ -194,44 +157,18 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
             resume_data = info_dict.get('resume', {})
             if isinstance(resume_data, dict) and any(resume_data.values()):
                 try:
-                    position = resume_data.get('position', 0)
-                    total = resume_data.get('total', 0)
-                    
-                    # Strict validation for resume data
-                    if position and str(position).replace('.', '').isdigit():
-                        position_float = float(position)
-                        if position_float > 0:
-                            list_item.setProperty('resumetime', str(int(position_float)))
-                            
-                            if total and str(total).replace('.', '').isdigit():
-                                total_float = float(total)
-                                if total_float > 0:
-                                    list_item.setProperty('totaltime', str(int(total_float)))
-                            
-                            utils.log(f"v19 resume properties set: {int(position_float)}s", "DEBUG")
-                except (ValueError, TypeError, AttributeError) as resume_error:
+                    position = float(resume_data.get('position', 0))
+                    total = float(resume_data.get('total', 0))
+
+                    if position > 0:
+                        list_item.setProperty('resumetime', str(position))
+                        if total > 0:
+                            list_item.setProperty('totaltime', str(total))
+                        utils.log(f"v19 resume properties set: {position}s of {total}s", "DEBUG")
+                except (ValueError, TypeError) as resume_error:
                     utils.log(f"v19 resume data conversion failed: {str(resume_error)}", "WARNING")
         except Exception as setinfo_error:
-            # Enhanced error logging with device detection for debugging
-            import platform
-            device_info = f"Platform: {platform.system()}, Machine: {platform.machine()}"
-            utils.log(f"setInfo failed for v19 ({device_info}): {str(setinfo_error)}", "ERROR")
-            
-            # Fallback: try with minimal data set for problematic devices
-            try:
-                minimal_info = {}
-                if 'title' in clean_info:
-                    minimal_info['title'] = clean_info['title']
-                if 'plot' in clean_info:
-                    minimal_info['plot'] = clean_info['plot'][:500]  # Truncate plot for safety
-                if 'year' in clean_info and isinstance(clean_info['year'], int):
-                    minimal_info['year'] = clean_info['year']
-                
-                if minimal_info:
-                    list_item.setInfo(content_type, minimal_info)
-                    utils.log(f"v19 fallback setInfo succeeded with minimal data", "DEBUG")
-            except Exception as fallback_error:
-                utils.log(f"v19 fallback setInfo also failed: {str(fallback_error)}", "ERROR")
+            utils.log(f"setInfo failed for v19: {str(setinfo_error)}", "ERROR")
 
         return
 
