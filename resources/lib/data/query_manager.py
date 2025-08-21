@@ -1,6 +1,7 @@
 import sqlite3
 import os
 import threading
+import re
 from contextlib import contextmanager
 from typing import Optional, List, Dict, Any, Union, Tuple
 from resources.lib.utils import utils
@@ -24,6 +25,55 @@ class QueryManager(Singleton):
             self._listing = ListingDAO(self.execute_query, self.execute_write)
 
             self._initialized = True
+
+    @staticmethod
+    def _validate_sql_identifier(identifier):
+        """Validate SQL identifier against safe pattern"""
+        if not identifier or not isinstance(identifier, str):
+            return False
+            
+        # Check safe name pattern: alphanumeric, underscore, no spaces, reasonable length
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', identifier) or len(identifier) > 64:
+            return False
+        
+        # Additional check: identifier must not be a SQL keyword
+        sql_keywords = {
+            'select', 'insert', 'update', 'delete', 'drop', 'create', 'alter', 
+            'table', 'index', 'view', 'trigger', 'database', 'schema', 'from',
+            'where', 'join', 'union', 'group', 'order', 'having', 'limit'
+        }
+        
+        return identifier.lower() not in sql_keywords
+
+    def _validate_table_exists(self, table_name):
+        """Validate table exists in sqlite_master"""
+        if not self._validate_sql_identifier(table_name):
+            utils.log(f"Invalid table identifier: {table_name}", "ERROR")
+            return False
+            
+        result = self.execute_query(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
+            (table_name,),
+            fetch_one=True
+        )
+        return result is not None
+
+    def _validate_column_exists(self, table_name, column_name):
+        """Validate column exists in specified table"""
+        if not self._validate_sql_identifier(table_name) or not self._validate_sql_identifier(column_name):
+            return False
+            
+        if not self._validate_table_exists(table_name):
+            return False
+            
+        # Use PRAGMA table_info to check column existence
+        result = self.execute_query(
+            f"PRAGMA table_info({table_name})",
+            fetch_all=True
+        )
+        
+        column_names = [row['name'] for row in result]
+        return column_name in column_names
 
 
     def _ensure_connection(self):
@@ -429,6 +479,11 @@ class QueryManager(Singleton):
 
     def get_search_results(self, title: str, year: Optional[int] = None, director: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get search results from media_items table"""
+        # Validate table exists
+        if not self._validate_table_exists('media_items'):
+            utils.log("Table media_items does not exist", "ERROR")
+            return []
+            
         conditions = ["title LIKE ?"]
         params = [f"%{title}%"]
 
@@ -615,7 +670,18 @@ class QueryManager(Singleton):
         return self._listing.insert_list_item(list_id, media_item_id)
 
     def insert_generic(self, table: str, data: Dict[str, Any]) -> int:
-        """Generic table insert"""
+        """Generic table insert with validation"""
+        # Validate table name
+        if not self._validate_table_exists(table):
+            utils.log(f"Invalid or non-existent table: {table}", "ERROR")
+            raise ValueError(f"Invalid table name: {table}")
+            
+        # Validate all column names
+        for column in data.keys():
+            if not self._validate_column_exists(table, column):
+                utils.log(f"Invalid column {column} for table {table}", "ERROR")
+                raise ValueError(f"Invalid column name: {column}")
+        
         columns = ', '.join(data.keys())
         placeholders = ', '.join('?' for _ in data)
         query = f'INSERT INTO {table} ({columns}) VALUES ({placeholders})'
@@ -623,6 +689,11 @@ class QueryManager(Singleton):
 
     def get_matched_movies(self, title: str, year: Optional[int] = None, director: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get movies matching certain criteria"""
+        # Validate table exists
+        if not self._validate_table_exists('media_items'):
+            utils.log("Table media_items does not exist", "ERROR")
+            return []
+            
         conditions = ["title LIKE ?"]
         params = [f"%{title}%"]
 
@@ -634,6 +705,8 @@ class QueryManager(Singleton):
             params.append(f"%{director}%")
 
         where_clause = " AND ".join(conditions)
+        
+        # Use explicit column list (all validated as existing columns)
         query = f"""
             SELECT DISTINCT
                 id, kodi_id, title, year, plot, genre, director, cast,
