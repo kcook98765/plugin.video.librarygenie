@@ -352,39 +352,37 @@ class ListingDAO:
         return self.execute_query(sql, (list_id, media_item_id), fetch_one=True)
 
     def upsert_heavy_meta(self, movieid, imdbnumber, cast_json, ratings_json, showlink_json, stream_json, uniqueid_json, tags_json, connection=None):
-        """Upsert heavy metadata for a movie - uses query manager executors or transaction connection"""
+        """Upsert heavy metadata for a movie - uses query manager executors only"""
         import time
 
         try:
             current_time = int(time.time())
             
-            if connection:
-                # Use existing transaction connection directly
-                cursor = connection.cursor()
-                
-                # Try update first
-                update_sql = """
-                    UPDATE movie_heavy_meta SET
-                        imdbnumber = ?,
-                        cast_json = ?,
-                        ratings_json = ?,
-                        showlink_json = ?,
-                        stream_json = ?,
-                        uniqueid_json = ?,
-                        tags_json = ?,
-                        updated_at = ?
-                    WHERE kodi_movieid = ?
-                """
-                update_params = (imdbnumber, cast_json, ratings_json, showlink_json, 
-                                stream_json, uniqueid_json, tags_json, current_time, movieid)
-                
-                cursor.execute(update_sql, update_params)
-                rowcount = cursor.rowcount
+            # Always use query manager executors for consistency
+            # First try to update existing record
+            update_sql = """
+                UPDATE movie_heavy_meta SET
+                    imdbnumber = ?,
+                    cast_json = ?,
+                    ratings_json = ?,
+                    showlink_json = ?,
+                    stream_json = ?,
+                    uniqueid_json = ?,
+                    tags_json = ?,
+                    updated_at = ?
+                WHERE kodi_movieid = ?
+            """
+            update_params = (imdbnumber, cast_json, ratings_json, showlink_json, 
+                            stream_json, uniqueid_json, tags_json, current_time, movieid)
 
-                if rowcount > 0:
-                    return movieid
+            self.execute_write(update_sql, update_params)
 
-                # No rows updated, try insert
+            # Check if record exists (since execute_write doesn't return rowcount)
+            check_sql = "SELECT kodi_movieid FROM movie_heavy_meta WHERE kodi_movieid = ?"
+            existing = self.execute_query(check_sql, (movieid,), fetch_one=True)
+            
+            if not existing:
+                # No record found, try insert
                 insert_sql = """
                     INSERT OR IGNORE INTO movie_heavy_meta
                         (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json,
@@ -393,45 +391,9 @@ class ListingDAO:
                 """
                 insert_params = (movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
                                stream_json, uniqueid_json, tags_json, current_time)
-                cursor.execute(insert_sql, insert_params)
-                return movieid
-            else:
-                # Use query manager executors
-                update_sql = """
-                    UPDATE movie_heavy_meta SET
-                        imdbnumber = ?,
-                        cast_json = ?,
-                        ratings_json = ?,
-                        showlink_json = ?,
-                        stream_json = ?,
-                        uniqueid_json = ?,
-                        tags_json = ?,
-                        updated_at = ?
-                    WHERE kodi_movieid = ?
-                """
-                update_params = (imdbnumber, cast_json, ratings_json, showlink_json, 
-                                stream_json, uniqueid_json, tags_json, current_time, movieid)
+                self.execute_write(insert_sql, insert_params)
 
-                # Execute through query manager
-                self.execute_write(update_sql, update_params)
-
-                # Check if update affected any rows by trying to select the record
-                check_sql = "SELECT kodi_movieid FROM movie_heavy_meta WHERE kodi_movieid = ?"
-                existing = self.execute_query(check_sql, (movieid,), fetch_one=True)
-                
-                if not existing:
-                    # No rows found, try insert
-                    insert_sql = """
-                        INSERT OR IGNORE INTO movie_heavy_meta
-                            (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json,
-                             stream_json, uniqueid_json, tags_json, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """
-                    insert_params = (movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
-                                   stream_json, uniqueid_json, tags_json, current_time)
-                    self.execute_write(insert_sql, insert_params)
-
-                return movieid
+            return movieid
 
         except Exception as e:
             utils.log(f"Error storing heavy metadata for movie ID {movieid}: {str(e)}", "WARNING")
