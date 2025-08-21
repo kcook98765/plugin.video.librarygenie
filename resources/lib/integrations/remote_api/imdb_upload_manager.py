@@ -552,10 +552,21 @@ class IMDbUploadManager:
                 'imdbnumber': imdb_id
             }
 
-            # Add other available fields
-            for field in ['plot', 'genre', 'director', 'rating', 'duration', 'premiered']:
+            # Add other available fields with proper type conversion
+            for field in ['plot', 'genre', 'director', 'rating', 'duration', 'premiered', 'votes']:
                 if field in movie:
-                    movie_data[field] = movie[field]
+                    value = movie[field]
+                    
+                    # Convert lists to comma-separated strings for database storage
+                    if isinstance(value, list):
+                        if field in ['genre', 'director']:
+                            # Join list items with comma separator
+                            movie_data[field] = ', '.join(str(item) for item in value if item)
+                        else:
+                            # For other list fields, take first item or convert to string
+                            movie_data[field] = str(value[0]) if value else ''
+                    else:
+                        movie_data[field] = value
 
             return movie_data
 
