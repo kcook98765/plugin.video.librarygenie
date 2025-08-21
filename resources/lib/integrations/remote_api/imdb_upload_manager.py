@@ -176,6 +176,36 @@ class IMDbUploadManager:
                     utils.log(f"Storing heavy metadata for {len(heavy_metadata_list)} movies", "INFO")
                     self.query_manager.store_heavy_meta_batch(heavy_metadata_list)
 
+                # Store main movie data in media_items table
+                utils.log(f"Storing main movie data in media_items table for {len(full_movies)} movies", "INFO")
+                media_items_to_store = []
+                
+                for movie in full_movies:
+                    imdb_id = movie.get('imdbnumber', '')
+                    if imdb_id and imdb_id.startswith('tt'):
+                        # Prepare movie data for media_items table using the existing method
+                        movie_data = self._prepare_movie_data(movie, imdb_id)
+                        media_items_to_store.append(movie_data)
+
+                # Bulk insert into media_items
+                if media_items_to_store:
+                    utils.log(f"Inserting {len(media_items_to_store)} movies into media_items table", "INFO")
+                    
+                    # Log sample media item data
+                    if media_items_to_store:
+                        utils.log("=== SAMPLE MEDIA_ITEM DATA FOR MEDIA_ITEMS TABLE ===", "INFO")
+                        sample_media = media_items_to_store[0]
+                        for key, value in sample_media.items():
+                            if isinstance(value, str) and len(value) > 100:
+                                utils.log(f"MEDIA_ITEM: {key} = {value[:100]}... (truncated)", "INFO")
+                            else:
+                                utils.log(f"MEDIA_ITEM: {key} = {repr(value)}", "INFO")
+                        utils.log("=== END SAMPLE MEDIA_ITEM DATA ===", "INFO")
+                    
+                    # Use the existing bulk insert method
+                    stored_count = self._bulk_insert_movies(media_items_to_store)
+                    utils.log(f"Successfully stored {stored_count} movies in media_items table", "INFO")
+
                 # Verify what was actually stored
                 utils.log("=== VERIFYING STORED DATA IN IMDB_EXPORTS ===", "INFO")
                 sample_imdb = export_movies[0]['imdb_id']
