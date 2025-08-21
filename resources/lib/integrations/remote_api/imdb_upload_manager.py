@@ -237,8 +237,22 @@ class IMDbUploadManager:
                                 # If first item is not a dict, try to convert it directly
                                 existing_count = int(first_item)
                         else:
-                            # Try to convert the result directly
-                            existing_count = int(count_result)
+                            # Try to convert the result directly - handle different return types
+                            if isinstance(count_result, (list, tuple)) and len(count_result) > 0:
+                                # If it's a list/tuple, try the first element
+                                first_element = count_result[0]
+                                if isinstance(first_element, dict):
+                                    # If first element is a dict, try to get a count value
+                                    existing_count = first_element.get('lib_count', 0) or 0
+                                else:
+                                    # If first element is not a dict, try to convert directly
+                                    existing_count = int(first_element)
+                            elif isinstance(count_result, dict):
+                                # If it's a dict, try to get the count value
+                                existing_count = count_result.get('lib_count', 0) or 0
+                            else:
+                                # Last resort: try direct conversion (for simple numeric types)
+                                existing_count = int(count_result)
                     except (ValueError, TypeError):
                         existing_count = 0
 
