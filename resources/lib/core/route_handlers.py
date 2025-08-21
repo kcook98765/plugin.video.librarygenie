@@ -1,3 +1,4 @@
+
 """Route handlers for LibraryGenie plugin actions"""
 import xbmc
 import xbmcgui
@@ -78,8 +79,8 @@ def show_item_details(params):
 
         if item_id and str(item_id).isdigit():
             try:
-                # Get item details from database using proper query structure
-                media_items = db_manager.fetch_data('media_items', f'id = {item_id}')
+                # Get item details from database using proper parameterized query
+                media_items = db_manager.fetch_data('media_items', 'id = ?', (int(item_id),))
                 if media_items and len(media_items) > 0:
                     item = media_items[0]
                     details_text += f"Year: {item.get('year', 'Unknown')}\n"
@@ -158,7 +159,7 @@ def rename_list(params):
         config = Config()
         db_manager = DatabaseManager(config.db_path)
 
-        db_manager.update_data('lists', {'name': new_name}, f"id = {list_id}")
+        db_manager.update_data('lists', {'name': new_name}, 'id = ?', (int(list_id),))
         xbmcgui.Dialog().notification('LibraryGenie', 'List renamed')
         # Use navigation manager for consistent logging
         from resources.lib.core.navigation_manager import get_navigation_manager
@@ -178,10 +179,13 @@ def delete_list(params):
         config = Config()
         db_manager = DatabaseManager(config.db_path)
 
-        # Delete list items first
-        db_manager.delete_data('list_items', f"list_id = {list_id}")
-        # Delete the list
-        db_manager.delete_data('lists', f"id = {list_id}")
+        # Use transaction for atomic delete operation
+        with db_manager.query_manager.transaction() as conn:
+            # Delete list items first
+            conn.execute("DELETE FROM list_items WHERE list_id = ?", (int(list_id),))
+            # Delete the list
+            conn.execute("DELETE FROM lists WHERE id = ?", (int(list_id),))
+
         xbmcgui.Dialog().notification('LibraryGenie', 'List deleted')
         # Use navigation manager for consistent logging
         from resources.lib.core.navigation_manager import get_navigation_manager
@@ -223,7 +227,7 @@ def remove_from_list(params):
                 JOIN media_items m ON li.media_item_id = m.id
                 WHERE li.list_id = ? AND m.id = ?
             """
-            media_result = db_manager._query_manager.execute_query(query, (list_id, media_id), fetch_one=True)
+            media_result = db_manager.query_manager.execute_query(query, (int(list_id), int(media_id)), fetch_one=True)
             if media_result:
                 media_title = media_result.get('title') or 'Unknown Movie'
             else:
@@ -240,21 +244,15 @@ def remove_from_list(params):
             utils.log("User cancelled removal from list", "DEBUG")
             return
 
-        # Use QueryManager for proper transaction handling
-        
-        # Check if the item exists before trying to delete
-        existing_items = db_manager._query_manager.execute_query(
-            "SELECT COUNT(*) as count FROM list_items WHERE list_id = ? AND media_item_id = ?",
-            (list_id, media_id),
-            fetch_one=True
-        )
-        item_count = existing_items['count'] if existing_items else 0
+        # Use transaction and check rowcount to determine success
+        with db_manager.query_manager.transaction() as conn:
+            cursor = conn.execute("DELETE FROM list_items WHERE list_id = ? AND media_item_id = ?", (int(list_id), int(media_id)))
+            rows_affected = cursor.rowcount
 
-        if item_count == 0:
+        if rows_affected == 0:
             utils.log(f"Item not found in list: list_id={list_id}, media_item_id={media_id}", "WARNING")
             xbmcgui.Dialog().notification('LibraryGenie', 'Item not found in list', xbmcgui.NOTIFICATION_WARNING)
         else:
-            db_manager._query_manager.execute_write("DELETE FROM list_items WHERE list_id = ? AND media_item_id = ?", (list_id, media_id))
             utils.log(f"Successfully removed item from list: list_id={list_id}, media_item_id={media_id}", "INFO")
             xbmcgui.Dialog().notification('LibraryGenie', f'Removed "{media_title}" from list')
 
@@ -592,14 +590,20 @@ def delete_folder(params):
             if selected_option == -1 or selected_option == 2:  # Cancel
                 return
             elif selected_option == 1:  # Move contents
-                # Move all subfolders and lists to parent folder
+                # Move all subfolders and lists to parent folder in a transaction
                 parent_folder_id = folder_info.get('parent_id')
 
-                for subfolder in subfolders:
-                    db_manager.query_manager.update_folder_parent(subfolder['id'], parent_folder_id)
+                with db_manager.query_manager.transaction() as conn:
+                    # Update all child folders' parent_id
+                    for subfolder in subfolders:
+                        conn.execute("UPDATE folders SET parent_id = ? WHERE id = ?", (parent_folder_id, subfolder['id']))
 
-                for list_item in lists:
-                    db_manager.move_list_to_folder(list_item['id'], parent_folder_id)
+                    # Update all lists' folder_id
+                    for list_item in lists:
+                        conn.execute("UPDATE lists SET folder_id = ? WHERE id = ?", (parent_folder_id, list_item['id']))
+
+                    # Delete the folder
+                    conn.execute("DELETE FROM folders WHERE id = ?", (int(folder_id),))
 
         # Final confirmation
         if not xbmcgui.Dialog().yesno(
@@ -609,8 +613,11 @@ def delete_folder(params):
         ):
             return
 
-        # Delete the folder
-        success = db_manager.delete_folder(folder_id)
+        # Delete the folder (if no transaction was already done above)
+        if total_contents == 0 or selected_option == 0:  # Empty folder or delete all contents
+            success = db_manager.delete_folder(folder_id)
+        else:
+            success = True  # Already deleted in transaction above
 
         if success:
             utils.log(f"Successfully deleted folder {folder_id}", "INFO")
@@ -797,7 +804,7 @@ def rename_folder(params):
         config = Config()
         db_manager = DatabaseManager(config.db_path)
 
-        db_manager.update_data('folders', {'name': new_name}, f"id = {folder_id}")
+        db_manager.update_data('folders', {'name': new_name}, 'id = ?', (int(folder_id),))
         xbmcgui.Dialog().notification('LibraryGenie', 'Folder renamed')
         # Use navigation manager for consistent logging
         from resources.lib.core.navigation_manager import get_navigation_manager
@@ -913,8 +920,8 @@ def add_to_list(params):
             utils.log(f"Created new list '{new_list_name}' with ID: {selected_list_id}", "DEBUG")
 
 
-        # Create or find the media item
-        existing_media = db_manager.fetch_data('media_items', f"imdbnumber = '{imdb_id}'")
+        # Create or find the media item using parameterized query
+        existing_media = db_manager.fetch_data('media_items', 'imdbnumber = ?', (imdb_id,))
 
         if existing_media:
             media_id = existing_media[0]['id']
@@ -924,8 +931,8 @@ def add_to_list(params):
             media_id = db_manager.insert_data('media_items', media_item)
             utils.log(f"Created new media item with ID: {media_id}", "DEBUG")
 
-        # Check if already in list
-        existing_list_item = db_manager.fetch_data('list_items', f"list_id = {selected_list_id} AND media_item_id = {media_id}")
+        # Check if already in list using parameterized query
+        existing_list_item = db_manager.fetch_data('list_items', 'list_id = ? AND media_item_id = ?', (int(selected_list_id), int(media_id)))
 
         if existing_list_item:
             xbmcgui.Dialog().notification('LibraryGenie', f'"{title}" is already in that list', xbmcgui.NOTIFICATION_INFO, 3000)
@@ -1092,8 +1099,8 @@ def add_to_list_from_context(params):
             utils.log(f"Created new list '{new_list_name}' with ID: {selected_list_id}", "DEBUG")
 
 
-        # Create or find the media item
-        existing_media = db_manager.fetch_data('media_items', f"imdbnumber = '{imdb_id}'")
+        # Create or find the media item using parameterized query
+        existing_media = db_manager.fetch_data('media_items', 'imdbnumber = ?', (imdb_id,))
 
         if existing_media:
             media_id = existing_media[0]['id']
@@ -1103,8 +1110,8 @@ def add_to_list_from_context(params):
             media_id = db_manager.insert_data('media_items', media_item)
             utils.log(f"Created new media item with ID: {media_id}", "DEBUG")
 
-        # Check if already in list
-        existing_list_item = db_manager.fetch_data('list_items', f"list_id = {selected_list_id} AND media_item_id = {media_id}")
+        # Check if already in list using parameterized query
+        existing_list_item = db_manager.fetch_data('list_items', 'list_id = ? AND media_item_id = ?', (int(selected_list_id), int(media_id)))
 
         if existing_list_item:
             xbmcgui.Dialog().notification('LibraryGenie', f'"{title}" is already in that list', xbmcgui.NOTIFICATION_INFO, 3000)
