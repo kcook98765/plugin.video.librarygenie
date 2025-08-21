@@ -215,12 +215,12 @@ class KodiHelper:
                 utils.log(f"Could not convert item_id to integer: {item_id}, Error: {str(e)}", "ERROR")
                 return False
 
-            # Query the database for item using query manager
-            query = """SELECT media_items.* FROM media_items
-                      JOIN list_items ON list_items.media_item_id = media_items.id
-                      WHERE list_items.media_item_id = ?"""
-            
-            result = db_manager.query_manager.execute_query(query, (item_id,), fetch_one=True)
+            # Query the database for item using database manager
+            result = db_manager.query_manager.execute_query(
+                "SELECT * FROM media_items WHERE id = ?", 
+                (item_id,), 
+                fetch_one=True
+            )
 
             if not result:
                 utils.log(f"Item not found for id: {item_id}", "ERROR")
