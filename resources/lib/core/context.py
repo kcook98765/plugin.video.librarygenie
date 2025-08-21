@@ -671,7 +671,6 @@ def main():
 
             # Navigate to directory-based dev display
             from resources.lib.kodi.url_builder import build_plugin_url
-            from urllib.parse import quote_plus
             encoded_title = quote_plus(clean_title)
             dev_url = build_plugin_url({
                 'action': 'dev_display_directory',
