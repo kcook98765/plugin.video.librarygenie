@@ -86,7 +86,7 @@ def run_addon():
             'setup_remote_api', 'manual_setup_remote_api', 'test_remote_api',
             'upload_library_full', 'upload_library_delta', 'upload_status', 
             'clear_server_library', 'show_main_window', 'clear_all_local_data',
-            'import_from_shortlist'
+            'import_from_shortlist', 'addon_library_status'
         ]
 
         if len(sys.argv) > 1 and sys.argv[1] in script_actions:
