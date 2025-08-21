@@ -627,7 +627,14 @@ class QueryManager(Singleton):
         media_data.setdefault('duration', 0)
         media_data.setdefault('votes', 0)
         media_data.setdefault('title', 'Unknown')
-        media_data.setdefault('source', 'unknown')
+        
+        # Set proper source based on kodi_id presence
+        if 'source' not in media_data:
+            if media_data.get('kodi_id', 0) > 0:
+                media_data['source'] = 'lib'
+            else:
+                media_data['source'] = 'unknown'
+        
         media_data.setdefault('media_type', 'movie')
 
         # Ensure search_score is included if present in input data
@@ -940,6 +947,18 @@ class QueryManager(Singleton):
                 year INTEGER,
                 director TEXT,
                 FOREIGN KEY (request_id) REFERENCES original_requests (id)
+            )""",
+            
+            """CREATE TABLE IF NOT EXISTS movie_heavy_meta (
+                kodi_movieid INTEGER PRIMARY KEY,
+                imdbnumber TEXT,
+                cast_json TEXT,
+                ratings_json TEXT,
+                showlink_json TEXT,
+                stream_json TEXT,
+                uniqueid_json TEXT,
+                tags_json TEXT,
+                updated_at INTEGER NOT NULL
             )"""
         ]
 
@@ -968,6 +987,13 @@ class QueryManager(Singleton):
                 utils.log("Adding file column to media_items table", "INFO")
                 cursor.execute("ALTER TABLE media_items ADD COLUMN file TEXT")
                 conn_info['connection'].commit()
+
+            # Create index for movie_heavy_meta table
+            try:
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_heavy_imdb ON movie_heavy_meta (imdbnumber)")
+                conn_info['connection'].commit()
+            except sqlite3.OperationalError:
+                pass
 
         finally:
             self._release_connection(conn_info)
