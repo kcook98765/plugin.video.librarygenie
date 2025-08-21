@@ -51,6 +51,11 @@ def display_imdb_data_as_directory(handle):
             fetch_all=True
         )
 
+        # Ensure tables is not None before iterating
+        if tables is None:
+            utils.log("No tables retrieved from the database", "ERROR")
+            tables = []
+
         for table_info in tables:
             # Ensure dict representation for consistent access
             table_dict = dict(table_info) if table_info else {}
@@ -73,6 +78,10 @@ def display_imdb_data_as_directory(handle):
                     f"PRAGMA table_info({table_name})", 
                     fetch_all=True
                 )
+
+                # Ensure table_structure is not None before using
+                if table_structure is None:
+                    table_structure = []
 
                 # Count rows using parameterized query with validated table name and explicit alias
                 count_result = query_manager.execute_query(
@@ -107,6 +116,11 @@ def display_imdb_data_as_directory(handle):
                         f"SELECT * FROM {table_name} LIMIT 3",
                         fetch_all=True
                     )
+                    
+                    # Ensure sample_rows is not None before iterating
+                    if sample_rows is None:
+                        sample_rows = []
+                        
                     for i, row in enumerate(sample_rows):
                         # Ensure we always work with dict representation
                         if row:
