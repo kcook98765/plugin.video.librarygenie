@@ -5,7 +5,6 @@ import xbmcgui
 from datetime import datetime
 from resources.lib.utils import utils
 from resources.lib.config.config_manager import Config
-from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.integrations.jsonrpc.jsonrpc_manager import JSONRPC
 
 # Video file extensions for playability detection
