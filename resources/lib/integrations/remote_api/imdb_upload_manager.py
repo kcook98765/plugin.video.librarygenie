@@ -209,8 +209,8 @@ class IMDbUploadManager:
             utils.log(f"Starting to store {len(movies)} movies in database", "INFO")
 
             # Clear existing data
-            self.query_manager.execute_query("DELETE FROM imdb_exports", commit=True)
-            self.query_manager.execute_query("DELETE FROM media_items WHERE source = 'lib'", commit=True)
+            self.query_manager.execute_query("DELETE FROM imdb_exports")
+            self.query_manager.execute_query("DELETE FROM media_items WHERE source = 'lib'")
 
             utils.log("Cleared existing library data from database", "INFO")
 
