@@ -1,3 +1,4 @@
+
 """
 ListingDAO - Data Access Object for folder and list operations
 Extracted from QueryManager to separate concerns while maintaining the same API
@@ -7,13 +8,12 @@ import sqlite3
 import time
 from contextlib import contextmanager
 from resources.lib.utils import utils
-from resources.lib.data.query_manager import QueryManager
 from resources.lib.config.config_manager import Config
 
 class ListingDAO:
     """Data Access Object for folder and list database operations"""
 
-    def __init__(self):
+    def __init__(self, execute_query_callable, execute_write_callable):
         """
         Initialize DAO with injected query executors
 
@@ -21,10 +21,10 @@ class ListingDAO:
             execute_query_callable: Function to execute SELECT queries
                                    Signature: execute_query(sql: str, params: tuple, fetch_all: bool) -> List[Dict]
             execute_write_callable: Function to execute INSERT/UPDATE/DELETE
-                                   Signature: execute_write(sql: str, params: tuple) -> Dict[str, int]
+                                   Signature: execute_write(sql: str, params: tuple) -> int
         """
-        config = Config()
-        self.query_manager = QueryManager(config.db_path)
+        self.execute_query = execute_query_callable
+        self.execute_write = execute_write_callable
 
     # =========================
     # FOLDER OPERATIONS
@@ -32,19 +32,27 @@ class ListingDAO:
 
     def get_folders(self, parent_id=None):
         """Get folders by parent ID"""
-        return self.query_manager.fetch_folders(parent_id)
+        if parent_id is None:
+            sql = "SELECT * FROM folders WHERE parent_id IS NULL ORDER BY name"
+            params = ()
+        else:
+            sql = "SELECT * FROM folders WHERE parent_id = ? ORDER BY name"
+            params = (parent_id,)
+        return self.execute_query(sql, params, fetch_all=True)
 
     def fetch_folders_direct(self, parent_id=None):
         """Direct folder fetch without transformation"""
-        return self.query_manager.fetch_folders(parent_id)
+        return self.get_folders(parent_id)
 
     def insert_folder_direct(self, name, parent_id):
         """Direct folder insertion"""
-        return self.query_manager.insert_folder(name, parent_id)
+        sql = "INSERT INTO folders (name, parent_id) VALUES (?, ?)"
+        return self.execute_write(sql, (name, parent_id))
 
     def update_folder_name_direct(self, folder_id, new_name):
         """Direct folder name update"""
-        return self.query_manager.update_folder_name(folder_id, new_name)
+        sql = "UPDATE folders SET name = ? WHERE id = ?"
+        return self.execute_write(sql, (new_name, folder_id))
 
     def get_folder_depth(self, folder_id):
         """Calculate folder depth in hierarchy"""
@@ -55,7 +63,7 @@ class ListingDAO:
         current_id = folder_id
 
         while current_id is not None:
-            folder = self.query_manager.fetch_folder_by_id(current_id)
+            folder = self.fetch_folder_by_id(current_id)
             if not folder:
                 break
             current_id = folder['parent_id']
@@ -69,7 +77,13 @@ class ListingDAO:
 
     def get_folder_by_name(self, name, parent_id=None):
         """Get folder by name and parent"""
-        return self.query_manager.fetch_folder_by_name(name, parent_id)
+        if parent_id is None:
+            sql = "SELECT * FROM folders WHERE name = ? AND parent_id IS NULL"
+            params = (name,)
+        else:
+            sql = "SELECT * FROM folders WHERE name = ? AND parent_id = ?"
+            params = (name, parent_id)
+        return self.execute_query(sql, params, fetch_one=True)
 
     def get_folder_id_by_name(self, name, parent_id=None):
         """Get folder ID by name and parent"""
@@ -98,7 +112,14 @@ class ListingDAO:
     def get_folder_media_count(self, folder_id):
         """Get total media count for folder (including subfolders and lists)"""
         # Count items in lists directly in this folder
-        direct_count = self.query_manager.get_folder_direct_media_count(folder_id)
+        direct_count_sql = """
+            SELECT COUNT(*) as count
+            FROM list_items li
+            JOIN lists l ON li.list_id = l.id
+            WHERE l.folder_id = ?
+        """
+        direct_result = self.execute_query(direct_count_sql, (folder_id,), fetch_one=True)
+        direct_count = direct_result['count'] if direct_result else 0
 
         # Count items in subfolders recursively
         subfolder_count = 0
@@ -110,11 +131,14 @@ class ListingDAO:
 
     def fetch_folder_by_id(self, folder_id):
         """Fetch folder by ID"""
-        return self.query_manager.fetch_folder_by_id(folder_id)
+        sql = "SELECT * FROM folders WHERE id = ?"
+        return self.execute_query(sql, (folder_id,), fetch_one=True)
 
     def update_folder_parent(self, folder_id, new_parent_id):
         """Update folder parent"""
-        return self.query_manager.update_folder_parent(folder_id, new_parent_id)
+        sql = "UPDATE folders SET parent_id = ? WHERE id = ?"
+        self.execute_write(sql, (new_parent_id, folder_id))
+        return True
 
     def delete_folder_and_contents(self, folder_id):
         """Delete folder and all its contents recursively
@@ -135,15 +159,33 @@ class ListingDAO:
             self.delete_list_and_contents(list_item['id'])
 
         # Delete the folder itself
-        return self.query_manager.delete_folder(folder_id)
+        self.execute_write("DELETE FROM folders WHERE id = ?", (folder_id,))
+        return True
 
     def fetch_folders_with_item_status(self, parent_id, media_item_id):
         """Fetch folders with status for a media item"""
-        return self.query_manager.fetch_folders_with_item_status(parent_id, media_item_id)
+        sql = """
+            SELECT f.*, 
+                   CASE WHEN EXISTS (
+                       SELECT 1 FROM lists l 
+                       JOIN list_items li ON l.id = li.list_id 
+                       WHERE l.folder_id = f.id AND li.media_item_id = ?
+                   ) THEN 1 ELSE 0 END as has_item
+            FROM folders f
+            WHERE f.parent_id = ?
+            ORDER BY f.name
+        """
+        if parent_id is None:
+            sql = sql.replace("WHERE f.parent_id = ?", "WHERE f.parent_id IS NULL")
+            params = (media_item_id,)
+        else:
+            params = (media_item_id, parent_id)
+        return self.execute_query(sql, params, fetch_all=True)
 
     def fetch_all_folders(self):
         """Fetch all folders"""
-        return self.query_manager.fetch_all_folders()
+        sql = "SELECT * FROM folders ORDER BY name"
+        return self.execute_query(sql, fetch_all=True)
 
     # =========================
     # LIST OPERATIONS
@@ -151,7 +193,13 @@ class ListingDAO:
 
     def get_lists(self, folder_id=None):
         """Get lists by folder ID"""
-        return self.query_manager.fetch_lists(folder_id)
+        if folder_id is None:
+            sql = "SELECT * FROM lists WHERE folder_id IS NULL ORDER BY name"
+            params = ()
+        else:
+            sql = "SELECT * FROM lists WHERE folder_id = ? ORDER BY name"
+            params = (folder_id,)
+        return self.execute_query(sql, params, fetch_all=True)
 
     def fetch_lists_direct(self, folder_id=None):
         """Direct list fetch without transformation"""
@@ -159,100 +207,177 @@ class ListingDAO:
 
     def get_list_items(self, list_id):
         """Get items in a list"""
-        return self.query_manager.fetch_list_items(list_id)
+        sql = "SELECT * FROM list_items WHERE list_id = ?"
+        return self.execute_query(sql, (list_id,), fetch_all=True)
 
     def fetch_list_items_with_details(self, list_id):
         """Fetch list items with detailed information including search scores"""
-        return self.query_manager.fetch_list_items_with_details(list_id)
+        sql = """
+            SELECT m.*, li.search_score
+            FROM list_items li
+            JOIN media_items m ON li.media_item_id = m.id
+            WHERE li.list_id = ?
+            ORDER BY li.search_score DESC, m.title ASC
+        """
+        return self.execute_query(sql, (list_id,), fetch_all=True)
 
     def get_list_media_count(self, list_id):
         """Get media count for a list"""
-        return self.query_manager.get_list_media_count(list_id)
+        sql = "SELECT COUNT(*) as count FROM list_items WHERE list_id = ?"
+        result = self.execute_query(sql, (list_id,), fetch_one=True)
+        return result['count'] if result else 0
 
     def fetch_lists_with_item_status(self, folder_id, media_item_id):
         """Fetch lists with status for a media item"""
-        return self.query_manager.fetch_lists_with_item_status(folder_id, media_item_id)
+        sql = """
+            SELECT l.*, 
+                   CASE WHEN EXISTS (
+                       SELECT 1 FROM list_items li 
+                       WHERE li.list_id = l.id AND li.media_item_id = ?
+                   ) THEN 1 ELSE 0 END as has_item
+            FROM lists l
+            WHERE l.folder_id = ?
+            ORDER BY l.name
+        """
+        if folder_id is None:
+            sql = sql.replace("WHERE l.folder_id = ?", "WHERE l.folder_id IS NULL")
+            params = (media_item_id,)
+        else:
+            params = (media_item_id, folder_id)
+        return self.execute_query(sql, params, fetch_all=True)
 
     def fetch_all_lists_with_item_status(self, media_item_id):
         """Fetch all lists with status for a media item"""
-        return self.query_manager.fetch_all_lists_with_item_status(media_item_id)
+        sql = """
+            SELECT l.*, 
+                   CASE WHEN EXISTS (
+                       SELECT 1 FROM list_items li 
+                       WHERE li.list_id = l.id AND li.media_item_id = ?
+                   ) THEN 1 ELSE 0 END as has_item
+            FROM lists l
+            ORDER BY l.name
+        """
+        return self.execute_query(sql, (media_item_id,), fetch_all=True)
 
     def update_list_folder(self, list_id, folder_id):
         """Update list's folder"""
-        return self.query_manager.update_list_folder(list_id, folder_id)
+        sql = "UPDATE lists SET folder_id = ? WHERE id = ?"
+        self.execute_write(sql, (folder_id, list_id))
+        return True
 
     def get_list_id_by_name(self, name, folder_id=None):
         """Get list ID by name and folder"""
-        return self.query_manager.fetch_list_id_by_name(name, folder_id)
+        if folder_id is None:
+            sql = "SELECT id FROM lists WHERE name = ? AND folder_id IS NULL"
+            params = (name,)
+        else:
+            sql = "SELECT id FROM lists WHERE name = ? AND folder_id = ?"
+            params = (name, folder_id)
+        result = self.execute_query(sql, params, fetch_one=True)
+        return result['id'] if result else None
 
     def get_lists_for_item(self, media_item_id):
         """Get all lists containing a media item"""
-        return self.query_manager.fetch_lists_for_item(media_item_id)
+        sql = """
+            SELECT l.*
+            FROM lists l
+            JOIN list_items li ON l.id = li.list_id
+            WHERE li.media_item_id = ?
+        """
+        return self.execute_query(sql, (media_item_id,), fetch_all=True)
 
     def get_item_id_by_title_and_list(self, title, list_id):
         """Get media item ID by title within a specific list"""
-        return self.query_manager.fetch_item_id_by_title_and_list(title, list_id)
+        sql = """
+            SELECT m.id
+            FROM media_items m
+            JOIN list_items li ON m.id = li.media_item_id
+            WHERE m.title = ? AND li.list_id = ?
+        """
+        result = self.execute_query(sql, (title, list_id), fetch_one=True)
+        return result['id'] if result else None
 
     def create_list(self, name, folder_id=None):
         """Create a new list"""
-        return self.query_manager.create_list(name, folder_id)
+        sql = "INSERT INTO lists (name, folder_id) VALUES (?, ?)"
+        list_id = self.execute_write(sql, (name, folder_id))
+        return {'id': list_id, 'name': name, 'folder_id': folder_id}
 
     def get_unique_list_name(self, base_name, folder_id=None):
         """Generate a unique list name in the given folder"""
-        return self.query_manager.get_unique_list_name(base_name, folder_id)
+        counter = 1
+        test_name = base_name
+
+        while True:
+            existing_id = self.get_list_id_by_name(test_name, folder_id)
+            if not existing_id:
+                return test_name
+
+            counter += 1
+            test_name = f"{base_name} ({counter})"
 
     def delete_list_and_contents(self, list_id):
         """Delete list and all its contents"""
         # Delete list items first
-        self.query_manager.delete_list_items(list_id)
+        self.execute_write("DELETE FROM list_items WHERE list_id = ?", (list_id,))
 
         # Delete the list itself
-        return self.query_manager.delete_list(list_id)
+        self.execute_write("DELETE FROM lists WHERE id = ?", (list_id,))
+        return True
 
     def fetch_all_lists(self):
         """Fetch all lists"""
-        return self.query_manager.fetch_all_lists()
+        sql = "SELECT * FROM lists ORDER BY name"
+        return self.execute_query(sql, fetch_all=True)
 
     def fetch_list_by_id(self, list_id):
         """Fetch list by ID"""
-        return self.query_manager.fetch_list_by_id(list_id)
+        sql = "SELECT * FROM lists WHERE id = ?"
+        return self.execute_query(sql, (list_id,), fetch_one=True)
 
     def insert_list_item(self, list_id, media_item_id):
         """Insert item into list"""
-        return self.query_manager.insert_list_item(list_id, media_item_id)
+        sql = "INSERT INTO list_items (list_id, media_item_id) VALUES (?, ?)"
+        return self.execute_write(sql, (list_id, media_item_id))
 
     def remove_media_item_from_list(self, list_id, media_item_id):
         """Remove media item from list"""
-        return self.query_manager.remove_media_item_from_list(list_id, media_item_id)
+        sql = "DELETE FROM list_items WHERE list_id = ? AND media_item_id = ?"
+        self.execute_write(sql, (list_id, media_item_id))
+        return True
 
     def get_list_item_by_media_id(self, list_id, media_item_id):
         """Get list item by list_id and media_item_id"""
-        return self.query_manager.fetch_list_item_by_media_id(list_id, media_item_id)
+        sql = "SELECT * FROM list_items WHERE list_id = ? AND media_item_id = ?"
+        return self.execute_query(sql, (list_id, media_item_id), fetch_one=True)
 
     def upsert_heavy_meta(self, movieid, imdbnumber, cast_json, ratings_json, showlink_json, stream_json, uniqueid_json, tags_json, connection=None):
-        """Upsert heavy metadata for a movie - can use existing connection to avoid locks"""
+        """Upsert heavy metadata for a movie - uses query manager executors or transaction connection"""
         import time
 
         try:
-            # Try update first
-            update_sql = """
-                UPDATE movie_heavy_meta SET
-                    imdbnumber = ?,
-                    cast_json = ?,
-                    ratings_json = ?,
-                    showlink_json = ?,
-                    stream_json = ?,
-                    uniqueid_json = ?,
-                    tags_json = ?,
-                    updated_at = ?
-                WHERE kodi_movieid = ?
-            """
-            update_params = (imdbnumber, cast_json, ratings_json, showlink_json, 
-                            stream_json, uniqueid_json, tags_json, int(time.time()), movieid)
-
+            current_time = int(time.time())
+            
             if connection:
-                # Use existing connection directly to avoid lock conflicts
+                # Use existing transaction connection directly
                 cursor = connection.cursor()
+                
+                # Try update first
+                update_sql = """
+                    UPDATE movie_heavy_meta SET
+                        imdbnumber = ?,
+                        cast_json = ?,
+                        ratings_json = ?,
+                        showlink_json = ?,
+                        stream_json = ?,
+                        uniqueid_json = ?,
+                        tags_json = ?,
+                        updated_at = ?
+                    WHERE kodi_movieid = ?
+                """
+                update_params = (imdbnumber, cast_json, ratings_json, showlink_json, 
+                                stream_json, uniqueid_json, tags_json, current_time, movieid)
+                
                 cursor.execute(update_sql, update_params)
                 rowcount = cursor.rowcount
 
@@ -267,27 +392,46 @@ class ListingDAO:
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """
                 insert_params = (movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
-                               stream_json, uniqueid_json, tags_json, int(time.time()))
+                               stream_json, uniqueid_json, tags_json, current_time)
                 cursor.execute(insert_sql, insert_params)
                 return movieid
             else:
-                # Fall back to execute_write for backwards compatibility
-                result = self.query_manager.execute_write(update_sql, update_params)
-
-                if result['rowcount'] > 0:
-                    return movieid
-
-                # No rows updated, try insert
-                insert_sql = """
-                    INSERT OR IGNORE INTO movie_heavy_meta
-                        (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json,
-                         stream_json, uniqueid_json, tags_json, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                # Use query manager executors
+                update_sql = """
+                    UPDATE movie_heavy_meta SET
+                        imdbnumber = ?,
+                        cast_json = ?,
+                        ratings_json = ?,
+                        showlink_json = ?,
+                        stream_json = ?,
+                        uniqueid_json = ?,
+                        tags_json = ?,
+                        updated_at = ?
+                    WHERE kodi_movieid = ?
                 """
-                insert_params = (movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
-                               stream_json, uniqueid_json, tags_json, int(time.time()))
-                result = self.query_manager.execute_write(insert_sql, insert_params)
-                return result['lastrowid'] or movieid
+                update_params = (imdbnumber, cast_json, ratings_json, showlink_json, 
+                                stream_json, uniqueid_json, tags_json, current_time, movieid)
+
+                # Execute through query manager
+                self.execute_write(update_sql, update_params)
+
+                # Check if update affected any rows by trying to select the record
+                check_sql = "SELECT kodi_movieid FROM movie_heavy_meta WHERE kodi_movieid = ?"
+                existing = self.execute_query(check_sql, (movieid,), fetch_one=True)
+                
+                if not existing:
+                    # No rows found, try insert
+                    insert_sql = """
+                        INSERT OR IGNORE INTO movie_heavy_meta
+                            (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json,
+                             stream_json, uniqueid_json, tags_json, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """
+                    insert_params = (movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
+                                   stream_json, uniqueid_json, tags_json, current_time)
+                    self.execute_write(insert_sql, insert_params)
+
+                return movieid
 
         except Exception as e:
             utils.log(f"Error storing heavy metadata for movie ID {movieid}: {str(e)}", "WARNING")
@@ -329,23 +473,10 @@ class ListingDAO:
             fresh_data = self._fetch_heavy_meta_from_kodi(missing_ids)
             utils.log(f"HEAVY_META: Retrieved {len(fresh_data)} fresh movies from Kodi", "INFO")
 
-            # Log sample fresh data
-            if fresh_data:
-                first_movieid = list(fresh_data.keys())[0]
-                sample_fresh = fresh_data[first_movieid]
-                utils.log("=== SAMPLE FRESH HEAVY DATA FROM KODI ===", "INFO")
-                for key, value in sample_fresh.items():
-                    if isinstance(value, str) and len(value) > 200:
-                        utils.log(f"FRESH_HEAVY: {key} = {value[:200]}... (truncated)", "INFO")
-                    else:
-                        utils.log(f"FRESH_HEAVY: {key} = {repr(value)}", "INFO")
-                utils.log("=== END SAMPLE FRESH HEAVY DATA ===", "INFO")
-
             # Store fresh data in cache
             if fresh_data:
                 fresh_list = [data for data in fresh_data.values()]
                 utils.log(f"HEAVY_META: Storing {len(fresh_list)} movies in cache", "INFO")
-                # Use execute_write to store the batch
                 self._store_heavy_meta_batch_via_dao(fresh_list)
 
         # Combine cached and fresh data
@@ -354,19 +485,6 @@ class ListingDAO:
         result.update(fresh_data)
 
         utils.log(f"HEAVY_META: Final result contains {len(result)} movies", "INFO")
-
-        # Log sample final result
-        if result:
-            first_result_id = list(result.keys())[0]
-            sample_result = result[first_result_id]
-            utils.log("=== SAMPLE FINAL HEAVY METADATA RESULT ===", "INFO")
-            for key, value in sample_result.items():
-                if isinstance(value, str) and len(value) > 200:
-                    utils.log(f"FINAL_HEAVY: {key} = {value[:200]}... (truncated)", "INFO")
-                else:
-                    utils.log(f"FINAL_HEAVY: {key} = {repr(value)}", "INFO")
-            utils.log("=== END SAMPLE FINAL HEAVY METADATA ===", "INFO")
-
         return result
 
     def _get_cached_heavy_meta(self, movieids):
@@ -386,7 +504,7 @@ class ListingDAO:
         """
 
         try:
-            results = self.query_manager.execute_query(query, tuple(movieids), fetch_all=True)
+            results = self.execute_query(query, tuple(movieids), fetch_all=True)
             utils.log(f"_GET_CACHED_HEAVY_META: Found {len(results)} cached entries", "INFO")
 
             cached_data = {}
@@ -494,7 +612,7 @@ class ListingDAO:
             return {}
 
     def _store_heavy_meta_batch_via_dao(self, heavy_metadata_list):
-        """Store heavy metadata batch using DAO methods"""
+        """Store heavy metadata batch using query manager executors"""
         if not heavy_metadata_list:
             return
 
@@ -518,7 +636,7 @@ class ListingDAO:
             tags_json = json.dumps(movie_data.get('tag', []))
 
             try:
-                # Try update first
+                # Try update first using query manager executor
                 update_sql = """
                     UPDATE movie_heavy_meta SET
                         imdbnumber = ?,
@@ -543,10 +661,14 @@ class ListingDAO:
                     movieid
                 )
 
-                result = self.query_manager.execute_write(update_sql, update_params)
+                self.execute_write(update_sql, update_params)
 
-                if result['rowcount'] == 0:
-                    # No rows updated, try insert
+                # Check if record exists (since execute_write doesn't return rowcount)
+                check_sql = "SELECT kodi_movieid FROM movie_heavy_meta WHERE kodi_movieid = ?"
+                existing = self.execute_query(check_sql, (movieid,), fetch_one=True)
+
+                if not existing:
+                    # No record found, try insert
                     insert_sql = """
                         INSERT OR IGNORE INTO movie_heavy_meta
                             (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json,
@@ -564,7 +686,7 @@ class ListingDAO:
                         tags_json,
                         current_time
                     )
-                    self.query_manager.execute_write(insert_sql, insert_params)
+                    self.execute_write(insert_sql, insert_params)
 
             except Exception as e:
                 utils.log(f"Error storing heavy metadata for movie ID {movieid}: {str(e)}", "WARNING")
