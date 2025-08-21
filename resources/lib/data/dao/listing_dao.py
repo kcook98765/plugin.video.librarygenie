@@ -527,7 +527,8 @@ class ListingDAO:
             if fresh_data:
                 fresh_list = [data for data in fresh_data.values()]
                 utils.log(f"HEAVY_META: Storing {len(fresh_list)} movies in cache", "INFO")
-                self.query_manager.store_heavy_meta_batch(fresh_list)
+                # Use execute_write to store the batch
+                self._store_heavy_meta_batch_via_dao(fresh_list)
 
         # Combine cached and fresh data
         result = {}
@@ -549,3 +550,206 @@ class ListingDAO:
             utils.log("=== END SAMPLE FINAL HEAVY METADATA ===", "INFO")
 
         return result
+
+    def _get_cached_heavy_meta(self, movieids):
+        """Get heavy metadata from cache for multiple movie IDs"""
+        if not movieids:
+            return {}
+
+        utils.log(f"=== _GET_CACHED_HEAVY_META: Looking up {len(movieids)} movie IDs ===", "INFO")
+
+        # Build placeholders for the query
+        placeholders = ','.join('?' * len(movieids))
+        query = f"""
+            SELECT kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
+                   stream_json, uniqueid_json, tags_json, updated_at
+            FROM movie_heavy_meta 
+            WHERE kodi_movieid IN ({placeholders})
+        """
+
+        try:
+            results = self.execute_query(query, tuple(movieids), fetch_all=True)
+            utils.log(f"_GET_CACHED_HEAVY_META: Found {len(results)} cached entries", "INFO")
+
+            cached_data = {}
+            for row in results:
+                movieid = row['kodi_movieid']
+                
+                # Parse JSON fields
+                import json
+                try:
+                    cast_data = json.loads(row['cast_json']) if row['cast_json'] else []
+                except:
+                    cast_data = []
+
+                try:
+                    ratings_data = json.loads(row['ratings_json']) if row['ratings_json'] else {}
+                except:
+                    ratings_data = {}
+
+                try:
+                    showlink_data = json.loads(row['showlink_json']) if row['showlink_json'] else []
+                except:
+                    showlink_data = []
+
+                try:
+                    stream_data = json.loads(row['stream_json']) if row['stream_json'] else {}
+                except:
+                    stream_data = {}
+
+                try:
+                    uniqueid_data = json.loads(row['uniqueid_json']) if row['uniqueid_json'] else {}
+                except:
+                    uniqueid_data = {}
+
+                try:
+                    tags_data = json.loads(row['tags_json']) if row['tags_json'] else []
+                except:
+                    tags_data = []
+
+                # Build the movie data structure
+                movie_data = {
+                    'movieid': movieid,
+                    'imdbnumber': row['imdbnumber'] or '',
+                    'cast': cast_data,
+                    'ratings': ratings_data,
+                    'showlink': showlink_data,
+                    'streamdetails': stream_data,
+                    'uniqueid': uniqueid_data,
+                    'tag': tags_data
+                }
+
+                cached_data[movieid] = movie_data
+
+            return cached_data
+
+        except Exception as e:
+            utils.log(f"Error getting cached heavy metadata: {str(e)}", "ERROR")
+            return {}
+
+    def _fetch_heavy_meta_from_kodi(self, movieids):
+        """Fetch heavy metadata from Kodi for missing movie IDs"""
+        if not movieids:
+            return {}
+
+        utils.log(f"=== _FETCH_HEAVY_META_FROM_KODI: Fetching {len(movieids)} movies ===", "INFO")
+
+        try:
+            from resources.lib.integrations.jsonrpc.jsonrpc_manager import JsonRpcManager
+            jsonrpc = JsonRpcManager()
+
+            # Define heavy properties that are expensive to fetch
+            heavy_properties = [
+                "cast", "ratings", "showlink", "streamdetails", "uniqueid", "tag"
+            ]
+
+            # Build filter for the specific movie IDs
+            if len(movieids) == 1:
+                movie_filter = {"movieid": movieids[0]}
+            else:
+                movie_filter = {"or": [{"movieid": mid} for mid in movieids]}
+
+            # Make the JSON-RPC call
+            response = jsonrpc.call_method("VideoLibrary.GetMovies", {
+                "filter": movie_filter,
+                "properties": heavy_properties
+            })
+
+            if not response or 'result' not in response:
+                utils.log("No result from Kodi JSON-RPC call", "WARNING")
+                return {}
+
+            movies = response['result'].get('movies', [])
+            utils.log(f"_FETCH_HEAVY_META_FROM_KODI: Got {len(movies)} movies from Kodi", "INFO")
+
+            # Index by movieid
+            heavy_data = {}
+            for movie in movies:
+                movieid = movie.get('movieid')
+                if movieid:
+                    heavy_data[movieid] = movie
+
+            return heavy_data
+
+        except Exception as e:
+            utils.log(f"Error fetching heavy metadata from Kodi: {str(e)}", "ERROR")
+            return {}
+
+    def _store_heavy_meta_batch_via_dao(self, heavy_metadata_list):
+        """Store heavy metadata batch using DAO methods"""
+        if not heavy_metadata_list:
+            return
+
+        utils.log(f"=== _STORE_HEAVY_META_BATCH_VIA_DAO: Storing {len(heavy_metadata_list)} movies ===", "INFO")
+
+        import json
+        import time
+        current_time = int(time.time())
+
+        for movie_data in heavy_metadata_list:
+            movieid = movie_data.get('movieid')
+            if not movieid:
+                continue
+
+            # Convert complex fields to JSON
+            cast_json = json.dumps(movie_data.get('cast', []))
+            ratings_json = json.dumps(movie_data.get('ratings', {}))
+            showlink_json = json.dumps(movie_data.get('showlink', []))
+            stream_json = json.dumps(movie_data.get('streamdetails', {}))
+            uniqueid_json = json.dumps(movie_data.get('uniqueid', {}))
+            tags_json = json.dumps(movie_data.get('tag', []))
+
+            try:
+                # Try update first
+                update_sql = """
+                    UPDATE movie_heavy_meta SET
+                        imdbnumber = ?,
+                        cast_json = ?,
+                        ratings_json = ?,
+                        showlink_json = ?,
+                        stream_json = ?,
+                        uniqueid_json = ?,
+                        tags_json = ?,
+                        updated_at = ?
+                    WHERE kodi_movieid = ?
+                """
+                update_params = (
+                    movie_data.get('imdbnumber', ''),
+                    cast_json,
+                    ratings_json, 
+                    showlink_json,
+                    stream_json,
+                    uniqueid_json,
+                    tags_json,
+                    current_time,
+                    movieid
+                )
+
+                result = self.execute_write(update_sql, update_params)
+
+                if result['rowcount'] == 0:
+                    # No rows updated, try insert
+                    insert_sql = """
+                        INSERT OR IGNORE INTO movie_heavy_meta
+                            (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json,
+                             stream_json, uniqueid_json, tags_json, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """
+                    insert_params = (
+                        movieid,
+                        movie_data.get('imdbnumber', ''),
+                        cast_json,
+                        ratings_json,
+                        showlink_json, 
+                        stream_json,
+                        uniqueid_json,
+                        tags_json,
+                        current_time
+                    )
+                    self.execute_write(insert_sql, insert_params)
+
+            except Exception as e:
+                utils.log(f"Error storing heavy metadata for movie ID {movieid}: {str(e)}", "WARNING")
+                continue
+
+        utils.log(f"_STORE_HEAVY_META_BATCH_VIA_DAO: Completed storing batch", "INFO")

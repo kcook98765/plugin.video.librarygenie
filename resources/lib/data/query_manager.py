@@ -852,7 +852,7 @@ class QueryManager(Singleton):
             if 'cast' in item and isinstance(item['cast'], str):
                 try:
                     item['cast'] = json.loads(item['cast'])
-                except json.JSONDecodeError:
+                except JSONDecodeError:
                     item['cast'] = []
 
         return results
@@ -1115,3 +1115,7 @@ class QueryManager(Singleton):
             raise
         finally:
             self._release_connection(conn_info)
+
+    def get_heavy_meta_by_movieids(self, movieids, refresh=False):
+        """Get heavy metadata for multiple movie IDs with caching"""
+        return self._listing.get_heavy_meta_by_movieids(movieids, refresh)
