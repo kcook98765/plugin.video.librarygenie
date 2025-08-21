@@ -242,7 +242,8 @@ class IMDbUploadManager:
                     except (ValueError, TypeError):
                         existing_count = 0
 
-            if existing_count > 0:
+            # Ensure existing_count is an integer before comparison
+            if isinstance(existing_count, int) and existing_count > 0:
                 utils.log(f"Found {existing_count} existing library items to clear", "INFO")
 
             # Clear all library data in a single transaction using public transaction context
