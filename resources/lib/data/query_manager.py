@@ -789,14 +789,7 @@ class QueryManager(Singleton):
                 response_json TEXT,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )""",
-            """CREATE TABLE IF NOT EXISTS parsed_movies (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                request_id INTEGER,
-                title TEXT,
-                year INTEGER,
-                director TEXT,
-                FOREIGN KEY (request_id) REFERENCES original_requests (id)
-            )""",
+            
             
             """CREATE TABLE IF NOT EXISTS movie_heavy_meta (
                 kodi_movieid INTEGER PRIMARY KEY,
