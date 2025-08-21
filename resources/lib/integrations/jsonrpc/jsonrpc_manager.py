@@ -194,7 +194,7 @@ class JSONRPC:
             if total_estimated is None and total > 0:
                 total_estimated = total
 
-            # Cache heavy fields for each movie in this batch with transaction batching
+            # Cache heavy fields for each movie in this batch using public transaction context
             batch_cached = 0
             try:
                 # Import here to avoid circular imports
@@ -202,38 +202,23 @@ class JSONRPC:
                 from resources.lib.config.config_manager import Config
                 query_manager = QueryManager(Config().db_path)
 
-                # Begin transaction for this batch of movies
-                conn_info = query_manager._get_connection()
-                conn_info['connection'].execute("BEGIN IMMEDIATE")
-
-                try:
+                # Use public transaction context manager
+                with query_manager.transaction():
                     for movie in movies:
                         if self.cache_heavy_meta(movie):
                             batch_cached += 1
 
-                    # Commit the transaction for this batch
-                    conn_info['connection'].commit()
-                    log(f"Committed heavy metadata transaction for batch of {len(movies)} movies", "DEBUG")
-
-                except Exception as e:
-                    conn_info['connection'].rollback()
-                    log(f"Rolled back heavy metadata transaction: {str(e)}", "WARNING")
-                    # Fall back to individual inserts without transaction
-                    for movie in movies:
-                        try:
-                            if self.cache_heavy_meta(movie):
-                                batch_cached += 1
-                        except Exception as movie_error:
-                            log(f"Failed to cache heavy metadata for movie {movie.get('movieid', 'unknown')}: {str(movie_error)}", "WARNING")
-                finally:
-                    query_manager._release_connection(conn_info)
+                log(f"Committed heavy metadata transaction for batch of {len(movies)} movies", "DEBUG")
 
             except Exception as e:
-                log(f"Error setting up heavy metadata transaction: {str(e)}", "WARNING")
-                # Fall back to original individual caching
+                log(f"Heavy metadata transaction failed: {str(e)}", "WARNING")
+                # Fall back to individual inserts without transaction
                 for movie in movies:
-                    if self.cache_heavy_meta(movie):
-                        batch_cached += 1
+                    try:
+                        if self.cache_heavy_meta(movie):
+                            batch_cached += 1
+                    except Exception as movie_error:
+                        log(f"Failed to cache heavy metadata for movie {movie.get('movieid', 'unknown')}: {str(movie_error)}", "WARNING")
 
             cached_count += batch_cached
 
@@ -543,6 +528,7 @@ class JSONRPC:
             query_manager = QueryManager(Config().db_path)
 
             import json
+            import time
 
             # Extract heavy fields with safe JSON serialization
             imdbnumber = str(movie_data.get('imdbnumber', ''))
@@ -578,11 +564,17 @@ class JSONRPC:
             except (TypeError, ValueError):
                 tags_json = '[]'
 
-            # Cache the heavy fields
-            query_manager._listing.upsert_heavy_meta(
+            # Use query manager's public write executor
+            current_time = int(time.time())
+            query_manager.execute_write("""
+                INSERT OR REPLACE INTO movie_heavy_meta 
+                (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
+                 stream_json, uniqueid_json, tags_json, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
                 movieid, imdbnumber, cast_json, ratings_json, 
-                showlink_json, stream_json, uniqueid_json, tags_json
-            )
+                showlink_json, stream_json, uniqueid_json, tags_json, current_time
+            ))
 
             return True
 
