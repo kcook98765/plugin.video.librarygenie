@@ -141,8 +141,9 @@ class IMDbUploadManager:
 
             for movie in full_movies:
                 imdb_id = movie.get('imdbnumber', '')
+                
+                # Store in imdb_exports only if has valid IMDb ID
                 if imdb_id and imdb_id.startswith('tt'):
-                    # Only store basic search data in imdb_exports
                     export_movie = {
                         'imdb_id': imdb_id,
                         'title': movie.get('title', ''),
@@ -150,10 +151,10 @@ class IMDbUploadManager:
                     }
                     export_movies.append(export_movie)
 
-                    # Prepare heavy metadata for separate storage
-                    movieid = movie.get('movieid')
-                    if movieid:
-                        heavy_metadata_list.append(movie)
+                # Store heavy metadata for ALL library movies (with or without IMDb IDs)
+                movieid = movie.get('movieid')
+                if movieid:
+                    heavy_metadata_list.append(movie)
 
             if export_movies:
                 utils.log(f"Storing {len(export_movies)} movies in imdb_exports table (light fields only)", "INFO")
