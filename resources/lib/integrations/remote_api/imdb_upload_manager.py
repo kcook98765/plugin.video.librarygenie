@@ -251,8 +251,9 @@ class IMDbUploadManager:
                     # Direct numeric value
                     return int(first_item)
             else:
-                # Fallback: try direct conversion
-                return int(count_result)
+                # If we get here, count_result is not in expected format
+                utils.log(f"Unexpected count_result format: {type(count_result)} - {count_result}", "WARNING")
+                return 0
                 
         except (ValueError, TypeError, KeyError) as e:
             utils.log(f"Error getting library item count: {str(e)}", "WARNING")
