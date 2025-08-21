@@ -40,6 +40,11 @@ class SettingsManager:
         from resources.lib.integrations.remote_api.favorites_importer import import_from_favorites
         return import_from_favorites()
 
+    def addon_library_status(self):
+        """Show addon library status dialog"""
+        from resources.lib.integrations.remote_api.library_status import show_library_status
+        return show_library_status()
+
     @property 
     def addon_path(self):
         return xbmcvfs.translatePath(self.addon.getAddonInfo('path'))
