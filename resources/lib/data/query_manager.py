@@ -847,6 +847,12 @@ class QueryManager(Singleton):
                 utils.log("Adding file column to media_items table", "INFO")
                 cursor.execute("ALTER TABLE media_items ADD COLUMN file TEXT")
                 conn.commit()
+            except Exception as e:
+                # Handle case where column already exists from table creation
+                if "duplicate column name" in str(e).lower():
+                    utils.log("File column already exists in media_items table", "DEBUG")
+                else:
+                    raise
 
             # Create index for movie_heavy_meta table
             try:
