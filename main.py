@@ -131,11 +131,12 @@ def browse_folder(params):
         folder_id = int(folder_id)
         log(f"Browsing folder {folder_id}", "DEBUG")
 
+        # Use singleton instances through Config
         config = Config()
-        db_manager = DatabaseManager(config.db_path)
+        query_manager = config.query_manager
 
-        # Get folder details
-        folder = db_manager.fetch_folder_by_id(folder_id)
+        # Get folder details using QueryManager
+        folder = query_manager.fetch_folder_by_id(folder_id)
         if not folder:
             log(f"Folder {folder_id} not found", "ERROR")
             xbmcgui.Dialog().notification('LibraryGenie', 'Folder not found')
@@ -145,11 +146,11 @@ def browse_folder(params):
         ctx = detect_context({'view': 'folder', 'folder_id': folder_id})
         add_options_header_item(ctx, ADDON_HANDLE)
 
-        # Get subfolders
-        subfolders = db_manager.fetch_folders(folder_id)
+        # Get subfolders using QueryManager
+        subfolders = query_manager.fetch_folders_direct(folder_id)
 
-        # Get lists in this folder
-        lists = db_manager.fetch_lists(folder_id)
+        # Get lists in this folder using QueryManager
+        lists = query_manager.fetch_lists_direct(folder_id)
 
         # Add subfolders
         for subfolder in subfolders:
@@ -161,7 +162,8 @@ def browse_folder(params):
 
         # Add lists
         for list_item in lists:
-            list_count = db_manager.get_list_media_count(list_item['id'])
+            # Get list count using QueryManager
+            list_count = query_manager.get_list_media_count(list_item['id'])
 
             # Check if this list contains a count pattern like "(number)" at the end
             import re
@@ -468,17 +470,12 @@ def router(paramstring):
 
             log(f"=== LIST_TIMING: Starting list processing for list_id: {list_id} ===", "INFO")
 
-            # Initialize database manager
-            from resources.lib.config.config_manager import Config
-            from resources.lib.data.database_manager import DatabaseManager
-            from resources.lib.data.query_manager import QueryManager
-            
+            # Use existing singleton instances instead of creating new ones
             config = Config()
-            db_manager = DatabaseManager(config.db_path)
-            query_manager = QueryManager(config.db_path)
+            query_manager = config.query_manager  # Use singleton instance
             
-            # Get list info for context
-            list_info = db_manager.fetch_list_by_id(list_id)
+            # Get list info for context using QueryManager
+            list_info = query_manager.fetch_list_by_id(list_id)
             if not list_info:
                 log(f"List {list_id} not found", "ERROR")
                 xbmcgui.Dialog().notification("LibraryGenie", "List not found", xbmcgui.NOTIFICATION_ERROR)
@@ -493,7 +490,8 @@ def router(paramstring):
             # Add options header
             add_options_header_item(ctx, ADDON_HANDLE)
 
-            # Use ResultsManager to build display items
+            # Use ResultsManager to build display items - it will use the same singleton instances
+            from resources.lib.data.results_manager import ResultsManager
             results_manager = ResultsManager()
             display_items = results_manager.build_display_items_for_list(list_id)
 
@@ -529,7 +527,7 @@ def router(paramstring):
                         non_playable_count += 1
 
                     # Add directory item with proper folder flag
-                    xbmcplugin.addDirectoryItem(handle, url, li, isFolder=is_folder)
+                    xbmcplugin.addDirectoryItem(ADDON_HANDLE, url, li, isFolder=is_folder)
                     items_added += 1
                 except Exception as e:
                     log(f"Error processing item {i+1}: {str(e)}", "ERROR")
@@ -550,16 +548,16 @@ def router(paramstring):
                     break
 
             # Always enable sort methods so users can override the default order
-            xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_LABEL)
-            xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_TITLE)
-            xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
-            xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_GENRE)
-            xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
-            xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_DATEADDED)
+            xbmcplugin.addSortMethod(ADDON_HANDLE, xbmcplugin.SORT_METHOD_LABEL)
+            xbmcplugin.addSortMethod(ADDON_HANDLE, xbmcplugin.SORT_METHOD_TITLE)
+            xbmcplugin.addSortMethod(ADDON_HANDLE, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
+            xbmcplugin.addSortMethod(ADDON_HANDLE, xbmcplugin.SORT_METHOD_GENRE)
+            xbmcplugin.addSortMethod(ADDON_HANDLE, xbmcplugin.SORT_METHOD_VIDEO_RATING)
+            xbmcplugin.addSortMethod(ADDON_HANDLE, xbmcplugin.SORT_METHOD_DATEADDED)
 
             if has_scores:
                 # For search results, add unsorted method to preserve score order as default
-                xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)
+                xbmcplugin.addSortMethod(ADDON_HANDLE, xbmcplugin.SORT_METHOD_UNSORTED)
 
             # Set content and finish directory
             xbmcplugin.setContent(ADDON_HANDLE, 'movies')

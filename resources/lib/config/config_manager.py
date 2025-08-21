@@ -45,10 +45,10 @@ class Config:
         self.addonname = self._addon.getAddonInfo('name')
         self.addonversion = self._addon.getAddonInfo('version')
         log_once("addon_details", f"Addon details - ID: {self.addonid}, Name: {self.addonname}, Version: {self.addonversion}", "INFO")
-        
+
         self.addonpath = xbmcvfs.translatePath(self._addon.getAddonInfo('path'))
         log_once("addon_path", f"Addon path: {self.addonpath}", "DEBUG")
-        
+
         self.profile = xbmcvfs.translatePath(self._addon.getAddonInfo('profile'))
         log_once("profile_path", f"Profile path: {self.profile}", "DEBUG")
 
@@ -124,6 +124,14 @@ class Config:
     @property
     def hints_tv(self):
         return self._load_hint_file("hints_tv.txt")
+
+    @property
+    def query_manager(self):
+        """Get the singleton QueryManager instance"""
+        if self._query_manager is None:
+            from resources.lib.data.query_manager import QueryManager
+            self._query_manager = QueryManager(self.db_path)
+        return self._query_manager
 
 # Singleton accessor for Config
 @lru_cache(maxsize=1)
