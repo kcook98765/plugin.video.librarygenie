@@ -31,6 +31,9 @@ def init_once():
             utils.log(f"{ID} database setup failed during init", "ERROR")
             return
 
+        # Check if library scanning is needed
+        check_and_prompt_library_scan()
+
         # Mark initialization as complete
         if not _get_bool('init_done', False):
             _set_bool('init_done', True)
@@ -83,6 +86,125 @@ def ensure_database_ready():
         utils.log(f"Error ensuring database ready: {e}", "ERROR")
         return False
 
+def check_and_prompt_library_scan():
+    """Check if library data exists and prompt user for initial scan if needed"""
+    try:
+        # Skip if already scanned or user previously declined
+        if _get_bool('library_scanned', False) or _get_bool('library_scan_declined', False):
+            return
+
+        config = Config()
+        query_manager = QueryManager(config.db_path)
+        
+        # Check if we have any library data
+        result = query_manager.execute_query(
+            "SELECT COUNT(*) as count FROM imdb_exports",
+            fetch_one=True
+        )
+        
+        library_count = result['count'] if result else 0
+        
+        if library_count == 0:
+            # No library data exists - prompt user
+            utils.log("No library data found - prompting user for initial scan", "INFO")
+            prompt_user_for_library_scan()
+        else:
+            # Library data exists - mark as scanned
+            _set_bool('library_scanned', True)
+            utils.log(f"Library data exists ({library_count} items) - skipping scan prompt", "INFO")
+            
+    except Exception as e:
+        utils.log(f"Error checking library scan status: {e}", "ERROR")
+
+def prompt_user_for_library_scan():
+    """Show modal to user asking permission to scan library"""
+    try:
+        import xbmcgui
+        import threading
+        
+        def show_dialog():
+            try:
+                dialog = xbmcgui.Dialog()
+                
+                # Show informational dialog explaining the need
+                response = dialog.yesno(
+                    "LibraryGenie - Initial Setup",
+                    "LibraryGenie needs to scan your Kodi movie library to enable its features.\n\n"
+                    "This one-time scan will:\n"
+                    "• Index your movies with IMDb information\n"
+                    "• Enable search and list management\n"
+                    "• Take a few minutes depending on library size\n\n"
+                    "Would you like to start the scan now?",
+                    nolabel="Not Now",
+                    yeslabel="Start Scan"
+                )
+                
+                if response:
+                    # User agreed - start the scan
+                    utils.log("User approved library scan - starting background scan", "INFO")
+                    _set_bool('library_scan_declined', False)
+                    start_library_scan()
+                else:
+                    # User declined - remember their choice
+                    utils.log("User declined library scan", "INFO")
+                    _set_bool('library_scan_declined', True)
+                    
+            except Exception as e:
+                utils.log(f"Error in dialog thread: {e}", "ERROR")
+        
+        # Run dialog in separate thread to avoid blocking service
+        dialog_thread = threading.Thread(target=show_dialog)
+        dialog_thread.daemon = True
+        dialog_thread.start()
+        
+    except Exception as e:
+        utils.log(f"Error prompting user for library scan: {e}", "ERROR")
+
+def start_library_scan():
+    """Start the library scanning process in background"""
+    try:
+        import threading
+        
+        def scan_worker():
+            try:
+                utils.log("Starting background library scan", "INFO")
+                
+                # Import the upload manager and use its scanning method
+                from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
+                config = Config()
+                query_manager = QueryManager(config.db_path)
+                
+                upload_manager = IMDbUploadManager(query_manager)
+                
+                # Run only the collection and storage part (not upload)
+                success = upload_manager.get_full_kodi_movie_collection_and_store_locally(use_notifications=True)
+                
+                if success:
+                    _set_bool('library_scanned', True)
+                    utils.log("Background library scan completed successfully", "INFO")
+                    
+                    # Show completion notification
+                    import xbmcgui
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie", 
+                        "Library scan complete! Addon is ready to use.", 
+                        xbmcgui.NOTIFICATION_INFO,
+                        5000
+                    )
+                else:
+                    utils.log("Background library scan failed", "ERROR")
+                    
+            except Exception as e:
+                utils.log(f"Error in library scan worker: {e}", "ERROR")
+        
+        # Start scan in background thread
+        scan_thread = threading.Thread(target=scan_worker)
+        scan_thread.daemon = True
+        scan_thread.start()
+        
+    except Exception as e:
+        utils.log(f"Error starting library scan: {e}", "ERROR")
+
 def handle_command(topic, message):
     """
     Receive NotifyAll commands from your plugin/UI:
@@ -104,6 +226,11 @@ def handle_command(topic, message):
         elif cmd == "cleanup":
             utils.log(f"{ID} cleanup command received", "INFO")
             # Add cleanup tasks here
+        elif cmd == "rescan_library":
+            utils.log(f"{ID} rescan_library command received", "INFO")
+            _set_bool('library_scanned', False)
+            _set_bool('library_scan_declined', False)
+            check_and_prompt_library_scan()
         
     except Exception as e:
         utils.log(f"{ID} command error: {e}", "ERROR")

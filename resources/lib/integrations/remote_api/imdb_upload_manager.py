@@ -1,5 +1,3 @@
-
-
 import xbmcgui
 import json
 from resources.lib.utils import utils
@@ -179,7 +177,7 @@ class IMDbUploadManager:
                 # Store main movie data in media_items table
                 utils.log(f"Storing main movie data in media_items table for {len(full_movies)} movies", "INFO")
                 media_items_to_store = []
-                
+
                 for movie in full_movies:
                     imdb_id = movie.get('imdbnumber', '')
                     if imdb_id and imdb_id.startswith('tt'):
@@ -190,7 +188,7 @@ class IMDbUploadManager:
                 # Bulk insert into media_items
                 if media_items_to_store:
                     utils.log(f"Inserting {len(media_items_to_store)} movies into media_items table", "INFO")
-                    
+
                     # Log sample media item data
                     if media_items_to_store:
                         utils.log("=== SAMPLE MEDIA_ITEM DATA FOR MEDIA_ITEMS TABLE ===", "INFO")
@@ -201,7 +199,7 @@ class IMDbUploadManager:
                             else:
                                 utils.log(f"MEDIA_ITEM: {key} = {repr(value)}", "INFO")
                         utils.log("=== END SAMPLE MEDIA_ITEM DATA ===", "INFO")
-                    
+
                     # Use the existing bulk insert method
                     stored_count = self._bulk_insert_movies(media_items_to_store)
                     utils.log(f"Successfully stored {stored_count} movies in media_items table", "INFO")
@@ -220,7 +218,7 @@ class IMDbUploadManager:
                         record = stored_data[0]
                     else:
                         record = stored_data
-                    
+
                     # Now iterate over the dictionary
                     if isinstance(record, dict):
                         for key, value in record.items():
@@ -266,10 +264,10 @@ class IMDbUploadManager:
                 "SELECT COUNT(*) as lib_count FROM media_items WHERE source = 'lib'",
                 fetch_one=True
             )
-            
+
             if not count_result:
                 return 0
-                
+
             # Handle different possible return formats from execute_query
             if isinstance(count_result, dict):
                 return int(count_result.get('lib_count', 0))
@@ -284,7 +282,7 @@ class IMDbUploadManager:
                 # If we get here, count_result is not in expected format
                 utils.log(f"Unexpected count_result format: {type(count_result)} - {count_result}", "WARNING")
                 return 0
-                
+
         except (ValueError, TypeError, KeyError) as e:
             utils.log(f"Error getting library item count: {str(e)}", "WARNING")
             return 0
@@ -298,7 +296,7 @@ class IMDbUploadManager:
                 ("movie_heavy_meta", "heavy metadata"),
                 ("imdb_exports", "IMDb exports")
             ]
-            
+
             for table_condition, description in clear_operations:
                 try:
                     affected_rows = self.query_manager.execute_write(f"DELETE FROM {table_condition}")
@@ -325,20 +323,20 @@ class IMDbUploadManager:
             }
 
             response = self.jsonrpc.execute("VideoLibrary.GetMovies", params)
-            
+
             # Log detailed response data for first batch only
             if start == 0:
                 utils.log("=== JSON-RPC RESPONSE ANALYSIS (FIRST BATCH ONLY) ===", "INFO")
                 utils.log(f"Response keys: {list(response.keys())}", "INFO")
-                
+
                 if 'result' in response:
                     result = response['result']
                     utils.log(f"Result keys: {list(result.keys())}", "INFO")
-                    
+
                     if 'movies' in result:
                         movies = result['movies']
                         utils.log(f"Number of movies in first batch: {len(movies)}", "INFO")
-                        
+
                         # Log first 3 movies in detail
                         for i, movie in enumerate(movies[:3]):
                             utils.log(f"=== MOVIE {i+1} DETAILED DATA ===", "INFO")
@@ -354,7 +352,7 @@ class IMDbUploadManager:
                     utils.log("No 'result' key found in response", "ERROR")
                     if 'error' in response:
                         utils.log(f"Error in response: {response['error']}", "ERROR")
-                
+
                 utils.log("=== END JSON-RPC RESPONSE ANALYSIS ===", "INFO")
 
             if 'result' not in response or 'movies' not in response['result']:
@@ -514,7 +512,7 @@ class IMDbUploadManager:
             return
 
         utils.log(f"Storing heavy metadata for {len(heavy_metadata_list)} movies in transaction", "DEBUG")
-        
+
         # Use QueryManager's store_heavy_meta_batch method
         self.query_manager.store_heavy_meta_batch(heavy_metadata_list)
 
@@ -554,17 +552,34 @@ class IMDbUploadManager:
         collection_progress.create("Preparing Upload", "Gathering movies from Kodi library...")
 
         try:
-            # Get full movie data and store locally in single efficient step, using notifications
-            full_movies = self.get_full_kodi_movie_collection_and_store_locally(use_notifications=True)
-            collection_progress.close()
+            # Check if library data already exists from service scan
+            existing_count = self._get_library_item_count()
 
-            if not full_movies:
-                xbmcgui.Dialog().ok("Error", "No movies with valid IMDb IDs found in Kodi library")
-                return False
+            if existing_count > 0:
+                # Use existing data
+                utils.log(f"Using existing library data ({existing_count} items)", "INFO")
+                collection_progress.update(90, "Using existing library data...")
 
-            # Extract just IMDB IDs for remote upload
-            movies = [{'imdb_id': movie.get('imdbnumber')} for movie in full_movies
-                     if movie.get('imdbnumber')]
+                # Get IMDb IDs from existing data
+                imdb_results = self.query_manager.execute_query(
+                    "SELECT imdb_id FROM imdb_exports WHERE imdb_id IS NOT NULL AND imdb_id != '' AND imdb_id LIKE 'tt%'",
+                    fetch_all=True
+                )
+                movies = [{'imdb_id': result['imdb_id']} for result in imdb_results]
+                collection_progress.close()
+
+            else:
+                # Need to scan library first
+                full_movies = self.get_full_kodi_movie_collection_and_store_locally(use_notifications=True)
+                collection_progress.close()
+
+                if not full_movies:
+                    xbmcgui.Dialog().ok("Error", "No movies with valid IMDb IDs found in Kodi library")
+                    return False
+
+                # Extract just IMDB IDs for remote upload
+                movies = [{'imdb_id': movie.get('imdbnumber')} for movie in full_movies
+                         if movie.get('imdbnumber')]
 
         except Exception as e:
             collection_progress.close()
@@ -771,4 +786,3 @@ class IMDbUploadManager:
             utils.log(f"Error clearing server library: {str(e)}", "ERROR")
             xbmcgui.Dialog().ok("Error", f"Failed to clear library: {str(e)}")
             return False
-

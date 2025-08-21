@@ -31,6 +31,8 @@
         <setting id="service_enabled" label="Enable background service" type="bool" default="true"/>
         <setting id="poll_interval_sec" label="Check interval (seconds)" type="number" default="300"/>
         <setting id="init_done" type="bool" default="false" visible="false"/>
+        <setting id="library_scanned" type="bool" default="false" visible="false" />
+        <setting id="library_scan_declined" type="bool" default="false" visible="false" />
         <setting id="schema_version" type="number" default="0" visible="false"/>
     </category>
 </settings>
