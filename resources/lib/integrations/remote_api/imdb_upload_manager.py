@@ -211,71 +211,70 @@ class IMDbUploadManager:
         try:
             utils.log("Starting atomic clear of existing library data", "INFO")
 
-            # Get existing count for logging with explicit alias
-            count_result = self.query_manager.execute_query(
-                "SELECT COUNT(*) as lib_count FROM media_items WHERE source = 'lib'",
-                fetch_one=True
-            )
-            # Handle different possible return types from execute_query
-            existing_count = 0
-            if count_result:
-                if isinstance(count_result, dict):
-                    existing_count = count_result.get('lib_count', 0)
-                elif isinstance(count_result, (list, tuple)) and len(count_result) > 0:
-                    # Handle case where result might be a tuple or list
-                    existing_count = count_result[0]
-                else:
-                    # Fallback: handle list containing dict or other formats
-                    try:
-                        if isinstance(count_result, (list, tuple)) and len(count_result) > 0:
-                            # If it's a list, get the first item
-                            first_item = count_result[0]
-                            if isinstance(first_item, dict):
-                                # Extract the count from the dictionary
-                                existing_count = first_item.get('lib_count', 0)
-                            else:
-                                # If first item is not a dict, try to convert it directly
-                                existing_count = int(first_item)
-                        else:
-                            # Try to convert the result directly - handle different return types
-                            if isinstance(count_result, (list, tuple)) and len(count_result) > 0:
-                                # If it's a list/tuple, try the first element
-                                first_element = count_result[0]
-                                if isinstance(first_element, dict):
-                                    # If first element is a dict, try to get a count value
-                                    existing_count = first_element.get('lib_count', 0) or 0
-                                else:
-                                    # If first element is not a dict, try to convert directly
-                                    existing_count = int(first_element)
-                            elif isinstance(count_result, dict):
-                                # If it's a dict, try to get the count value
-                                existing_count = count_result.get('lib_count', 0) or 0
-                            else:
-                                # Last resort: try direct conversion (for simple numeric types)
-                                existing_count = int(count_result)
-                    except (ValueError, TypeError):
-                        existing_count = 0
-
-            # Ensure existing_count is an integer before comparison
-            if isinstance(existing_count, int) and existing_count > 0:
+            # Get existing count for logging - simplified approach
+            existing_count = self._get_library_item_count()
+            if existing_count > 0:
                 utils.log(f"Found {existing_count} existing library items to clear", "INFO")
+            else:
+                utils.log("No existing library items found", "INFO")
 
-            # Clear all library data in a single transaction using public transaction context
-            with self.query_manager.transaction():
-                # Clear media_items table
-                self.query_manager.execute_write("DELETE FROM media_items WHERE source = 'lib'")
-                
-                # Clear heavy metadata table
-                self.query_manager.execute_write("DELETE FROM movie_heavy_meta")
-                
-                # Clear imdb_exports table
-                self.query_manager.execute_write("DELETE FROM imdb_exports")
+            # Clear all library data in a single atomic transaction
+            self._execute_library_data_clear()
 
             utils.log(f"Successfully cleared {existing_count} library items and all related data", "INFO")
 
         except Exception as e:
-            utils.log(f"Warning: Could not clear existing library data: {str(e)}", "WARNING")
-            utils.log("Continuing with upload process despite clearing failure", "INFO")
+            utils.log(f"Error clearing existing library data: {str(e)}", "ERROR")
+            # Re-raise the exception since this is a critical operation
+            # The caller should decide whether to continue or abort
+            raise
+
+    def _get_library_item_count(self):
+        """Get count of existing library items with robust error handling."""
+        try:
+            count_result = self.query_manager.execute_query(
+                "SELECT COUNT(*) as lib_count FROM media_items WHERE source = 'lib'",
+                fetch_one=True
+            )
+            
+            if not count_result:
+                return 0
+                
+            # Handle different possible return formats from execute_query
+            if isinstance(count_result, dict):
+                return int(count_result.get('lib_count', 0))
+            elif isinstance(count_result, (list, tuple)) and len(count_result) > 0:
+                first_item = count_result[0]
+                if isinstance(first_item, dict):
+                    return int(first_item.get('lib_count', 0))
+                else:
+                    # Direct numeric value
+                    return int(first_item)
+            else:
+                # Fallback: try direct conversion
+                return int(count_result)
+                
+        except (ValueError, TypeError, KeyError) as e:
+            utils.log(f"Error getting library item count: {str(e)}", "WARNING")
+            return 0
+
+    def _execute_library_data_clear(self):
+        """Execute the actual clearing of library data in a transaction."""
+        with self.query_manager.transaction():
+            # Clear in dependency order to avoid foreign key conflicts
+            clear_operations = [
+                ("media_items WHERE source = 'lib'", "library media items"),
+                ("movie_heavy_meta", "heavy metadata"),
+                ("imdb_exports", "IMDb exports")
+            ]
+            
+            for table_condition, description in clear_operations:
+                try:
+                    affected_rows = self.query_manager.execute_write(f"DELETE FROM {table_condition}")
+                    utils.log(f"Cleared {description}: {affected_rows} rows affected", "DEBUG")
+                except Exception as e:
+                    utils.log(f"Error clearing {description}: {str(e)}", "ERROR")
+                    raise  # Re-raise to trigger transaction rollback
 
     def _retrieve_all_movies_from_kodi(self, use_notifications):
         """Retrieve all movies from Kodi library using JSON-RPC."""
