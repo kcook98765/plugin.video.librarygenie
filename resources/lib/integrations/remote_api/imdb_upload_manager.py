@@ -504,7 +504,7 @@ class IMDbUploadManager:
             'studio': ','.join(movie.get('studio', [])) if isinstance(movie.get('studio'), list) else movie.get('studio', ''),
             'country': ','.join(movie.get('country', [])) if isinstance(movie.get('country'), list) else movie.get('country', ''),
             'writer': ','.join(movie.get('writer', [])) if isinstance(movie.get('writer'), list) else movie.get('writer', ''),
-            'cast': json.dumps(movie.get('cast', [])),
+            # Note: cast field intentionally excluded for 'lib' source - stored in movie_heavy_meta table instead
             'art': json.dumps(movie.get('art', {}))
         }
 
