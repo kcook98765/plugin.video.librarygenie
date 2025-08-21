@@ -2,6 +2,8 @@ import json
 from resources.lib.integrations.jsonrpc.jsonrpc_manager import JSONRPC
 from resources.lib.utils import utils
 from resources.lib.utils.singleton_base import Singleton
+from resources.lib.data.query_manager import QueryManager
+from resources.lib.config.config_manager import Config
 
 class ResultsManager(Singleton):
     def __init__(self):

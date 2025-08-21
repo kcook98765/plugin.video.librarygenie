@@ -9,6 +9,9 @@ from resources.lib.core.logging import Log
 from resources.lib.core.plugin import Plugin
 from resources.lib.core.requests import Requests
 from resources.lib.modules.utils import get_keyboard, get_settings
+from resources.lib.config.config_manager import Config
+from resources.lib.data.database_manager import DatabaseManager
+from resources.lib.data.query_manager import QueryManager
 
 # plugin = Plugin()
 # router = plugin.get_router()

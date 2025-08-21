@@ -241,16 +241,22 @@ def remove_from_list(params):
             utils.log("User cancelled removal from list", "DEBUG")
             return
 
+        # Use QueryManager for proper transaction handling
+        query_manager = QueryManager(config.db_path)
+        
         # Check if the item exists before trying to delete
-        check_query = f"SELECT COUNT(*) as count FROM list_items WHERE list_id = {list_id} AND media_item_id = {media_id}"
-        result = db_manager.cursor.execute(check_query).fetchone()
-        item_count = result[0] if result else 0
+        existing_items = query_manager.execute_query(
+            "SELECT COUNT(*) as count FROM list_items WHERE list_id = ? AND media_item_id = ?",
+            (list_id, media_id),
+            fetch_one=True
+        )
+        item_count = existing_items['count'] if existing_items else 0
 
         if item_count == 0:
             utils.log(f"Item not found in list: list_id={list_id}, media_item_id={media_id}", "WARNING")
             xbmcgui.Dialog().notification('LibraryGenie', 'Item not found in list', xbmcgui.NOTIFICATION_WARNING)
         else:
-            db_manager.delete_data('list_items', f"list_id = {list_id} AND media_item_id = {media_id}")
+            query_manager.execute_write("DELETE FROM list_items WHERE list_id = ? AND media_item_id = ?", (list_id, media_id))
             utils.log(f"Successfully removed item from list: list_id={list_id}, media_item_id={media_id}", "INFO")
             xbmcgui.Dialog().notification('LibraryGenie', f'Removed "{media_title}" from list')
 
@@ -1265,7 +1271,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
                       if enabled]
         facet_desc = ' + '.join(facet_names)
 
-        # Get search history folder
+        # Get search history folder using QueryManager
         query_manager = QueryManager(config.db_path)
         search_folder = query_manager.ensure_search_history_folder()
 
