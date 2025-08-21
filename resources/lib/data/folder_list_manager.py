@@ -43,7 +43,7 @@ class FolderListManager:
                 return
 
             # Create in specified parent folder
-            self.db_manager.insert_folder(name, parent_folder_id)
+            self.db_manager.query_manager.insert_folder(name, parent_folder_id)
             xbmcgui.Dialog().notification('LibraryGenie', f'Folder "{name}" created')
             xbmc.executebuiltin('Container.Refresh')
         except Exception as e:
