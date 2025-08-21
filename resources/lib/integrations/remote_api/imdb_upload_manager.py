@@ -604,21 +604,35 @@ class IMDbUploadManager:
         utils.show_notification("LibraryGenie", f"Starting upload of {len(movies)} movies...", time=5000)
 
         try:
-            # Create progress callback function for notifications only
+            # Create progress callback function with frequent percentage updates
             def progress_callback(current_chunk, total_chunks, chunk_size, current_item=None):
                 percent = int((current_chunk / total_chunks) * 100)
                 
-                # Show notifications at key milestones
+                # Show progress notifications every 10% or at key points
+                show_notification = False
+                notification_message = ""
+                
                 if current_chunk == 1:
-                    utils.show_notification("LibraryGenie", "Upload in progress...", time=3000)
-                elif current_chunk == total_chunks // 2:
-                    utils.show_notification("LibraryGenie", f"Upload {percent}% complete...", time=3000)
+                    show_notification = True
+                    notification_message = f"Upload starting... 0%"
                 elif current_chunk == total_chunks:
-                    utils.show_notification("LibraryGenie", "Upload finalizing...", time=3000)
+                    show_notification = True
+                    notification_message = f"Upload finalizing... 100%"
+                elif percent % 10 == 0 and current_chunk > 1:
+                    # Show every 10% increment
+                    show_notification = True
+                    notification_message = f"Upload progress: {percent}%"
+                elif total_chunks <= 10:
+                    # For small uploads, show every chunk
+                    show_notification = True
+                    notification_message = f"Upload progress: {percent}%"
+                
+                if show_notification:
+                    utils.show_notification("LibraryGenie", notification_message, time=2000)
 
-                # Only log every 4th chunk to reduce spam
-                if current_chunk % 4 == 0 or current_chunk == 1 or current_chunk == total_chunks:
-                    utils.log(f"Upload progress: {percent}% - Chunk {current_chunk}/{total_chunks}", "INFO")
+                # Log progress more frequently for debugging
+                if current_chunk % 2 == 0 or current_chunk == 1 or current_chunk == total_chunks:
+                    utils.log(f"Upload progress: {percent}% - Chunk {current_chunk}/{total_chunks} ({chunk_size} movies)", "INFO")
 
                 return True  # Continue uploading
 
