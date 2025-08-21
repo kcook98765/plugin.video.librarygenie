@@ -781,18 +781,7 @@ class QueryManager(Singleton):
                 FOREIGN KEY (list_id) REFERENCES lists (id),
                 FOREIGN KEY (media_item_id) REFERENCES media_items (id)
             )""",
-            """CREATE TABLE IF NOT EXISTS whitelist (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                list_id INTEGER,
-                title TEXT,
-                FOREIGN KEY (list_id) REFERENCES lists (id)
-            )""",
-            """CREATE TABLE IF NOT EXISTS blacklist (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                list_id INTEGER,
-                title TEXT,
-                FOREIGN KEY (list_id) REFERENCES lists (id)
-            )""",
+            
 
             """CREATE TABLE IF NOT EXISTS original_requests (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
