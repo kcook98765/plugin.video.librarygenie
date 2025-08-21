@@ -185,8 +185,16 @@ class IMDbUploadManager:
                 )
                 if stored_data:
                     utils.log("=== STORED DATA VERIFICATION ===", "INFO")
-                    for key, value in stored_data.items():
-                        utils.log(f"STORED: {key} = {repr(value)}", "INFO")
+                    # Handle case where stored_data might be a list or dict
+                    if isinstance(stored_data, list) and len(stored_data) > 0:
+                        record = stored_data[0]
+                    else:
+                        record = stored_data
+                    
+                    # Now iterate over the dictionary
+                    if isinstance(record, dict):
+                        for key, value in record.items():
+                            utils.log(f"STORED: {key} = {repr(value)}", "INFO")
                     utils.log("=== END STORED DATA VERIFICATION ===", "INFO")
 
             utils.log(f"Successfully processed {len(full_movies)} movies with complete metadata", "INFO")
