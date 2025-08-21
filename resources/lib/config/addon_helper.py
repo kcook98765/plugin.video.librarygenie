@@ -25,13 +25,11 @@ def clear_all_local_data():
                 search_history_lists = query_manager.fetch_lists(search_history_folder_id)
                 for list_item in search_history_lists:
                     try:
-                        # Use transaction to delete list and its items atomically
-                        with query_manager.transaction() as conn:
-                            # Delete list items first
-                            cursor = conn.execute("DELETE FROM list_items WHERE list_id = ?", (list_item['id'],))
-                            # Delete the list
-                            cursor = conn.execute("DELETE FROM lists WHERE id = ?", (list_item['id'],))
-                        utils.log(f"Deleted Search History list ID: {list_item['id']} ('{list_item['name']}')", "DEBUG")
+                        # Use standardized QueryManager method to delete list and its items atomically
+                        if query_manager.delete_list_and_contents(list_item['id']):
+                            utils.log(f"Deleted Search History list ID: {list_item['id']} ('{list_item['name']}')", "DEBUG")
+                        else:
+                            utils.log(f"Failed to delete Search History list {list_item['id']}", "WARNING")
                     except Exception as e:
                         utils.log(f"Error deleting Search History list {list_item['id']}: {str(e)}", "WARNING")
 
@@ -51,13 +49,11 @@ def clear_all_local_data():
             # Delete all root-level lists (not in any folder)
             for list_item in all_root_lists:
                 try:
-                    # Use transaction to delete list and its items atomically
-                    with query_manager.transaction() as conn:
-                        # Delete list items first
-                        cursor = conn.execute("DELETE FROM list_items WHERE list_id = ?", (list_item['id'],))
-                        # Delete the list
-                        cursor = conn.execute("DELETE FROM lists WHERE id = ?", (list_item['id'],))
-                    utils.log(f"Deleted root-level list: {list_item['name']} (ID: {list_item['id']})", "DEBUG")
+                    # Use standardized QueryManager method to delete list and its items atomically
+                    if query_manager.delete_list_and_contents(list_item['id']):
+                        utils.log(f"Deleted root-level list: {list_item['name']} (ID: {list_item['id']})", "DEBUG")
+                    else:
+                        utils.log(f"Failed to delete root-level list {list_item['name']}", "WARNING")
                 except Exception as e:
                     utils.log(f"Error deleting root-level list {list_item['name']}: {str(e)}", "WARNING")
             
