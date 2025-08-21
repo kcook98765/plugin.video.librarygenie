@@ -173,15 +173,7 @@ def show_library_status():
             else:
                 status_lines.append(f"  • ✅ Server and local unique library are in sync")
         
-        # Show explanation if there are duplicates (regardless of authentication)
-        if duplicate_imdb_count > 0:
-            status_lines.extend([
-                "",
-                f"ℹ️  DUPLICATE INFO:",
-                f"  • {duplicate_imdb_count:,} duplicate IMDb entries in media_items",
-                f"  • Upload process uses unique IMDb IDs only",
-                f"  • This explains difference between total ({items_with_imdb:,}) and uploaded counts",
-            ])
+        
         
         utils.log("LIBRARY_STATUS: Status summary generated successfully", "INFO")
         utils.log(f"LIBRARY_STATUS: Total: {total_library_items}, IMDb: {items_with_imdb}, Unique IMDb: {unique_imdb_count}, Duplicates: {duplicate_imdb_count}, Authenticated: {is_authenticated}, Server: {server_count if is_authenticated else 'N/A'}", "INFO")
