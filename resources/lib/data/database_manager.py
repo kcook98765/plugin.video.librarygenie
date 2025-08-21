@@ -137,6 +137,19 @@ class DatabaseManager:
             utils.log(f"Error adding media item to list: {str(e)}", "ERROR")
             return False
 
+    def delete_list(self, list_id: int) -> bool:
+        """Delete a list and all its contents"""
+        try:
+            with self.query_manager.transaction() as conn:
+                # Delete list items first
+                cursor = conn.execute("DELETE FROM list_items WHERE list_id = ?", (list_id,))
+                # Delete the list
+                cursor = conn.execute("DELETE FROM lists WHERE id = ?", (list_id,))
+                return cursor.rowcount > 0
+        except Exception as e:
+            utils.log(f"Error deleting list {list_id}: {str(e)}", "ERROR")
+            return False
+
     def close(self):
         """Close database connection"""
         if self.query_manager:
