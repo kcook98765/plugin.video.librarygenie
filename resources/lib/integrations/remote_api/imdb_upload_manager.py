@@ -635,13 +635,14 @@ class IMDbUploadManager:
                 utils.log(f"Upload result: {result}", "DEBUG")
                 utils.log(f"Upload statistics - Accepted: {accepted}, Duplicates: {duplicates}, Invalid: {invalid}, Final count: {user_movie_count}", "INFO")
                 
-                # Check if upload was actually successful (not all duplicates)
-                if accepted > 0 or user_movie_count > 0:
-                    utils.show_notification("LibraryGenie", f"Upload complete! {user_movie_count} movies on server", time=5000)
-                elif duplicates > 0 and accepted == 0:
-                    utils.show_notification("LibraryGenie", f"Upload issue: All {duplicates} movies marked as duplicates. Server may already have these movies.", time=8000)
+                # For replace mode, focus on final count rather than duplicate detection
+                # Replace mode is authoritative so duplicates are expected during replacement
+                if user_movie_count > 0:
+                    utils.show_notification("LibraryGenie", f"Library replaced! {user_movie_count} movies on server", time=5000)
+                elif invalid > 0 and user_movie_count == 0:
+                    utils.show_notification("LibraryGenie", f"Upload failed: {invalid} movies had invalid IMDb IDs", time=8000)
                 else:
-                    utils.show_notification("LibraryGenie", f"Upload completed but no movies were accepted. Check server logs.", time=8000)
+                    utils.show_notification("LibraryGenie", f"Upload completed but no movies were added. Check server logs.", time=8000)
                 
                 # Show addon status modal after upload (regardless of result)
                 try:
