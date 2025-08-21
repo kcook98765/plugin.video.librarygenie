@@ -118,7 +118,7 @@ def log(message, level=None):
             pass  # Don't filter these out
         else:
             for pattern in spam_patterns:
-                if message.startswith(pattern) and level == 'DEBUG':
+                if message.startswith(pattern) and level in ['DEBUG', 'INFO']:
                     return
 
     # Truncate cast data in JSON responses
