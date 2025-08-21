@@ -600,30 +600,29 @@ class IMDbUploadManager:
         ):
             return False
 
-        progress = xbmcgui.DialogProgress()
-        progress.create("Uploading Library", "Starting full library sync...")
+        # Show start notification
+        utils.show_notification("LibraryGenie", f"Starting upload of {len(movies)} movies...", time=5000)
 
         try:
-            # Create progress callback function
+            # Create progress callback function for notifications only
             def progress_callback(current_chunk, total_chunks, chunk_size, current_item=None):
-                if progress.iscanceled():
-                    return False  # Signal to cancel the upload
-
                 percent = int((current_chunk / total_chunks) * 100)
-                message = f"Uploading chunk {current_chunk} of {total_chunks} ({chunk_size} movies)"
-                if current_item:
-                    message += f"\nProcessing: {current_item}"
+                
+                # Show notifications at key milestones
+                if current_chunk == 1:
+                    utils.show_notification("LibraryGenie", "Upload in progress...", time=3000)
+                elif current_chunk == total_chunks // 2:
+                    utils.show_notification("LibraryGenie", f"Upload {percent}% complete...", time=3000)
+                elif current_chunk == total_chunks:
+                    utils.show_notification("LibraryGenie", "Upload finalizing...", time=3000)
 
                 # Only log every 4th chunk to reduce spam
                 if current_chunk % 4 == 0 or current_chunk == 1 or current_chunk == total_chunks:
                     utils.log(f"Upload progress: {percent}% - Chunk {current_chunk}/{total_chunks}", "INFO")
 
-                progress.update(percent, message)
                 return True  # Continue uploading
 
             result = self.remote_client._chunked_movie_upload(movies, mode='replace', progress_callback=progress_callback)
-
-            progress.close()
 
             if result.get('success'):
                 # Try multiple ways to get the uploaded count
@@ -633,19 +632,25 @@ class IMDbUploadManager:
                     result.get('final_tallies', {}).get('successful_imports') or
                     len(movies)
                 )
-                message = f"Successfully uploaded {uploaded_count} movies"
                 utils.log(f"Upload result: {result}", "DEBUG")
-                xbmcgui.Dialog().ok("Upload Complete", message)
+                utils.show_notification("LibraryGenie", f"Upload complete! {uploaded_count} movies uploaded", time=5000)
+                
+                # Show addon status modal after successful upload
+                try:
+                    from resources.lib.integrations.remote_api.library_status import show_library_status
+                    show_library_status()
+                except Exception as e:
+                    utils.log(f"Error showing addon status after upload: {str(e)}", "ERROR")
+                
                 return True
             else:
                 error_msg = result.get('error', 'Unknown error occurred')
-                xbmcgui.Dialog().ok("Upload Failed", f"Upload failed: {error_msg}")
+                utils.show_notification("LibraryGenie", f"Upload failed: {error_msg}", time=8000)
                 return False
 
         except Exception as e:
-            progress.close()
             utils.log(f"Error during library upload: {str(e)}", "ERROR")
-            xbmcgui.Dialog().ok("Error", f"Upload failed: {str(e)}")
+            utils.show_notification("LibraryGenie", f"Upload failed: {str(e)}", time=8000)
             return False
 
     def upload_library_delta_sync(self):
