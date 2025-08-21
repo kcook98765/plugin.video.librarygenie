@@ -1,3 +1,4 @@
+
 """
 ListingDAO - Data Access Object for folder and list operations
 Extracted from QueryManager to separate concerns while maintaining the same API
@@ -210,31 +211,15 @@ class ListingDAO:
         return self.execute_query(sql, (list_id,), fetch_all=True)
 
     def fetch_list_items_with_details(self, list_id):
-        """Fetch all items in a list with their details"""
-        # First try with search_score column
-        try:
-            sql = '''
-                SELECT m.*, li.search_score
-                FROM list_items li
-                JOIN media_items m ON li.media_item_id = m.id
-                WHERE li.list_id = ?
-                ORDER BY li.search_score DESC, m.title ASC
-            '''
-            return self.execute_query(sql, (list_id,), fetch_all=True)
-        except Exception as e:
-            if "no such column: li.search_score" in str(e):
-                # Fallback query without search_score
-                utils.log("search_score column not found, using fallback query", "WARNING")
-                sql = '''
-                    SELECT m.*, 0.0 as search_score
-                    FROM list_items li
-                    JOIN media_items m ON li.media_item_id = m.id
-                    WHERE li.list_id = ?
-                    ORDER BY m.title ASC
-                '''
-                return self.execute_query(sql, (list_id,), fetch_all=True)
-            else:
-                raise
+        """Fetch list items with detailed information including search scores"""
+        sql = """
+            SELECT m.*, li.search_score
+            FROM list_items li
+            JOIN media_items m ON li.media_item_id = m.id
+            WHERE li.list_id = ?
+            ORDER BY li.search_score DESC, m.title ASC
+        """
+        return self.execute_query(sql, (list_id,), fetch_all=True)
 
     def get_list_media_count(self, list_id):
         """Get media count for a list"""
@@ -372,7 +357,7 @@ class ListingDAO:
 
         try:
             current_time = int(time.time())
-
+            
             # Always use query manager executors for consistency
             # First try to update existing record
             update_sql = """
@@ -395,7 +380,7 @@ class ListingDAO:
             # Check if record exists (since execute_write doesn't return rowcount)
             check_sql = "SELECT kodi_movieid FROM movie_heavy_meta WHERE kodi_movieid = ?"
             existing = self.execute_query(check_sql, (movieid,), fetch_one=True)
-
+            
             if not existing:
                 # No record found, try insert
                 insert_sql = """
