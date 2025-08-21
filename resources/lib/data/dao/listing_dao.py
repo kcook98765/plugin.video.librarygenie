@@ -533,8 +533,8 @@ class ListingDAO:
         utils.log(f"=== _FETCH_HEAVY_META_FROM_KODI: Fetching {len(movieids)} movies ===", "INFO")
 
         try:
-            from resources.lib.integrations.jsonrpc.jsonrpc_manager import JsonRpcManager
-            jsonrpc = JsonRpcManager()
+            from resources.lib.integrations.jsonrpc.jsonrpc_manager import JSONRPC
+            jsonrpc = JSONRPC()
 
             # Define heavy properties that are expensive to fetch
             heavy_properties = [
