@@ -548,7 +548,7 @@ class ListingDAO:
                 movie_filter = {"or": [{"movieid": mid} for mid in movieids]}
 
             # Make the JSON-RPC call
-            response = jsonrpc.call_method("VideoLibrary.GetMovies", {
+            response = jsonrpc.execute("VideoLibrary.GetMovies", {
                 "filter": movie_filter,
                 "properties": heavy_properties
             })
