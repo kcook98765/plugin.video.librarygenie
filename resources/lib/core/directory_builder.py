@@ -5,6 +5,7 @@ import xbmcgui
 import xbmcplugin
 from resources.lib.utils import utils
 from resources.lib.config.config_manager import Config
+from resources.lib.data.query_manager import QueryManager
 from resources.lib.kodi.url_builder import build_plugin_url, detect_context
 from resources.lib.kodi.listitem_builder import ListItemBuilder
 
@@ -108,21 +109,21 @@ def build_root_directory(handle: int):
     # Add list and folder items here based on existing database content
     try:
         config = Config()
-        db_manager = DatabaseManager(config.db_path)
+        query_manager = QueryManager(config.db_path)
 
         # Get top-level folders
-        top_level_folders = db_manager.fetch_folders(None) # None for root
+        top_level_folders = query_manager.fetch_folders(None) # None for root
 
         # Get top-level lists
-        top_level_lists = db_manager.fetch_lists(None) # None for root
+        top_level_lists = query_manager.fetch_lists(None) # None for root
 
         # Add top-level folders (excluding protected folders that are empty or accessed via Options & Tools)
         for folder in top_level_folders:
             # Skip protected folders - they're accessed via Options & Tools menu or hidden when empty
             if folder['name'] in ["Search History", "Imported Lists"]:
                 # Check if the folder has any content (lists or subfolders with content)
-                folder_count = db_manager.query_manager.get_folder_media_count(folder['id'])
-                subfolders = db_manager.fetch_folders(folder['id'])
+                folder_count = query_manager.get_folder_media_count(folder['id'])
+                subfolders = query_manager.fetch_folders(folder['id'])
                 has_subfolders = len(subfolders) > 0
                 
                 # Only show if it has content (lists or subfolders)
@@ -140,7 +141,7 @@ def build_root_directory(handle: int):
 
         # Add top-level lists
         for list_item in top_level_lists:
-            list_count = db_manager.get_list_media_count(list_item['id'])
+            list_count = query_manager.get_list_media_count(list_item['id'])
 
             # Check if this list contains a count pattern like "(number)" at the end
             # Search history lists already include count, regular lists need count added
