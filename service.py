@@ -171,10 +171,8 @@ def start_library_scan():
                 
                 # Import the upload manager and use its scanning method
                 from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
-                config = Config()
-                query_manager = QueryManager(config.db_path)
                 
-                upload_manager = IMDbUploadManager(query_manager)
+                upload_manager = IMDbUploadManager()
                 
                 # Run only the collection and storage part (not upload)
                 success = upload_manager.get_full_kodi_movie_collection_and_store_locally(use_notifications=True)
