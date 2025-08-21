@@ -934,7 +934,21 @@ def add_to_list(params):
             utils.log(f"Created new media item with ID: {media_id}", "DEBUG")
 
         # Check if already in list using parameterized query
-        existing_list_item = query_manager.execute_query('SELECT * FROM list_items WHERE list_id = ? AND media_item_id = ?', (int(selected_list_id), int(media_id)), fetch_all=True)
+        # Ensure both IDs are valid integers before conversion
+        if selected_list_id is None or media_id is None:
+            utils.log(f"Invalid IDs for list item check: list_id={selected_list_id}, media_id={media_id}", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'Error: Invalid item identifiers', xbmcgui.NOTIFICATION_ERROR)
+            return
+
+        try:
+            list_id_int = int(selected_list_id)
+            media_id_int = int(media_id)
+        except (ValueError, TypeError) as e:
+            utils.log(f"Error converting IDs to integers: list_id={selected_list_id}, media_id={media_id}, error={str(e)}", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'Error: Invalid item identifiers', xbmcgui.NOTIFICATION_ERROR)
+            return
+
+        existing_list_item = query_manager.execute_query('SELECT * FROM list_items WHERE list_id = ? AND media_item_id = ?', (list_id_int, media_id_int), fetch_all=True)
 
         if existing_list_item:
             xbmcgui.Dialog().notification('LibraryGenie', f'"{title}" is already in that list', xbmcgui.NOTIFICATION_INFO, 3000)
@@ -1108,7 +1122,21 @@ def add_to_list_from_context(params):
             utils.log(f"Created new media item with ID: {media_id}", "DEBUG")
 
         # Check if already in list using parameterized query
-        existing_list_item = query_manager.execute_query('SELECT * FROM list_items WHERE list_id = ? AND media_item_id = ?', (int(selected_list_id), int(media_id)), fetch_all=True)
+        # Ensure both IDs are valid integers before conversion
+        if selected_list_id is None or media_id is None:
+            utils.log(f"Invalid IDs for list item check: list_id={selected_list_id}, media_id={media_id}", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'Error: Invalid item identifiers', xbmcgui.NOTIFICATION_ERROR)
+            return
+
+        try:
+            list_id_int = int(selected_list_id)
+            media_id_int = int(media_id)
+        except (ValueError, TypeError) as e:
+            utils.log(f"Error converting IDs to integers: list_id={selected_list_id}, media_id={media_id}, error={str(e)}", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'Error: Invalid item identifiers', xbmcgui.NOTIFICATION_ERROR)
+            return
+
+        existing_list_item = query_manager.execute_query('SELECT * FROM list_items WHERE list_id = ? AND media_item_id = ?', (list_id_int, media_id_int), fetch_all=True)
 
         if existing_list_item:
             xbmcgui.Dialog().notification('LibraryGenie', f'"{title}" is already in that list', xbmcgui.NOTIFICATION_INFO, 3000)
