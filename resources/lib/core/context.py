@@ -4,7 +4,7 @@ import xbmcaddon
 import xbmcvfs
 import xbmc
 import re
-# Removed duplicate import: from urllib.parse import quote_plus
+from urllib.parse import quote_plus
 
 from resources.lib.kodi.kodi_helper import KodiHelper
 from resources.lib.config.addon_ref import get_addon
@@ -13,7 +13,6 @@ from resources.lib.config.config_manager import Config
 from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.kodi.window_search import SearchWindow
 from resources.lib.utils import utils
-from urllib.parse import quote_plus # Kept the necessary import
 
 translatePath = xbmcvfs.translatePath
 
