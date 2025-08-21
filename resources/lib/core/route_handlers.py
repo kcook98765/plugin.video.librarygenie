@@ -1354,7 +1354,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
 
             if imdb and imdb.startswith('tt'):
                 search_results.append({
-                    'imdbnumber': imdb,
+                    'imdb_id': imdb,
                     'score': score,
                     'search_score': score
                 })
@@ -1366,8 +1366,8 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
             utils.log(f"=== SIMILARITY_SEARCH: Creating media items for {len(search_results)} results ===", "DEBUG")
 
             for i, result in enumerate(search_results):
-                imdb_id = result['imdbnumber']
-                search_score = result.get('search_score', 0)
+                imdb_id = result['imdb_id']
+                search_score = float(result.get('search_score', 0))
 
                 utils.log(f"=== SIMILARITY_SEARCH: Processing result {i+1}/{len(search_results)}: {imdb_id} (score: {search_score}) ===", "DEBUG")
 
@@ -1377,8 +1377,8 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
 
                 try:
                     lookup_query = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
-                    lookup_result = query_manager.execute_query(lookup_query, (imdb_id,))
-                    if lookup_result:
+                    lookup_result = query_manager.execute_query(lookup_query, (imdb_id,), fetch_all=True)
+                    if lookup_result and len(lookup_result) > 0:
                         title_lookup = lookup_result[0].get('title', '')
                         year_lookup = int(lookup_result[0].get('year', 0) or 0)
                         utils.log(f"=== SIMILARITY_SEARCH: Found title/year for {imdb_id}: '{title_lookup}' ({year_lookup}) ===", "DEBUG")
@@ -1387,16 +1387,13 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
                 except Exception as e:
                     utils.log(f"=== SIMILARITY_SEARCH: Error looking up title/year for {imdb_id}: {str(e)} ===", "ERROR")
 
-                # Create media item with available data
+                # Create media item data with search metadata - use looked up data if available
                 media_item_data = {
-                    'kodi_id': 0,
-                    'title': title_lookup or f'IMDB: {imdb_id}',
-                    'year': year_lookup,
+                    'title': title_lookup if title_lookup else 'Unknown',
+                    'year': year_lookup if year_lookup > 0 else 0,
                     'imdbnumber': imdb_id,
-                    'source': 'search',
-                    'plot': '',
-                    'rating': 0.0,
                     'search_score': search_score,
+                    'source': 'search',
                     'media_type': 'movie'
                 }
 

@@ -109,7 +109,9 @@ def build_root_directory(handle: int):
     # Add list and folder items here based on existing database content
     try:
         config = Config()
+        # Initialize query manager and setup database
         query_manager = QueryManager(config.db_path)
+        query_manager.setup_database()
 
         # Get top-level folders
         top_level_folders = query_manager.fetch_folders(None) # None for root
@@ -125,7 +127,7 @@ def build_root_directory(handle: int):
                 folder_count = query_manager.get_folder_media_count(folder['id'])
                 subfolders = query_manager.fetch_folders(folder['id'])
                 has_subfolders = len(subfolders) > 0
-                
+
                 # Only show if it has content (lists or subfolders)
                 if folder_count == 0 and not has_subfolders:
                     continue
