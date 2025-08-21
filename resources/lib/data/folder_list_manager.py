@@ -69,8 +69,13 @@ class FolderListManager:
             # Preserve imdb_exports - they contain valuable library reference data
 
             # Recreate protected folders
-            search_folder_id = self.db_manager.ensure_folder_exists("Search History", None)
-            imported_lists_folder_id = self.db_manager.ensure_folder_exists("Imported Lists", None)
+            search_folder_id = self.db_manager.get_folder_id_by_name("Search History")
+            if not search_folder_id:
+                search_folder_id = self.db_manager.insert_folder("Search History", None)
+            
+            imported_lists_folder_id = self.db_manager.get_folder_id_by_name("Imported Lists")
+            if not imported_lists_folder_id:
+                imported_lists_folder_id = self.db_manager.insert_folder("Imported Lists", None)
 
             utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW SUCCESS NOTIFICATION ===", "DEBUG")
             xbmcgui.Dialog().notification('LibraryGenie', 'All local data cleared')
