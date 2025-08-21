@@ -5,6 +5,7 @@ import xbmc
 import xbmcgui
 from resources.lib.utils import utils
 from resources.lib.config.config_manager import Config
+from resources.lib.data.query_manager import QueryManager
 from typing import List, Union, cast
 
 
@@ -13,7 +14,7 @@ class FolderListManager:
 
     def __init__(self):
         self.config = Config()
-        self.db_manager = DatabaseManager(self.config.db_path)
+        self.db_manager = QueryManager(self.config.db_path)
 
     def create_new_folder_at_root(self):
         """Create a new folder at root level"""
