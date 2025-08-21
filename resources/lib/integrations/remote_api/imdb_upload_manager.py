@@ -2,7 +2,7 @@ import xbmcgui
 import json
 from resources.lib.utils import utils
 from resources.lib.integrations.jsonrpc.jsonrpc_manager import JSONRPC
-from resources.lib.integrations.remote_api.remote_api_client import RemoteAPIClient
+from resources.lib.integrations.remote_api.remote_client import RemoteAPIClient
 from resources.lib.config.config_manager import Config
 import time
 
@@ -136,7 +136,7 @@ class IMDbUploadManager:
             # Store basic data in imdb_exports table (only light fields for search)
             export_movies = []
             heavy_metadata_list = []
-            
+
             for movie in full_movies:
                 imdb_id = movie.get('imdbnumber', '')
                 if imdb_id and imdb_id.startswith('tt'):
@@ -147,7 +147,7 @@ class IMDbUploadManager:
                         'year': movie.get('year', 0)
                     }
                     export_movies.append(export_movie)
-                    
+
                     # Prepare heavy metadata for separate storage
                     movieid = movie.get('movieid')
                     if movieid:
@@ -169,7 +169,7 @@ class IMDbUploadManager:
                 config = Config()
                 db_manager = DatabaseManager(config.db_path)
                 db_manager.insert_imdb_export(export_movies)
-                
+
                 # Store heavy metadata separately in movie_heavy_meta table
                 if heavy_metadata_list:
                     utils.log(f"Storing heavy metadata for {len(heavy_metadata_list)} movies", "INFO")

@@ -486,7 +486,7 @@ class KodiHelper:
 
                     if 'result' in response and 'moviedetails' in response['result']:
                         details = response['result']['moviedetails']
-                        
+
                         # Try imdbnumber first
                         imdb_from_details = details.get('imdbnumber', '')
                         if imdb_from_details and str(imdb_from_details).startswith('tt'):
@@ -512,11 +512,11 @@ class KodiHelper:
         """Get a playable URL from item information"""
         if not item_info:
             return None
-            
+
         # Try to get URL from different possible fields
         for field in ['play', 'file', 'path', 'stream_url']:
             url = item_info.get(field)
             if url and str(url).strip():
                 return str(url).strip()
-                
+
         return None

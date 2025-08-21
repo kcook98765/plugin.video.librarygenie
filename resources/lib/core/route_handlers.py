@@ -223,10 +223,9 @@ def remove_from_list(params):
                 JOIN media_items m ON li.media_item_id = m.id
                 WHERE li.list_id = ? AND m.id = ?
             """
-            db_manager.cursor.execute(query, (list_id, media_id))
-            media_result = db_manager.cursor.fetchone()
+            media_result = db_manager._query_manager.execute_query(query, (list_id, media_id), fetch_one=True)
             if media_result:
-                media_title = media_result[0] or 'Unknown Movie'
+                media_title = media_result.get('title') or 'Unknown Movie'
             else:
                 media_title = 'Unknown Movie'
         except Exception as e:
@@ -242,10 +241,9 @@ def remove_from_list(params):
             return
 
         # Use QueryManager for proper transaction handling
-        query_manager = QueryManager(config.db_path)
         
         # Check if the item exists before trying to delete
-        existing_items = query_manager.execute_query(
+        existing_items = db_manager._query_manager.execute_query(
             "SELECT COUNT(*) as count FROM list_items WHERE list_id = ? AND media_item_id = ?",
             (list_id, media_id),
             fetch_one=True
@@ -256,7 +254,7 @@ def remove_from_list(params):
             utils.log(f"Item not found in list: list_id={list_id}, media_item_id={media_id}", "WARNING")
             xbmcgui.Dialog().notification('LibraryGenie', 'Item not found in list', xbmcgui.NOTIFICATION_WARNING)
         else:
-            query_manager.execute_write("DELETE FROM list_items WHERE list_id = ? AND media_item_id = ?", (list_id, media_id))
+            db_manager._query_manager.execute_write("DELETE FROM list_items WHERE list_id = ? AND media_item_id = ?", (list_id, media_id))
             utils.log(f"Successfully removed item from list: list_id={list_id}, media_item_id={media_id}", "INFO")
             xbmcgui.Dialog().notification('LibraryGenie', f'Removed "{media_title}" from list')
 
