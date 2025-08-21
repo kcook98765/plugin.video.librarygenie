@@ -100,13 +100,13 @@ def run_addon():
                 return  # Early return to prevent normal startup
             elif action == 'import_from_shortlist':
                 utils.log("Importing from shortlist", "INFO")
-                from resources.lib.settings_manager import SettingsManager
+                from resources.lib.config.settings_manager import SettingsManager
                 settings_manager = SettingsManager()
                 settings_manager.import_from_favorites()
                 return
             elif action == 'addon_library_status':
                 utils.log("Showing addon library status", "INFO")
-                from resources.lib.settings_manager import SettingsManager
+                from resources.lib.config.settings_manager import SettingsManager
                 settings_manager = SettingsManager()
                 settings_manager.addon_library_status()
                 return
