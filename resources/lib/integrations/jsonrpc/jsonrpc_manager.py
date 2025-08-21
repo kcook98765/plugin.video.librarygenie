@@ -202,10 +202,10 @@ class JSONRPC:
                 from resources.lib.config.config_manager import Config
                 query_manager = QueryManager(Config().db_path)
 
-                # Use public transaction context manager
+                # Use public transaction context manager for batch writes
                 with query_manager.transaction():
                     for movie in movies:
-                        if self.cache_heavy_meta(movie):
+                        if self.cache_heavy_meta(movie, query_manager):
                             batch_cached += 1
 
                 log(f"Committed heavy metadata transaction for batch of {len(movies)} movies", "DEBUG")
@@ -213,12 +213,21 @@ class JSONRPC:
             except Exception as e:
                 log(f"Heavy metadata transaction failed: {str(e)}", "WARNING")
                 # Fall back to individual inserts without transaction
-                for movie in movies:
-                    try:
-                        if self.cache_heavy_meta(movie):
-                            batch_cached += 1
-                    except Exception as movie_error:
-                        log(f"Failed to cache heavy metadata for movie {movie.get('movieid', 'unknown')}: {str(movie_error)}", "WARNING")
+                query_manager = None
+                try:
+                    from resources.lib.data.query_manager import QueryManager
+                    from resources.lib.config.config_manager import Config
+                    query_manager = QueryManager(Config().db_path)
+                except Exception as qm_error:
+                    log(f"Failed to get query manager for fallback: {str(qm_error)}", "ERROR")
+
+                if query_manager:
+                    for movie in movies:
+                        try:
+                            if self.cache_heavy_meta(movie, query_manager):
+                                batch_cached += 1
+                        except Exception as movie_error:
+                            log(f"Failed to cache heavy metadata for movie {movie.get('movieid', 'unknown')}: {str(movie_error)}", "WARNING")
 
             cached_count += batch_cached
 
@@ -515,17 +524,18 @@ class JSONRPC:
             "art", "userrating", "premiered"
         ]
 
-    def cache_heavy_meta(self, movie_data):
+    def cache_heavy_meta(self, movie_data, query_manager=None):
         """Cache heavy metadata fields for a movie"""
         movieid = movie_data.get('movieid')
         try:
             if not movieid:
                 return False
 
-            # Import here to avoid circular imports
-            from resources.lib.data.query_manager import QueryManager
-            from resources.lib.config.config_manager import Config
-            query_manager = QueryManager(Config().db_path)
+            # Import here to avoid circular imports if query_manager not passed
+            if query_manager is None:
+                from resources.lib.data.query_manager import QueryManager
+                from resources.lib.config.config_manager import Config
+                query_manager = QueryManager(Config().db_path)
 
             import json
             import time
