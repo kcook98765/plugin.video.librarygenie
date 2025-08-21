@@ -236,7 +236,7 @@ def remove_from_list(params):
             """
             media_result = db_manager.query_manager.execute_query(query, (int(list_id), int(media_id)), fetch_one=True)
             if media_result:
-                media_title = media_result.get('title') or 'Unknown Movie'
+                media_title = media_result[0].get('title') if media_result else 'Unknown Movie'
             else:
                 media_title = 'Unknown Movie'
         except Exception as e:
