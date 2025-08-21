@@ -999,7 +999,7 @@ def add_movies_to_list(params):
         success_count = 0
         for movie in movie_data:
             try:
-                success = query_manager.add_media_item(list_id, movie)
+                success = query_manager.insert_media_item_and_add_to_list(list_id, movie)
                 if success:
                     success_count += 1
             except Exception as e:
