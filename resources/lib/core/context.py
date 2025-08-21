@@ -75,7 +75,7 @@ def main():
             try:
                 match = re.search(r'list_id=(\d+)', current_container_path)
                 if match:
-                    extracted_list_id = match.group(1)
+                    extracted_list_id = int(match.group(1))
                     xbmc.log(f"LibraryGenie: Detected potential list_id: {extracted_list_id}", xbmc.LOGDEBUG)
 
                     # Verify this list exists in our database
