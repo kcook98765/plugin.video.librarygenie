@@ -1,3 +1,4 @@
+
 import xbmcgui
 import json
 from resources.lib.utils import utils
@@ -180,12 +181,11 @@ class IMDbUploadManager:
                 sample_imdb = export_movies[0]['imdb_id']
                 stored_data = db_manager.query_manager.execute_query(
                     "SELECT * FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1",
-                    (sample_imdb,), fetch_all=False
+                    (sample_imdb,), fetch_one=True
                 )
                 if stored_data:
-                    stored_row = stored_data[0]
                     utils.log("=== STORED DATA VERIFICATION ===", "INFO")
-                    for key, value in stored_row.items():
+                    for key, value in stored_data.items():
                         utils.log(f"STORED: {key} = {repr(value)}", "INFO")
                     utils.log("=== END STORED DATA VERIFICATION ===", "INFO")
 
@@ -199,54 +199,36 @@ class IMDbUploadManager:
             return []
 
     def _clear_existing_library_data(self, db_manager):
-        """Clear existing library data from database tables."""
+        """Clear existing library data from database tables atomically."""
         try:
-            utils.log("Starting to clear existing library data from media_items table", "INFO")
+            utils.log("Starting atomic clear of existing library data", "INFO")
 
-            # Clear media_items table
-            count_query = "SELECT COUNT(*) FROM media_items WHERE source = 'lib'"
-            existing_count = db_manager.query_manager.execute_query(count_query)
+            # Get existing count for logging
+            count_result = db_manager.query_manager.execute_query(
+                "SELECT COUNT(*) as count FROM media_items WHERE source = 'lib'",
+                fetch_one=True
+            )
+            existing_count = count_result['count'] if count_result else 0
 
-            if existing_count and len(existing_count) > 0:
-                count = self._extract_count_from_result(existing_count[0])
-                utils.log(f"Found {count} existing library items to clear", "INFO")
+            if existing_count > 0:
+                utils.log(f"Found {existing_count} existing library items to clear", "INFO")
 
-                if count > 0:
-                    self._execute_direct_delete(db_manager, "DELETE FROM media_items WHERE source = 'lib'")
-                    utils.log(f"Successfully cleared {count} existing library items", "INFO")
+            # Clear all library data in a single transaction
+            with db_manager.query_manager.transaction() as conn:
+                # Clear media_items table
+                conn.execute("DELETE FROM media_items WHERE source = 'lib'")
+                
+                # Clear heavy metadata table
+                conn.execute("DELETE FROM movie_heavy_meta")
+                
+                # Clear imdb_exports table
+                conn.execute("DELETE FROM imdb_exports")
 
-            # Clear heavy metadata table
-            utils.log("Clearing movie_heavy_meta table...", "INFO")
-            self._execute_direct_delete(db_manager, "DELETE FROM movie_heavy_meta")
-            utils.log("Successfully cleared movie_heavy_meta table", "INFO")
-
-            # Clear imdb_exports table
-            utils.log("Clearing imdb_exports table...", "INFO")
-            self._execute_direct_delete(db_manager, "DELETE FROM imdb_exports")
-            utils.log("Successfully cleared imdb_exports table", "INFO")
+            utils.log(f"Successfully cleared {existing_count} library items and all related data", "INFO")
 
         except Exception as e:
             utils.log(f"Warning: Could not clear existing library data: {str(e)}", "WARNING")
             utils.log("Continuing with upload process despite clearing failure", "INFO")
-
-    def _extract_count_from_result(self, result):
-        """Extract count value from database result."""
-        if isinstance(result, dict):
-            return result.get('COUNT(*)', 0)
-        elif isinstance(result, tuple):
-            return result[0]
-        else:
-            return 0
-
-    def _execute_direct_delete(self, db_manager, sql):
-        """Execute delete query with direct connection management."""
-        conn_info = db_manager.query_manager._get_connection()
-        try:
-            cursor = conn_info['connection'].cursor()
-            cursor.execute(sql)
-            conn_info['connection'].commit()
-        finally:
-            db_manager.query_manager._release_connection(conn_info)
 
     def _retrieve_all_movies_from_kodi(self, use_notifications):
         """Retrieve all movies from Kodi library using JSON-RPC."""
@@ -347,11 +329,8 @@ class IMDbUploadManager:
         batch_stored_count = 0
 
         try:
-            conn_info = db_manager.query_manager._get_connection()
-
-            try:
-                conn_info['connection'].execute("BEGIN IMMEDIATE")
-
+            # Use public transaction context manager
+            with db_manager.query_manager.transaction() as conn:
                 batch_data = []
 
                 for movie in batch_movies:
@@ -366,27 +345,12 @@ class IMDbUploadManager:
                         movie_data = self._prepare_movie_data(movie, imdb_id)
                         batch_data.append(movie_data)
 
-                        # Heavy metadata will be stored in batch after all processing is complete
-
-                # Bulk insert batch data
+                # Bulk insert batch data using the transaction connection
                 if batch_data:
-                    batch_stored_count = self._bulk_insert_movies(batch_data, conn_info)
-
-                # Commit transaction
-                conn_info['connection'].commit()
-
-            except Exception as e:
-                utils.log(f"Batch {batch_num} error - rolling back: {str(e)}", "ERROR")
-                try:
-                    conn_info['connection'].rollback()
-                except Exception as rollback_error:
-                    utils.log(f"Rollback failed for batch {batch_num}: {str(rollback_error)}", "ERROR")
-                raise
-            finally:
-                db_manager.query_manager._release_connection(conn_info)
+                    batch_stored_count = self._bulk_insert_movies(batch_data, conn)
 
         except Exception as e:
-            utils.log(f"Batch {batch_num} outer error: {str(e)}", "ERROR")
+            utils.log(f"Batch {batch_num} error: {str(e)}", "ERROR")
 
         return batch_valid_movies, batch_stored_count
 
@@ -455,8 +419,8 @@ class IMDbUploadManager:
             except Exception as meta_error:
                 utils.log(f"Error storing heavy metadata for movie ID {kodi_movieid}: {str(meta_error)}", "WARNING")
 
-    def _bulk_insert_movies(self, batch_data, conn_info):
-        """Bulk insert movie data into database."""
+    def _bulk_insert_movies(self, batch_data, conn):
+        """Bulk insert movie data into database using provided connection."""
         if not batch_data:
             return 0
 
@@ -466,7 +430,7 @@ class IMDbUploadManager:
         query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
 
         values_list = [tuple(movie_data.values()) for movie_data in batch_data]
-        cursor = conn_info['connection'].cursor()
+        cursor = conn.cursor()
         cursor.executemany(query, values_list)
 
         return len(batch_data)
