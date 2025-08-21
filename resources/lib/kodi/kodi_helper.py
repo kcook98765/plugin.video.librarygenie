@@ -120,7 +120,7 @@ class KodiHelper:
         from resources.lib.kodi.listitem_builder import ListItemBuilder
         config = get_config()
         db_manager = QueryManager(config.db_path)
-        items = db_manager.query_manager.fetch_list_items_with_details(list_id)
+        items = db_manager.fetch_list_items_with_details(list_id)
 
         # Set content type and force views
         xbmcplugin.setContent(self.addon_handle, 'movies')
@@ -216,7 +216,7 @@ class KodiHelper:
                 return False
 
             # Query the database for item using database manager
-            result = db_manager.query_manager.execute_query(
+            result = db_manager.execute_query(
                 "SELECT * FROM media_items WHERE id = ?", 
                 (item_id,), 
                 fetch_one=True
