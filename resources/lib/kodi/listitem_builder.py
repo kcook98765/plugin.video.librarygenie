@@ -557,8 +557,11 @@ class ListItemBuilder:
                 utils.log(f"Favorites import '{title}' is non-playable - no path set", "DEBUG")
         elif source == 'plugin_addon' and media_info.get('file'):
             play_url = media_info.get('file')
-            li.setPath(play_url)
-            utils.log(f"Set ListItem path for plugin addon '{title}': {play_url}", "DEBUG")
+            if play_url and isinstance(play_url, str):
+                li.setPath(play_url)
+                utils.log(f"Set ListItem path for plugin addon '{title}': {play_url}", "DEBUG")
+            else:
+                utils.log(f"No valid play URL string found for plugin addon '{title}'", "DEBUG")
         else:
             # For other items, use the standard priority order
             play_url = media_info.get('info', {}).get('play') or media_info.get('play') or media_info.get('file')
