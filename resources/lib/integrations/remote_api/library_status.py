@@ -17,16 +17,16 @@ def show_library_status():
         query_manager = QueryManager(config.db_path)
         remote_client = RemoteAPIClient()
         
-        # Get total library items count from imdb_exports (contains all library items)
+        # Get total library items count from media_items (now contains all library items)
         total_result = query_manager.execute_query(
-            "SELECT COUNT(*) as count FROM imdb_exports",
+            "SELECT COUNT(*) as count FROM media_items WHERE source = 'lib'",
             fetch_one=True
         )
         total_library_items = total_result['count'] if total_result else 0
         
-        # Get items with valid IMDb IDs (starting with 'tt') from imdb_exports
+        # Get items with valid IMDb IDs (starting with 'tt') from media_items
         imdb_result = query_manager.execute_query(
-            "SELECT COUNT(*) as count FROM imdb_exports WHERE imdb_id IS NOT NULL AND imdb_id != '' AND imdb_id LIKE 'tt%'",
+            "SELECT COUNT(*) as count FROM media_items WHERE source = 'lib' AND imdbnumber IS NOT NULL AND imdbnumber != '' AND imdbnumber LIKE 'tt%'",
             fetch_one=True
         )
         items_with_imdb = imdb_result['count'] if imdb_result else 0
