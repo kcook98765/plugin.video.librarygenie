@@ -110,7 +110,28 @@ def log(message, level=None):
             "LISTITEM_BUILDER_INPUT:",
             "=== END LISTITEM_BUILDER_INPUT ===",
             "Set library file path for search result",
-            "Set valid ListItem path for search result"
+            "Set valid ListItem path for search result",
+            # Movie matching spam patterns
+            "=== MOVIE_MATCHING: Item",
+            "MOVIE_MATCHING:",
+            "=== BUILD_DISPLAY_ITEMS: Starting movie matching",
+            "=== BUILD_DISPLAY_ITEMS: Indexed",
+            "=== MERGED_DATA:",
+            "MERGED_DATA:",
+            "=== END MERGED_DATA ===",
+            "=== HEAVY_CACHE_DATA:",
+            "HEAVY_CACHE_DATA:",
+            "=== END HEAVY_CACHE_DATA ===",
+            "=== SAMPLE FINAL HEAVY METADATA RESULT ===",
+            "FINAL_HEAVY:",
+            "=== END SAMPLE FINAL HEAVY METADATA ===",
+            "=== IMDB_TRACE: Setting ListItem properties",
+            "IMDB_TRACE:",
+            "=== END IMDB_TRACE:",
+            "Successfully added",
+            "items (", 
+            "playable,",
+            "non-playable)"
         ]
 
         # Allow JSON-RPC request logging to always show through
