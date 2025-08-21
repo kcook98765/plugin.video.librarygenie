@@ -770,7 +770,6 @@ class QueryManager(Singleton):
             f"""CREATE TABLE IF NOT EXISTS media_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 {fields_str},
-                file TEXT,
                 UNIQUE (kodi_id, play)
             )""",
             """CREATE TABLE IF NOT EXISTS list_items (
@@ -830,29 +829,7 @@ class QueryManager(Singleton):
                 cursor.execute(create_sql)
             conn.commit()
 
-            # Add migration for search_score column if it doesn't exist
-            try:
-                cursor.execute("SELECT search_score FROM media_items LIMIT 1")
-            except sqlite3.OperationalError:
-                # Column doesn't exist, add it
-                utils.log("Adding search_score column to media_items table", "INFO")
-                cursor.execute("ALTER TABLE media_items ADD COLUMN search_score REAL")
-                conn.commit()
-
-            # Add migration for file column if it doesn't exist
-            try:
-                cursor.execute("SELECT file FROM media_items LIMIT 1")
-            except sqlite3.OperationalError:
-                # Column doesn't exist, add it
-                utils.log("Adding file column to media_items table", "INFO")
-                cursor.execute("ALTER TABLE media_items ADD COLUMN file TEXT")
-                conn.commit()
-            except Exception as e:
-                # Handle case where column already exists from table creation
-                if "duplicate column name" in str(e).lower():
-                    utils.log("File column already exists in media_items table", "DEBUG")
-                else:
-                    raise
+            
 
             # Create index for movie_heavy_meta table
             try:
