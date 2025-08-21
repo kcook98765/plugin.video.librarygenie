@@ -25,7 +25,7 @@ class FolderListManager:
         try:
             # Check folder depth limit BEFORE asking for folder name
             if parent_folder_id is not None:
-                current_depth = self.db_manager.query_manager.get_folder_depth(parent_folder_id)
+                current_depth = self.db_manager.get_folder_depth(parent_folder_id)
                 max_depth = self.config.max_folder_depth - 1  # -1 because we're adding a new level
 
                 if current_depth >= max_depth:
@@ -45,7 +45,7 @@ class FolderListManager:
                 return
 
             # Create in specified parent folder
-            self.db_manager.query_manager.insert_folder(name, parent_folder_id)
+            self.db_manager.insert_folder(name, parent_folder_id)
             xbmcgui.Dialog().notification('LibraryGenie', f'Folder "{name}" created')
             xbmc.executebuiltin('Container.Refresh')
         except Exception as e:
