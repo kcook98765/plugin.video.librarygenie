@@ -19,9 +19,9 @@ LibraryGenie uses a `source` field in the `media_items` table to categorize cont
 - Library references automatically cleared during library sync operations
 
 **Data Flow**:
-1. **Library Sync**: Removes all `source = 'lib'` records during sync operations
-2. **Library References**: Created via `QueryManager.insert_media_item()`
-3. **Display**: Light metadata fetched via JSON-RPC, merged with cached heavy fields from `movie_heavy_meta` table
+1. **Library Sync**: Removes all `source = 'lib'` records during sync operations via `QueryManager.sync_movies()`
+2. **Library References**: Created automatically via `QueryManager.insert_media_item()` when `kodi_id > 0`
+3. **Display**: Light metadata fetched via JSON-RPC, merged with cached heavy fields from `movie_heavy_meta` table via `ListingDAO.get_heavy_meta_by_movieids()`
 
 ### 2. Manual (`manual`) - User-Curated Library Content
 

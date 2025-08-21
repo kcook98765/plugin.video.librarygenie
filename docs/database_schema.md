@@ -73,16 +73,18 @@ CREATE TABLE media_items (
 
 **Data Sources**:
 - **Writes**: 
-  - Remote API search results (`DatabaseManager.search_remote_movies`)
-  - Search history preservation (`DatabaseManager.add_search_history`)
-- **Reads**: List item display, media playback (`DatabaseManager.fetch_list_items`)
+  - Media item insertion via `QueryManager.insert_media_item()`
+  - List operations and search results
+  - Library reference creation and external content storage
+- **Reads**: List item display, media playback (`ListingDAO.fetch_list_items_with_details()`)
 
 **Key Features**:
-- `source` field tracks origin: 'Lib', 'external', etc.
+- `source` field automatically assigned: 'lib' for `kodi_id > 0`, 'unknown' otherwise
 - `kodi_id` links to Kodi library entries when available
 - `imdbnumber` provides cross-referencing capability
 - `search_score` preserves semantic search relevance
 - `cast` field stores JSON-encoded cast arrays
+- `file` field stores file paths for media items
 
 ### 4. list_items
 **Purpose**: Many-to-many relationship between lists and media items.
@@ -237,9 +239,9 @@ CREATE TABLE user_settings (
 
 ### Search History Flow
 1. User performs semantic search via `RemoteAPIClient`
-2. Results stored in `media_items` with `source='Lib'`
+2. Results stored in `media_items` with automatic source assignment based on `kodi_id`
 3. Automatic list created in "Search History" folder with `protected=0` (lists in Search History can be managed)
-4. Items linked via `list_items` table
+4. Items linked via `list_items` table using `ListingDAO.insert_list_item()`
 5. Search preserved permanently for future reference with timestamped list names
 
 ### List Management Flow
@@ -275,13 +277,13 @@ Heavy fields are cached in the `movie_heavy_meta` table:
 - **Primary Key**: `kodi_movieid` (links to Kodi's internal movie ID)
 - **Storage Format**: JSON blobs for fast serialization/deserialization
 - **Update Strategy**: Full replacement on library scans with timestamp tracking
-- **Indexing**: Indexed on both `kodi_movieid` and `imdbnumber` for fast lookups
+- **Indexing**: Indexed on both `kodi_movieid` (primary key) and `imdbnumber` via `idx_heavy_imdb`
 
 ### Performance Strategy
-1. **Full Library Scans**: Request all fields (light + heavy) and cache heavy fields in batched transactions
-2. **List Operations**: Request only light fields via JSON-RPC, then merge heavy fields from local cache
+1. **Full Library Scans**: Request all fields (light + heavy) and cache heavy fields via `QueryManager.store_heavy_meta_batch()`
+2. **List Operations**: Request only light fields via JSON-RPC, then merge heavy fields from local cache via `ListingDAO.get_heavy_meta_by_movieids()`
 3. **Fallback Handling**: If heavy data is missing, populate with appropriate empty values rather than additional JSON-RPC calls
-4. **Transaction Batching**: Heavy field caching uses `BEGIN IMMEDIATE` transactions for reduced fsync overhead
+4. **Transaction Batching**: Heavy field caching uses batched `INSERT OR REPLACE` operations with explicit transaction control
 
 ### Benefits
 - **Faster List Rendering**: 50-80% reduction in JSON-RPC response time for list views
@@ -307,8 +309,8 @@ CREATE TABLE IF NOT EXISTS movie_heavy_meta (
 ```
 
 **Data Sources**:
-- **Writes**: Library sync operations via `JSONRPCManager.cache_heavy_meta()`
-- **Reads**: List rendering operations via `get_heavy_meta_by_movieids()`
+- **Writes**: Library sync operations via `QueryManager.store_heavy_meta_batch()`
+- **Reads**: List rendering operations via `ListingDAO.get_heavy_meta_by_movieids()`
 
 **Key Features**:
 - `kodi_movieid` links directly to Kodi's internal movie database ID
@@ -332,12 +334,13 @@ cursor.execute('CREATE INDEX IF NOT EXISTS idx_heavy_imdb ON movie_heavy_meta (i
 
 The ListingDAO pattern separates folder and list concerns from QueryManager:
 
-- **ListingDAO**: Handles all folder and list SQL operations
+- **ListingDAO**: Handles all folder, list, and heavy metadata SQL operations
 - **QueryManager**: Provides connection management and delegates to DAO
 - **Dependency Injection**: DAO receives both `execute_query` and `execute_write` callables from QueryManager
-- **Separate Execution Paths**: Read operations use `execute_query`, write operations use `execute_write`
+- **Separate Execution Paths**: Read operations use `execute_query`, write operations use `execute_write`  
 - **Meaningful Return Values**: INSERT methods return `lastrowid`, UPDATE/DELETE methods return `rowcount`
 - **API Preservation**: Public method signatures remain unchanged for backward compatibility
+- **Heavy Metadata Caching**: DAO handles `get_heavy_meta_by_movieids()` with cache refresh capabilities
 
 ## Error Handling and Reliability
 
