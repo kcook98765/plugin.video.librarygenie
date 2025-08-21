@@ -203,7 +203,7 @@ class IMDbUploadManager:
         try:
             utils.log("Starting atomic clear of existing library data", "INFO")
 
-            # Get existing count for logging
+            # Get existing count for logging with explicit alias
             count_result = db_manager.query_manager.execute_query(
                 "SELECT COUNT(*) as lib_count FROM media_items WHERE source = 'lib'",
                 fetch_one=True
@@ -213,7 +213,7 @@ class IMDbUploadManager:
             if existing_count > 0:
                 utils.log(f"Found {existing_count} existing library items to clear", "INFO")
 
-            # Clear all library data in a single transaction
+            # Clear all library data in a single transaction using public transaction context
             with db_manager.query_manager.transaction():
                 # Clear media_items table
                 db_manager.query_manager.execute_write("DELETE FROM media_items WHERE source = 'lib'")
@@ -321,7 +321,7 @@ class IMDbUploadManager:
 
         try:
             # Use public transaction context manager
-            with db_manager.query_manager.transaction() as conn:
+            with db_manager.query_manager.transaction():
                 batch_data = []
                 heavy_metadata_list = []
 
@@ -342,13 +342,13 @@ class IMDbUploadManager:
                         if movieid:
                             heavy_metadata_list.append(movie)
 
-                # Bulk insert batch data using the transaction connection
+                # Bulk insert batch data using public executemany_write
                 if batch_data:
-                    batch_stored_count = self._bulk_insert_movies(batch_data, conn)
+                    batch_stored_count = self._bulk_insert_movies(batch_data, db_manager)
 
-                # Store heavy metadata in same transaction
+                # Store heavy metadata in same transaction using public methods
                 if heavy_metadata_list:
-                    self._store_heavy_metadata_batch(heavy_metadata_list, conn)
+                    self._store_heavy_metadata_batch(heavy_metadata_list, db_manager)
 
         except Exception as e:
             utils.log(f"Batch {batch_num} error: {str(e)}", "ERROR")
@@ -400,8 +400,8 @@ class IMDbUploadManager:
             'art': json.dumps(movie.get('art', {}))
         }
 
-    def _store_heavy_metadata_batch(self, heavy_metadata_list, conn):
-        """Store heavy metadata for multiple movies in batch using provided connection."""
+    def _store_heavy_metadata_batch(self, heavy_metadata_list, db_manager):
+        """Store heavy metadata for multiple movies in batch using public executemany_write."""
         if not heavy_metadata_list:
             return
 
@@ -411,6 +411,8 @@ class IMDbUploadManager:
             import time
             current_time = int(time.time())
 
+            # Prepare batch data for executemany
+            heavy_meta_values = []
             for movie_data in heavy_metadata_list:
                 movieid = movie_data.get('movieid')
                 if not movieid:
@@ -424,13 +426,7 @@ class IMDbUploadManager:
                 uniqueid_json = json.dumps(movie_data.get('uniqueid', {}))
                 tags_json = json.dumps(movie_data.get('tag', []))
 
-                # Insert or replace heavy metadata using transaction connection
-                conn.execute("""
-                    INSERT OR REPLACE INTO movie_heavy_meta 
-                    (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
-                     stream_json, uniqueid_json, tags_json, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
+                heavy_meta_values.append((
                     movieid,
                     movie_data.get('imdbnumber', ''),
                     cast_json,
@@ -442,12 +438,22 @@ class IMDbUploadManager:
                     current_time
                 ))
 
+            # Bulk insert using public executemany_write
+            if heavy_meta_values:
+                query = """
+                    INSERT OR REPLACE INTO movie_heavy_meta 
+                    (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
+                     stream_json, uniqueid_json, tags_json, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """
+                db_manager.query_manager.executemany_write(query, heavy_meta_values)
+
         except Exception as e:
             utils.log(f"Error storing heavy metadata batch: {str(e)}", "ERROR")
             raise
 
-    def _bulk_insert_movies(self, batch_data, conn):
-        """Bulk insert movie data into database using provided connection."""
+    def _bulk_insert_movies(self, batch_data, db_manager):
+        """Bulk insert movie data into database using public executemany_write."""
         if not batch_data:
             return 0
 
@@ -457,7 +463,7 @@ class IMDbUploadManager:
         query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
 
         values_list = [tuple(movie_data.values()) for movie_data in batch_data]
-        conn.executemany(query, values_list)
+        db_manager.query_manager.executemany_write(query, values_list)
 
         return len(batch_data)
 
