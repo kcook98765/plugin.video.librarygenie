@@ -31,18 +31,18 @@ class QueryManager(Singleton):
         """Validate SQL identifier against safe pattern"""
         if not identifier or not isinstance(identifier, str):
             return False
-            
+
         # Check safe name pattern: alphanumeric, underscore, no spaces, reasonable length
         if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', identifier) or len(identifier) > 64:
             return False
-        
+
         # Additional check: identifier must not be a SQL keyword
         sql_keywords = {
-            'select', 'insert', 'update', 'delete', 'drop', 'create', 'alter', 
+            'select', 'insert', 'update', 'delete', 'drop', 'create', 'alter',
             'table', 'index', 'view', 'trigger', 'database', 'schema', 'from',
             'where', 'join', 'union', 'group', 'order', 'having', 'limit'
         }
-        
+
         return identifier.lower() not in sql_keywords
 
     def _validate_table_exists(self, table_name):
@@ -50,7 +50,7 @@ class QueryManager(Singleton):
         if not self._validate_sql_identifier(table_name):
             utils.log(f"Invalid table identifier: {table_name}", "ERROR")
             return False
-            
+
         result = self.execute_query(
             "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
             (table_name,),
@@ -62,16 +62,16 @@ class QueryManager(Singleton):
         """Validate column exists in specified table"""
         if not self._validate_sql_identifier(table_name) or not self._validate_sql_identifier(column_name):
             return False
-            
+
         if not self._validate_table_exists(table_name):
             return False
-            
+
         # Use PRAGMA table_info to check column existence
         result = self.execute_query(
             f"PRAGMA table_info({table_name})",
             fetch_all=True
         )
-        
+
         column_names = [row['name'] for row in result]
         return column_name in column_names
 
@@ -86,8 +86,8 @@ class QueryManager(Singleton):
 
             # Create connection with proper settings
             self._connection = sqlite3.connect(
-                self.db_path, 
-                timeout=30.0, 
+                self.db_path,
+                timeout=30.0,
                 check_same_thread=False
             )
 
@@ -301,7 +301,7 @@ class QueryManager(Singleton):
             with self.transaction() as conn:
                 # Delete all list items in lists within this folder
                 conn.execute("""
-                    DELETE FROM list_items 
+                    DELETE FROM list_items
                     WHERE list_id IN (SELECT id FROM lists WHERE folder_id = ?)
                 """, (folder_id,))
 
@@ -473,7 +473,7 @@ class QueryManager(Singleton):
         if not self._validate_table_exists('media_items'):
             utils.log("Table media_items does not exist", "ERROR")
             return []
-            
+
         conditions = ["title LIKE ?"]
         params = [f"%{title}%"]
 
@@ -537,14 +537,14 @@ class QueryManager(Singleton):
         media_data.setdefault('duration', 0)
         media_data.setdefault('votes', 0)
         media_data.setdefault('title', 'Unknown')
-        
+
         # Set proper source based on kodi_id presence
         if 'source' not in media_data:
             if media_data.get('kodi_id', 0) > 0:
                 media_data['source'] = 'lib'
             else:
                 media_data['source'] = 'unknown'
-        
+
         media_data.setdefault('media_type', 'movie')
 
         # Ensure search_score is included if present in input data
@@ -665,13 +665,13 @@ class QueryManager(Singleton):
         if not self._validate_table_exists(table):
             utils.log(f"Invalid or non-existent table: {table}", "ERROR")
             raise ValueError(f"Invalid table name: {table}")
-            
+
         # Validate all column names
         for column in data.keys():
             if not self._validate_column_exists(table, column):
                 utils.log(f"Invalid column {column} for table {table}", "ERROR")
                 raise ValueError(f"Invalid column name: {column}")
-        
+
         columns = ', '.join(data.keys())
         placeholders = ', '.join('?' for _ in data)
         query = f'INSERT INTO {table} ({columns}) VALUES ({placeholders})'
@@ -683,7 +683,7 @@ class QueryManager(Singleton):
         if not self._validate_table_exists('media_items'):
             utils.log("Table media_items does not exist", "ERROR")
             return []
-            
+
         conditions = ["title LIKE ?"]
         params = [f"%{title}%"]
 
@@ -695,7 +695,7 @@ class QueryManager(Singleton):
             params.append(f"%{director}%")
 
         where_clause = " AND ".join(conditions)
-        
+
         # Use explicit column list (all validated as existing columns)
         query = f"""
             SELECT DISTINCT
@@ -735,128 +735,97 @@ class QueryManager(Singleton):
         return self.execute_query(query, (kodi_dbid, media_type), fetch_one=True) or {}
 
     def setup_database(self):
-        """Setup all database tables"""
-        # Ensure database directory exists first
-        db_dir = os.path.dirname(self.db_path)
-        if not os.path.exists(db_dir):
-            os.makedirs(db_dir, exist_ok=True)
-            
-        fields_str = ', '.join(Config.FIELDS)
+        """Set up the database with all required tables"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
 
-        table_creations = [
-            # IMDB exports table for tracking exported data
-            '''CREATE TABLE IF NOT EXISTS imdb_exports (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                kodi_id INTEGER,
-                title TEXT,
-                year INTEGER,
-                imdb_id TEXT,
-                exported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )''',
+                # Enable foreign keys
+                cursor.execute("PRAGMA foreign_keys = ON")
 
-            """CREATE TABLE IF NOT EXISTS folders (
+                # Create tables in order (dependencies first)
+                self._create_folders_table(cursor)
+                self._create_lists_table(cursor)
+                self._create_media_items_table(cursor)
+                self._create_list_items_table(cursor)
+
+                # Add search_score column if it doesn't exist
+                self._add_search_score_column_if_missing(cursor)
+
+                conn.commit()
+                utils.log("Database setup completed", "DEBUG")
+        except Exception as e:
+            utils.log(f"Error setting up database: {str(e)}", "ERROR")
+            raise
+
+    def _create_folders_table(self, cursor):
+        """Create the folders table"""
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS folders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT UNIQUE,
+                name TEXT NOT NULL,
                 parent_id INTEGER,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-            )""",
-            """CREATE TABLE IF NOT EXISTS lists (
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (parent_id) REFERENCES folders (id) ON DELETE CASCADE
+            )
+        ''')
+
+    def _create_lists_table(self, cursor):
+        """Create the lists table"""
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS lists (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT,
+                name TEXT NOT NULL,
                 folder_id INTEGER,
                 protected INTEGER DEFAULT 0,
-                FOREIGN KEY (folder_id) REFERENCES folders (id)
-            )""",
-            f"""CREATE TABLE IF NOT EXISTS media_items (
+                FOREIGN KEY (folder_id) REFERENCES folders (id) ON DELETE SET NULL
+            )
+        ''')
+
+    def _create_media_items_table(self, cursor):
+        """Create the media_items table"""
+        fields_str = ', '.join(Config.FIELDS)
+        cursor.execute(f'''
+            CREATE TABLE IF NOT EXISTS media_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 {fields_str},
                 file TEXT,
+                search_score REAL DEFAULT 0.0,
                 UNIQUE (kodi_id, play)
-            )""",
-            """CREATE TABLE IF NOT EXISTS list_items (
+            )
+        ''')
+
+    def _create_list_items_table(self, cursor):
+        """Create the list_items table"""
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS list_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                list_id INTEGER,
-                media_item_id INTEGER,
-                flagged INTEGER DEFAULT 0,
-                FOREIGN KEY (list_id) REFERENCES lists (id),
-                FOREIGN KEY (media_item_id) REFERENCES media_items (id)
-            )""",
-            """CREATE TABLE IF NOT EXISTS whitelist (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                list_id INTEGER,
-                title TEXT,
-                FOREIGN KEY (list_id) REFERENCES lists (id)
-            )""",
-            """CREATE TABLE IF NOT EXISTS blacklist (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                list_id INTEGER,
-                title TEXT,
-                FOREIGN KEY (list_id) REFERENCES lists (id)
-            )""",
+                list_id INTEGER NOT NULL,
+                media_item_id INTEGER NOT NULL,
+                added_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                search_score REAL DEFAULT 0.0,
+                FOREIGN KEY (list_id) REFERENCES lists (id) ON DELETE CASCADE,
+                FOREIGN KEY (media_item_id) REFERENCES media_items (id) ON DELETE CASCADE,
+                UNIQUE(list_id, media_item_id)
+            )
+        ''')
 
-            """CREATE TABLE IF NOT EXISTS original_requests (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                description TEXT,
-                response_json TEXT,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-            )""",
-            """CREATE TABLE IF NOT EXISTS parsed_movies (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                request_id INTEGER,
-                title TEXT,
-                year INTEGER,
-                director TEXT,
-                FOREIGN KEY (request_id) REFERENCES original_requests (id)
-            )""",
-            
-            """CREATE TABLE IF NOT EXISTS movie_heavy_meta (
-                kodi_movieid INTEGER PRIMARY KEY,
-                imdbnumber TEXT,
-                cast_json TEXT,
-                ratings_json TEXT,
-                showlink_json TEXT,
-                stream_json TEXT,
-                uniqueid_json TEXT,
-                tags_json TEXT,
-                updated_at INTEGER NOT NULL
-            )"""
-        ]
+    def _add_search_score_column_if_missing(self, cursor):
+        """Add search_score column to list_items table if it doesn't exist"""
+        try:
+            # Check if search_score column exists
+            cursor.execute("PRAGMA table_info(list_items)")
+            columns = [column[1] for column in cursor.fetchall()]
 
-        with self._lock:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-            for create_sql in table_creations:
-                utils.log(f"Executing SQL: {create_sql}", "DEBUG")
-                cursor.execute(create_sql)
-            conn.commit()
-
-            # Add migration for search_score column if it doesn't exist
-            try:
-                cursor.execute("SELECT search_score FROM media_items LIMIT 1")
-            except sqlite3.OperationalError:
-                # Column doesn't exist, add it
-                utils.log("Adding search_score column to media_items table", "INFO")
-                cursor.execute("ALTER TABLE media_items ADD COLUMN search_score REAL")
-                conn.commit()
-
-            # Add migration for file column if it doesn't exist
-            try:
-                cursor.execute("SELECT file FROM media_items LIMIT 1")
-            except sqlite3.OperationalError:
-                # Column doesn't exist, add it
-                utils.log("Adding file column to media_items table", "INFO")
-                cursor.execute("ALTER TABLE media_items ADD COLUMN file TEXT")
-                conn.commit()
-
-            # Create index for movie_heavy_meta table
-            try:
-                cursor.execute("CREATE INDEX IF NOT EXISTS idx_heavy_imdb ON movie_heavy_meta (imdbnumber)")
-                conn.commit()
-            except sqlite3.OperationalError:
-                pass
-
-        # Setup movies reference table as well
-        self.setup_movies_reference_table()
+            if 'search_score' not in columns:
+                utils.log("Adding missing search_score column to list_items table", "INFO")
+                cursor.execute('ALTER TABLE list_items ADD COLUMN search_score REAL DEFAULT 0.0')
+                utils.log("Successfully added search_score column", "DEBUG")
+            else:
+                utils.log("search_score column already exists", "DEBUG")
+        except Exception as e:
+            utils.log(f"Error adding search_score column: {str(e)}", "ERROR")
+            raise
 
     def setup_movies_reference_table(self):
         """Create movies_reference table and indexes"""
@@ -908,7 +877,7 @@ class QueryManager(Singleton):
         utils.log(f"=== STORING HEAVY METADATA BATCH: {len(heavy_metadata_list)} movies ===", "INFO")
 
         import time
-        
+
         with self._lock:
             conn = self._get_connection()
             try:
@@ -954,15 +923,15 @@ class QueryManager(Singleton):
 
                     # Insert or replace heavy metadata
                     cursor.execute("""
-                        INSERT OR REPLACE INTO movie_heavy_meta 
-                        (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
+                        INSERT OR REPLACE INTO movie_heavy_meta
+                        (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json,
                          stream_json, uniqueid_json, tags_json, updated_at)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
                         movieid,
                         movie_data.get('imdbnumber', ''),
                         cast_json,
-                        ratings_json, 
+                        ratings_json,
                         showlink_json,
                         stream_json,
                         uniqueid_json,
@@ -1003,7 +972,7 @@ class QueryManager(Singleton):
         # This method relies on ListingDAO. If ListingDAO is not updated to use the new
         # QueryManager methods correctly, this might break. Assuming ListingDAO is compatible.
         return self._listing.get_heavy_meta_by_movieids(movieids, refresh)
-        
+
     def get_imdb_export_stats(self) -> Dict[str, Any]:
         """Get statistics about IMDB numbers in exports"""
         query = """
@@ -1029,11 +998,11 @@ class QueryManager(Singleton):
         utils.log(f"=== INSERTING {len(movies)} MOVIES INTO IMDB_EXPORTS ===", "INFO")
 
         sql = """
-            INSERT OR REPLACE INTO imdb_exports 
+            INSERT OR REPLACE INTO imdb_exports
             (kodi_id, imdb_id, title, year)
             VALUES (?, ?, ?, ?)
         """
-        
+
         data_to_insert = []
         for movie in movies:
             data_to_insert.append((
