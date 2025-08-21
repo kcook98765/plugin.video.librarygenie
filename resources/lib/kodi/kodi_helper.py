@@ -194,7 +194,7 @@ class KodiHelper:
             from resources.lib.data.database_manager import DatabaseManager
             from resources.lib.config.config_manager import get_config
             config = get_config()
-            db = DatabaseManager(config.db_path)
+            db_manager = DatabaseManager(config.db_path)
 
             # Handle item_id from various input types and ensure valid integer
             utils.log(f"Original item_id: {item_id}", "DEBUG")
@@ -220,16 +220,14 @@ class KodiHelper:
                 utils.log(f"Could not convert item_id to integer: {item_id}, Error: {str(e)}", "ERROR")
                 return False
 
-            db.cursor.execute(query, (item_id,))
-            result = db.cursor.fetchone()
+            result = db_manager.query_manager.execute_query(query, (item_id,), fetch_one=True)
 
             if not result:
                 utils.log(f"Item not found for id: {item_id}", "ERROR")
                 return False
 
-            # Convert result tuple to dict
-            field_names = [field.split()[0] for field in db.config.FIELDS]
-            item_data = dict(zip(['id'] + field_names, result))
+            # Convert result row to dict
+            item_data = dict(result)
 
             # Create list item with proper metadata using ListItemBuilder if it's a video item
             if item_data.get('mediatype') == 'movie' or item_data.get('media_type') == 'movie':
@@ -408,15 +406,9 @@ class KodiHelper:
         return details
 
     def show_information(self):
-        from resources.lib.data.query_manager import QueryManager
-        from resources.lib.config.config_manager import get_config
-
         db_id = xbmc.getInfoLabel('ListItem.DBID')
         media_type = xbmc.getInfoLabel('ListItem.DBTYPE') or 'movie'
         utils.log(f"Retrieved DBID: {db_id}, Media type: {media_type}", "INFO")
-
-        config = get_config()
-        self.query_manager = QueryManager(config.db_path)
 
         if db_id:
             if media_type == 'movie':
