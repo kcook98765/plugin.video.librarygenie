@@ -1,4 +1,3 @@
-
 import xbmc
 import xbmcgui
 import xbmcplugin
@@ -10,7 +9,7 @@ def _validate_sql_identifier(identifier):
     """Validate SQL identifier against safe pattern"""
     if not identifier or not isinstance(identifier, str):
         return False
-        
+
     # Check safe name pattern: alphanumeric, underscore, no spaces, reasonable length
     if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', identifier) or len(identifier) > 64:
         return False
@@ -23,19 +22,6 @@ def _validate_sql_identifier(identifier):
     }
 
     return identifier.lower() not in sql_keywords
-
-def _validate_table_exists(query_manager, table_name):
-    """Validate table exists in sqlite_master using query_manager"""
-    if not _validate_sql_identifier(table_name):
-        utils.log(f"Invalid table identifier: {table_name}", "ERROR")
-        return False
-
-    result = query_manager.execute_query(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
-        (table_name,),
-        fetch_one=True
-    )
-    return result is not None
 
 def display_imdb_data_as_directory(handle):
     """Display database structure and sample data using only query_manager"""
@@ -64,7 +50,7 @@ def display_imdb_data_as_directory(handle):
                 continue  # Skip system table
 
             # Validate table name for security
-            if not _validate_table_exists(query_manager, table_name):
+            if not _validate_sql_identifier(table_name):
                 error_li = xbmcgui.ListItem(label=f"Invalid table name: {table_name}")
                 error_li.setProperty('IsPlayable', 'false')
                 xbmcplugin.addDirectoryItem(handle, "", error_li, False)
@@ -117,11 +103,11 @@ def display_imdb_data_as_directory(handle):
                         f"SELECT * FROM {table_name} LIMIT 3",
                         fetch_all=True
                     )
-                    
+
                     # Ensure sample_rows is not None before iterating
                     if sample_rows is None:
                         sample_rows = []
-                        
+
                     for i, row in enumerate(sample_rows):
                         # Ensure we always work with dict representation
                         if row:

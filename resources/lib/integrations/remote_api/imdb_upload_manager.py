@@ -160,7 +160,7 @@ class IMDbUploadManager:
                 response = self.jsonrpc.execute("VideoLibrary.GetMovies", {
                     "limits": {"start": start, "end": start + batch_size},
                     "properties": [
-                        "title", "year", "plot", "rating", "runtime", "genre", "director", 
+                        "title", "year", "plot", "rating", "runtime", "genre", "director",
                         "cast", "studio", "mpaa", "tagline", "writer", "country", "premiered",
                         "dateadded", "votes", "trailer", "file", "art", "imdbnumber", "uniqueid"
                     ]
@@ -265,18 +265,18 @@ class IMDbUploadManager:
 
             if imdb_id:
                 movie['imdbnumber'] = imdb_id
-                
+
                 # Prepare movie data for database
                 movie_data = self._prepare_movie_data(movie, imdb_id)
-                
+
                 # Insert movie data
                 media_item_id = self.query_manager.insert_media_item(movie_data)
-                
+
                 # Store heavy metadata if we have a movie ID
                 movieid = movie.get('movieid')
                 if movieid and media_item_id:
                     self.query_manager.store_heavy_meta_batch([movie])
-                
+
                 # Store in imdb_exports table
                 export_data = {
                     'kodi_id': movie.get('movieid', 0),
@@ -288,7 +288,7 @@ class IMDbUploadManager:
                     "INSERT OR REPLACE INTO imdb_exports (kodi_id, title, year, imdb_id) VALUES (?, ?, ?, ?)",
                     (export_data['kodi_id'], export_data['title'], export_data['year'], export_data['imdb_id'])
                 )
-                
+
         except Exception as e:
             utils.log(f"Error processing movie {movie.get('title', 'Unknown')}: {str(e)}", "WARNING")
 
@@ -479,7 +479,7 @@ class IMDbUploadManager:
         return valid_movies, stored_count
 
     def _process_movie_batch(self, batch_movies, batch_num):
-        """Process a single batch of movies with transaction management."""        
+        """Process a single batch of movies with transaction management."""
         batch_valid_movies = []
         batch_stored_count = 0
 
@@ -540,29 +540,28 @@ class IMDbUploadManager:
         return None
 
     def _prepare_movie_data(self, movie, imdb_id):
-        """Prepare movie data dictionary for database insertion."""
-        return {
-            'kodi_id': movie.get('movieid', 0),
-            'title': movie.get('title', ''),
-            'year': movie.get('year', 0),
-            'imdbnumber': imdb_id,
-            'source': 'lib',
-            'play': movie.get('file', ''),
-            'poster': movie.get('art', {}).get('poster', '') if movie.get('art') else '',
-            'fanart': movie.get('art', {}).get('fanart', '') if movie.get('art') else '',
-            'plot': movie.get('plot', ''),
-            'rating': float(movie.get('rating', 0)),
-            'votes': int(movie.get('votes', 0)),
-            'duration': int(movie.get('runtime', 0)),
-            'mpaa': movie.get('mpaa', ''),
-            'genre': ','.join(movie.get('genre', [])) if isinstance(movie.get('genre'), list) else movie.get('genre', ''),
-            'director': ','.join(movie.get('director', [])) if isinstance(movie.get('director'), list) else movie.get('director', ''),
-            'studio': ','.join(movie.get('studio', [])) if isinstance(movie.get('studio'), list) else movie.get('studio', ''),
-            'country': ','.join(movie.get('country', [])) if isinstance(movie.get('country'), list) else movie.get('country', ''),
-            'writer': ','.join(movie.get('writer', [])) if isinstance(movie.get('writer'), list) else movie.get('writer', ''),
-            # Note: cast field intentionally excluded for 'lib' source - stored in movie_heavy_meta table instead
-            'art': json.dumps(movie.get('art', {}))
-        }
+        """Prepare movie data for database insertion"""
+        try:
+            # Basic movie data preparation
+            movie_data = {
+                'kodi_id': movie.get('movieid', 0),
+                'title': movie.get('title', ''),
+                'year': movie.get('year', 0),
+                'source': 'lib',
+                'media_type': 'movie',
+                'imdbnumber': imdb_id
+            }
+
+            # Add other available fields
+            for field in ['plot', 'genre', 'director', 'rating', 'duration', 'premiered']:
+                if field in movie:
+                    movie_data[field] = movie[field]
+
+            return movie_data
+
+        except Exception as e:
+            utils.log(f"Error preparing movie data: {str(e)}", "ERROR")
+            return {}
 
     def _store_heavy_metadata_batch(self, heavy_metadata_list):
         """Store heavy metadata for multiple movies in batch using QueryManager."""
