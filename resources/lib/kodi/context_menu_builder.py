@@ -106,7 +106,6 @@ class ContextMenuBuilder:
                 return
 
             from resources.lib.config.config_manager import Config
-            from resources.lib.data.database_manager import DatabaseManager
 
             config = Config()
             db_manager = DatabaseManager(config.db_path)
