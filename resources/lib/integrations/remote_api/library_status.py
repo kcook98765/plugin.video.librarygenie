@@ -53,13 +53,16 @@ def show_library_status():
         # Calculate percentage
         imdb_percentage = (items_with_imdb / total_library_items * 100) if total_library_items > 0 else 0
         
-        # Get server upload status
+        # Check if user is authenticated for server features
+        is_authenticated = False
         server_status = "Not configured"
         server_count = 0
         last_upload_info = "Never"
         
         try:
+            # Check if remote API is configured and accessible
             if remote_client.test_connection():
+                is_authenticated = True
                 # Get current movie count on server
                 movie_list = remote_client.get_movie_list(per_page=1)
                 if movie_list and movie_list.get('success'):
@@ -88,12 +91,10 @@ def show_library_status():
                     server_status = f"Connected - {server_count} movies on server"
                 else:
                     server_status = "Connected but unable to get movie count"
-            else:
-                server_status = "Not configured or unreachable"
-                
+                    
         except Exception as e:
             utils.log(f"Error checking server status: {str(e)}", "WARNING")
-            server_status = "Error checking server status"
+            is_authenticated = False
         
         # Build status message
         status_lines = [
@@ -111,14 +112,26 @@ def show_library_status():
             f"  • Unique IMDb IDs: {exports_unique:,}",
             f"  • Duplicate export records: {exports_duplicates:,}",
             "",
-            f"🌐 SERVER STATUS:",
-            f"  • Status: {server_status}",
-            f"  • Last upload: {last_upload_info}",
-            "",
         ]
         
-        # Add sync status comparison if we have both local and server data
-        if server_count > 0 and unique_imdb_count > 0:
+        # Add server status only if authenticated
+        if is_authenticated:
+            status_lines.extend([
+                f"🌐 SERVER STATUS:",
+                f"  • Status: {server_status}",
+                f"  • Last upload: {last_upload_info}",
+                "",
+            ])
+        else:
+            status_lines.extend([
+                f"🤖 AI FEATURES:",
+                f"  • Status: Not available (authentication required)",
+                f"  • Configure remote API in addon settings for AI search",
+                "",
+            ])
+        
+        # Add sync status comparison only if authenticated and we have server data
+        if is_authenticated and server_count > 0 and unique_imdb_count > 0:
             sync_percentage = (server_count / unique_imdb_count * 100) if unique_imdb_count > 0 else 0
             status_lines.extend([
                 f"🔄 SYNC STATUS (using unique IMDb counts):",
@@ -133,21 +146,21 @@ def show_library_status():
                 status_lines.append(f"  • ℹ️  Server has {server_count - unique_imdb_count:,} more movies than local unique")
             else:
                 status_lines.append(f"  • ✅ Server and local unique library are in sync")
-                
-            # Show explanation if there are duplicates
-            if duplicate_imdb_count > 0:
-                status_lines.extend([
-                    "",
-                    f"ℹ️  DUPLICATE INFO:",
-                    f"  • {duplicate_imdb_count:,} duplicate IMDb entries in media_items",
-                    f"  • Upload process uses unique IMDb IDs only",
-                    f"  • This explains difference between total ({items_with_imdb:,}) and uploaded counts",
-                ])
+        
+        # Show explanation if there are duplicates (regardless of authentication)
+        if duplicate_imdb_count > 0:
+            status_lines.extend([
+                "",
+                f"ℹ️  DUPLICATE INFO:",
+                f"  • {duplicate_imdb_count:,} duplicate IMDb entries in media_items",
+                f"  • Upload process uses unique IMDb IDs only",
+                f"  • This explains difference between total ({items_with_imdb:,}) and uploaded counts",
+            ])
         
         status_text = "\n".join(status_lines)
         
         utils.log("LIBRARY_STATUS: Status summary generated successfully", "INFO")
-        utils.log(f"LIBRARY_STATUS: Total: {total_library_items}, IMDb: {items_with_imdb}, Unique IMDb: {unique_imdb_count}, Duplicates: {duplicate_imdb_count}, Server: {server_count}", "INFO")
+        utils.log(f"LIBRARY_STATUS: Total: {total_library_items}, IMDb: {items_with_imdb}, Unique IMDb: {unique_imdb_count}, Duplicates: {duplicate_imdb_count}, Authenticated: {is_authenticated}, Server: {server_count if is_authenticated else 'N/A'}", "INFO")
         
         # Show the dialog
         xbmcgui.Dialog().textviewer('Addon Library Status', status_text)
