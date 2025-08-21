@@ -4,7 +4,6 @@ import xbmc
 import xbmcgui
 import xbmcplugin
 from resources.lib.utils import utils
-from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.config.config_manager import Config
 from resources.lib.kodi.url_builder import build_plugin_url, detect_context
 from resources.lib.kodi.listitem_builder import ListItemBuilder
