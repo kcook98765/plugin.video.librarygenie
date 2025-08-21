@@ -208,9 +208,9 @@ class IMDbUploadManager:
         try:
             utils.log(f"Starting to store {len(movies)} movies in database", "INFO")
 
-            # Clear existing data
-            self.query_manager.execute_query("DELETE FROM imdb_exports")
-            self.query_manager.execute_query("DELETE FROM media_items WHERE source = 'lib'")
+            # Clear existing data using execute_write (for DELETE operations)
+            self.query_manager.execute_write("DELETE FROM imdb_exports")
+            self.query_manager.execute_write("DELETE FROM media_items WHERE source = 'lib'")
 
             utils.log("Cleared existing library data from database", "INFO")
 
@@ -224,13 +224,11 @@ class IMDbUploadManager:
                 batch = movies[i:i + batch_size]
                 batch_num = i // batch_size + 1
 
-                # Begin transaction for this batch
-                for movie in batch:
-                    self._process_single_movie(movie)
-                    processed += 1
-
-                # Commit batch
-                self.query_manager.connection.commit()
+                # Process batch within transaction
+                with self.query_manager.transaction():
+                    for movie in batch:
+                        self._process_single_movie(movie)
+                        processed += 1
 
                 # Show progress notifications every 25% or for small collections more frequently
                 show_progress = False
@@ -258,6 +256,41 @@ class IMDbUploadManager:
         except Exception as e:
             utils.log(f"Error storing movies in database: {str(e)}", "ERROR")
             raise
+
+    def _process_single_movie(self, movie):
+        """Process a single movie and store it in the database"""
+        try:
+            # Extract and validate IMDb ID
+            imdb_id = self._extract_imdb_id(movie)
+
+            if imdb_id:
+                movie['imdbnumber'] = imdb_id
+                
+                # Prepare movie data for database
+                movie_data = self._prepare_movie_data(movie, imdb_id)
+                
+                # Insert movie data
+                media_item_id = self.query_manager.insert_media_item(movie_data)
+                
+                # Store heavy metadata if we have a movie ID
+                movieid = movie.get('movieid')
+                if movieid and media_item_id:
+                    self.query_manager.store_heavy_meta_batch([movie])
+                
+                # Store in imdb_exports table
+                export_data = {
+                    'kodi_id': movie.get('movieid', 0),
+                    'title': movie.get('title', ''),
+                    'year': movie.get('year', 0),
+                    'imdb_id': imdb_id
+                }
+                self.query_manager.execute_write(
+                    "INSERT OR REPLACE INTO imdb_exports (kodi_id, title, year, imdb_id) VALUES (?, ?, ?, ?)",
+                    (export_data['kodi_id'], export_data['title'], export_data['year'], export_data['imdb_id'])
+                )
+                
+        except Exception as e:
+            utils.log(f"Error processing movie {movie.get('title', 'Unknown')}: {str(e)}", "WARNING")
 
     def _clear_existing_library_data(self):
         """Clear existing library data from database tables atomically."""
