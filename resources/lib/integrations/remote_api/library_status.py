@@ -16,25 +16,12 @@ def show_scrollable_status_dialog(title, status_lines):
             if line.strip():  # Skip empty lines for cleaner display
                 display_lines.append(line)
             else:
-                display_lines.append("─" * 50)  # Visual separator for empty lines
-        
-        # Add navigation instructions at the top
-        instructions = [
-            "═══ NAVIGATION HELP ═══",
-            "↑↓ Arrow keys: Scroll up/down",
-            "Page Up/Down: Fast scroll",
-            "Esc: Close dialog",
-            "═" * 50
-        ]
-        
-        # Combine instructions with status
-        all_lines = instructions + [""] + display_lines
+                display_lines.append("─" * 20)  # Visual separator for empty lines
         
         # Show as select dialog which supports better keyboard navigation
         selected = xbmcgui.Dialog().select(
             title, 
-            all_lines,
-            preselect=len(instructions) + 1  # Start at first status line
+            display_lines
         )
         
         # Dialog returns -1 when cancelled, which is expected behavior
