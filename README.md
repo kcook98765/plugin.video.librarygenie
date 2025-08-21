@@ -195,8 +195,7 @@ The Options & Tools menu adapts based on your authentication status:
 ### Core Components
 
 #### Database Layer
-- **DatabaseManager**: SQLite operations and schema management
-- **QueryManager**: Optimized SQL query building and execution
+- **QueryManager**: Optimized SQL query building and execution and schema management
 
 #### User Interface
 - **OptionsManager**: Dynamic options menu system

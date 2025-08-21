@@ -165,10 +165,9 @@ class IMDbUploadManager:
                         utils.log(f"EXPORT_DATA: {key} = {repr(value)}", "INFO")
                     utils.log("=== END SAMPLE EXPORT DATA ===", "INFO")
 
-                # Use standard method to get DatabaseManager with proper db_path
-                from resources.lib.data.database_manager import DatabaseManager
+                # Use standard method to get QueryManager with proper db_path
                 config = Config()
-                db_manager = DatabaseManager(config.db_path)
+                db_manager = QueryManager(config.db_path)
                 db_manager.insert_imdb_export(export_movies)
 
                 # Store heavy metadata separately in movie_heavy_meta table
