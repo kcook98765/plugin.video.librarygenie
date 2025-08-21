@@ -189,6 +189,15 @@ def start_library_scan():
                         xbmcgui.NOTIFICATION_INFO,
                         5000
                     )
+                    
+                    # Show addon status modal after scan completion
+                    try:
+                        utils.log("Showing addon status modal after initial scan", "INFO")
+                        from resources.lib.integrations.remote_api.library_status import show_library_status
+                        show_library_status()
+                    except Exception as e:
+                        utils.log(f"Error showing addon status after scan: {str(e)}", "ERROR")
+                        
                 else:
                     utils.log("Background library scan failed", "ERROR")
                     
