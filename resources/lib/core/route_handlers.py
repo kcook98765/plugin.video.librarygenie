@@ -7,6 +7,9 @@ import json
 import threading
 from typing import List, Union, cast
 
+# Import QueryManager here as it's used in multiple functions
+from resources.lib.data.query_manager import QueryManager
+
 def play_movie(params):
     """Play a movie from Kodi library using movieid"""
     try:
@@ -64,7 +67,7 @@ def show_item_details(params):
         utils.log(f"show_item_details called with title='{title}', list_id='{list_id}', item_id='{item_id}'", "DEBUG")
 
         config = Config()
-        db_manager = DatabaseManager(config.db_path)
+        query_manager = QueryManager(config.db_path)
 
         # Decode URL-encoded title if needed
         import urllib.parse
@@ -78,7 +81,7 @@ def show_item_details(params):
         if item_id and str(item_id).isdigit():
             try:
                 # Get item details from database using proper parameterized query
-                media_items = db_manager.fetch_data('media_items', 'id = ?', (int(item_id),))
+                media_items = query_manager.fetch_data('media_items', 'id = ?', (int(item_id),))
                 if media_items and len(media_items) > 0:
                     item = media_items[0]
                     details_text += f"Year: {item.get('year', 'Unknown')}\n"
@@ -112,7 +115,7 @@ def create_list(params):
         return
     try:
         config = Config()
-        db_manager = DatabaseManager(config.db_path)
+        query_manager = QueryManager(config.db_path)
 
         # Get folder_id from params, default to None (root)
         folder_id = params.get('folder_id')
@@ -125,7 +128,7 @@ def create_list(params):
         else:
             folder_id = None
         utils.log(f"Creating list '{name}' in folder_id: {folder_id}", "DEBUG")
-        created_list = db_manager.create_list(name, folder_id)
+        created_list = query_manager.create_list(name, folder_id)
         if not created_list:
             xbmcgui.Dialog().notification('LibraryGenie', 'Failed to create new list', xbmcgui.NOTIFICATION_ERROR)
             return
@@ -155,9 +158,9 @@ def rename_list(params):
         return
     try:
         config = Config()
-        db_manager = DatabaseManager(config.db_path)
+        query_manager = QueryManager(config.db_path)
 
-        db_manager.update_data('lists', {'name': new_name}, 'id = ?', (int(list_id),))
+        query_manager.update_data('lists', {'name': new_name}, 'id = ?', (int(list_id),))
         xbmcgui.Dialog().notification('LibraryGenie', 'List renamed')
         # Use navigation manager for consistent logging
         from resources.lib.core.navigation_manager import get_navigation_manager
@@ -175,7 +178,6 @@ def delete_list(params):
         return
     try:
         config = Config()
-        from resources.lib.data.query_manager import QueryManager
         query_manager = QueryManager(config.db_path)
 
         # Use transaction for atomic delete operation
@@ -218,10 +220,10 @@ def remove_from_list(params):
 
     try:
         config = Config()
-        db_manager = DatabaseManager(config.db_path)
+        query_manager = QueryManager(config.db_path)
 
         # Get list name and media title for confirmation dialog
-        list_info = db_manager.fetch_list_by_id(list_id)
+        list_info = query_manager.fetch_list_by_id(list_id)
         list_name = list_info.get('name', 'Unknown List') if list_info else 'Unknown List'
 
         # Get media info from the list_items table with media_items join
@@ -232,7 +234,7 @@ def remove_from_list(params):
                 JOIN media_items m ON li.media_item_id = m.id
                 WHERE li.list_id = ? AND m.id = ?
             """
-            media_result = db_manager.query_manager.execute_query(query, (int(list_id), int(media_id)), fetch_one=True)
+            media_result = query_manager.execute_query(query, (int(list_id), int(media_id)), fetch_one=True)
             if media_result:
                 media_title = media_result[0].get('title') if media_result else 'Unknown Movie'
             else:
@@ -250,7 +252,7 @@ def remove_from_list(params):
             return
 
         # Use transaction and check rowcount to determine success
-        with db_manager.query_manager.transaction() as conn:
+        with query_manager.transaction() as conn:
             cursor = conn.execute("DELETE FROM list_items WHERE list_id = ? AND media_item_id = ?", (int(list_id), int(media_id)))
             rows_affected = cursor.rowcount
 
@@ -287,18 +289,18 @@ def move_list(params):
             return
 
         config = Config()
-        db_manager = DatabaseManager(config.db_path)
+        query_manager = QueryManager(config.db_path)
 
         # Get current list info
-        list_info = db_manager.fetch_list_by_id(list_id)
+        list_info = query_manager.fetch_list_by_id(list_id)
         if not list_info:
             utils.log(f"List {list_id} not found", "ERROR")
             xbmcgui.Dialog().notification('LibraryGenie', 'List not found', xbmcgui.NOTIFICATION_ERROR)
             return
 
         # Get all folders for selection (excluding Search History)
-        all_folders = db_manager.fetch_all_folders()
-        search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
+        all_folders = query_manager.fetch_all_folders()
+        search_history_folder_id = query_manager.get_folder_id_by_name("Search History")
 
         # Filter out Search History folder and current folder
         available_folders = []
@@ -348,7 +350,7 @@ def move_list(params):
             return
 
         # Perform the move
-        success = db_manager.move_list_to_folder(list_id, target_folder_id)
+        success = query_manager.move_list_to_folder(list_id, target_folder_id)
 
         if success:
             utils.log(f"Successfully moved list {list_id} to folder {target_folder_id}", "INFO")
@@ -378,17 +380,17 @@ def clear_list(params):
             return
 
         config = Config()
-        db_manager = DatabaseManager(config.db_path)
+        query_manager = QueryManager(config.db_path)
 
         # Get list info
-        list_info = db_manager.fetch_list_by_id(list_id)
+        list_info = query_manager.fetch_list_by_id(list_id)
         if not list_info:
             utils.log(f"List {list_id} not found", "ERROR")
             xbmcgui.Dialog().notification('LibraryGenie', 'List not found', xbmcgui.NOTIFICATION_ERROR)
             return
 
         # Get current item count
-        item_count = db_manager.get_list_media_count(list_id)
+        item_count = query_manager.get_list_media_count(list_id)
 
         if item_count == 0:
             xbmcgui.Dialog().notification('LibraryGenie', f"'{list_info['name']}' is already empty", xbmcgui.NOTIFICATION_INFO)
@@ -403,7 +405,7 @@ def clear_list(params):
             return
 
         # Clear all items from the list
-        success = db_manager.clear_list_items(list_id)
+        success = query_manager.clear_list_items(list_id)
 
         if success:
             utils.log(f"Successfully cleared list {list_id}", "INFO")
@@ -431,17 +433,17 @@ def export_list(params):
             return
 
         config = Config()
-        db_manager = DatabaseManager(config.db_path)
+        query_manager = QueryManager(config.db_path)
 
         # Get list info
-        list_info = db_manager.fetch_list_by_id(list_id)
+        list_info = query_manager.fetch_list_by_id(list_id)
         if not list_info:
             utils.log(f"List {list_id} not found", "ERROR")
             xbmcgui.Dialog().notification('LibraryGenie', 'List not found', xbmcgui.NOTIFICATION_ERROR)
             return
 
         # Get list items
-        list_items = db_manager.fetch_list_items_with_details(list_id)
+        list_items = query_manager.fetch_list_items_with_details(list_id)
         if not list_items:
             xbmcgui.Dialog().notification('LibraryGenie', f"'{list_info['name']}' is empty", xbmcgui.NOTIFICATION_WARNING)
             return
@@ -557,10 +559,10 @@ def delete_folder(params):
             return
 
         config = Config()
-        db_manager = DatabaseManager(config.db_path)
+        query_manager = QueryManager(config.db_path)
 
         # Get folder info
-        folder_info = db_manager.fetch_folder_by_id(folder_id)
+        folder_info = query_manager.fetch_folder_by_id(folder_id)
         if not folder_info:
             utils.log(f"Folder {folder_id} not found", "ERROR")
             xbmcgui.Dialog().notification('LibraryGenie', 'Folder not found', xbmcgui.NOTIFICATION_ERROR)
@@ -573,8 +575,8 @@ def delete_folder(params):
             return
 
         # Check if folder has contents
-        subfolders = db_manager.fetch_folders(folder_id)
-        lists = db_manager.fetch_lists(folder_id)
+        subfolders = query_manager.fetch_folders(folder_id)
+        lists = query_manager.fetch_lists(folder_id)
 
         has_contents = len(subfolders) > 0 or len(lists) > 0
 
@@ -608,11 +610,11 @@ def delete_folder(params):
         # Perform the operation in a single transaction
         if has_contents and selected_option == 1:  # Move contents then delete
             parent_folder_id = folder_info.get('parent_id')
-            with db_manager.query_manager.transaction() as conn:
+            with query_manager.transaction() as conn:
                 # Update all child folders' parent_id
                 cursor = conn.execute("UPDATE folders SET parent_id = ? WHERE parent_id = ?", (parent_folder_id, int(folder_id)))
                 folders_moved = cursor.rowcount
-                # Update all lists' folder_id  
+                # Update all lists' folder_id
                 cursor = conn.execute("UPDATE lists SET folder_id = ? WHERE folder_id = ?", (parent_folder_id, int(folder_id)))
                 lists_moved = cursor.rowcount
                 # Delete the folder
@@ -620,7 +622,7 @@ def delete_folder(params):
                 folder_deleted = cursor.rowcount
             success = folder_deleted > 0
         else:  # Delete folder and all contents
-            success = db_manager.delete_folder(folder_id)
+            success = query_manager.delete_folder(folder_id)
 
         if success:
             utils.log(f"Successfully deleted folder {folder_id}", "INFO")
@@ -649,10 +651,10 @@ def move_folder(params):
             return
 
         config = Config()
-        db_manager = DatabaseManager(config.db_path)
+        query_manager = QueryManager(config.db_path)
 
         # Get current folder info
-        folder_info = db_manager.fetch_folder_by_id(folder_id)
+        folder_info = query_manager.fetch_folder_by_id(folder_id)
         if not folder_info:
             utils.log(f"Folder {folder_id} not found", "ERROR")
             xbmcgui.Dialog().notification('LibraryGenie', 'Folder not found', xbmcgui.NOTIFICATION_ERROR)
@@ -665,12 +667,12 @@ def move_folder(params):
             return
 
         # Get all folders for selection (excluding Search History, current folder, and its descendants)
-        all_folders = db_manager.fetch_all_folders()
-        search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
+        all_folders = query_manager.fetch_all_folders()
+        search_history_folder_id = query_manager.get_folder_id_by_name("Search History")
         current_parent_id = folder_info.get('parent_id')
 
         # Get descendant folder IDs to exclude them
-        descendant_ids = db_manager.get_descendant_folder_ids(folder_id)
+        descendant_ids = query_manager.get_descendant_folder_ids(folder_id)
         descendant_ids.append(folder_id)  # Include self
 
         # Filter available folders
@@ -687,7 +689,7 @@ def move_folder(params):
 
         for folder in available_folders:
             # Build folder path for display
-            folder_path = db_manager.get_folder_path(folder['id'])
+            folder_path = query_manager.get_folder_path(folder['id'])
             folder_options.append(f"📁 {folder_path}")
             folder_ids.append(folder['id'])
 
@@ -717,7 +719,7 @@ def move_folder(params):
             return
 
         # Perform the move
-        success = db_manager.update_data('folders', {'parent_id': target_parent_id}, 'id = ?', (int(folder_id),))
+        success = query_manager.update_data('folders', {'parent_id': target_parent_id}, 'id = ?', (int(folder_id),))
 
         if success:
             utils.log(f"Successfully moved folder {folder_id} to parent {target_parent_id}", "INFO")
@@ -744,11 +746,11 @@ def create_subfolder(params):
         # If no parent_folder_id specified, create at root level (parent_folder_id = None)
 
         config = Config()
-        db_manager = DatabaseManager(config.db_path)
+        query_manager = QueryManager(config.db_path)
 
         # If parent specified, verify it exists
         if parent_folder_id:
-            parent_folder = db_manager.fetch_folder_by_id(parent_folder_id)
+            parent_folder = query_manager.fetch_folder_by_id(parent_folder_id)
             if not parent_folder:
                 utils.log(f"Parent folder {parent_folder_id} not found", "ERROR")
                 xbmcgui.Dialog().notification('LibraryGenie', 'Parent folder not found', xbmcgui.NOTIFICATION_ERROR)
@@ -770,14 +772,14 @@ def create_subfolder(params):
         new_folder_name = new_folder_name.strip()
 
         # Check if folder name already exists in the parent
-        existing_folders = db_manager.fetch_folders(parent_folder_id)
+        existing_folders = query_manager.fetch_folders(parent_folder_id)
         for folder in existing_folders:
             if folder['name'].lower() == new_folder_name.lower():
                 xbmcgui.Dialog().notification('LibraryGenie', 'Folder name already exists', xbmcgui.NOTIFICATION_ERROR)
                 return
 
         # Create the folder
-        new_folder = db_manager.create_folder(new_folder_name, parent_folder_id)
+        new_folder = query_manager.create_folder(new_folder_name, parent_folder_id)
 
         if new_folder:
             utils.log(f"Successfully created subfolder '{new_folder_name}' in parent {parent_folder_id}", "INFO")
@@ -805,9 +807,9 @@ def rename_folder(params):
         return
     try:
         config = Config()
-        db_manager = DatabaseManager(config.db_path)
+        query_manager = QueryManager(config.db_path)
 
-        db_manager.update_data('folders', {'name': new_name}, 'id = ?', (int(folder_id),))
+        query_manager.update_data('folders', {'name': new_name}, 'id = ?', (int(folder_id),))
         xbmcgui.Dialog().notification('LibraryGenie', 'Folder renamed')
         # Use navigation manager for consistent logging
         from resources.lib.core.navigation_manager import get_navigation_manager
@@ -859,19 +861,14 @@ def add_to_list(params):
         }
 
         # Use database manager to handle the add to list functionality
-        from resources.lib.config.config_manager import Config
-        from resources.lib.data.database_manager import DatabaseManager
-        from resources.lib.data.query_manager import QueryManager
-
         config = Config()
-        db_manager = DatabaseManager(config.db_path)
         query_manager = QueryManager(config.db_path)
 
         # Get all available lists for user selection
-        all_lists = db_manager.fetch_all_lists()
+        all_lists = query_manager.fetch_all_lists()
 
         # Get Search History folder ID to exclude its lists
-        search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
+        search_history_folder_id = query_manager.get_folder_id_by_name("Search History")
 
         # Filter out Search History lists
         filtered_lists = []
@@ -981,12 +978,7 @@ def add_movies_to_list(params):
                 utils.log("Invalid movie_data format", "ERROR")
                 return
 
-        from resources.lib.config.config_manager import Config
-        from resources.lib.data.database_manager import DatabaseManager
-        from resources.lib.data.query_manager import QueryManager
-
         config = Config()
-        db_manager = DatabaseManager(config.db_path)
         query_manager = QueryManager(config.db_path)
 
         # Add each movie to the list
@@ -1042,20 +1034,15 @@ def add_to_list_from_context(params):
         }
 
         # Use the database manager to handle the add to list functionality
-        from resources.lib.config.config_manager import Config
-        from resources.lib.data.database_manager import DatabaseManager
-        from resources.lib.data.query_manager import QueryManager
-
         config = Config()
-        db_manager = DatabaseManager(config.db_path)
         query_manager = QueryManager(config.db_path)
 
 
         # Get all available lists for user selection
-        all_lists = db_manager.fetch_all_lists()
+        all_lists = query_manager.fetch_all_lists()
 
         # Get Search History folder ID to exclude its lists
-        search_history_folder_id = db_manager.get_folder_id_by_name("Search History")
+        search_history_folder_id = query_manager.get_folder_id_by_name("Search History")
 
         # Filter out Search History lists
         filtered_lists = []
@@ -1287,9 +1274,8 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
         facet_desc = ' + '.join(facet_names)
 
         # Get database manager and use its query_manager
-        from resources.lib.data.database_manager import DatabaseManager
-        db_manager = DatabaseManager(config.db_path)
-        search_folder = db_manager.query_manager.ensure_search_history_folder()
+        query_manager = QueryManager(config.db_path)
+        search_folder = query_manager.ensure_search_history_folder()
 
         # Check if search folder was created successfully
         if search_folder is None:
@@ -1306,11 +1292,11 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
 
         # Create unique list name
         base_name = f"Similar to {title} ({facet_desc})"
-        list_name = db_manager.query_manager.get_unique_list_name(base_name, search_folder_id)
+        list_name = query_manager.get_unique_list_name(base_name, search_folder_id)
         utils.log(f"=== SIMILARITY_SEARCH: Creating list '{list_name}' in folder {search_folder_id} ===", "DEBUG")
 
         # Create the list
-        new_list = db_manager.query_manager.create_list(list_name, search_folder_id)
+        new_list = query_manager.create_list(list_name, search_folder_id)
         if not new_list:
             xbmcgui.Dialog().ok('LibraryGenie', 'Failed to create similarity list.')
             return
@@ -1324,7 +1310,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
 
         utils.log(f"=== SIMILARITY_SEARCH: Created list with ID {new_list_id} ===", "DEBUG")
 
-        # Process similar movies following the same flow as regular search
+        # Process similar movies following the same flow as search results
         utils.log(f"=== SIMILARITY_SEARCH: Processing {len(similar_movies)} IMDb IDs ===", "DEBUG")
 
         # Step 1: Convert IMDb IDs to format expected by search results
@@ -1363,7 +1349,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
 
                 try:
                     lookup_query = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
-                    lookup_result = db_manager.query_manager.execute_query(lookup_query, (imdb_id,))
+                    lookup_result = query_manager.execute_query(lookup_query, (imdb_id,))
                     if lookup_result:
                         title_lookup = lookup_result[0].get('title', '')
                         year_lookup = int(lookup_result[0].get('year', 0) or 0)
@@ -1390,7 +1376,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
 
                 # Insert media item and add to list
                 try:
-                    success = db_manager.query_manager.insert_media_item_and_add_to_list(new_list_id, media_item_data)
+                    success = query_manager.insert_media_item_and_add_to_list(new_list_id, media_item_data)
                     if success:
                         utils.log(f"=== SIMILARITY_SEARCH: Successfully added {imdb_id} to list ===", "DEBUG")
                     else:
@@ -1398,7 +1384,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
                 except Exception as e:
                     utils.log(f"=== SIMILARITY_SEARCH: Error adding {imdb_id} to list: {str(e)} ===", "ERROR")
 
-        utils.log(f"=== SIMILARITY_SEARCH: Finished processing {len(search_results)} movies into list {new_list_id} ===", "DEBUG")
+        utils.log(f"=== SIMILARITY_SEARCH: Finished processing {len(similar_movies)} movies into list {new_list_id} ===", "DEBUG")
 
         # Show confirmation and navigate to the created list
         xbmcgui.Dialog().notification('LibraryGenie', f'Created similarity list with {len(similar_movies)} movies', xbmcgui.NOTIFICATION_INFO)
