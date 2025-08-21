@@ -31,6 +31,25 @@ def show_library_status():
         )
         items_with_imdb = imdb_result['count'] if imdb_result else 0
         
+        # Get unique IMDb IDs count from media_items
+        unique_imdb_result = query_manager.execute_query(
+            "SELECT COUNT(DISTINCT imdbnumber) as count FROM media_items WHERE source = 'lib' AND imdbnumber IS NOT NULL AND imdbnumber != '' AND imdbnumber LIKE 'tt%'",
+            fetch_one=True
+        )
+        unique_imdb_count = unique_imdb_result['count'] if unique_imdb_result else 0
+        
+        # Calculate duplicates
+        duplicate_imdb_count = items_with_imdb - unique_imdb_count
+        
+        # Get imdb_exports table stats
+        exports_result = query_manager.execute_query(
+            "SELECT COUNT(*) as total, COUNT(DISTINCT imdb_id) as unique_exports FROM imdb_exports WHERE imdb_id IS NOT NULL AND imdb_id != '' AND imdb_id LIKE 'tt%'",
+            fetch_one=True
+        )
+        exports_total = exports_result['total'] if exports_result else 0
+        exports_unique = exports_result['unique_exports'] if exports_result else 0
+        exports_duplicates = exports_total - exports_unique
+        
         # Calculate percentage
         imdb_percentage = (items_with_imdb / total_library_items * 100) if total_library_items > 0 else 0
         
@@ -80,10 +99,17 @@ def show_library_status():
         status_lines = [
             "=== ADDON LIBRARY STATUS ===",
             "",
-            f"📚 LOCAL LIBRARY:",
+            f"📚 LOCAL LIBRARY (media_items):",
             f"  • Total library items: {total_library_items:,}",
             f"  • Items with IMDb ID: {items_with_imdb:,} ({imdb_percentage:.1f}%)",
+            f"  • Unique IMDb IDs: {unique_imdb_count:,}",
+            f"  • Duplicate IMDb entries: {duplicate_imdb_count:,}",
             f"  • Items without IMDb: {total_library_items - items_with_imdb:,}",
+            "",
+            f"📊 EXPORT TABLE (imdb_exports):",
+            f"  • Total export records: {exports_total:,}",
+            f"  • Unique IMDb IDs: {exports_unique:,}",
+            f"  • Duplicate export records: {exports_duplicates:,}",
             "",
             f"🌐 SERVER STATUS:",
             f"  • Status: {server_status}",
@@ -92,25 +118,36 @@ def show_library_status():
         ]
         
         # Add sync status comparison if we have both local and server data
-        if server_count > 0 and items_with_imdb > 0:
-            sync_percentage = (server_count / items_with_imdb * 100) if items_with_imdb > 0 else 0
+        if server_count > 0 and unique_imdb_count > 0:
+            sync_percentage = (server_count / unique_imdb_count * 100) if unique_imdb_count > 0 else 0
             status_lines.extend([
-                f"🔄 SYNC STATUS:",
-                f"  • Server has {server_count:,} of {items_with_imdb:,} local movies ({sync_percentage:.1f}%)",
-                f"  • Difference: {abs(items_with_imdb - server_count):,} movies",
+                f"🔄 SYNC STATUS (using unique IMDb counts):",
+                f"  • Server has {server_count:,} of {unique_imdb_count:,} unique local movies ({sync_percentage:.1f}%)",
+                f"  • Difference: {abs(unique_imdb_count - server_count):,} movies",
+                f"  • Export table has {exports_unique:,} unique IMDb IDs for upload",
             ])
             
-            if server_count < items_with_imdb:
-                status_lines.append(f"  • ⚠️  Server is missing {items_with_imdb - server_count:,} movies")
-            elif server_count > items_with_imdb:
-                status_lines.append(f"  • ℹ️  Server has {server_count - items_with_imdb:,} more movies than local")
+            if server_count < unique_imdb_count:
+                status_lines.append(f"  • ⚠️  Server is missing {unique_imdb_count - server_count:,} unique movies")
+            elif server_count > unique_imdb_count:
+                status_lines.append(f"  • ℹ️  Server has {server_count - unique_imdb_count:,} more movies than local unique")
             else:
-                status_lines.append(f"  • ✅ Server and local library are in sync")
+                status_lines.append(f"  • ✅ Server and local unique library are in sync")
+                
+            # Show explanation if there are duplicates
+            if duplicate_imdb_count > 0:
+                status_lines.extend([
+                    "",
+                    f"ℹ️  DUPLICATE INFO:",
+                    f"  • {duplicate_imdb_count:,} duplicate IMDb entries in media_items",
+                    f"  • Upload process uses unique IMDb IDs only",
+                    f"  • This explains difference between total ({items_with_imdb:,}) and uploaded counts",
+                ])
         
         status_text = "\n".join(status_lines)
         
         utils.log("LIBRARY_STATUS: Status summary generated successfully", "INFO")
-        utils.log(f"LIBRARY_STATUS: Total: {total_library_items}, IMDb: {items_with_imdb}, Server: {server_count}", "INFO")
+        utils.log(f"LIBRARY_STATUS: Total: {total_library_items}, IMDb: {items_with_imdb}, Unique IMDb: {unique_imdb_count}, Duplicates: {duplicate_imdb_count}, Server: {server_count}", "INFO")
         
         # Show the dialog
         xbmcgui.Dialog().textviewer('Addon Library Status', status_text)
