@@ -625,17 +625,25 @@ class IMDbUploadManager:
             result = self.remote_client._chunked_movie_upload(movies, mode='replace', progress_callback=progress_callback)
 
             if result.get('success'):
-                # Try multiple ways to get the uploaded count
-                uploaded_count = (
-                    result.get('user_movie_count') or
-                    result.get('final_tallies', {}).get('total_movies') or
-                    result.get('final_tallies', {}).get('successful_imports') or
-                    len(movies)
-                )
-                utils.log(f"Upload result: {result}", "DEBUG")
-                utils.show_notification("LibraryGenie", f"Upload complete! {uploaded_count} movies uploaded", time=5000)
+                # Get detailed upload statistics
+                final_tallies = result.get('final_tallies', {})
+                accepted = final_tallies.get('accepted', 0)
+                duplicates = final_tallies.get('duplicates', 0)
+                invalid = final_tallies.get('invalid', 0)
+                user_movie_count = result.get('user_movie_count', 0)
                 
-                # Show addon status modal after successful upload
+                utils.log(f"Upload result: {result}", "DEBUG")
+                utils.log(f"Upload statistics - Accepted: {accepted}, Duplicates: {duplicates}, Invalid: {invalid}, Final count: {user_movie_count}", "INFO")
+                
+                # Check if upload was actually successful (not all duplicates)
+                if accepted > 0 or user_movie_count > 0:
+                    utils.show_notification("LibraryGenie", f"Upload complete! {user_movie_count} movies on server", time=5000)
+                elif duplicates > 0 and accepted == 0:
+                    utils.show_notification("LibraryGenie", f"Upload issue: All {duplicates} movies marked as duplicates. Server may already have these movies.", time=8000)
+                else:
+                    utils.show_notification("LibraryGenie", f"Upload completed but no movies were accepted. Check server logs.", time=8000)
+                
+                # Show addon status modal after upload (regardless of result)
                 try:
                     from resources.lib.integrations.remote_api.library_status import show_library_status
                     show_library_status()
