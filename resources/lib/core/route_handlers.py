@@ -1,4 +1,3 @@
-
 """Route handlers for LibraryGenie plugin actions"""
 import xbmc
 import xbmcgui
@@ -193,7 +192,7 @@ def delete_list(params):
             xbmcgui.Dialog().notification('LibraryGenie', 'List deleted')
         else:
             xbmcgui.Dialog().notification('LibraryGenie', 'List not found', xbmcgui.NOTIFICATION_WARNING)
-            
+
         # Use navigation manager for consistent logging
         from resources.lib.core.navigation_manager import get_navigation_manager
         nav_manager = get_navigation_manager()
@@ -863,9 +862,11 @@ def add_to_list(params):
         # Use database manager to handle the add to list functionality
         from resources.lib.config.config_manager import Config
         from resources.lib.data.database_manager import DatabaseManager
+        from resources.lib.data.query_manager import QueryManager
 
         config = Config()
         db_manager = DatabaseManager(config.db_path)
+        query_manager = QueryManager(config.db_path)
 
         # Get all available lists for user selection
         all_lists = db_manager.fetch_all_lists()
@@ -887,7 +888,7 @@ def add_to_list(params):
             # Get folder path for display
             folder_path = ""
             if list_item.get('folder_id'):
-                folder = db_manager.fetch_folder_by_id(list_item['folder_id'])
+                folder = query_manager.execute_query('SELECT * FROM folders WHERE id = ?', (list_item['folder_id'],), fetch_one=True)
                 if folder:
                     folder_path = f"[{folder['name']}] "
 
@@ -915,7 +916,7 @@ def add_to_list(params):
                 return
 
             # Create new list at root level (folder_id=None)
-            created_list = db_manager.create_list(new_list_name, None)
+            created_list = query_manager.create_list(new_list_name, None)
             if not created_list:
                 xbmcgui.Dialog().notification('LibraryGenie', 'Failed to create new list', xbmcgui.NOTIFICATION_ERROR)
                 return
@@ -926,25 +927,25 @@ def add_to_list(params):
 
 
         # Create or find the media item using parameterized query
-        existing_media = db_manager.fetch_data('media_items', 'imdbnumber = ?', (imdb_id,))
+        existing_media = query_manager.execute_query('SELECT * FROM media_items WHERE imdbnumber = ?', (imdb_id,), fetch_all=True)
 
         if existing_media:
             media_id = existing_media[0]['id']
             utils.log(f"Found existing media item with ID: {media_id}", "DEBUG")
         else:
             # Insert new media item
-            media_id = db_manager.insert_data('media_items', media_item)
+            media_id = query_manager.insert_media_item(media_item)
             utils.log(f"Created new media item with ID: {media_id}", "DEBUG")
 
         # Check if already in list using parameterized query
-        existing_list_item = db_manager.fetch_data('list_items', 'list_id = ? AND media_item_id = ?', (int(selected_list_id), int(media_id)))
+        existing_list_item = query_manager.execute_query('SELECT * FROM list_items WHERE list_id = ? AND media_item_id = ?', (int(selected_list_id), int(media_id)), fetch_all=True)
 
         if existing_list_item:
             xbmcgui.Dialog().notification('LibraryGenie', f'"{title}" is already in that list', xbmcgui.NOTIFICATION_INFO, 3000)
         else:
-            # Add to list using the database manager's method
+            # Add to list using the query manager's method
             try:
-                success = db_manager.add_media_item(selected_list_id, media_item)
+                success = query_manager.insert_media_item_and_add_to_list(selected_list_id, media_item)
 
                 if success:
                     utils.log(f"Successfully added item to list: list_id={selected_list_id}, media_item_id={media_id}", "DEBUG")
@@ -959,7 +960,7 @@ def add_to_list(params):
 
     except Exception as e:
         utils.log(f"Error in add_to_list: {str(e)}", "ERROR")
-        xbmcgui.Dialog().notification('LibraryGenie', 'Error adding to list', xbmcgui.NOTIFICATION_ERROR, 3000)
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error adding to list', xbmcgui.NOTIFICATION_ERROR)
 
 def add_movies_to_list(params):
     """Handler for adding multiple movies to a list - used by search results"""
@@ -983,15 +984,17 @@ def add_movies_to_list(params):
 
         from resources.lib.config.config_manager import Config
         from resources.lib.data.database_manager import DatabaseManager
+        from resources.lib.data.query_manager import QueryManager
 
         config = Config()
         db_manager = DatabaseManager(config.db_path)
+        query_manager = QueryManager(config.db_path)
 
         # Add each movie to the list
         success_count = 0
         for movie in movie_data:
             try:
-                success = db_manager.add_media_item(list_id, movie)
+                success = query_manager.add_media_item(list_id, movie)
                 if success:
                     success_count += 1
             except Exception as e:
@@ -1042,9 +1045,12 @@ def add_to_list_from_context(params):
         # Use the database manager to handle the add to list functionality
         from resources.lib.config.config_manager import Config
         from resources.lib.data.database_manager import DatabaseManager
+        from resources.lib.data.query_manager import QueryManager
 
         config = Config()
         db_manager = DatabaseManager(config.db_path)
+        query_manager = QueryManager(config.db_path)
+
 
         # Get all available lists for user selection
         all_lists = db_manager.fetch_all_lists()
@@ -1066,7 +1072,7 @@ def add_to_list_from_context(params):
             # Get folder path for display
             folder_path = ""
             if list_item.get('folder_id'):
-                folder = db_manager.fetch_folder_by_id(list_item['folder_id'])
+                folder = query_manager.execute_query('SELECT * FROM folders WHERE id = ?', (list_item['folder_id'],), fetch_one=True)
                 if folder:
                     folder_path = f"[{folder['name']}] "
 
@@ -1094,7 +1100,7 @@ def add_to_list_from_context(params):
                 return
 
             # Create new list at root level (folder_id=None)
-            created_list = db_manager.create_list(new_list_name, None)
+            created_list = query_manager.create_list(new_list_name, None)
             if not created_list:
                 xbmcgui.Dialog().notification('LibraryGenie', 'Failed to create new list', xbmcgui.NOTIFICATION_ERROR)
                 return
@@ -1105,25 +1111,25 @@ def add_to_list_from_context(params):
 
 
         # Create or find the media item using parameterized query
-        existing_media = db_manager.fetch_data('media_items', 'imdbnumber = ?', (imdb_id,))
+        existing_media = query_manager.execute_query('SELECT * FROM media_items WHERE imdbnumber = ?', (imdb_id,), fetch_all=True)
 
         if existing_media:
             media_id = existing_media[0]['id']
             utils.log(f"Found existing media item with ID: {media_id}", "DEBUG")
         else:
             # Insert new media item
-            media_id = db_manager.insert_data('media_items', media_item)
+            media_id = query_manager.insert_media_item(media_item)
             utils.log(f"Created new media item with ID: {media_id}", "DEBUG")
 
         # Check if already in list using parameterized query
-        existing_list_item = db_manager.fetch_data('list_items', 'list_id = ? AND media_item_id = ?', (int(selected_list_id), int(media_id)))
+        existing_list_item = query_manager.execute_query('SELECT * FROM list_items WHERE list_id = ? AND media_item_id = ?', (int(selected_list_id), int(media_id)), fetch_all=True)
 
         if existing_list_item:
             xbmcgui.Dialog().notification('LibraryGenie', f'"{title}" is already in that list', xbmcgui.NOTIFICATION_INFO, 3000)
         else:
-            # Add to list using the database manager's method
+            # Add to list using the query manager's method
             try:
-                success = db_manager.add_media_item(selected_list_id, media_item)
+                success = query_manager.insert_media_item_and_add_to_list(selected_list_id, media_item)
 
                 if success:
                     utils.log(f"Successfully added item to list: list_id={selected_list_id}, media_item_id={media_id}", "DEBUG")
@@ -1138,7 +1144,7 @@ def add_to_list_from_context(params):
 
     except Exception as e:
         utils.log(f"Error in add_to_list_from_context: {str(e)}", "ERROR")
-        xbmcgui.Dialog().notification('LibraryGenie', 'Error adding to list', xbmcgui.NOTIFICATION_ERROR, 3000)
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error adding to list', xbmcgui.NOTIFICATION_ERROR)
 
 def find_similar_movies(params):
     """Handler for similarity search from plugin interface"""
