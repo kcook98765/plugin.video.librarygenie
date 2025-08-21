@@ -1,5 +1,6 @@
 import json
 import xbmc
+import time
 from resources.lib.utils.utils import log
 from typing import Dict, Any
 
@@ -38,8 +39,16 @@ class JSONRPC:
         log(f"Request params: {params}", "DEBUG")
         log(f"Full request JSON: {json.dumps(request_data, indent=2)}", "DEBUG")
 
+        # Start timing
+        start_time = time.time()
+
         # Send JSONRPC request
         response = xbmc.executeJSONRPC(query_json)
+
+        # End timing and log execution time
+        end_time = time.time()
+        execution_time_ms = (end_time - start_time) * 1000
+        log(f"=== JSONRPC TIMING: {method} executed in {execution_time_ms:.2f}ms ===", "INFO")
 
         # Log raw response
         log(f"=== JSONRPC RESPONSE RAW: {method} ===", "DEBUG")
@@ -47,24 +56,15 @@ class JSONRPC:
 
         parsed_response = json.loads(response)
 
-        # Log parsed response details
-        log(f"=== JSONRPC RESPONSE PARSED: {method} ===", "DEBUG")
-        if 'result' in parsed_response:
+        # Log parsed response details (reduced verbosity)
+        if 'result' in parsed_response and method not in ['VideoLibrary.GetMovies']:
+            # Only log detailed response info for non-batch operations
+            log(f"=== JSONRPC RESPONSE PARSED: {method} ===", "DEBUG")
             result = parsed_response['result']
             if isinstance(result, dict):
                 log(f"Response result keys: {list(result.keys())}", "DEBUG")
-                # Log movie count for movie-related methods
-                if method in ['VideoLibrary.GetMovies', 'VideoLibrary.GetMovieDetails']:
-                    if 'movies' in result:
-                        log(f"Movies returned: {len(result['movies'])}", "DEBUG")
-                        if result['movies']:
-                            # Log first movie sample with detailed IMDb analysis
-                            first_movie = result['movies'][0]
-                            log(f"First movie sample keys: {list(first_movie.keys())}", "DEBUG")
-                            log(f"First movie title: {first_movie.get('title', 'N/A')}", "DEBUG")
 
-
-                    elif 'moviedetails' in result:
+                if 'moviedetails' in result:
                         movie = result['moviedetails']
                         log(f"Movie details keys: {list(movie.keys())}", "DEBUG")
                         log(f"Movie title: {movie.get('title', 'N/A')}", "DEBUG")
@@ -146,28 +146,29 @@ class JSONRPC:
             return ["title", "year", "file", "imdbnumber"]
 
     def get_movies_with_imdb(self, progress_callback=None):
-        """Get all movies from Kodi library with IMDb information"""
+        """Get all movies from Kodi library with IMDb information and cache heavy fields"""
         log("Getting all movies with IMDb information from Kodi library", "DEBUG")
 
-        # Get version-compatible properties
-        properties = self._get_version_compatible_properties()
-        log(f"Using properties for this Kodi version: {properties}", "DEBUG")
+        # Get comprehensive properties for full scan (includes heavy fields)
+        properties = self.get_comprehensive_properties()
+        log(f"Using comprehensive properties for full scan: {len(properties)} fields", "DEBUG")
 
         all_movies = []
         start = 0
         limit = 100
         total_estimated = None
+        cached_count = 0
 
         while True:
             # Update progress if callback provided
             if progress_callback:
                 if total_estimated and total_estimated > 0:
                     percent = min(80, int((len(all_movies) / total_estimated) * 80))
-                    progress_callback.update(percent, f"Retrieved {len(all_movies)} of {total_estimated} movies...")
+                    progress_callback.update(percent, f"Retrieved {len(all_movies)} of {total_estimated} movies (cached {cached_count})...")
                     if progress_callback.iscanceled():
                         break
                 else:
-                    progress_callback.update(10, f"Retrieved {len(all_movies)} movies...")
+                    progress_callback.update(10, f"Retrieved {len(all_movies)} movies (cached {cached_count})...")
                     if progress_callback.iscanceled():
                         break
 
@@ -193,9 +194,46 @@ class JSONRPC:
             if total_estimated is None and total > 0:
                 total_estimated = total
 
+            # Cache heavy fields for each movie in this batch using public transaction context
+            batch_cached = 0
+            try:
+                # Import here to avoid circular imports
+                from resources.lib.data.query_manager import QueryManager
+                from resources.lib.config.config_manager import Config
+                query_manager = QueryManager(Config().db_path)
+
+                # Use public transaction context manager for batch writes
+                with query_manager.transaction():
+                    for movie in movies:
+                        if self.cache_heavy_meta(movie, query_manager):
+                            batch_cached += 1
+
+                log(f"Committed heavy metadata transaction for batch of {len(movies)} movies", "DEBUG")
+
+            except Exception as e:
+                log(f"Heavy metadata transaction failed: {str(e)}", "WARNING")
+                # Fall back to individual inserts without transaction
+                query_manager = None
+                try:
+                    from resources.lib.data.query_manager import QueryManager
+                    from resources.lib.config.config_manager import Config
+                    query_manager = QueryManager(Config().db_path)
+                except Exception as qm_error:
+                    log(f"Failed to get query manager for fallback: {str(qm_error)}", "ERROR")
+
+                if query_manager:
+                    for movie in movies:
+                        try:
+                            if self.cache_heavy_meta(movie, query_manager):
+                                batch_cached += 1
+                        except Exception as movie_error:
+                            log(f"Failed to cache heavy metadata for movie {movie.get('movieid', 'unknown')}: {str(movie_error)}", "WARNING")
+
+            cached_count += batch_cached
+
             # Log summary only every 500 movies to reduce spam
             if start % 500 == 0:
-                log(f"JSONRPC GetMovies batch: Got {len(movies)} movies (start={start}, total={total})", "DEBUG")
+                log(f"JSONRPC GetMovies batch: Got {len(movies)} movies (start={start}, total={total}, cached={batch_cached})", "DEBUG")
 
             if not movies:
                 break
@@ -209,6 +247,7 @@ class JSONRPC:
             start += limit
 
         log(f"Retrieved {len(all_movies)} total movies from Kodi library", "INFO")
+        log(f"Cached heavy metadata for {cached_count} movies", "INFO")
         return all_movies
 
     def get_episode_details(self, episode_id, properties=None):
@@ -473,20 +512,110 @@ class JSONRPC:
             "premiered", "uniqueid"
         ]
 
+    def get_light_properties(self):
+        """Get fast properties excluding heavy fields for batch operations"""
+        # Exclude slow fields: cast, ratings, showlink, streamdetails, uniqueid, tag
+        # Note: movieid is automatically included and should not be explicitly listed
+        return [
+            "title", "genre", "year", "rating", "director", "trailer", "tagline", "plot",
+            "plotoutline", "originaltitle", "lastplayed", "playcount", "writer", "studio",
+            "mpaa", "country", "imdbnumber", "runtime", "set", "top250", "votes", 
+            "fanart", "thumbnail", "file", "sorttitle", "resume", "setid", "dateadded", 
+            "art", "userrating", "premiered"
+        ]
+
+    def cache_heavy_meta(self, movie_data, query_manager=None):
+        """Cache heavy metadata fields for a movie"""
+        movieid = movie_data.get('movieid')
+        try:
+            if not movieid:
+                return False
+
+            # Import here to avoid circular imports if query_manager not passed
+            if query_manager is None:
+                from resources.lib.data.query_manager import QueryManager
+                from resources.lib.config.config_manager import Config
+                query_manager = QueryManager(Config().db_path)
+
+            import json
+            import time
+
+            # Extract heavy fields with safe JSON serialization
+            imdbnumber = str(movie_data.get('imdbnumber', ''))
+
+            # Safely serialize heavy fields, handling potential serialization errors
+            try:
+                cast_json = json.dumps(movie_data.get('cast', []), ensure_ascii=False)
+            except (TypeError, ValueError):
+                cast_json = '[]'
+
+            try:
+                ratings_json = json.dumps(movie_data.get('ratings', {}), ensure_ascii=False)
+            except (TypeError, ValueError):
+                ratings_json = '{}'
+
+            try:
+                showlink_json = json.dumps(movie_data.get('showlink', []), ensure_ascii=False)
+            except (TypeError, ValueError):
+                showlink_json = '[]'
+
+            try:
+                stream_json = json.dumps(movie_data.get('streamdetails', {}), ensure_ascii=False)
+            except (TypeError, ValueError):
+                stream_json = '{}'
+
+            try:
+                uniqueid_json = json.dumps(movie_data.get('uniqueid', {}), ensure_ascii=False)
+            except (TypeError, ValueError):
+                uniqueid_json = '{}'
+
+            try:
+                tags_json = json.dumps(movie_data.get('tag', []), ensure_ascii=False)
+            except (TypeError, ValueError):
+                tags_json = '[]'
+
+            # Use query manager's public write executor
+            current_time = int(time.time())
+            query_manager.execute_write("""
+                INSERT OR REPLACE INTO movie_heavy_meta 
+                (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
+                 stream_json, uniqueid_json, tags_json, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                movieid, imdbnumber, cast_json, ratings_json, 
+                showlink_json, stream_json, uniqueid_json, tags_json, current_time
+            ))
+
+            return True
+
+        except Exception as e:
+            log(f"Error caching heavy metadata for movie {movieid}: {str(e)}", "WARNING")
+            return False
+
 
 
 
     def get_movie_details_comprehensive(self, movie_id):
         properties = self.get_comprehensive_properties()
-        return self.get_movie_details(movie_id, properties=properties)
+        response = self.get_movie_details(movie_id, properties=properties)
+
+        # Cache heavy fields if we got a successful response
+        if 'result' in response and 'moviedetails' in response['result']:
+            movie_data = response['result']['moviedetails']
+            # Add movieid if not present (should be there but let's be safe)
+            if 'movieid' not in movie_data:
+                movie_data['movieid'] = movie_id
+            self.cache_heavy_meta(movie_data)
+
+        return response
 
     def get_movies_by_title_year_batch(self, title_year_pairs):
-        """Optimized lookup using OR filter for title-year combinations"""
+        """Optimized lookup using OR filter for title-year combinations with cached heavy fields"""
         if not title_year_pairs:
             return {"result": {"movies": []}}
 
         try:
-            log(f"=== BATCH JSON-RPC: Starting batch lookup for {len(title_year_pairs)} title/year pairs ===", "INFO")
+            log(f"=== BATCH JSON-RPC: Starting FAST batch lookup for {len(title_year_pairs)} title/year pairs ===", "INFO")
 
             # Log sample of what we're looking for
             sample_pairs = title_year_pairs[:3]
@@ -495,7 +624,37 @@ class JSONRPC:
             if len(title_year_pairs) > 3:
                 log(f"BATCH JSON-RPC: ... and {len(title_year_pairs) - 3} more", "INFO")
 
-            properties = self.get_comprehensive_properties()
+            # Use light properties for faster response with version compatibility
+            base_properties = self.get_light_properties()
+
+            # Apply version compatibility filtering like other JSON-RPC calls
+            try:
+                # Test with a small subset first to detect invalid properties
+                test_filter = {
+                    'field': 'title',
+                    'operator': 'contains', 
+                    'value': 'test_query_for_property_validation'
+                }
+                test_response = self.execute('VideoLibrary.GetMovies', {
+                    'properties': base_properties[:5],  # Test with first 5 properties
+                    'filter': test_filter,
+                    'limits': {'start': 0, 'end': 1}
+                })
+
+                if 'error' in test_response:
+                    # Check for invalid property error
+                    invalid_index = self._extract_invalid_prop_index(test_response)
+                    if invalid_index is not None and invalid_index < len(base_properties):
+                        invalid_prop = base_properties[invalid_index]
+                        log(f"BATCH JSON-RPC: Removing invalid property '{invalid_prop}' for this Kodi version", "WARNING")
+                        base_properties = [p for p in base_properties if p != invalid_prop]
+
+                properties = base_properties
+                log(f"BATCH JSON-RPC: Using {len(properties)} compatible light properties (excluding heavy fields)", "INFO")
+
+            except Exception as e:
+                log(f"BATCH JSON-RPC: Property compatibility check failed, using basic properties: {str(e)}", "WARNING")
+                properties = ["title", "year", "movieid", "file"]
 
             # Build OR filter for all title-year combinations using proper Kodi JSON-RPC syntax
             filter_conditions = []
@@ -562,7 +721,7 @@ class JSONRPC:
                 }
 
             log(f"BATCH JSON-RPC: Built OR filter with {len(filter_conditions)} conditions", "INFO")
-            log("BATCH JSON-RPC: Making single JSONRPC call to VideoLibrary.GetMovies", "INFO")
+            log("BATCH JSON-RPC: Making FAST JSONRPC call to VideoLibrary.GetMovies", "INFO")
 
             response = self.execute('VideoLibrary.GetMovies', {
                 'properties': properties,
@@ -570,17 +729,63 @@ class JSONRPC:
             })
 
             if 'result' in response and 'movies' in response['result']:
-                movies = response['result']['movies']
-                log(f"=== BATCH JSON-RPC: SUCCESS - Found {len(movies)} matches from single call ===", "INFO")
+                light_movies = response['result']['movies']
+                log(f"=== BATCH JSON-RPC: Got {len(light_movies)} light movies from fast call ===", "INFO")
+
+                # Step 2: Merge cached heavy fields
+                movieids = [m.get('movieid') for m in light_movies if m.get('movieid')]
+                log(f"BATCH JSON-RPC: Fetching heavy fields for {len(movieids)} movies from cache", "INFO")
+
+                if movieids:
+                    try:
+                        # Import here to avoid circular imports
+                        from resources.lib.data.query_manager import QueryManager
+                        from resources.lib.config.config_manager import Config
+                        query_manager = QueryManager(Config().db_path)
+
+                        # Get heavy fields from cache in one DB call
+                        heavy_by_id = query_manager._listing.get_heavy_meta_by_movieids(movieids)
+                        log(f"BATCH JSON-RPC: Retrieved heavy fields for {len(heavy_by_id)} movies from cache", "INFO")
+
+                        # Merge heavy fields back into light movies
+                        merged_count = 0
+                        missing_count = 0
+                        for movie in light_movies:
+                            movieid = movie.get('movieid')
+                            if movieid and movieid in heavy_by_id:
+                                heavy_fields = heavy_by_id[movieid]
+                                movie.update(heavy_fields)
+                                merged_count += 1
+                            else:
+                                # Fallback: Add empty/null values for missing heavy data
+                                movie.update({
+                                    'cast': [],
+                                    'ratings': {},
+                                    'showlink': [],
+                                    'streamdetails': {},
+                                    'uniqueid': {},
+                                    'tag': []
+                                })
+                                missing_count += 1
+
+                        log(f"BATCH JSON-RPC: Merged heavy fields for {merged_count}/{len(light_movies)} movies", "INFO")
+                        if missing_count > 0:
+                            log(f"BATCH JSON-RPC: Used fallback empty values for {missing_count} movies with missing heavy data", "WARNING")
+
+                    except Exception as e:
+                        log(f"BATCH JSON-RPC: Warning - Failed to merge heavy fields: {str(e)}", "WARNING")
+                        # Continue with light movies even if heavy field merge fails
 
                 # Log sample matches
-                for i, movie in enumerate(movies[:3]):
-                    log(f"BATCH JSON-RPC: Match {i+1}: '{movie.get('title', 'N/A')}' ({movie.get('year', 'N/A')})", "INFO")
-                if len(movies) > 3:
-                    log(f"BATCH JSON-RPC: ... and {len(movies) - 3} more matches", "INFO")
+                for i, movie in enumerate(light_movies[:3]):
+                    has_cast = len(movie.get('cast', [])) > 0
+                    has_uniqueid = bool(movie.get('uniqueid', {}))
+                    log(f"BATCH JSON-RPC: Match {i+1}: '{movie.get('title', 'N/A')}' ({movie.get('year', 'N/A')}) [cast:{has_cast}, uniqueid:{has_uniqueid}]", "INFO")
+                if len(light_movies) > 3:
+                    log(f"BATCH JSON-RPC: ... and {len(light_movies) - 3} more matches", "INFO")
 
-                # Return raw JSON-RPC payload for normalization by from_jsonrpc()
-                return response
+                log(f"=== BATCH JSON-RPC: SUCCESS - Completed FAST batch with heavy field merge ===", "INFO")
+                return {"result": {"movies": light_movies, "limits": response['result'].get('limits', {})}}
             else:
                 log("BATCH JSON-RPC: No movies found in response", "INFO")
                 return {"result": {"movies": []}}

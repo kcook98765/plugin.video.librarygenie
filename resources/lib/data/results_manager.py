@@ -2,8 +2,8 @@ import json
 from resources.lib.integrations.jsonrpc.jsonrpc_manager import JSONRPC
 from resources.lib.utils import utils
 from resources.lib.utils.singleton_base import Singleton
-from resources.lib.data.normalize import from_jsonrpc, from_db
-from resources.lib.kodi.listitem.factory import build_listitem
+from resources.lib.data.query_manager import QueryManager
+from resources.lib.config.config_manager import Config
 
 class ResultsManager(Singleton):
     def __init__(self):
@@ -21,25 +21,126 @@ class ResultsManager(Singleton):
             utils.log(f"Error searching movies: {e}", "ERROR")
             return []
 
+    def _get_light_movies_batch(self, title_year_pairs):
+        """Light JSON-RPC batch lookup without heavy fields"""
+        if not title_year_pairs:
+            return {"result": {"movies": []}}
+
+        try:
+            utils.log(f"=== LIGHT_JSONRPC: Starting light batch lookup for {len(title_year_pairs)} pairs ===", "INFO")
+
+            # Use only light properties for fast response
+            properties = self.jsonrpc.get_light_properties()
+            utils.log(f"=== LIGHT_JSONRPC: Using {len(properties)} light properties ===", "INFO")
+
+            # Build OR filter for all title-year combinations
+            filter_conditions = []
+            for pair in title_year_pairs:
+                title = (pair.get('title') or '').strip()
+                year = pair.get('year') or 0
+
+                if not title:
+                    continue
+
+                if year and str(year).isdigit():
+                    # AND condition for both title and year
+                    and_condition = [
+                        {
+                            'field': 'title',
+                            'operator': 'is',
+                            'value': title
+                        },
+                        {
+                            'field': 'year',
+                            'operator': 'is',
+                            'value': str(year)
+                        }
+                    ]
+                    filter_conditions.append(and_condition)
+                else:
+                    # Just title condition
+                    title_condition = [
+                        {
+                            'field': 'title',
+                            'operator': 'is',
+                            'value': title
+                        }
+                    ]
+                    filter_conditions.append(title_condition)
+
+            if not filter_conditions:
+                utils.log("LIGHT_JSONRPC: No valid filter conditions created", "WARNING")
+                return {"result": {"movies": []}}
+
+            # Create the proper Kodi JSON-RPC filter structure
+            if len(filter_conditions) == 1:
+                if len(filter_conditions[0]) == 1:
+                    search_filter = filter_conditions[0][0]
+                else:
+                    search_filter = {
+                        'and': filter_conditions[0]
+                    }
+            else:
+                or_list = []
+                for condition_group in filter_conditions:
+                    if len(condition_group) == 1:
+                        or_list.append(condition_group[0])
+                    else:
+                        or_list.append({
+                            'and': condition_group
+                        })
+
+                search_filter = {
+                    'or': or_list
+                }
+
+            utils.log(f"LIGHT_JSONRPC: Built OR filter with {len(filter_conditions)} conditions", "INFO")
+
+            response = self.jsonrpc.execute('VideoLibrary.GetMovies', {
+                'properties': properties,
+                'filter': search_filter
+            })
+
+            if 'result' in response and 'movies' in response['result']:
+                light_movies = response['result']['movies']
+                utils.log(f"=== LIGHT_JSONRPC: SUCCESS - Got {len(light_movies)} light movies ===", "INFO")
+
+                # Log first movie's complete light data
+                if light_movies:
+                    first_movie = light_movies[0]
+                    utils.log(f"=== JSONRPC_LIGHT_DATA: First movie complete light data ===", "INFO")
+                    for key, value in first_movie.items():
+                        utils.log(f"JSONRPC_LIGHT_DATA: {key} = {repr(value)}", "INFO")
+                    utils.log(f"=== END JSONRPC_LIGHT_DATA ===", "INFO")
+
+                return {"result": {"movies": light_movies, "limits": response['result'].get('limits', {})}}
+            else:
+                utils.log("LIGHT_JSONRPC: No movies found in response", "INFO")
+                utils.log(f"LIGHT_JSONRPC: Full response structure: {response}", "INFO")
+                return {"result": {"movies": []}}
+
+        except Exception as e:
+            utils.log(f"=== LIGHT_JSONRPC: ERROR - {str(e)} ===", "ERROR")
+            return {"result": {"movies": []}}
+
     def build_display_items_for_list(self, list_id, handle):
         """Build display items for a specific list with proper error handling"""
         try:
-            utils.log(f"=== BUILD_DISPLAY_ITEMS: Starting for list_id {list_id} ===", "DEBUG")
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Starting for list_id {list_id} ===", "INFO")
 
             # Get list items from database
             list_items = self.query_manager.fetch_list_items_with_details(list_id)
-            utils.log(f"=== BUILD_DISPLAY_ITEMS: Retrieved {len(list_items)} list items ===", "DEBUG")
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Retrieved {len(list_items)} list items ===", "INFO")
 
             if not list_items:
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: No items found for list {list_id} ===", "DEBUG")
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: No items found for list {list_id} ===", "INFO")
                 return []
 
-            # Log first item structure for debugging
-            if list_items:
+            # Log first item structure for debugging (reduced verbosity)
+            if list_items and utils.should_log_debug():
                 first_item = list_items[0]
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: First item keys: {list(first_item.keys())} ===", "DEBUG")
-                sample_data = {k: v for k, v in list(first_item.items())[:4]}
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: First item sample data: {sample_data} ===", "DEBUG")
+                utils.log(f"First item keys: {list(first_item.keys())}", "DEBUG")
+                utils.log(f"Sample: title='{first_item.get('title', 'N/A')}', year={first_item.get('year', 'N/A')}, source='{first_item.get('source', 'N/A')}'", "DEBUG")
 
             # Check if this is from Search History folder
             list_info = self.query_manager.fetch_list_by_id(list_id)
@@ -54,6 +155,10 @@ class ResultsManager(Singleton):
             rows = list_items  # Renamed for consistency with original logic
             external, refs = [], []
 
+            # Track data quality issues
+            unknown_count = 0
+            total_items = len(rows)
+
             for r in rows:
                 src = (r.get('source') or '').lower()
                 # Sources that don't use Kodi library processing: external, plugin_addon
@@ -61,74 +166,168 @@ class ResultsManager(Singleton):
                 if src in ('external', 'plugin_addon'):
                     external.append(r)
                     continue
+
                 imdb = r.get('imdbnumber')
                 title, year = '', 0
 
-                # Try to get title/year from imdb_exports first
-                if imdb:
-                    utils.log(f"=== TITLE_YEAR_LOOKUP: Looking up IMDB {imdb} in imdb_exports ===", "DEBUG")
-                    try:
-                        q = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
-                        hit = self.query_manager.execute_query(q, (imdb,)) or []
-                        if hit:
-                            rec = hit[0]
-                            title = (rec.get('title') if isinstance(rec, dict) else rec[0]) or ''
-                            year = int((rec.get('year') if isinstance(rec, dict) else rec[1]) or 0)
-                            utils.log(f"=== TITLE_YEAR_LOOKUP: Found in imdb_exports: {title} ({year}) for IMDB {imdb} ===", "DEBUG")
-                        else:
-                            utils.log(f"=== TITLE_YEAR_LOOKUP: No imdb_exports entry found for IMDB {imdb} ===", "DEBUG")
-                    except Exception as e:
-                        utils.log(f"=== TITLE_YEAR_LOOKUP: Error querying imdb_exports for {imdb}: {str(e)} ===", "ERROR")
+                # Use stored data as primary source - it contains the actual movie information
+                title = r.get('title', '').strip() if r.get('title') else ''
+                year = 0
+                try:
+                    year_val = r.get('year')
+                    if year_val and str(year_val).strip() and str(year_val) != 'None':
+                        year = int(year_val)
+                except (ValueError, TypeError):
+                    year = 0
 
-                # Fallback to stored data if imdb lookup failed
-                if not title:
-                    title = r.get('title') or ''
-                    utils.log(f"Using fallback title: {title}", "DEBUG")
+                # Clean up IMDb ID - handle None, empty, or invalid values
+                clean_imdb = None
+                if imdb and str(imdb).strip() and str(imdb) != 'None':
+                    imdb_str = str(imdb).strip()
+                    if imdb_str.startswith('tt') and len(imdb_str) > 2:
+                        clean_imdb = imdb_str
 
-                if not year:
-                    try:
-                        year = int(r.get('year') or 0)
-                        utils.log(f"Using fallback year: {year}", "DEBUG")
-                    except Exception:
-                        year = 0
+                # Clean up search score
+                search_score = 0
+                try:
+                    score_val = r.get('search_score')
+                    if score_val is not None and str(score_val) != 'None':
+                        search_score = float(score_val)
+                except (ValueError, TypeError):
+                    search_score = 0
 
-                # If we still have no title, try to extract from the original stored data
-                if not title or title == '':
-                    # Check if there's any identifying information we can use
-                    stored_title = r.get('title', '')
-                    if stored_title and stored_title.strip():
-                        title = stored_title.strip()
-                        utils.log(f"Using stored title as final fallback: {title}", "DEBUG")
-                    else:
-                        title = f"IMDB: {imdb}" if imdb else "Unknown Movie"
-                        utils.log(f"Using IMDB ID as title fallback: {title}", "WARNING")
+                # Track data quality
+                if title in ['Unknown', ''] or not title:
+                    unknown_count += 1
 
-                refs.append({'imdb': imdb, 'title': title, 'year': year, 'search_score': r.get('search_score', 0)})
+                utils.log(f"Item {len(refs)+1}: title='{title}', year={year}, imdb='{clean_imdb}', source='{src}', score={search_score}", "DEBUG")
 
-            # ---- Batch resolve via one JSON-RPC call using OR of (title AND year) ----
-            batch_pairs = [{"title": r.get("title"), "year": r.get("year")} for r in refs]
-            utils.log(f"=== BUILD_DISPLAY_ITEMS: Batch lookup pairs count: {len(batch_pairs)} ===", "DEBUG")
+                # Use cleaned data
+                final_title = title
+                final_year = year
+
+                # Log data quality issues but don't mask them
+                if not final_title or final_title.strip() == '':
+                    utils.log(f"DATA_QUALITY_ERROR: Item {len(refs)+1} has missing/empty title. IMDB: {clean_imdb}, Source: {src}", "ERROR")
+                if final_year == 0:
+                    utils.log(f"DATA_QUALITY_WARNING: Item {len(refs)+1} has missing/zero year. Title: {final_title}, IMDB: {clean_imdb}", "WARNING")
+                if not clean_imdb:
+                    utils.log(f"DATA_QUALITY_WARNING: Item {len(refs)+1} has missing/invalid IMDb ID. Title: {final_title}, Raw IMDB: {repr(imdb)}", "WARNING")
+
+                refs.append({'imdb': clean_imdb, 'title': final_title, 'year': final_year, 'search_score': search_score, 'row_id': r.get('id')})
+
+            # Log data quality summary
+            if unknown_count > 0:
+                utils.log(f"=== DATA QUALITY WARNING: {unknown_count}/{total_items} items have missing/corrupted titles ===", "WARNING")
+
+            # ---- Step 1: Light JSON-RPC batch call (avoiding heavy fields) ----
+            # Create unique batch pairs to avoid duplicate lookups
+            unique_pairs = {}
+            refs_to_pairs = {}
+
+            for i, ref in enumerate(refs):
+                # Use enhanced data from refs instead of raw row data
+                ref_title = ref.get('title', '')
+                ref_year = ref.get('year', 0)
+
+                # Create a unique key for deduplication
+                pair_key = (ref_title.lower().strip(), int(ref_year or 0))
+
+                if pair_key not in unique_pairs:
+                    unique_pairs[pair_key] = {
+                        'title': ref_title,
+                        'year': ref_year
+                    }
+
+                # Map this ref to its pair key for later lookup
+                refs_to_pairs[i] = pair_key
+
+            batch_pairs = list(unique_pairs.values())
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Reduced {len(refs)} items to {len(batch_pairs)} unique pairs for JSON-RPC ===", "INFO")
+
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Making LIGHT JSON-RPC batch call for {len(batch_pairs)} pairs ===", "DEBUG")
             utils.log(f"=== BUILD_DISPLAY_ITEMS: First 3 batch pairs: {batch_pairs[:3]} ===", "DEBUG")
 
-            utils.log("=== BUILD_DISPLAY_ITEMS: Calling get_movies_by_title_year_batch ===", "DEBUG")
+            # Make light JSON-RPC call using the existing batch method but force light mode
             try:
-                batch_resp = self.jsonrpc.get_movies_by_title_year_batch(batch_pairs) or {}
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: Batch response keys: {list(batch_resp.keys()) if batch_resp else 'None'} ===", "DEBUG")
-            except AttributeError as e:
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: Method not found error: {str(e)} ===", "ERROR")
-                batch_resp = {}
+                batch_resp = self._get_light_movies_batch(batch_pairs) or {}
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: Light batch response keys: {list(batch_resp.keys()) if batch_resp else 'None'} ===", "DEBUG")
             except Exception as e:
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: Batch lookup failed: {str(e)} ===", "ERROR")
+                utils.log(f"=== BUILD_DISPLAY_ITEMS: Light batch lookup failed: {str(e)} ===", "ERROR")
                 batch_resp = {}
 
-            batch_movies = (batch_resp.get("result") or {}).get("movies") or []
-            utils.log(f"=== BUILD_DISPLAY_ITEMS: JSON-RPC returned {len(batch_movies)} movies from batch lookup ===", "DEBUG")
+            light_movies = (batch_resp.get("result") or {}).get("movies") or []
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Light JSON-RPC returned {len(light_movies)} movies ===", "DEBUG")
+
+            # ---- Step 2: Get heavy metadata from cache ----
+            movieids = [m.get('movieid') for m in light_movies if m.get('movieid')]
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Fetching heavy fields for {len(movieids)} movies from cache ===", "INFO")
+            utils.log(f"=== HEAVY_CACHE_LOOKUP: MovieIDs to lookup: {movieids} ===", "INFO")
+
+            heavy_by_id = {}
+            if movieids:
+                try:
+                    heavy_by_id = self.query_manager._listing.get_heavy_meta_by_movieids(movieids)
+                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Retrieved heavy fields for {len(heavy_by_id)} movies from cache ===", "INFO")
+
+                    # Log heavy data for first movie
+                    if heavy_by_id:
+                        first_movieid = list(heavy_by_id.keys())[0]
+                        first_heavy = heavy_by_id[first_movieid]
+                        utils.log(f"=== HEAVY_CACHE_DATA: First movie heavy data (ID {first_movieid}) ===", "INFO")
+                        for key, value in first_heavy.items():
+                            # Truncate very long JSON strings for readability
+                            if isinstance(value, str) and len(value) > 200:
+                                utils.log(f"HEAVY_CACHE_DATA: {key} = {value[:200]}... (truncated)", "INFO")
+                            else:
+                                utils.log(f"HEAVY_CACHE_DATA: {key} = {repr(value)}", "INFO")
+                        utils.log(f"=== END HEAVY_CACHE_DATA ===", "INFO")
+                    else:
+                        utils.log(f"=== HEAVY_CACHE_DATA: No heavy data found for any movieids ===", "ERROR")
+
+                except Exception as e:
+                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Failed to get heavy fields from cache: {str(e)} ===", "ERROR")
+
+            # ---- Step 3: Merge light + heavy data ----
+            merged_count = 0
+            missing_heavy_movieids = []
+
+            for movie in light_movies:
+                movieid = movie.get('movieid')
+                if movieid and movieid in heavy_by_id:
+                    heavy_fields = heavy_by_id[movieid]
+                    utils.log(f"MERGE_DATA: Merging heavy fields for movieid {movieid}", "INFO")
+                    movie.update(heavy_fields)
+                    merged_count += 1
+                else:
+                    missing_heavy_movieids.append(movieid)
+                    utils.log(f"MERGE_DATA: ERROR - No heavy data found for movieid {movieid}", "ERROR")
+                    # DO NOT add empty fallback values - let the error be visible
+                    # movie.update({
+                    #     'cast': [],
+                    #     'ratings': {},
+                    #     'showlink': [],
+                    #     'streamdetails': {},
+                    #     'uniqueid': {},
+                    #     'tag': []
+                    # })
+
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Merged heavy fields for {merged_count}/{len(light_movies)} movies ===", "INFO")
+            if missing_heavy_movieids:
+                utils.log(f"=== MERGE_ERROR: Missing heavy data for movieids: {missing_heavy_movieids} ===", "ERROR")
+            batch_movies = light_movies
 
             if batch_movies:
-                # Log sample of first returned movie
+                # Log complete merged data for first movie
                 first_movie = batch_movies[0]
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: First returned movie keys: {list(first_movie.keys())} ===", "DEBUG")
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: First movie title/year: {first_movie.get('title')}/{first_movie.get('year')} ===", "DEBUG")
+                utils.log(f"=== MERGED_DATA: First movie complete merged data ===", "INFO")
+                for key, value in first_movie.items():
+                    # Truncate very long values for readability
+                    if isinstance(value, str) and len(value) > 200:
+                        utils.log(f"MERGED_DATA: {key} = {value[:200]}... (truncated)", "INFO")
+                    else:
+                        utils.log(f"MERGED_DATA: {key} = {repr(value)}", "INFO")
+                utils.log(f"=== END MERGED_DATA ===", "INFO")
 
             # Build a simple matcher key: (normalized_title, year_int)
             def _key(t, y):
@@ -148,10 +347,13 @@ class ResultsManager(Singleton):
                 kt = _key(m.get("title"), 0)
                 idx_t.setdefault(kt, []).append(m)
 
+            utils.log(f"=== BUILD_DISPLAY_ITEMS: Indexed {len(batch_movies)} movies into {len(idx_ty)} title+year keys and {len(idx_t)} title-only keys ===", "DEBUG")
+
             # Rebuild resolved list in the original refs order (already sorted by search score from query)
             display_items = []
             utils.log(f"=== BUILD_DISPLAY_ITEMS: Starting movie matching for {len(rows)} items ===", "DEBUG")
 
+            ref_index = 0  # Track which ref we're processing
             for i, r in enumerate(rows):
                 # Skip items that are already handled as external
                 src = (r.get('source') or '').lower()
@@ -179,104 +381,160 @@ class ResultsManager(Singleton):
                     r['_viewing_list_id'] = list_id
                     r['media_id'] = r.get('id') or r.get('media_id')
 
-                    media_item = from_db(r)
-                    list_item = build_listitem(media_item, 'search_history' if is_search_history else 'default')
+                    from resources.lib.kodi.listitem_builder import ListItemBuilder
+                    list_item = ListItemBuilder.build_video_item(r, is_search_history=is_search_history)
 
                     # Use the playable path directly instead of info URL
                     item_url = playable_path
                     display_items.append((item_url, list_item, False))
                     continue
 
-                ref_title = r.get("title", "")
-                ref_year = r.get("year", 0)
-                ref_imdb = r.get("imdbnumber", "")
+                # Get the corresponding processed ref data by index
+                if ref_index >= len(refs):
+                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: ref_index {ref_index} exceeds refs length {len(refs)} ===", "ERROR")
+                    continue
 
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: ref_title='{ref_title}', ref_year={ref_year}, ref_imdb='{ref_imdb}' ===", "DEBUG")
+                processed_ref = refs[ref_index]
+                ref_index += 1
 
-                # Find the corresponding processed ref data
-                processed_ref = next((ref for ref in refs if ref.get('imdb') == ref_imdb and ref.get('title') == ref_title and ref.get('year') == ref_year), None)
-                if not processed_ref:
-                    # Fallback if processed_ref is somehow not found, use original row data
-                    processed_ref = {'title': ref_title, 'year': ref_year, 'imdb': ref_imdb, 'search_score': r.get('search_score', 0)}
-                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Using fallback processed_ref ===", "WARNING")
-                else:
-                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Found matching processed_ref ===", "DEBUG")
+                ref_title = processed_ref.get("title", "")
+                ref_year = processed_ref.get("year", 0)
+                ref_imdb = processed_ref.get("imdb")  # Can be None
+                row_id = processed_ref.get("row_id", r.get('id'))
 
-                k_exact = _key(processed_ref.get("title"), processed_ref.get("year"))
-                k_title = _key(processed_ref.get("title"), 0)
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Lookup keys - exact: {k_exact}, title: {k_title} ===", "DEBUG")
+                utils.log(f"=== MOVIE_MATCHING: Item {i+1}: ref_title='{ref_title}', ref_year={ref_year}, ref_imdb={repr(ref_imdb)}, row_id={row_id} ===", "INFO")
+
+                k_exact = _key(ref_title, ref_year)
+                k_title = _key(ref_title, 0)
+                utils.log(f"=== MOVIE_MATCHING: Item {i+1}: Lookup keys - exact: {k_exact}, title: {k_title} ===", "INFO")
 
                 cand = (idx_ty.get(k_exact) or idx_t.get(k_title) or [])
-                meta = cand[0] if cand else None
+                kodi_movie = cand[0] if cand else None
 
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Found {len(cand)} candidates, meta exists: {meta is not None} ===", "DEBUG")
+                utils.log(f"=== MOVIE_MATCHING: Item {i+1}: Found {len(cand)} candidates, kodi_movie exists: {kodi_movie is not None} ===", "INFO")
 
-                if meta:
-                    utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: Found Kodi match - title: {meta.get('title')}, movieid: {meta.get('movieid')} ===", "DEBUG")
-                    # Found in Kodi library via JSON-RPC
-                    cast = meta.get('cast') or []
-                    if isinstance(cast, list):
-                        cast = [{'name': a.get('name'),
-                                 'role': a.get('role'),
-                                 'thumbnail': a.get('thumbnail')} for a in cast]
-                    meta['cast'] = cast
-                    if isinstance(meta.get('writer'), list):
-                        meta['writer'] = ' / '.join(meta['writer'])
-                    # Preserve search score from original item for sorting
-                    meta['search_score'] = processed_ref.get('search_score', 0)
-                    meta['list_item_id'] = r.get('list_item_id')
-
-                    # Add context for list viewing and removal
-                    meta['_viewing_list_id'] = list_id
-                    meta['media_id'] = r.get('id') or r.get('media_id') or meta.get('movieid')
-
-                    media_item = from_jsonrpc(meta)
-                    list_item = build_listitem(media_item, 'search_history' if is_search_history else 'default')
-
-                    # Determine the appropriate URL for this item
-                    # For manual items and library items, use the file path if available
-                    file_path = meta.get('file')
-                    if file_path:
-                        item_url = file_path
-                    else:
-                        # Fallback for items without file path
-                        item_url = f"info://{r.get('id', 'unknown')}"
-                    display_items.append((item_url, list_item, False))
+                if kodi_movie:
+                    utils.log(f"=== KODI_MATCH_DATA: Item {i+1} matched to Kodi movie ===", "INFO")
+                    for key, value in kodi_movie.items():
+                        if isinstance(value, str) and len(value) > 200:
+                            utils.log(f"KODI_MATCH_DATA: {key} = {value[:200]}... (truncated)", "INFO")
+                        else:
+                            utils.log(f"KODI_MATCH_DATA: {key} = {repr(value)}", "INFO")
+                    utils.log(f"=== END KODI_MATCH_DATA ===", "INFO")
                 else:
-                    # No Kodi match found - only process non-favorites imports here
-                    if src != 'favorites_import':
-                        fallback_title = processed_ref.get("title") or 'Unknown Title'
-                        utils.log(f"Item {i+1}: No Kodi match for '{processed_ref.get('title')}' ({processed_ref.get('year')}), using fallback title: '{fallback_title}'", "WARNING")
+                    utils.log(f"=== KODI_MATCH_ERROR: Item {i+1} NO MATCH FOUND in Kodi library ===", "ERROR")
 
-                        resolved_item = {
-                            'id': r.get('id'),
-                            'title': processed_ref.get('title') or ref_imdb or 'Unknown',
-                            'year': processed_ref.get('year', 0) or 0,
-                            'plot': f"IMDb ID: {ref_imdb}" if ref_imdb else "No library match found",
-                            'rating': 0.0,
-                            'kodi_id': None,
-                            'file': None,
-                            'genre': '',
-                            'cast': [],
-                            'art': {},
-                            'search_score': processed_ref.get('search_score', 0),
-                            'list_item_id': r.get('list_item_id'),
-                            '_viewing_list_id': list_id,
-                            'media_id': r.get('id') or r.get('media_id'),
-                            'source': src
-                        }
+                # Prepare a base dictionary for the item, starting with data from the row (r)
+                item_dict = dict(r) # Create a mutable copy
 
-                        # Copy over any artwork and metadata from the original item
-                        for field in ['thumbnail', 'poster', 'fanart', 'art', 'plot', 'rating', 'genre', 'director', 'cast', 'duration']:
-                            if r.get(field):
-                                resolved_item[field] = r.get(field)
+                # Merge library data if found
+                if kodi_movie:
+                    # Library match found - merge all metadata
+                    item_dict.update({
+                        'kodi_id': kodi_movie.get('movieid', 0),
+                        'is_library_match': True,
+                        'file': kodi_movie.get('file', ''),
+                        'title': kodi_movie.get('title', item_dict.get('title', '')),
+                        'year': kodi_movie.get('year', item_dict.get('year', 0)),
+                        'rating': kodi_movie.get('rating', 0.0),
+                        'votes': kodi_movie.get('votes', 0),
+                        'plot': kodi_movie.get('plot', ''),
+                        'tagline': kodi_movie.get('tagline', ''),
+                        'genre': kodi_movie.get('genre', []),
+                        'director': kodi_movie.get('director', []),
+                        'writer': kodi_movie.get('writer', []),
+                        'studio': kodi_movie.get('studio', []),
+                        'country': kodi_movie.get('country', []),
+                        'mpaa': kodi_movie.get('mpaa', ''),
+                        'runtime': kodi_movie.get('runtime', 0),
+                        'premiered': kodi_movie.get('premiered', ''),
+                        'dateadded': kodi_movie.get('dateadded', ''),
+                        'thumbnail': kodi_movie.get('thumbnail', ''),
+                        'fanart': kodi_movie.get('fanart', ''),
+                        'art': kodi_movie.get('art', {}),
+                        'trailer': kodi_movie.get('trailer', ''),
+                        'userrating': kodi_movie.get('userrating', 0),
+                        'top250': kodi_movie.get('top250', 0),
+                        'set': kodi_movie.get('set', ''),
+                        'setid': kodi_movie.get('setid', 0),
+                        'lastplayed': kodi_movie.get('lastplayed', ''),
+                        'playcount': kodi_movie.get('playcount', 0),
+                        'resume': kodi_movie.get('resume', {}),
+                        'originaltitle': kodi_movie.get('originaltitle', ''),
+                        'sorttitle': kodi_movie.get('sorttitle', ''),
+                        'imdbnumber': kodi_movie.get('imdbnumber', ref_imdb),
+                        'uniqueid': kodi_movie.get('uniqueid', {'imdb': ref_imdb}),
+                        'cast': kodi_movie.get('cast', []),
+                        'ratings': kodi_movie.get('ratings', {}),
+                        'streamdetails': kodi_movie.get('streamdetails', {}),
+                        'showlink': kodi_movie.get('showlink', []),
+                        'tag': kodi_movie.get('tag', [])
+                    })
 
-                        media_item = from_db(resolved_item) # Assuming from_db can handle this structure
-                        list_item = build_listitem(media_item, 'search_history' if is_search_history else 'default')
+                    # Set proper play URL for library matches
+                    file_path = kodi_movie.get('file')
+                    if file_path:
+                        item_dict['play'] = file_path
+                        utils.log(f"Set library file path for search result '{item_dict.get('title')}' : {file_path}", "DEBUG")
+                    else:
+                        # Fallback to search_history protocol for non-playable library matches
+                        item_dict['play'] = f"search_history://{ref_imdb}"
+                        utils.log(f"No file path for library match '{item_dict.get('title')}', using search_history protocol", "DEBUG")
+                else:
+                    # No Kodi match found, use processed ref data
+                    display_title = ref_title if ref_title else 'Unknown Title'
+                    display_year = ref_year if ref_year else 0
 
-                        item_url = f"info://{ref_imdb}" if ref_imdb else f"info://{r.get('id', 'unknown')}"
-                        display_items.append((item_url, list_item, False))
-                    # Favorites imports are already handled above, skip here to avoid duplication
+                    item_dict.update({
+                        'title': display_title,
+                        'year': display_year,
+                        'imdbnumber': ref_imdb,
+                        'search_score': processed_ref.get('search_score', 0),
+                        'kodi_id': None,
+                        'is_library_match': False
+                    })
+
+                    # Set a fallback play URL if no file path is directly available
+                    if not item_dict.get('play'):
+                        fallback_id = ref_imdb or row_id or 'unknown'
+                        item_dict['play'] = f"info://{fallback_id}"
+
+                    utils.log(f"Item {i+1}: No Kodi match for '{display_title}' ({display_year}), using search result data - Score: {item_dict['search_score']}", "DEBUG")
+
+                # Add unique identification to prevent duplicates in display
+                imdb_part = ref_imdb if ref_imdb else 'no_imdb'
+                item_dict['_unique_id'] = f"{row_id}_{imdb_part}_{i}"  # Ensure each item is unique
+                item_dict['_viewing_list_id'] = list_id
+                item_dict['media_id'] = row_id or item_dict.get('kodi_id') # Use row_id for unique identification
+
+                # Ensure IMDb ID is set for uniqueid fallback if not already present
+                if not item_dict.get('imdbnumber') and ref_imdb:
+                    item_dict['imdbnumber'] = ref_imdb
+                    if 'uniqueid' not in item_dict or not item_dict.get('uniqueid', {}).get('imdb'):
+                        item_dict['uniqueid'] = item_dict.get('uniqueid', {}) # Ensure uniqueid is a dict
+                        item_dict['uniqueid']['imdb'] = ref_imdb
+
+                # Log complete data going to ListItem builder
+                utils.log(f"=== LISTITEM_INPUT_DATA: Item {i+1} data for ListItem builder ===", "INFO")
+                for key, value in item_dict.items():
+                    if isinstance(value, str) and len(value) > 200:
+                        utils.log(f"LISTITEM_INPUT_DATA: {key} = {value[:200]}... (truncated)", "INFO")
+                    else:
+                        utils.log(f"LISTITEM_INPUT_DATA: {key} = {repr(value)}", "INFO")
+                utils.log(f"=== END LISTITEM_INPUT_DATA ===", "INFO")
+
+                from resources.lib.kodi.listitem_builder import ListItemBuilder
+                list_item = ListItemBuilder.build_video_item(item_dict, is_search_history=is_search_history)
+
+                # Determine the appropriate URL for this item
+                # Use the 'play' key which is now reliably set
+                item_url = item_dict.get('play')
+                if not item_url:
+                    utils.log(f"LISTITEM_ERROR: Item {i+1} has no play URL", "ERROR")
+                    item_url = f"info://{item_dict.get('id', 'unknown')}"
+
+                display_items.append((item_url, list_item, False))
+
 
             # External items processed separately with stored metadata
             # Handle None search_score values that can't be compared
@@ -286,8 +544,8 @@ class ResultsManager(Singleton):
                 item['_viewing_list_id'] = list_id
                 item['media_id'] = item.get('id') or item.get('media_id')
 
-                media_item = from_db(item) # Assuming from_db can handle external item structure
-                list_item = build_listitem(media_item, 'search_history' if is_search_history else 'default')
+                from resources.lib.kodi.listitem_builder import ListItemBuilder
+                list_item = ListItemBuilder.build_video_item(item, is_search_history=is_search_history)
 
                 # Use file path or fallback URL for external items
                 item_url = item.get('file', f"external://{item.get('id', 'unknown')}")

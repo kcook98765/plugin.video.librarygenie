@@ -131,18 +131,20 @@ The Options & Tools menu adapts based on your authentication status:
 #### List Management
 - **View Lists**: Browse list contents with proper sorting options
 - **Rename/Delete**: Full management capabilities via context menus
-- **Move Lists**: Reorganize lists between folders
+- **Move Lists**: Reorganize lists between folders with intelligent folder selection
 - **Manual Addition**: Add specific items via context menus
 - **Remove Items**: Remove individual items from lists
-
 - **Clear Lists**: Remove all items from a list while preserving the list structure
 - **Export Lists**: Export list contents in multiple formats (TXT, CSV, JSON)
+- **Protected Lists**: Search History lists are preserved but manageable
 
 #### Folder Management
-- **Create/Rename/Delete**: Full folder lifecycle management
+- **Create/Rename/Delete**: Full folder lifecycle management with content handling options
 - **Move Folders**: Reorganize folder hierarchy with circular reference protection
 - **Nested Organization**: Create subfolders for complex library organization
-- **Protected Folders**: System folders (like Search History) are protected from deletion
+- **Protected Folders**: System folders (like Search History and Imported Lists) are protected
+- **Content Preservation**: Options to move contents to parent or delete with contents
+- **Depth Limits**: Configurable maximum folder nesting depth
 
 ### Alpha AI Features Usage (Invite-Only)
 

@@ -1,3 +1,4 @@
+import sys
 import xbmcgui
 import xbmcaddon
 import xbmcvfs
@@ -7,12 +8,11 @@ from urllib.parse import quote_plus
 
 from resources.lib.kodi.kodi_helper import KodiHelper
 from resources.lib.config.addon_ref import get_addon
+from resources.lib.kodi.context_menu_builder import get_context_menu_builder
 from resources.lib.config.config_manager import Config
 from resources.lib.data.database_manager import DatabaseManager
 from resources.lib.kodi.window_search import SearchWindow
 from resources.lib.utils import utils
-# Updated import for menu registry
-from resources.lib.kodi.menu.registry import ContextMenuRegistry
 
 translatePath = xbmcvfs.translatePath
 
@@ -63,36 +63,8 @@ def main():
         options = []
 
         # Check authentication before adding API-dependent options
-        # Updated to use menu registry for context menu building
-        from ..data.models import MediaItem
-
-        # Get current item properties for context menu generation
-        current_item_id = xbmc.getInfoLabel('ListItem.DBID') or \
-                          xbmc.getInfoLabel('ListItem.Property(movieid)') or \
-                          xbmc.getInfoLabel('ListItem.Property(id)') or \
-                          xbmc.getInfoLabel('ListItem.Property(folder_id)') or \
-                          "context"
-        current_title = title
-        current_item_path = xbmc.getInfoLabel('ListItem.Path')
-        is_folder_item = xbmc.getInfoLabel('ListItem.IsFolder') == 'true'
-        lg_type = xbmc.getInfoLabel('ListItem.Property(lg_type)')
-        
-        # Create minimal MediaItem from current context
-        # Convert current_item_id to int if it's numeric, otherwise use None
-        parsed_item_id = None
-        if current_item_id and current_item_id.isdigit():
-            parsed_item_id = int(current_item_id)
-        
-        current_item = MediaItem(
-            id=parsed_item_id,
-            media_type="unknown", 
-            title=current_title or "Context Item",
-            is_folder=is_folder_item or lg_type == 'folder'
-        )
-        
-        # Use registry to check authentication
-        context_menu_registry = ContextMenuRegistry()
-        is_authenticated = context_menu_registry._is_authenticated()
+        context_builder = get_context_menu_builder()
+        is_authenticated = context_builder._is_authenticated()
 
         # Check if we're currently viewing a LibraryGenie list (to offer Remove option)
         current_container_path = xbmc.getInfoLabel('Container.FolderPath')
@@ -125,7 +97,10 @@ def main():
                 xbmc.log(f"LibraryGenie: Error extracting list_id: {str(e)}", xbmc.LOGDEBUG)
 
         # Enhanced folder detection with comprehensive debugging
+        current_item_path = xbmc.getInfoLabel('ListItem.FolderPath')
         item_path = xbmc.getInfoLabel('ListItem.Path')
+        is_folder_item = xbmc.getInfoLabel('ListItem.IsFolder') == 'true'
+        lg_type = xbmc.getInfoLabel('ListItem.Property(lg_type)')
         is_librarygenie_folder = False
 
         # Debug all relevant paths and properties
@@ -256,6 +231,10 @@ def main():
                     options.append("Find Similar Movies...")
                 else:
                     options.append("Find Similar Movies... (Requires Authentication)")
+
+            # Dev Display - only if has valid IMDb ID
+            if imdb_id and str(imdb_id).startswith('tt'):
+                options.append("Dev Display")
 
         # Refresh Metadata - always available (unless it's a LibraryGenie folder, then it's handled by folder options)
         if not is_lg_folder_item:
@@ -680,6 +659,26 @@ def main():
             encoded_title = quote_plus(clean_title)
             similarity_url = f'RunPlugin(plugin://plugin.video.librarygenie/?action=find_similar&imdb_id={imdb_id}&title={encoded_title})'
             xbmc.executebuiltin(similarity_url)
+
+        elif selected_option == "Dev Display":
+            utils.log(f"LibraryGenie: Dev Display - IMDb ID: {imdb_id}", "INFO")
+
+            # Get the clean title without color formatting
+            clean_title = title.replace('[COLOR FF7BC99A]', '').replace('[/COLOR]', '')
+            clean_title = clean_title.replace('[COLOR FFF0DC8A]', '').replace('[/COLOR]', '')
+            clean_title = clean_title.replace('[COLOR FFF4BC7B]', '').replace('[/COLOR]', '')
+            clean_title = clean_title.replace('[COLOR FFECA9A7]', '').replace('[/COLOR]', '')
+
+            # Navigate to directory-based dev display
+            from resources.lib.kodi.url_builder import build_plugin_url
+            from urllib.parse import quote_plus
+            encoded_title = quote_plus(clean_title)
+            dev_url = build_plugin_url({
+                'action': 'dev_display_directory',
+                'imdb_id': imdb_id,
+                'title': encoded_title
+            })
+            xbmc.executebuiltin(f'ActivateWindow(videos,"{dev_url}",return)')
 
         elif "Search Movies..." in selected_option:  # Search Movies - use direct search instead of plugin URL
             if "(Requires Authentication)" in selected_option:

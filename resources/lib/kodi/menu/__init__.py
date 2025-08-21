@@ -1,2 +1,0 @@
-
-# Menu registry package

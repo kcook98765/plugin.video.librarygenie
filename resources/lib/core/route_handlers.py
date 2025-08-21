@@ -1,3 +1,4 @@
+
 """Route handlers for LibraryGenie plugin actions"""
 import xbmc
 import xbmcgui
@@ -7,10 +8,6 @@ from resources.lib.data.database_manager import DatabaseManager
 import json
 import threading
 from typing import List, Union, cast
-
-# Import necessary components for the new factory pattern
-from resources.lib.data.normalize import from_db
-from resources.lib.kodi.listitem.factory import build_listitem
 
 def play_movie(params):
     """Play a movie from Kodi library using movieid"""
@@ -82,8 +79,8 @@ def show_item_details(params):
 
         if item_id and str(item_id).isdigit():
             try:
-                # Get item details from database using proper query structure
-                media_items = db_manager.fetch_data('media_items', f'id = {item_id}')
+                # Get item details from database using proper parameterized query
+                media_items = db_manager.fetch_data('media_items', 'id = ?', (int(item_id),))
                 if media_items and len(media_items) > 0:
                     item = media_items[0]
                     details_text += f"Year: {item.get('year', 'Unknown')}\n"
@@ -141,7 +138,10 @@ def create_list(params):
         utils.log("=== CREATE_LIST: ABOUT TO SHOW SUCCESS NOTIFICATION ===", "DEBUG")
         xbmcgui.Dialog().notification('LibraryGenie', 'List created')
         utils.log("=== CREATE_LIST: SUCCESS NOTIFICATION CLOSED ===", "DEBUG")
-        xbmc.executebuiltin('Container.Refresh')
+        # Use navigation manager for consistent logging
+        from resources.lib.core.navigation_manager import get_navigation_manager
+        nav_manager = get_navigation_manager()
+        nav_manager.refresh_current_container("List Created")
     except Exception as e:
         utils.log(f"Error creating list: {str(e)}", "ERROR")
         utils.log("=== CREATE_LIST: ABOUT TO SHOW ERROR NOTIFICATION ===", "DEBUG")
@@ -159,9 +159,12 @@ def rename_list(params):
         config = Config()
         db_manager = DatabaseManager(config.db_path)
 
-        db_manager.update_data('lists', {'name': new_name}, f"id = {list_id}")
+        db_manager.update_data('lists', {'name': new_name}, 'id = ?', (int(list_id),))
         xbmcgui.Dialog().notification('LibraryGenie', 'List renamed')
-        xbmc.executebuiltin('Container.Refresh')
+        # Use navigation manager for consistent logging
+        from resources.lib.core.navigation_manager import get_navigation_manager
+        nav_manager = get_navigation_manager()
+        nav_manager.refresh_current_container("List Renamed")
     except Exception as e:
         utils.log(f"Error renaming list: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Rename failed')
@@ -176,12 +179,24 @@ def delete_list(params):
         config = Config()
         db_manager = DatabaseManager(config.db_path)
 
-        # Delete list items first
-        db_manager.delete_data('list_items', f"list_id = {list_id}")
-        # Delete the list
-        db_manager.delete_data('lists', f"id = {list_id}")
-        xbmcgui.Dialog().notification('LibraryGenie', 'List deleted')
-        xbmc.executebuiltin('Container.Refresh')
+        # Use transaction for atomic delete operation
+        with db_manager.query_manager.transaction() as conn:
+            # Delete list items first
+            cursor = conn.execute("DELETE FROM list_items WHERE list_id = ?", (int(list_id),))
+            items_deleted = cursor.rowcount
+            # Delete the list
+            cursor = conn.execute("DELETE FROM lists WHERE id = ?", (int(list_id),))
+            list_deleted = cursor.rowcount
+
+        if list_deleted > 0:
+            xbmcgui.Dialog().notification('LibraryGenie', 'List deleted')
+        else:
+            xbmcgui.Dialog().notification('LibraryGenie', 'List not found', xbmcgui.NOTIFICATION_WARNING)
+            
+        # Use navigation manager for consistent logging
+        from resources.lib.core.navigation_manager import get_navigation_manager
+        nav_manager = get_navigation_manager()
+        nav_manager.refresh_current_container("List Deleted")
     except Exception as e:
         utils.log(f"Error deleting list: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Delete failed')
@@ -218,10 +233,9 @@ def remove_from_list(params):
                 JOIN media_items m ON li.media_item_id = m.id
                 WHERE li.list_id = ? AND m.id = ?
             """
-            db_manager.cursor.execute(query, (list_id, media_id))
-            media_result = db_manager.cursor.fetchone()
+            media_result = db_manager.query_manager.execute_query(query, (int(list_id), int(media_id)), fetch_one=True)
             if media_result:
-                media_title = media_result[0] or 'Unknown Movie'
+                media_title = media_result.get('title') or 'Unknown Movie'
             else:
                 media_title = 'Unknown Movie'
         except Exception as e:
@@ -236,21 +250,23 @@ def remove_from_list(params):
             utils.log("User cancelled removal from list", "DEBUG")
             return
 
-        # Check if the item exists before trying to delete
-        check_query = f"SELECT COUNT(*) as count FROM list_items WHERE list_id = {list_id} AND media_item_id = {media_id}"
-        result = db_manager.cursor.execute(check_query).fetchone()
-        item_count = result[0] if result else 0
+        # Use transaction and check rowcount to determine success
+        with db_manager.query_manager.transaction() as conn:
+            cursor = conn.execute("DELETE FROM list_items WHERE list_id = ? AND media_item_id = ?", (int(list_id), int(media_id)))
+            rows_affected = cursor.rowcount
 
-        if item_count == 0:
+        if rows_affected == 0:
             utils.log(f"Item not found in list: list_id={list_id}, media_item_id={media_id}", "WARNING")
             xbmcgui.Dialog().notification('LibraryGenie', 'Item not found in list', xbmcgui.NOTIFICATION_WARNING)
         else:
-            db_manager.delete_data('list_items', f"list_id = {list_id} AND media_item_id = {media_id}")
             utils.log(f"Successfully removed item from list: list_id={list_id}, media_item_id={media_id}", "INFO")
             xbmcgui.Dialog().notification('LibraryGenie', f'Removed "{media_title}" from list')
 
         # Always refresh the container regardless of success/failure
-        xbmc.executebuiltin('Container.Refresh')
+        # Use navigation manager for consistent logging
+        from resources.lib.core.navigation_manager import get_navigation_manager
+        nav_manager = get_navigation_manager()
+        nav_manager.refresh_current_container("Item Removed From List")
 
     except Exception as e:
         utils.log(f"Error removing from list: {str(e)}", "ERROR")
@@ -258,7 +274,10 @@ def remove_from_list(params):
         utils.log(f"remove_from_list traceback: {traceback.format_exc()}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Failed to remove from list', xbmcgui.NOTIFICATION_ERROR)
         # Still refresh container to ensure UI is updated
-        xbmc.executebuiltin('Container.Refresh')
+        from resources.lib.core.navigation_manager import get_navigation_manager
+        nav_manager = get_navigation_manager()
+        nav_manager.refresh_current_container("Item Removed From List")
+
 
 def move_list(params):
     """Move a list to a different folder"""
@@ -285,7 +304,7 @@ def move_list(params):
         # Filter out Search History folder and current folder
         available_folders = []
         for folder in all_folders:
-            if (folder['id'] != search_history_folder_id and 
+            if (folder['id'] != search_history_folder_id and
                 folder['id'] != list_info.get('folder_id')):
                 available_folders.append(folder)
 
@@ -336,7 +355,10 @@ def move_list(params):
             utils.log(f"Successfully moved list {list_id} to folder {target_folder_id}", "INFO")
             xbmcgui.Dialog().notification('LibraryGenie', f"Moved '{list_info['name']}' to '{target_folder_name}'", xbmcgui.NOTIFICATION_INFO)
             # Refresh the current container
-            xbmc.executebuiltin('Container.Refresh')
+            # Use navigation manager for consistent logging
+            from resources.lib.core.navigation_manager import get_navigation_manager
+            nav_manager = get_navigation_manager()
+            nav_manager.refresh_current_container("List Moved")
         else:
             utils.log(f"Failed to move list {list_id} to folder {target_folder_id}", "ERROR")
             xbmcgui.Dialog().notification('LibraryGenie', 'Failed to move list', xbmcgui.NOTIFICATION_ERROR)
@@ -387,7 +409,9 @@ def clear_list(params):
         if success:
             utils.log(f"Successfully cleared list {list_id}", "INFO")
             xbmcgui.Dialog().notification('LibraryGenie', f"Cleared '{list_info['name']}'", xbmcgui.NOTIFICATION_INFO)
-            xbmc.executebuiltin('Container.Refresh')
+            from resources.lib.core.navigation_manager import get_navigation_manager
+            nav_manager = get_navigation_manager()
+            nav_manager.refresh_current_container("List Cleared")
         else:
             utils.log(f"Failed to clear list {list_id}", "ERROR")
             xbmcgui.Dialog().notification('LibraryGenie', 'Failed to clear list', xbmcgui.NOTIFICATION_ERROR)
@@ -553,33 +577,26 @@ def delete_folder(params):
         subfolders = db_manager.fetch_folders(folder_id)
         lists = db_manager.fetch_lists(folder_id)
 
-        total_contents = len(subfolders) + len(lists)
+        has_contents = len(subfolders) > 0 or len(lists) > 0
 
-        if total_contents > 0:
+        if has_contents:
             # Ask user what to do with contents
             content_options = [
-                f"Delete folder and all {total_contents} items inside",
+                "Delete folder and all items inside",
                 "Move contents to parent folder, then delete",
                 "Cancel deletion"
             ]
 
             typed_content_options = cast(List[Union[str, xbmcgui.ListItem]], content_options)
             selected_option = xbmcgui.Dialog().select(
-                f"Folder '{folder_info['name']}' contains {total_contents} items:",
+                f"Folder '{folder_info['name']}' contains items:",
                 typed_content_options
             )
 
             if selected_option == -1 or selected_option == 2:  # Cancel
                 return
-            elif selected_option == 1:  # Move contents
-                # Move all subfolders and lists to parent folder
-                parent_folder_id = folder_info.get('parent_id')
-
-                for subfolder in subfolders:
-                    db_manager.query_manager.update_folder_parent(subfolder['id'], parent_folder_id)
-
-                for list_item in lists:
-                    db_manager.move_list_to_folder(list_item['id'], parent_folder_id)
+        else:
+            selected_option = 0  # Direct delete for empty folder
 
         # Final confirmation
         if not xbmcgui.Dialog().yesno(
@@ -589,13 +606,30 @@ def delete_folder(params):
         ):
             return
 
-        # Delete the folder
-        success = db_manager.delete_folder(folder_id)
+        # Perform the operation in a single transaction
+        if has_contents and selected_option == 1:  # Move contents then delete
+            parent_folder_id = folder_info.get('parent_id')
+            with db_manager.query_manager.transaction() as conn:
+                # Update all child folders' parent_id
+                cursor = conn.execute("UPDATE folders SET parent_id = ? WHERE parent_id = ?", (parent_folder_id, int(folder_id)))
+                folders_moved = cursor.rowcount
+                # Update all lists' folder_id  
+                cursor = conn.execute("UPDATE lists SET folder_id = ? WHERE folder_id = ?", (parent_folder_id, int(folder_id)))
+                lists_moved = cursor.rowcount
+                # Delete the folder
+                cursor = conn.execute("DELETE FROM folders WHERE id = ?", (int(folder_id),))
+                folder_deleted = cursor.rowcount
+            success = folder_deleted > 0
+        else:  # Delete folder and all contents
+            success = db_manager.delete_folder(folder_id)
 
         if success:
             utils.log(f"Successfully deleted folder {folder_id}", "INFO")
             xbmcgui.Dialog().notification('LibraryGenie', f"Deleted folder '{folder_info['name']}'", xbmcgui.NOTIFICATION_INFO)
-            xbmc.executebuiltin('Container.Refresh')
+            # Use navigation manager for consistent logging
+            from resources.lib.core.navigation_manager import get_navigation_manager
+            nav_manager = get_navigation_manager()
+            nav_manager.refresh_current_container("Folder Deleted")
         else:
             utils.log(f"Failed to delete folder {folder_id}", "ERROR")
             xbmcgui.Dialog().notification('LibraryGenie', 'Failed to delete folder', xbmcgui.NOTIFICATION_ERROR)
@@ -643,7 +677,7 @@ def move_folder(params):
         # Filter available folders
         available_folders = []
         for folder in all_folders:
-            if (folder['id'] != search_history_folder_id and 
+            if (folder['id'] != search_history_folder_id and
                 folder['id'] not in descendant_ids and
                 folder['id'] != current_parent_id):
                 available_folders.append(folder)
@@ -684,12 +718,15 @@ def move_folder(params):
             return
 
         # Perform the move
-        success = db_manager.query_manager.update_folder_parent(folder_id, target_parent_id)
+        success = db_manager.update_data('folders', {'parent_id': target_parent_id}, 'id = ?', (int(folder_id),))
 
         if success:
             utils.log(f"Successfully moved folder {folder_id} to parent {target_parent_id}", "INFO")
             xbmcgui.Dialog().notification('LibraryGenie', f"Moved '{folder_info['name']}' to '{target_name}'", xbmcgui.NOTIFICATION_INFO)
-            xbmc.executebuiltin('Container.Refresh')
+            # Use navigation manager for consistent logging
+            from resources.lib.core.navigation_manager import get_navigation_manager
+            nav_manager = get_navigation_manager()
+            nav_manager.refresh_current_container("Folder Moved")
         else:
             utils.log(f"Failed to move folder {folder_id} to parent {target_parent_id}", "ERROR")
             xbmcgui.Dialog().notification('LibraryGenie', 'Failed to move folder', xbmcgui.NOTIFICATION_ERROR)
@@ -746,7 +783,10 @@ def create_subfolder(params):
         if new_folder:
             utils.log(f"Successfully created subfolder '{new_folder_name}' in parent {parent_folder_id}", "INFO")
             xbmcgui.Dialog().notification('LibraryGenie', f"Created folder '{new_folder_name}'", xbmcgui.NOTIFICATION_INFO)
-            xbmc.executebuiltin('Container.Refresh')
+            # Use navigation manager for consistent logging
+            from resources.lib.core.navigation_manager import get_navigation_manager
+            nav_manager = get_navigation_manager()
+            nav_manager.refresh_current_container("Folder Created")
         else:
             utils.log(f"Failed to create subfolder '{new_folder_name}' in parent {parent_folder_id}", "ERROR")
             xbmcgui.Dialog().notification('LibraryGenie', 'Failed to create folder', xbmcgui.NOTIFICATION_ERROR)
@@ -768,163 +808,15 @@ def rename_folder(params):
         config = Config()
         db_manager = DatabaseManager(config.db_path)
 
-        db_manager.update_data('folders', {'name': new_name}, f"id = {folder_id}")
+        db_manager.update_data('folders', {'name': new_name}, 'id = ?', (int(folder_id),))
         xbmcgui.Dialog().notification('LibraryGenie', 'Folder renamed')
-        xbmc.executebuiltin('Container.Refresh')
+        # Use navigation manager for consistent logging
+        from resources.lib.core.navigation_manager import get_navigation_manager
+        nav_manager = get_navigation_manager()
+        nav_manager.refresh_current_container("Folder Renamed")
     except Exception as e:
         utils.log(f"Error renaming folder: {str(e)}", "ERROR")
         xbmcgui.Dialog().notification('LibraryGenie', 'Rename failed')
-
-def view_list(list_id):
-    """View contents of a list using new factory pattern"""
-    try:
-        import xbmcplugin
-        import sys
-        from resources.lib.data.normalize import from_db
-        from resources.lib.kodi.listitem.factory import build_listitem
-
-        utils.log(f"Viewing list: {list_id}", "DEBUG")
-
-        config = Config()
-        db_manager = DatabaseManager(config.db_path)
-
-        # Get list items with details
-        list_items = db_manager.fetch_list_items_with_details(list_id)
-        
-        for item_data in list_items:
-            # Normalize database row to MediaItem
-            media_item = from_db(item_data)
-            
-            # Set appropriate play path based on whether it's in Kodi library
-            if item_data.get('kodi_id') or item_data.get('movieid'):
-                # Item exists in Kodi library - use play action
-                media_item.play_path = f"plugin://plugin.video.librarygenie/?action=play_movie&movieid={item_data.get('kodi_id') or item_data.get('movieid')}"
-                media_item.is_folder = False
-            else:
-                # Non-library item - use details action
-                import urllib.parse
-                encoded_title = urllib.parse.quote_plus(media_item.title)
-                media_item.play_path = f"plugin://plugin.video.librarygenie/?action=show_item_details&title={encoded_title}&list_id={list_id}&item_id={media_item.id}"
-                media_item.is_folder = False
-
-            # Add list context for menu generation
-            media_item.context_tags.add('in_list')
-            media_item.extras['list_id'] = list_id
-
-            # Build ListItem using factory
-            li = build_listitem(media_item, 'list_view')
-
-            # Add to directory
-            xbmcplugin.addDirectoryItem(
-                int(sys.argv[1]), 
-                media_item.play_path, 
-                li, 
-                media_item.is_folder
-            )
-
-        xbmcplugin.endOfDirectory(int(sys.argv[1]))
-
-    except Exception as e:
-        utils.log(f"Error viewing list {list_id}: {str(e)}", "ERROR")
-        import xbmcgui
-        xbmcgui.Dialog().notification("LibraryGenie", "Error viewing list", xbmcgui.NOTIFICATION_ERROR)
-
-
-def view_folder(folder_id):
-    """View contents of a folder using new factory pattern"""
-    try:
-        import xbmcplugin
-        import sys
-
-        utils.log(f"Viewing folder: {folder_id}", "DEBUG")
-
-        config = Config()
-        db_manager = DatabaseManager(config.db_path)
-
-        # Get folder contents
-        subfolders = db_manager.fetch_folders(folder_id)
-        lists = db_manager.fetch_lists(folder_id)
-
-        # Convert subfolders to MediaItems and build ListItems
-        for subfolder in subfolders:
-            # Create folder data for normalization
-            folder_data = {
-                'id': subfolder['id'],
-                'title': f"📁 {subfolder['name']}",
-                'media_type': 'folder',
-                'is_folder': True
-            }
-            
-            # Normalize database row to MediaItem
-            media_item = from_db(folder_data)
-            
-            # Set proper play path
-            media_item.play_path = f"plugin://plugin.video.librarygenie/?action=view_folder&folder_id={subfolder['id']}"
-
-            # Add folder context for menu generation
-            media_item.context_tags.add('folder')
-            media_item.extras['folder_id'] = subfolder['id']
-
-            # Build ListItem using factory
-            li = build_listitem(media_item, 'folder_view')
-
-            # Add to directory
-            xbmcplugin.addDirectoryItem(
-                int(sys.argv[1]), 
-                media_item.play_path, 
-                li, 
-                True
-            )
-
-        # Convert lists to MediaItems and build ListItems  
-        for list_item in lists:
-            # Get list count for display
-            list_count = db_manager.get_list_media_count(list_item['id'])
-            
-            # Check if list name already has count
-            import re
-            has_count_in_name = re.search(r'\(\d+\)$', list_item['name'])
-            
-            if has_count_in_name:
-                display_title = f"📋 {list_item['name']}"
-            else:
-                display_title = f"📋 {list_item['name']} ({list_count})"
-            
-            # Create list data for normalization
-            list_data = {
-                'id': list_item['id'],
-                'title': display_title,
-                'media_type': 'playlist',
-                'is_folder': True
-            }
-            
-            # Normalize database row to MediaItem
-            media_item = from_db(list_data)
-            
-            # Set proper play path
-            media_item.play_path = f"plugin://plugin.video.librarygenie/?action=view_list&list_id={list_item['id']}"
-
-            # Add list context for menu generation
-            media_item.context_tags.add('list')
-            media_item.extras['list_id'] = list_item['id']
-
-            # Build ListItem using factory
-            li = build_listitem(media_item, 'folder_view')
-
-            # Add to directory
-            xbmcplugin.addDirectoryItem(
-                int(sys.argv[1]), 
-                media_item.play_path, 
-                li, 
-                True
-            )
-
-        xbmcplugin.endOfDirectory(int(sys.argv[1]))
-
-    except Exception as e:
-        utils.log(f"Error viewing folder {folder_id}: {str(e)}", "ERROR")
-        import xbmcgui
-        xbmcgui.Dialog().notification("LibraryGenie", "Error viewing folder", xbmcgui.NOTIFICATION_ERROR)
 
 
 def add_to_list(params):
@@ -1032,8 +924,8 @@ def add_to_list(params):
             utils.log(f"Created new list '{new_list_name}' with ID: {selected_list_id}", "DEBUG")
 
 
-        # Create or find the media item
-        existing_media = db_manager.fetch_data('media_items', f"imdbnumber = '{imdb_id}'")
+        # Create or find the media item using parameterized query
+        existing_media = db_manager.fetch_data('media_items', 'imdbnumber = ?', (imdb_id,))
 
         if existing_media:
             media_id = existing_media[0]['id']
@@ -1043,8 +935,8 @@ def add_to_list(params):
             media_id = db_manager.insert_data('media_items', media_item)
             utils.log(f"Created new media item with ID: {media_id}", "DEBUG")
 
-        # Check if already in list
-        existing_list_item = db_manager.fetch_data('list_items', f"list_id = {selected_list_id} AND media_item_id = {media_id}")
+        # Check if already in list using parameterized query
+        existing_list_item = db_manager.fetch_data('list_items', 'list_id = ? AND media_item_id = ?', (int(selected_list_id), int(media_id)))
 
         if existing_list_item:
             xbmcgui.Dialog().notification('LibraryGenie', f'"{title}" is already in that list', xbmcgui.NOTIFICATION_INFO, 3000)
@@ -1110,7 +1002,10 @@ def add_movies_to_list(params):
             xbmcgui.Dialog().notification('LibraryGenie', 'Failed to add movies to list', xbmcgui.NOTIFICATION_ERROR)
 
         # Refresh the container
-        xbmc.executebuiltin('Container.Refresh')
+        # Use navigation manager for consistent logging
+        from resources.lib.core.navigation_manager import get_navigation_manager
+        nav_manager = get_navigation_manager()
+        nav_manager.refresh_current_container("Movies Added To List")
 
     except Exception as e:
         utils.log(f"Error in add_movies_to_list: {str(e)}", "ERROR")
@@ -1208,8 +1103,8 @@ def add_to_list_from_context(params):
             utils.log(f"Created new list '{new_list_name}' with ID: {selected_list_id}", "DEBUG")
 
 
-        # Create or find the media item
-        existing_media = db_manager.fetch_data('media_items', f"imdbnumber = '{imdb_id}'")
+        # Create or find the media item using parameterized query
+        existing_media = db_manager.fetch_data('media_items', 'imdbnumber = ?', (imdb_id,))
 
         if existing_media:
             media_id = existing_media[0]['id']
@@ -1219,8 +1114,8 @@ def add_to_list_from_context(params):
             media_id = db_manager.insert_data('media_items', media_item)
             utils.log(f"Created new media item with ID: {media_id}", "DEBUG")
 
-        # Check if already in list
-        existing_list_item = db_manager.fetch_data('list_items', f"list_id = {selected_list_id} AND media_item_id = {media_id}")
+        # Check if already in list using parameterized query
+        existing_list_item = db_manager.fetch_data('list_items', 'list_id = ? AND media_item_id = ?', (int(selected_list_id), int(media_id)))
 
         if existing_list_item:
             xbmcgui.Dialog().notification('LibraryGenie', f'"{title}" is already in that list', xbmcgui.NOTIFICATION_INFO, 3000)
@@ -1270,47 +1165,36 @@ def find_similar_movies(params):
         xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERROR)
 
 def find_similar_movies_from_context(params):
-    """Handler for similarity search from native Kodi context menu"""
+    """Handle similarity search from context menu"""
     try:
-        # Get focused item info from Kodi
-        import xbmc
+        imdb_id = params.get('imdb_id')
+        title = params.get('title', '')
 
-        # Get IMDb ID from our custom property (set by listitem_builder.py)
-        imdb_id = xbmc.getInfoLabel('ListItem.Property(LibraryGenie.IMDbID)')
-
-        # Simple fallback for non-LibraryGenie items
-        if not imdb_id:
-            fallback_candidates = [
-                xbmc.getInfoLabel('ListItem.IMDBNumber'),
-                xbmc.getInfoLabel('ListItem.UniqueID(imdb)')
-            ]
-            for candidate in fallback_candidates:
-                if candidate and str(candidate).startswith('tt'):
-                    imdb_id = candidate
-                    break
-
-        if imdb_id:
-            utils.log(f"Similarity search found IMDb ID: {imdb_id}", "INFO")
-
-        title = xbmc.getInfoLabel('ListItem.Title')
-        year = xbmc.getInfoLabel('ListItem.Year')
-
-        utils.log(f"Similarity search - Title: {title}, Year: {year}, IMDb: {imdb_id}", "DEBUG")
-
-        if not imdb_id or not imdb_id.startswith('tt'):
-            utils.log("Similarity search failed - no valid IMDb ID found", "WARNING")
-            xbmcgui.Dialog().ok('LibraryGenie', "This item doesn't have a valid IMDb ID.")
+        if not imdb_id or not str(imdb_id).startswith('tt'):
+            xbmcgui.Dialog().notification('LibraryGenie', 'No valid IMDb ID found', xbmcgui.NOTIFICATION_ERROR, 3000)
             return
 
-        # Use title with year if available
-        display_title = f"{title} ({year})" if year and year != '0' else title
+        # Get display title for the search
+        display_title = title if title else imdb_id
 
-        # Perform similarity search with context menu flag
+        xbmc.log(f"LibraryGenie: Context similarity search for {display_title} (IMDb: {imdb_id})", xbmc.LOGINFO)
+
+      # Perform similarity search with context menu flag
         _perform_similarity_search(imdb_id, display_title, from_context_menu=True)
 
     except Exception as e:
         utils.log(f"Error in find_similar_movies_from_context: {str(e)}", "ERROR")
-        xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERROR)
+        xbmcgui.Dialog().notification('LibraryGenie', 'Similarity search error', xbmcgui.NOTIFICATION_ERROR, 3000)
+
+
+def dev_display_imdb_data_directory(params):
+    """Route handler for directory-based dev display"""
+    from resources.lib.utils.dev_helper import display_imdb_data_as_directory
+    import sys
+
+    handle = int(sys.argv[1])
+    display_imdb_data_as_directory(params, handle)
+
 
 def _perform_similarity_search(imdb_id, title, from_context_menu=False):
     """Perform the actual similarity search and create list"""
@@ -1396,9 +1280,10 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
                       if enabled]
         facet_desc = ' + '.join(facet_names)
 
-        # Get search history folder
-        query_manager = QueryManager(config.db_path)
-        search_folder = query_manager.ensure_search_history_folder()
+        # Get database manager and use its query_manager
+        from resources.lib.data.database_manager import DatabaseManager
+        db_manager = DatabaseManager(config.db_path)
+        search_folder = db_manager.query_manager.ensure_search_history_folder()
 
         # Check if search folder was created successfully
         if search_folder is None:
@@ -1415,11 +1300,11 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
 
         # Create unique list name
         base_name = f"Similar to {title} ({facet_desc})"
-        list_name = query_manager.get_unique_list_name(base_name, search_folder_id)
+        list_name = db_manager.query_manager.get_unique_list_name(base_name, search_folder_id)
         utils.log(f"=== SIMILARITY_SEARCH: Creating list '{list_name}' in folder {search_folder_id} ===", "DEBUG")
 
         # Create the list
-        new_list = query_manager.create_list(list_name, search_folder_id)
+        new_list = db_manager.query_manager.create_list(list_name, search_folder_id)
         if not new_list:
             xbmcgui.Dialog().ok('LibraryGenie', 'Failed to create similarity list.')
             return
@@ -1472,7 +1357,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
 
                 try:
                     lookup_query = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
-                    lookup_result = query_manager.execute_query(lookup_query, (imdb_id,))
+                    lookup_result = db_manager.query_manager.execute_query(lookup_query, (imdb_id,))
                     if lookup_result:
                         title_lookup = lookup_result[0].get('title', '')
                         year_lookup = int(lookup_result[0].get('year', 0) or 0)
@@ -1499,7 +1384,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
 
                 # Insert media item and add to list
                 try:
-                    success = query_manager.insert_media_item_and_add_to_list(new_list_id, media_item_data)
+                    success = db_manager.query_manager.insert_media_item_and_add_to_list(new_list_id, media_item_data)
                     if success:
                         utils.log(f"=== SIMILARITY_SEARCH: Successfully added {imdb_id} to list ===", "DEBUG")
                     else:
@@ -1514,49 +1399,15 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
 
         # Build target URL for navigation
         target_url = _build_plugin_url({
-            'action': 'view_list', # Corrected action for viewing lists
+            'action': 'browse_list',
             'list_id': new_list_id,
         })
 
         if target_url:
-            # Always use ActivateWindow for more reliable navigation from context menu
-            utils.log(f"=== SIMILARITY_SEARCH: Using ActivateWindow navigation: {target_url} ===", "DEBUG")
-
-            import threading
-            import time
-
-            def delayed_activate():
-                try:
-                    # Wait for notification and database operations to complete
-                    time.sleep(2.0)
-
-                    utils.log(f"=== SIMILARITY_SEARCH_NAVIGATION: Activating window with URL: {target_url} ===", "DEBUG")
-
-                    # Use ActivateWindow which is more reliable for context menu operations
-                    xbmc.executebuiltin(f'ActivateWindow(videos,"{target_url}",return)')
-
-                    # Brief wait and try alternative navigation if needed
-                    time.sleep(1.0)
-
-                    # Fallback: try ReplaceWindow if ActivateWindow doesn't work
-                    utils.log("=== SIMILARITY_SEARCH_NAVIGATION: Attempting fallback navigation ===", "DEBUG")
-                    xbmc.executebuiltin(f'ReplaceWindow(videos,"{target_url}")')
-
-                    utils.log("=== SIMILARITY_SEARCH_NAVIGATION: Navigation sequence completed ===", "DEBUG")
-
-                except Exception as e:
-                    utils.log(f"Error in similarity search navigation: {str(e)}", "ERROR")
-                    # Final fallback - show helpful notification
-                    xbmcgui.Dialog().notification(
-                        'LibraryGenie', 
-                        'List created in Search History folder', 
-                        xbmcgui.NOTIFICATION_INFO,
-                        5000
-                    )
-
-            nav_thread = threading.Thread(target=delayed_activate)
-            nav_thread.daemon = True
-            nav_thread.start()
+            # Use navigation manager for consistent logging
+            from resources.lib.core.navigation_manager import get_navigation_manager
+            nav_manager = get_navigation_manager()
+            nav_manager.navigate(target_url, "Similarity List Created")
         else:
             utils.log("=== SIMILARITY_SEARCH: Failed to build target URL for navigation ===", "ERROR")
 
@@ -1632,3 +1483,48 @@ def _schedule_delayed_navigation(target_url):
     nav_thread = threading.Thread(target=delayed_navigate)
     nav_thread.daemon = True
     nav_thread.start()
+
+def route_action(action, params):
+    """Main router for plugin actions"""
+    utils.log(f"Routing action: {action} with params: {params}", "DEBUG")
+
+    if action == 'play_movie':
+        play_movie(params)
+    elif action == 'show_item_details':
+        show_item_details(params)
+    elif action == 'create_list':
+        create_list(params)
+    elif action == 'rename_list':
+        rename_list(params)
+    elif action == 'delete_list':
+        delete_list(params)
+    elif action == 'remove_from_list':
+        remove_from_list(params)
+    elif action == 'move_list':
+        move_list(params)
+    elif action == 'clear_list':
+        clear_list(params)
+    elif action == 'export_list':
+        export_list(params)
+    elif action == 'delete_folder':
+        delete_folder(params)
+    elif action == 'move_folder':
+        move_folder(params)
+    elif action == 'create_subfolder':
+        create_subfolder(params)
+    elif action == 'rename_folder':
+        rename_folder(params)
+    elif action == 'add_to_list':
+        add_to_list(params)
+    elif action == 'add_movies_to_list':
+        add_movies_to_list(params)
+    elif action == 'add_to_list_from_context':
+        add_to_list_from_context(params)
+    elif action == 'find_similar':
+        find_similar_movies_from_context(params)
+
+    elif action == 'dev_display_directory':
+        dev_display_imdb_data_directory(params)
+
+    else:
+        utils.log(f"Unknown action: {action}", "WARNING")

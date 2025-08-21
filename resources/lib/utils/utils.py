@@ -8,6 +8,15 @@ def get_addon_handle():
     except (IndexError, ValueError):
         return -1  # Use a default value that indicates an invalid handle
 
+def should_log_debug():
+    """Check if we should log detailed debug information"""
+    try:
+        from resources.lib.config.addon_ref import get_addon
+        addon = get_addon()
+        return addon.getSettingBool('debug_logging') if addon else False
+    except:
+        return False
+
 def log(message, level=None):
     """Unified logging function for LibraryGenie addon.
     Args:
@@ -19,15 +28,17 @@ def log(message, level=None):
 
     # Check debug logging setting for DEBUG and INFO messages
     if level in ['DEBUG', 'INFO']:
+        addon = None
         try:
             from resources.lib.config.addon_ref import get_addon
             addon = get_addon()
+        except (ImportError, AttributeError, Exception):
+            pass # If we can't get the setting, default to logging for safety
+
+        if addon:
             debug_enabled = addon.getSetting('debug_logging') == 'true'
             if not debug_enabled:
                 return
-        except (ImportError, AttributeError, Exception):
-            # If we can't get the setting, default to logging for safety
-            pass
 
     # Skip common spam logs
     if isinstance(message, str):
@@ -65,7 +76,62 @@ def log(message, level=None):
             "Set ListItem path for",
             "Setting context for list viewing:",
             "=== BUILD_DISPLAY_ITEMS: Created",
-            "display items ==="
+            "display items ===",
+            # Batch operation spam patterns
+            "=== BATCH RETRIEVAL LOOP ITERATION:",
+            "Fetching movies batch:",
+            "Making JSON-RPC call to VideoLibrary.GetMovies with params:",
+            "Movies returned:",
+            "First movie title:",
+            "=== JSONRPC SUCCESS: VideoLibrary.GetMovies ===",
+            "JSON-RPC response received, checking for movies...",
+            "Retrieved",
+            "Movie retrieval progress:",
+            "Total movies collected so far:",
+            "Moving to next batch, new start position:",
+            "Processing batch",
+            "Beginning database transaction for batch",
+            "Processing movie",
+            "Inserting",
+            "Successfully inserted",
+            "Transaction committed for batch",
+            "Batch",
+            "Released database connection for batch",
+            "Progress update:",
+            "Processing: Uploading movies",
+            # Kodi match data spam patterns
+            "=== KODI_MATCH_DATA: Item",
+            "KODI_MATCH_DATA:",
+            "=== END KODI_MATCH_DATA ===",
+            "=== LISTITEM_INPUT_DATA: Item",
+            "LISTITEM_INPUT_DATA:",
+            "=== END LISTITEM_INPUT_DATA ===",
+            "=== LISTITEM_BUILDER_INPUT:",
+            "LISTITEM_BUILDER_INPUT:",
+            "=== END LISTITEM_BUILDER_INPUT ===",
+            "Set library file path for search result",
+            "Set valid ListItem path for search result",
+            # Movie matching spam patterns
+            "=== MOVIE_MATCHING: Item",
+            "MOVIE_MATCHING:",
+            "=== BUILD_DISPLAY_ITEMS: Starting movie matching",
+            "=== BUILD_DISPLAY_ITEMS: Indexed",
+            "=== MERGED_DATA:",
+            "MERGED_DATA:",
+            "=== END MERGED_DATA ===",
+            "=== HEAVY_CACHE_DATA:",
+            "HEAVY_CACHE_DATA:",
+            "=== END HEAVY_CACHE_DATA ===",
+            "=== SAMPLE FINAL HEAVY METADATA RESULT ===",
+            "FINAL_HEAVY:",
+            "=== END SAMPLE FINAL HEAVY METADATA ===",
+            "=== IMDB_TRACE: Setting ListItem properties",
+            "IMDB_TRACE:",
+            "=== END IMDB_TRACE:",
+            "Successfully added",
+            "items (", 
+            "playable,",
+            "non-playable)"
         ]
 
         # Allow JSON-RPC request logging to always show through
@@ -73,7 +139,7 @@ def log(message, level=None):
             pass  # Don't filter these out
         else:
             for pattern in spam_patterns:
-                if message.startswith(pattern) and level == 'DEBUG':
+                if message.startswith(pattern) and level in ['DEBUG', 'INFO']:
                     return
 
     # Truncate cast data in JSON responses
@@ -116,13 +182,16 @@ def is_debug_enabled():
 # Global cache for Kodi version to avoid repeated detection
 _KODI_VERSION_CACHE = None
 
+# Global cache for initialization logging to prevent spam
+_INIT_LOGGED = set()
+
 def get_kodi_version():
     """Get the major version number of the current Kodi installation with caching"""
     global _KODI_VERSION_CACHE
-    
+
     if _KODI_VERSION_CACHE is not None:
         return _KODI_VERSION_CACHE
-    
+
     try:
         import xbmc
         version_info = xbmc.getInfoLabel("System.BuildVersion")
@@ -133,6 +202,13 @@ def get_kodi_version():
         _KODI_VERSION_CACHE = 21  # Default to latest if detection fails
         log(f"Could not detect Kodi version, defaulting to v{_KODI_VERSION_CACHE}: {str(e)}", "WARNING")
         return _KODI_VERSION_CACHE
+
+def log_once(key, message, level="DEBUG"):
+    """Log a message only once per session to prevent spam"""
+    global _INIT_LOGGED
+    if key not in _INIT_LOGGED:
+        log(message, level)
+        _INIT_LOGGED.add(key)
 
 def is_kodi_v19():
     """Check if running on Kodi v19 (Matrix)"""

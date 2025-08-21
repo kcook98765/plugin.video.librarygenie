@@ -3,6 +3,7 @@ from functools import lru_cache
 from .addon_ref import get_addon
 import xbmcvfs
 from resources.lib.utils import utils
+from resources.lib.utils.utils import log_once
 
 class Config:
     """ FIELDS should align with table list_items fields AND for use in listitem building """
@@ -29,18 +30,13 @@ class Config:
         if Config._initialized:
             return
 
-        utils.log("=== Initializing Config Manager ===", "DEBUG")
-
-        try:
-            utils.log("Getting addon instance", "DEBUG")
-            self._addon = get_addon()
-            utils.log("Successfully got addon instance", "DEBUG")
-        except Exception as e:
-            utils.log(f"CRITICAL: Failed to get addon: {str(e)}", "ERROR")
-            raise
+        log_once("config_init", "=== Initializing Config Manager ===", "DEBUG")
+        log_once("addon_instance", "Getting addon instance", "DEBUG")
+        self._addon = get_addon()
+        log_once("addon_success", "Successfully got addon instance", "DEBUG")
 
         # Import here to avoid circular dependency
-        utils.log("Initializing SettingsManager", "DEBUG")
+        log_once("settings_init", "Initializing SettingsManager", "DEBUG")
         from .settings_manager import SettingsManager
         self.settings = SettingsManager()
 
@@ -48,19 +44,19 @@ class Config:
         self.addonid = self._addon.getAddonInfo('id')
         self.addonname = self._addon.getAddonInfo('name')
         self.addonversion = self._addon.getAddonInfo('version')
+        log_once("addon_details", f"Addon details - ID: {self.addonid}, Name: {self.addonname}, Version: {self.addonversion}", "INFO")
+        
         self.addonpath = xbmcvfs.translatePath(self._addon.getAddonInfo('path'))
+        log_once("addon_path", f"Addon path: {self.addonpath}", "DEBUG")
+        
         self.profile = xbmcvfs.translatePath(self._addon.getAddonInfo('profile'))
-        self._max_folder_depth = None  # Will be loaded from settings
-
-        utils.log(f"Addon details - ID: {self.addonid}, Name: {self.addonname}, Version: {self.addonversion}", "INFO")
-        utils.log(f"Addon path: {self.addonpath}", "DEBUG")
-        utils.log(f"Profile path: {self.profile}", "DEBUG")
+        log_once("profile_path", f"Profile path: {self.profile}", "DEBUG")
 
         if not os.path.exists(self.profile):
             utils.log(f"Creating profile directory: {self.profile}", "DEBUG")
             os.makedirs(self.profile)
         else:
-            utils.log("Profile directory already exists", "DEBUG")
+            log_once("profile_exists", "Profile directory already exists", "DEBUG")
 
         utils.log("=== Config Manager initialization complete ===", "DEBUG")
         Config._initialized = True

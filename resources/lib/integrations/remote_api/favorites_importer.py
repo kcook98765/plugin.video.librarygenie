@@ -209,7 +209,7 @@ class FavoritesImporter:
                 
                 # If precise filter fails, fall back to broad parent query and cache it
                 if not movies:
-                    utils.log("LIB_LOOKUP: Precise filter failed, falling back to broad parent query", "DEBUG")
+                    utils.log(f"LIB_LOOKUP: Precise filter failed, falling back to broad parent query", "DEBUG")
                     resp = self.jsonrpc.execute("VideoLibrary.GetMovies", {
                         "filter": {
                             "field": "path", "operator": "startswith", "value": parent

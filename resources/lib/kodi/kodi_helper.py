@@ -16,16 +16,13 @@ class KodiHelper:
         self.jsonrpc = JSONRPC()
 
     def list_items(self, items, content_type='video'):
-        from resources.lib.data.normalize import from_db
-        from resources.lib.kodi.listitem.factory import build_listitem
+        from resources.lib.kodi.listitem_builder import ListItemBuilder
 
         # Set content type for proper display
         xbmcplugin.setContent(self.addon_handle, content_type)
 
         for item in items:
-            # Normalize item to MediaItem and build via factory
-            media_item = from_db(item)
-            list_item = build_listitem(media_item, 'video')
+            list_item = ListItemBuilder.build_video_item(item)
             url = f'{self.addon_url}?action=play_item&id={item.get("id")}'
 
             xbmcplugin.addDirectoryItem(
@@ -77,16 +74,9 @@ class KodiHelper:
         xbmcplugin.endOfDirectory(self.addon_handle)
 
     def list_folders(self, folders):
-        from resources.lib.data.models import MediaItem
-        from resources.lib.kodi.listitem.factory import build_listitem
+        from resources.lib.kodi.listitem_builder import ListItemBuilder
         for folder in folders:
-            media_item = MediaItem(
-                id=folder.get('id', 0),
-                media_type='folder',
-                title=folder['name'],
-                is_folder=True
-            )
-            list_item = build_listitem(media_item, 'folder')
+            list_item = ListItemBuilder.build_folder_item(folder['name'], is_folder=True, item_type='folder')
             url = f'{self.addon_url}?action=show_list&list_id={folder["id"]}'
 
             xbmcplugin.addDirectoryItem(
@@ -99,19 +89,9 @@ class KodiHelper:
         xbmcplugin.endOfDirectory(self.addon_handle)
 
     def list_folders_and_lists(self, folders, lists):
-        from resources.lib.kodi.listitem.factory import build_listitem
-        from resources.lib.data.models import MediaItem
-
+        from resources.lib.kodi.listitem_builder import ListItemBuilder
         for folder in folders:
-            # Create MediaItem for folder
-            folder_item = MediaItem(
-                id=folder.get('id'),
-                media_type='folder',
-                title=folder.get('name', ''),
-                is_folder=True,
-                context_tags={'folder'}
-            )
-            list_item = build_listitem(folder_item, 'folder')
+            list_item = ListItemBuilder.build_folder_item(folder['name'], is_folder=True, item_type='folder')
             url = f'{self.addon_url}?action=show_folder&folder_id={folder["id"]}'
             utils.log(f"Adding folder: {folder['name']} with URL - {url}", "DEBUG")
             xbmcplugin.addDirectoryItem(
@@ -121,15 +101,7 @@ class KodiHelper:
                 isFolder=True
             )
         for list_ in lists:
-            # Create MediaItem for list
-            list_item_data = MediaItem(
-                id=list_.get('id'),
-                media_type='playlist',
-                title=list_.get('name', ''),
-                is_folder=True,
-                context_tags={'playlist'}
-            )
-            list_item = build_listitem(list_item_data, 'playlist')
+            list_item = ListItemBuilder.build_folder_item(list_['name'], is_folder=True, item_type='playlist')
             url = f'{self.addon_url}?action=show_list&list_id={list_["id"]}'
             utils.log(f"Adding list: {list_['name']} with URL - {url}", "DEBUG")
             xbmcplugin.addDirectoryItem(
@@ -145,9 +117,10 @@ class KodiHelper:
         utils.log(f"Showing list with ID: {list_id}", "DEBUG")
         from resources.lib.data.database_manager import DatabaseManager
         from resources.lib.config.config_manager import get_config
+        from resources.lib.kodi.listitem_builder import ListItemBuilder
         config = get_config()
         db_manager = DatabaseManager(config.db_path)
-        items = db_manager.fetch_list_items(list_id)
+        items = db_manager.query_manager.fetch_list_items_with_details(list_id)
 
         # Set content type and force views
         xbmcplugin.setContent(self.addon_handle, 'movies')
@@ -197,14 +170,9 @@ class KodiHelper:
         xbmcplugin.setProperty(self.addon_handle, 'ForcedView', 'true')
         xbmc.executebuiltin('Container.SetForceViewMode(true)')
 
-        # Add items and end directory using new factory pattern
-        from resources.lib.data.normalize import from_db
-        from resources.lib.kodi.listitem.factory import build_listitem
-
+        # Add items and end directory
         for item in items:
-            # Convert to MediaItem and use factory
-            media_item = from_db(item)
-            list_item = build_listitem(media_item, 'video')
+            list_item = ListItemBuilder.build_video_item(item)
             url = f'{self.addon_url}?action=play_item&id={item.get("id")}'
             xbmcplugin.addDirectoryItem(
                 handle=self.addon_handle,
@@ -218,15 +186,10 @@ class KodiHelper:
         try:
             utils.log(f"Play item called with item_id: {item_id} (type: {type(item_id)})", "DEBUG")
 
-            # Query the database for item
-            query = """SELECT media_items.* FROM media_items
-                      JOIN list_items ON list_items.media_item_id = media_items.id
-                      WHERE list_items.media_item_id = ?"""
-
             from resources.lib.data.database_manager import DatabaseManager
             from resources.lib.config.config_manager import get_config
             config = get_config()
-            db = DatabaseManager(config.db_path)
+            db_manager = DatabaseManager(config.db_path)
 
             # Handle item_id from various input types and ensure valid integer
             utils.log(f"Original item_id: {item_id}", "DEBUG")
@@ -252,23 +215,33 @@ class KodiHelper:
                 utils.log(f"Could not convert item_id to integer: {item_id}, Error: {str(e)}", "ERROR")
                 return False
 
-            db.cursor.execute(query, (item_id,))
-            result = db.cursor.fetchone()
+            # Query the database for item using database manager
+            result = db_manager.query_manager.execute_query(
+                "SELECT * FROM media_items WHERE id = ?", 
+                (item_id,), 
+                fetch_one=True
+            )
 
             if not result:
                 utils.log(f"Item not found for id: {item_id}", "ERROR")
                 return False
 
-            # Convert result tuple to dict
-            field_names = [field.split()[0] for field in db.config.FIELDS]
-            item_data = dict(zip(['id'] + field_names, result))
+            # Result is already a dict from the row object
+            item_data = result
 
-            # Create list item using new factory pattern
-            from resources.lib.data.normalize import from_db
-            from resources.lib.kodi.listitem.factory import build_listitem
-
-            media_item = from_db(item_data)
-            list_item = build_listitem(media_item, 'video')
+            # Create list item with proper metadata using ListItemBuilder if it's a video item
+            if item_data.get('mediatype') == 'movie' or item_data.get('media_type') == 'movie':
+                from resources.lib.kodi.listitem_builder import ListItemBuilder
+                list_item = ListItemBuilder.build_video_item(item_data)
+            else:
+                # For non-video items, create basic ListItem using ListItemBuilder
+                from resources.lib.kodi.listitem_builder import ListItemBuilder
+                info_dict = {
+                    'title': item_data.get('title', ''),
+                    'plot': item_data.get('plot', ''),
+                    'mediatype': item_data.get('mediatype', item_data.get('media_type', 'video'))
+                }
+                list_item = ListItemBuilder.build_video_item(info_dict)
 
             # Get play URL and check validity
             folder_path = item_data.get('path', '')
@@ -433,15 +406,9 @@ class KodiHelper:
         return details
 
     def show_information(self):
-        from resources.lib.data.query_manager import QueryManager
-        from resources.lib.config.config_manager import get_config
-
         db_id = xbmc.getInfoLabel('ListItem.DBID')
         media_type = xbmc.getInfoLabel('ListItem.DBTYPE') or 'movie'
         utils.log(f"Retrieved DBID: {db_id}, Media type: {media_type}", "INFO")
-
-        config = get_config()
-        self.query_manager = QueryManager(config.db_path)
 
         if db_id:
             if media_type == 'movie':

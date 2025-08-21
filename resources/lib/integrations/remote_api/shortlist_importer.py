@@ -614,8 +614,6 @@ class ShortlistImporter:
             utils.log(f"DATA_CONVERSION: Shortlist data processed - Duration: {duration_value} -> {duration_seconds}s, Rating: {item.get('rating')} -> {rating_value}", "INFO")
 
         utils.log(f"=== DATA_CONVERSION COMPLETE: '{media_dict['title']}' ({media_dict['year']}) from {media_dict['source']} ===", "INFO")
-        
-        # Return raw payload for normalization by from_remote_api() or from_db()
         return media_dict
 
     def clear_imported_lists_folder(self, imported_folder_id):

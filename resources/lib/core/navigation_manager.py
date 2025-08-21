@@ -56,20 +56,31 @@ class NavigationManager:
             xbmc.executebuiltin("ClearProperty(LibraryGenie.SearchModalActive,Home)")
 
     def navigate_to_url(self, url: str, replace: bool = True):
-        """Perform navigation with proper state management"""
-        utils.log(f"=== PERFORMING NAVIGATION TO: {url} ===", "DEBUG")
+        """Perform navigation with proper state management and back button preservation"""
+        utils.log(f"=== NAVIGATION START ===", "DEBUG")
+        utils.log(f"Target URL: {url}", "DEBUG")
+        utils.log(f"Replace mode: {replace}", "DEBUG")
+        utils.log(f"Current window: {xbmc.getInfoLabel('System.CurrentWindow')}", "DEBUG")
+        utils.log(f"Current control: {xbmc.getInfoLabel('System.CurrentControl')}", "DEBUG")
+        
         self.set_navigation_in_progress(True)
         
         # Let GUI settle before navigation
         xbmc.sleep(100)
         
-        # Navigate with proper quoting and replace parameter
+        # Log navigation method choice
         if replace:
+            utils.log("=== Using Container.Update with REPLACE (breaks back button) ===", "DEBUG")
             xbmc.executebuiltin(f'Container.Update("{url}", replace)')
         else:
+            utils.log("=== Using Container.Update WITHOUT replace (preserves back button) ===", "DEBUG")
             xbmc.executebuiltin(f'Container.Update("{url}")')
         
         xbmc.sleep(50)
+        
+        # Log post-navigation state
+        utils.log(f"Post-nav window: {xbmc.getInfoLabel('System.CurrentWindow')}", "DEBUG")
+        utils.log(f"Post-nav control: {xbmc.getInfoLabel('System.CurrentControl')}", "DEBUG")
         
         # Clear navigation flag
         self.set_navigation_in_progress(False)
@@ -89,12 +100,15 @@ class NavigationManager:
                     time.sleep(delay_seconds)
                     
                     utils.log(f"=== DELAYED_LIST_NAVIGATION: Starting navigation to list {list_id} ===", "DEBUG")
+                    utils.log(f"Pre-delay window: {xbmc.getInfoLabel('System.CurrentWindow')}", "DEBUG")
                     
                     # Build plugin URL
                     addon = get_addon()
                     addon_id = addon.getAddonInfo("id")
                     params = urlencode({'action': 'browse_list', 'list_id': str(list_id)})
                     target_url = f"plugin://{addon_id}/?{params}"
+                    
+                    utils.log(f"Constructed URL: {target_url}", "DEBUG")
                     
                     # Clear any lingering modal states
                     xbmc.executebuiltin("ClearProperty(LibraryGenie.SearchModalActive,Home)")
@@ -103,9 +117,9 @@ class NavigationManager:
                     # Brief wait for cleanup
                     time.sleep(0.5)
                     
-                    # Navigate using Container.Update
-                    utils.log(f"=== DELAYED_LIST_NAVIGATION: Navigating to: {target_url} ===", "DEBUG")
-                    xbmc.executebuiltin(f'Container.Update({target_url})')
+                    # Navigate using Container.Update WITHOUT replace to preserve back button
+                    utils.log(f"=== DELAYED_LIST_NAVIGATION: Using Container.Update WITHOUT replace ===", "DEBUG")
+                    xbmc.executebuiltin(f'Container.Update("{target_url}")')
                     
                     utils.log(f"=== DELAYED_LIST_NAVIGATION: Navigation completed for list {list_id} ===", "DEBUG")
                     
@@ -121,6 +135,39 @@ class NavigationManager:
             
         except Exception as e:
             utils.log(f"Error scheduling delayed list navigation: {str(e)}", "ERROR")
+
+    def navigate_with_back_support(self, url: str, operation_name: str = "Unknown"):
+        """Navigate while preserving Kodi's back button functionality"""
+        utils.log(f"=== BACK-FRIENDLY NAVIGATION START: {operation_name} ===", "DEBUG")
+        utils.log(f"Source window: {xbmc.getInfoLabel('System.CurrentWindow')}", "DEBUG")
+        utils.log(f"Source URL: {xbmc.getInfoLabel('Container.FolderPath')}", "DEBUG")
+        utils.log(f"Target URL: {url}", "DEBUG")
+        
+        self.set_navigation_in_progress(True)
+        
+        # Use Container.Update WITHOUT replace to preserve navigation history
+        utils.log("=== Using Container.Update WITHOUT replace (preserves back button) ===", "DEBUG")
+        xbmc.executebuiltin(f'Container.Update("{url}")')
+        
+        # Brief wait for navigation to complete
+        xbmc.sleep(100)
+        
+        utils.log(f"Target window: {xbmc.getInfoLabel('System.CurrentWindow')}", "DEBUG")
+        utils.log(f"Target path: {xbmc.getInfoLabel('Container.FolderPath')}", "DEBUG")
+        
+        self.set_navigation_in_progress(False)
+        utils.log(f"=== BACK-FRIENDLY NAVIGATION COMPLETED: {operation_name} ===", "DEBUG")
+
+    def refresh_current_container(self, operation_name: str = "Unknown"):
+        """Refresh current container while preserving navigation stack"""
+        utils.log(f"=== CONTAINER REFRESH: {operation_name} ===", "DEBUG")
+        utils.log(f"Current window: {xbmc.getInfoLabel('System.CurrentWindow')}", "DEBUG")
+        utils.log(f"Current path: {xbmc.getInfoLabel('Container.FolderPath')}", "DEBUG")
+        
+        # Container.Refresh preserves the navigation stack
+        xbmc.executebuiltin('Container.Refresh')
+        
+        utils.log(f"=== CONTAINER REFRESH COMPLETED: {operation_name} ===", "DEBUG")
 
 # Global navigation manager instance
 _nav_manager = None

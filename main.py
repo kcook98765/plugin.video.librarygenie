@@ -71,7 +71,46 @@ def run_search_flow():
 
     # Navigate only after modal is completely closed
     if target_url:
-        nav_manager.navigate_to_url(target_url)
+        # Extract list ID for navigation
+        list_id = target_url.split('list_id=')[1]
+        log(f"=== MAIN: Scheduling navigation to list {list_id} ===", "DEBUG")
+        
+        # Use background thread navigation with proper Kodi integration
+        import threading
+        import time
+        
+        def navigate_to_list():
+            try:
+                log(f"=== MAIN_NAVIGATION: Starting navigation to list {list_id} ===", "DEBUG")
+                
+                # Build the target URL
+                from resources.lib.config.addon_ref import get_addon
+                from urllib.parse import urlencode
+                addon = get_addon()
+                addon_id = addon.getAddonInfo("id")
+                params = urlencode({'action': 'browse_list', 'list_id': str(list_id)})
+                final_url = f"plugin://{addon_id}/?{params}"
+                
+                log(f"=== MAIN_NAVIGATION: Target URL: {final_url} ===", "DEBUG")
+                
+                # Clear any dialog states
+                xbmc.executebuiltin("Dialog.Close(all,true)")
+                time.sleep(0.2)
+                
+                # Use Kodi's built-in navigation that preserves back button
+                xbmc.executebuiltin(f'ActivateWindow(videos,"{final_url}",return)')
+                
+                log(f"=== MAIN_NAVIGATION: Navigation completed ===", "DEBUG")
+                
+            except Exception as e:
+                log(f"Error in main navigation thread: {str(e)}", "ERROR")
+                import traceback
+                log(f"Main navigation traceback: {traceback.format_exc()}", "ERROR")
+        
+        # Start navigation in background
+        nav_thread = threading.Thread(target=navigate_to_list)
+        nav_thread.daemon = True
+        nav_thread.start()
     else:
         log("=== NO TARGET URL - SEARCH CANCELLED OR FAILED ===", "DEBUG")
 
@@ -445,6 +484,11 @@ def router(paramstring):
         log("Routing to import_favorites action", "DEBUG")
         from resources.lib.integrations.remote_api.favorites_importer import import_from_favorites
         import_from_favorites()
+        return
+    elif action == 'dev_display_directory':
+        log("Routing to dev_display_directory action", "DEBUG")
+        from resources.lib.core.route_handlers import dev_display_imdb_data_directory
+        dev_display_imdb_data_directory(q)
         return
     else:
         # Default: build root directory if action is not recognized or empty
