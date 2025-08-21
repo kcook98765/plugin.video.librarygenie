@@ -21,21 +21,20 @@ class ResultsManager(Singleton):
             utils.log(f"Error searching movies: {e}", "ERROR")
             return []
 
-    def _get_light_movies_batch(self, title_year_pairs):
-        """Light JSON-RPC batch lookup without heavy fields"""
-        if not title_year_pairs:
+    def _get_movies_by_imdb_batch(self, imdb_ids):
+        """Get movies by IMDb IDs using new batch method"""
+        if not imdb_ids:
             return {"result": {"movies": []}}
 
         try:
-            utils.log(f"=== LIGHT_JSONRPC: Starting light batch lookup for {len(title_year_pairs)} pairs ===", "INFO")
+            utils.log(f"=== IMDB_BATCH: Starting IMDb batch lookup for {len(imdb_ids)} IDs ===", "INFO")
+            
+            # Use the new JSON-RPC batch method
+            return self.jsonrpc.get_movies_by_imdb_batch(imdb_ids)
 
-            # Use only light properties for fast response
-            properties = self.jsonrpc.get_light_properties()
-            utils.log(f"=== LIGHT_JSONRPC: Using {len(properties)} light properties ===", "INFO")
-
-            # Build OR filter for all title-year combinations
-            filter_conditions = []
-            for pair in title_year_pairs:
+        except Exception as e:
+            utils.log(f"=== IMDB_BATCH: ERROR - {str(e)} ===", "ERROR")
+            return {"result": {"movies": []}}
                 title = (pair.get('title') or '').strip()
                 year = pair.get('year') or 0
 

@@ -180,27 +180,11 @@ class SearchWindow:
                     imdb_id = match.get('imdb_id', '')
                     search_score = match.get('score', 0)
                     
-                    # Look up title and year from imdb_exports if available
-                    title_lookup = 'Unknown'
-                    year_lookup = 0
-                    
-                    if imdb_id:
-                        try:
-                            lookup_query = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
-                            lookup_result = query_manager.execute_query(lookup_query, (imdb_id,), fetch_one=True)
-                            if lookup_result:
-                                title_lookup = lookup_result.get('title', 'Unknown')
-                                year_lookup = int(lookup_result.get('year', 0) or 0)
-                                utils.log(f"SEARCH_SAVE: Found title/year for {imdb_id}: '{title_lookup}' ({year_lookup})", "DEBUG")
-                            else:
-                                utils.log(f"SEARCH_SAVE: No imdb_exports entry for {imdb_id}", "DEBUG")
-                        except Exception as e:
-                            utils.log(f"SEARCH_SAVE: Error looking up title/year for {imdb_id}: {str(e)}", "ERROR")
-
-                    # Prepare media item data with looked up data if available
+                    # Use match data directly - title/year lookup will be handled by batch processing
+                    # when the list is displayed
                     media_item_data = {
-                        'title': title_lookup,
-                        'year': year_lookup,
+                        'title': match.get('title', 'Unknown'),  # Fallback title from search API
+                        'year': match.get('year', 0),           # Fallback year from search API
                         'imdbnumber': imdb_id,
                         'source': 'search',
                         'media_type': 'movie',
