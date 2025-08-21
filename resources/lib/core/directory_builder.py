@@ -122,7 +122,7 @@ def build_root_directory(handle: int):
             # Skip protected folders - they're accessed via Options & Tools menu or hidden when empty
             if folder['name'] in ["Search History", "Imported Lists"]:
                 # Check if the folder has any content (lists or subfolders with content)
-                folder_count = db_manager.get_folder_media_count(folder['id'])
+                folder_count = db_manager.query_manager.get_folder_media_count(folder['id'])
                 subfolders = db_manager.fetch_folders(folder['id'])
                 has_subfolders = len(subfolders) > 0
                 
