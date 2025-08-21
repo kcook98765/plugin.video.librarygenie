@@ -120,7 +120,7 @@ class KodiHelper:
         from resources.lib.kodi.listitem_builder import ListItemBuilder
         config = get_config()
         db_manager = DatabaseManager(config.db_path)
-        items = db_manager.fetch_list_items(list_id)
+        items = db_manager.query_manager.fetch_list_items_with_details(list_id)
 
         # Set content type and force views
         xbmcplugin.setContent(self.addon_handle, 'movies')
@@ -186,11 +186,6 @@ class KodiHelper:
         try:
             utils.log(f"Play item called with item_id: {item_id} (type: {type(item_id)})", "DEBUG")
 
-            # Query the database for item
-            query = """SELECT media_items.* FROM media_items
-                      JOIN list_items ON list_items.media_item_id = media_items.id
-                      WHERE list_items.media_item_id = ?"""
-
             from resources.lib.data.database_manager import DatabaseManager
             from resources.lib.config.config_manager import get_config
             config = get_config()
@@ -220,14 +215,19 @@ class KodiHelper:
                 utils.log(f"Could not convert item_id to integer: {item_id}, Error: {str(e)}", "ERROR")
                 return False
 
+            # Query the database for item using query manager
+            query = """SELECT media_items.* FROM media_items
+                      JOIN list_items ON list_items.media_item_id = media_items.id
+                      WHERE list_items.media_item_id = ?"""
+            
             result = db_manager.query_manager.execute_query(query, (item_id,), fetch_one=True)
 
             if not result:
                 utils.log(f"Item not found for id: {item_id}", "ERROR")
                 return False
 
-            # Convert result row to dict
-            item_data = dict(result)
+            # Result is already a dict from the row object
+            item_data = result
 
             # Create list item with proper metadata using ListItemBuilder if it's a video item
             if item_data.get('mediatype') == 'movie' or item_data.get('media_type') == 'movie':
