@@ -571,39 +571,26 @@ def delete_folder(params):
         subfolders = db_manager.fetch_folders(folder_id)
         lists = db_manager.fetch_lists(folder_id)
 
-        total_contents = len(subfolders) + len(lists)
+        has_contents = len(subfolders) > 0 or len(lists) > 0
 
-        if total_contents > 0:
+        if has_contents:
             # Ask user what to do with contents
             content_options = [
-                f"Delete folder and all {total_contents} items inside",
+                "Delete folder and all items inside",
                 "Move contents to parent folder, then delete",
                 "Cancel deletion"
             ]
 
             typed_content_options = cast(List[Union[str, xbmcgui.ListItem]], content_options)
             selected_option = xbmcgui.Dialog().select(
-                f"Folder '{folder_info['name']}' contains {total_contents} items:",
+                f"Folder '{folder_info['name']}' contains items:",
                 typed_content_options
             )
 
             if selected_option == -1 or selected_option == 2:  # Cancel
                 return
-            elif selected_option == 1:  # Move contents
-                # Move all subfolders and lists to parent folder in a transaction
-                parent_folder_id = folder_info.get('parent_id')
-
-                with db_manager.query_manager.transaction() as conn:
-                    # Update all child folders' parent_id
-                    for subfolder in subfolders:
-                        conn.execute("UPDATE folders SET parent_id = ? WHERE id = ?", (parent_folder_id, subfolder['id']))
-
-                    # Update all lists' folder_id
-                    for list_item in lists:
-                        conn.execute("UPDATE lists SET folder_id = ? WHERE id = ?", (parent_folder_id, list_item['id']))
-
-                    # Delete the folder
-                    conn.execute("DELETE FROM folders WHERE id = ?", (int(folder_id),))
+        else:
+            selected_option = 0  # Direct delete for empty folder
 
         # Final confirmation
         if not xbmcgui.Dialog().yesno(
@@ -613,11 +600,19 @@ def delete_folder(params):
         ):
             return
 
-        # Delete the folder (if no transaction was already done above)
-        if total_contents == 0 or selected_option == 0:  # Empty folder or delete all contents
+        # Perform the operation in a single transaction
+        if has_contents and selected_option == 1:  # Move contents then delete
+            parent_folder_id = folder_info.get('parent_id')
+            with db_manager.query_manager.transaction() as conn:
+                # Update all child folders' parent_id
+                conn.execute("UPDATE folders SET parent_id = ? WHERE parent_id = ?", (parent_folder_id, folder_id))
+                # Update all lists' folder_id  
+                conn.execute("UPDATE lists SET folder_id = ? WHERE folder_id = ?", (parent_folder_id, folder_id))
+                # Delete the folder
+                conn.execute("DELETE FROM folders WHERE id = ?", (int(folder_id),))
+            success = True
+        else:  # Delete folder and all contents
             success = db_manager.delete_folder(folder_id)
-        else:
-            success = True  # Already deleted in transaction above
 
         if success:
             utils.log(f"Successfully deleted folder {folder_id}", "INFO")
@@ -714,7 +709,7 @@ def move_folder(params):
             return
 
         # Perform the move
-        success = db_manager.query_manager.update_folder_parent(folder_id, target_parent_id)
+        success = db_manager.update_data('folders', {'parent_id': target_parent_id}, 'id = ?', (int(folder_id),))
 
         if success:
             utils.log(f"Successfully moved folder {folder_id} to parent {target_parent_id}", "INFO")
