@@ -1194,7 +1194,7 @@ def dev_display_imdb_data_directory(params):
     import sys
 
     handle = int(sys.argv[1])
-    display_imdb_data_as_directory(params, handle)
+    display_imdb_data_as_directory(handle)
 
 
 def _perform_similarity_search(imdb_id, title, from_context_menu=False):
