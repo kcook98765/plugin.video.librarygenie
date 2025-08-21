@@ -97,25 +97,31 @@ class DatabaseManager(Singleton):
     def _execute_with_retry(self, func, *args, **kwargs):
         retries = 20  # Increase retry count for heavy operations
         operation_name = func.__name__ if hasattr(func, '__name__') else str(func)
-        utils.log(f"=== RETRY OPERATION START: {operation_name} ===", "DEBUG")
+        
+        # Define max_retries for the inner function scope
+        max_retries = retries 
+
+        def log_attempt(attempt, exception=None):
+            if exception:
+                if attempt >= max_retries:  # Only log on final failure
+                    utils.log(f"RETRY OPERATION FAILED: {operation_name} after {max_retries} attempts - {str(exception)}", "ERROR")
+                elif attempt > 1:  # Only log retries after first failure
+                    utils.log(f"Retrying {operation_name} (attempt {attempt}/{max_retries})", "WARNING")
+            # Remove the DEBUG logging that was spamming
 
         for i in range(retries):
             try:
-                utils.log(f"Executing {operation_name} attempt {i+1}/{retries}", "DEBUG")
+                log_attempt(i + 1) # Log attempt status
                 result = func(*args, **kwargs)
                 if i > 0:  # Only log if we had to retry
-                    utils.log(f"=== RETRY SUCCESS: {operation_name} succeeded on attempt {i+1} ===", "INFO")
+                    utils.log(f"SUCCESS: {operation_name} succeeded on attempt {i+1}", "INFO")
                 return result
             except sqlite3.OperationalError as e:
                 if 'database is locked' in str(e):
                     # More aggressive exponential backoff for heavy operations
                     wait_time = min(0.2 * (1.5 ** i), 5.0)  # Cap at 5 seconds
-                    utils.log(f"=== DATABASE LOCK DETECTED ===", "ERROR")
-                    utils.log(f"Operation: {operation_name}", "ERROR")
-                    utils.log(f"Attempt: {i+1}/{retries}", "ERROR")
-                    utils.log(f"Args: {args[:2] if args else 'None'}", "ERROR")  # Log first 2 args only
-                    utils.log(f"Wait time: {wait_time:.2f}s", "ERROR")
-                    utils.log(f"=== END DATABASE LOCK INFO ===", "ERROR")
+                    
+                    log_attempt(i + 1, e) # Log lock attempt details
 
                     time.sleep(wait_time)
 
@@ -128,11 +134,11 @@ class DatabaseManager(Singleton):
                         except Exception as checkpoint_error:
                             utils.log(f"WAL checkpoint failed: {str(checkpoint_error)}", "WARNING")
                 else:
-                    utils.log(f"Database error (non-lock) in {operation_name}: {str(e)}", "ERROR")
+                    log_attempt(i + 1, e) # Log other operational errors
                     raise
 
         # If all retries failed
-        utils.log(f"=== RETRY OPERATION FAILED: {operation_name} after {retries} attempts ===", "ERROR")
+        log_attempt(retries, sqlite3.OperationalError(f"Database is locked - {operation_name} failed after retries")) # Ensure final failure is logged
         raise sqlite3.OperationalError(f"Database is locked - {operation_name} failed after retries")
 
     def setup_database(self):
@@ -263,7 +269,7 @@ class DatabaseManager(Singleton):
                 media_item_id INTEGER NOT NULL,
                 PRIMARY KEY (list_id, media_item_id),
                 FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE,
-                FOREIGN KEY (media_item_id) REFERENCES media_items(id) ON DELETE CASCADE
+                FOREIGNKEY (media_item_id) REFERENCES media_items(id) ON DELETE CASCADE
             )
         ''')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_list_items_media_item_id ON list_items (media_item_id)')

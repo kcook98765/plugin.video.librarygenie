@@ -102,7 +102,7 @@ class ResultsManager(Singleton):
             if 'result' in response and 'movies' in response['result']:
                 light_movies = response['result']['movies']
                 utils.log(f"=== LIGHT_JSONRPC: SUCCESS - Got {len(light_movies)} light movies ===", "INFO")
-                
+
                 # Log first movie's complete light data
                 if light_movies:
                     first_movie = light_movies[0]
@@ -110,7 +110,7 @@ class ResultsManager(Singleton):
                     for key, value in first_movie.items():
                         utils.log(f"JSONRPC_LIGHT_DATA: {key} = {repr(value)}", "INFO")
                     utils.log(f"=== END JSONRPC_LIGHT_DATA ===", "INFO")
-                
+
                 return {"result": {"movies": light_movies, "limits": response['result'].get('limits', {})}}
             else:
                 utils.log("LIGHT_JSONRPC: No movies found in response", "INFO")
@@ -134,13 +134,11 @@ class ResultsManager(Singleton):
                 utils.log(f"=== BUILD_DISPLAY_ITEMS: No items found for list {list_id} ===", "INFO")
                 return []
 
-            # Log complete first item structure for debugging
-            if list_items:
+            # Log first item structure for debugging (reduced verbosity)
+            if list_items and utils.should_log_debug():
                 first_item = list_items[0]
-                utils.log(f"=== DATABASE_DATA: First item complete structure ===", "INFO")
-                for key, value in first_item.items():
-                    utils.log(f"DATABASE_DATA: {key} = {repr(value)}", "INFO")
-                utils.log(f"=== END DATABASE_DATA ===", "INFO")
+                utils.log(f"First item keys: {list(first_item.keys())}", "DEBUG")
+                utils.log(f"Sample: title='{first_item.get('title', 'N/A')}', year={first_item.get('year', 'N/A')}, source='{first_item.get('source', 'N/A')}'", "DEBUG")
 
             # Check if this is from Search History folder
             list_info = self.query_manager.fetch_list_by_id(list_id)
@@ -166,7 +164,7 @@ class ResultsManager(Singleton):
                 if src in ('external', 'plugin_addon'):
                     external.append(r)
                     continue
-                
+
                 imdb = r.get('imdbnumber')
                 title, year = '', 0
 
@@ -186,7 +184,7 @@ class ResultsManager(Singleton):
                     imdb_str = str(imdb).strip()
                     if imdb_str.startswith('tt') and len(imdb_str) > 2:
                         clean_imdb = imdb_str
-                
+
                 # Clean up search score
                 search_score = 0
                 try:
@@ -224,21 +222,21 @@ class ResultsManager(Singleton):
             # Create unique batch pairs to avoid duplicate lookups
             unique_pairs = {}
             refs_to_pairs = {}
-            
+
             for i, ref in enumerate(refs):
                 # Use enhanced data from refs instead of raw row data
                 ref_title = ref.get('title', '')
                 ref_year = ref.get('year', 0)
-                
+
                 # Create a unique key for deduplication
                 pair_key = (ref_title.lower().strip(), int(ref_year or 0))
-                
+
                 if pair_key not in unique_pairs:
                     unique_pairs[pair_key] = {
                         'title': ref_title,
                         'year': ref_year
                     }
-                
+
                 # Map this ref to its pair key for later lookup
                 refs_to_pairs[i] = pair_key
 
@@ -269,7 +267,7 @@ class ResultsManager(Singleton):
                 try:
                     heavy_by_id = self.query_manager._listing.get_heavy_meta_by_movieids(movieids)
                     utils.log(f"=== BUILD_DISPLAY_ITEMS: Retrieved heavy fields for {len(heavy_by_id)} movies from cache ===", "INFO")
-                    
+
                     # Log heavy data for first movie
                     if heavy_by_id:
                         first_movieid = list(heavy_by_id.keys())[0]
@@ -284,14 +282,14 @@ class ResultsManager(Singleton):
                         utils.log(f"=== END HEAVY_CACHE_DATA ===", "INFO")
                     else:
                         utils.log(f"=== HEAVY_CACHE_DATA: No heavy data found for any movieids ===", "ERROR")
-                        
+
                 except Exception as e:
                     utils.log(f"=== BUILD_DISPLAY_ITEMS: Failed to get heavy fields from cache: {str(e)} ===", "ERROR")
 
             # ---- Step 3: Merge light + heavy data ----
             merged_count = 0
             missing_heavy_movieids = []
-            
+
             for movie in light_movies:
                 movieid = movie.get('movieid')
                 if movieid and movieid in heavy_by_id:
@@ -393,7 +391,7 @@ class ResultsManager(Singleton):
                 if ref_index >= len(refs):
                     utils.log(f"=== BUILD_DISPLAY_ITEMS: Item {i+1}: ref_index {ref_index} exceeds refs length {len(refs)} ===", "ERROR")
                     continue
-                
+
                 processed_ref = refs[ref_index]
                 ref_index += 1
 
@@ -412,7 +410,7 @@ class ResultsManager(Singleton):
                 kodi_movie = cand[0] if cand else None
 
                 utils.log(f"=== MOVIE_MATCHING: Item {i+1}: Found {len(cand)} candidates, kodi_movie exists: {kodi_movie is not None} ===", "INFO")
-                
+
                 if kodi_movie:
                     utils.log(f"=== KODI_MATCH_DATA: Item {i+1} matched to Kodi movie ===", "INFO")
                     for key, value in kodi_movie.items():
@@ -475,7 +473,7 @@ class ResultsManager(Singleton):
                     file_path = kodi_movie.get('file')
                     if file_path:
                         item_dict['play'] = file_path
-                        utils.log(f"Set library file path for search result '{item_dict.get('title')}': {file_path}", "DEBUG")
+                        utils.log(f"Set library file path for search result '{item_dict.get('title')}' : {file_path}", "DEBUG")
                     else:
                         # Fallback to search_history protocol for non-playable library matches
                         item_dict['play'] = f"search_history://{ref_imdb}"

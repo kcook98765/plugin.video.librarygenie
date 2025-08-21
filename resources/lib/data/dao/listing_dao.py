@@ -574,7 +574,7 @@ class ListingDAO:
             cached_data = {}
             for row in results:
                 movieid = row['kodi_movieid']
-                
+
                 # Parse JSON fields
                 import json
                 try:

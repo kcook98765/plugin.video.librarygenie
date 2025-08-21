@@ -8,6 +8,15 @@ def get_addon_handle():
     except (IndexError, ValueError):
         return -1  # Use a default value that indicates an invalid handle
 
+def should_log_debug():
+    """Check if we should log detailed debug information"""
+    try:
+        from resources.lib.config.addon_ref import get_addon
+        addon = get_addon()
+        return addon.getSettingBool('debug_logging') if addon else False
+    except:
+        return False
+
 def log(message, level=None):
     """Unified logging function for LibraryGenie addon.
     Args:
@@ -19,15 +28,17 @@ def log(message, level=None):
 
     # Check debug logging setting for DEBUG and INFO messages
     if level in ['DEBUG', 'INFO']:
+        addon = None
         try:
             from resources.lib.config.addon_ref import get_addon
             addon = get_addon()
+        except (ImportError, AttributeError, Exception):
+            pass # If we can't get the setting, default to logging for safety
+
+        if addon:
             debug_enabled = addon.getSetting('debug_logging') == 'true'
             if not debug_enabled:
                 return
-        except (ImportError, AttributeError, Exception):
-            # If we can't get the setting, default to logging for safety
-            pass
 
     # Skip common spam logs
     if isinstance(message, str):
@@ -144,10 +155,10 @@ _INIT_LOGGED = set()
 def get_kodi_version():
     """Get the major version number of the current Kodi installation with caching"""
     global _KODI_VERSION_CACHE
-    
+
     if _KODI_VERSION_CACHE is not None:
         return _KODI_VERSION_CACHE
-    
+
     try:
         import xbmc
         version_info = xbmc.getInfoLabel("System.BuildVersion")
