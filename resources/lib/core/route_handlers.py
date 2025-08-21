@@ -182,11 +182,17 @@ def delete_list(params):
         # Use transaction for atomic delete operation
         with db_manager.query_manager.transaction() as conn:
             # Delete list items first
-            conn.execute("DELETE FROM list_items WHERE list_id = ?", (int(list_id),))
+            cursor = conn.execute("DELETE FROM list_items WHERE list_id = ?", (int(list_id),))
+            items_deleted = cursor.rowcount
             # Delete the list
-            conn.execute("DELETE FROM lists WHERE id = ?", (int(list_id),))
+            cursor = conn.execute("DELETE FROM lists WHERE id = ?", (int(list_id),))
+            list_deleted = cursor.rowcount
 
-        xbmcgui.Dialog().notification('LibraryGenie', 'List deleted')
+        if list_deleted > 0:
+            xbmcgui.Dialog().notification('LibraryGenie', 'List deleted')
+        else:
+            xbmcgui.Dialog().notification('LibraryGenie', 'List not found', xbmcgui.NOTIFICATION_WARNING)
+            
         # Use navigation manager for consistent logging
         from resources.lib.core.navigation_manager import get_navigation_manager
         nav_manager = get_navigation_manager()
@@ -605,12 +611,15 @@ def delete_folder(params):
             parent_folder_id = folder_info.get('parent_id')
             with db_manager.query_manager.transaction() as conn:
                 # Update all child folders' parent_id
-                conn.execute("UPDATE folders SET parent_id = ? WHERE parent_id = ?", (parent_folder_id, folder_id))
+                cursor = conn.execute("UPDATE folders SET parent_id = ? WHERE parent_id = ?", (parent_folder_id, int(folder_id)))
+                folders_moved = cursor.rowcount
                 # Update all lists' folder_id  
-                conn.execute("UPDATE lists SET folder_id = ? WHERE folder_id = ?", (parent_folder_id, folder_id))
+                cursor = conn.execute("UPDATE lists SET folder_id = ? WHERE folder_id = ?", (parent_folder_id, int(folder_id)))
+                lists_moved = cursor.rowcount
                 # Delete the folder
-                conn.execute("DELETE FROM folders WHERE id = ?", (int(folder_id),))
-            success = True
+                cursor = conn.execute("DELETE FROM folders WHERE id = ?", (int(folder_id),))
+                folder_deleted = cursor.rowcount
+            success = folder_deleted > 0
         else:  # Delete folder and all contents
             success = db_manager.delete_folder(folder_id)
 
@@ -1271,9 +1280,10 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
                       if enabled]
         facet_desc = ' + '.join(facet_names)
 
-        # Get search history folder using QueryManager
-        query_manager = QueryManager(config.db_path)
-        search_folder = query_manager.ensure_search_history_folder()
+        # Get database manager and use its query_manager
+        from resources.lib.data.database_manager import DatabaseManager
+        db_manager = DatabaseManager(config.db_path)
+        search_folder = db_manager.query_manager.ensure_search_history_folder()
 
         # Check if search folder was created successfully
         if search_folder is None:
@@ -1290,11 +1300,11 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
 
         # Create unique list name
         base_name = f"Similar to {title} ({facet_desc})"
-        list_name = query_manager.get_unique_list_name(base_name, search_folder_id)
+        list_name = db_manager.query_manager.get_unique_list_name(base_name, search_folder_id)
         utils.log(f"=== SIMILARITY_SEARCH: Creating list '{list_name}' in folder {search_folder_id} ===", "DEBUG")
 
         # Create the list
-        new_list = query_manager.create_list(list_name, search_folder_id)
+        new_list = db_manager.query_manager.create_list(list_name, search_folder_id)
         if not new_list:
             xbmcgui.Dialog().ok('LibraryGenie', 'Failed to create similarity list.')
             return
@@ -1347,7 +1357,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
 
                 try:
                     lookup_query = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
-                    lookup_result = query_manager.execute_query(lookup_query, (imdb_id,))
+                    lookup_result = db_manager.query_manager.execute_query(lookup_query, (imdb_id,))
                     if lookup_result:
                         title_lookup = lookup_result[0].get('title', '')
                         year_lookup = int(lookup_result[0].get('year', 0) or 0)
@@ -1374,7 +1384,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
 
                 # Insert media item and add to list
                 try:
-                    success = query_manager.insert_media_item_and_add_to_list(new_list_id, media_item_data)
+                    success = db_manager.query_manager.insert_media_item_and_add_to_list(new_list_id, media_item_data)
                     if success:
                         utils.log(f"=== SIMILARITY_SEARCH: Successfully added {imdb_id} to list ===", "DEBUG")
                     else:
