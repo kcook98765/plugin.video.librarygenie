@@ -521,7 +521,150 @@ Idempotency-Key: <uuid-per-chunk>
 }
 ```
 
-### 11. Clear Movie List
+### 11. Get Library Statistics
+
+**Endpoint:** `GET /users/me/library/stats`  
+**Authentication:** Required (API Key)  
+**Purpose:** Get comprehensive statistics about user's movie library including setup completeness, data quality metrics, and system context
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "stats": {
+    "library_overview": {
+      "total_uploaded": 1234,
+      "upload_date_range": {
+        "earliest": "2024-01-15T10:30:00Z",
+        "latest": "2024-12-01T14:45:00Z"
+      }
+    },
+    "setup_status": {
+      "completely_setup": {
+        "count": 1150,
+        "percentage": 93.2,
+        "movies": ["tt0111161", "tt0068646", "tt0071562"]
+      },
+      "not_setup": {
+        "count": 84,
+        "percentage": 6.8,
+        "breakdown": {
+          "missing_tmdb_data": {
+            "count": 12,
+            "movies": ["tt9999999", "tt8888888"]
+          },
+          "tmdb_errors": {
+            "count": 3,
+            "movies": ["tt7777777"]
+          },
+          "not_in_opensearch": {
+            "count": 69,
+            "movies": ["tt6666666", "tt5555555"]
+          }
+        }
+      }
+    },
+    "data_quality": {
+      "tmdb_data_available": {
+        "count": 1219,
+        "percentage": 98.8
+      },
+      "tmdb_errors": {
+        "count": 3,
+        "percentage": 0.2
+      },
+      "opensearch_indexed": {
+        "count": 1150,
+        "percentage": 93.2
+      }
+    },
+    "batch_history": {
+      "total_batches": 5,
+      "successful_batches": 4,
+      "failed_batches": 1,
+      "recent_batches": [
+        {
+          "batch_id": "uuid-recent-1",
+          "status": "completed",
+          "total_movies": 500,
+          "successful_imports": 500,
+          "completed_at": "2024-12-01T14:45:00Z"
+        }
+      ]
+    },
+    "system_context": {
+      "total_movies_in_system": 125000,
+      "completed_movies": 124500,
+      "failed_movies": 500,
+      "tmdb_fetched_movies": 124450,
+      "opensearch_connection": true,
+      "tmdb_detailed_stats": {
+        "total_records": 124450,
+        "successful_fetches": 123800,
+        "fetch_errors": 650,
+        "complete_metadata": 123500,
+        "with_release_dates": 123200,
+        "success_rate": 99.48
+      },
+      "opensearch_detailed_stats": {
+        "movies_indexed": 123000,
+        "indexing_completion_rate": 98.79,
+        "estimated_searchable_movies": 122800,
+        "index_status": "connected"
+      },
+      "user_lists_stats": {
+        "total_users_with_lists": 45,
+        "total_user_movie_entries": 12800,
+        "average_movies_per_user": 284.4,
+        "largest_user_collection": 2100
+      }
+    }
+  },
+  "generated_at": "2024-12-15T16:20:00Z"
+}
+```
+
+**Response Fields:**
+- `library_overview`: Basic library information (total count, date range)
+- `setup_status`: Breakdown of movies by completeness status with sample IMDb IDs
+- `data_quality`: Percentages for TMDB data availability and OpenSearch indexing
+- `batch_history`: Upload batch statistics and recent batch details
+- `system_context`: System-wide statistics and service availability with enhanced metrics:
+  - `tmdb_detailed_stats`: Comprehensive TMDB statistics including success rates and data completeness
+  - `opensearch_detailed_stats`: OpenSearch indexing metrics and search readiness
+  - `user_lists_stats`: Community statistics showing user collection patterns
+
+**Enhanced Statistics Explained:**
+
+*TMDB Detailed Stats:*
+- `total_records`: Total TMDB database entries across all users
+- `successful_fetches`: Movies with complete TMDB metadata (no errors)
+- `fetch_errors`: Movies that failed TMDB API retrieval
+- `complete_metadata`: Movies with both title and plot overview
+- `with_release_dates`: Movies that include release date information
+- `success_rate`: Percentage of successful TMDB operations
+
+*OpenSearch Detailed Stats:*
+- `movies_indexed`: Total movies available for semantic search
+- `indexing_completion_rate`: % of completed movies that are searchable
+- `estimated_searchable_movies`: Movies with both search indexing and good TMDB data
+- `index_status`: Current OpenSearch service connectivity
+
+*User Lists Stats:*
+- `total_users_with_lists`: Number of users with movie collections
+- `total_user_movie_entries`: Sum of all uploaded movies across users
+- `average_movies_per_user`: Mean collection size per user
+- `largest_user_collection`: Size of biggest individual library
+
+**Use Cases:**
+- Display comprehensive system health in Kodi addon settings
+- Show setup progress during initial sync
+- Identify movies needing additional processing
+- Monitor data quality over time
+- Compare user's collection size to community averages
+- Display search readiness and system capacity metrics
+
+### 12. Clear Movie List
 
 **Endpoint:** `DELETE /kodi/movies/clear`  
 **Authentication:** Required (API Key)  
@@ -536,7 +679,7 @@ Idempotency-Key: <uuid-per-chunk>
 }
 ```
 
-### 12. Find Similar Movies
+### 13. Find Similar Movies
 
 **Endpoint:** `POST /similar_to`  
 **Authentication:** None (public endpoint)  
