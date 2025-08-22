@@ -112,22 +112,26 @@ def build_root_directory(handle: int):
         # Get query manager - database setup is handled by service
         query_manager = QueryManager(config.db_path)
 
-        # Add Kodi Favorites list right after Options & Tools (if it exists)
-        kodi_favorites_lists = query_manager.fetch_lists(None)
-        kodi_favorites_list = None
-        for list_item in kodi_favorites_lists:
-            if list_item['name'] == "Kodi Favorites":
-                kodi_favorites_list = list_item
-                break
+        # Add Kodi Favorites list right after Options & Tools (if it exists and sync is enabled)
+        from resources.lib.config.settings_manager import SettingsManager
+        settings = SettingsManager()
         
-        if kodi_favorites_list:
-            list_count = query_manager.get_list_media_count(kodi_favorites_list['id'])
-            display_title = f"Kodi Favorites ({list_count})"
-            li = ListItemBuilder.build_folder_item(f"⭐ {display_title}", is_folder=True, item_type='playlist')
-            li.setProperty('lg_type', 'list')
-            add_context_menu_for_item(li, 'list', list_id=kodi_favorites_list['id'])
-            url = build_plugin_url({'action': 'browse_list', 'list_id': kodi_favorites_list['id'], 'view': 'list'})
-            xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
+        if settings.is_favorites_sync_enabled():
+            kodi_favorites_lists = query_manager.fetch_lists(None)
+            kodi_favorites_list = None
+            for list_item in kodi_favorites_lists:
+                if list_item['name'] == "Kodi Favorites":
+                    kodi_favorites_list = list_item
+                    break
+            
+            if kodi_favorites_list:
+                list_count = query_manager.get_list_media_count(kodi_favorites_list['id'])
+                display_title = f"Kodi Favorites ({list_count})"
+                li = ListItemBuilder.build_folder_item(f"⭐ {display_title}", is_folder=True, item_type='playlist')
+                li.setProperty('lg_type', 'list')
+                add_context_menu_for_item(li, 'list', list_id=kodi_favorites_list['id'])
+                url = build_plugin_url({'action': 'browse_list', 'list_id': kodi_favorites_list['id'], 'view': 'list'})
+                xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
 
         # Get top-level folders
         top_level_folders = query_manager.fetch_folders(None) # None for root

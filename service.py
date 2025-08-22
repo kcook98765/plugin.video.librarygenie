@@ -271,6 +271,9 @@ class LibraryGenieService:
                         utils.log(f"Running favorites sync (interval: {sync_interval}s)", "DEBUG")
                         self.favorites_sync_manager.sync_favorites()
                         self.last_favorites_sync = current_time
+                else:
+                    # Reset sync timer when disabled to avoid immediate sync when re-enabled
+                    self.last_favorites_sync = current_time
 
             except Exception as e:
                 utils.log(f"Error in service loop: {str(e)}", "ERROR")
