@@ -474,13 +474,13 @@ class IMDbUploadManager:
         utils.log("Starting incremental movie retrieval and storage from Kodi library", "INFO")
         
         if use_notifications:
-            utils.show_notification("LibraryGenie", "Starting movie retrieval from Kodi...", time=3000)
+            utils.show_notification("LibraryGenie", "Starting movie retrieval from Kodi...", time=2000)
 
         batch_size = 100
         start = 0
         total_stored = 0
-        last_notification = 0
         total = 0
+        start_time = time.time()
 
         while True:
             # Execute JSON-RPC call
@@ -530,19 +530,23 @@ class IMDbUploadManager:
             
             # Show total count immediately after first batch
             if start == 0 and use_notifications and total > 0:
-                utils.show_notification("LibraryGenie", f"Found {total} movies in library, processing...", time=3000)
+                utils.show_notification("LibraryGenie", f"Processing {total} movies...", time=2000)
 
             # Process and store this batch immediately
             if movies:
                 batch_stored = self._process_and_store_single_batch(movies, start // batch_size + 1, use_notifications)
                 total_stored += batch_stored
 
-            # Update progress tracking with storage progress - show every 1000 movies with 1 second display
+            # Progress tracking via logs only during processing - no notifications to avoid queue buildup
             current_retrieved = start + len(movies)
-            if use_notifications and (current_retrieved - last_notification >= 1000 or start == 0 or current_retrieved >= total):
-                progress_percent = int((current_retrieved / total) * 100) if total > 0 else 0
-                utils.show_notification("LibraryGenie", f"Processed {current_retrieved} of {total} movies ({progress_percent}%) - {total_stored} stored", time=1000)
-                last_notification = current_retrieved
+            progress_percent = int((current_retrieved / total) * 100) if total > 0 else 0
+            
+            # Log progress every 5 batches (500 movies) or at key milestones
+            batch_num = start // batch_size + 1
+            if batch_num % 5 == 0 or batch_num == 1 or current_retrieved >= total:
+                elapsed = time.time() - start_time
+                rate = current_retrieved / elapsed if elapsed > 0 else 0
+                utils.log(f"SCAN PROGRESS: {progress_percent}% - {current_retrieved}/{total} movies processed and stored in {elapsed:.1f}s ({rate:.1f} movies/sec)", "INFO")
 
             # Check if we're done
             if len(movies) < batch_size or start + batch_size >= total:
@@ -550,10 +554,14 @@ class IMDbUploadManager:
 
             start += batch_size
 
-        utils.log(f"Incremental processing complete: {total_stored} movies stored from {start + len(movies) if movies else start} retrieved", "INFO")
+        # Final summary
+        elapsed = time.time() - start_time
+        rate = total_stored / elapsed if elapsed > 0 else 0
+        utils.log(f"SCAN COMPLETE: {total_stored} movies processed and stored in {elapsed:.1f}s ({rate:.1f} movies/sec)", "INFO")
 
+        # Only show final completion notification to avoid queue issues
         if use_notifications:
-            utils.show_notification("LibraryGenie", f"Complete! {total_stored} movies processed and stored", time=3000)
+            utils.show_notification("LibraryGenie", f"Scan complete! {total_stored} movies processed", time=3000)
 
         return total_stored
 
