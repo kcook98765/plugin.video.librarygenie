@@ -476,7 +476,8 @@ class ListItemBuilder:
                 try:
                     if utils.is_kodi_v19():
                         # v19 - use deprecated methods since InfoTag is unreliable
-                    ListItemBuilder._add_stream_info_deprecated(li, stream_details)
+                    if stream_details:
+                        ListItemBuilder._add_stream_info_deprecated(li, stream_details)
                 else:
                     # v20+ - skip deprecated stream methods to avoid warnings
                     # Stream details are handled by InfoTag internally when possible

@@ -38,7 +38,7 @@ class QueryManager(Singleton):
 
         # Additional check: identifier must not be a SQL keyword
         sql_keywords = {
-            'select', 'insert', 'update', 'delete', 'drop', 'create', 'alter', 
+            'select', 'insert', 'update', 'delete', 'drop', 'create', 'alter',
             'table', 'index', 'view', 'trigger', 'database', 'schema', 'from',
             'where', 'join', 'union', 'group', 'order', 'having', 'limit'
         }
@@ -86,8 +86,8 @@ class QueryManager(Singleton):
 
             # Create connection with proper settings
             self._connection = sqlite3.connect(
-                self.db_path, 
-                timeout=30.0, 
+                self.db_path,
+                timeout=30.0,
                 check_same_thread=False
             )
 
@@ -333,7 +333,7 @@ class QueryManager(Singleton):
             with self.transaction() as conn:
                 # Delete all list items in lists within this folder
                 conn.execute("""
-                    DELETE FROM list_items 
+                    DELETE FROM list_items
                     WHERE list_id IN (SELECT id FROM lists WHERE folder_id = ?)
                 """, (folder_id,))
 
@@ -881,14 +881,15 @@ class QueryManager(Singleton):
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT UNIQUE,
                 parent_id INTEGER,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (parent_id) REFERENCES folders(id) ON DELETE CASCADE
             )""",
             """CREATE TABLE IF NOT EXISTS lists (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT,
                 folder_id INTEGER,
                 protected INTEGER DEFAULT 0,
-                FOREIGN KEY (folder_id) REFERENCES folders (id)
+                FOREIGN KEY (folder_id) REFERENCES folders (id) ON DELETE CASCADE
             )""",
             f"""CREATE TABLE IF NOT EXISTS media_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -897,12 +898,14 @@ class QueryManager(Singleton):
             )""",
             """CREATE TABLE IF NOT EXISTS list_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                list_id INTEGER,
-                media_item_id INTEGER,
+                list_id INTEGER NOT NULL,
+                media_item_id INTEGER NOT NULL,
                 search_score REAL DEFAULT 0,
                 flagged INTEGER DEFAULT 0,
-                FOREIGN KEY (list_id) REFERENCES lists (id),
-                FOREIGNKEY (media_item_id) REFERENCES media_items (id)
+                date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE,
+                FOREIGN KEY (media_item_id) REFERENCES media_items(id) ON DELETE CASCADE,
+                UNIQUE(list_id, media_item_id)
             )""",
 
 
@@ -1048,15 +1051,15 @@ class QueryManager(Singleton):
 
                     # Insert or replace heavy metadata
                     cursor.execute("""
-                        INSERT OR REPLACE INTO movie_heavy_meta 
-                        (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
+                        INSERT OR REPLACE INTO movie_heavy_meta
+                        (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json,
                          stream_json, uniqueid_json, tags_json, updated_at)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
                         movieid,
                         movie_data.get('imdbnumber', ''),
                         cast_json,
-                        ratings_json, 
+                        ratings_json,
                         showlink_json,
                         stream_json,
                         uniqueid_json,
@@ -1126,7 +1129,7 @@ class QueryManager(Singleton):
         utils.log(f"=== INSERTING {len(movies)} MOVIES INTO IMDB_EXPORTS ===", "INFO")
 
         sql = """
-            INSERT OR REPLACE INTO imdb_exports 
+            INSERT OR REPLACE INTO imdb_exports
             (kodi_id, imdb_id, title, year)
             VALUES (?, ?, ?, ?)
         """
