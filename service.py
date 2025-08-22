@@ -32,11 +32,14 @@ def init_once():
             utils.log(f"{ID} database setup failed during init", "ERROR")
             return
 
-        # Check if library scanning is needed
+        # Check if library scanning is needed (this handles initial scan prompting)
         check_and_prompt_library_scan()
 
-        # Sync Kodi favorites to reserved list ID 1 - but only if library data exists
+        # Only run favorites sync if we have library data (skip during initial scan)
         try:
+            config = Config()
+            query_manager = QueryManager(config.db_path)
+            
             # Check if we have actual library data before running favorites sync
             imdb_result = query_manager.execute_query("SELECT COUNT(*) as count FROM imdb_exports", fetch_one=True)
             imdb_count = imdb_result['count'] if imdb_result else 0
@@ -83,6 +86,20 @@ def ensure_database_ready():
         # Setup all database tables
         query_manager.setup_database()
 
+        # Check if this is a fresh database (no library data) - skip folder/list creation during initial scan
+        imdb_result = query_manager.execute_query("SELECT COUNT(*) as count FROM imdb_exports", fetch_one=True)
+        imdb_count = imdb_result['count'] if imdb_result else 0
+        
+        media_result = query_manager.execute_query("SELECT COUNT(*) as count FROM media_items", fetch_one=True) 
+        media_count = media_result['count'] if media_result else 0
+
+        if imdb_count == 0 and media_count == 0:
+            utils.log("Fresh database detected - skipping folder/list creation until after initial library scan", "INFO")
+            return True
+
+        # Only create folders and lists if we have existing data (not during initial setup)
+        utils.log("Existing data found - ensuring required folders and lists exist", "DEBUG")
+
         # Ensure required system folders exist
         search_history_folder_id = query_manager.get_folder_id_by_name("Search History")
         if not search_history_folder_id:
@@ -102,24 +119,28 @@ def ensure_database_ready():
                 imported_lists_folder_id = imported_lists_result
             utils.log(f"Created Imported Lists folder: {imported_lists_folder_id}", "DEBUG")
 
-        # Ensure reserved lists exist
+        # Ensure reserved lists exist - but only if QueryManager has the methods
         try:
-            kodi_favorites_list = query_manager.ensure_kodi_favorites_list()
-            if kodi_favorites_list:
-                list_id = kodi_favorites_list['id'] if isinstance(kodi_favorites_list, dict) else kodi_favorites_list
-                utils.log(f"Ensured Kodi Favorites list exists with ID: {list_id}", "DEBUG")
+            if hasattr(query_manager, 'ensure_kodi_favorites_list'):
+                kodi_favorites_list = query_manager.ensure_kodi_favorites_list()
+                if kodi_favorites_list:
+                    list_id = kodi_favorites_list['id'] if isinstance(kodi_favorites_list, dict) else kodi_favorites_list
+                    utils.log(f"Ensured Kodi Favorites list exists with ID: {list_id}", "DEBUG")
+            else:
+                utils.log("QueryManager missing ensure_kodi_favorites_list method - skipping", "DEBUG")
         except Exception as e:
             utils.log(f"Error ensuring Kodi Favorites list: {e}", "ERROR")
 
         try:
-            shortlist_imports_list = query_manager.ensure_shortlist_imports_list()
-            if shortlist_imports_list:
-                list_id = shortlist_imports_list['id'] if isinstance(shortlist_imports_list, dict) else shortlist_imports_list
-                utils.log(f"Ensured Shortlist Imports list exists with ID: {list_id}", "DEBUG")
+            if hasattr(query_manager, 'ensure_shortlist_imports_list'):
+                shortlist_imports_list = query_manager.ensure_shortlist_imports_list()
+                if shortlist_imports_list:
+                    list_id = shortlist_imports_list['id'] if isinstance(shortlist_imports_list, dict) else shortlist_imports_list
+                    utils.log(f"Ensured Shortlist Imports list exists with ID: {list_id}", "DEBUG")
+            else:
+                utils.log("QueryManager missing ensure_shortlist_imports_list method - skipping", "DEBUG")
         except Exception as e:
             utils.log(f"Error ensuring Shortlist Imports list: {e}", "ERROR")
-
-        
 
         utils.log("Database setup completed successfully", "INFO")
         return True

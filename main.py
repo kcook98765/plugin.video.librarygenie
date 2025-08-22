@@ -484,10 +484,15 @@ def main():
                     # Double-check that library data exists before running favorites sync
                     config = Config()
                     query_manager = QueryManager(config.db_path)
+                    
+                    # Check both tables to ensure we have actual library data
                     imdb_result = query_manager.execute_query("SELECT COUNT(*) as count FROM imdb_exports", fetch_one=True)
                     imdb_count = imdb_result['count'] if imdb_result else 0
                     
-                    if imdb_count > 0:
+                    media_result = query_manager.execute_query("SELECT COUNT(*) as count FROM media_items WHERE source = 'lib'", fetch_one=True)
+                    media_count = media_result['count'] if media_result else 0
+                    
+                    if imdb_count > 0 or media_count > 0:
                         utils.log("Root navigation detected - triggering favorites sync", "DEBUG")
                         sync_manager = FavoritesSyncManager()
                         # Sync in isolation - no UI operations should happen during this
@@ -498,7 +503,7 @@ def main():
                         import time
                         time.sleep(0.1)
                     else:
-                        utils.log("Skipping favorites sync - no library data available yet", "DEBUG")
+                        utils.log("Skipping favorites sync - no library data available yet (initial scan needed)", "DEBUG")
             except Exception as e:
                 utils.log(f"Error in root navigation favorites sync: {str(e)}", "ERROR")
                 # Don't let sync errors prevent addon from loading
