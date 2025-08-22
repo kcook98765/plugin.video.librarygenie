@@ -153,10 +153,17 @@ class FavoritesSyncManager:
 
             # Compare with last known signature
             last_signature = self.last_snapshot.get('signature', '')
-            if current_signature == last_signature:
+            
+            # Check if the list is empty despite having favorites
+            list_id = self.get_kodi_favorites_list_id()
+            current_list_count = self.query_manager.get_list_media_count(list_id)
+            
+            if current_signature == last_signature and current_list_count > 0:
                 elapsed_time = time.time() - start_time
                 utils.log(f"Favorites unchanged, no sync needed (checked in {elapsed_time:.2f}s)", "DEBUG")
                 return False
+            elif current_list_count == 0 and len(current_items) > 0:
+                utils.log(f"Favorites list is empty but we have {len(current_items)} favorites - forcing rebuild", "INFO")
 
             utils.log(f"Favorites changed - proceeding with sync", "INFO")
 
@@ -184,7 +191,7 @@ class FavoritesSyncManager:
             utils.log(f"Sync changes: {len(added_items)} added, {len(removed_identities)} removed, {len(changed_items)} changed", "INFO")
 
             # Apply changes to LibraryGenie
-            if added_items or removed_identities or changed_items:
+            if added_items or removed_identities or changed_items or current_list_count == 0:
                 self.apply_favorites_changes(added_items, removed_identities, changed_items)
 
             # Save new snapshot

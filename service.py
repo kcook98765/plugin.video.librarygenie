@@ -81,7 +81,12 @@ def ensure_database_ready():
             imported_lists_folder_id = imported_lists_result['id']
             utils.log(f"Created Imported Lists folder: {imported_lists_folder_id}", "DEBUG")
 
-        # Note: Kodi Favorites is now a direct list (ID 1) at root level, not a folder
+        # Remove obsolete "Kodi Favorites" folder if it exists (we now use list ID 1 directly)
+        kodi_favorites_folder_id = query_manager.get_folder_id_by_name("Kodi Favorites")
+        if kodi_favorites_folder_id:
+            utils.log(f"Removing obsolete Kodi Favorites folder (ID: {kodi_favorites_folder_id})", "INFO")
+            query_manager.delete_folder(kodi_favorites_folder_id)
+
         utils.log("Database setup completed successfully", "INFO")
         return True
 
