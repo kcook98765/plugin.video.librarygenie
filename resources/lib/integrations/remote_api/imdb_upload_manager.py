@@ -109,6 +109,22 @@ class IMDbUploadManager:
             utils.log(f"Error getting Kodi movie collection: {str(e)}", "ERROR")
             return []
 
+    def _retrieve_all_movies_from_kodi(self, use_notifications=False):
+        """Retrieve all movies from Kodi library using JSONRPC"""
+        try:
+            if use_notifications:
+                utils.show_notification("LibraryGenie", "Retrieving movies from Kodi...", time=3000)
+
+            # Use the existing JSONRPC method to get movies with IMDb information
+            movies = self.jsonrpc.get_movies_with_imdb()
+
+            utils.log(f"Retrieved {len(movies)} movies from Kodi library", "INFO")
+            return movies
+
+        except Exception as e:
+            utils.log(f"Error retrieving movies from Kodi: {str(e)}", "ERROR")
+            return []
+
 
     def get_full_kodi_movie_collection_and_store_locally(self, use_notifications=False, show_modal_on_completion=False):
         """Get all movies from Kodi and store locally with incremental batch processing"""
@@ -170,7 +186,7 @@ class IMDbUploadManager:
             for movie in movies:
                 # Extract IMDb ID (may be None/empty for some movies)
                 imdb_id = self._extract_imdb_id(movie)
-                
+
                 # Store ALL movies from library, regardless of IMDb validity
                 movie['imdbnumber'] = imdb_id if imdb_id else ''
                 batch_valid_movies.append(movie)
@@ -265,7 +281,7 @@ class IMDbUploadManager:
 
                 # Progress notifications
                 progress_percent = int((processed / total_movies) * 100)
-                show_progress = (total_batches <= 5 or progress_percent % 20 == 0 or 
+                show_progress = (total_batches <= 5 or progress_percent % 20 == 0 or
                                processed == total_movies or batch_num == 1)
 
                 if use_notifications and show_progress:
@@ -368,7 +384,7 @@ class IMDbUploadManager:
             utils.log(f"=== STORING EXPORT DATA BATCH: {len(batch_export_data)} movies ===", "DEBUG")
 
         sql = "INSERT OR REPLACE INTO imdb_exports (kodi_id, imdb_id, title, year) VALUES (?, ?, ?, ?)"
-        data_to_insert = [(data['kodi_id'], data['imdb_id'], data['title'], data['year']) 
+        data_to_insert = [(data['kodi_id'], data['imdb_id'], data['title'], data['year'])
                          for data in batch_export_data]
         self.query_manager.executemany_write(sql, data_to_insert)
 
