@@ -106,7 +106,7 @@ class IMDbUploadManager:
             return []
 
 
-    def get_full_kodi_movie_collection_and_store_locally(self, use_notifications=False):
+    def get_full_kodi_movie_collection_and_store_locally(self, use_notifications=False, show_modal_on_completion=False):
         """Get all movies from Kodi and store locally with incremental batch processing"""
         try:
             utils.log("Starting incremental Kodi movie collection retrieval and storage", "INFO")
@@ -130,6 +130,15 @@ class IMDbUploadManager:
 
             if use_notifications:
                 utils.show_notification("LibraryGenie", "Scan complete!", time=2000)
+
+            # Only show modal when explicitly requested (not during background service scan)
+            if show_modal_on_completion:
+                try:
+                    utils.log("Showing addon status modal after scan completion", "INFO")
+                    from resources.lib.integrations.remote_api.library_status import show_library_status
+                    show_library_status()
+                except Exception as e:
+                    utils.log(f"Error showing addon status after scan: {str(e)}", "ERROR")
 
             return True
 
@@ -528,9 +537,9 @@ class IMDbUploadManager:
                 batch_stored = self._process_and_store_single_batch(movies, start // batch_size + 1, use_notifications)
                 total_stored += batch_stored
 
-            # Update progress tracking with storage progress
+            # Update progress tracking with storage progress - more frequent notifications
             current_retrieved = start + len(movies)
-            if use_notifications and (current_retrieved - last_notification >= 500 or start == 0):
+            if use_notifications and (current_retrieved - last_notification >= 200 or start == 0 or current_retrieved >= total):
                 progress_percent = int((current_retrieved / total) * 100) if total > 0 else 0
                 utils.show_notification("LibraryGenie", f"Processed {current_retrieved} of {total} movies ({progress_percent}%) - {total_stored} stored", time=2000)
                 last_notification = current_retrieved
@@ -749,8 +758,8 @@ class IMDbUploadManager:
                 collection_progress.close()
 
             else:
-                # Need to scan library first
-                full_movies = self.get_full_kodi_movie_collection_and_store_locally(use_notifications=True)
+                # Need to scan library first - show modal on completion for manual scans
+                full_movies = self.get_full_kodi_movie_collection_and_store_locally(use_notifications=True, show_modal_on_completion=True)
                 collection_progress.close()
 
                 if not full_movies:
@@ -861,7 +870,7 @@ class IMDbUploadManager:
 
         try:
             # Get full movie data and store locally in single efficient step, using notifications
-            full_movies = self.get_full_kodi_movie_collection_and_store_locally(use_notifications=True)
+            full_movies = self.get_full_kodi_movie_collection_and_store_locally(use_notifications=True, show_modal_on_completion=True)
             collection_progress.close()
 
             if not full_movies:

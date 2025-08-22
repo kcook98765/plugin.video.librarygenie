@@ -191,26 +191,14 @@ def start_library_scan():
                     _set_bool('library_scanned', True)
                     utils.log("Background library scan completed successfully", "INFO")
                     
-                    # Show simple completion notification since detailed modal will follow
+                    # Show simple completion notification only - no modal during background scan
                     import xbmcgui
                     xbmcgui.Dialog().notification(
                         "LibraryGenie", 
-                        "Scan complete!", 
+                        "Background scan complete!", 
                         xbmcgui.NOTIFICATION_INFO,
                         3000
                     )
-                    
-                    # Show addon status modal after scan completion
-                    try:
-                        # Wait a moment for database operations to complete
-                        import time
-                        time.sleep(2)
-                        
-                        utils.log("Showing addon status modal after initial scan", "INFO")
-                        from resources.lib.integrations.remote_api.library_status import show_library_status
-                        show_library_status()
-                    except Exception as e:
-                        utils.log(f"Error showing addon status after scan: {str(e)}", "ERROR")
                         
                 else:
                     utils.log("Background library scan failed", "ERROR")
