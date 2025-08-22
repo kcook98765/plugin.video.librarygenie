@@ -512,22 +512,23 @@ def main():
         import sys
 
         # Check if we're at root level (no specific action parameters)
-        at_root = (len(sys.argv) <= 1 or 
-                  (len(sys.argv) == 2 and not sys.argv[1]) or
-                  (len(sys.argv) == 3 and not sys.argv[2]))
+        at_root = (len(sys.argv) <= 2 or 
+                  (len(sys.argv) >= 3 and (not sys.argv[2] or sys.argv[2] in ('', '?'))))
 
         if at_root:
-            settings = SettingsManager()
-            if settings.is_favorites_sync_enabled():
-                utils.log("Root navigation detected - triggering favorites sync", "DEBUG")
-                try:
+            try:
+                settings = SettingsManager()
+                if settings.is_favorites_sync_enabled():
+                    utils.log("Root navigation detected - triggering favorites sync", "DEBUG")
                     sync_manager = FavoritesSyncManager()
                     sync_manager.sync_favorites()
-                except Exception as e:
-                    utils.log(f"Error in root navigation favorites sync: {str(e)}", "ERROR")
+                    utils.log("Favorites sync completed", "DEBUG")
+            except Exception as e:
+                utils.log(f"Error in root navigation favorites sync: {str(e)}", "ERROR")
+                # Don't let sync errors prevent addon from loading
     except Exception as e:
         # Don't let sync errors prevent addon from loading
-        pass
+        utils.log(f"Error in main sync setup: {str(e)}", "ERROR")
 
     from resources.lib.config.addon_helper import run_addon
     run_addon()

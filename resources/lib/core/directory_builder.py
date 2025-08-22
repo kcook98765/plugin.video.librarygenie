@@ -102,7 +102,7 @@ def add_options_header_item(ctx: dict, handle: int):
 
 def build_root_directory(handle: int):
     """Build the root directory with search option"""
-    # Add options header
+    # Add options header - always add it at root level
     ctx = detect_context({'view': 'root'})
     add_options_header_item(ctx, handle)
 

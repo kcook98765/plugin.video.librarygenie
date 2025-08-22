@@ -81,6 +81,17 @@ def ensure_database_ready():
             imported_lists_folder_id = imported_lists_result['id']
             utils.log(f"Created Imported Lists folder: {imported_lists_folder_id}", "DEBUG")
 
+        # Ensure reserved lists exist
+        kodi_favorites_list = query_manager.ensure_kodi_favorites_list()
+        if kodi_favorites_list:
+            list_id = kodi_favorites_list['id'] if isinstance(kodi_favorites_list, dict) else kodi_favorites_list
+            utils.log(f"Ensured Kodi Favorites list exists with ID: {list_id}", "DEBUG")
+
+        shortlist_imports_list = query_manager.ensure_shortlist_imports_list()
+        if shortlist_imports_list:
+            list_id = shortlist_imports_list['id'] if isinstance(shortlist_imports_list, dict) else shortlist_imports_list
+            utils.log(f"Ensured Shortlist Imports list exists with ID: {list_id}", "DEBUG")
+
         # Remove obsolete "Kodi Favorites" folder if it exists (we now use list ID 1 directly)
         kodi_favorites_folder_id = query_manager.get_folder_id_by_name("Kodi Favorites")
         if kodi_favorites_folder_id:
