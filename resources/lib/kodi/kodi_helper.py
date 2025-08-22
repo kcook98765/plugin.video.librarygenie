@@ -14,26 +14,12 @@ class KodiHelper:
         self.addon = get_addon()
         self.addon_url = sys.argv[0] if len(sys.argv) > 0 else ""
         self.jsonrpc = JSONRPC()
-        # Centralized version detection
-        self._kodi_version_major = None
+        # Use centralized version detection from utils module
 
     @property
     def is_kodi_v19(self):
-        """Centralized Kodi version detection"""
-        if self._kodi_version_major is None:
-            try:
-                # Use JSON-RPC for accurate version detection
-                response = self.jsonrpc.execute('Application.GetProperties', {
-                    'properties': ['version']
-                })
-                version_info = response.get('result', {}).get('version', {})
-                self._kodi_version_major = version_info.get('major', 20)  # Default to 20 if unknown
-                utils.log(f"Detected Kodi version major: {self._kodi_version_major}", "DEBUG")
-            except Exception as e:
-                utils.log(f"Error detecting Kodi version, defaulting to v20+: {e}", "ERROR")
-                self._kodi_version_major = 20
-
-        return self._kodi_version_major == 19
+        """Use centralized Kodi version detection from utils"""
+        return utils.is_kodi_v19()
 
     def list_items(self, items, content_type='video'):
         from resources.lib.kodi.listitem_builder import ListItemBuilder
