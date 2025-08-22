@@ -81,7 +81,7 @@ def show_item_details(params):
         if item_id and str(item_id).isdigit():
             try:
                 # Get item details from database using proper parameterized query
-                media_items = query_manager.fetch_data('media_items', 'id = ?', (int(item_id),))
+                media_items = query_manager.execute_query('SELECT * FROM media_items WHERE id = ?', (int(item_id),), fetch_all=True)
                 if media_items and len(media_items) > 0:
                     item = media_items[0]
                     details_text += f"Year: {item.get('year', 'Unknown')}\n"
