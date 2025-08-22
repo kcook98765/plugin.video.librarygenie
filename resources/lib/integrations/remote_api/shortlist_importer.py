@@ -673,12 +673,12 @@ class ShortlistImporter:
             # Process all lists and combine items into single import
             total_items = sum(len(shortlist_list['items']) for shortlist_list in lists)
             processed_items = 0
-            
+
             utils.log(f"Processing {len(lists)} lists with {total_items} total items", "INFO")
 
             # Collect all media items from all lists
             all_media_items = []
-            
+
             for i, shortlist_list in enumerate(lists):
                 list_name = shortlist_list['name']
                 items = shortlist_list['items']
@@ -781,7 +781,7 @@ class ShortlistImporter:
                     for media_item in all_media_items:
                         if self.query_manager.insert_media_item_and_add_to_list(shortlist_list_id, media_item):
                             success_count += 1
-                    
+
                     if success_count == len(all_media_items):
                         utils.log(f"IMPORT_SUCCESS: Added {len(all_media_items)} items to Shortlist Imports list", "INFO")
                     else:
@@ -798,7 +798,7 @@ class ShortlistImporter:
                 # Verify final count
                 final_count = self.query_manager.get_list_media_count(shortlist_list_id)
                 utils.log(f"Final verification: Shortlist Imports list contains {final_count} items", "INFO")
-                
+
                 message = f"Successfully imported {len(all_media_items)} items from {len(lists)} Shortlist lists"
                 xbmcgui.Dialog().notification("LibraryGenie", message, xbmcgui.NOTIFICATION_INFO, 5000)
                 utils.log(f"=== Shortlist import complete: {len(all_media_items)} items from {len(lists)} lists imported ===", "INFO")
@@ -808,13 +808,23 @@ class ShortlistImporter:
                 return False
 
         except Exception as e:
-            progress.close()
-            error_msg = f"Import failed: {str(e)}"
-            utils.log(f"Shortlist import error: {error_msg}", "ERROR")
+            utils.log(f"Error in shortlist import: {str(e)}", "ERROR")
             import traceback
             utils.log(f"Shortlist import traceback: {traceback.format_exc()}", "ERROR")
-            xbmcgui.Dialog().notification("LibraryGenie", error_msg, xbmcgui.NOTIFICATION_ERROR, 5000)
+            progress.close() # Ensure dialog is closed on error
+            xbmcgui.Dialog().ok("Error", f"Failed to import from shortlist: {str(e)}")
             return False
+
+        finally:
+            # Refresh container to see the new addition if we're in the UI and the operation was not cancelled
+            if not progress.iscanceled():
+                try:
+                    from resources.lib.core.navigation_manager import get_navigation_manager
+                    nav_manager = get_navigation_manager()
+                    # Assuming refresh_current_container exists and works as intended
+                    nav_manager.refresh_current_container("Shortlist Import Complete")
+                except Exception as refresh_error:
+                    utils.log(f"Could not refresh container after shortlist import: {str(refresh_error)}", "DEBUG")
 
 
 def import_from_shortlist():
