@@ -912,6 +912,9 @@ class QueryManager(Singleton):
     def fetch_all_folders(self):
         return self._listing.fetch_all_folders()
 
+    def delete_folder_and_contents(self, folder_id: int):
+        return self._listing.delete_folder_and_contents(folder_id)
+
     # LISTS
     def get_lists(self, folder_id: Optional[int] = None):
         return self._listing.get_lists(folder_id)
