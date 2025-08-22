@@ -276,29 +276,29 @@ class QueryManager(Singleton):
             return self.ensure_kodi_favorites_list()
         elif name == "Shortlist Imports":
             return self.ensure_shortlist_imports_list()
-            
+
         data = {'name': name, 'folder_id': folder_id, 'protected': 0}
         list_id = self.insert_data('lists', data)
         return {'id': list_id, 'name': name, 'folder_id': folder_id}
-    
+
     def ensure_kodi_favorites_list(self) -> Dict:
         """Ensure Kodi Favorites list exists with reserved ID 1"""
         existing_list = self.fetch_list_by_id(1)
-        
+
         if existing_list:
             # Verify it's the correct list - if not, update it
             if existing_list['name'] != "Kodi Favorites":
                 self.update_data('lists', {'name': 'Kodi Favorites', 'folder_id': None, 'protected': 1}, 'id = ?', (1,))
             return {'id': 1, 'name': 'Kodi Favorites', 'folder_id': None}
-        
+
         # Create list with reserved ID 1
         self.execute_write(
             "INSERT INTO lists (id, name, folder_id, protected) VALUES (?, ?, ?, ?)",
             (1, "Kodi Favorites", None, 1)
         )
-        
+
         return {'id': 1, 'name': 'Kodi Favorites', 'folder_id': None}
-    
+
     def is_reserved_list_id(self, list_id: int) -> bool:
         """Check if list ID is reserved (1-10)"""
         return 1 <= list_id <= 10
@@ -421,18 +421,18 @@ class QueryManager(Singleton):
             test_name = f"{base_name} ({counter})"
 
     def insert_media_item_and_add_to_list(self, list_id: int, media_item_data: Dict) -> bool:
-        """Insert media item and add to list atomically"""
+        """Insert media item and add to list in a single transaction - database only, no UI operations"""
         try:
             with self.transaction() as conn:
                 # Try to find existing media item first
                 kodi_id = media_item_data.get('kodi_id', 0)
                 play = media_item_data.get('play', '')
-                
+
                 existing_check = conn.execute(
                     "SELECT id FROM media_items WHERE kodi_id = ? AND play = ?",
                     (kodi_id, play)
                 ).fetchone()
-                
+
                 if existing_check:
                     media_id = existing_check[0]
                     utils.log(f"Found existing media item with ID: {media_id}", "DEBUG")
@@ -443,7 +443,7 @@ class QueryManager(Singleton):
                     sql = f"INSERT OR IGNORE INTO media_items ({', '.join(columns)}) VALUES ({', '.join(placeholders)})"
                     cursor = conn.execute(sql, tuple(media_item_data.values()))
                     media_id = cursor.lastrowid
-                    
+
                     # If lastrowid is 0, the item already existed, so get its ID
                     if not media_id:
                         existing_result = conn.execute(
@@ -455,7 +455,7 @@ class QueryManager(Singleton):
                         else:
                             utils.log("Failed to get media item ID after insert", "ERROR")
                             return False
-                    
+
                     utils.log(f"Created new media item with ID: {media_id}", "DEBUG")
 
                 # Check if already in list
@@ -463,7 +463,7 @@ class QueryManager(Singleton):
                     "SELECT id FROM list_items WHERE list_id = ? AND media_item_id = ?",
                     (list_id, media_id)
                 ).fetchone()
-                
+
                 if not existing_list_item:
                     # Add to list with search score
                     search_score = media_item_data.get('search_score', 0)
@@ -848,7 +848,7 @@ class QueryManager(Singleton):
                 search_score REAL DEFAULT 0,
                 flagged INTEGER DEFAULT 0,
                 FOREIGN KEY (list_id) REFERENCES lists (id),
-                FOREIGN KEY (media_item_id) REFERENCES media_items (id)
+                FOREIGNKEY (media_item_id) REFERENCES media_items (id)
             )""",
 
 
@@ -892,7 +892,7 @@ class QueryManager(Singleton):
 
         # Setup movies reference table as well
         self.setup_movies_reference_table()
-        
+
         # Ensure system lists exist
         self.ensure_system_lists()
 
@@ -1107,19 +1107,19 @@ class QueryManager(Singleton):
     def ensure_shortlist_imports_list(self) -> Dict:
         """Ensure Shortlist Imports list exists with reserved ID 2"""
         existing_list = self.fetch_list_by_id(2)
-        
+
         if existing_list:
             # Verify it's the correct list - if not, update it
             if existing_list['name'] != "Shortlist Imports":
                 self.update_data('lists', {'name': 'Shortlist Imports', 'folder_id': None, 'protected': 1}, 'id = ?', (2,))
             return {'id': 2, 'name': 'Shortlist Imports', 'folder_id': None}
-        
+
         # Create list with reserved ID 2
         self.execute_write(
             "INSERT INTO lists (id, name, folder_id, protected) VALUES (?, ?, ?, ?)",
             (2, "Shortlist Imports", None, 1)
         )
-        
+
         return {'id': 2, 'name': 'Shortlist Imports', 'folder_id': None}
 
     def ensure_system_lists(self):

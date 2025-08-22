@@ -466,12 +466,16 @@ class ListItemBuilder:
                 pass
 
 
-        # Handle stream details with v20+ compatibility - skip for favorites_import to avoid deprecation warnings
-        stream_details = media_info.get('streamdetails', {})
-        if isinstance(stream_details, dict) and source != 'favorites_import':
-            try:
-                if utils.is_kodi_v19():
-                    # v19 - use deprecated methods since InfoTag is unreliable
+        # Handle stream details with v20+ compatibility - completely skip for favorites_import to avoid any deprecated calls
+        if source == 'favorites_import':
+            # Skip all stream processing for favorites imports to avoid deprecation warnings
+            utils.log(f"Skipping stream details processing for favorites_import item: {media_info.get('title', 'Unknown')}", "DEBUG")
+        else:
+            stream_details = media_info.get('streamdetails', {})
+            if isinstance(stream_details, dict):
+                try:
+                    if utils.is_kodi_v19():
+                        # v19 - use deprecated methods since InfoTag is unreliable
                     ListItemBuilder._add_stream_info_deprecated(li, stream_details)
                 else:
                     # v20+ - skip deprecated stream methods to avoid warnings
