@@ -760,6 +760,8 @@ class QueryManager(Singleton):
             ORDER BY imdb_id
         """
         results = self.execute_query(query, fetch_all=True)
+        if results is None:
+            return []
         return [r['imdb_id'] for r in results]
 
     def sync_movies(self, movies: List[Dict[str, Any]]) -> None:
