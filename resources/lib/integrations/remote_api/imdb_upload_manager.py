@@ -677,17 +677,33 @@ class IMDbUploadManager:
 
         # Method 1: uniqueid.imdb (preferred for v19 compatibility)
         if 'uniqueid' in movie and isinstance(movie.get('uniqueid'), dict):
-            imdb_id = movie.get('uniqueid', {}).get('imdb', '')
+            uniqueid_imdb = movie.get('uniqueid', {}).get('imdb', '')
+            if uniqueid_imdb:
+                imdb_id = str(uniqueid_imdb).strip()
 
-        # Method 2: imdbnumber fallback (only if it looks like an IMDb ID)
+        # Method 2: imdbnumber fallback
         if not imdb_id:
             fallback_id = movie.get('imdbnumber', '')
-            if fallback_id and str(fallback_id).strip().startswith('tt'):
+            if fallback_id:
                 imdb_id = str(fallback_id).strip()
 
-        # Validate IMDb ID format
-        if imdb_id and imdb_id.startswith('tt') and len(imdb_id) > 2:
-            return imdb_id
+        # Clean and validate IMDb ID
+        if imdb_id:
+            # Remove URL prefixes if present
+            if imdb_id.startswith('imdb://'):
+                imdb_id = imdb_id[7:]
+            elif 'imdb.com' in imdb_id:
+                import re
+                match = re.search(r'tt\d+', imdb_id)
+                imdb_id = match.group(0) if match else ''
+
+            # Handle numeric-only IMDb IDs (common in v19)
+            if imdb_id.isdigit() and len(imdb_id) >= 6:
+                imdb_id = f'tt{imdb_id}'
+            
+            # Validate final format
+            if imdb_id.startswith('tt') and len(imdb_id) > 2 and imdb_id[2:].isdigit():
+                return imdb_id
 
         return None
 
