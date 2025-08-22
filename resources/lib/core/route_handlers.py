@@ -11,7 +11,7 @@ from typing import List, Union, cast
 from resources.lib.data.query_manager import QueryManager
 
 # Import ResultsManager and NavigationManager here as they are used in browse_list
-from resources.lib.results_manager import ResultsManager
+from resources.lib.data.results_manager import ResultsManager
 from resources.lib.core.navigation_manager import NavigationManager
 
 # Assume xbmcplugin is available in the environment

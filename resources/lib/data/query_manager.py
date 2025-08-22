@@ -392,19 +392,56 @@ class QueryManager(Singleton):
         """Insert media item and add to list atomically"""
         try:
             with self.transaction() as conn:
-                # Insert media item
-                columns = list(media_item_data.keys())
-                placeholders = ['?' for _ in columns]
-                sql = f"INSERT INTO media_items ({', '.join(columns)}) VALUES ({', '.join(placeholders)})"
-                cursor = conn.execute(sql, tuple(media_item_data.values()))
-                media_id = cursor.lastrowid
+                # Try to find existing media item first
+                kodi_id = media_item_data.get('kodi_id', 0)
+                play = media_item_data.get('play', '')
+                
+                existing_check = conn.execute(
+                    "SELECT id FROM media_items WHERE kodi_id = ? AND play = ?",
+                    (kodi_id, play)
+                ).fetchone()
+                
+                if existing_check:
+                    media_id = existing_check[0]
+                    utils.log(f"Found existing media item with ID: {media_id}", "DEBUG")
+                else:
+                    # Insert new media item using INSERT OR IGNORE to handle duplicates
+                    columns = list(media_item_data.keys())
+                    placeholders = ['?' for _ in columns]
+                    sql = f"INSERT OR IGNORE INTO media_items ({', '.join(columns)}) VALUES ({', '.join(placeholders)})"
+                    cursor = conn.execute(sql, tuple(media_item_data.values()))
+                    media_id = cursor.lastrowid
+                    
+                    # If lastrowid is 0, the item already existed, so get its ID
+                    if not media_id:
+                        existing_result = conn.execute(
+                            "SELECT id FROM media_items WHERE kodi_id = ? AND play = ?",
+                            (kodi_id, play)
+                        ).fetchone()
+                        if existing_result:
+                            media_id = existing_result[0]
+                        else:
+                            utils.log("Failed to get media item ID after insert", "ERROR")
+                            return False
+                    
+                    utils.log(f"Created new media item with ID: {media_id}", "DEBUG")
 
-                # Add to list with search score
-                search_score = media_item_data.get('search_score', 0)
-                conn.execute(
-                    "INSERT INTO list_items (list_id, media_item_id, search_score) VALUES (?, ?, ?)",
-                    (list_id, media_id, search_score)
-                )
+                # Check if already in list
+                existing_list_item = conn.execute(
+                    "SELECT id FROM list_items WHERE list_id = ? AND media_item_id = ?",
+                    (list_id, media_id)
+                ).fetchone()
+                
+                if not existing_list_item:
+                    # Add to list with search score
+                    search_score = media_item_data.get('search_score', 0)
+                    conn.execute(
+                        "INSERT INTO list_items (list_id, media_item_id, search_score) VALUES (?, ?, ?)",
+                        (list_id, media_id, search_score)
+                    )
+                    utils.log(f"Added media item {media_id} to list {list_id}", "DEBUG")
+                else:
+                    utils.log(f"Media item {media_id} already in list {list_id}", "DEBUG")
 
             return True
         except Exception as e:
