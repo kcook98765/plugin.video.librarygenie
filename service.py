@@ -73,10 +73,10 @@ def ensure_database_ready():
 
         # Check if this is a fresh database (no library data) - skip folder/list creation during initial scan
         imdb_result = query_manager.execute_query("SELECT COUNT(*) as count FROM imdb_exports", fetch_one=True)
-        imdb_count = imdb_result['count'] if imdb_result else 0
-        
-        media_result = query_manager.execute_query("SELECT COUNT(*) as count FROM media_items", fetch_one=True) 
-        media_count = media_result['count'] if media_result else 0
+        imdb_count = imdb_result['count'] if imdb_result and isinstance(imdb_result, dict) and 'count' in imdb_result else 0
+
+        media_result = query_manager.execute_query("SELECT COUNT(*) as count FROM media_items", fetch_one=True)
+        media_count = media_result['count'] if media_result and isinstance(media_result, dict) and 'count' in media_result else 0
 
         if imdb_count == 0 and media_count == 0:
             utils.log("Fresh database detected - skipping folder/list creation until after initial library scan", "INFO")
@@ -152,11 +152,11 @@ def check_and_prompt_library_scan():
             fetch_one=True
         )
 
-        imdb_count = imdb_result['count'] if imdb_result else 0
-        media_count = media_result['count'] if media_result else 0
+        imdb_count = imdb_result['count'] if imdb_result and isinstance(imdb_result, dict) and 'count' in imdb_result else 0
+        media_count = media_result['count'] if media_result and isinstance(media_result, dict) and 'count' in media_result else 0
 
         utils.log(f"Library data check: found {imdb_count} items in imdb_exports, {media_count} items in media_items", "INFO")
-        
+
         # Check current settings state
         scan_declined = _get_bool('library_scan_declined', False)
         library_scanned = _get_bool('library_scanned', False)
@@ -169,7 +169,7 @@ def check_and_prompt_library_scan():
             _set_bool('library_scan_declined', False)
 
             utils.log("No library data found - prompting user for scan", "INFO")
-            
+
             # Force prompt on completely empty database (fresh wipe scenario)
             prompt_user_for_library_scan()
         else:
@@ -192,7 +192,7 @@ def prompt_user_for_library_scan(force_prompt=False):
                 # Give Kodi a moment to fully start up
                 import time
                 time.sleep(2)
-                
+
                 dialog = xbmcgui.Dialog()
 
                 # Show informational dialog explaining the need
