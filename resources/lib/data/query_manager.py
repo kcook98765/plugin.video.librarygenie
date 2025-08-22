@@ -126,6 +126,8 @@ class QueryManager(Singleton):
         with self._lock:
             try:
                 conn = self._get_connection()
+                if conn is None:
+                    raise RuntimeError("Failed to establish database connection")
                 cursor = conn.execute(sql, params)
 
                 if fetch_one:
@@ -146,6 +148,8 @@ class QueryManager(Singleton):
         """Execute an INSERT/UPDATE/DELETE and return lastrowid."""
         with self._lock:
             conn = self._get_connection()
+            if conn is None:
+                raise RuntimeError("Failed to establish database connection")
             try:
                 cursor = conn.execute(sql, params)
                 lastrowid = cursor.lastrowid
@@ -162,6 +166,8 @@ class QueryManager(Singleton):
         """Execute multiple statements and return rowcount."""
         with self._lock:
             conn = self._get_connection()
+            if conn is None:
+                raise RuntimeError("Failed to establish database connection")
             try:
                 cursor = conn.executemany(sql, seq_of_params)
                 rowcount = cursor.rowcount
@@ -575,6 +581,8 @@ class QueryManager(Singleton):
 
         with self._lock:
             conn = self._get_connection()
+            if conn is None:
+                raise RuntimeError("Failed to establish database connection")
             cursor = conn.cursor()
             for create_sql in table_creations:
                 utils.log(f"Executing SQL: {create_sql}", "DEBUG")
@@ -598,6 +606,8 @@ class QueryManager(Singleton):
         """Create movies_reference table and indexes."""
         with self._lock:
             conn = self._get_connection()
+            if conn is None:
+                raise RuntimeError("Failed to establish database connection")
             cursor = conn.cursor()
 
             cursor.execute("""
@@ -636,6 +646,8 @@ class QueryManager(Singleton):
 
         with self._lock:
             conn = self._get_connection()
+            if conn is None:
+                raise RuntimeError("Failed to establish database connection")
             try:
                 conn.execute("BEGIN")
                 cursor = conn.cursor()
@@ -995,7 +1007,7 @@ class QueryManager(Singleton):
         existing = self.fetch_list_by_id(1)
         if existing:
             return existing
-        
+
         # Create the list with specific ID
         self.execute_write(
             "INSERT INTO lists (id, name, folder_id, protected) VALUES (?, ?, ?, ?)",
@@ -1008,7 +1020,7 @@ class QueryManager(Singleton):
         existing = self.fetch_list_by_id(2)
         if existing:
             return existing
-        
+
         # Create the list with specific ID
         self.execute_write(
             "INSERT INTO lists (id, name, folder_id, protected) VALUES (?, ?, ?, ?)",
@@ -1021,21 +1033,21 @@ class QueryManager(Singleton):
         if not self._validate_table_exists(table):
             utils.log(f"Invalid or non-existent table: {table}", "ERROR")
             return False
-        
+
         # Validate columns exist
         for column in data.keys():
             if not self._validate_column_exists(table, column):
                 utils.log(f"Invalid column {column} for table {table}", "ERROR")
                 return False
-        
+
         try:
             # Build SET clause
             set_clause = ', '.join([f"{col} = ?" for col in data.keys()])
             sql = f"UPDATE {table} SET {set_clause} WHERE {where_clause}"
-            
+
             # Combine data values with where parameters
             all_params = tuple(data.values()) + params
-            
+
             self.execute_write(sql, all_params)
             return True
         except Exception as e:
