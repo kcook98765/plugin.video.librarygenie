@@ -821,7 +821,7 @@ class IMDbUploadManager:
                     "SELECT imdb_id FROM imdb_exports WHERE imdb_id IS NOT NULL AND imdb_id != '' AND imdb_id LIKE 'tt%'",
                     fetch_all=True
                 )
-                movies = [{'imdb_id': result['imdb_id']} for result in imdb_results]
+                movies = [{'imdb_id': result['imdb_id']} for result in (imdb_results or [])]
                 collection_progress.close()
 
             else:
