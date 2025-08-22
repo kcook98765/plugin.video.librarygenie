@@ -317,17 +317,12 @@ class ResultsManager(Singleton):
                 utils.log(f"=== MERGE_ERROR: Missing heavy data for movieids: {missing_heavy_movieids} ===", "ERROR")
             batch_movies = light_movies
 
-            if batch_movies:
-                # Log complete merged data for first movie
+            # Reduced logging for Shield TV performance
+            if batch_movies and utils.should_log_debug():
                 first_movie = batch_movies[0]
-                utils.log(f"=== MERGED_DATA: First movie complete merged data ===", "INFO")
-                for key, value in first_movie.items():
-                    # Truncate very long values for readability
-                    if isinstance(value, str) and len(value) > 200:
-                        utils.log(f"MERGED_DATA: {key} = {value[:200]}... (truncated)", "INFO")
-                    else:
-                        utils.log(f"MERGED_DATA: {key} = {repr(value)}", "INFO")
-                utils.log(f"=== END MERGED_DATA ===", "INFO")
+                utils.log(f"=== MERGED_DATA: First movie merged successfully ===", "DEBUG")
+                utils.log(f"MERGED_DATA: Keys: {list(first_movie.keys())[:10]}...", "DEBUG")  # Only show first 10 keys
+                utils.log(f"=== END MERGED_DATA ===", "DEBUG")
 
             # Build a simple matcher key: (normalized_title, year_int)
             def _key(t, y):

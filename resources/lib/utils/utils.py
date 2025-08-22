@@ -247,6 +247,19 @@ def is_kodi_v20_plus():
     """Check if running on Kodi v20 or higher (Nexus+)"""
     return get_kodi_version() >= 20
 
+def is_shield_tv():
+    """Check if running on NVIDIA Shield TV"""
+    try:
+        import xbmc
+        # Shield TV typically reports as Android with specific build info
+        platform = xbmc.getInfoLabel("System.Platform.Android")
+        if platform:
+            build_version = xbmc.getInfoLabel("System.BuildVersion")
+            return "tegra" in build_version.lower() or "shield" in build_version.lower()
+    except:
+        pass
+    return False
+
 def setup_remote_api():
     """Launch remote API setup wizard"""
     try:
