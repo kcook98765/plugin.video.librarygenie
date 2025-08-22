@@ -219,7 +219,13 @@ def show_library_status():
                 if system_context:
                     total_system_movies = system_context.get('total_movies_in_system', 0)
                     user_lists_stats = system_context.get('user_lists_stats', {})
-                    avg_per_user = user_lists_stats.get('average_movies_per_user', 0)
+                    avg_per_user_raw = user_lists_stats.get('average_movies_per_user', 0)
+                    
+                    # Convert to float in case it's returned as string
+                    try:
+                        avg_per_user = float(avg_per_user_raw) if avg_per_user_raw else 0
+                    except (ValueError, TypeError):
+                        avg_per_user = 0
                     
                     status_lines.extend([
                         "",
