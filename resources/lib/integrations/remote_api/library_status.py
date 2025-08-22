@@ -175,11 +175,16 @@ def show_library_status():
                 sync_difference = abs(unique_imdb_count - server_count)
                 sync_color = "green" if sync_difference == 0 else "yellow" if sync_difference <= 50 else "red"
                 
-                sync_status_text = "Perfect sync" if sync_difference == 0 else f"Server missing {sync_difference} movies"
+                if sync_difference == 0:
+                    sync_status_text = "Perfect sync"
+                elif unique_imdb_count > server_count:
+                    sync_status_text = f"Local has {sync_difference} more movies"
+                else:
+                    sync_status_text = f"Server has {sync_difference} more movies"
                 
                 status_lines.extend([
                     f"[COLOR {sync_color}]SYNC STATUS[/COLOR] {sync_status_text}",
-                    f"  • Server: {server_count:,} | Local: {unique_imdb_count:,} | Export ready: {exports_unique:,}",
+                    f"  • Server: {server_count:,} | Local unique: {unique_imdb_count:,} | Export ready: {exports_unique:,}",
                 ])
 
 
