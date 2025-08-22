@@ -59,9 +59,6 @@ class Config:
         else:
             log_once("profile_exists", "Profile directory already exists", "DEBUG")
 
-        # Initialize cached properties
-        self._max_folder_depth = None
-        
         utils.log("=== Config Manager initialization complete ===", "DEBUG")
         Config._initialized = True
 

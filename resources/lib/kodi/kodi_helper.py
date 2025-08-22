@@ -14,12 +14,6 @@ class KodiHelper:
         self.addon = get_addon()
         self.addon_url = sys.argv[0] if len(sys.argv) > 0 else ""
         self.jsonrpc = JSONRPC()
-        # Use centralized version detection from utils module
-
-    @property
-    def is_kodi_v19(self):
-        """Use centralized Kodi version detection from utils"""
-        return utils.is_kodi_v19()
 
     def list_items(self, items, content_type='video'):
         from resources.lib.kodi.listitem_builder import ListItemBuilder
@@ -90,32 +84,6 @@ class KodiHelper:
                 isFolder=True
             )
         xbmcplugin.endOfDirectory(self.addon_handle)
-
-    def show_list(self, list_id, handle):
-        """Show items in a specific list"""
-        try:
-            # Use ResultsManager to build display items
-            results_manager = ResultsManager()
-            display_items = results_manager.build_display_items_for_list(list_id, handle)
-
-            if not display_items:
-                self._show_empty_list_message(handle)
-                return
-
-            # Add all items to the directory - NO post-build metadata modifications
-            for item_url, list_item, is_folder in display_items:
-                # Abort guard: prevent any setInfo/addStreamInfo calls here on v20+
-                if not self.is_kodi_v19 and hasattr(list_item, 'setInfo'):
-                    utils.log("ABORT: Prevented setInfo() top-off on v20+ path", "DEBUG")
-                self.directory.addItem(handle, item_url, list_item, is_folder)
-
-            # Finish the directory
-            self.directory.endOfDirectory(handle)
-
-        except Exception as e:
-            utils.log(f"Error showing list {list_id}: {str(e)}", "ERROR")
-            self._show_error_message(handle, f"Error loading list: {str(e)}")
-
 
     def show_list(self, list_id):
         """Display items in a list"""
@@ -202,8 +170,8 @@ class KodiHelper:
 
             # Query the database for item using database manager
             result = db_manager.execute_query(
-                "SELECT * FROM media_items WHERE id = ?",
-                (item_id,),
+                "SELECT * FROM media_items WHERE id = ?", 
+                (item_id,), 
                 fetch_one=True
             )
 
@@ -284,18 +252,8 @@ class KodiHelper:
             if isinstance(item_data, dict) and 'duration' in item_data and item_data['duration']:
                 try:
                     duration = int(item_data['duration'])
-                    # Use InfoTag method for v20+ or property for v19
-                    if utils.get_kodi_version() >= 20:
-                        try:
-                            info_tag = list_item.getVideoInfoTag()
-                            if hasattr(info_tag, 'setDuration'):
-                                info_tag.setDuration(duration)
-                        except Exception:
-                            # Fallback to property for v20+
-                            list_item.setProperty('duration', str(duration))
-                    else:
-                        # v19 - use addStreamInfo (not deprecated in v19)
-                        list_item.addStreamInfo('video', {'duration': duration})
+                    duration = str(duration)
+                    list_item.addStreamInfo('video', {'duration': duration})
                 except (ValueError, TypeError):
                     pass
 

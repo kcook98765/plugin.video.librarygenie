@@ -368,28 +368,12 @@ class ResultsManager(Singleton):
                         utils.log(f"Skipping favorites import item '{r.get('title', 'Unknown')}' - invalid path format: {path_str}", "DEBUG")
                         continue
 
-                    # For favorites imports, sanitize data and use builder
-                    sanitized_data = dict(r)  # Create mutable copy
-                    sanitized_data.update({
-                        '_viewing_list_id': list_id,
-                        'media_id': r.get('id') or r.get('media_id'),
-                        # Ensure proper data types for InfoTag
-                        'title': str(r.get('title', 'Unknown')),
-                        'year': int(r.get('year', 0)) if str(r.get('year', '')).isdigit() else 0,
-                        'runtime': int(r.get('runtime', 0)) if str(r.get('runtime', '')).isdigit() else 0,
-                        'rating': float(r.get('rating', 0.0)) if r.get('rating') else 0.0,
-                        'mediatype': 'video',  # Ensure proper mediatype for InfoTag
-                        'playcount': int(r.get('playcount', 0)) if str(r.get('playcount', '')).isdigit() else 0,
-                        # Ensure list fields are proper lists
-                        'genre': r.get('genre', []) if isinstance(r.get('genre'), list) else [],
-                        'director': r.get('director', []) if isinstance(r.get('director'), list) else [],
-                        'cast': r.get('cast', []) if isinstance(r.get('cast'), list) else [],
-                        # Sanitize uniqueid
-                        'uniqueid': r.get('uniqueid', {}) if isinstance(r.get('uniqueid'), dict) else {}
-                    })
+                    # For favorites imports, use the stored data directly
+                    r['_viewing_list_id'] = list_id
+                    r['media_id'] = r.get('id') or r.get('media_id')
 
                     from resources.lib.kodi.listitem_builder import ListItemBuilder
-                    list_item = ListItemBuilder.build_video_item(sanitized_data, is_search_history=is_search_history)
+                    list_item = ListItemBuilder.build_video_item(r, is_search_history=is_search_history)
 
                     # Use the playable path directly instead of info URL
                     item_url = playable_path

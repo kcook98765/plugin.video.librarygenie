@@ -72,24 +72,23 @@ def _set_full_cast(list_item: ListItem, cast_list: list) -> bool:
     except Exception:
         pass
 
-    # 3) Last resort for v19 ONLY: setInfo fallback (NEVER for v20+)
-    if utils.get_kodi_version() == 19:
-        try:
-            simple_cast = []
-            for actor in norm:
-                if actor['name']:
-                    if actor['role']:
-                        simple_cast.append((actor['name'], actor['role']))
-                    else:
-                        simple_cast.append(actor['name'])
+    # 3) Last resort: names/roles only via setInfo (no images)
+    try:
+        simple_cast = []
+        for actor in norm:
+            if actor['name']:
+                if actor['role']:
+                    simple_cast.append((actor['name'], actor['role']))
+                else:
+                    simple_cast.append(actor['name'])
 
-            if simple_cast:
-                # Convert cast list to string format for setInfo compatibility
-                cast_str = ' / '.join([f"{actor[0]} ({actor[1]})" if isinstance(actor, tuple) and len(actor) > 1 else str(actor) for actor in simple_cast])
-                list_item.setInfo('video', {'cast': cast_str})
-                return False
-        except Exception:
-            pass
+        if simple_cast:
+            # Convert cast list to string format for setInfo compatibility
+            cast_str = ' / '.join([f"{actor[0]} ({actor[1]})" if isinstance(actor, tuple) and len(actor) > 1 else str(actor) for actor in simple_cast])
+            list_item.setInfo('video', {'cast': cast_str})
+            return False
+    except Exception:
+        pass
 
     return False
 
@@ -201,186 +200,174 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
         return
 
     # For Kodi v20+, use InfoTag methods exclusively to avoid deprecation warnings
-    # v20+ implementation using InfoTagVideo methods - NO setInfo fallbacks
-    if not utils.is_kodi_v19():
-        # Abort guard - prevent any setInfo calls on v20+
-        utils.log("InfoTagVideo: Using v20+ InfoTag methods (no setInfo fallbacks)", "DEBUG")
+    try:
+        # Get the InfoTag for the specified content type
+        info_tag = list_item.getVideoInfoTag()
 
-    info_tag = list_item.getVideoInfoTag()
-    if not info_tag:
-        utils.log("InfoTagVideo: No InfoTagVideo available for v20+", "ERROR")
-        # Emergency fallback: just set the label and continue - NO setInfo
-        if info_dict.get('title'):
-            list_item.setLabel(str(info_dict['title']))
-        return
+        # V20+ InfoTag method mapping with validation
+        infotag_methods = {
+            'title': 'setTitle',
+            'plot': 'setPlot',
+            'year': 'setYear',
+            'rating': 'setRating',
+            'votes': 'setVotes',
+            'runtime': 'setDuration',
+            'duration': 'setDuration',
+            'tagline': 'setTagline',
+            'originaltitle': 'setOriginalTitle',
+            'director': 'setDirectors',
+            'writer': 'setWriters',
+            'genre': 'setGenres',
+            'studio': 'setStudios',
+            'country': 'setCountries',
+            'mpaa': 'setMpaa',
+            'premiered': 'setPremiered',
+            'dateadded': 'setDateAdded',
+            'imdbnumber': 'setIMDBNumber',
+            'trailer': 'setTrailer'
+        }
 
-    # V20+ InfoTag method mapping with validation
-    infotag_methods = {
-        'title': 'setTitle',
-        'plot': 'setPlot',
-        'year': 'setYear',
-        'rating': 'setRating',
-        'votes': 'setVotes',
-        'runtime': 'setDuration',
-        'duration': 'setDuration',
-        'tagline': 'setTagline',
-        'originaltitle': 'setOriginalTitle',
-        'director': 'setDirectors',
-        'writer': 'setWriters',
-        'genre': 'setGenres',
-        'studio': 'setStudios',
-        'country': 'setCountries',
-        'mpaa': 'setMpaa',
-        'premiered': 'setPremiered',
-        'dateadded': 'setDateAdded',
-        'imdbnumber': 'setIMDBNumber',
-        'trailer': 'setTrailer'
-    }
+        # Set mediatype first for V20+
+        mediatype = info_dict.get('mediatype', 'movie')
+        if hasattr(info_tag, 'setMediaType'):
+            try:
+                info_tag.setMediaType(mediatype)
+            except Exception as e:
+                utils.log(f"V20+ setMediaType failed: {str(e)}", "DEBUG")
 
-    # Set mediatype first for V20+
-    mediatype = info_dict.get('mediatype', 'movie')
-    if hasattr(info_tag, 'setMediaType'):
-        try:
-            info_tag.setMediaType(mediatype)
-        except Exception as e:
-            utils.log(f"V20+ setMediaType failed: {str(e)}", "DEBUG")
+        # Process each property with improved V20+ handling - continue on individual failures
+        infotag_success_count = 0
 
-    # Process each property with improved V20+ handling - continue on individual failures
-    infotag_success_count = 0
+        for key, value in info_dict.items():
+            if key == 'mediatype' or not value:
+                continue
 
-    for key, value in info_dict.items():
-        if key == 'mediatype' or not value:
-            continue
-
-        try:
-            # Special handling for cast with version-agnostic approach
-            if key == 'cast' and isinstance(value, list):
-                cast_success = _set_full_cast(list_item, value)
-                if cast_success:
-                    infotag_success_count += 1
-
-            elif key in ['year', 'runtime', 'duration', 'votes'] and isinstance(value, (int, str)):
-                # Integer properties
-                method_name = infotag_methods.get(key)
-                if method_name and hasattr(info_tag, method_name):
-                    try:
-                        int_value = int(value) if value else 0
-                        if int_value > 0:
-                            getattr(info_tag, method_name)(int_value)
-                            infotag_success_count += 1
-                    except (ValueError, TypeError):
-                        # Skip invalid values silently for v20+
-                        pass
-
-            elif key == 'rating' and isinstance(value, (int, float, str)):
-                # Float rating property
-                if hasattr(info_tag, 'setRating'):
-                    try:
-                        float_value = float(value)
-                        info_tag.setRating(float_value)
+            try:
+                # Special handling for cast with version-agnostic approach
+                if key == 'cast' and isinstance(value, list):
+                    cast_success = _set_full_cast(list_item, value)
+                    if cast_success:
                         infotag_success_count += 1
-                    except (ValueError, TypeError):
-                        # Skip invalid values silently for v20+
-                        pass
 
-            elif key in ['director', 'writer', 'genre', 'studio', 'country']:
-                # List properties that need special handling
-                method_name = infotag_methods.get(key)
-                if method_name and hasattr(info_tag, method_name):
-                    try:
-                        if isinstance(value, list):
-                            # V20+ expects list format for these methods
-                            clean_list = [str(item) for item in value if item]
-                            if clean_list:
-                                getattr(info_tag, method_name)(clean_list)
-                                infotag_success_count += 1
-                        else:
-                            # Convert string to list
-                            items = [item.strip() for item in str(value).split('/') if item.strip()]
-                            if items:
-                                getattr(info_tag, method_name)(items)
-                                infotag_success_count += 1
-                    except Exception:
-                        # Continue processing other fields even if one fails
-                        pass
-
-            else:
-                # String properties
-                method_name = infotag_methods.get(key)
-                if method_name and hasattr(info_tag, method_name):
-                    try:
-                        getattr(info_tag, method_name)(str(value))
-                        infotag_success_count += 1
-                    except Exception:
-                        # Continue processing other fields even if one fails
-                        pass
-
-        except Exception:
-            # Continue processing other properties even if one fails
-            continue
-
-    # Handle uniqueid with v20+ InfoTag methods
-    uniqueid_data = info_dict.get('uniqueid', {})
-    if isinstance(uniqueid_data, dict) and uniqueid_data:
-        try:
-            if hasattr(info_tag, 'setUniqueIDs'):
-                # v20+ method for setting multiple unique IDs
-                info_tag.setUniqueIDs(uniqueid_data)
-                infotag_success_count += 1
-            elif hasattr(info_tag, 'setUniqueID'):
-                # Fallback: set individual unique IDs
-                for source, uid in uniqueid_data.items():
-                    if uid:
+                elif key in ['year', 'runtime', 'duration', 'votes'] and isinstance(value, (int, str)):
+                    # Integer properties
+                    method_name = infotag_methods.get(key)
+                    if method_name and hasattr(info_tag, method_name):
                         try:
-                            info_tag.setUniqueID(str(uid), str(source))
+                            int_value = int(value) if value else 0
+                            if int_value > 0:
+                                getattr(info_tag, method_name)(int_value)
+                                infotag_success_count += 1
+                        except (ValueError, TypeError):
+                            # Skip invalid values silently for v20+
+                            pass
+
+                elif key == 'rating' and isinstance(value, (int, float, str)):
+                    # Float rating property
+                    if hasattr(info_tag, 'setRating'):
+                        try:
+                            float_value = float(value)
+                            info_tag.setRating(float_value)
                             infotag_success_count += 1
-                            break  # Only set first one if setUniqueIDs not available
+                        except (ValueError, TypeError):
+                            # Skip invalid values silently for v20+
+                            pass
+
+                elif key in ['director', 'writer', 'genre', 'studio', 'country']:
+                    # List properties that need special handling
+                    method_name = infotag_methods.get(key)
+                    if method_name and hasattr(info_tag, method_name):
+                        try:
+                            if isinstance(value, list):
+                                # V20+ expects list format for these methods
+                                clean_list = [str(item) for item in value if item]
+                                if clean_list:
+                                    getattr(info_tag, method_name)(clean_list)
+                                    infotag_success_count += 1
+                            else:
+                                # Convert string to list
+                                items = [item.strip() for item in str(value).split('/') if item.strip()]
+                                if items:
+                                    getattr(info_tag, method_name)(items)
+                                    infotag_success_count += 1
                         except Exception:
-                            continue
-        except Exception:
-            pass
+                            # Continue processing other fields even if one fails
+                            pass
 
-    # Handle resume data with version-appropriate methods
-    resume_data = info_dict.get('resume', {})
-    if isinstance(resume_data, dict) and any(resume_data.values()):
-        try:
-            position = float(resume_data.get('position', 0))
-            total = float(resume_data.get('total', 0))
+                else:
+                    # String properties
+                    method_name = infotag_methods.get(key)
+                    if method_name and hasattr(info_tag, method_name):
+                        try:
+                            getattr(info_tag, method_name)(str(value))
+                            infotag_success_count += 1
+                        except Exception:
+                            # Continue processing other fields even if one fails
+                            pass
 
-            if position > 0:
-                try:
-                    if hasattr(info_tag, 'setResumePoint'):
-                        info_tag.setResumePoint(position, total)
-                    else:
-                        # Fallback to property method for older v20
+            except Exception:
+                # Continue processing other properties even if one fails
+                continue
+
+        # Handle resume data with version-appropriate methods
+        resume_data = info_dict.get('resume', {})
+        if isinstance(resume_data, dict) and any(resume_data.values()):
+            try:
+                position = float(resume_data.get('position', 0))
+                total = float(resume_data.get('total', 0))
+
+                if position > 0:
+                    try:
+                        if hasattr(info_tag, 'setResumePoint'):
+                            info_tag.setResumePoint(position, total)
+                        else:
+                            # Fallback to property method for older v20
+                            list_item.setProperty('resumetime', str(position))
+                            if total > 0:
+                                list_item.setProperty('totaltime', str(total))
+                    except Exception:
+                        # Final fallback to property method
                         list_item.setProperty('resumetime', str(position))
                         if total > 0:
                             list_item.setProperty('totaltime', str(total))
-                except Exception:
-                    # Final fallback to property method
-                    list_item.setProperty('resumetime', str(position))
-                    if total > 0:
-                        list_item.setProperty('totaltime', str(total))
-        except (ValueError, TypeError):
-            pass
+            except (ValueError, TypeError):
+                pass
 
-    # For v20+, completely avoid any setInfo fallback to prevent deprecation warnings
-    utils.log(f"V20+ InfoTag processing completed with {infotag_success_count} successful fields - no setInfo fallback", "DEBUG")
+        # For v21+, avoid setInfo fallback completely to prevent deprecation warnings
+        if utils.get_kodi_version() >= 21:
+            utils.log(f"V21+ InfoTag processing completed with {infotag_success_count} successful fields", "DEBUG")
+            return
 
-    # If InfoTag completely failed, only set essential label - no setInfo on v20+
-    if infotag_success_count < 1:
-        title = info_dict.get('title')
-        if title:
-            list_item.setLabel(str(title))
-            utils.log("V20+ InfoTag failed completely - set label only, no deprecated setInfo", "DEBUG")
+        # For v20 only, allow limited setInfo fallback if most InfoTag methods failed
+        if infotag_success_count < 3:
+            utils.log("V20 InfoTag had limited success, using minimal setInfo fallback", "DEBUG")
+            try:
+                # Very limited fallback for v20 - only essential fields
+                essential_info = {}
+                if info_dict.get('title'):
+                    essential_info['title'] = str(info_dict['title'])
+                if info_dict.get('plot'):
+                    essential_info['plot'] = str(info_dict['plot'])
+                if essential_info:
+                    list_item.setInfo(content_type, essential_info)
+            except Exception:
+                pass
 
-    else:
-        utils.log(f"V20+ InfoTag processing completed successfully with {infotag_success_count} fields set.", "DEBUG")
-
-    # NOTE: The original code had an explicit return False here for v20+ if InfoTagVideo was not available.
-    # However, the primary goal is to avoid deprecated setInfo calls.
-    # If InfoTagVideo is unavailable, the subsequent operations within this block will handle it gracefully.
-    # The logic above already includes fallbacks for label setting.
+    except Exception as e:
+        # For v21+, log but don't fall back to deprecated methods
+        if utils.get_kodi_version() >= 21:
+            utils.log(f"V21+ InfoTag processing had errors but avoiding deprecated setInfo: {str(e)}", "DEBUG")
+        else:
+            # For v20, allow very limited fallback
+            utils.log(f"V20 InfoTag failed, using very limited setInfo: {str(e)}", "DEBUG")
+            try:
+                essential_info = {}
+                if info_dict.get('title'):
+                    essential_info['title'] = str(info_dict['title'])
+                if essential_info:
+                    list_item.setInfo(content_type, essential_info)
+            except Exception:
+                pass
 
 
 def set_art(list_item: ListItem, raw_art: Dict[str, str]) -> None:

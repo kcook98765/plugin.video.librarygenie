@@ -158,7 +158,7 @@ def log(message, level=None):
             "IMDB_TRACE:",
             "=== END IMDB_TRACE:",
             "Successfully added",
-            "items (",
+            "items (", 
             "playable,",
             "non-playable)"
         ]
@@ -210,46 +210,41 @@ def is_debug_enabled():
 
 # Global cache for Kodi version to avoid repeated detection
 _KODI_VERSION_CACHE = None
-_first_run_logged = False
 
-# Global cache for one-time logging to avoid spam
-_logged_once = set()
-
-def log_once(key, message, level="DEBUG"):
-    """Log a message only once per session using a unique key"""
-    if key not in _logged_once:
-        _logged_once.add(key)
-        log(message, level)
+# Global cache for initialization logging to prevent spam
+_INIT_LOGGED = set()
 
 def get_kodi_version():
-    """Get the Kodi version number with caching and first-run logging"""
-    global _kodi_version_cache, _first_run_logged
+    """Get the major version number of the current Kodi installation with caching"""
+    global _KODI_VERSION_CACHE
 
-    if _kodi_version_cache is None:
-        try:
-            import xbmc
-            build_version = xbmc.getInfoLabel('System.BuildVersion')
-            # Extract major version number (e.g., "20.5.0" -> 20)
-            major_version = int(build_version.split('.')[0])
-            _kodi_version_cache = major_version
+    if _KODI_VERSION_CACHE is not None:
+        return _KODI_VERSION_CACHE
 
-            if not _first_run_logged:
-                log(f"=== FIRST RUN DETECTION: Kodi version {major_version} detected (build: {build_version}) ===", "INFO")
-                _first_run_logged = True
+    try:
+        import xbmc
+        version_info = xbmc.getInfoLabel("System.BuildVersion")
+        _KODI_VERSION_CACHE = int(version_info.split('.')[0])
+        log(f"Detected and cached Kodi version: {_KODI_VERSION_CACHE}", "INFO")
+        return _KODI_VERSION_CACHE
+    except Exception as e:
+        _KODI_VERSION_CACHE = 21  # Default to latest if detection fails
+        log(f"Could not detect Kodi version, defaulting to v{_KODI_VERSION_CACHE}: {str(e)}", "WARNING")
+        return _KODI_VERSION_CACHE
 
-        except Exception as e:
-            _kodi_version_cache = 20  # Default to v20 if detection fails
-            log(f"Version detection failed, defaulting to v20: {str(e)}", "WARNING")
-
-    return _kodi_version_cache
+def log_once(key, message, level="DEBUG"):
+    """Log a message only once per session to prevent spam"""
+    global _INIT_LOGGED
+    if key not in _INIT_LOGGED:
+        log(message, level)
+        _INIT_LOGGED.add(key)
 
 def is_kodi_v19():
-    """Check if running on Kodi v19"""
-    version = get_kodi_version()
-    return version == 19
+    """Check if running on Kodi v19 (Matrix)"""
+    return get_kodi_version() == 19
 
 def is_kodi_v20_plus():
-    """Check if running on Kodi v20 or higher"""
+    """Check if running on Kodi v20 or higher (Nexus+)"""
     return get_kodi_version() >= 20
 
 def is_shield_tv():
@@ -269,25 +264,25 @@ def needs_modal_optimization():
     """Check if device needs modal dialog optimization (slow devices, older Kodi versions)"""
     try:
         import xbmc
-
+        
         # Always optimize for Kodi v19 due to known modal animation issues
         if is_kodi_v19():
             return True
-
+            
         # Optimize for Shield TV (known performance issues)
         if is_shield_tv():
             return True
-
+            
         # Optimize for Android devices in general (often resource-constrained)
         if xbmc.getInfoLabel("System.Platform.Android"):
             return True
-
+            
         # Optimize for ARM-based devices (typically slower)
         cpu_info = xbmc.getInfoLabel("System.CpuUsage")
         platform_arch = xbmc.getInfoLabel("System.BuildVersion")
         if any(arch in platform_arch.lower() for arch in ['arm', 'aarch64']):
             return True
-
+            
         # Default to no optimization for powerful devices
         return False
     except:
