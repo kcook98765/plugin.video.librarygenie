@@ -5,10 +5,32 @@ This module does not support Kodi 18 (Leia) or earlier versions
 """
 import json
 import xbmcgui
+import threading
 from resources.lib.kodi.listitem_infotagvideo import set_info_tag, set_art
 from resources.lib.utils import utils
 
 from urllib.parse import quote, urlparse
+
+# Global sync state tracking
+_sync_state_lock = threading.Lock()
+_active_sync_operations = set()
+
+def set_sync_active(operation_id):
+    """Mark a sync operation as active"""
+    with _sync_state_lock:
+        _active_sync_operations.add(operation_id)
+        utils.log(f"SYNC_STATE: Added active sync operation: {operation_id}", "DEBUG")
+
+def set_sync_inactive(operation_id):
+    """Mark a sync operation as complete"""
+    with _sync_state_lock:
+        _active_sync_operations.discard(operation_id)
+        utils.log(f"SYNC_STATE: Removed active sync operation: {operation_id}", "DEBUG")
+
+def is_sync_active():
+    """Check if any sync operations are currently active"""
+    with _sync_state_lock:
+        return len(_active_sync_operations) > 0
 
 __all__ = ['set_info_tag', 'set_art']
 
@@ -199,6 +221,12 @@ class ListItemBuilder:
         if item_dict.get('_sync_operation') or item_dict.get('_no_listitem_building') or item_dict.get('_background_sync'):
             utils.log(f"LISTITEM_BUILD_VIDEO: SYNC_PREVENTION - Preventing ListItem building for '{title}' - sync flags detected", "WARNING")
             utils.log(f"LISTITEM_BUILD_VIDEO: SYNC_PREVENTION - Flags: sync={item_dict.get('_sync_operation')}, no_listitem={item_dict.get('_no_listitem_building')}, background={item_dict.get('_background_sync')}", "WARNING")
+            return None
+
+        # Check for global sync state first
+        if is_sync_active():
+            utils.log(f"LISTITEM_BUILD_VIDEO: GLOBAL_SYNC_PREVENTION - Preventing ListItem building for '{title}' - active sync operation detected", "WARNING")
+            utils.log(f"LISTITEM_BUILD_VIDEO: GLOBAL_SYNC_PREVENTION - Thread {current_thread.name} (ID: {current_thread.ident}) blocked during sync", "WARNING")
             return None
 
         # Check thread name for sync operations

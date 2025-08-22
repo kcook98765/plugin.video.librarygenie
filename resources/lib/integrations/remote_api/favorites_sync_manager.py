@@ -608,6 +608,11 @@ class FavoritesSyncManager:
             utils.log("Media is playing, skipping favorites sync", "DEBUG")
             return False
 
+        # Set global sync state to prevent ListItem building on any thread
+        from resources.lib.kodi.listitem_builder import set_sync_active
+        sync_id = f"favorites_sync_{int(time.time() * 1000)}"
+        set_sync_active(sync_id)
+
         utils.log("=== Starting Favorites Sync Process ===", "DEBUG")
         start_time = time.time()
 
@@ -683,12 +688,21 @@ class FavoritesSyncManager:
             elapsed_time = time.time() - start_time
             utils.log(f"Favorites sync completed in {elapsed_time:.2f} seconds", "INFO")
 
+            # Clear global sync state
+            from resources.lib.kodi.listitem_builder import set_sync_inactive
+            set_sync_inactive(sync_id)
+
             return True
 
         except Exception as e:
             utils.log(f"Error in favorites sync: {str(e)}", "ERROR")
             import traceback
             utils.log(f"Favorites sync traceback: {traceback.format_exc()}", "ERROR")
+            
+            # Ensure sync state is cleared even on error
+            from resources.lib.kodi.listitem_builder import set_sync_inactive
+            set_sync_inactive(sync_id)
+            
             return False
 
     def _apply_database_changes(self, list_id, added_items, removed_identities, changed_items, current_favorites):
@@ -829,15 +843,26 @@ class FavoritesSyncManager:
         """Force a complete sync regardless of changes"""
         utils.log("=== Starting Forced Favorites Sync ===", "INFO")
 
-        # Reset snapshot to force full sync
-        self.last_snapshot = {'items': {}, 'signature': ''}
+        # Set global sync state
+        from resources.lib.kodi.listitem_builder import set_sync_active
+        sync_id = f"force_sync_{int(time.time() * 1000)}"
+        set_sync_active(sync_id)
 
-        # Run sync
-        result = self.sync_favorites()
+        try:
+            # Reset snapshot to force full sync
+            self.last_snapshot = {'items': {}, 'signature': ''}
 
-        if result:
-            utils.log("Forced favorites sync completed successfully", "INFO")
-        else:
-            utils.log("Forced favorites sync failed or no changes detected", "WARNING")
+            # Run sync
+            result = self.sync_favorites()
 
-        return result
+            if result:
+                utils.log("Forced favorites sync completed successfully", "INFO")
+            else:
+                utils.log("Forced favorites sync failed or no changes detected", "WARNING")
+
+            return result
+
+        finally:
+            # Always clear sync state
+            from resources.lib.kodi.listitem_builder import set_sync_inactive
+            set_sync_inactive(sync_id)
