@@ -176,8 +176,16 @@ class ListItemBuilder:
         # Create the ListItem
         li = xbmcgui.ListItem(label=formatted_title)
 
-        # Handle plot - prefer plot over tagline, fallback to title
-        plot = media_info.get('plot', '') or media_info.get('tagline', '') or f"Movie: {title}"
+        # Handle plot - prefer plot over tagline, only use title fallback if no other data available
+        plot = media_info.get('plot', '') or media_info.get('tagline', '')
+        if not plot:
+            # Only use "Movie:" prefix for items without any plot/tagline data
+            if source in ['favorites_import', 'lib', 'kodi_library']:
+                # For library-sourced items, just use the title without "Movie:" prefix
+                plot = title
+            else:
+                # For other sources, use the "Movie:" prefix
+                plot = f"Movie: {title}"
 
         # For search history items, enhance plot with match status and score
         if source == 'lib' and media_info.get('search_score'):
