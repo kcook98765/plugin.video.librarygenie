@@ -212,6 +212,15 @@ def is_debug_enabled():
 _KODI_VERSION_CACHE = None
 _first_run_logged = False
 
+# Global cache for one-time logging to avoid spam
+_logged_once = set()
+
+def log_once(key, message, level="DEBUG"):
+    """Log a message only once per session using a unique key"""
+    if key not in _logged_once:
+        _logged_once.add(key)
+        log(message, level)
+
 def get_kodi_version():
     """Get the Kodi version number with caching and first-run logging"""
     global _kodi_version_cache, _first_run_logged
