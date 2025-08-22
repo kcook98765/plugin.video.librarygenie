@@ -252,7 +252,6 @@ class LibraryGenieService:
         self.config = Config()
         self.settings = SettingsManager()
         self.monitor = xbmc.Monitor()
-        self.last_sync_time = 0
 
         utils.log("LibraryGenie service started", "INFO")
 
@@ -261,40 +260,8 @@ class LibraryGenieService:
 
         while not self.monitor.abortRequested():
             try:
-                # Run favorites sync more frequently and check for addon access
-                if self.settings.is_favorites_sync_enabled():
-                    sync_interval = self.settings.get_favorites_sync_interval()
-                    current_time = time.time()
-
-                    # Check if it's time for a regular sync
-                    should_sync = (current_time - self.last_sync_time >= sync_interval)
-
-                    # Also sync if we detect the addon has been accessed recently
-                    # Check if LibraryGenie addon window is active or was recently active
-                    try:
-                        import xbmc
-                        window_id = xbmc.getInfoLabel('System.CurrentWindow')
-                        addon_accessed = 'plugin.video.librarygenie' in str(window_id)
-
-                        # Force sync if addon accessed and it's been more than 30 seconds since last sync
-                        if addon_accessed and (current_time - self.last_sync_time >= 30):
-                            should_sync = True
-                            utils.log("Addon accessed, triggering favorites sync", "DEBUG")
-                    except:
-                        pass
-
-                    if should_sync:
-                        utils.log(f"Running favorites sync (interval: {sync_interval}s)", "DEBUG")
-
-                        try:
-                            sync_manager = FavoritesSyncManager()
-                            if sync_manager.sync_favorites():
-                                self.last_sync_time = current_time
-                        except Exception as e:
-                            utils.log(f"Error in favorites sync: {str(e)}", "ERROR")
-                else:
-                    # Reset sync timer when disabled to avoid immediate sync when re-enabled
-                    self.last_sync_time = time.time()
+                # Service loop for other background tasks if needed
+                pass
 
             except Exception as e:
                 utils.log(f"Error in service loop: {str(e)}", "ERROR")

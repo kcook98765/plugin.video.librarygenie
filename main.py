@@ -504,50 +504,33 @@ def browse_search_history():
     return folder_list_manager.browse_search_history()
 
 def main():
-    """Main addon entry point"""
-    log("=== LibraryGenie addon starting ===", "INFO")
-    log(f"Command line args: {sys.argv}", "DEBUG")
-
+    # Trigger favorites sync when navigating to root if sync is enabled
     try:
-        log("Initializing addon components", "DEBUG")
+        from resources.lib.config.settings_manager import SettingsManager
+        from resources.lib.integrations.remote_api.favorites_sync_manager import FavoritesSyncManager
+        from resources.lib.utils import utils
+        import sys
 
-        # Check for deferred option execution from RunScript
-        if len(sys.argv) >= 3 and sys.argv[1] == 'deferred_option':
-            log("=== HANDLING DEFERRED OPTION EXECUTION FROM MAIN ===", "DEBUG")
-            try:
-                option_index = int(sys.argv[2])
-                # Retrieve stored folder context
-                folder_context_str = xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.DeferredFolderContext)")
-                folder_context = None
-                if folder_context_str and folder_context_str != "None":
-                    try:
-                        folder_context = int(folder_context_str)
-                    except ValueError:
-                        pass
-                # Clear the property
-                xbmc.executebuiltin("ClearProperty(LibraryGenie.DeferredFolderContext,Home)")
-                options_manager.execute_deferred_option(option_index, folder_context)
-            except Exception as e:
-                log(f"Error in deferred option execution: {str(e)}", "ERROR")
-            return
+        # Check if we're at root level (no specific action parameters)
+        at_root = (len(sys.argv) <= 1 or 
+                  (len(sys.argv) == 2 and not sys.argv[1]) or
+                  (len(sys.argv) == 3 and not sys.argv[2]))
 
-        # Handle plugin routing
-        if len(sys.argv) >= 3:
-            log("Plugin routing detected", "DEBUG")
-            router(sys.argv[2])
-            return
-
-        # Fallback: Run the addon helper if no other conditions met
-        log("No specific action detected, running default addon helper.", "DEBUG")
-        run_addon()
-
-        log("Configuration initialized - database setup is handled by background service", "DEBUG")
-
-        log("=== LibraryGenie addon startup complete ===", "INFO")
+        if at_root:
+            settings = SettingsManager()
+            if settings.is_favorites_sync_enabled():
+                utils.log("Root navigation detected - triggering favorites sync", "DEBUG")
+                try:
+                    sync_manager = FavoritesSyncManager()
+                    sync_manager.sync_favorites()
+                except Exception as e:
+                    utils.log(f"Error in root navigation favorites sync: {str(e)}", "ERROR")
     except Exception as e:
-        log(f"CRITICAL ERROR in main(): {str(e)}", "ERROR")
-        import traceback
-        log(f"Full traceback: {traceback.format_exc()}", "ERROR")
+        # Don't let sync errors prevent addon from loading
+        pass
+
+    from resources.lib.config.addon_helper import run_addon
+    run_addon()
 
 if __name__ == '__main__':
     main()

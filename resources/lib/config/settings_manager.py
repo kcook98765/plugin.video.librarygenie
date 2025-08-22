@@ -39,9 +39,7 @@ class SettingsManager:
         """Check if favorites sync is enabled"""
         return self.get_setting('sync_favorites', 'true').lower() == 'true'
     
-    def get_favorites_sync_interval(self):
-        """Get favorites sync interval in seconds"""
-        return int(self.get_setting('favorites_sync_interval', '60'))
+    
 
     def addon_library_status(self):
         """Show addon library status dialog"""
