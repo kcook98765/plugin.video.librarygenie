@@ -164,7 +164,8 @@ class FavoritesSyncManager:
             # Compare with last known signature
             last_signature = self.last_snapshot.get('signature', '')
             if current_signature == last_signature:
-                utils.log("Favorites unchanged, no sync needed", "DEBUG")
+                elapsed_time = time.time() - start_time
+                utils.log(f"Favorites unchanged, no sync needed (checked in {elapsed_time:.2f}s)", "DEBUG")
                 return False
 
             utils.log(f"Favorites changed - proceeding with sync", "INFO")
@@ -199,10 +200,9 @@ class FavoritesSyncManager:
             # Save new snapshot
             self.save_snapshot(current_items, current_signature)
 
-            # Log completion time
+            # Always log completion time
             elapsed_time = time.time() - start_time
-            if elapsed_time > 3:
-                utils.log(f"Favorites sync completed in {elapsed_time:.2f} seconds", "INFO")
+            utils.log(f"Favorites sync completed in {elapsed_time:.2f} seconds", "INFO")
 
             return True
 

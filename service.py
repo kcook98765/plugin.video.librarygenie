@@ -261,8 +261,8 @@ class LibraryGenieService:
 
         while not self.monitor.abortRequested():
             try:
-                current_time = xbmc.getInfoLabel('System.Time(unix)')
-                current_time = int(current_time) if current_time else 0
+                import time
+                current_time = int(time.time())
 
                 # Check if it's time for favorites sync
                 if self.settings.is_favorites_sync_enabled():
