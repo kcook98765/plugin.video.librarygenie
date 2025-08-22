@@ -270,6 +270,8 @@ class QueryManager(Singleton):
         # For system lists like Kodi Favorites, use specific methods
         if name == "Kodi Favorites":
             return self.ensure_kodi_favorites_list()
+        elif name == "Shortlist Imports":
+            return self.ensure_shortlist_imports_list()
             
         data = {'name': name, 'folder_id': folder_id, 'protected': 0}
         list_id = self.insert_data('lists', data)
@@ -1098,6 +1100,24 @@ class QueryManager(Singleton):
                     else:
                         utils.log(f"ERROR: No stored export data found for imdb_id {first_imdb}", "ERROR")
 
+    def ensure_shortlist_imports_list(self) -> Dict:
+        """Ensure Shortlist Imports list exists with reserved ID 2"""
+        existing_list = self.fetch_list_by_id(2)
+        
+        if existing_list:
+            # Verify it's the correct list - if not, update it
+            if existing_list['name'] != "Shortlist Imports":
+                self.update_data('lists', {'name': 'Shortlist Imports', 'folder_id': None, 'protected': 1}, 'id = ?', (2,))
+            return {'id': 2, 'name': 'Shortlist Imports', 'folder_id': None}
+        
+        # Create list with reserved ID 2
+        self.execute_write(
+            "INSERT INTO lists (id, name, folder_id, protected) VALUES (?, ?, ?, ?)",
+            (2, "Shortlist Imports", None, 1)
+        )
+        
+        return {'id': 2, 'name': 'Shortlist Imports', 'folder_id': None}
+
     def ensure_system_lists(self):
         """Ensure reserved system lists exist"""
         # Ensure Kodi Favorites list exists with ID 1
@@ -1111,6 +1131,18 @@ class QueryManager(Singleton):
         elif existing_list['name'] != "Kodi Favorites":
             utils.log(f"Updating list ID 1 to be Kodi Favorites (was: {existing_list['name']})", "DEBUG")
             self.update_data('lists', {'name': 'Kodi Favorites', 'folder_id': None, 'protected': 1}, 'id = ?', (1,))
+
+        # Ensure Shortlist Imports list exists with ID 2
+        existing_list = self.fetch_list_by_id(2)
+        if not existing_list:
+            utils.log("Creating reserved Shortlist Imports list with ID 2", "DEBUG")
+            self.execute_write(
+                "INSERT INTO lists (id, name, folder_id, protected) VALUES (?, ?, ?, ?)",
+                (2, "Shortlist Imports", None, 1)
+            )
+        elif existing_list['name'] != "Shortlist Imports":
+            utils.log(f"Updating list ID 2 to be Shortlist Imports (was: {existing_list['name']})", "DEBUG")
+            self.update_data('lists', {'name': 'Shortlist Imports', 'folder_id': None, 'protected': 1}, 'id = ?', (2,))
 
     def get_valid_imdb_numbers(self) -> List[str]:
         """Get all valid IMDB numbers from exports table"""

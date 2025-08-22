@@ -129,6 +129,20 @@ def build_root_directory(handle: int):
                 url = build_plugin_url({'action': 'browse_list', 'list_id': 1, 'view': 'list'})
                 xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
 
+        # Add Shortlist Imports list (if it has content)
+        # Use reserved list ID 2 for Shortlist Imports
+        shortlist_imports_list = query_manager.fetch_list_by_id(2)
+        
+        if shortlist_imports_list and shortlist_imports_list['name'] == "Shortlist Imports":
+            list_count = query_manager.get_list_media_count(2)
+            if list_count > 0:  # Only show if it has content
+                display_title = f"Shortlist Imports ({list_count})"
+                li = ListItemBuilder.build_folder_item(f"📥 {display_title}", is_folder=True, item_type='playlist')
+                li.setProperty('lg_type', 'list')
+                add_context_menu_for_item(li, 'list', list_id=2)
+                url = build_plugin_url({'action': 'browse_list', 'list_id': 2, 'view': 'list'})
+                xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
+
         # Get top-level folders
         top_level_folders = query_manager.fetch_folders(None) # None for root
 
