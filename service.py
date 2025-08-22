@@ -10,22 +10,17 @@ ADDON = xbmcaddon.Addon()
 MON = xbmc.Monitor()
 ID = ADDON.getAddonInfo('id')
 
-
 def _get_bool(k, d=False):
     return ADDON.getSettingBool(k) if ADDON.getSetting(k) != '' else d
-
 
 def _get_int(k, d=0):
     return int(ADDON.getSettingInt(k)) if ADDON.getSetting(k) != '' else d
 
-
 def _set_bool(k, v):
     ADDON.setSettingBool(k, v)
 
-
 def _set_int(k, v):
     ADDON.setSettingInt(k, int(v))
-
 
 def init_once():
     """Idempotent: create/upgrade schema + seed baseline data."""
@@ -46,7 +41,6 @@ def init_once():
     except Exception as e:
         utils.log(f"{ID} init error: {e}", "ERROR")
 
-
 def handle_periodic_tasks():
     """Do lightweight, repeatable work here."""
     try:
@@ -62,7 +56,6 @@ def handle_periodic_tasks():
 
     except Exception as e:
         utils.log(f"{ID} periodic task error: {e}", "ERROR")
-
 
 def ensure_database_ready():
     """Ensure database and all required tables/folders are properly set up"""
@@ -117,49 +110,21 @@ def ensure_database_ready():
                 f"Created Imported Lists folder: {imported_lists_folder_id}",
                 "DEBUG")
 
-        # Ensure reserved lists exist - but only if QueryManager has the methods
-        try:
-            if hasattr(query_manager, 'ensure_kodi_favorites_list'):
-                kodi_favorites_list = query_manager.ensure_kodi_favorites_list(
-                )
-                if kodi_favorites_list:
-                    list_id = kodi_favorites_list['id'] if isinstance(
-                        kodi_favorites_list, dict) else kodi_favorites_list
-                    utils.log(
-                        f"Ensured Kodi Favorites list exists with ID: {list_id}",
-                        "DEBUG")
-            else:
-                utils.log(
-                    "QueryManager missing ensure_kodi_favorites_list method - skipping",
-                    "DEBUG")
-        except Exception as e:
-            utils.log(f"Error ensuring Kodi Favorites list: {e}", "ERROR")
+        # Ensure reserved lists (assume methods exist and return list IDs)
+        fav_list_id = query_manager.ensure_kodi_favorites_list()
+        utils.log(f"Ensured Kodi Favorites list exists with ID: {fav_list_id}", "DEBUG")
 
-        try:
-            if hasattr(query_manager, 'ensure_shortlist_imports_list'):
-                shortlist_imports_list = query_manager.ensure_shortlist_imports_list(
-                )
-                if shortlist_imports_list:
-                    list_id = shortlist_imports_list['id'] if isinstance(
-                        shortlist_imports_list,
-                        dict) else shortlist_imports_list
-                    utils.log(
-                        f"Ensured Shortlist Imports list exists with ID: {list_id}",
-                        "DEBUG")
-            else:
-                utils.log(
-                    "QueryManager missing ensure_shortlist_imports_list method - skipping",
-                    "DEBUG")
-        except Exception as e:
-            utils.log(f"Error ensuring Shortlist Imports list: {e}", "ERROR")
-
+        shortlist_list_id = query_manager.ensure_shortlist_imports_list()
+        utils.log(
+            f"Ensured Shortlist Imports list exists with ID: {shortlist_list_id}",
+            "DEBUG",
+        )
         utils.log("Database setup completed successfully", "INFO")
         return True
 
     except Exception as e:
         utils.log(f"Error ensuring database ready: {e}", "ERROR")
         return False
-
 
 def check_and_prompt_library_scan():
     """Check if library data exists and prompt user for initial scan if needed"""
@@ -214,7 +179,6 @@ def check_and_prompt_library_scan():
     except Exception as e:
         utils.log(f"Error checking library scan status: {e}", "ERROR")
 
-
 def prompt_user_for_library_scan(force_prompt=False):
     """Show modal to user asking permission to scan library"""
     try:
@@ -264,7 +228,6 @@ def prompt_user_for_library_scan(force_prompt=False):
 
     except Exception as e:
         utils.log(f"Error prompting user for library scan: {e}", "ERROR")
-
 
 def start_library_scan(show_status_on_completion=False):
     """Start the library scan process"""
