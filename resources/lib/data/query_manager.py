@@ -266,10 +266,36 @@ class QueryManager(Singleton):
         return result['id'] if result else None
 
     def create_list(self, name: str, folder_id: Optional[int] = None) -> Dict:
-        """Create a new list"""
-        data = {'name': name, 'folder_id': folder_id}
+        """Create a new list (skips reserved IDs 1-10)"""
+        # For system lists like Kodi Favorites, use specific methods
+        if name == "Kodi Favorites":
+            return self.ensure_kodi_favorites_list()
+            
+        data = {'name': name, 'folder_id': folder_id, 'protected': 0}
         list_id = self.insert_data('lists', data)
         return {'id': list_id, 'name': name, 'folder_id': folder_id}
+    
+    def ensure_kodi_favorites_list(self) -> Dict:
+        """Ensure Kodi Favorites list exists with reserved ID 1"""
+        existing_list = self.fetch_list_by_id(1)
+        
+        if existing_list:
+            # Verify it's the correct list - if not, update it
+            if existing_list['name'] != "Kodi Favorites":
+                self.update_data('lists', {'name': 'Kodi Favorites', 'folder_id': None, 'protected': 1}, 'id = ?', (1,))
+            return {'id': 1, 'name': 'Kodi Favorites', 'folder_id': None}
+        
+        # Create list with reserved ID 1
+        self.execute_write(
+            "INSERT INTO lists (id, name, folder_id, protected) VALUES (?, ?, ?, ?)",
+            (1, "Kodi Favorites", None, 1)
+        )
+        
+        return {'id': 1, 'name': 'Kodi Favorites', 'folder_id': None}
+    
+    def is_reserved_list_id(self, list_id: int) -> bool:
+        """Check if list ID is reserved (1-10)"""
+        return 1 <= list_id <= 10
 
     def create_folder(self, name: str, parent_id: Optional[int] = None) -> Dict:
         """Create a new folder"""
@@ -860,6 +886,9 @@ class QueryManager(Singleton):
 
         # Setup movies reference table as well
         self.setup_movies_reference_table()
+        
+        # Ensure system lists exist
+        self.ensure_system_lists()
 
     def setup_movies_reference_table(self):
         """Create movies_reference table and indexes"""
@@ -1068,6 +1097,20 @@ class QueryManager(Singleton):
                         utils.log("=== END EXPORTS VERIFICATION ===", "INFO")
                     else:
                         utils.log(f"ERROR: No stored export data found for imdb_id {first_imdb}", "ERROR")
+
+    def ensure_system_lists(self):
+        """Ensure reserved system lists exist"""
+        # Ensure Kodi Favorites list exists with ID 1
+        existing_list = self.fetch_list_by_id(1)
+        if not existing_list:
+            utils.log("Creating reserved Kodi Favorites list with ID 1", "DEBUG")
+            self.execute_write(
+                "INSERT INTO lists (id, name, folder_id, protected) VALUES (?, ?, ?, ?)",
+                (1, "Kodi Favorites", None, 1)
+            )
+        elif existing_list['name'] != "Kodi Favorites":
+            utils.log(f"Updating list ID 1 to be Kodi Favorites (was: {existing_list['name']})", "DEBUG")
+            self.update_data('lists', {'name': 'Kodi Favorites', 'folder_id': None, 'protected': 1}, 'id = ?', (1,))
 
     def get_valid_imdb_numbers(self) -> List[str]:
         """Get all valid IMDB numbers from exports table"""

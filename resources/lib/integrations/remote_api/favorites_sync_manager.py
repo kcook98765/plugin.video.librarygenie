@@ -1,4 +1,3 @@
-
 import json
 import hashlib
 import os
@@ -44,15 +43,15 @@ class FavoritesSyncManager:
                 'signature': signature,
                 'timestamp': datetime.now().isoformat()
             }
-            
+
             # Ensure addon_data directory exists
             addon_data_dir = xbmcvfs.translatePath(self.config.profile)
             if not os.path.exists(addon_data_dir):
                 os.makedirs(addon_data_dir)
-            
+
             with open(xbmcvfs.translatePath(self.snapshot_file), 'w', encoding='utf-8') as f:
                 json.dump(snapshot_data, f, indent=2, ensure_ascii=False)
-            
+
             self.last_snapshot = snapshot_data
             utils.log(f"Saved favorites snapshot with {len(items)} items", "DEBUG")
         except Exception as e:
@@ -64,7 +63,7 @@ class FavoritesSyncManager:
         path = fav_item.get('path', '')
         window = fav_item.get('window', '')
         windowparameter = fav_item.get('windowparameter', '')
-        
+
         if path:
             return f"{ftype}:{path}"
         elif window and windowparameter:
@@ -90,7 +89,7 @@ class FavoritesSyncManager:
         """Compute a stable signature for the favorites list"""
         # Sort by identity key for stable ordering
         sorted_items = sorted(items_dict.items())
-        
+
         # Create a minimal representation for hashing
         minimal_data = []
         for identity, item in sorted_items:
@@ -101,7 +100,7 @@ class FavoritesSyncManager:
                 'path': item['path']
             }
             minimal_data.append(minimal_item)
-        
+
         # Compute hash
         data_str = json.dumps(minimal_data, sort_keys=True)
         return hashlib.sha256(data_str.encode('utf-8')).hexdigest()
@@ -111,11 +110,11 @@ class FavoritesSyncManager:
         # Look for existing list at root level (None parent)
         lists = self.query_manager.fetch_lists(None)
         list_name = "Kodi Favorites"
-        
+
         for list_item in lists:
             if list_item['name'] == list_name:
                 return list_item['id']
-        
+
         # Create new list at root level
         list_result = self.query_manager.create_list(list_name, None)
         list_id = list_result['id'] if isinstance(list_result, dict) else list_result
@@ -151,7 +150,7 @@ class FavoritesSyncManager:
 
             # Compute signature of current state
             current_signature = self.compute_signature(current_items)
-            
+
             # Compare with last known signature
             last_signature = self.last_snapshot.get('signature', '')
             if current_signature == last_signature:
@@ -212,7 +211,7 @@ class FavoritesSyncManager:
             # Process added items
             for item in added_items:
                 utils.log(f"Adding favorite: {item['title']}", "DEBUG")
-                
+
                 # Find the original favorite data for this item
                 original_fav = None
                 current_favorites = self.favorites_importer._fetch_favourites_media()
@@ -225,20 +224,20 @@ class FavoritesSyncManager:
                     # Convert to media dict and add to list
                     path = original_fav.get("path") or ""
                     title = original_fav.get("title") or ""
-                    
+
                     # Try library matching first
                     kodi_movie = self.favorites_importer._library_match_from_path(path)
                     if not kodi_movie and (path.startswith("videodb://") or not path.startswith(("smb://", "nfs://", "file://"))):
                         kodi_movie = self.favorites_importer.lookup_in_kodi_library(title)
 
                     filedetails = None if kodi_movie else self.favorites_importer._get_file_details(path)
-                    
+
                     media_dict = self.favorites_importer.convert_favorite_item_to_media_dict(
                         fav=original_fav,
                         filedetails=filedetails,
                         kodi_movie=kodi_movie
                     )
-                    
+
                     self.query_manager.insert_media_item_and_add_to_list(list_id, media_dict)
 
             # Process removed items
@@ -265,17 +264,17 @@ class FavoritesSyncManager:
         """Rebuild the entire favorites list from current Kodi favorites"""
         try:
             utils.log("Rebuilding favorites list", "DEBUG")
-            
+
             # Get the favorites list ID
             list_id = self.get_kodi_favorites_list_id()
-            
+
             # Clear existing list contents
             self.query_manager.clear_list_contents(list_id)
-            
+
             # Get current favorites and rebuild
             current_favorites = self.favorites_importer._fetch_favourites_media()
             playable_items = []
-            
+
             for fav in current_favorites:
                 path = fav.get("path", "")
                 if self.favorites_importer._is_playable_video(path):
@@ -285,20 +284,20 @@ class FavoritesSyncManager:
             for fav in playable_items:
                 path = fav.get("path") or ""
                 title = fav.get("title") or ""
-                
+
                 # Try library matching
                 kodi_movie = self.favorites_importer._library_match_from_path(path)
                 if not kodi_movie and (path.startswith("videodb://") or not path.startswith(("smb://", "nfs://", "file://"))):
                     kodi_movie = self.favorites_importer.lookup_in_kodi_library(title)
 
                 filedetails = None if kodi_movie else self.favorites_importer._get_file_details(path)
-                
+
                 media_dict = self.favorites_importer.convert_favorite_item_to_media_dict(
                     fav=fav,
                     filedetails=filedetails,
                     kodi_movie=kodi_movie
                 )
-                
+
                 self.query_manager.insert_media_item_and_add_to_list(list_id, media_dict)
 
             utils.log(f"Rebuilt favorites list with {len(playable_items)} items", "INFO")
@@ -309,19 +308,19 @@ class FavoritesSyncManager:
     def force_sync(self):
         """Force a complete sync regardless of changes"""
         utils.log("=== Starting Forced Favorites Sync ===", "INFO")
-        
+
         # Reset snapshot to force full sync
         self.last_snapshot = {'items': {}, 'signature': ''}
-        
+
         # Run full rebuild
         self.rebuild_favorites_list()
-        
+
         # Run sync
         result = self.sync_favorites()
-        
+
         if result:
             utils.log("Forced favorites sync completed successfully", "INFO")
         else:
             utils.log("Forced favorites sync failed or no changes detected", "WARNING")
-        
+
         return result

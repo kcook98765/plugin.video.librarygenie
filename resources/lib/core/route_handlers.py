@@ -187,6 +187,18 @@ def delete_list(params):
         config = Config()
         query_manager = QueryManager(config.db_path)
 
+        # Get list info
+        list_info = query_manager.fetch_list_by_id(list_id)
+        if not list_info:
+            utils.log(f"List {list_id} not found", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'List not found', xbmcgui.NOTIFICATION_ERROR)
+            return
+
+        # Check if this is a protected system list
+        if list_info.get('protected', 0) == 1 or query_manager.is_reserved_list_id(int(list_id)):
+            xbmcgui.Dialog().notification('LibraryGenie', 'Cannot delete system list', xbmcgui.NOTIFICATION_WARNING)
+            return
+
         # Use transaction for atomic delete operation
         with query_manager.transaction() as conn:
             # Delete list items first
