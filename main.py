@@ -28,7 +28,6 @@ from resources.lib.kodi.listitem_builder import ListItemBuilder
 from resources.lib.core import route_handlers
 from urllib.parse import parse_qsl, parse_qs # Import parse_qsl and parse_qs for parameter parsing
 from resources.lib.kodi.kodi_helper import KodiHelper # Import KodiHelper
-from resources.lib.core.route_handlers import execute_script_action # Import execute_script_action
 
 # Add addon directory to Python path
 addon_dir = os.path.dirname(os.path.abspath(__file__))
