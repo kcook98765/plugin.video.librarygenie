@@ -128,7 +128,7 @@ class IMDbUploadManager:
 
             # Get all movies with comprehensive properties in single pass
             all_movies = self.jsonrpc.get_movies_with_imdb(progress_callback)
-            
+
             if not all_movies:
                 utils.log("No movies retrieved from Kodi library", "ERROR")
                 return False
@@ -187,10 +187,10 @@ class IMDbUploadManager:
 
                     # Separate light and heavy data in single pass
                     light_movie_data, heavy_movie_data = self._separate_movie_data(movie, imdb_id)
-                    
+
                     if light_movie_data:
                         batch_light_data.append(light_movie_data)
-                    
+
                     if heavy_movie_data:
                         batch_heavy_data.append(heavy_movie_data)
 
@@ -240,7 +240,7 @@ class IMDbUploadManager:
         """Separate movie data into light and heavy components in single pass"""
         try:
             movieid = movie.get('movieid', 0)
-            
+
             # Light data for media_items table
             light_data = {
                 'kodi_id': movieid,
@@ -315,17 +315,21 @@ class IMDbUploadManager:
         self.query_manager.executemany_write(sql, data_to_insert)
 
     def _bulk_store_heavy_metadata_silent(self, heavy_metadata_list):
-        """Store heavy metadata for multiple movies in batch without debug logging spam"""
-        if not heavy_metadata_list:
-            return
+        """Store heavy metadata in bulk without individual logging"""
+        try:
+            if not heavy_metadata_list:
+                return True
 
-        # Only log summary, not individual movie details
-        utils.log(f"Storing heavy metadata for {len(heavy_metadata_list)} movies", "INFO")
+            utils.log(f"Storing heavy metadata for {len(heavy_metadata_list)} movies", "INFO")
 
-        # Use QueryManager's store_heavy_meta_batch method without individual logging
-        self.query_manager.store_heavy_meta_batch(heavy_metadata_list, silent=True)
+            # Use the batch method (without silent parameter as it's not supported)
+            return self.query_manager.store_heavy_meta_batch(heavy_metadata_list)
 
-    
+        except Exception as e:
+            utils.log(f"Error in bulk heavy metadata storage: {str(e)}", "ERROR")
+            return False
+
+
 
     def _clear_existing_library_data(self):
         """Clear existing library data from database tables atomically."""
