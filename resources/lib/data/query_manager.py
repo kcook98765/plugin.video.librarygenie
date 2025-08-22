@@ -9,6 +9,8 @@ from resources.lib.utils import utils
 from resources.lib.utils.singleton_base import Singleton
 from resources.lib.config.config_manager import Config
 import json
+import xbmcgui # Import xbmcgui
+import xbmc # Import xbmc
 
 
 class QueryManager(Singleton):
@@ -196,6 +198,21 @@ class QueryManager(Singleton):
     # -------------------------
     # Minimal, Stable Public API (non-DAO)
     # -------------------------
+
+    def delete_data(self, table_name: str, where_clause: str) -> bool:
+        """Delete data from table with where clause - used by folder_list_manager"""
+        if not self._validate_table_exists(table_name):
+            utils.log(f"Invalid or non-existent table: {table_name}", "ERROR")
+            return False
+
+        try:
+            # Use direct SQL execution for delete operations
+            sql = f"DELETE FROM {table_name} WHERE {where_clause}"
+            self.execute_write(sql)
+            return True
+        except Exception as e:
+            utils.log(f"Error deleting data from {table_name}: {str(e)}", "ERROR")
+            return False
 
     def delete_folder(self, folder_id: int) -> bool:
         """Delete a folder and all its contents atomically."""
@@ -508,6 +525,42 @@ class QueryManager(Singleton):
     def get_media_details(self, kodi_dbid: int, media_type: str = 'movie') -> dict:
         query = "SELECT * FROM media_items WHERE kodi_id = ? AND media_type = ?"
         return self.execute_query(query, (kodi_dbid, media_type), fetch_one=True) or {}
+
+    def clear_all_local_data(self) -> None:
+        """Clear all local database data"""
+        utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW CONFIRMATION MODAL ===", "DEBUG")
+        if not xbmcgui.Dialog().yesno('Clear All Local Data', 'This will delete all lists, folders, and search history.\n\nAre you sure?'):
+            utils.log("=== CLEAR_ALL_LOCAL_DATA: CONFIRMATION MODAL CLOSED - CANCELLED ===", "DEBUG")
+            return
+        utils.log("=== CLEAR_ALL_LOCAL_DATA: CONFIRMATION MODAL CLOSED - CONFIRMED ===", "DEBUG")
+
+        try:
+            # Clear user-created content and media cache
+            self.delete_data('list_items', '1=1')
+            self.delete_data('lists', '1=1')
+            self.delete_data('folders', '1=1')
+            self.delete_data('media_items', '1=1')
+            # Preserve imdb_exports - they contain valuable library reference data
+
+            # Recreate protected folders
+            search_folder_id = self.get_folder_id_by_name("Search History")
+            if not search_folder_id:
+                search_folder_id = self.insert_folder("Search History", None)
+
+            imported_lists_folder_id = self.get_folder_id_by_name("Imported Lists")
+            if not imported_lists_folder_id:
+                imported_lists_folder_id = self.insert_folder("Imported Lists", None)
+
+            utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW SUCCESS NOTIFICATION ===", "DEBUG")
+            xbmcgui.Dialog().notification('LibraryGenie', 'All local data cleared')
+            utils.log("=== CLEAR_ALL_LOCAL_DATA: SUCCESS NOTIFICATION CLOSED ===", "DEBUG")
+            xbmc.executebuiltin('Container.Refresh')
+        except Exception as e:
+            utils.log(f"Error clearing local data: {str(e)}", "ERROR")
+            utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW ERROR NOTIFICATION ===", "DEBUG")
+            xbmcgui.Dialog().notification('LibraryGenie', 'Failed to clear data')
+            utils.log("=== CLEAR_ALL_LOCAL_DATA: ERROR NOTIFICATION CLOSED ===", "DEBUG")
+
 
     # -------------------------
     # Schema Setup / Bootstrap
