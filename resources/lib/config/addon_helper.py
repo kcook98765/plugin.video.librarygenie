@@ -76,10 +76,11 @@ def run_addon():
     utils.log("=== Starting run_addon() ===", "DEBUG")
     _initialized = True
     try:
-        # Initialize args and action
-        args = ""
+        # Extract relevant information for routing decision
+        url_part = sys.argv[0] if len(sys.argv) > 0 else ""
+        handle = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else -1
+        paramstr = sys.argv[2] if len(sys.argv) > 2 else ""
         action = None
-        utils.log(f"Processing command line arguments: {sys.argv}", "DEBUG")
 
         # Handle direct script actions from settings
         script_actions = [
@@ -111,14 +112,13 @@ def run_addon():
                 settings_manager.addon_library_status()
                 return
         else:
-            args = sys.argv[2][1:] if len(sys.argv) > 2 else ""
-            params = urllib.parse.parse_qs(args)
+            params = urllib.parse.parse_qs(paramstr)
             action = params.get('action', [None])[0]
-            utils.log(f"Parsed URL params - args: '{args}', action: '{action}'", "DEBUG")
+            utils.log(f"Parsed URL params - paramstr: '{paramstr}', action: '{action}'", "DEBUG")
 
         # Check if launched from context menu only (exclude show_main_window which has its own handler)
-        listitem_context = (len(sys.argv) > 1 and sys.argv[1] == '-1') and action != 'show_main_window'
-        utils.log(f"Launch context analysis - Args: {sys.argv}, Action: {action}, Is Context: {listitem_context}", "DEBUG")
+        is_context_launch = (len(sys.argv) > 1 and sys.argv[1] == '-1') and action != 'show_main_window'
+        utils.log(f"Launch context analysis - Args: {sys.argv}, Action: {action}, Is Context: {is_context_launch}", "DEBUG")
 
         # Initialize config and database
         utils.log("Initializing Config and QueryManager", "DEBUG")
@@ -134,10 +134,10 @@ def run_addon():
         utils.log("Initializing Kodi helper", "DEBUG")
         kodi_helper = KodiHelper()
 
-        # Using plugin-based routing instead of MainWindow
-        utils.log(f"Using plugin-based routing instead of MainWindow with args: {args}", "DEBUG")
-        import main
-        main.router(args)
+        # Use plugin-based routing instead of MainWindow
+        utils.log(f"Using plugin-based routing instead of MainWindow with paramstr: {paramstr}", "DEBUG")
+        from main import router
+        router(handle, paramstr)
         return
 
     except Exception as e:
