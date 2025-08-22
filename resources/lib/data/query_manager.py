@@ -133,7 +133,11 @@ class QueryManager(Singleton):
                 if fetch_one:
                     row = cursor.fetchone()
                     result = dict(row) if row else None
+                elif fetch_all:
+                    rows = cursor.fetchall()
+                    result = [dict(row) for row in rows]
                 else:
+                    # Default behavior when neither fetch_one nor fetch_all is specified
                     rows = cursor.fetchall()
                     result = [dict(row) for row in rows]
 
@@ -707,6 +711,17 @@ class QueryManager(Singleton):
                 'valid_imdb': 0,
                 'percentage': 0
             }
+        
+        # Handle case where result might be a list instead of dict
+        if isinstance(result, list):
+            if len(result) > 0:
+                result = result[0]
+            else:
+                return {
+                    'total': 0,
+                    'valid_imdb': 0,
+                    'percentage': 0
+                }
         
         total = result.get('total', 0)
         valid_imdb = result.get('valid_imdb', 0)

@@ -189,9 +189,21 @@ class SearchWindow:
                             lookup_query = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
                             lookup_result = query_manager.execute_query(lookup_query, (imdb_id,), fetch_one=True)
                             if lookup_result:
-                                title_lookup = lookup_result.get('title', 'Unknown')
-                                year_lookup = int(lookup_result.get('year', 0) or 0)
-                                utils.log(f"SEARCH_SAVE: Found title/year for {imdb_id}: '{title_lookup}' ({year_lookup})", "DEBUG")
+                                # Handle case where result might be a list instead of dict
+                                if isinstance(lookup_result, list):
+                                    if len(lookup_result) > 0:
+                                        result_row = lookup_result[0]
+                                    else:
+                                        result_row = None
+                                else:
+                                    result_row = lookup_result
+                                
+                                if result_row:
+                                    title_lookup = result_row.get('title', 'Unknown')
+                                    year_lookup = int(result_row.get('year', 0) or 0)
+                                    utils.log(f"SEARCH_SAVE: Found title/year for {imdb_id}: '{title_lookup}' ({year_lookup})", "DEBUG")
+                                else:
+                                    utils.log(f"SEARCH_SAVE: No imdb_exports entry for {imdb_id}", "DEBUG")
                             else:
                                 utils.log(f"SEARCH_SAVE: No imdb_exports entry for {imdb_id}", "DEBUG")
                         except Exception as e:
