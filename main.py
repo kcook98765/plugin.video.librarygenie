@@ -299,8 +299,9 @@ def router(handle, paramstr):
     """Router for plugin calls"""
     log(f"Router called with handle {handle} and paramstr: {paramstr}", "DEBUG")
 
-    # Validate handle
-    if handle < 0:
+    # Handle -1 is valid for RunPlugin actions (like Options & Tools)
+    # Only reject handles that are clearly invalid
+    if handle < -1:
         log(f"Invalid plugin handle: {handle}", "ERROR")
         return
 
