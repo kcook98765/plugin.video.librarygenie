@@ -5,7 +5,6 @@ This module does not support Kodi 18 (Leia) or earlier versions
 """
 import json
 import xbmcgui
-import xbmc
 from resources.lib.kodi.listitem_infotagvideo import set_info_tag, set_art
 from resources.lib.utils import utils
 
@@ -98,7 +97,6 @@ class ListItemBuilder:
 
     # Class variable to track if we've logged IMDB_TRACE info
     _imdb_trace_logged = False
-    _trace_end_logged = False # Added to ensure trace end is logged only once
 
     @staticmethod
     def _get_score_bucket(score: float) -> str:
@@ -148,163 +146,462 @@ class ListItemBuilder:
         return cleaned
 
     @staticmethod
-    def build_video_item(item_data):
-        """Build a video ListItem with comprehensive metadata using legacy API"""
-        if not item_data:
-            utils.log("No item data provided to build_video_item", "WARNING")
-            return xbmcgui.ListItem()
+    def build_video_item(media_info, is_search_history=False):
+        """Build a complete video ListItem with all available metadata"""
+        if not isinstance(media_info, dict):
+            media_info = {}
 
-        try:
-            # Extract basic info with safe defaults
-            title = str(item_data.get('title', 'Unknown Title'))
-            year = item_data.get('year', 0)
+        # Log what the ListItem builder actually receives
+        utils.log(f"=== LISTITEM_BUILDER_INPUT: Received data for ListItem building ===", "INFO")
+        for key, value in media_info.items():
+            if isinstance(value, str) and len(value) > 200:
+                utils.log(f"LISTITEM_BUILDER_INPUT: {key} = {value[:200]}... (truncated)", "INFO")
+            else:
+                utils.log(f"LISTITEM_BUILDER_INPUT: {key} = {repr(value)}", "INFO")
+        utils.log(f"=== END LISTITEM_BUILDER_INPUT ===", "INFO")
 
-            # Create ListItem with proper label
-            list_item = xbmcgui.ListItem(label=title)
+        # Basic info extraction
+        title = str(media_info.get('title', 'Unknown'))
+        source = media_info.get('source')
 
-            # Use legacy setInfo API for all Kodi versions
-            info_labels = {}
+        # Create ListItem with proper string title (remove emoji characters)
+        formatted_title = ListItemBuilder._clean_title(title)
 
-            if title:
-                info_labels['title'] = title
-            if year and year > 0:
-                info_labels['year'] = int(year)
+        # Apply color coding based on search score only for Search History lists
+        search_score = media_info.get('search_score')
+        if is_search_history and search_score and search_score > 0:
+            # Color the title based on score without showing the numeric value
+            formatted_title = ListItemBuilder._colorize_title_by_score(formatted_title, search_score)
 
-            plot = item_data.get('plot', '')
-            if plot:
-                info_labels['plot'] = plot
+        # Create the ListItem
+        li = xbmcgui.ListItem(label=formatted_title)
 
-            tagline = item_data.get('tagline', '')
-            if tagline:
-                info_labels['tagline'] = tagline
+        # Handle plot - prefer plot over tagline, fallback to title
+        plot = media_info.get('plot', '') or media_info.get('tagline', '') or f"Movie: {title}"
 
-            rating = item_data.get('rating', 0)
-            if rating and rating > 0:
-                try:
-                    info_labels['rating'] = float(rating)
-                except (ValueError, TypeError):
-                    pass
+        # For search history items, enhance plot with match status and score
+        if source == 'lib' and media_info.get('search_score'):
+            search_score = media_info.get('search_score', 0)
+            if media_info.get('is_library_match'):
+                plot = f"⭐ IN YOUR LIBRARY (Score: {search_score:.1f})\n\n{plot}"
+            else:
+                plot = f"📍 Not in library (Score: {search_score:.1f})\n\n{plot}"
 
-            duration = item_data.get('duration', 0) or item_data.get('runtime', 0)
-            if duration and duration > 0:
-                try:
-                    info_labels['duration'] = int(duration)
-                except (ValueError, TypeError):
-                    pass
+        # Prepare artwork dictionary
+        art_dict = {}
 
-            premiered = item_data.get('premiered', '')
-            if premiered:
-                info_labels['premiered'] = premiered
+        # Get poster URL with priority order
+        poster_url = None
+        for src_func in [
+            lambda: media_info.get('poster'),
+            lambda: media_info.get('art', {}).get('poster') if isinstance(media_info.get('art'), dict) else None,
+            lambda: media_info.get('info', {}).get('poster'),
+            lambda: media_info.get('thumbnail')
+        ]:
+            try:
+                url = src_func()
+                if url and str(url) != 'None':
+                    poster_url = url
+                    break
+            except Exception:
 
-            dateadded = item_data.get('dateadded', '')
-            if dateadded:
-                info_labels['dateadded'] = dateadded
+                continue
 
-            imdbnumber = item_data.get('imdbnumber', '')
-            if imdbnumber and str(imdbnumber).startswith('tt'):
-                info_labels['imdbnumber'] = imdbnumber
+        # Handle art data from different sources
+        if media_info.get('art'):
+            try:
+                if isinstance(media_info['art'], str):
+                    art_data = json.loads(media_info['art'])
+                else:
+                    art_data = media_info['art']
+                art_dict.update(art_data)
+            except (json.JSONDecodeError, AttributeError, TypeError):
+                pass
 
-            mpaa = item_data.get('mpaa', '')
-            if mpaa:
-                info_labels['mpaa'] = mpaa
+        # Get art dictionary from info if available
+        if isinstance(media_info.get('info', {}).get('art'), dict):
+            art_dict.update(media_info['info']['art'])
 
-            media_type = item_data.get('mediatype', item_data.get('media_type', 'movie'))
-            info_labels['mediatype'] = media_type
+        # Set poster with fallbacks
+        if poster_url and str(poster_url) != 'None':
+            art_dict['poster'] = poster_url
+            art_dict['thumb'] = poster_url
+            art_dict['icon'] = poster_url
 
-            # Handle list fields as strings
-            genre = item_data.get('genre', [])
-            if isinstance(genre, list):
-                genre = ' / '.join(genre)
-            if genre:
-                info_labels['genre'] = genre
+        # Set fanart
+        fanart = media_info.get('fanart') or media_info.get('info', {}).get('fanart')
+        if fanart and str(fanart) != 'None':
+            art_dict['fanart'] = fanart
 
-            director = item_data.get('director', [])
-            if isinstance(director, list):
-                director = ' / '.join(director)
-            if director:
-                info_labels['director'] = director
+        # Use the specialized set_art function with improved normalization and fallbacks
+        art_dict = _normalize_art_dict(art_dict, use_fallbacks=True)
+        # Set art from art_dict
+        if art_dict:
+            set_art(li, art_dict)
 
-            writer = item_data.get('writer', [])
-            if isinstance(writer, list):
-                writer = ' / '.join(writer)
-            if writer:
-                info_labels['writer'] = writer
+        # Create info dictionary for InfoTag
+        info_dict = {
+            'title': formatted_title,
+            'plot': plot, # Use the potentially enhanced plot
+            'tagline': media_info.get('tagline', ''),
+            'country': media_info.get('country', ''),
+            'director': media_info.get('director', ''),
+            'genre': media_info.get('genre', ''),
+            'mpaa': media_info.get('mpaa', ''),
+            'premiered': media_info.get('premiered', ''),
+            'studio': media_info.get('studio', ''),
+            'trailer': media_info.get('trailer', ''),
+            'writer': media_info.get('writer', ''),
+            'mediatype': (media_info.get('media_type') or media_info.get('mediatype') or 'movie').lower()
+        }
 
-            studio = item_data.get('studio', [])
-            if isinstance(studio, list):
-                studio = ' / '.join(studio)
-            if studio:
-                info_labels['studio'] = studio
+        # Handle numeric fields with proper conversion
+        if media_info.get('year'):
+            try:
+                year_val = media_info['year']
+                # Handle both integer and string years
+                if isinstance(year_val, str) and year_val.isdigit():
+                    info_dict['year'] = int(year_val)
+                elif isinstance(year_val, (int, float)) and year_val > 0:
+                    info_dict['year'] = int(year_val)
+            except (ValueError, TypeError):
+                pass
 
-            country = item_data.get('country', [])
-            if isinstance(country, list):
-                country = ' / '.join(country)
-            if country:
-                info_labels['country'] = country
+        if media_info.get('rating'):
+            try:
+                info_dict['rating'] = float(media_info['rating'])
+            except (ValueError, TypeError):
+                pass
 
-            # Cast information
-            cast_data = item_data.get('cast', [])
-            if cast_data:
-                if isinstance(cast_data, str):
+        if media_info.get('votes'):
+            try:
+                info_dict['votes'] = int(media_info['votes'])
+            except (ValueError, TypeError):
+                pass
+
+        # Handle runtime/duration
+        if media_info.get('runtime'):
+            try:
+                info_dict['duration'] = int(media_info['runtime'])
+            except (ValueError, TypeError):
+                pass
+
+        # Handle user rating
+        if media_info.get('userrating'):
+            try:
+                info_dict['userrating'] = float(media_info['userrating'])
+            except (ValueError, TypeError):
+                pass
+
+        # Handle top250 ranking
+        if media_info.get('top250'):
+            try:
+                info_dict['top250'] = int(media_info['top250'])
+            except (ValueError, TypeError):
+                pass
+
+        # Handle playcount
+        if media_info.get('playcount'):
+            try:
+                info_dict['playcount'] = int(media_info['playcount'])
+            except (ValueError, TypeError):
+                pass
+
+        # Handle date fields
+        for date_field in ['dateadded', 'lastplayed', 'premiered']:
+            if media_info.get(date_field):
+                info_dict[date_field] = str(media_info[date_field])
+
+        # Handle set information
+        if media_info.get('set'):
+            info_dict['set'] = str(media_info['set'])
+        if media_info.get('setid'):
+            try:
+                info_dict['setid'] = int(media_info['setid'])
+            except (ValueError, TypeError):
+                pass
+
+        # Handle multiple ratings (v19+)
+        if media_info.get('ratings') and isinstance(media_info['ratings'], dict):
+            # Use the default rating or first available rating
+            for rating_source in ['default', 'imdb', 'themoviedb', 'thetvdb']:
+                if rating_source in media_info['ratings']:
+                    rating_data = media_info['ratings'][rating_source]
+                    if isinstance(rating_data, dict) and 'rating' in rating_data:
+                        try:
+                            info_dict['rating'] = float(rating_data['rating'])
+                            if 'votes' in rating_data:
+                                info_dict['votes'] = int(rating_data['votes'])
+                        except (ValueError, TypeError):
+                            pass
+                        break
+
+        # Handle cast data
+        cast = media_info.get('cast', [])
+        if cast:
+            try:
+                # Handle string-encoded cast data
+                if isinstance(cast, str):
                     try:
-                        import json
-                        cast_data = json.loads(cast_data)
-                    except:
-                        cast_data = []
+                        cast = json.loads(cast)
+                    except json.JSONDecodeError:
+                        cast = []
 
-                if isinstance(cast_data, list) and cast_data:
-                    cast_list = []
-                    for actor in cast_data[:20]:  # Limit to 20 actors
-                        if isinstance(actor, dict):
-                            name = actor.get('name', '')
-                            role = actor.get('role', '')
-                            if name and role:
-                                cast_list.append({'name': name, 'role': role})
-                    if cast_list:
-                        info_labels['cast'] = cast_list
+                # Ensure cast is a list
+                if not isinstance(cast, list):
+                    cast = []
 
-            # Apply all info labels at once
-            list_item.setInfo('video', info_labels)
+                info_dict['cast'] = cast
 
-            success_count = len(info_labels)
-            utils.log(f"Legacy setInfo processing completed with {success_count} successful fields", "DEBUG")
+            except Exception:
+                info_dict['cast'] = []
+        
+        # Handle other heavy metadata fields for search results
+        if source == 'search' or source == 'lib':
+            # Process ratings from heavy metadata
+            ratings = media_info.get('ratings', {})
+            if isinstance(ratings, str):
+                try:
+                    ratings = json.loads(ratings)
+                except json.JSONDecodeError:
+                    ratings = {}
+            if isinstance(ratings, dict) and ratings:
+                info_dict['ratings'] = ratings
+            
+            # Process streamdetails from heavy metadata
+            streamdetails = media_info.get('streamdetails', {})
+            if isinstance(streamdetails, str):
+                try:
+                    streamdetails = json.loads(streamdetails)
+                except json.JSONDecodeError:
+                    streamdetails = {}
+            if isinstance(streamdetails, dict) and streamdetails:
+                info_dict['streamdetails'] = streamdetails
+                
+            # Process uniqueid from heavy metadata
+            uniqueid = media_info.get('uniqueid', {})
+            if isinstance(uniqueid, str):
+                try:
+                    uniqueid = json.loads(uniqueid)
+                except json.JSONDecodeError:
+                    uniqueid = {}
+            if isinstance(uniqueid, dict) and uniqueid:
+                info_dict['uniqueid'] = uniqueid
 
-            # Art and images
-            art_dict = {}
+        # Process plot information
+        if media_info.get('plot'):
+            pass
 
-            # Poster/thumbnail
-            poster = item_data.get('poster') or item_data.get('thumbnail', '')
-            if poster:
-                art_dict['poster'] = poster
-                art_dict['thumb'] = poster
+        # Add IMDb ID to info_dict if available - version-aware handling
+        source1 = media_info.get('imdbnumber', '')
+        source2 = media_info.get('uniqueid', {}).get('imdb', '') if isinstance(media_info.get('uniqueid'), dict) else ''
+        source3 = media_info.get('info', {}).get('imdbnumber', '') if media_info.get('info') else ''
+        source4 = media_info.get('imdb_id', '')
+        
+        # For search results, prioritize the stored imdbnumber field
+        if source == 'search' and source1:
+            source4 = source1  # Use imdbnumber as primary for search results
 
-            # Fanart
-            fanart = item_data.get('fanart', '')
-            if fanart:
-                art_dict['fanart'] = fanart
+        # Prioritize uniqueid.imdb over other sources for v19 compatibility
+        final_imdb_id = ''
+        if source2 and str(source2).startswith('tt'):  # uniqueid.imdb
+            final_imdb_id = source2
+        else:
+            # Fallback to other sources, but only if they start with 'tt'
+            for source_name, source_value in [('imdbnumber', source1), ('info.imdbnumber', source3), ('imdb_id', source4)]:
+                if source_value and str(source_value).startswith('tt'):
+                    final_imdb_id = source_value
+                    break
 
-            # Set art if we have any
-            if art_dict:
-                list_item.setArt(art_dict)
+        if final_imdb_id and str(final_imdb_id).startswith('tt'):
+            info_dict['imdbnumber'] = final_imdb_id
 
-            # Properties for playback
-            list_item.setProperty('IsPlayable', 'true')
+            # For Kodi v19+, also set uniqueid properly
+            if not info_dict.get('uniqueid'):
+                info_dict['uniqueid'] = {'imdb': final_imdb_id}
+            elif isinstance(info_dict.get('uniqueid'), dict):
+                info_dict['uniqueid']['imdb'] = final_imdb_id
 
-            # Add search score as property if present
-            search_score = item_data.get('search_score', 0)
-            if search_score and search_score > 0:
-                list_item.setProperty('search_score', str(search_score))
+        # Use the specialized set_info_tag function that handles Kodi version compatibility
+        set_info_tag(li, info_dict, 'video')
 
-            return list_item
+        # Handle resume data with v20+ compatibility
+        resume_data = media_info.get('resume', {})
+        if isinstance(resume_data, dict) and any(resume_data.values()):
+            try:
+                position = float(resume_data.get('position', 0))
+                total = float(resume_data.get('total', 0))
 
-        except Exception as e:
-            utils.log(f"Error building video item: {str(e)}", "ERROR")
-            # Fallback to basic ListItem
-            title = str(item_data.get('title', 'Unknown Title'))
-            list_item = xbmcgui.ListItem(label=title)
-            list_item.setProperty('IsPlayable', 'true')
-            return list_item
+                if position > 0:
+                    if utils.is_kodi_v20_plus():
+                        # Use v20+ InfoTag method to avoid deprecation warnings
+                        try:
+                            info_tag = li.getVideoInfoTag()
+                            if hasattr(info_tag, 'setResumePoint'):
+                                info_tag.setResumePoint(position, total)
+                            else:
+                                # Fallback to deprecated method
+                                li.setProperty('resumetime', str(position))
+                                if total > 0:
+                                    li.setProperty('totaltime', str(total))
+                        except Exception:
+                            # Fallback to deprecated method
+                            li.setProperty('resumetime', str(position))
+                            if total > 0:
+                                li.setProperty('totaltime', str(total))
+                    else:
+                        # v19 - use deprecated methods
+                        li.setProperty('resumetime', str(position))
+                        if total > 0:
+                            li.setProperty('totaltime', str(total))
+            except (ValueError, TypeError):
+                pass
 
+
+        # Handle stream details with v20+ compatibility
+        stream_details = media_info.get('streamdetails', {})
+        if isinstance(stream_details, dict):
+            try:
+                if utils.is_kodi_v19():
+                    # v19 - use deprecated methods since InfoTag is unreliable
+                    ListItemBuilder._add_stream_info_deprecated(li, stream_details)
+                else:
+                    # v20+ - skip deprecated stream methods to avoid warnings
+                    # Stream details are handled by InfoTag internally when possible
+                    # Only set essential stream properties if needed
+                    video_streams = stream_details.get('video', [])
+                    if video_streams and isinstance(video_streams[0], dict):
+                        codec = video_streams[0].get('codec', '')
+                        if codec:
+                            li.setProperty('VideoCodec', codec)
+                    
+                    audio_streams = stream_details.get('audio', [])
+                    if audio_streams and isinstance(audio_streams[0], dict):
+                        codec = audio_streams[0].get('codec', '')
+                        if codec:
+                            li.setProperty('AudioCodec', codec)
+            except Exception:
+                pass
+
+        # Set content properties - handle non-playable items  
+        is_playable = True  # Default to playable
+        
+        # For favorites imports without valid file paths, mark as non-playable
+        if source == 'favorites_import':
+            file_path = media_info.get('file') or media_info.get('path') or media_info.get('play')
+            if not file_path or not str(file_path).strip():
+                is_playable = False
+        
+        li.setProperty('IsPlayable', 'true' if is_playable else 'false')
+
+        # Set LibraryGenie marker to exclude from native context menu
+        li.setProperty('LibraryGenie.Item', 'true')
+
+        # Set media_id for context menu access (used for removing from lists)
+        media_id = media_info.get('media_id') or media_info.get('id')
+        if media_id:
+            li.setProperty('media_id', str(media_id))
+
+        # Set DBID for Kodi Information dialog support
+        kodi_id = media_info.get('kodi_id') or media_info.get('movieid') or media_info.get('id')
+        if kodi_id:
+            li.setProperty('DBID', str(kodi_id))
+
+        # Set MediaType property for Kodi recognition
+        media_type = info_dict.get('mediatype', 'movie')
+        li.setProperty('MediaType', media_type)
+
+        # Use centralized context menu builder
+        from resources.lib.kodi.context_menu_builder import get_context_menu_builder
+        context_builder = get_context_menu_builder()
+
+        # Build context based on available information
+        context = {}
+        if isinstance(media_info, dict) and '_context_info' in media_info:
+            context = media_info['_context_info']
+
+        # If this item is from a list view, ensure we have the list context
+        if media_info.get('_viewing_list_id'):
+            context['current_list_id'] = media_info['_viewing_list_id']
+            utils.log(f"Setting context for list viewing: list_id={media_info['_viewing_list_id']}, media_id={media_info.get('media_id')}", "DEBUG")
+
+        # Get context menu items from centralized builder
+        context_menu_items = context_builder.build_video_context_menu(media_info, context)
+
+        # Add context menu to ListItem with v19 compatibility fix
+        if utils.is_kodi_v19():
+            # v19 requires replaceItems=True for reliable context menu display
+            li.addContextMenuItems(context_menu_items, replaceItems=True)
+        else:
+            # v20+ can use replaceItems=False to preserve existing items
+            li.addContextMenuItems(context_menu_items, replaceItems=False)
+
+        # Try to get play URL from different possible locations
+        play_url = None
+        
+        # For search results, don't set invalid info:// URLs
+        if source == 'search':
+            # Search results are non-playable by design - they're for discovery
+            play_url = media_info.get('play')
+            if play_url and not str(play_url).startswith('info://'):
+                li.setPath(play_url)
+                utils.log(f"Set valid ListItem path for search result '{title}': {play_url}", "DEBUG")
+            else:
+                # Don't set invalid URLs that Kodi can't handle
+                utils.log(f"Search result '{title}' - skipping invalid play URL: {play_url}", "DEBUG")
+        # For favorites imports, only set path if it's playable and has valid URL
+        elif source == 'favorites_import':
+            if is_playable:
+                play_url = media_info.get('file') or media_info.get('path') or media_info.get('play')
+                if play_url and str(play_url).strip():
+                    # Don't set path here - it's already set in the URL by ResultsManager
+                    utils.log(f"Favorites import '{title}' has playable path: {play_url}", "DEBUG")
+                else:
+                    utils.log(f"Favorites import '{title}' marked non-playable - no path available", "DEBUG")
+            else:
+                utils.log(f"Favorites import '{title}' is non-playable - no path set", "DEBUG")
+        elif source == 'plugin_addon' and media_info.get('file'):
+            play_url = media_info.get('file')
+            if play_url and isinstance(play_url, str):
+                li.setPath(play_url)
+                utils.log(f"Set ListItem path for plugin addon '{title}': {play_url}", "DEBUG")
+            else:
+                utils.log(f"No valid play URL string found for plugin addon '{title}'", "DEBUG")
+        else:
+            # For other items, use the standard priority order
+            play_url = media_info.get('info', {}).get('play') or media_info.get('play') or media_info.get('file')
+            if play_url:
+                li.setPath(play_url)
+                utils.log(f"Set ListItem path for '{title}': {play_url}", "DEBUG")
+            else:
+                utils.log(f"No play URL found for '{title}'", "DEBUG")
+
+
+        # Store IMDb ID as a property on the ListItem itself for context menu access
+        # Use the same IMDb ID we processed above for consistency
+        final_imdb_id = info_dict.get('imdbnumber', '')
+        if not ListItemBuilder._imdb_trace_logged:
+            utils.log(f"=== IMDB_TRACE: Setting ListItem properties for '{title}' (first movie only) ===", "INFO")
+            utils.log(f"IMDB_TRACE: final_imdb_id from info_dict = '{final_imdb_id}'", "INFO")
+            ListItemBuilder._imdb_trace_logged = True
+
+        if final_imdb_id and str(final_imdb_id).startswith('tt'):
+            # Set multiple properties for maximum compatibility
+            li.setProperty('LibraryGenie.IMDbID', str(final_imdb_id))
+            li.setProperty('imdb_id', str(final_imdb_id))  # Additional fallback property
+            li.setProperty('imdbnumber', str(final_imdb_id))  # Additional fallback property
+            if not ListItemBuilder._imdb_trace_logged or ListItemBuilder._imdb_trace_logged:
+                # Log only for first movie
+                pass
+        else:
+            if not hasattr(ListItemBuilder, '_imdb_trace_logged') or not ListItemBuilder._imdb_trace_logged:
+                utils.log(f"IMDB_TRACE: No valid IMDb ID found for '{title}' - cannot set properties", "INFO")
+
+        if not hasattr(ListItemBuilder, '_trace_end_logged'):
+            utils.log(f"=== END IMDB_TRACE: ListItem properties for '{title}' (first movie only) ===", "INFO")
+            ListItemBuilder._trace_end_logged = True
+
+        return li
 
     @staticmethod
     def build_folder_item(name, is_folder=True, item_type='folder', plot=''):
