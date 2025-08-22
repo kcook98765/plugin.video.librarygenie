@@ -967,6 +967,9 @@ class QueryManager(Singleton):
     def fetch_list_items_with_details(self, list_id: int):
         return self._listing.fetch_list_items_with_details(list_id)
 
+    def delete_list_and_contents(self, list_id: int):
+        return self._listing.delete_list_and_contents(list_id)
+
     # Convenience alias preserved for backward compatibility
     def get_list_media_items(self, list_id: int) -> List[Dict]:
         return self.fetch_list_items_with_details(list_id)
