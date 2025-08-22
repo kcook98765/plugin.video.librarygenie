@@ -76,7 +76,9 @@ class QueryManager(Singleton):
             return False
 
         rows = self.execute_query(f"PRAGMA table_info({table_name})", fetch_all=True)
-        column_names = [row['name'] for row in rows]
+        if not rows:
+            return False
+        column_names = [row_dict['name'] for row_dict in rows if isinstance(row_dict, dict) and 'name' in row_dict]
         return column_name in column_names
 
     # -------------------------
