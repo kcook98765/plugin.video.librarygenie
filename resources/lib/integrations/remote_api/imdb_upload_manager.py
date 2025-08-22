@@ -160,6 +160,9 @@ class IMDbUploadManager:
         """Process and store movies with optimized single-pass approach - no second pass needed"""
         try:
             utils.log(f"Starting optimized processing of {len(movies)} movies (single pass)", "INFO")
+            
+            if use_notifications:
+                utils.show_notification("LibraryGenie", f"Starting processing of {len(movies)} movies...", time=2000)
 
             batch_size = 100
             total_movies = len(movies)
@@ -422,6 +425,9 @@ class IMDbUploadManager:
     def _retrieve_all_movies_from_kodi(self, use_notifications):
         """Retrieve all movies from Kodi library using JSON-RPC."""
         utils.log("Getting all movies with IMDb information from Kodi library", "INFO")
+        
+        if use_notifications:
+            utils.show_notification("LibraryGenie", "Starting movie retrieval from Kodi...", time=3000)
 
         batch_size = 100
         start = 0
@@ -474,11 +480,16 @@ class IMDbUploadManager:
 
             movies = response['result']['movies']
             total = response['result']['limits']['total']
+            
+            # Show total count immediately after first batch
+            if start == 0 and use_notifications and total > 0:
+                utils.show_notification("LibraryGenie", f"Found {total} movies in library, retrieving...", time=3000)
 
-            # Update progress tracking (less frequent logging)
+            # Update progress tracking (more frequent for better user experience)
             current_count = len(all_movies) + len(movies)
-            if use_notifications and (current_count - last_notification >= 2000):
-                utils.show_notification("LibraryGenie", f"Scanned {current_count} of {total} movies...", time=2000)
+            if use_notifications and (current_count - last_notification >= 1000 or start == 0):
+                progress_percent = int((current_count / total) * 100) if total > 0 else 0
+                utils.show_notification("LibraryGenie", f"Retrieved {current_count} of {total} movies ({progress_percent}%)", time=2000)
                 last_notification = current_count
 
             all_movies.extend(movies)
@@ -492,7 +503,7 @@ class IMDbUploadManager:
         utils.log(f"Movie retrieval complete: {len(all_movies)} movies retrieved from Kodi library", "INFO")
 
         if use_notifications:
-            utils.show_notification("LibraryGenie", f"Scan complete! Processing {len(all_movies)} movies...", time=3000)
+            utils.show_notification("LibraryGenie", f"Retrieval complete! Processing {len(all_movies)} movies...", time=3000)
 
         return all_movies
 
