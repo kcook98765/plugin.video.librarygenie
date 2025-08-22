@@ -38,12 +38,6 @@ def add_context_menu_for_item(li: xbmcgui.ListItem, item_type: str, **ids):
 def add_options_header_item(ctx: dict, handle: int):
     """Add the options and tools header item as a non-folder RunPlugin item"""
     try:
-        # Check if navigation is in progress - skip adding options header during navigation
-        navigating = xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.Navigating)")
-        if navigating == "true":
-            utils.log("Navigation in progress, skipping options header item", "DEBUG")
-            return
-
         # Create list item for options as non-folder
         li = xbmcgui.ListItem(label="[B]Options & Tools[/B]")
         utils.log("Adding Options & Tools header item", "DEBUG")
@@ -208,7 +202,7 @@ def show_empty_directory(handle: int, message="No items to display."):
         li = ListItemBuilder.build_folder_item(message, is_folder=False)
         li.setProperty('IsPlayable', 'false')
         xbmcplugin.addDirectoryItem(handle, "", li, False)
-        xbmcbmcplugin.endOfDirectory(handle, succeeded=True)
+        xbmcplugin.endOfDirectory(handle, succeeded=True)
     except Exception as e:
         utils.log(f"Error showing empty directory: {str(e)}", "ERROR")
         # Fallback: just end directory to prevent hanging
