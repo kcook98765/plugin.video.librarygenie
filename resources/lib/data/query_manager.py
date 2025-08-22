@@ -480,6 +480,60 @@ class QueryManager(Singleton):
             utils.log(f"Error inserting media item and adding to list: {str(e)}", "ERROR")
             return False
 
+    def sync_store_media_item_to_list(self, list_id: int, media_item_data: Dict) -> bool:
+        """Store media item and add to list for sync operations only - pure database storage, no ListItem building"""
+        try:
+            with self.transaction() as conn:
+                # Use path as the primary identifier for sync operations
+                path = media_item_data.get('path', '')
+                title = media_item_data.get('title', '')
+                source = media_item_data.get('source', '')
+
+                # Find existing media item by path and source
+                existing_check = conn.execute(
+                    "SELECT id FROM media_items WHERE path = ? AND source = ?",
+                    (path, source)
+                ).fetchone()
+
+                if existing_check:
+                    media_id = existing_check[0]
+                    utils.log(f"SYNC_STORE: Found existing media item with ID: {media_id}", "DEBUG")
+                else:
+                    # Insert new media item - pure SQL, no method calls that might trigger ListItem building
+                    columns = list(media_item_data.keys())
+                    placeholders = ['?' for _ in columns]
+                    sql = f"INSERT INTO media_items ({', '.join(columns)}) VALUES ({', '.join(placeholders)})"
+                    cursor = conn.execute(sql, tuple(media_item_data.values()))
+                    media_id = cursor.lastrowid
+
+                    if not media_id:
+                        utils.log("SYNC_STORE: Failed to get media item ID after insert", "ERROR")
+                        return False
+
+                    utils.log(f"SYNC_STORE: Created new media item with ID: {media_id} for '{title}'", "DEBUG")
+
+                # Check if already in list
+                existing_list_item = conn.execute(
+                    "SELECT id FROM list_items WHERE list_id = ? AND media_item_id = ?",
+                    (list_id, media_id)
+                ).fetchone()
+
+                if not existing_list_item:
+                    # Add to list - direct SQL, no method calls
+                    search_score = media_item_data.get('search_score', 0)
+                    conn.execute(
+                        "INSERT INTO list_items (list_id, media_item_id, search_score) VALUES (?, ?, ?)",
+                        (list_id, media_id, search_score)
+                    )
+                    utils.log(f"SYNC_STORE: Added media item {media_id} to list {list_id}", "DEBUG")
+                else:
+                    utils.log(f"SYNC_STORE: Media item {media_id} already in list {list_id}", "DEBUG")
+
+            return True
+        except Exception as e:
+            utils.log(f"SYNC_STORE: Error storing media item: {str(e)}", "ERROR")
+            return False
+
     def close(self):
         """Close the database connection"""
         with self._lock:
