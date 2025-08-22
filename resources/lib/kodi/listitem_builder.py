@@ -149,7 +149,7 @@ class ListItemBuilder:
 
     @staticmethod
     def build_video_item(item_data):
-        """Build a video ListItem with comprehensive metadata using version-aware API"""
+        """Build a video ListItem with comprehensive metadata using legacy API"""
         if not item_data:
             utils.log("No item data provided to build_video_item", "WARNING")
             return xbmcgui.ListItem()
@@ -162,231 +162,114 @@ class ListItemBuilder:
             # Create ListItem with proper label
             list_item = xbmcgui.ListItem(label=title)
 
-            # Use version-specific API to avoid deprecation warnings
-            if utils.is_kodi_v20_plus():
-                # Use Kodi v20+ InfoTag API for comprehensive metadata
-                info_tag = list_item.getVideoInfoTag()
+            # Use legacy setInfo API for all Kodi versions
+            info_labels = {}
 
-                # Set basic metadata
-                if title:
-                    info_tag.setTitle(title)
-                if year and year > 0:
-                    info_tag.setYear(int(year))
+            if title:
+                info_labels['title'] = title
+            if year and year > 0:
+                info_labels['year'] = int(year)
 
-                # Plot/description
-                plot = item_data.get('plot', '')
-                if plot:
-                    info_tag.setPlot(plot)
+            plot = item_data.get('plot', '')
+            if plot:
+                info_labels['plot'] = plot
 
-                # Tagline
-                tagline = item_data.get('tagline', '')
-                if tagline:
-                    info_tag.setTagLine(tagline)
+            tagline = item_data.get('tagline', '')
+            if tagline:
+                info_labels['tagline'] = tagline
 
-                # Rating
-                rating = item_data.get('rating', 0)
-                if rating and rating > 0:
+            rating = item_data.get('rating', 0)
+            if rating and rating > 0:
+                try:
+                    info_labels['rating'] = float(rating)
+                except (ValueError, TypeError):
+                    pass
+
+            duration = item_data.get('duration', 0) or item_data.get('runtime', 0)
+            if duration and duration > 0:
+                try:
+                    info_labels['duration'] = int(duration)
+                except (ValueError, TypeError):
+                    pass
+
+            premiered = item_data.get('premiered', '')
+            if premiered:
+                info_labels['premiered'] = premiered
+
+            dateadded = item_data.get('dateadded', '')
+            if dateadded:
+                info_labels['dateadded'] = dateadded
+
+            imdbnumber = item_data.get('imdbnumber', '')
+            if imdbnumber and str(imdbnumber).startswith('tt'):
+                info_labels['imdbnumber'] = imdbnumber
+
+            mpaa = item_data.get('mpaa', '')
+            if mpaa:
+                info_labels['mpaa'] = mpaa
+
+            media_type = item_data.get('mediatype', item_data.get('media_type', 'movie'))
+            info_labels['mediatype'] = media_type
+
+            # Handle list fields as strings
+            genre = item_data.get('genre', [])
+            if isinstance(genre, list):
+                genre = ' / '.join(genre)
+            if genre:
+                info_labels['genre'] = genre
+
+            director = item_data.get('director', [])
+            if isinstance(director, list):
+                director = ' / '.join(director)
+            if director:
+                info_labels['director'] = director
+
+            writer = item_data.get('writer', [])
+            if isinstance(writer, list):
+                writer = ' / '.join(writer)
+            if writer:
+                info_labels['writer'] = writer
+
+            studio = item_data.get('studio', [])
+            if isinstance(studio, list):
+                studio = ' / '.join(studio)
+            if studio:
+                info_labels['studio'] = studio
+
+            country = item_data.get('country', [])
+            if isinstance(country, list):
+                country = ' / '.join(country)
+            if country:
+                info_labels['country'] = country
+
+            # Cast information
+            cast_data = item_data.get('cast', [])
+            if cast_data:
+                if isinstance(cast_data, str):
                     try:
-                        info_tag.setRating(float(rating))
-                    except (ValueError, TypeError):
-                        pass
+                        import json
+                        cast_data = json.loads(cast_data)
+                    except:
+                        cast_data = []
 
-                # Runtime/Duration
-                duration = item_data.get('duration', 0) or item_data.get('runtime', 0)
-                if duration and duration > 0:
-                    try:
-                        info_tag.setDuration(int(duration))
-                    except (ValueError, TypeError):
-                        pass
+                if isinstance(cast_data, list) and cast_data:
+                    cast_list = []
+                    for actor in cast_data[:20]:  # Limit to 20 actors
+                        if isinstance(actor, dict):
+                            name = actor.get('name', '')
+                            role = actor.get('role', '')
+                            if name and role:
+                                cast_list.append({'name': name, 'role': role})
+                    if cast_list:
+                        info_labels['cast'] = cast_list
 
-                # Premiered date
-                premiered = item_data.get('premiered', '')
-                if premiered:
-                    info_tag.setPremiered(premiered)
+            # Apply all info labels at once
+            list_item.setInfo('video', info_labels)
 
-                # Date added
-                dateadded = item_data.get('dateadded', '')
-                if dateadded:
-                    info_tag.setDateAdded(dateadded)
+            success_count = len(info_labels)
+            utils.log(f"Legacy setInfo processing completed with {success_count} successful fields", "DEBUG")
 
-                # IMDb number
-                imdbnumber = item_data.get('imdbnumber', '')
-                if imdbnumber and str(imdbnumber).startswith('tt'):
-                    info_tag.setIMDBNumber(imdbnumber)
-
-                # MPAA rating
-                mpaa = item_data.get('mpaa', '')
-                if mpaa:
-                    info_tag.setMpaa(mpaa)
-
-                # Media type
-                media_type = item_data.get('mediatype', item_data.get('media_type', 'movie'))
-                info_tag.setMediaType(media_type)
-
-                # Handle list fields (genre, director, writer, etc.)
-                genre = item_data.get('genre', [])
-                if isinstance(genre, str):
-                    genre = [g.strip() for g in genre.split('/') if g.strip()]
-                if genre:
-                    info_tag.setGenres(genre)
-
-                director = item_data.get('director', [])
-                if isinstance(director, str):
-                    director = [d.strip() for d in director.split('/') if d.strip()]
-                if director:
-                    info_tag.setDirectors(director)
-
-                writer = item_data.get('writer', [])
-                if isinstance(writer, str):
-                    writer = [w.strip() for w in writer.split('/') if w.strip()]
-                if writer:
-                    info_tag.setWriters(writer)
-
-                studio = item_data.get('studio', [])
-                if isinstance(studio, str):
-                    studio = [s.strip() for s in studio.split('/') if s.strip()]
-                if studio:
-                    info_tag.setStudios(studio)
-
-                country = item_data.get('country', [])
-                if isinstance(country, str):
-                    country = [c.strip() for c in country.split('/') if c.strip()]
-                if country:
-                    info_tag.setCountries(country)
-
-                # Cast information
-                cast_data = item_data.get('cast', [])
-                if cast_data:
-                    if isinstance(cast_data, str):
-                        try:
-                            import json
-                            cast_data = json.loads(cast_data)
-                        except:
-                            cast_data = []
-
-                    if isinstance(cast_data, list) and cast_data:
-                        cast_list = []
-                        for actor in cast_data[:20]:  # Limit to 20 actors
-                            if isinstance(actor, dict):
-                                name = actor.get('name', '')
-                                role = actor.get('role', '')
-                                if name:
-                                    cast_list.append(xbmc.Actor(name, role))
-                        if cast_list:
-                            info_tag.setCast(cast_list)
-
-                success_count = len([x for x in [title, year, plot, rating, duration] if x])
-                utils.log(f"V20+ InfoTag processing completed with {success_count} successful fields", "DEBUG")
-
-            else:
-                # Use legacy setInfo API for Kodi v19 and earlier to avoid warnings
-                info_labels = {}
-
-                if title:
-                    info_labels['title'] = title
-                if year and year > 0:
-                    info_labels['year'] = int(year)
-
-                plot = item_data.get('plot', '')
-                if plot:
-                    info_labels['plot'] = plot
-
-                tagline = item_data.get('tagline', '')
-                if tagline:
-                    info_labels['tagline'] = tagline
-
-                rating = item_data.get('rating', 0)
-                if rating and rating > 0:
-                    try:
-                        info_labels['rating'] = float(rating)
-                    except (ValueError, TypeError):
-                        pass
-
-                duration = item_data.get('duration', 0) or item_data.get('runtime', 0)
-                if duration and duration > 0:
-                    try:
-                        info_labels['duration'] = int(duration)
-                    except (ValueError, TypeError):
-                        pass
-
-                premiered = item_data.get('premiered', '')
-                if premiered:
-                    info_labels['premiered'] = premiered
-
-                dateadded = item_data.get('dateadded', '')
-                if dateadded:
-                    info_labels['dateadded'] = dateadded
-
-                imdbnumber = item_data.get('imdbnumber', '')
-                if imdbnumber and str(imdbnumber).startswith('tt'):
-                    info_labels['imdbnumber'] = imdbnumber
-
-                mpaa = item_data.get('mpaa', '')
-                if mpaa:
-                    info_labels['mpaa'] = mpaa
-
-                media_type = item_data.get('mediatype', item_data.get('media_type', 'movie'))
-                info_labels['mediatype'] = media_type
-
-                # Handle list fields as strings for v19
-                genre = item_data.get('genre', [])
-                if isinstance(genre, list):
-                    genre = ' / '.join(genre)
-                if genre:
-                    info_labels['genre'] = genre
-
-                director = item_data.get('director', [])
-                if isinstance(director, list):
-                    director = ' / '.join(director)
-                if director:
-                    info_labels['director'] = director
-
-                writer = item_data.get('writer', [])
-                if isinstance(writer, list):
-                    writer = ' / '.join(writer)
-                if writer:
-                    info_labels['writer'] = writer
-
-                studio = item_data.get('studio', [])
-                if isinstance(studio, list):
-                    studio = ' / '.join(studio)
-                if studio:
-                    info_labels['studio'] = studio
-
-                country = item_data.get('country', [])
-                if isinstance(country, list):
-                    country = ' / '.join(country)
-                if country:
-                    info_labels['country'] = country
-
-                # Cast information for v19
-                cast_data = item_data.get('cast', [])
-                if cast_data:
-                    if isinstance(cast_data, str):
-                        try:
-                            import json
-                            cast_data = json.loads(cast_data)
-                        except:
-                            cast_data = []
-
-                    if isinstance(cast_data, list) and cast_data:
-                        cast_list = []
-                        for actor in cast_data[:20]:  # Limit to 20 actors
-                            if isinstance(actor, dict):
-                                name = actor.get('name', '')
-                                role = actor.get('role', '')
-                                if name and role:
-                                    cast_list.append({'name': name, 'role': role})
-                        if cast_list:
-                            info_labels['cast'] = cast_list
-
-                # Apply all info labels at once for v19
-                list_item.setInfo('video', info_labels)
-
-                success_count = len(info_labels)
-                utils.log(f"V19 setInfo processing completed with {success_count} successful fields", "DEBUG")
-
-            # Art and images (same for both versions)
+            # Art and images
             art_dict = {}
 
             # Poster/thumbnail
