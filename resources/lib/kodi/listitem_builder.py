@@ -148,24 +148,45 @@ class ListItemBuilder:
     @staticmethod
     def build_video_item(item_dict, is_search_history=False):
         """Build a video ListItem from item dictionary"""
+        # Get call stack information for debugging
+        import inspect
+        import threading
+        
+        current_thread = threading.current_thread()
+        stack_frames = inspect.stack()
+        caller_info = []
+        
+        # Collect meaningful caller information (skip current frame)
+        for i, frame in enumerate(stack_frames[1:8], 1):  # Check up to 7 levels up
+            func_name = frame.function
+            file_name = frame.filename.split('/')[-1]  # Just the filename
+            line_no = frame.lineno
+            caller_info.append(f"{file_name}:{func_name}():{line_no}")
+        
+        caller_chain = " -> ".join(caller_info)
+        title = item_dict.get('title', 'Unknown') if isinstance(item_dict, dict) else 'Unknown'
+        source = item_dict.get('source', 'unknown') if isinstance(item_dict, dict) else 'unknown'
+        
+        utils.log(f"=== LISTITEM_BUILD_VIDEO: Starting for '{title}' (source: {source}) ===", "INFO")
+        utils.log(f"LISTITEM_BUILD_VIDEO: Thread: {current_thread.name}", "INFO")
+        utils.log(f"LISTITEM_BUILD_VIDEO: Call chain: {caller_chain}", "INFO")
+        utils.log(f"LISTITEM_BUILD_VIDEO: is_search_history: {is_search_history}", "INFO")
+        
         # Prevent ListItem building during sync operations
         if item_dict.get('_sync_operation') or item_dict.get('_no_listitem_building') or item_dict.get('_background_sync'):
-            utils.log(f"Preventing ListItem building for '{item_dict.get('title', 'Unknown')}' during sync operation", "WARNING")
+            utils.log(f"LISTITEM_BUILD_VIDEO: Preventing ListItem building for '{title}' - sync flags detected", "WARNING")
             return None
 
         # Check thread name for sync operations
-        import threading
-        current_thread = threading.current_thread()
         if 'FavoritesSync' in current_thread.name or 'Sync' in current_thread.name:
-            utils.log(f"Preventing ListItem building for '{item_dict.get('title', 'Unknown')}' - sync thread detected", "WARNING")
+            utils.log(f"LISTITEM_BUILD_VIDEO: Preventing ListItem building for '{title}' - sync thread detected", "WARNING")
             return None
 
         # Check call stack for sync functions
-        import inspect
-        frame_names = [frame.function for frame in inspect.stack()]
+        frame_names = [frame.function for frame in stack_frames]
         sync_functions = ['sync_favorites', '_apply_database_changes', 'sync_only_store_media_item_to_list', '_create_media_dict_from_favorite']
         if any(sync_func in frame_names for sync_func in sync_functions):
-            utils.log(f"Preventing ListItem building for '{item_dict.get('title', 'Unknown')}' - sync operation in call stack", "WARNING")
+            utils.log(f"LISTITEM_BUILD_VIDEO: Preventing ListItem building for '{title}' - sync operation in call stack", "WARNING")
             return None
 
 
@@ -625,6 +646,7 @@ class ListItemBuilder:
             utils.log(f"=== END IMDB_TRACE: ListItem properties for '{title}' (first movie only) ===", "INFO")
             ListItemBuilder._trace_end_logged = True
 
+        utils.log(f"=== LISTITEM_BUILD_VIDEO: Successfully created ListItem for '{title}' ===", "INFO")
         return li
 
     @staticmethod
@@ -637,6 +659,28 @@ class ListItemBuilder:
             item_type: Type of item ('folder', 'playlist', 'list') to determine icon
             plot: Plot/description text for the item
         """
+        # Get call stack information for debugging
+        import inspect
+        import threading
+        
+        current_thread = threading.current_thread()
+        stack_frames = inspect.stack()
+        caller_info = []
+        
+        # Collect meaningful caller information (skip current frame)
+        for i, frame in enumerate(stack_frames[1:6], 1):  # Check up to 5 levels up
+            func_name = frame.function
+            file_name = frame.filename.split('/')[-1]  # Just the filename
+            line_no = frame.lineno
+            caller_info.append(f"{file_name}:{func_name}():{line_no}")
+        
+        caller_chain = " -> ".join(caller_info)
+        
+        utils.log(f"=== LISTITEM_BUILD_FOLDER: Starting for '{name}' (type: {item_type}) ===", "INFO")
+        utils.log(f"LISTITEM_BUILD_FOLDER: Thread: {current_thread.name}", "INFO")
+        utils.log(f"LISTITEM_BUILD_FOLDER: Call chain: {caller_chain}", "INFO")
+        utils.log(f"LISTITEM_BUILD_FOLDER: is_folder: {is_folder}, plot: {bool(plot)}", "INFO")
+        
         from resources.lib.config.addon_ref import get_addon
         addon = get_addon()
         addon_path = addon.getAddonInfo("path")
@@ -673,6 +717,7 @@ class ListItemBuilder:
             }
             set_info_tag(list_item, info_dict, 'video')
 
+        utils.log(f"=== LISTITEM_BUILD_FOLDER: Successfully created folder ListItem for '{clean_name}' ===", "INFO")
         return list_item
 
     @staticmethod

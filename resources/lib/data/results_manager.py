@@ -377,6 +377,7 @@ class ResultsManager(Singleton):
                         utils.log(f"Skipping ListItem building for favorites import item '{r.get('title', 'Unknown')}' during sync operation", "DEBUG")
                         continue
 
+                    utils.log(f"=== RESULTS_MANAGER: About to build ListItem for favorites_import item '{r.get('title', 'Unknown')}' ===", "INFO")
                     from resources.lib.kodi.listitem_builder import ListItemBuilder
                     list_item = ListItemBuilder.build_video_item(r, is_search_history=is_search_history)
 
@@ -519,6 +520,7 @@ class ResultsManager(Singleton):
                         utils.log(f"LISTITEM_INPUT_DATA: {key} = {repr(value)}", "INFO")
                 utils.log(f"=== END LISTITEM_INPUT_DATA ===", "INFO")
 
+                utils.log(f"=== RESULTS_MANAGER: About to build ListItem for library/search item '{title}' (match: {kodi_movie is not None}) ===", "INFO")
                 from resources.lib.kodi.listitem_builder import ListItemBuilder
                 list_item = ListItemBuilder.build_video_item(item_dict, is_search_history=is_search_history)
 
@@ -540,6 +542,7 @@ class ResultsManager(Singleton):
                 item['_viewing_list_id'] = list_id
                 item['media_id'] = item.get('id') or item.get('media_id')
 
+                utils.log(f"=== RESULTS_MANAGER: About to build ListItem for external item '{item.get('title', 'Unknown')}' ===", "INFO")
                 from resources.lib.kodi.listitem_builder import ListItemBuilder
                 list_item = ListItemBuilder.build_video_item(item, is_search_history=is_search_history)
 
