@@ -88,7 +88,16 @@ def run_addon():
             potential_action = sys.argv[1]
             # Clean up potential action string (remove any quotes or extra characters)
             potential_action = potential_action.strip('\'"')
-            if potential_action in ['upload_library_full', 'upload_library_delta', 'clear_server_library']:
+            
+            # Complete list of script actions from settings.xml
+            script_actions = [
+                'setup_remote_api', 'manual_setup_remote_api', 'test_remote_api',
+                'upload_library_full', 'upload_library_delta', 'upload_status',
+                'clear_server_library', 'show_main_window', 'clear_all_local_data',
+                'import_from_shortlist', 'addon_library_status'
+            ]
+            
+            if potential_action in script_actions:
                 script_action = potential_action
                 utils.log(f"Detected script action: {script_action}", "INFO")
             else:
@@ -134,6 +143,104 @@ def run_addon():
                 import traceback
                 utils.log(f"Clear error traceback: {traceback.format_exc()}", "ERROR")
             return
+        elif script_action == "upload_status":
+            utils.log("Handling upload_status script action", "INFO")
+            try:
+                from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
+                upload_manager = IMDbUploadManager()
+                utils.log("Getting upload status...", "INFO")
+                upload_manager.get_upload_status()
+                utils.log("Upload status displayed successfully", "INFO")
+            except Exception as e:
+                utils.log(f"Error in upload_status script action: {str(e)}", "ERROR")
+                import traceback
+                utils.log(f"Upload status error traceback: {traceback.format_exc()}", "ERROR")
+            return
+        elif script_action == "setup_remote_api":
+            utils.log("Handling setup_remote_api script action", "INFO")
+            try:
+                from resources.lib.integrations.remote_api.remote_api_setup import run_setup
+                utils.log("Starting remote API setup...", "INFO")
+                run_setup()
+                utils.log("Remote API setup completed", "INFO")
+            except Exception as e:
+                utils.log(f"Error in setup_remote_api script action: {str(e)}", "ERROR")
+                import traceback
+                utils.log(f"Setup error traceback: {traceback.format_exc()}", "ERROR")
+            return
+        elif script_action == "manual_setup_remote_api":
+            utils.log("Handling manual_setup_remote_api script action", "INFO")
+            try:
+                from resources.lib.integrations.remote_api.remote_api_setup import run_manual_setup
+                utils.log("Starting manual remote API setup...", "INFO")
+                run_manual_setup()
+                utils.log("Manual remote API setup completed", "INFO")
+            except Exception as e:
+                utils.log(f"Error in manual_setup_remote_api script action: {str(e)}", "ERROR")
+                import traceback
+                utils.log(f"Manual setup error traceback: {traceback.format_exc()}", "ERROR")
+            return
+        elif script_action == "test_remote_api":
+            utils.log("Handling test_remote_api script action", "INFO")
+            try:
+                from resources.lib.integrations.remote_api.remote_api_client import RemoteAPIClient
+                remote_client = RemoteAPIClient()
+                utils.log("Testing remote API connection...", "INFO")
+                result = remote_client.test_connection()
+                utils.log(f"Remote API test completed with result: {result}", "INFO")
+                if result:
+                    import xbmcgui
+                    xbmcgui.Dialog().ok("Test Successful", "Remote API connection is working correctly!")
+                else:
+                    import xbmcgui
+                    xbmcgui.Dialog().ok("Test Failed", "Remote API connection failed. Check your settings.")
+            except Exception as e:
+                utils.log(f"Error in test_remote_api script action: {str(e)}", "ERROR")
+                import traceback
+                utils.log(f"Test error traceback: {traceback.format_exc()}", "ERROR")
+            return
+        elif script_action == "import_from_shortlist":
+            utils.log("Handling import_from_shortlist script action", "INFO")
+            try:
+                from resources.lib.config.settings_manager import SettingsManager
+                settings_manager = SettingsManager()
+                utils.log("Starting shortlist import...", "INFO")
+                result = settings_manager.import_from_shortlist()
+                utils.log(f"Shortlist import completed with result: {result}", "INFO")
+            except Exception as e:
+                utils.log(f"Error in import_from_shortlist script action: {str(e)}", "ERROR")
+                import traceback
+                utils.log(f"Import error traceback: {traceback.format_exc()}", "ERROR")
+            return
+        elif script_action == "addon_library_status":
+            utils.log("Handling addon_library_status script action", "INFO")
+            try:
+                from resources.lib.config.settings_manager import SettingsManager
+                settings_manager = SettingsManager()
+                utils.log("Showing addon library status...", "INFO")
+                result = settings_manager.addon_library_status()
+                utils.log("Addon library status displayed successfully", "INFO")
+            except Exception as e:
+                utils.log(f"Error in addon_library_status script action: {str(e)}", "ERROR")
+                import traceback
+                utils.log(f"Status error traceback: {traceback.format_exc()}", "ERROR")
+            return
+        elif script_action == "clear_all_local_data":
+            utils.log("Handling clear_all_local_data script action", "INFO")
+            try:
+                utils.log("Starting clear all local data...", "INFO")
+                clear_all_local_data()
+                utils.log("Clear all local data completed", "INFO")
+            except Exception as e:
+                utils.log(f"Error in clear_all_local_data script action: {str(e)}", "ERROR")
+                import traceback
+                utils.log(f"Clear data error traceback: {traceback.format_exc()}", "ERROR")
+            return
+        elif script_action == "show_main_window":
+            utils.log("Handling show_main_window script action", "INFO")
+            # For show_main_window, we want to proceed to normal plugin routing
+            # so we don't return here - let it fall through to the router
+            utils.log("Proceeding to normal plugin routing for main window", "INFO")
         else:
             # Parse params for other actions
             params = urllib.parse.parse_qs(paramstr)
