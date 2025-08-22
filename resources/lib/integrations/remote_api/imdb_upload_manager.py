@@ -672,7 +672,7 @@ class IMDbUploadManager:
         return batch_valid_movies, batch_stored_count
 
     def _extract_imdb_id(self, movie):
-        """Extract IMDb ID from movie data with v19/v20+ compatibility."""
+        """Extract raw IMDb ID from movie data without modification."""
         imdb_id = ''
 
         # Method 1: uniqueid.imdb (preferred for v19 compatibility)
@@ -687,7 +687,7 @@ class IMDbUploadManager:
             if fallback_id:
                 imdb_id = str(fallback_id).strip()
 
-        # Clean and validate IMDb ID
+        # Only clean URL prefixes, but preserve raw IMDb values as-is
         if imdb_id:
             # Remove URL prefixes if present
             if imdb_id.startswith('imdb://'):
@@ -697,13 +697,8 @@ class IMDbUploadManager:
                 match = re.search(r'tt\d+', imdb_id)
                 imdb_id = match.group(0) if match else ''
 
-            # Handle numeric-only IMDb IDs (common in v19)
-            if imdb_id.isdigit() and len(imdb_id) >= 6:
-                imdb_id = f'tt{imdb_id}'
-            
-            # Validate final format
-            if imdb_id.startswith('tt') and len(imdb_id) > 2 and imdb_id[2:].isdigit():
-                return imdb_id
+            # Return raw IMDb ID without any format validation or modification
+            return imdb_id if imdb_id else None
 
         return None
 
@@ -822,9 +817,9 @@ class IMDbUploadManager:
                     xbmcgui.Dialog().ok("Error", "No movies with valid IMDb IDs found in Kodi library")
                     return False
 
-                # Extract just valid IMDB IDs for remote upload (filter out empty/invalid ones)
+                # Extract only tt-prefixed IMDB IDs for server upload (ignore non-tt entries)
                 movies = [{'imdb_id': movie.get('imdbnumber')} for movie in full_movies
-                         if movie.get('imdbnumber') and movie.get('imdbnumber').startswith('tt') and len(movie.get('imdbnumber', '')) > 2]
+                         if movie.get('imdbnumber') and str(movie.get('imdbnumber')).startswith('tt')]
 
         except Exception as e:
             collection_progress.close()
@@ -933,9 +928,9 @@ class IMDbUploadManager:
                 xbmcgui.Dialog().ok("Error", "No movies with valid IMDb IDs found in Kodi library")
                 return False
 
-            # Extract just valid IMDB IDs for remote upload (filter out empty/invalid ones)
+            # Extract only tt-prefixed IMDB IDs for server upload (ignore non-tt entries)
             movies = [{'imdb_id': movie.get('imdbnumber')} for movie in full_movies
-                     if movie.get('imdbnumber') and movie.get('imdbnumber').startswith('tt') and len(movie.get('imdbnumber', '')) > 2]
+                     if movie.get('imdbnumber') and str(movie.get('imdbnumber')).startswith('tt')]
 
         except Exception as e:
             collection_progress.close()
