@@ -199,9 +199,11 @@ class ListItemBuilder:
 
         # Check call stack for sync functions
         frame_names = [frame.function for frame in stack_frames]
-        sync_functions = ['sync_favorites', '_apply_database_changes', 'sync_only_store_media_item_to_list', '_create_media_dict_from_favorite']
-        if any(sync_func in frame_names for sync_func in sync_functions):
-            utils.log(f"LISTITEM_BUILD_VIDEO: Preventing ListItem building for '{title}' - sync operation in call stack", "WARNING")
+        sync_functions = ['sync_favorites', '_apply_database_changes', 'sync_only_store_media_item_to_list', '_create_media_dict_from_favorite', 'FavoritesSync']
+        detected_sync_functions = [func for func in sync_functions if func in frame_names]
+        if detected_sync_functions:
+            utils.log(f"LISTITEM_BUILD_VIDEO: CRITICAL - Preventing ListItem building for '{title}' - sync operation in call stack: {detected_sync_functions}", "ERROR")
+            utils.log(f"LISTITEM_BUILD_VIDEO: This should have been prevented by sync flags - investigate why flags were bypassed", "ERROR")
             return None
 
 

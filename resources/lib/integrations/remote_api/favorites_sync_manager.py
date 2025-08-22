@@ -171,14 +171,14 @@ class FavoritesSyncManager:
                     ]
                 }
             }
-            
+
             resp = xbmc.executeJSONRPC(json.dumps(req))
             data = json.loads(resp)
-            
+
             if "error" in data:
                 utils.log(f"Files.GetFileDetails failed for path={path}: {data['error']}", "DEBUG")
                 return {}
-                
+
             return data.get("result", {}).get("filedetails", {})
         except Exception as e:
             utils.log(f"Files.GetFileDetails failed for path={path}: {e}", "DEBUG")
@@ -231,32 +231,32 @@ class FavoritesSyncManager:
                     "limits": {"start": 0, "end": 10000}
                 }
             }
-            
+
             resp = xbmc.executeJSONRPC(json.dumps(req))
             data = json.loads(resp)
-            
+
             if "error" in data:
                 utils.log(f"SYNC_LIB_LOOKUP error (precise filter): {data['error']}", "DEBUG")
                 return None
-                
+
             movies = data.get("result", {}).get("movies", []) or []
-            
+
             # If precise filter fails, fall back to broad parent query
             if not movies:
                 utils.log(f"SYNC_LIB_LOOKUP: Precise filter failed, falling back to broad parent query", "DEBUG")
                 req["params"]["filter"] = {
                     "field": "path", "operator": "startswith", "value": parent
                 }
-                
+
                 resp = xbmc.executeJSONRPC(json.dumps(req))
                 data = json.loads(resp)
-                
+
                 if "error" in data:
                     utils.log(f"SYNC_LIB_LOOKUP error (broad filter): {data['error']}", "DEBUG")
                     return None
-                    
+
                 movies = data.get("result", {}).get("movies", []) or []
-                
+
         except Exception as e:
             utils.log(f"SYNC_LIB_LOOKUP error (path match): {e}", "DEBUG")
             return None
@@ -292,7 +292,7 @@ class FavoritesSyncManager:
                         "value": title
                     },
                     "properties": [
-                        "title", "year", "plot", "rating", "runtime", "genre", "director", 
+                        "title", "year", "plot", "rating", "runtime", "genre", "director",
                         "cast", "studio", "mpaa", "tagline", "writer", "country", "premiered",
                         "dateadded", "votes", "trailer", "file", "art", "imdbnumber", "uniqueid"
                     ]
@@ -315,7 +315,7 @@ class FavoritesSyncManager:
 
             # Strategy 2: Fuzzy title search if exact match fails
             req["params"]["filter"]["operator"] = "contains"
-            
+
             resp = xbmc.executeJSONRPC(json.dumps(req))
             data = json.loads(resp)
 
@@ -433,7 +433,11 @@ class FavoritesSyncManager:
         if kodi_movie:
             # Use Kodi library data - this is preferred when available
             utils.log(f"SYNC_DATA_CONVERSION: Using KODI LIBRARY data for '{kodi_movie.get('title')}'", "DEBUG")
-
+            # Add sync flags to library match data too
+            if isinstance(kodi_movie, dict):
+                kodi_movie['_sync_operation'] = True
+                kodi_movie['_no_listitem_building'] = True
+                kodi_movie['_background_sync'] = True
             # Duration calculation with streamdetails preference
             duration_seconds = 0
             streamdetails = kodi_movie.get('streamdetails', {})
@@ -443,7 +447,7 @@ class FavoritesSyncManager:
                     stream_duration = self._safe_convert_int(video_streams[0].get('duration', 0))
                     if 60 <= stream_duration <= 21600:  # 1 minute to 6 hours range
                         duration_seconds = stream_duration
-            
+
             if duration_seconds == 0:
                 runtime_minutes = self._safe_convert_int(kodi_movie.get('runtime', 0))
                 duration_seconds = runtime_minutes * 60 if runtime_minutes > 0 else 0
@@ -515,34 +519,12 @@ class FavoritesSyncManager:
             media_dict['uniqueid'] = json.dumps(uniqueid) if uniqueid else ''
 
         else:
-            # Use Favorites data with filedetails enhancement
-            utils.log(f"SYNC_DATA_CONVERSION: Using FAVORITES data for '{title}'", "DEBUG")
-
-            # Duration calculation with streamdetails preference
-            duration_seconds = 0
-            if filedetails:
-                streamdetails = filedetails.get('streamdetails', {})
-                if isinstance(streamdetails, dict) and streamdetails.get('video'):
-                    video_streams = streamdetails['video']
-                    if isinstance(video_streams, list) and len(video_streams) > 0:
-                        stream_duration = self._safe_convert_int(video_streams[0].get('duration', 0))
-                        if 60 <= stream_duration <= 21600:
-                            duration_seconds = stream_duration
-            
-            if duration_seconds == 0 and filedetails:
-                runtime_minutes = self._safe_convert_int(filedetails.get('runtime', 0))
-                duration_from_field = self._safe_convert_int(filedetails.get('duration', 0))
-                
-                if duration_from_field > 0:
-                    duration_seconds = duration_from_field
-                elif runtime_minutes > 0:
-                    duration_seconds = runtime_minutes * 60
-
-            art = (filedetails or {}).get('art', {})
-            thumb = (filedetails or {}).get('thumbnail') or self._safe_convert_string(fav_item.get('thumbnail'))
-            fan = (filedetails or {}).get('fanart')
-
+            # Use favorite data only (limited metadata)
+            utils.log(f"SYNC_DATA_CONVERSION: Using FAVORITES data only for '{fav_item.get('title', 'Unknown')}'", "DEBUG")
             media_dict = {
+                '_sync_operation': True,
+                '_no_listitem_building': True,
+                '_background_sync': True,
                 'title': title.strip() if title else 'Unknown',
                 'year': 0,
                 'plot': '',
@@ -574,6 +556,30 @@ class FavoritesSyncManager:
                 'stream_url': '',
                 'status': 'available'
             }
+            # Duration calculation with streamdetails preference
+            duration_seconds = 0
+            if filedetails:
+                streamdetails = filedetails.get('streamdetails', {})
+                if isinstance(streamdetails, dict) and streamdetails.get('video'):
+                    video_streams = streamdetails['video']
+                    if isinstance(video_streams, list) and len(video_streams) > 0:
+                        stream_duration = self._safe_convert_int(video_streams[0].get('duration', 0))
+                        if 60 <= stream_duration <= 21600:
+                            duration_seconds = stream_duration
+
+            if duration_seconds == 0 and filedetails:
+                runtime_minutes = self._safe_convert_int(filedetails.get('runtime', 0))
+                duration_from_field = self._safe_convert_int(filedetails.get('duration', 0))
+
+                if duration_from_field > 0:
+                    duration_seconds = duration_from_field
+                elif runtime_minutes > 0:
+                    duration_seconds = runtime_minutes * 60
+
+            art = (filedetails or {}).get('art', {})
+            thumb = (filedetails or {}).get('thumbnail') or self._safe_convert_string(fav_item.get('thumbnail'))
+            fan = (filedetails or {}).get('fanart')
+
 
         return media_dict
 
@@ -657,7 +663,7 @@ class FavoritesSyncManager:
                     added_items.append(current_item)
                 else:
                     last_item = last_items[identity]
-                    if (current_item['title'] != last_item['title'] or 
+                    if (current_item['title'] != last_item['title'] or
                         current_item['thumbnail'] != last_item['thumbnail']):
                         changed_items.append((current_item, last_item))
 
@@ -752,7 +758,7 @@ class FavoritesSyncManager:
                     # Check if this list item corresponds to a removed favorite
                     item_found_in_kodi = False
                     for fav in current_favorites:
-                        if (fav.get('path', '') == item_path or 
+                        if (fav.get('path', '') == item_path or
                             (fav.get('title', '').lower() == item_title.lower() and item_title)):
                             item_found_in_kodi = True
                             break
