@@ -580,15 +580,16 @@ def main():
                     imdb_count = imdb_result['count'] if imdb_result else 0
                     
                     if imdb_count > 0:
-                        utils.log("Root navigation detected - triggering favorites sync", "DEBUG")
+                        utils.log("Root navigation detected - waiting 2 seconds before favorites sync", "DEBUG")
+                        # Brief delay to allow GUI operations to complete
+                        import time
+                        time.sleep(2.0)
+                        
+                        utils.log("Starting favorites sync after delay", "DEBUG")
                         sync_manager = FavoritesSyncManager()
                         # Sync in isolation - no UI operations should happen during this
                         sync_result = sync_manager.sync_favorites()
                         utils.log("Favorites sync completed", "DEBUG")
-                        
-                        # Small delay to ensure sync completes before UI operations
-                        import time
-                        time.sleep(0.1)
                     else:
                         utils.log("Skipping favorites sync - no library data available yet", "DEBUG")
             except Exception as e:
