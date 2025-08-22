@@ -355,7 +355,7 @@ class ListItemBuilder:
 
             except Exception:
                 info_dict['cast'] = []
-        
+
         # Handle other heavy metadata fields for search results
         if source == 'search' or source == 'lib':
             # Process ratings from heavy metadata
@@ -367,7 +367,7 @@ class ListItemBuilder:
                     ratings = {}
             if isinstance(ratings, dict) and ratings:
                 info_dict['ratings'] = ratings
-            
+
             # Process streamdetails from heavy metadata
             streamdetails = media_info.get('streamdetails', {})
             if isinstance(streamdetails, str):
@@ -377,7 +377,7 @@ class ListItemBuilder:
                     streamdetails = {}
             if isinstance(streamdetails, dict) and streamdetails:
                 info_dict['streamdetails'] = streamdetails
-                
+
             # Process uniqueid from heavy metadata
             uniqueid = media_info.get('uniqueid', {})
             if isinstance(uniqueid, str):
@@ -397,7 +397,7 @@ class ListItemBuilder:
         source2 = media_info.get('uniqueid', {}).get('imdb', '') if isinstance(media_info.get('uniqueid'), dict) else ''
         source3 = media_info.get('info', {}).get('imdbnumber', '') if media_info.get('info') else ''
         source4 = media_info.get('imdb_id', '')
-        
+
         # For search results, prioritize the stored imdbnumber field
         if source == 'search' and source1:
             source4 = source1  # Use imdbnumber as primary for search results
@@ -470,7 +470,7 @@ class ListItemBuilder:
                     # v20+ - ONLY use InfoTag methods, NO deprecated addStreamInfo
                     try:
                         info_tag = li.getVideoInfoTag()
-                        
+
                         # Process video streams for v20+
                         video_streams = stream_details.get('video', [])
                         if video_streams and isinstance(video_streams, list):
@@ -478,7 +478,7 @@ class ListItemBuilder:
                                 if isinstance(video_stream, dict) and hasattr(info_tag, 'addVideoStream'):
                                     info_tag.addVideoStream(video_stream)
                                     break  # Only add first stream
-                        
+
                         # Process audio streams for v20+
                         audio_streams = stream_details.get('audio', [])
                         if audio_streams and isinstance(audio_streams, list):
@@ -486,7 +486,7 @@ class ListItemBuilder:
                                 if isinstance(audio_stream, dict) and hasattr(info_tag, 'addAudioStream'):
                                     info_tag.addAudioStream(audio_stream)
                                     break  # Only add first stream
-                        
+
                         # Process subtitle streams for v20+ (was missing)
                         subtitle_streams = stream_details.get('subtitle', [])
                         if subtitle_streams and isinstance(subtitle_streams, list):
@@ -494,7 +494,7 @@ class ListItemBuilder:
                                 if isinstance(subtitle_stream, dict) and hasattr(info_tag, 'addSubtitleStream'):
                                     info_tag.addSubtitleStream(subtitle_stream)
                                     break  # Only add first stream
-                                    
+
                     except Exception:
                         # For v20+, avoid any fallback that might use deprecated methods
                         # Just use essential properties if InfoTag completely fails
@@ -505,7 +505,7 @@ class ListItemBuilder:
                                 codec = video_stream.get('codec', '')
                                 if codec:
                                     li.setProperty('VideoCodec', codec)
-                        
+
                         audio_streams = stream_details.get('audio', [])
                         if audio_streams and isinstance(audio_streams, list) and audio_streams:
                             audio_stream = audio_streams[0]
@@ -518,13 +518,13 @@ class ListItemBuilder:
 
         # Set content properties - handle non-playable items  
         is_playable = True  # Default to playable
-        
+
         # For favorites imports without valid file paths, mark as non-playable
         if source == 'favorites_import':
             file_path = media_info.get('file') or media_info.get('path') or media_info.get('play')
             if not file_path or not str(file_path).strip():
                 is_playable = False
-        
+
         li.setProperty('IsPlayable', 'true' if is_playable else 'false')
 
         # Set LibraryGenie marker to exclude from native context menu
@@ -575,7 +575,7 @@ class ListItemBuilder:
 
         # Try to get play URL from different possible locations
         play_url = None
-        
+
         # For search results, don't set invalid info:// URLs
         if source == 'search':
             # Search results are non-playable by design - they're for discovery
@@ -694,66 +694,165 @@ class ListItemBuilder:
         list_item.addContextMenuItems(menu_items, replaceItems=True)
 
     @staticmethod
-    def _add_stream_info_deprecated(list_item, stream_details):
-        """Adds stream details using addStreamInfo methods - ONLY for Kodi v19."""
-        # This method should ONLY be called for v19 where addStreamInfo is not deprecated
-        # Double-check version to ensure we don't call deprecated methods in v20+
-        if utils.get_kodi_version() != 19:
-            utils.log("WARNING: _add_stream_info_deprecated called on non-v19 Kodi - skipping to avoid deprecation warnings", "WARNING")
+    def _add_stream_info_deprecated(list_item, streamdetails):
+        """Add stream info using deprecated v19 methods ONLY"""
+        if not utils.is_kodi_v19():
+            utils.log("ABORT: addStreamInfo() call blocked on v20+ path", "ERROR")
             return
-            
-        video_streams = stream_details.get('video', [])
-        audio_streams = stream_details.get('audio', [])
-        subtitle_streams = stream_details.get('subtitle', [])
 
-        if video_streams:
+        try:
+            video_streams = streamdetails.get('video', [])
             for stream in video_streams:
-                if isinstance(stream, dict):
-                    try:
-                        # Use addStreamInfo for v19 ONLY (not deprecated in v19)
-                        list_item.addStreamInfo('video', stream)
-                        break  # Only add first video stream
-                    except Exception:
-                        # Fallback to properties
-                        codec = stream.get('codec', '')
-                        resolution = stream.get('resolution', '')
-                        aspect_ratio = stream.get('aspect_ratio', '')
-                        lang = stream.get('language', '')
-                        list_item.setProperty('VideoCodec', codec)
-                        list_item.setProperty('VideoResolution', resolution)
-                        list_item.setProperty('VideoAspectRatio', aspect_ratio)
-                        list_item.setProperty('VideoLanguage', lang)
+                if stream:
+                    list_item.addStreamInfo('video', stream)
 
-        if audio_streams:
+            audio_streams = streamdetails.get('audio', [])
             for stream in audio_streams:
-                if isinstance(stream, dict):
-                    try:
-                        # Use addStreamInfo for v19 ONLY (not deprecated in v19)
-                        list_item.addStreamInfo('audio', stream)
-                        break  # Only add first audio stream
-                    except Exception:
-                        # Fallback to properties
-                        codec = stream.get('codec', '')
-                        channels = stream.get('channels', '')
-                        language = stream.get('language', '')
-                        bitrate = stream.get('bitrate', '')
-                        list_item.setProperty('AudioCodec', codec)
-                        list_item.setProperty('AudioChannels', str(channels))
-                        list_item.setProperty('AudioLanguage', language)
-                        list_item.setProperty('AudioBitrate', str(bitrate))
+                if stream:
+                    list_item.addStreamInfo('audio', stream)
 
-        if subtitle_streams:
+            subtitle_streams = streamdetails.get('subtitle', [])
             for stream in subtitle_streams:
-                if isinstance(stream, dict):
-                    try:
-                        # Use addStreamInfo for v19 ONLY (not deprecated in v19)
-                        list_item.addStreamInfo('subtitle', stream)
-                        break  # Only add first subtitle stream
-                    except Exception:
-                        # Fallback to properties
-                        language = stream.get('language', '')
-                        codec = stream.get('codec', '')
-                        forced = stream.get('forced', False)
-                        list_item.setProperty('SubtitleLanguage', language)
-                        list_item.setProperty('SubtitleCodec', codec)
-                        list_item.setProperty('SubtitleForced', str(forced).lower())
+                if stream:
+                    list_item.addStreamInfo('subtitle', stream)
+        except Exception as e:
+            utils.log(f"Error adding deprecated stream info: {e}", "ERROR")
+
+    def _add_stream_info_v20_only(self, info_tag, streamdetails):
+        """Add stream info using v20+ InfoTagVideo methods - no deprecated fallbacks"""
+        try:
+            # Video streams - strict validation, no fallbacks
+            video_streams = streamdetails.get('video', [])
+            for stream in video_streams:
+                if self._is_valid_video_stream_v20(stream):
+                    sanitized_stream = self._sanitize_video_stream_v20(stream)
+                    info_tag.addVideoStream(sanitized_stream)
+                else:
+                    utils.log(f"Skipped incomplete video stream: {stream}", "DEBUG")
+
+            # Audio streams - strict validation, no fallbacks
+            audio_streams = streamdetails.get('audio', [])
+            for stream in audio_streams:
+                if self._is_valid_audio_stream_v20(stream):
+                    sanitized_stream = self._sanitize_audio_stream_v20(stream)
+                    info_tag.addAudioStream(sanitized_stream)
+                else:
+                    utils.log(f"Skipped incomplete audio stream: {stream}", "DEBUG")
+
+            # Subtitle streams - strict validation, no fallbacks
+            subtitle_streams = streamdetails.get('subtitle', [])
+            for stream in subtitle_streams:
+                if self._is_valid_subtitle_stream_v20(stream):
+                    sanitized_stream = self._sanitize_subtitle_stream_v20(stream)
+                    info_tag.addSubtitleStream(sanitized_stream)
+                else:
+                    utils.log(f"Skipped incomplete subtitle stream: {stream}", "DEBUG")
+
+        except Exception as e:
+            utils.log(f"Error adding v20+ stream info (no fallback): {e}", "ERROR")
+
+
+    def _is_valid_video_stream_v20(self, stream):
+        """Strict validation for v20+ video streams"""
+        if not isinstance(stream, dict):
+            return False
+
+        # Must have codec AND at least width/height as valid integers
+        codec = stream.get('codec')
+        if not codec or not str(codec).strip():
+            return False
+
+        width = stream.get('width')
+        height = stream.get('height')
+
+        try:
+            # Must have at least one valid dimension
+            valid_width = width is not None and int(width) > 0
+            valid_height = height is not None and int(height) > 0
+            return valid_width or valid_height
+        except (ValueError, TypeError):
+            return False
+
+    def _is_valid_audio_stream_v20(self, stream):
+        """Strict validation for v20+ audio streams"""
+        if not isinstance(stream, dict):
+            return False
+
+        # Must have codec AND valid channels count
+        codec = stream.get('codec')
+        if not codec or not str(codec).strip():
+            return False
+
+        channels = stream.get('channels')
+        try:
+            return channels is not None and int(channels) > 0
+        except (ValueError, TypeError):
+            return False
+
+    def _is_valid_subtitle_stream_v20(self, stream):
+        """Strict validation for v20+ subtitle streams"""
+        if not isinstance(stream, dict):
+            return False
+
+        language = stream.get('language')
+        return language and str(language).strip()
+
+    def _sanitize_video_stream_v20(self, stream):
+        """Sanitize video stream data for v20+ InfoTag"""
+        sanitized = {}
+
+        # Required: codec
+        sanitized['codec'] = str(stream['codec'])
+
+        # Dimensions - ensure integers
+        if stream.get('width'):
+            try:
+                width = int(stream['width'])
+                if width > 0:
+                    sanitized['width'] = width
+            except (ValueError, TypeError):
+                pass
+
+        if stream.get('height'):
+            try:
+                height = int(stream['height'])
+                if height > 0:
+                    sanitized['height'] = height
+            except (ValueError, TypeError):
+                pass
+
+        # Optional fields
+        if stream.get('aspect'):
+            try:
+                aspect = float(stream['aspect'])
+                if aspect > 0:
+                    sanitized['aspect'] = aspect
+            except (ValueError, TypeError):
+                pass
+
+        if stream.get('hdrtype'):
+            hdr = str(stream['hdrtype']).strip()
+            if hdr:
+                sanitized['hdrType'] = hdr
+
+        return sanitized
+
+    def _sanitize_audio_stream_v20(self, stream):
+        """Sanitize audio stream data for v20+ InfoTag"""
+        sanitized = {}
+
+        # Required fields
+        sanitized['codec'] = str(stream['codec'])
+        sanitized['channels'] = int(stream['channels'])
+
+        # Optional language
+        if stream.get('language'):
+            lang = str(stream['language']).strip()
+            if lang:
+                sanitized['language'] = lang
+
+        return sanitized
+
+    def _sanitize_subtitle_stream_v20(self, stream):
+        """Sanitize subtitle stream data for v20+ InfoTag"""
+        return {'language': str(stream['language']).strip()}

@@ -1,4 +1,3 @@
-
 import json
 import xbmc
 import xbmcgui
@@ -132,7 +131,7 @@ class FavoritesImporter:
 
         # Only call expensive RPC if extension check failed
         fd = self._get_file_details(base_path)
-        
+
         # Check for streamdetails.video as strongest playable indicator
         streamdetails = fd.get("streamdetails", {})
         if isinstance(streamdetails, dict) and streamdetails.get("video"):
@@ -158,7 +157,7 @@ class FavoritesImporter:
         return False
 
     def _split_parent_and_filename(self, path):
-        """Return (parent, filename) for URL-like paths (smb, nfs, file)"""
+        """Return (parent, filename) for URL-like paths (smb://, nfs://, file://)"""
         if not path:
             return "", ""
         # Kodi uses forward slashes in URLs
@@ -206,7 +205,7 @@ class FavoritesImporter:
                     "limits": {"start": 0, "end": 10000}
                 })
                 movies = resp.get("result", {}).get("movies", []) or []
-                
+
                 # If precise filter fails, fall back to broad parent query and cache it
                 if not movies:
                     utils.log(f"LIB_LOOKUP: Precise filter failed, falling back to broad parent query", "DEBUG")
@@ -219,7 +218,7 @@ class FavoritesImporter:
                     })
                     movies = resp.get("result", {}).get("movies", []) or []
                     self._parent_cache[cache_key] = movies
-                    
+
             except Exception as e:
                 utils.log(f"LIB_LOOKUP error (path match): {e}", "DEBUG")
                 return None
@@ -253,7 +252,7 @@ class FavoritesImporter:
                     "value": title
                 },
                 "properties": [
-                    "title", "year", "plot", "rating", "runtime", "genre", "director", 
+                    "title", "year", "plot", "rating", "runtime", "genre", "director",
                     "cast", "studio", "mpaa", "tagline", "writer", "country", "premiered",
                     "dateadded", "votes", "trailer", "file", "art", "imdbnumber", "uniqueid"
                 ]
@@ -283,7 +282,7 @@ class FavoritesImporter:
                     "value": title
                 },
                 "properties": [
-                    "title", "year", "plot", "rating", "runtime", "genre", "director", 
+                    "title", "year", "plot", "rating", "runtime", "genre", "director",
                     "cast", "studio", "mpaa", "tagline", "writer", "country", "premiered",
                     "dateadded", "votes", "trailer", "file", "art", "imdbnumber", "uniqueid"
                 ]
@@ -429,7 +428,7 @@ class FavoritesImporter:
                     if 60 <= stream_duration <= 21600:  # 1 minute to 6 hours range
                         duration_seconds = stream_duration
                         utils.log(f"Duration from streamdetails: {duration_seconds}s", "DEBUG")
-            
+
             if duration_seconds == 0:
                 # Fallback to runtime in minutes
                 runtime_minutes = self.safe_convert_int(kodi_movie.get('runtime', 0))
@@ -525,12 +524,12 @@ class FavoritesImporter:
                         if 60 <= stream_duration <= 21600:  # 1 minute to 6 hours range
                             duration_seconds = stream_duration
                             utils.log(f"Duration from filedetails streamdetails: {duration_seconds}s", "DEBUG")
-            
+
             if duration_seconds == 0:
                 # Fallback to runtime in minutes or duration in seconds
                 runtime_minutes = self.safe_convert_int((filedetails or {}).get('runtime', 0))
                 duration_from_field = self.safe_convert_int((filedetails or {}).get('duration', 0))
-                
+
                 if duration_from_field > 0:
                     # If duration field is present, use it (already in seconds)
                     duration_seconds = duration_from_field
@@ -638,7 +637,7 @@ class FavoritesImporter:
                     utils.log(f"Skipped non-playable favorite: {fav.get('title')} [{path}]", "DEBUG")
 
             utils.log(f"Playable favorites: {len(playable)} / {len(favourites)}", "INFO")
-            
+
             if progress.iscanceled():
                 progress.close()
                 utils.log("Favorites import cancelled (during filtering)", "INFO")
@@ -773,7 +772,7 @@ class FavoritesImporter:
                     for media_item in media_items_to_add:
                         if self.query_manager.insert_media_item_and_add_to_list(list_id, media_item):
                             success_count += 1
-                    
+
                     if success_count == len(media_items_to_add):
                         utils.log(f"IMPORT_SUCCESS: Added {len(media_items_to_add)} items to list '{list_name}' in batch", "INFO")
                     else:

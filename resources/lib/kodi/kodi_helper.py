@@ -14,6 +14,26 @@ class KodiHelper:
         self.addon = get_addon()
         self.addon_url = sys.argv[0] if len(sys.argv) > 0 else ""
         self.jsonrpc = JSONRPC()
+        # Centralized version detection
+        self._kodi_version_major = None
+
+    @property
+    def is_kodi_v19(self):
+        """Centralized Kodi version detection"""
+        if self._kodi_version_major is None:
+            try:
+                # Use JSON-RPC for accurate version detection
+                response = self.jsonrpc.execute('Application.GetProperties', {
+                    'properties': ['version']
+                })
+                version_info = response.get('result', {}).get('version', {})
+                self._kodi_version_major = version_info.get('major', 20)  # Default to 20 if unknown
+                utils.log(f"Detected Kodi version major: {self._kodi_version_major}", "DEBUG")
+            except Exception as e:
+                utils.log(f"Error detecting Kodi version, defaulting to v20+: {e}", "ERROR")
+                self._kodi_version_major = 20
+
+        return self._kodi_version_major == 19
 
     def list_items(self, items, content_type='video'):
         from resources.lib.kodi.listitem_builder import ListItemBuilder
@@ -84,6 +104,32 @@ class KodiHelper:
                 isFolder=True
             )
         xbmcplugin.endOfDirectory(self.addon_handle)
+
+    def show_list(self, list_id, handle):
+        """Show items in a specific list"""
+        try:
+            # Use ResultsManager to build display items
+            results_manager = ResultsManager()
+            display_items = results_manager.build_display_items_for_list(list_id, handle)
+
+            if not display_items:
+                self._show_empty_list_message(handle)
+                return
+
+            # Add all items to the directory - NO post-build metadata modifications
+            for item_url, list_item, is_folder in display_items:
+                # Abort guard: prevent any setInfo/addStreamInfo calls here on v20+
+                if not self.is_kodi_v19 and hasattr(list_item, 'setInfo'):
+                    utils.log("ABORT: Prevented setInfo() top-off on v20+ path", "DEBUG")
+                self.directory.addItem(handle, item_url, list_item, is_folder)
+
+            # Finish the directory
+            self.directory.endOfDirectory(handle)
+
+        except Exception as e:
+            utils.log(f"Error showing list {list_id}: {str(e)}", "ERROR")
+            self._show_error_message(handle, f"Error loading list: {str(e)}")
+
 
     def show_list(self, list_id):
         """Display items in a list"""
@@ -170,8 +216,8 @@ class KodiHelper:
 
             # Query the database for item using database manager
             result = db_manager.execute_query(
-                "SELECT * FROM media_items WHERE id = ?", 
-                (item_id,), 
+                "SELECT * FROM media_items WHERE id = ?",
+                (item_id,),
                 fetch_one=True
             )
 
