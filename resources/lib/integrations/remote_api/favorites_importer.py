@@ -803,103 +803,10 @@ class FavoritesImporter:
             xbmcgui.Dialog().notification("LibraryGenie", error_msg, xbmcgui.NOTIFICATION_ERROR, 5000)
             return False
 
-    def create_listitem_from_file_details(self, file_details, source_title):
-        """Create a ListItem from Files.GetFileDetails response with proper metadata handling"""
-        try:
-            list_item = xbmcgui.ListItem(source_title)
-            list_item.setProperty('IsPlayable', 'true')
-
-            # Version-aware metadata setting with explicit logging
-            kodi_version = utils.get_kodi_version()
-            utils.log(f"FAVORITES_LISTITEM: Using Kodi v{kodi_version} for '{source_title}'", "INFO")
-
-            if utils.is_kodi_v19():
-                # v19 - Use legacy setInfo method
-                utils.log(f"FAVORITES_LISTITEM: Applying v19 metadata for '{source_title}'", "INFO")
-                self._apply_v19_file_metadata(list_item, file_details, source_title)
-            else:
-                # v20+ - Use new InfoTag API
-                utils.log(f"FAVORITES_LISTITEM: Applying v20+ metadata for '{source_title}'", "INFO")
-                self._apply_v20_file_metadata(list_item, file_details, source_title)
-
-            return list_item
-
-        except Exception as e:
-            utils.log(f"Error creating ListItem from file details: {e}", "ERROR")
-            # Return basic ListItem as fallback
-            fallback = xbmcgui.ListItem(source_title)
-            fallback.setProperty('IsPlayable', 'true')
-            return fallback
-
-    def _apply_v19_file_metadata(self, list_item, file_details, source_title):
-        """Apply metadata using v19-compatible methods"""
-        # Double-check version to prevent misuse
-        if not utils.is_kodi_v19():
-            utils.log(f"ABORT: _apply_v19_file_metadata called on v{utils.get_kodi_version()}+ for '{source_title}'", "ERROR")
-            return
-
-        utils.log(f"FAVORITES_V19: Applying v19 metadata for '{source_title}'", "DEBUG")
-
-        # Build info dictionary
-        info = {
-            'title': source_title,
-            'mediatype': 'video'
-        }
-
-        # Apply runtime if available
-        runtime = file_details.get('runtime')
-        if runtime and runtime > 0:
-            info['duration'] = runtime
-
-        # Set metadata
-        list_item.setInfo('video', info)
-
-        # Apply stream info if available
-        streamdetails = file_details.get('streamdetails', {})
-        if streamdetails:
-            video_streams = streamdetails.get('video', [])
-            if video_streams:
-                video_info = video_streams[0]
-                stream_info = {}
-                if 'duration' in video_info:
-                    stream_info['duration'] = video_info['duration']
-                if 'width' in video_info:
-                    stream_info['width'] = video_info['width']
-                if 'height' in video_info:
-                    stream_info['height'] = video_info['height']
-                if stream_info:
-                    list_item.addStreamInfo('video', stream_info)
-
-    def _apply_v20_file_metadata(self, list_item, file_details, source_title):
-        """Apply metadata using v20+ InfoTag methods"""
-        # Double-check version to prevent misuse
-        if utils.is_kodi_v19():
-            utils.log(f"ABORT: _apply_v20_file_metadata called on v19 for '{source_title}'", "ERROR")
-            return
-
-        utils.log(f"FAVORITES_V20+: Applying v20+ metadata for '{source_title}'", "DEBUG")
-
-        try:
-            info_tag = list_item.getVideoInfoTag()
-            info_tag.setTitle(source_title)
-            info_tag.setMediaType('video')
-
-            # Apply runtime if available
-            runtime = file_details.get('runtime')
-            if runtime and runtime > 0:
-                info_tag.setDuration(runtime)
-
-            # Apply stream details if available
-            streamdetails = file_details.get('streamdetails', {})
-            if streamdetails:
-                video_streams = streamdetails.get('video', [])
-                if video_streams:
-                    video_info = video_streams[0]
-                    if 'duration' in video_info:
-                        info_tag.setDuration(video_info['duration'])
-
-        except Exception as e:
-            utils.log(f"Error applying v20+ metadata for '{source_title}': {e}", "ERROR")
+    # Note: Removed create_listitem_from_file_details and related methods
+    # These were causing deprecation warnings and are not actually used
+    # in the current favorites sync flow. The sync only processes metadata
+    # for database storage, not for creating displayable ListItems.
 
 
 def import_from_favorites():
