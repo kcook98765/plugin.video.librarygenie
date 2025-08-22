@@ -160,7 +160,7 @@ class QueryManager(Singleton):
                 raise RuntimeError("Failed to establish database connection")
             try:
                 cursor = conn.execute(sql, params)
-                lastrowid = cursor.lastrowid
+                lastrowid = cursor.lastrowid or 0
                 conn.commit()
                 cursor.close()
                 return lastrowid
