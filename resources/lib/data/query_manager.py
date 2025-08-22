@@ -298,11 +298,17 @@ class QueryManager(Singleton):
 
     def get_media_by_dbid(self, db_id: int, media_type: str = 'movie') -> Dict[str, Any]:
         query = "SELECT * FROM media_items WHERE kodi_id = ? AND media_type = ?"
-        return self.execute_query(query, (db_id, media_type), fetch_one=True) or {}
+        result = self.execute_query(query, (db_id, media_type), fetch_one=True)
+        if not isinstance(result, dict):
+            return {}
+        return result
 
     def get_show_episode_details(self, show_id: int, season: int, episode: int) -> Dict[str, Any]:
         query = "SELECT * FROM media_items WHERE show_id = ? AND season = ? AND episode = ?"
-        return self.execute_query(query, (show_id, season, episode), fetch_one=True) or {}
+        result = self.execute_query(query, (show_id, season, episode), fetch_one=True)
+        if not isinstance(result, dict):
+            return {}
+        return result
 
     def get_search_results(
         self,
@@ -523,7 +529,10 @@ class QueryManager(Singleton):
 
     def get_media_details(self, kodi_dbid: int, media_type: str = 'movie') -> dict:
         query = "SELECT * FROM media_items WHERE kodi_id = ? AND media_type = ?"
-        return self.execute_query(query, (kodi_dbid, media_type), fetch_one=True) or {}
+        result = self.execute_query(query, (kodi_dbid, media_type), fetch_one=True)
+        if not isinstance(result, dict):
+            return {}
+        return result
 
     # -------------------------
     # Schema Setup / Bootstrap
@@ -717,23 +726,12 @@ class QueryManager(Singleton):
         """
         result = self.execute_query(query, fetch_one=True)
         
-        if result is None:
+        if not isinstance(result, dict):
             return {
                 'total': 0,
                 'valid_imdb': 0,
                 'percentage': 0
             }
-        
-        # Handle case where result might be a list instead of dict
-        if isinstance(result, list):
-            if len(result) > 0:
-                result = result[0]
-            else:
-                return {
-                    'total': 0,
-                    'valid_imdb': 0,
-                    'percentage': 0
-                }
         
         total = result.get('total', 0)
         valid_imdb = result.get('valid_imdb', 0)
