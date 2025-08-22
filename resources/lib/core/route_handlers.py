@@ -10,6 +10,13 @@ from typing import List, Union, cast
 # Import QueryManager here as it's used in multiple functions
 from resources.lib.data.query_manager import QueryManager
 
+# Import ResultsManager and NavigationManager here as they are used in browse_list
+from resources.lib.results_manager import ResultsManager
+from resources.lib.core.navigation_manager import NavigationManager
+
+# Assume xbmcplugin is available in the environment
+import xbmcplugin
+
 def play_movie(params):
     """Play a movie from Kodi library using movieid"""
     try:
