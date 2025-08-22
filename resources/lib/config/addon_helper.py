@@ -135,7 +135,7 @@ def run_addon():
         kodi_helper = KodiHelper()
 
         # Using plugin-based routing instead of MainWindow
-        log(f"Using plugin-based routing instead of MainWindow with args: {args}", "DEBUG")
+        utils.log(f"Using plugin-based routing instead of MainWindow with args: {args}", "DEBUG")
         import main
         main.router(args)
         return
