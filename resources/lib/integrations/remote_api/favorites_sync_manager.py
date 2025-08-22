@@ -260,13 +260,14 @@ class FavoritesSyncManager:
         except Exception as e:
             utils.log(f"Error applying favorites changes: {str(e)}", "ERROR")
 
-    def rebuild_favorites_list(self):
+    def rebuild_favorites_list(self, list_id=None):
         """Rebuild the entire favorites list from current Kodi favorites"""
         try:
             utils.log("Rebuilding favorites list", "DEBUG")
 
-            # Get the favorites list ID
-            list_id = self.get_kodi_favorites_list_id()
+            # Get the favorites list ID if not provided
+            if list_id is None:
+                list_id = self.get_kodi_favorites_list_id()
 
             # Clear existing list contents
             self.query_manager.clear_list_contents(list_id)

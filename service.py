@@ -69,25 +69,19 @@ def ensure_database_ready():
         query_manager.setup_database()
 
         # Ensure required system folders exist
-        search_history_folder = query_manager.ensure_search_history_folder()
-        utils.log(f"Search History folder ensured: {search_history_folder}", "DEBUG")
+        search_history_folder_id = query_manager.get_folder_id_by_name("Search History")
+        if not search_history_folder_id:
+            search_history_result = query_manager.create_folder("Search History", None)
+            search_history_folder_id = search_history_result['id']
+            utils.log(f"Search History folder ensured: {search_history_folder_id}", "DEBUG")
 
-        # Create Imported Lists folder if it doesn't exist
         imported_lists_folder_id = query_manager.get_folder_id_by_name("Imported Lists")
         if not imported_lists_folder_id:
-            imported_lists_folder = query_manager.create_folder("Imported Lists", None)
-            utils.log(f"Created Imported Lists folder: {imported_lists_folder}", "DEBUG")
-        else:
-            utils.log("Imported Lists folder already exists", "DEBUG")
+            imported_lists_result = query_manager.create_folder("Imported Lists", None)
+            imported_lists_folder_id = imported_lists_result['id']
+            utils.log(f"Created Imported Lists folder: {imported_lists_folder_id}", "DEBUG")
 
-        # Create Kodi Favorites folder if it doesn't exist
-        kodi_favorites_folder_id = query_manager.get_folder_id_by_name("Kodi Favorites")
-        if not kodi_favorites_folder_id:
-            kodi_favorites_folder = query_manager.create_folder("Kodi Favorites", None)
-            utils.log(f"Created Kodi Favorites folder: {kodi_favorites_folder}", "DEBUG")
-        else:
-            utils.log("Kodi Favorites folder already exists", "DEBUG")
-
+        # Note: Kodi Favorites is now a direct list (ID 1) at root level, not a folder
         utils.log("Database setup completed successfully", "INFO")
         return True
 
