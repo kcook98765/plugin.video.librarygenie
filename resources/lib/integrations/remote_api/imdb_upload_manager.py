@@ -537,11 +537,11 @@ class IMDbUploadManager:
                 batch_stored = self._process_and_store_single_batch(movies, start // batch_size + 1, use_notifications)
                 total_stored += batch_stored
 
-            # Update progress tracking with storage progress - show every 500 movies to avoid notification buildup
+            # Update progress tracking with storage progress - show every 1000 movies with 1 second display
             current_retrieved = start + len(movies)
-            if use_notifications and (current_retrieved - last_notification >= 500 or start == 0 or current_retrieved >= total):
+            if use_notifications and (current_retrieved - last_notification >= 1000 or start == 0 or current_retrieved >= total):
                 progress_percent = int((current_retrieved / total) * 100) if total > 0 else 0
-                utils.show_notification("LibraryGenie", f"Processed {current_retrieved} of {total} movies ({progress_percent}%) - {total_stored} stored", time=1500)
+                utils.show_notification("LibraryGenie", f"Processed {current_retrieved} of {total} movies ({progress_percent}%) - {total_stored} stored", time=1000)
                 last_notification = current_retrieved
 
             # Check if we're done
