@@ -449,19 +449,6 @@ def handle_browse_folder(params):
         log(f"handle_browse_folder traceback: {traceback.format_exc()}", "ERROR")
         show_empty_directory(handle, "Error loading folder contents.")
 
-# Expose functions that other modules need to import
-def create_new_folder_at_root():
-    """Wrapper for folder_list_manager function"""
-    return folder_list_manager.create_new_folder_at_root()
-
-def clear_all_local_data():
-    """Wrapper for folder_list_manager function"""
-    return folder_list_manager.clear_all_local_data()
-
-def browse_search_history():
-    """Wrapper for folder_list_manager function"""
-    return folder_list_manager.browse_search_history()
-
 def main():
     # Trigger favorites sync when navigating to root if sync is enabled
     try:
