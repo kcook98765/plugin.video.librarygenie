@@ -62,10 +62,10 @@ class FolderListManager:
 
         try:
             # Clear user-created content and media cache
-            self.db_manager.delete_data('list_items', '1=1')
-            self.db_manager.delete_data('lists', '1=1')
-            self.db_manager.delete_data('folders', '1=1')
-            self.db_manager.delete_data('media_items', '1=1')
+            self.db_manager.execute_write('DELETE FROM list_items WHERE 1=1')
+            self.db_manager.execute_write('DELETE FROM lists WHERE 1=1')
+            self.db_manager.execute_write('DELETE FROM folders WHERE 1=1')
+            self.db_manager.execute_write('DELETE FROM media_items WHERE 1=1')
             # Preserve imdb_exports - they contain valuable library reference data
 
             # Recreate protected folders

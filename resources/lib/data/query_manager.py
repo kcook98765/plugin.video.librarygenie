@@ -72,6 +72,10 @@ class QueryManager(Singleton):
             return False
 
         rows = self.execute_query(f"PRAGMA table_info({table_name})", fetch_all=True)
+        if rows is None:
+            utils.log(f"Could not fetch column information for table {table_name}", "ERROR")
+            return False
+        
         column_names = [row['name'] for row in rows]
         return column_name in column_names
 
@@ -126,12 +130,18 @@ class QueryManager(Singleton):
         with self._lock:
             try:
                 conn = self._get_connection()
+                if conn is None:
+                    raise RuntimeError("Failed to establish database connection")
                 cursor = conn.execute(sql, params)
 
                 if fetch_one:
                     row = cursor.fetchone()
                     result = dict(row) if row else None
+                elif fetch_all:
+                    rows = cursor.fetchall()
+                    result = [dict(row) for row in rows]
                 else:
+                    # Default behavior when neither fetch_one nor fetch_all is specified
                     rows = cursor.fetchall()
                     result = [dict(row) for row in rows]
 
@@ -146,9 +156,11 @@ class QueryManager(Singleton):
         """Execute an INSERT/UPDATE/DELETE and return lastrowid."""
         with self._lock:
             conn = self._get_connection()
+            if conn is None:
+                raise RuntimeError("Failed to establish database connection")
             try:
                 cursor = conn.execute(sql, params)
-                lastrowid = cursor.lastrowid
+                lastrowid = cursor.lastrowid or 0
                 conn.commit()
                 cursor.close()
                 return lastrowid
@@ -162,6 +174,8 @@ class QueryManager(Singleton):
         """Execute multiple statements and return rowcount."""
         with self._lock:
             conn = self._get_connection()
+            if conn is None:
+                raise RuntimeError("Failed to establish database connection")
             try:
                 cursor = conn.executemany(sql, seq_of_params)
                 rowcount = cursor.rowcount
@@ -264,7 +278,10 @@ class QueryManager(Singleton):
             WHERE li.list_id = ?
             ORDER BY li.search_score DESC, m.title ASC
         """
-        return self.execute_query(query, (list_id,), fetch_all=True)
+        result = self.execute_query(query, (list_id,), fetch_all=True)
+        if not isinstance(result, list):
+            return []
+        return result
 
     def save_llm_response(self, description: str, response_data: Any) -> int:
         """Save LLM API response into original_requests."""
@@ -281,11 +298,17 @@ class QueryManager(Singleton):
 
     def get_media_by_dbid(self, db_id: int, media_type: str = 'movie') -> Dict[str, Any]:
         query = "SELECT * FROM media_items WHERE kodi_id = ? AND media_type = ?"
-        return self.execute_query(query, (db_id, media_type), fetch_one=True) or {}
+        result = self.execute_query(query, (db_id, media_type), fetch_one=True)
+        if not isinstance(result, dict):
+            return {}
+        return result
 
     def get_show_episode_details(self, show_id: int, season: int, episode: int) -> Dict[str, Any]:
         query = "SELECT * FROM media_items WHERE show_id = ? AND season = ? AND episode = ?"
-        return self.execute_query(query, (show_id, season, episode), fetch_one=True) or {}
+        result = self.execute_query(query, (show_id, season, episode), fetch_one=True)
+        if not isinstance(result, dict):
+            return {}
+        return result
 
     def get_search_results(
         self,
@@ -314,7 +337,10 @@ class QueryManager(Singleton):
             WHERE {where_clause}
             ORDER BY title COLLATE NOCASE
         """
-        return self.execute_query(query, tuple(params), fetch_all=True)
+        result = self.execute_query(query, tuple(params), fetch_all=True)
+        if not isinstance(result, list):
+            return []
+        return result
 
     def insert_media_item(self, data: Dict[str, Any]) -> Optional[int]:
         """Insert a media item and return its ID (keeps your existing normalization)."""
@@ -397,8 +423,8 @@ class QueryManager(Singleton):
             (imdb_id, imdb_id, kodi_id),
             fetch_one=True
         )
-        if row:
-            return row['id'] or 0
+        if row and isinstance(row, dict):
+            return row.get('id', 0) or 0
 
         data = {
             'kodi_id': int(kodi_id or 0),
@@ -428,8 +454,8 @@ class QueryManager(Singleton):
             (title, year, play),
             fetch_one=True
         )
-        if existing:
-            return existing['id'] or 0
+        if existing and isinstance(existing, dict):
+            return existing.get('id', 0) or 0
         return self.insert_media_item(payload) or 0
 
     def insert_list_item(self, list_id: int, media_item_id: int) -> int:
@@ -484,6 +510,8 @@ class QueryManager(Singleton):
             ORDER BY title COLLATE NOCASE
         """
         results = self.execute_query(query, tuple(params), fetch_all=True)
+        if not isinstance(results, list):
+            return []
 
         # Normalize JSON-ish fields
         for item in results:
@@ -501,7 +529,10 @@ class QueryManager(Singleton):
 
     def get_media_details(self, kodi_dbid: int, media_type: str = 'movie') -> dict:
         query = "SELECT * FROM media_items WHERE kodi_id = ? AND media_type = ?"
-        return self.execute_query(query, (kodi_dbid, media_type), fetch_one=True) or {}
+        result = self.execute_query(query, (kodi_dbid, media_type), fetch_one=True)
+        if not isinstance(result, dict):
+            return {}
+        return result
 
     # -------------------------
     # Schema Setup / Bootstrap
@@ -575,6 +606,8 @@ class QueryManager(Singleton):
 
         with self._lock:
             conn = self._get_connection()
+            if conn is None:
+                raise RuntimeError("Failed to establish database connection")
             cursor = conn.cursor()
             for create_sql in table_creations:
                 utils.log(f"Executing SQL: {create_sql}", "DEBUG")
@@ -598,6 +631,8 @@ class QueryManager(Singleton):
         """Create movies_reference table and indexes."""
         with self._lock:
             conn = self._get_connection()
+            if conn is None:
+                raise RuntimeError("Failed to establish database connection")
             cursor = conn.cursor()
 
             cursor.execute("""
@@ -636,6 +671,8 @@ class QueryManager(Singleton):
 
         with self._lock:
             conn = self._get_connection()
+            if conn is None:
+                raise RuntimeError("Failed to establish database connection")
             try:
                 conn.execute("BEGIN")
                 cursor = conn.cursor()
@@ -688,8 +725,16 @@ class QueryManager(Singleton):
             FROM imdb_exports
         """
         result = self.execute_query(query, fetch_one=True)
-        total = result['total'] if result else 0
-        valid_imdb = result['valid_imdb'] if result else 0
+        
+        if not result or not isinstance(result, dict):
+            return {
+                'total': 0,
+                'valid_imdb': 0,
+                'percentage': 0
+            }
+        
+        total = result.get('total', 0)
+        valid_imdb = result.get('valid_imdb', 0)
         return {
             'total': total,
             'valid_imdb': valid_imdb,
@@ -748,6 +793,8 @@ class QueryManager(Singleton):
             ORDER BY imdb_id
         """
         results = self.execute_query(query, fetch_all=True)
+        if not isinstance(results, list):
+            return []
         return [r['imdb_id'] for r in results]
 
     def sync_movies(self, movies: List[Dict[str, Any]]) -> None:
@@ -976,3 +1023,68 @@ class QueryManager(Singleton):
     # Convenience alias preserved for backward compatibility
     def get_list_media_items(self, list_id: int) -> List[Dict]:
         return self.fetch_list_items_with_details(list_id)
+
+    def is_reserved_list_id(self, list_id: int) -> bool:
+        """Check if a list ID is reserved for system lists"""
+        return list_id in [1, 2]  # IDs 1 and 2 are reserved for system lists
+
+    def move_list_to_folder(self, list_id: int, target_folder_id: Optional[int]) -> bool:
+        """Move a list to a different folder"""
+        try:
+            self.execute_write('UPDATE lists SET folder_id = ? WHERE id = ?', (target_folder_id, int(list_id)))
+            return True
+        except Exception as e:
+            utils.log(f"Error moving list {list_id} to folder {target_folder_id}: {str(e)}", "ERROR")
+            return False
+
+    def ensure_kodi_favorites_list(self) -> Dict:
+        """Ensure 'Kodi Favorites' list exists with ID 1"""
+        existing = self.fetch_list_by_id(1)
+        if existing:
+            return existing
+
+        # Create the list with specific ID
+        self.execute_write(
+            "INSERT INTO lists (id, name, folder_id, protected) VALUES (?, ?, ?, ?)",
+            (1, "Kodi Favorites", None, 1)
+        )
+        return {'id': 1, 'name': "Kodi Favorites", 'folder_id': None, 'protected': 1}
+
+    def ensure_shortlist_imports_list(self) -> Dict:
+        """Ensure 'Shortlist Imports' list exists with ID 2"""
+        existing = self.fetch_list_by_id(2)
+        if existing:
+            return existing
+
+        # Create the list with specific ID
+        self.execute_write(
+            "INSERT INTO lists (id, name, folder_id, protected) VALUES (?, ?, ?, ?)",
+            (2, "Shortlist Imports", None, 1)
+        )
+        return {'id': 2, 'name': "Shortlist Imports", 'folder_id': None, 'protected': 1}
+
+    def update_data(self, table: str, data: Dict[str, Any], where_clause: str, params: Tuple) -> bool:
+        """Update data in a table with validation"""
+        if not self._validate_table_exists(table):
+            utils.log(f"Invalid or non-existent table: {table}", "ERROR")
+            return False
+
+        # Validate columns exist
+        for column in data.keys():
+            if not self._validate_column_exists(table, column):
+                utils.log(f"Invalid column {column} for table {table}", "ERROR")
+                return False
+
+        try:
+            # Build SET clause
+            set_clause = ', '.join([f"{col} = ?" for col in data.keys()])
+            sql = f"UPDATE {table} SET {set_clause} WHERE {where_clause}"
+
+            # Combine data values with where parameters
+            all_params = tuple(data.values()) + params
+
+            self.execute_write(sql, all_params)
+            return True
+        except Exception as e:
+            utils.log(f"Error updating {table}: {str(e)}", "ERROR")
+            return False

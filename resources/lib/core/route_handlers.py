@@ -81,7 +81,7 @@ def show_item_details(params):
         if item_id and str(item_id).isdigit():
             try:
                 # Get item details from database using proper parameterized query
-                media_items = query_manager.fetch_data('media_items', 'id = ?', (int(item_id),))
+                media_items = query_manager.execute_query('SELECT * FROM media_items WHERE id = ?', (int(item_id),), fetch_all=True)
                 if media_items and len(media_items) > 0:
                     item = media_items[0]
                     details_text += f"Year: {item.get('year', 'Unknown')}\n"
@@ -160,7 +160,7 @@ def rename_list(params):
         config = Config()
         query_manager = QueryManager(config.db_path)
 
-        query_manager.update_data('lists', {'name': new_name}, 'id = ?', (int(list_id),))
+        query_manager.execute_write('UPDATE lists SET name = ? WHERE id = ?', (new_name, int(list_id)))
         xbmcgui.Dialog().notification('LibraryGenie', 'List renamed')
         # Use navigation manager for consistent logging
         from resources.lib.core.navigation_manager import get_navigation_manager
@@ -731,7 +731,8 @@ def move_folder(params):
             return
 
         # Perform the move
-        success = query_manager.update_data('folders', {'parent_id': target_parent_id}, 'id = ?', (int(folder_id),))
+        query_manager.execute_write('UPDATE folders SET parent_id = ? WHERE id = ?', (target_parent_id, int(folder_id)))
+        success = True
 
         if success:
             utils.log(f"Successfully moved folder {folder_id} to parent {target_parent_id}", "INFO")
@@ -821,7 +822,7 @@ def rename_folder(params):
         config = Config()
         query_manager = QueryManager(config.db_path)
 
-        query_manager.update_data('folders', {'name': new_name}, 'id = ?', (int(folder_id),))
+        query_manager.execute_write('UPDATE folders SET name = ? WHERE id = ?', (new_name, int(folder_id)))
         xbmcgui.Dialog().notification('LibraryGenie', 'Folder renamed')
         # Use navigation manager for consistent logging
         from resources.lib.core.navigation_manager import get_navigation_manager
@@ -1391,9 +1392,21 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
                     lookup_query = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
                     lookup_result = query_manager.execute_query(lookup_query, (imdb_id,), fetch_one=True)
                     if lookup_result:
-                        title_lookup = lookup_result.get('title', '')
-                        year_lookup = int(lookup_result.get('year', 0) or 0)
-                        utils.log(f"=== SIMILARITY_SEARCH: Found title/year for {imdb_id}: '{title_lookup}' ({year_lookup}) ===", "DEBUG")
+                        # Handle case where result might be a list instead of dict
+                        if isinstance(lookup_result, list):
+                            if len(lookup_result) > 0:
+                                result_row = lookup_result[0]
+                            else:
+                                result_row = None
+                        else:
+                            result_row = lookup_result
+                        
+                        if result_row:
+                            title_lookup = result_row.get('title', '')
+                            year_lookup = int(result_row.get('year', 0) or 0)
+                            utils.log(f"=== SIMILARITY_SEARCH: Found title/year for {imdb_id}: '{title_lookup}' ({year_lookup}) ===", "DEBUG")
+                        else:
+                            utils.log(f"=== SIMILARITY_SEARCH: No imdb_exports entry for {imdb_id} ===", "DEBUG")
                     else:
                         utils.log(f"=== SIMILARITY_SEARCH: No imdb_exports entry for {imdb_id} ===", "DEBUG")
                 except Exception as e:
