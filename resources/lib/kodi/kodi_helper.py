@@ -40,36 +40,9 @@ class KodiHelper:
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_DATEADDED)
 
-        # Force content type and views with debugging
+        # Set content type to inherit user's preferred movie view
         utils.log(f"Setting content type to: {content_type}", "DEBUG")
         xbmcplugin.setContent(self.addon_handle, content_type)
-
-        # Try different view modes
-        view_modes = {
-            'list': 50,
-            'poster': 51,
-            'icon': 52,
-            'wide': 55,
-            'wall': 500,
-            'fanart': 502,
-            'media': 504
-        }
-
-        # Set default view mode to poster
-        default_mode = view_modes['poster']
-        utils.log(f"Setting default view mode: {default_mode}", "DEBUG")
-
-        # Set skin view modes
-        for mode_name, mode_id in view_modes.items():
-            xbmc.executebuiltin(f'Container.SetViewMode({mode_id})')
-
-        # Force views mode
-        xbmc.executebuiltin('SetProperty(ForcedViews,1,Home)')
-        xbmcplugin.setProperty(self.addon_handle, 'ForcedView', 'true')
-
-        # Enable skin forced views
-        xbmc.executebuiltin('Skin.SetBool(ForcedViews)')
-        xbmc.executebuiltin('Container.SetForceViewMode(true)')
 
         xbmcplugin.endOfDirectory(self.addon_handle)
 
@@ -147,28 +120,8 @@ class KodiHelper:
             xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
             utils.log("Enabled all sort methods with score-based default order", "DEBUG")
 
-        # Set view modes
-        view_modes = {
-            'list': 50,
-            'poster': 51,
-            'icon': 52,
-            'wide': 55,
-            'wall': 500,
-            'fanart': 502,
-            'media': 504
-        }
-
-        # Set default view mode to poster
-        default_mode = view_modes['poster']
-        utils.log(f"Setting default view mode: {default_mode}", "DEBUG")
-
-        # Set skin view modes
-        for mode_name, mode_id in view_modes.items():
-            xbmc.executebuiltin(f'Container.SetViewMode({mode_id})')
-
-        # Force views mode
-        xbmcplugin.setProperty(self.addon_handle, 'ForcedView', 'true')
-        xbmc.executebuiltin('Container.SetForceViewMode(true)')
+        # Let Kodi use the user's preferred movie view mode
+        utils.log("Using user's preferred movie view mode", "DEBUG")
 
         # Add items and end directory
         for item in items:
