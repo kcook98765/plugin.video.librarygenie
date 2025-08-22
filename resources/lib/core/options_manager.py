@@ -133,7 +133,7 @@ class OptionsManager:
             current_time = time.time()
             time_since_nav = current_time - last_navigation
 
-            if time_since_nav < 3.0:  # Increased back to 3 seconds for better stability
+            if time_since_nav < 2.0:  # Reduced to 2 seconds for better responsiveness
                 utils.log(f"=== OPTIONS BLOCKED: TOO SOON AFTER NAVIGATION ({time_since_nav:.1f}s) ===", "WARNING")
                 return
         except (ValueError, TypeError):
@@ -144,6 +144,15 @@ class OptionsManager:
             search_modal_active = xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.SearchModalActive)")
             if search_modal_active == "true":
                 utils.log("=== OPTIONS BLOCKED: SEARCH MODAL STILL ACTIVE ===", "WARNING")
+                return
+        except:
+            pass
+
+        # Check if dialog is already active to prevent double-opening
+        try:
+            dialog_active = xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.DialogActive)")
+            if dialog_active == "true":
+                utils.log("=== OPTIONS BLOCKED: DIALOG ALREADY ACTIVE ===", "WARNING")
                 return
         except:
             pass

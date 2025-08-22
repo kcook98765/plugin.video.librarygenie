@@ -26,7 +26,9 @@ from resources.lib.core.route_handlers import (
 )
 from resources.lib.kodi.listitem_builder import ListItemBuilder
 from resources.lib.core import route_handlers
-from urllib.parse import parse_qsl # Import parse_qsl for parameter parsing
+from urllib.parse import parse_qsl, parse_qs # Import parse_qsl and parse_qs for parameter parsing
+from resources.lib.kodi.kodi_helper import KodiHelper # Import KodiHelper
+from resources.lib.core.route_handlers import execute_script_action # Import execute_script_action
 
 # Add addon directory to Python path
 addon_dir = os.path.dirname(os.path.abspath(__file__))
@@ -294,74 +296,72 @@ def browse_list(list_id):
         xbmcplugin.addDirectoryItem(handle, "", error_li, False)
         xbmcplugin.endOfDirectory(handle, succeeded=False)
 
-def router(paramstring):
-    """
-    Router function to handle plugin URLs and dispatch to appropriate handlers
-    """
+def router(handle, paramstr):
+    """Router for plugin calls"""
+    log(f"Router called with handle {handle} and paramstr: {paramstr}", "DEBUG")
+
+    # Validate handle
+    if handle < 0:
+        log(f"Invalid plugin handle: {handle}", "ERROR")
+        return
+
+    # Clear any stuck navigation flags
+    from resources.lib.core.navigation_manager import get_navigation_manager
+    nav_manager = get_navigation_manager()
+    nav_manager.cleanup_stuck_navigation()
+
     try:
-        log(f"Router called with: {paramstring}", "DEBUG")
-
-        # Clean up navigation state
-        from resources.lib.core.navigation_manager import get_navigation_manager
-        nav_manager = get_navigation_manager()
-        nav_manager.cleanup_stuck_navigation()
-
-        # Parse parameters from URL - handle both with and without leading '?'
-        clean_paramstring = paramstring.lstrip('?') if paramstring else ''
-        params = dict(parse_qsl(clean_paramstring))
-        action = params.get('action')
+        query_params = parse_qs(paramstr.lstrip('?'))
+        action = query_params.get('action', [None])[0]
 
         log(f"Parsed action: {action}", "DEBUG")
-        log(f"All params: {params}", "DEBUG")
+        log(f"All params: {query_params}", "DEBUG")
 
-        # If no action specified, build root directory
-        if not action or not clean_paramstring.strip():
+        # If no action, build root directory
+        if not action:
             log("Received empty paramstr, building root directory.", "DEBUG")
             nav_manager.clear_navigation_flags()
-            build_root_directory(ADDON_HANDLE) # Pass ADDON_HANDLE to build_root_directory
+            from resources.lib.core.directory_builder import build_root_directory
+            build_root_directory(handle)
             return
-
-        # Handle different actions
-        if action == 'browse_folder':
-            folder_id = params.get('folder_id')
-            browse_folder(params) # Pass the entire params dict to browse_folder
-        elif action == 'browse_list':
-            list_id = params.get('list_id')
-            browse_list(list_id)
-        elif action == 'search':
-            run_search_flow()
-        elif action == 'browse_search_history':
-            browse_search_history()
-        elif action == 'show_options':
-            # Handle options menu
-            options_manager = OptionsManager()
-            # Convert params to the format expected by show_options_menu
-            list_params = {}
-            for key, value in params.items():
-                if key != 'action':
-                    list_params[key] = [value] if not isinstance(value, list) else value
-            options_manager.show_options_menu(list_params)
-        else:
-            # Handle other actions through route_handlers
-            from resources.lib.core.route_handlers import route_action
-
-            # Convert single values to lists for compatibility
-            list_params = {}
-            for key, value in params.items():
-                if key != 'action':
-                    list_params[key] = [value] if not isinstance(value, list) else value
-
-            route_action(action, list_params)
-
     except Exception as e:
-        log(f"Error in router: {str(e)}", "ERROR")
-        import traceback
-        log(f"Router traceback: {traceback.format_exc()}", "ERROR")
-        # Fallback: show a simple notification and then build root directory
-        import xbmcgui
-        xbmcgui.Dialog().notification('LibraryGenie', 'Error processing request', xbmcgui.NOTIFICATION_ERROR)
+        log(f"Error parsing parameters: {str(e)}", "ERROR")
         nav_manager.clear_navigation_flags()
-        build_root_directory(ADDON_HANDLE) # Pass ADDON_HANDLE to build_root_directory
+        from resources.lib.core.directory_builder import build_root_directory
+        build_root_directory(handle)
+        return
+
+    # Handle different actions
+    if action == 'browse_folder':
+        folder_id = query_params.get('folder_id')
+        browse_folder(query_params) # Pass the entire params dict to browse_folder
+    elif action == 'browse_list':
+        list_id = query_params.get('list_id')
+        browse_list(list_id)
+    elif action == 'search':
+        run_search_flow()
+    elif action == 'browse_search_history':
+        browse_search_history()
+    elif action == 'show_options':
+        # Handle options menu
+        options_manager = OptionsManager()
+        # Convert params to the format expected by show_options_menu
+        list_params = {}
+        for key, value in query_params.items():
+            if key != 'action':
+                list_params[key] = [value] if not isinstance(value, list) else value
+        options_manager.show_options_menu(list_params)
+    else:
+        # Handle other actions through route_handlers
+        from resources.lib.core.route_handlers import route_action
+
+        # Convert single values to lists for compatibility
+        list_params = {}
+        for key, value in query_params.items():
+            if key != 'action':
+                list_params[key] = [value] if not isinstance(value, list) else value
+
+        route_action(action, list_params)
 
 
 # Expose functions that other modules need to import
