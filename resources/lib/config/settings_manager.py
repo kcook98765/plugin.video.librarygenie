@@ -12,12 +12,16 @@ class SettingsManager:
 
     def get_setting(self, key, default=None):
         if key not in self._cache:
-            self._cache[key] = self.addon.getSetting(key)
+            raw_value = self.addon.getSetting(key)
+            self._cache[key] = raw_value if raw_value is not None and raw_value != '' else default
         
-        # Get the cached value and handle None/empty cases
+        # Get the cached value
         value = self._cache[key]
-        if value is None or value == '':
+        
+        # Final safety check - ensure we never return None when default is provided
+        if value is None and default is not None:
             value = default
+            self._cache[key] = default
             
         # Only log non-sensitive settings
         if key not in ['lgs_upload_key', 'remote_api_key']:
@@ -43,7 +47,8 @@ class SettingsManager:
 
     def is_favorites_sync_enabled(self):
         """Check if favorites sync is enabled"""
-        return self.get_setting('sync_favorites', 'true').lower() == 'true'
+        setting_value = self.get_setting('sync_favorites', 'true')
+        return (setting_value or 'true').lower() == 'true'
     
     def import_from_shortlist(self):
         """Trigger shortlist import"""
