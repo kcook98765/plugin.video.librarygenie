@@ -473,14 +473,20 @@ class IMDbUploadManager:
         """Retrieve movies from Kodi and store each batch immediately for continuous progress."""
         utils.log("Starting incremental movie retrieval and storage from Kodi library", "INFO")
         
+        # Show only initial notification
         if use_notifications:
-            utils.show_notification("LibraryGenie", "Starting movie retrieval from Kodi...", time=2000)
+            utils.show_notification("LibraryGenie", "Starting library scan...", time=2000)
 
         batch_size = 100
         start = 0
         total_stored = 0
         total = 0
         start_time = time.time()
+        
+        # Progress tracking variables
+        progress_dialog = None
+        step_size = 1  # Will be calculated after we know total
+        last_update_count = 0
 
         while True:
             # Execute JSON-RPC call
@@ -528,22 +534,40 @@ class IMDbUploadManager:
             movies = response['result']['movies']
             total = response['result']['limits']['total']
             
-            # Show total count immediately after first batch
-            if start == 0 and use_notifications and total > 0:
-                utils.show_notification("LibraryGenie", f"Processing {total} movies...", time=2000)
+            # Initialize progress dialog after first batch when we know the total
+            if start == 0 and total > 0:
+                # Calculate smart step size for ~15 updates during processing
+                step_size = max(1, total // 15)
+                
+                # Create persistent progress dialog (only if notifications enabled)
+                if use_notifications:
+                    import xbmcgui
+                    progress_dialog = xbmcgui.DialogProgressBG()
+                    progress_dialog.create("LibraryGenie", f"Processing {total} movies...")
+                
+                utils.log(f"Progress tracking: {total} movies, updating every {step_size} items", "INFO")
 
             # Process and store this batch immediately
             if movies:
                 batch_stored = self._process_and_store_single_batch(movies, start // batch_size + 1, use_notifications)
                 total_stored += batch_stored
 
-            # Progress tracking via logs only during processing - no notifications to avoid queue buildup
+            # Smart progress tracking with minimal UI updates
             current_retrieved = start + len(movies)
             progress_percent = int((current_retrieved / total) * 100) if total > 0 else 0
             
-            # Log progress every 5 batches (500 movies) or at key milestones
+            # Update progress dialog only when we hit step boundaries or completion
+            if progress_dialog and (current_retrieved - last_update_count >= step_size or current_retrieved >= total):
+                elapsed = time.time() - start_time
+                rate = current_retrieved / elapsed if elapsed > 0 else 0
+                
+                # Update the persistent progress dialog
+                progress_dialog.update(progress_percent, f"LibraryGenie", f"{current_retrieved}/{total} • {rate:.0f}/s")
+                last_update_count = current_retrieved
+            
+            # Log progress less frequently to reduce spam
             batch_num = start // batch_size + 1
-            if batch_num % 5 == 0 or batch_num == 1 or current_retrieved >= total:
+            if batch_num % 10 == 0 or batch_num == 1 or current_retrieved >= total:
                 elapsed = time.time() - start_time
                 rate = current_retrieved / elapsed if elapsed > 0 else 0
                 utils.log(f"SCAN PROGRESS: {progress_percent}% - {current_retrieved}/{total} movies processed and stored in {elapsed:.1f}s ({rate:.1f} movies/sec)", "INFO")
@@ -554,14 +578,18 @@ class IMDbUploadManager:
 
             start += batch_size
 
+        # Clean up progress dialog
+        if progress_dialog:
+            progress_dialog.close()
+        
         # Final summary
         elapsed = time.time() - start_time
         rate = total_stored / elapsed if elapsed > 0 else 0
         utils.log(f"SCAN COMPLETE: {total_stored} movies processed and stored in {elapsed:.1f}s ({rate:.1f} movies/sec)", "INFO")
 
-        # Only show final completion notification to avoid queue issues
+        # Show final completion notification
         if use_notifications:
-            utils.show_notification("LibraryGenie", f"Scan complete! {total_stored} movies processed", time=3000)
+            utils.show_notification("LibraryGenie", f"Complete! {total_stored} movies in {elapsed:.1f}s • {rate:.0f}/s", time=3000)
 
         return total_stored
 
