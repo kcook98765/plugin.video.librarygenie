@@ -160,7 +160,7 @@ def rename_list(params):
         config = Config()
         query_manager = QueryManager(config.db_path)
 
-        query_manager.update_data('lists', {'name': new_name}, 'id = ?', (int(list_id),))
+        query_manager.execute_write('UPDATE lists SET name = ? WHERE id = ?', (new_name, int(list_id)))
         xbmcgui.Dialog().notification('LibraryGenie', 'List renamed')
         # Use navigation manager for consistent logging
         from resources.lib.core.navigation_manager import get_navigation_manager
@@ -731,7 +731,8 @@ def move_folder(params):
             return
 
         # Perform the move
-        success = query_manager.update_data('folders', {'parent_id': target_parent_id}, 'id = ?', (int(folder_id),))
+        query_manager.execute_write('UPDATE folders SET parent_id = ? WHERE id = ?', (target_parent_id, int(folder_id)))
+        success = True
 
         if success:
             utils.log(f"Successfully moved folder {folder_id} to parent {target_parent_id}", "INFO")
@@ -821,7 +822,7 @@ def rename_folder(params):
         config = Config()
         query_manager = QueryManager(config.db_path)
 
-        query_manager.update_data('folders', {'name': new_name}, 'id = ?', (int(folder_id),))
+        query_manager.execute_write('UPDATE folders SET name = ? WHERE id = ?', (new_name, int(folder_id)))
         xbmcgui.Dialog().notification('LibraryGenie', 'Folder renamed')
         # Use navigation manager for consistent logging
         from resources.lib.core.navigation_manager import get_navigation_manager
