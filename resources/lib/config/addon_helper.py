@@ -82,36 +82,60 @@ def run_addon():
         paramstr = sys.argv[2] if len(sys.argv) > 2 else ""
         action = None
 
-        # Handle direct script actions from settings
-        script_actions = [
-            'setup_remote_api', 'manual_setup_remote_api', 'test_remote_api',
-            'upload_library_full', 'upload_library_delta', 'upload_status',
-            'clear_server_library', 'show_main_window', 'clear_all_local_data',
-            'import_from_shortlist', 'addon_library_status'
-        ]
+        # Check for script actions in sys.argv (RunScript calls from settings.xml)
+        script_action = None
+        if len(sys.argv) >= 2:
+            potential_action = sys.argv[1]
+            # Clean up potential action string (remove any quotes or extra characters)
+            potential_action = potential_action.strip('\'"')
+            if potential_action in ['upload_library_full', 'upload_library_delta', 'clear_server_library']:
+                script_action = potential_action
+                utils.log(f"Detected script action: {script_action}", "INFO")
+            else:
+                utils.log(f"Unrecognized potential action: '{potential_action}' (not a script action)", "DEBUG")
 
-        if len(sys.argv) > 1 and sys.argv[1] in script_actions:
-            action = sys.argv[1]
-            utils.log(f"Detected script action: {action}", "INFO")
-
-            # Handle special case for setup_remote_api
-            if action == 'setup_remote_api':
-                from resources.lib.integrations.remote_api.remote_api_setup import run_setup
-                run_setup()
-                return  # Early return to prevent normal startup
-            elif action == 'import_from_shortlist':
-                utils.log("Importing from shortlist", "INFO")
-                from resources.lib.config.settings_manager import SettingsManager
-                settings_manager = SettingsManager()
-                settings_manager.import_from_shortlist()
-                return
-            elif action == 'addon_library_status':
-                utils.log("Showing addon library status", "INFO")
-                from resources.lib.config.settings_manager import SettingsManager
-                settings_manager = SettingsManager()
-                settings_manager.addon_library_status()
-                return
+        # Handle script actions directly without routing through main router
+        if script_action == "upload_library_full":
+            utils.log("Handling upload_library_full script action", "INFO")
+            try:
+                from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
+                upload_manager = IMDbUploadManager()
+                utils.log("Starting full library upload...", "INFO")
+                result = upload_manager.upload_library_full_sync()
+                utils.log(f"Full library upload completed with result: {result}", "INFO")
+            except Exception as e:
+                utils.log(f"Error in upload_library_full script action: {str(e)}", "ERROR")
+                import traceback
+                utils.log(f"Upload error traceback: {traceback.format_exc()}", "ERROR")
+            return
+        elif script_action == "upload_library_delta":
+            utils.log("Handling upload_library_delta script action", "INFO")
+            try:
+                from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
+                upload_manager = IMDbUploadManager()
+                utils.log("Starting delta library upload...", "INFO")
+                result = upload_manager.upload_library_delta_sync()
+                utils.log(f"Delta library upload completed with result: {result}", "INFO")
+            except Exception as e:
+                utils.log(f"Error in upload_library_delta script action: {str(e)}", "ERROR")
+                import traceback
+                utils.log(f"Upload error traceback: {traceback.format_exc()}", "ERROR")
+            return
+        elif script_action == "clear_server_library":
+            utils.log("Handling clear_server_library script action", "INFO")
+            try:
+                from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
+                upload_manager = IMDbUploadManager()
+                utils.log("Starting server library clear...", "INFO")
+                result = upload_manager.clear_server_library()
+                utils.log(f"Server library clear completed with result: {result}", "INFO")
+            except Exception as e:
+                utils.log(f"Error in clear_server_library script action: {str(e)}", "ERROR")
+                import traceback
+                utils.log(f"Clear error traceback: {traceback.format_exc()}", "ERROR")
+            return
         else:
+            # Parse params for other actions
             params = urllib.parse.parse_qs(paramstr)
             action = params.get('action', [None])[0]
             utils.log(f"Parsed URL params - paramstr: '{paramstr}', action: '{action}'", "DEBUG")
