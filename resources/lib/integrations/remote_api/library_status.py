@@ -47,21 +47,21 @@ def show_library_status():
             "SELECT COUNT(*) as count FROM media_items WHERE source = 'lib'",
             fetch_one=True
         )
-        total_library_items = total_result['count'] if total_result else 0
+        total_library_items = total_result.get('count', 0) if total_result and isinstance(total_result, dict) else 0
 
         # Get items with valid IMDb IDs (starting with 'tt') from media_items
         imdb_result = query_manager.execute_query(
             "SELECT COUNT(*) as count FROM media_items WHERE source = 'lib' AND imdbnumber IS NOT NULL AND imdbnumber != '' AND imdbnumber LIKE 'tt%'",
             fetch_one=True
         )
-        items_with_imdb = imdb_result['count'] if imdb_result else 0
+        items_with_imdb = imdb_result.get('count', 0) if imdb_result and isinstance(imdb_result, dict) else 0
 
         # Get unique IMDb IDs count from media_items
         unique_imdb_result = query_manager.execute_query(
             "SELECT COUNT(DISTINCT imdbnumber) as count FROM media_items WHERE source = 'lib' AND imdbnumber IS NOT NULL AND imdbnumber != '' AND imdbnumber LIKE 'tt%'",
             fetch_one=True
         )
-        unique_imdb_count = unique_imdb_result['count'] if unique_imdb_result else 0
+        unique_imdb_count = unique_imdb_result.get('count', 0) if unique_imdb_result and isinstance(unique_imdb_result, dict) else 0
 
         # Calculate duplicates
         # duplicate_imdb_count = items_with_imdb - unique_imdb_count # Removed as per instruction
@@ -71,8 +71,8 @@ def show_library_status():
             "SELECT COUNT(*) as total, COUNT(DISTINCT imdb_id) as unique_exports FROM imdb_exports WHERE imdb_id IS NOT NULL AND imdb_id != '' AND imdb_id LIKE 'tt%'",
             fetch_one=True
         )
-        exports_total = exports_result['total'] if exports_result else 0
-        exports_unique = exports_result['unique_exports'] if exports_result else 0
+        exports_total = exports_result.get('total', 0) if exports_result and isinstance(exports_result, dict) else 0
+        exports_unique = exports_result.get('unique_exports', 0) if exports_result and isinstance(exports_result, dict) else 0
         # exports_duplicates = exports_total - exports_unique # Removed as per instruction
 
         # Calculate percentage

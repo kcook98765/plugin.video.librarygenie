@@ -109,6 +109,22 @@ class IMDbUploadManager:
             utils.log(f"Error getting Kodi movie collection: {str(e)}", "ERROR")
             return []
 
+    def _retrieve_all_movies_from_kodi(self, use_notifications=False):
+        """Retrieve all movies from Kodi library using JSONRPC"""
+        try:
+            if use_notifications:
+                utils.show_notification("LibraryGenie", "Retrieving movies from Kodi...", time=3000)
+
+            # Use the existing JSONRPC method to get movies with IMDb information
+            movies = self.jsonrpc.get_movies_with_imdb()
+
+            utils.log(f"Retrieved {len(movies)} movies from Kodi library", "INFO")
+            return movies
+
+        except Exception as e:
+            utils.log(f"Error retrieving movies from Kodi: {str(e)}", "ERROR")
+            return []
+
 
     def get_full_kodi_movie_collection_and_store_locally(self, use_notifications=False, show_modal_on_completion=False):
         """Get all movies from Kodi and store locally with incremental batch processing"""
@@ -170,7 +186,7 @@ class IMDbUploadManager:
             for movie in movies:
                 # Extract IMDb ID (may be None/empty for some movies)
                 imdb_id = self._extract_imdb_id(movie)
-                
+
                 # Store ALL movies from library, regardless of IMDb validity
                 movie['imdbnumber'] = imdb_id if imdb_id else ''
                 batch_valid_movies.append(movie)
@@ -265,7 +281,7 @@ class IMDbUploadManager:
 
                 # Progress notifications
                 progress_percent = int((processed / total_movies) * 100)
-                show_progress = (total_batches <= 5 or progress_percent % 20 == 0 or 
+                show_progress = (total_batches <= 5 or progress_percent % 20 == 0 or
                                processed == total_movies or batch_num == 1)
 
                 if use_notifications and show_progress:
@@ -368,7 +384,7 @@ class IMDbUploadManager:
             utils.log(f"=== STORING EXPORT DATA BATCH: {len(batch_export_data)} movies ===", "DEBUG")
 
         sql = "INSERT OR REPLACE INTO imdb_exports (kodi_id, imdb_id, title, year) VALUES (?, ?, ?, ?)"
-        data_to_insert = [(data['kodi_id'], data['imdb_id'], data['title'], data['year']) 
+        data_to_insert = [(data['kodi_id'], data['imdb_id'], data['title'], data['year'])
                          for data in batch_export_data]
         self.query_manager.executemany_write(sql, data_to_insert)
 
@@ -561,7 +577,7 @@ class IMDbUploadManager:
                 rate = current_retrieved / elapsed if elapsed > 0 else 0
 
                 # Update the persistent progress dialog
-                progress_dialog.update(progress_percent, f"LibraryGenie", f"{current_retrieved}/{total} • {rate:.0f}/s")
+                progress_dialog.update(progress_percent, "LibraryGenie", f"{current_retrieved}/{total} • {rate:.0f}/s")
                 last_update_count = current_retrieved
 
             # Log progress less frequently to reduce spam
@@ -621,12 +637,12 @@ class IMDbUploadManager:
                 last_notification_stored = stored_count
 
         # Summary logging
-        utils.log(f"=== MOVIE PROCESSING SUMMARY ===", "INFO")
+        utils.log("=== MOVIE PROCESSING SUMMARY ===", "INFO")
         utils.log(f"Total movies processed: {len(all_movies)}", "INFO")
         utils.log(f"Movies with valid IMDb IDs: {len(valid_movies)}", "INFO")
         utils.log(f"Movies stored in database: {stored_count}", "INFO")
         utils.log(f"Batches processed: {total_batches}", "INFO")
-        utils.log(f"=== PROCESSING COMPLETE ===", "INFO")
+        utils.log("=== PROCESSING COMPLETE ===", "INFO")
 
         return valid_movies, stored_count
 
@@ -805,21 +821,24 @@ class IMDbUploadManager:
                     "SELECT imdb_id FROM imdb_exports WHERE imdb_id IS NOT NULL AND imdb_id != '' AND imdb_id LIKE 'tt%'",
                     fetch_all=True
                 )
-                movies = [{'imdb_id': result['imdb_id']} for result in imdb_results]
+                movies = [{'imdb_id': result['imdb_id']} for result in (imdb_results or [])]
                 collection_progress.close()
 
             else:
                 # Need to scan library first - show modal on completion for manual scans
-                full_movies = self.get_full_kodi_movie_collection_and_store_locally(use_notifications=True, show_modal_on_completion=True)
+                scan_result = self.get_full_kodi_movie_collection_and_store_locally(use_notifications=True, show_modal_on_completion=True)
                 collection_progress.close()
 
-                if not full_movies:
-                    xbmcgui.Dialog().ok("Error", "No movies with valid IMDb IDs found in Kodi library")
+                if not scan_result:
+                    xbmcgui.Dialog().ok("Error", "Failed to scan library or no movies found")
                     return False
 
-                # Extract only tt-prefixed IMDB IDs for server upload (ignore non-tt entries)
-                movies = [{'imdb_id': movie.get('imdbnumber')} for movie in full_movies
-                         if movie.get('imdbnumber') and str(movie.get('imdbnumber')).startswith('tt')]
+                # Get movies from database after successful scan
+                imdb_results = self.query_manager.execute_query(
+                    "SELECT imdb_id FROM imdb_exports WHERE imdb_id IS NOT NULL AND imdb_id != '' AND imdb_id LIKE 'tt%'",
+                    fetch_all=True
+                )
+                movies = [{'imdb_id': result['imdb_id']} for result in (imdb_results or [])]
 
         except Exception as e:
             collection_progress.close()
@@ -847,10 +866,10 @@ class IMDbUploadManager:
 
                 if current_chunk == 1:
                     show_notification = True
-                    notification_message = f"Upload starting... 0%"
+                    notification_message = "Upload starting... 0%"
                 elif current_chunk == total_chunks:
                     show_notification = True
-                    notification_message = f"Upload finalizing... 100%"
+                    notification_message = "Upload finalizing... 100%"
                 elif percent % 10 == 0 and current_chunk > 1:
                     # Show every 10% increment
                     show_notification = True
@@ -889,7 +908,7 @@ class IMDbUploadManager:
                 elif invalid > 0 and user_movie_count == 0:
                     utils.show_notification("LibraryGenie", f"Upload failed: {invalid} movies had invalid IMDb IDs", time=8000)
                 else:
-                    utils.show_notification("LibraryGenie", f"Upload completed but no movies were added. Check server logs.", time=8000)
+                    utils.show_notification("LibraryGenie", "Upload completed but no movies were added. Check server logs.", time=8000)
 
                 # Show addon status modal after upload (regardless of result)
                 try:
@@ -921,16 +940,19 @@ class IMDbUploadManager:
 
         try:
             # Get full movie data and store locally in single efficient step, using notifications
-            full_movies = self.get_full_kodi_movie_collection_and_store_locally(use_notifications=True, show_modal_on_completion=True)
+            scan_result = self.get_full_kodi_movie_collection_and_store_locally(use_notifications=True, show_modal_on_completion=True)
             collection_progress.close()
 
-            if not full_movies:
-                xbmcgui.Dialog().ok("Error", "No movies with valid IMDb IDs found in Kodi library")
+            if not scan_result:
+                xbmcgui.Dialog().ok("Error", "Failed to scan library or no movies found")
                 return False
 
-            # Extract only tt-prefixed IMDB IDs for server upload (ignore non-tt entries)
-            movies = [{'imdb_id': movie.get('imdbnumber')} for movie in full_movies
-                     if movie.get('imdbnumber') and str(movie.get('imdbnumber')).startswith('tt')]
+            # Get movies from database after successful scan
+            imdb_results = self.query_manager.execute_query(
+                "SELECT imdb_id FROM imdb_exports WHERE imdb_id IS NOT NULL AND imdb_id != '' AND imdb_id LIKE 'tt%'",
+                fetch_all=True
+            )
+            movies = [{'imdb_id': result['imdb_id']} for result in (imdb_results or [])]
 
         except Exception as e:
             collection_progress.close()
