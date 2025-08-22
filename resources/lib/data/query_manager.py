@@ -720,7 +720,7 @@ class QueryManager(Singleton):
             if 'cast' in item and isinstance(item['cast'], str):
                 try:
                     item['cast'] = json.loads(item['cast'])
-                except JSONDecodeError:
+                except json.JSONDecodeError:
                     item['cast'] = []
 
         return results
@@ -871,7 +871,9 @@ class QueryManager(Singleton):
         if not heavy_metadata_list:
             return
 
-        utils.log(f"=== STORING HEAVY METADATA BATCH: {len(heavy_metadata_list)} movies ===", "INFO")
+        # Minimal logging for heavy metadata storage
+        if len(heavy_metadata_list) <= 5:
+            utils.log(f"Storing heavy metadata: {len(heavy_metadata_list)} movies", "DEBUG")
 
         import time
 
@@ -1055,15 +1057,6 @@ class QueryManager(Singleton):
     def __del__(self):
         """Clean up connections when the instance is destroyed"""
         self.close()
-
-    # The close method is already defined above, so this is redundant.
-    # def close(self):
-    #     """Close the database connection"""
-    #     with self._lock:
-    #         if self._connection:
-    #             self._connection.close()
-    #             self._connection = None
-    #             utils.log("QueryManager: Database connection closed", "DEBUG")
 
     # --- DAO Delegation Methods (kept for compatibility with existing calls) ---
     # These methods delegate to the ListingDAO instance.

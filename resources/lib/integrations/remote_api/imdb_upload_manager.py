@@ -510,36 +510,18 @@ class IMDbUploadManager:
 
             response = self.jsonrpc.execute("VideoLibrary.GetMovies", params)
 
-            # Log detailed response data for first batch only
+            # Log minimal response data for first batch only (reduced verbosity)
             if start == 0:
-                utils.log("=== JSON-RPC RESPONSE ANALYSIS (FIRST BATCH ONLY) ===", "INFO")
-                utils.log(f"Response keys: {list(response.keys())}", "INFO")
-
-                if 'result' in response:
-                    result = response['result']
-                    utils.log(f"Result keys: {list(result.keys())}", "INFO")
-
-                    if 'movies' in result:
-                        movies = result['movies']
-                        utils.log(f"Number of movies in first batch: {len(movies)}", "INFO")
-
-                        # Log first 3 movies in detail
-                        for i, movie in enumerate(movies[:3]):
-                            utils.log(f"=== MOVIE {i+1} DETAILED DATA ===", "INFO")
-                            for key, value in movie.items():
-                                if isinstance(value, str) and len(value) > 200:
-                                    utils.log(f"MOVIE_{i+1}: {key} = {value[:200]}... (truncated)", "INFO")
-                                else:
-                                    utils.log(f"MOVIE_{i+1}: {key} = {repr(value)}", "INFO")
-                            utils.log(f"=== END MOVIE {i+1} DATA ===", "INFO")
-                    else:
-                        utils.log("No 'movies' key found in result", "ERROR")
+                if 'result' in response and 'movies' in response['result']:
+                    movies = response['result']['movies']
+                    utils.log(f"First batch analysis: {len(movies)} movies retrieved successfully", "DEBUG")
+                    if movies:
+                        first_movie = movies[0]
+                        utils.log(f"Sample movie: '{first_movie.get('title', 'Unknown')}' ({first_movie.get('year', 'N/A')}) - IMDb: {first_movie.get('imdbnumber', 'N/A')}", "DEBUG")
                 else:
-                    utils.log("No 'result' key found in response", "ERROR")
+                    utils.log("No 'result' or 'movies' key found in response", "ERROR")
                     if 'error' in response:
                         utils.log(f"Error in response: {response['error']}", "ERROR")
-
-                utils.log("=== END JSON-RPC RESPONSE ANALYSIS ===", "INFO")
 
             if 'result' not in response or 'movies' not in response['result']:
                 break
