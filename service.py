@@ -35,6 +35,14 @@ def init_once():
         # Check if library scanning is needed
         check_and_prompt_library_scan()
 
+        # Sync Kodi favorites to reserved list ID 1
+        try:
+            sync_manager = FavoritesSyncManager()
+            sync_manager.sync_favorites()
+            utils.log("Favorites sync completed during service startup", "DEBUG")
+        except Exception as e:
+            utils.log(f"Error syncing favorites during startup: {e}", "ERROR")
+
         # Mark initialization as complete
         if not _get_bool('init_done', False):
             _set_bool('init_done', True)
@@ -104,11 +112,7 @@ def ensure_database_ready():
         except Exception as e:
             utils.log(f"Error ensuring Shortlist Imports list: {e}", "ERROR")
 
-        # Remove obsolete "Kodi Favorites" folder if it exists (we now use list ID 1 directly)
-        kodi_favorites_folder_id = query_manager.get_folder_id_by_name("Kodi Favorites")
-        if kodi_favorites_folder_id:
-            utils.log(f"Removing obsolete Kodi Favorites folder (ID: {kodi_favorites_folder_id})", "INFO")
-            query_manager.delete_folder(kodi_favorites_folder_id)
+        
 
         utils.log("Database setup completed successfully", "INFO")
         return True

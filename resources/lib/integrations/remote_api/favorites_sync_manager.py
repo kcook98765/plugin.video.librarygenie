@@ -153,14 +153,14 @@ class FavoritesSyncManager:
 
             # Compare with last known signature
             last_signature = self.last_snapshot.get('signature', '')
-            
+
             # Check if the list is empty despite having favorites
-            list_id = self.get_kodi_favorites_list_id()
+            list_id = 1 # Use reserved Kodi Favorites list (ID 1)
             current_list_count = self.query_manager.get_list_media_count(list_id)
-            
+
             # Force rebuild if list is empty but we have favorites
             force_rebuild = (current_list_count == 0 and len(current_items) > 0)
-            
+
             if current_signature == last_signature and current_list_count > 0 and not force_rebuild:
                 elapsed_time = time.time() - start_time
                 utils.log(f"Favorites unchanged, no sync needed (checked in {elapsed_time:.2f}s)", "DEBUG")
@@ -217,8 +217,8 @@ class FavoritesSyncManager:
     def apply_favorites_changes_incrementally(self, added_items, removed_identities, changed_items):
         """Apply changes incrementally by aligning list with current Kodi favorites without wiping first"""
         try:
-            # Get or create the Kodi Favorites list at root level
-            list_id = self.get_kodi_favorites_list_id()
+            # Use reserved Kodi Favorites list (ID 1)
+            list_id = 1
 
             # Get current favorites from Kodi and current list contents
             current_favorites = self.favorites_importer._fetch_favourites_media()
@@ -247,7 +247,7 @@ class FavoritesSyncManager:
             # Process only added items (new favorites not in list)
             for item in added_items:
                 utils.log(f"Adding new favorite: {item['title']}", "DEBUG")
-                
+
                 original_fav = kodi_favorites_by_identity.get(item['identity'])
                 if original_fav:
                     path = original_fav.get("path") or ""
@@ -277,13 +277,13 @@ class FavoritesSyncManager:
             # Process removed items (favorites no longer in Kodi)
             if removed_identities:
                 utils.log(f"Processing {len(removed_identities)} removed favorites", "DEBUG")
-                
+
                 # Find items in list that correspond to removed favorites
                 items_to_remove = []
                 for item in current_list_items:
                     item_path = item.get('path', '')
                     item_title = item.get('title', '')
-                    
+
                     # Check if this list item corresponds to a removed favorite
                     item_found_in_kodi = False
                     for fav in current_favorites:
@@ -291,7 +291,7 @@ class FavoritesSyncManager:
                             (fav.get('title', '').lower() == item_title.lower() and item_title)):
                             item_found_in_kodi = True
                             break
-                    
+
                     if not item_found_in_kodi and item.get('source') == 'favorites_import':
                         items_to_remove.append(item)
 
@@ -307,11 +307,11 @@ class FavoritesSyncManager:
             # Process changed items (update metadata without removing/re-adding)
             for current_item, last_item in changed_items:
                 utils.log(f"Processing changed favorite: {last_item['title']} -> {current_item['title']}", "DEBUG")
-                
+
                 # Find the corresponding item in the list
                 old_path = last_item.get('path', '')
                 new_title = current_item.get('title', '')
-                
+
                 list_item = list_items_by_path.get(old_path)
                 if list_item and new_title != list_item.get('title', ''):
                     # Update the title and other metadata if needed
@@ -348,8 +348,8 @@ class FavoritesSyncManager:
     def apply_favorites_changes(self, added_items, removed_identities, changed_items):
         """Apply the detected changes to the Kodi Favorites folder (legacy method for manual imports)"""
         try:
-            # Get or create the Kodi Favorites list at root level
-            list_id = self.get_kodi_favorites_list_id()
+            # Use reserved Kodi Favorites list (ID 1)  
+            list_id = 1
 
             # Process added items
             for item in added_items:
@@ -410,7 +410,7 @@ class FavoritesSyncManager:
 
             # Get the favorites list ID if not provided
             if list_id is None:
-                list_id = self.get_kodi_favorites_list_id()
+                list_id = 1 # Use reserved Kodi Favorites list (ID 1)
 
             # Clear existing list contents
             self.query_manager.clear_list_items(list_id)
@@ -456,7 +456,7 @@ class FavoritesSyncManager:
         if use_incremental:
             # Reset snapshot to force full sync but use incremental method
             self.last_snapshot = {'items': {}, 'signature': ''}
-            
+
             # Run sync with incremental updates
             result = self.sync_favorites()
         else:

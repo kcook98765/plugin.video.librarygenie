@@ -659,25 +659,13 @@ class FavoritesImporter:
 
             utils.log(f"Imported Lists folder ID: {imported_folder_id}", "DEBUG")
 
-            # Ensure "Favorites" subfolder exists under "Imported Lists"
-            favorites_folder_id = self.query_manager.get_folder_id_by_name("Favorites", imported_folder_id)
-            if not favorites_folder_id:
-                favorites_folder_result = self.query_manager.create_folder("Favorites", imported_folder_id)
-                # Handle both dict and int return types from create_folder
-                if isinstance(favorites_folder_result, dict):
-                    favorites_folder_id = favorites_folder_result['id']
-                else:
-                    favorites_folder_id = favorites_folder_result
-
-            utils.log(f"Favorites subfolder ID: {favorites_folder_id}", "DEBUG")
-
-            # Clear existing data in the favorites folder only
+            # Clear existing data in the imported lists folder
             progress.update(42, "Clearing existing favorites imports...")
-            self.clear_imported_favorites_folder(favorites_folder_id)
+            self.clear_imported_favorites_folder(imported_folder_id)
 
-            # Create a dated list under Favorites subfolder
+            # Create a dated list under Imported Lists folder
             list_name = f"Favorites ({datetime.now().strftime('%Y-%m-%d')})"
-            list_result = self.query_manager.create_list(list_name, favorites_folder_id)
+            list_result = self.query_manager.create_list(list_name, imported_folder_id)
             list_id = list_result['id']
 
             utils.log(f"Created LibraryGenie list: {list_name} (ID: {list_id})", "INFO")
@@ -799,7 +787,7 @@ class FavoritesImporter:
             progress.close()
 
             if not progress.iscanceled():
-                message = f"Imported {len(media_items_to_add)} favorites to 'Imported Lists/Favorites' ({upgraded_count} upgraded from library)"
+                message = f"Imported {len(media_items_to_add)} favorites to 'Imported Lists' ({upgraded_count} upgraded from library)"
                 xbmcgui.Dialog().notification("LibraryGenie", message, xbmcgui.NOTIFICATION_INFO, 5000)
                 utils.log(f"=== Favorites import complete: {message} ===", "INFO")
                 return True
