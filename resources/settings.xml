@@ -25,7 +25,7 @@
     <category label="Library Sync">
         <setting id="upload_library_delta" type="action" label="Sync Library to Server (Delta)" action="RunScript(plugin.video.librarygenie,upload_library_delta)" />
         <setting id="upload_library_full" type="action" label="Upload Full Library (Replace)" action="RunScript(plugin.video.librarygenie,upload_library_full)" />
-        <setting id="upload_status" type="action" label="View Upload Status" action="RunScript(plugin.video.librarygenie,view_upload_status)" />
+        <setting id="view_upload_status" type="action" label="View Upload Status" action="RunScript(plugin.video.librarygenie,view_upload_status)" />
     </category>
 
     <category label="Background Service">

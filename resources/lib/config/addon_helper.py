@@ -93,8 +93,8 @@ def run_addon():
             script_actions = [
                 'setup_remote_api', 'manual_setup_remote_api', 'test_remote_api',
                 'upload_library_full', 'upload_library_delta', 'upload_status',
-                'clear_server_library', 'show_main_window', 'clear_all_local_data',
-                'import_from_shortlist', 'addon_library_status'
+                'view_upload_status', 'clear_server_library', 'show_main_window', 
+                'clear_all_local_data', 'import_from_shortlist', 'addon_library_status'
             ]
             
             if potential_action in script_actions:
@@ -159,6 +159,7 @@ def run_addon():
         elif script_action == "view_upload_status":
             utils.log("Handling view_upload_status script action", "INFO")
             try:
+                from resources.lib.config.settings_manager import SettingsManager
                 settings_manager = SettingsManager()
                 utils.log("Calling view_upload_status method...", "INFO")
                 settings_manager.view_upload_status()
@@ -167,9 +168,6 @@ def run_addon():
                 utils.log(f"Error in view_upload_status script action: {str(e)}", "ERROR")
                 import traceback
                 utils.log(f"View upload status error traceback: {traceback.format_exc()}", "ERROR")
-            return
-                import traceback
-                utils.log(f"Upload status error traceback: {traceback.format_exc()}", "ERROR")
             return
         elif script_action == "setup_remote_api":
             utils.log("Handling setup_remote_api script action", "INFO")
