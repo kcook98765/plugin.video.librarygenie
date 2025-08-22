@@ -433,7 +433,7 @@ class FavoritesSyncManager:
         if kodi_movie:
             # Use Kodi library data - this is preferred when available
             utils.log(f"SYNC_DATA_CONVERSION: Using KODI LIBRARY data for '{kodi_movie.get('title')}'", "DEBUG")
-            # Duration calculation with streamdetails preference
+            # Duration calculation with streamdetails preference but don't store streamdetails
             duration_seconds = 0
             streamdetails = kodi_movie.get('streamdetails', {})
             if isinstance(streamdetails, dict) and streamdetails.get('video'):
@@ -495,6 +495,7 @@ class FavoritesSyncManager:
                 'uniqueid': '',
                 'stream_url': '',
                 'status': 'available'
+                # NOTE: Deliberately excluding 'streamdetails' to prevent deprecated ListItem building warnings
             }
 
             # Extract and process art data
@@ -519,6 +520,31 @@ class FavoritesSyncManager:
         else:
             # Use favorite data only (limited metadata)
             utils.log(f"SYNC_DATA_CONVERSION: Using FAVORITES data only for '{fav_item.get('title', 'Unknown')}'", "DEBUG")
+            
+            # Duration calculation with streamdetails preference but don't store streamdetails
+            duration_seconds = 0
+            if filedetails:
+                streamdetails = filedetails.get('streamdetails', {})
+                if isinstance(streamdetails, dict) and streamdetails.get('video'):
+                    video_streams = streamdetails['video']
+                    if isinstance(video_streams, list) and len(video_streams) > 0:
+                        stream_duration = self._safe_convert_int(video_streams[0].get('duration', 0))
+                        if 60 <= stream_duration <= 21600:
+                            duration_seconds = stream_duration
+
+            if duration_seconds == 0 and filedetails:
+                runtime_minutes = self._safe_convert_int(filedetails.get('runtime', 0))
+                duration_from_field = self._safe_convert_int(filedetails.get('duration', 0))
+
+                if duration_from_field > 0:
+                    duration_seconds = duration_from_field
+                elif runtime_minutes > 0:
+                    duration_seconds = runtime_minutes * 60
+
+            art = (filedetails or {}).get('art', {})
+            thumb = (filedetails or {}).get('thumbnail') or self._safe_convert_string(fav_item.get('thumbnail'))
+            fan = (filedetails or {}).get('fanart')
+            
             media_dict = {
                 '_sync_operation': True,
                 '_no_listitem_building': True,
@@ -553,30 +579,8 @@ class FavoritesSyncManager:
                 'uniqueid': '',
                 'stream_url': '',
                 'status': 'available'
+                # NOTE: Deliberately excluding 'streamdetails' to prevent deprecated ListItem building warnings
             }
-            # Duration calculation with streamdetails preference
-            duration_seconds = 0
-            if filedetails:
-                streamdetails = filedetails.get('streamdetails', {})
-                if isinstance(streamdetails, dict) and streamdetails.get('video'):
-                    video_streams = streamdetails['video']
-                    if isinstance(video_streams, list) and len(video_streams) > 0:
-                        stream_duration = self._safe_convert_int(video_streams[0].get('duration', 0))
-                        if 60 <= stream_duration <= 21600:
-                            duration_seconds = stream_duration
-
-            if duration_seconds == 0 and filedetails:
-                runtime_minutes = self._safe_convert_int(filedetails.get('runtime', 0))
-                duration_from_field = self._safe_convert_int(filedetails.get('duration', 0))
-
-                if duration_from_field > 0:
-                    duration_seconds = duration_from_field
-                elif runtime_minutes > 0:
-                    duration_seconds = runtime_minutes * 60
-
-            art = (filedetails or {}).get('art', {})
-            thumb = (filedetails or {}).get('thumbnail') or self._safe_convert_string(fav_item.get('thumbnail'))
-            fan = (filedetails or {}).get('fanart')
 
 
         return media_dict

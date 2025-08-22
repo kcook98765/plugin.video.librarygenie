@@ -567,13 +567,12 @@ class ListItemBuilder:
             utils.log(f"Skipping stream details processing for favorites_import item: {item_dict.get('title', 'Unknown')}", "DEBUG")
         else:
             stream_details = item_dict.get('streamdetails', {})
-            if isinstance(stream_details, dict):
+            if isinstance(stream_details, dict) and stream_details:
                 try:
                     if utils.is_kodi_v19():
                         # v19 - use deprecated methods since InfoTag is unreliable
-                        if stream_details:
-                            utils.log(f"LISTITEM_BUILD_VIDEO: About to call deprecated stream methods for '{title}' on thread {current_thread.name}", "INFO")
-                            ListItemBuilder._add_stream_info_deprecated(li, stream_details)
+                        utils.log(f"LISTITEM_BUILD_VIDEO: About to call deprecated stream methods for '{title}' on thread {current_thread.name}", "INFO")
+                        ListItemBuilder._add_stream_info_deprecated(li, stream_details)
                     else:
                         # v20+ - skip deprecated stream methods to avoid warnings
                         # Stream details are handled by InfoTag internally when possible
