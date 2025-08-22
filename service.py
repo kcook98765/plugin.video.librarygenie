@@ -266,7 +266,7 @@ class LibraryGenieService:
                     sync_interval = self.settings.get_favorites_sync_interval()
                     current_time = time.time()
 
-                    # Check if it's time for a regular sync OR if addon was recently accessed
+                    # Check if it's time for a regular sync
                     should_sync = (current_time - self.last_sync_time >= sync_interval)
 
                     # Also sync if we detect the addon has been accessed recently
@@ -276,14 +276,14 @@ class LibraryGenieService:
                         window_id = xbmc.getInfoLabel('System.CurrentWindow')
                         addon_accessed = 'plugin.video.librarygenie' in str(window_id)
 
-                        # Force sync if addon accessed and it's been more than 10 seconds since last sync
-                        if addon_accessed and (current_time - self.last_sync_time >= 10):
+                        # Force sync if addon accessed and it's been more than 30 seconds since last sync
+                        if addon_accessed and (current_time - self.last_sync_time >= 30):
                             should_sync = True
                             utils.log("Addon accessed, triggering favorites sync", "DEBUG")
                     except:
                         pass
 
-                    if should_sync:
+                    if should_sync:</old_str>
                         utils.log(f"Running favorites sync (interval: {sync_interval}s)", "DEBUG")
 
                         try:
@@ -299,8 +299,9 @@ class LibraryGenieService:
             except Exception as e:
                 utils.log(f"Error in service loop: {str(e)}", "ERROR")
 
-            # Wait for next cycle or abort
-            if self.monitor.waitForAbort(10):
+            # Wait for next cycle or abort - use a shorter interval for responsiveness
+            # but check sync timing internally
+            if self.monitor.waitForAbort(5):
                 break
 
         utils.log("LibraryGenie service stopped", "INFO")
