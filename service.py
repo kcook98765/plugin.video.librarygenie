@@ -127,6 +127,11 @@ def check_and_prompt_library_scan():
         media_count = media_result['count'] if media_result else 0
 
         utils.log(f"Library data check: found {imdb_count} items in imdb_exports, {media_count} items in media_items", "INFO")
+        
+        # Check current settings state
+        scan_declined = _get_bool('library_scan_declined', False)
+        library_scanned = _get_bool('library_scanned', False)
+        utils.log(f"Current settings - library_scanned: {library_scanned}, library_scan_declined: {scan_declined}", "INFO")
 
         # If no actual data exists, reset settings and prompt for scan
         if imdb_count == 0 and media_count == 0:
@@ -135,7 +140,12 @@ def check_and_prompt_library_scan():
             _set_bool('library_scan_declined', False)
 
             utils.log("No library data found - prompting user for scan", "INFO")
-            prompt_user_for_library_scan()
+            
+            # Also check if user previously declined - don't prompt again if they did
+            if not _get_bool('library_scan_declined', False):
+                prompt_user_for_library_scan()
+            else:
+                utils.log("User previously declined library scan - not prompting again", "INFO")
         else:
             # Library data exists - mark as scanned and clear decline flag
             _set_bool('library_scanned', True)
@@ -153,6 +163,10 @@ def prompt_user_for_library_scan():
 
         def show_dialog():
             try:
+                # Give Kodi a moment to fully start up
+                import time
+                time.sleep(2)
+                
                 dialog = xbmcgui.Dialog()
 
                 # Show informational dialog explaining the need
