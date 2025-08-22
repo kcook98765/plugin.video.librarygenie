@@ -289,13 +289,6 @@ def needs_modal_optimization():
         # If detection fails, err on the side of optimization
         return True
 
-def should_log_debug():
-    """Check if debug logging should be enabled (reduces overhead on slow devices)"""
-    if needs_modal_optimization():
-        # Reduce debug logging on devices that need optimization for performance
-        return False
-    return True
-
 def setup_remote_api():
     """Launch remote API setup wizard"""
     try:
