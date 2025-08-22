@@ -72,25 +72,37 @@ def ensure_database_ready():
         search_history_folder_id = query_manager.get_folder_id_by_name("Search History")
         if not search_history_folder_id:
             search_history_result = query_manager.create_folder("Search History", None)
-            search_history_folder_id = search_history_result['id']
+            if isinstance(search_history_result, dict):
+                search_history_folder_id = search_history_result['id']
+            else:
+                search_history_folder_id = search_history_result
             utils.log(f"Search History folder ensured: {search_history_folder_id}", "DEBUG")
 
         imported_lists_folder_id = query_manager.get_folder_id_by_name("Imported Lists")
         if not imported_lists_folder_id:
             imported_lists_result = query_manager.create_folder("Imported Lists", None)
-            imported_lists_folder_id = imported_lists_result['id']
+            if isinstance(imported_lists_result, dict):
+                imported_lists_folder_id = imported_lists_result['id']
+            else:
+                imported_lists_folder_id = imported_lists_result
             utils.log(f"Created Imported Lists folder: {imported_lists_folder_id}", "DEBUG")
 
         # Ensure reserved lists exist
-        kodi_favorites_list = query_manager.ensure_kodi_favorites_list()
-        if kodi_favorites_list:
-            list_id = kodi_favorites_list['id'] if isinstance(kodi_favorites_list, dict) else kodi_favorites_list
-            utils.log(f"Ensured Kodi Favorites list exists with ID: {list_id}", "DEBUG")
+        try:
+            kodi_favorites_list = query_manager.ensure_kodi_favorites_list()
+            if kodi_favorites_list:
+                list_id = kodi_favorites_list['id'] if isinstance(kodi_favorites_list, dict) else kodi_favorites_list
+                utils.log(f"Ensured Kodi Favorites list exists with ID: {list_id}", "DEBUG")
+        except Exception as e:
+            utils.log(f"Error ensuring Kodi Favorites list: {e}", "ERROR")
 
-        shortlist_imports_list = query_manager.ensure_shortlist_imports_list()
-        if shortlist_imports_list:
-            list_id = shortlist_imports_list['id'] if isinstance(shortlist_imports_list, dict) else shortlist_imports_list
-            utils.log(f"Ensured Shortlist Imports list exists with ID: {list_id}", "DEBUG")
+        try:
+            shortlist_imports_list = query_manager.ensure_shortlist_imports_list()
+            if shortlist_imports_list:
+                list_id = shortlist_imports_list['id'] if isinstance(shortlist_imports_list, dict) else shortlist_imports_list
+                utils.log(f"Ensured Shortlist Imports list exists with ID: {list_id}", "DEBUG")
+        except Exception as e:
+            utils.log(f"Error ensuring Shortlist Imports list: {e}", "ERROR")
 
         # Remove obsolete "Kodi Favorites" folder if it exists (we now use list ID 1 directly)
         kodi_favorites_folder_id = query_manager.get_folder_id_by_name("Kodi Favorites")
@@ -141,11 +153,8 @@ def check_and_prompt_library_scan():
 
             utils.log("No library data found - prompting user for scan", "INFO")
             
-            # Also check if user previously declined - don't prompt again if they did
-            if not _get_bool('library_scan_declined', False):
-                prompt_user_for_library_scan()
-            else:
-                utils.log("User previously declined library scan - not prompting again", "INFO")
+            # Force prompt on completely empty database (fresh wipe scenario)
+            prompt_user_for_library_scan()
         else:
             # Library data exists - mark as scanned and clear decline flag
             _set_bool('library_scanned', True)
@@ -155,7 +164,7 @@ def check_and_prompt_library_scan():
     except Exception as e:
         utils.log(f"Error checking library scan status: {e}", "ERROR")
 
-def prompt_user_for_library_scan():
+def prompt_user_for_library_scan(force_prompt=False):
     """Show modal to user asking permission to scan library"""
     try:
         import xbmcgui
