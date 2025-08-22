@@ -35,6 +35,12 @@ def init_once():
         # Check if library scanning is needed
         check_and_prompt_library_scan()
 
+        # Wait 5 seconds before favorites sync to allow Kodi GUI to complete initialization
+        utils.log("Waiting 5 seconds before favorites sync to allow GUI initialization", "DEBUG")
+        if MON.waitForAbort(5.0):
+            utils.log("Service abort requested during startup delay", "INFO")
+            return
+
         # Sync Kodi favorites to reserved list ID 1 - but only if library data exists
         try:
             # Create local query_manager instance for favorites sync
@@ -47,8 +53,10 @@ def init_once():
             local_query_manager.ensure_kodi_favorites_list()
             local_query_manager.ensure_shortlist_imports_list()
 
+            utils.log("Starting favorites sync after 5 second delay", "DEBUG")
             sync_manager = FavoritesSyncManager()
             sync_manager.sync_favorites()
+            utils.log("Service favorites sync completed", "DEBUG")
         except Exception as e:
             utils.log(f"Error syncing favorites during startup: {str(e)}", "ERROR")
 
