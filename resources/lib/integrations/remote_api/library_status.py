@@ -83,23 +83,31 @@ def show_library_status():
         server_status = "Not configured"
         server_count = 0
         last_upload_info = "Never"
+        library_stats = None
 
         try:
             # Check if remote API is configured and accessible
             if remote_client.test_connection():
                 is_authenticated = True
-                # Get current movie count on server
-                movie_list = remote_client.get_movie_list(per_page=1)
-                if movie_list and movie_list.get('success'):
-                    server_count = movie_list.get('user_movie_count', 0)
-
-                    # Get last upload info from batch history
-                    batches = remote_client.get_batch_history()
-                    if batches and len(batches) > 0:
-                        last_batch = batches[0]  # Most recent batch
+                
+                # Get comprehensive library statistics
+                stats_response = remote_client.get_library_statistics()
+                if stats_response and stats_response.get('success'):
+                    library_stats = stats_response.get('stats', {})
+                    
+                    # Extract basic info from stats
+                    library_overview = library_stats.get('library_overview', {})
+                    server_count = library_overview.get('total_uploaded', 0)
+                    
+                    # Get last upload info from batch history in stats
+                    batch_history = library_stats.get('batch_history', {})
+                    recent_batches = batch_history.get('recent_batches', [])
+                    
+                    if recent_batches:
+                        last_batch = recent_batches[0]  # Most recent batch
                         upload_count = last_batch.get('successful_imports', 0)
-                        upload_date = last_batch.get('started_at', 'Unknown')
-                        batch_type = last_batch.get('batch_type', 'unknown')
+                        upload_date = last_batch.get('completed_at', 'Unknown')
+                        batch_type = last_batch.get('status', 'unknown')
 
                         # Parse and format the date
                         try:
@@ -115,7 +123,13 @@ def show_library_status():
 
                     server_status = f"Connected - {server_count} movies on server"
                 else:
-                    server_status = "Connected but unable to get movie count"
+                    # Fallback to old method if stats endpoint fails
+                    movie_list = remote_client.get_movie_list(per_page=1)
+                    if movie_list and movie_list.get('success'):
+                        server_count = movie_list.get('user_movie_count', 0)
+                        server_status = f"Connected - {server_count} movies on server"
+                    else:
+                        server_status = "Connected but unable to get movie count"
 
         except Exception as e:
             utils.log(f"Error checking server status: {str(e)}", "WARNING")
@@ -149,7 +163,7 @@ def show_library_status():
         coverage_color = get_coverage_color(unique_imdb_coverage)
         coverage_assessment = get_coverage_assessment(unique_imdb_coverage)
 
-        # Build compact status message
+        # Build comprehensive status message
         status_lines = [
             "=== ADDON LIBRARY STATUS ===",
             f"[COLOR {coverage_color}]LOCAL LIBRARY[/COLOR] {total_library_items:,}",
@@ -170,6 +184,50 @@ def show_library_status():
                 f"  • Last upload: {last_upload_info}",
             ])
 
+            # Add comprehensive server statistics if available
+            if library_stats:
+                setup_status = library_stats.get('setup_status', {})
+                data_quality = library_stats.get('data_quality', {})
+                system_context = library_stats.get('system_context', {})
+                
+                # Setup completeness
+                completely_setup = setup_status.get('completely_setup', {})
+                setup_count = completely_setup.get('count', 0)
+                setup_percentage = completely_setup.get('percentage', 0)
+                
+                if setup_count > 0:
+                    setup_color = "green" if setup_percentage >= 95 else "yellow" if setup_percentage >= 85 else "red"
+                    status_lines.extend([
+                        f"[COLOR {setup_color}]SEARCH READY[/COLOR] {setup_count:,} movies ({setup_percentage:.1f}%)",
+                    ])
+                
+                # Data quality metrics
+                tmdb_available = data_quality.get('tmdb_data_available', {})
+                opensearch_indexed = data_quality.get('opensearch_indexed', {})
+                
+                if tmdb_available.get('count', 0) > 0:
+                    tmdb_percentage = tmdb_available.get('percentage', 0)
+                    tmdb_color = "green" if tmdb_percentage >= 98 else "yellow" if tmdb_percentage >= 90 else "red"
+                    status_lines.append(f"  • TMDB metadata: {tmdb_percentage:.1f}%")
+                
+                if opensearch_indexed.get('count', 0) > 0:
+                    search_percentage = opensearch_indexed.get('percentage', 0)
+                    search_color = "green" if search_percentage >= 95 else "yellow" if search_percentage >= 85 else "red"
+                    status_lines.append(f"  • Search indexed: {search_percentage:.1f}%")
+                
+                # System context information
+                if system_context:
+                    total_system_movies = system_context.get('total_movies_in_system', 0)
+                    user_lists_stats = system_context.get('user_lists_stats', {})
+                    avg_per_user = user_lists_stats.get('average_movies_per_user', 0)
+                    
+                    status_lines.extend([
+                        "",
+                        "[COLOR white]SYSTEM OVERVIEW[/COLOR]",
+                        f"  • Total movies in system: {total_system_movies:,}",
+                        f"  • Average collection size: {avg_per_user:.0f} movies",
+                    ])
+
             # Add sync status comparison only if authenticated and we have server data
             if server_count > 0 and unique_imdb_count > 0:
                 sync_difference = abs(unique_imdb_count - server_count)
@@ -183,6 +241,7 @@ def show_library_status():
                     sync_status_text = f"Server has {sync_difference} more movies"
                 
                 status_lines.extend([
+                    "",
                     f"[COLOR {sync_color}]SYNC STATUS[/COLOR] {sync_status_text}",
                     f"  • Server: {server_count:,} | Local unique: {unique_imdb_count:,} | Export ready: {exports_unique:,}",
                 ])

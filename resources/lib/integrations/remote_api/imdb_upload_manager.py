@@ -1011,32 +1011,102 @@ class IMDbUploadManager:
             return False
 
     def get_upload_status(self):
-        """Show current upload/sync status and history"""
+        """Show current upload/sync status and history using comprehensive statistics"""
         if not self.remote_client.test_connection():
             xbmcgui.Dialog().ok("Error", "Remote API is not configured or not accessible")
             return
 
         try:
-            # Get current movie count
-            movie_list = self.remote_client.get_movie_list(per_page=1)
-            if movie_list and movie_list.get('success'):
-                total_movies = movie_list.get('user_movie_count', 0)
-
-                # Get batch history
-                batches = self.remote_client.get_batch_history()
-
-                status_text = f"Current movies on server: {total_movies}\n\n"
-
-                if batches:
-                    status_text += "Recent uploads:\n"
-                    for batch in batches[:3]:  # Show last 3 batches
-                        status_text += f"• {batch.get('started_at', 'Unknown')}: {batch.get('successful_imports', 0)} movies ({batch.get('batch_type', 'unknown')})\n"
+            # Get comprehensive library statistics
+            stats_response = self.remote_client.get_library_statistics()
+            
+            if stats_response and stats_response.get('success'):
+                stats = stats_response.get('stats', {})
+                
+                # Build detailed status message
+                status_lines = []
+                
+                # Library overview
+                library_overview = stats.get('library_overview', {})
+                total_uploaded = library_overview.get('total_uploaded', 0)
+                status_lines.append(f"Movies on server: {total_uploaded:,}")
+                
+                # Setup status
+                setup_status = stats.get('setup_status', {})
+                completely_setup = setup_status.get('completely_setup', {})
+                setup_count = completely_setup.get('count', 0)
+                setup_percentage = completely_setup.get('percentage', 0)
+                
+                status_lines.append(f"Search ready: {setup_count:,} ({setup_percentage:.1f}%)")
+                
+                # Data quality
+                data_quality = stats.get('data_quality', {})
+                tmdb_available = data_quality.get('tmdb_data_available', {})
+                opensearch_indexed = data_quality.get('opensearch_indexed', {})
+                
+                if tmdb_available.get('count', 0) > 0:
+                    tmdb_percentage = tmdb_available.get('percentage', 0)
+                    status_lines.append(f"TMDB metadata: {tmdb_percentage:.1f}%")
+                
+                if opensearch_indexed.get('count', 0) > 0:
+                    search_percentage = opensearch_indexed.get('percentage', 0)
+                    status_lines.append(f"Search indexed: {search_percentage:.1f}%")
+                
+                # Recent batch history
+                batch_history = stats.get('batch_history', {})
+                recent_batches = batch_history.get('recent_batches', [])
+                
+                status_lines.append("")
+                status_lines.append("Recent uploads:")
+                
+                if recent_batches:
+                    for batch in recent_batches[:3]:  # Show last 3 batches
+                        batch_date = batch.get('completed_at', 'Unknown')
+                        batch_count = batch.get('successful_imports', 0)
+                        batch_status = batch.get('status', 'unknown')
+                        
+                        # Format date
+                        try:
+                            if batch_date and batch_date != 'Unknown':
+                                parsed_date = datetime.datetime.fromisoformat(batch_date.replace('Z', '+00:00'))
+                                formatted_date = parsed_date.strftime('%Y-%m-%d %H:%M')
+                                status_lines.append(f"• {formatted_date}: {batch_count:,} movies ({batch_status})")
+                            else:
+                                status_lines.append(f"• {batch_count:,} movies ({batch_status})")
+                        except:
+                            status_lines.append(f"• {batch_date}: {batch_count:,} movies ({batch_status})")
                 else:
-                    status_text += "No upload history found"
+                    status_lines.append("No upload history found")
+                
+                # System context
+                system_context = stats.get('system_context', {})
+                if system_context:
+                    total_system_movies = system_context.get('total_movies_in_system', 0)
+                    user_lists_stats = system_context.get('user_lists_stats', {})
+                    total_users = user_lists_stats.get('total_users_with_lists', 0)
+                    avg_per_user = user_lists_stats.get('average_movies_per_user', 0)
+                    
+                    status_lines.extend([
+                        "",
+                        "System overview:",
+                        f"• Total movies: {total_system_movies:,}",
+                        f"• Active users: {total_users:,}",
+                        f"• Average collection: {avg_per_user:.0f} movies"
+                    ])
 
+                # Join all status lines
+                status_text = "\n".join(status_lines)
                 xbmcgui.Dialog().ok("Upload Status", status_text)
+                
             else:
-                xbmcgui.Dialog().ok("Error", "Failed to get upload status")
+                # Fallback to simple status if comprehensive stats fail
+                movie_list = self.remote_client.get_movie_list(per_page=1)
+                if movie_list and movie_list.get('success'):
+                    total_movies = movie_list.get('user_movie_count', 0)
+                    status_text = f"Current movies on server: {total_movies}\n\n(Detailed statistics unavailable)"
+                    xbmcgui.Dialog().ok("Upload Status", status_text)
+                else:
+                    xbmcgui.Dialog().ok("Error", "Failed to get upload status")
 
         except Exception as e:
             utils.log(f"Error getting upload status: {str(e)}", "ERROR")
