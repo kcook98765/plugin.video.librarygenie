@@ -121,56 +121,65 @@ def show_library_status():
             utils.log(f"Error checking server status: {str(e)}", "WARNING")
             is_authenticated = False
 
-        # Build status message
+        # Determine color coding based on IMDb coverage
+        def get_coverage_color(percentage):
+            if percentage >= 95:
+                return "green"
+            elif percentage >= 85:
+                return "yellow"
+            else:
+                return "red"
+
+        def get_coverage_assessment(percentage):
+            if percentage >= 98:
+                return "Perfect"
+            elif percentage >= 95:
+                return "Great"
+            elif percentage >= 90:
+                return "OK"
+            else:
+                return "Weak"
+
+        coverage_color = get_coverage_color(imdb_percentage)
+        coverage_assessment = get_coverage_assessment(imdb_percentage)
+
+        # Build compact status message
         status_lines = [
             "=== ADDON LIBRARY STATUS ===",
             "",
-            f"📚 LOCAL LIBRARY (media_items):",
-            f"  • Total library items: {total_library_items:,}",
-            f"  • Items with IMDb ID: {items_with_imdb:,} ({imdb_percentage:.1f}%)",
-            f"  • Unique IMDb IDs: {unique_imdb_count:,}",
-            # f"  • Duplicate IMDb entries: {duplicate_imdb_count:,}", # Removed as per instruction
-            f"  • Items without IMDb: {total_library_items - items_with_imdb:,}",
-            "",
-            f"📊 EXPORT TABLE (imdb_exports):",
-            f"  • Total export records: {exports_total:,}",
-            f"  • Unique IMDb IDs: {exports_unique:,}",
-            # f"  • Duplicate export records: {exports_duplicates:,}", # Removed as per instruction
+            f"[COLOR {coverage_color}]LOCAL LIBRARY[/COLOR] {total_library_items:,}",
+            f"  • Unique IMDb: {unique_imdb_count:,} ({imdb_percentage:.0f}% coverage)",
+            f"  • Items without IMDb: {total_library_items - items_with_imdb:,} (not covered)",
             "",
         ]
 
-        # Add server status only if authenticated
-        if is_authenticated:
+        # Add AI search assessment for non-authenticated users
+        if not is_authenticated:
             status_lines.extend([
-                f"🌐 SERVER STATUS:",
-                f"  • Status: {server_status}",
-                f"  • Last upload: {last_upload_info}",
+                f"[COLOR {coverage_color}]AI SEARCH[/COLOR] {coverage_assessment} ({imdb_percentage:.0f}% IMDb coverage)",
                 "",
             ])
         else:
+            # Add server status for authenticated users
+            server_color = "green" if "Connected" in server_status else "red"
             status_lines.extend([
-                f"🤖 AI FEATURES:",
-                f"  • Status: Not available (authentication required)",
-                f"  • Configure remote API in addon settings for AI search",
+                f"[COLOR {server_color}]SERVER STATUS[/COLOR] {server_status.replace('Status: ', '')}",
+                f"  • Last upload: {last_upload_info}",
                 "",
             ])
 
-        # Add sync status comparison only if authenticated and we have server data
-        if is_authenticated and server_count > 0 and unique_imdb_count > 0:
-            sync_percentage = (server_count / unique_imdb_count * 100) if unique_imdb_count > 0 else 0
-            status_lines.extend([
-                f"🔄 SYNC STATUS (using unique IMDb counts):",
-                f"  • Server has {server_count:,} of {unique_imdb_count:,} unique local movies ({sync_percentage:.1f}%)",
-                f"  • Difference: {abs(unique_imdb_count - server_count):,} movies",
-                f"  • Export table has {exports_unique:,} unique IMDb IDs for upload",
-            ])
-
-            if server_count < unique_imdb_count:
-                status_lines.append(f"  • ⚠️  Server is missing {unique_imdb_count - server_count:,} unique movies")
-            elif server_count > unique_imdb_count:
-                status_lines.append(f"  • ℹ️  Server has {server_count - unique_imdb_count:,} more movies than local unique")
-            else:
-                status_lines.append(f"  • ✅ Server and local unique library are in sync")
+            # Add sync status comparison only if authenticated and we have server data
+            if server_count > 0 and unique_imdb_count > 0:
+                sync_difference = abs(unique_imdb_count - server_count)
+                sync_color = "green" if sync_difference == 0 else "yellow" if sync_difference <= 50 else "red"
+                
+                sync_status_text = "Perfect sync" if sync_difference == 0 else f"Server missing {sync_difference} movies"
+                
+                status_lines.extend([
+                    f"[COLOR {sync_color}]SYNC STATUS[/COLOR] {sync_status_text}",
+                    f"  • Server: {server_count:,} | Local: {unique_imdb_count:,} | Export ready: {exports_unique:,}",
+                    "",
+                ])
 
 
 
