@@ -1,3 +1,4 @@
+
 from typing import Dict
 from urllib.parse import quote
 from xbmcgui import ListItem
@@ -72,23 +73,24 @@ def _set_full_cast(list_item: ListItem, cast_list: list) -> bool:
     except Exception:
         pass
 
-    # 3) Last resort: names/roles only via setInfo (no images)
-    try:
-        simple_cast = []
-        for actor in norm:
-            if actor['name']:
-                if actor['role']:
-                    simple_cast.append((actor['name'], actor['role']))
-                else:
-                    simple_cast.append(actor['name'])
+    # 3) Last resort for v19 ONLY: setInfo fallback (NEVER for v20+)
+    if utils.get_kodi_version() == 19:
+        try:
+            simple_cast = []
+            for actor in norm:
+                if actor['name']:
+                    if actor['role']:
+                        simple_cast.append((actor['name'], actor['role']))
+                    else:
+                        simple_cast.append(actor['name'])
 
-        if simple_cast:
-            # Convert cast list to string format for setInfo compatibility
-            cast_str = ' / '.join([f"{actor[0]} ({actor[1]})" if isinstance(actor, tuple) and len(actor) > 1 else str(actor) for actor in simple_cast])
-            list_item.setInfo('video', {'cast': cast_str})
-            return False
-    except Exception:
-        pass
+            if simple_cast:
+                # Convert cast list to string format for setInfo compatibility
+                cast_str = ' / '.join([f"{actor[0]} ({actor[1]})" if isinstance(actor, tuple) and len(actor) > 1 else str(actor) for actor in simple_cast])
+                list_item.setInfo('video', {'cast': cast_str})
+                return False
+        except Exception:
+            pass
 
     return False
 
@@ -309,6 +311,27 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                 # Continue processing other properties even if one fails
                 continue
 
+        # Handle uniqueid with v20+ InfoTag methods
+        uniqueid_data = info_dict.get('uniqueid', {})
+        if isinstance(uniqueid_data, dict) and uniqueid_data:
+            try:
+                if hasattr(info_tag, 'setUniqueIDs'):
+                    # v20+ method for setting multiple unique IDs
+                    info_tag.setUniqueIDs(uniqueid_data)
+                    infotag_success_count += 1
+                elif hasattr(info_tag, 'setUniqueID'):
+                    # Fallback: set individual unique IDs
+                    for source, uid in uniqueid_data.items():
+                        if uid:
+                            try:
+                                info_tag.setUniqueID(str(uid), str(source))
+                                infotag_success_count += 1
+                                break  # Only set first one if setUniqueIDs not available
+                            except Exception:
+                                continue
+            except Exception:
+                pass
+
         # Handle resume data with version-appropriate methods
         resume_data = info_dict.get('resume', {})
         if isinstance(resume_data, dict) and any(resume_data.values()):
@@ -333,43 +356,25 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
             except (ValueError, TypeError):
                 pass
 
-        # For v21+, completely avoid any setInfo fallback to prevent deprecation warnings
-        if utils.get_kodi_version() >= 21:
-            utils.log(f"V21+ InfoTag processing completed with {infotag_success_count} successful fields - no setInfo fallback", "DEBUG")
-            return
+        # For v20+, completely avoid any setInfo fallback to prevent deprecation warnings
+        utils.log(f"V20+ InfoTag processing completed with {infotag_success_count} successful fields - no setInfo fallback", "DEBUG")
 
-        # For v20 only, minimal setInfo fallback if InfoTag completely failed
+        # If InfoTag completely failed, only set essential label - no setInfo on v20+
         if infotag_success_count < 1:
-            utils.log("V20 InfoTag completely failed, using minimal setInfo for critical fields only", "DEBUG")
-            try:
-                # Extremely limited fallback for v20 only
-                essential_info = {}
-                if info_dict.get('title') and not hasattr(list_item.getVideoInfoTag(), 'setTitle'):
-                    essential_info['title'] = str(info_dict['title'])
-                if essential_info:
-                    list_item.setInfo(content_type, essential_info)
-            except Exception:
-                pass
+            title = info_dict.get('title')
+            if title:
+                list_item.setLabel(str(title))
+                utils.log("V20+ InfoTag failed completely - set label only, no deprecated setInfo", "DEBUG")
 
     except Exception as e:
-        # For v21+, log but don't fall back to deprecated methods
-        if utils.get_kodi_version() >= 21:
-            utils.log(f"V21+ InfoTag processing had errors but avoiding deprecated setInfo: {str(e)}", "DEBUG")
-        else:
-            # For v20, allow very limited fallback only if InfoTag completely unusable
-            if utils.get_kodi_version() == 20:
-                utils.log(f"V20 InfoTag failed, using very limited setInfo: {str(e)}", "DEBUG")
-                try:
-                    essential_info = {}
-                    if info_dict.get('title'):
-                        essential_info['title'] = str(info_dict['title'])
-                    if essential_info:
-                        list_item.setInfo(content_type, essential_info)
-                except Exception:
-                    pass
-            else:
-                # v21+ - completely avoid deprecated setInfo
-                utils.log(f"V{utils.get_kodi_version()}+ InfoTag failed but avoiding deprecated setInfo: {str(e)}", "DEBUG")
+        # For v20+, log but don't fall back to deprecated methods
+        utils.log(f"V20+ InfoTag processing had errors but avoiding deprecated setInfo: {str(e)}", "DEBUG")
+        
+        # Emergency fallback: only set label if we have a title
+        title = info_dict.get('title')
+        if title:
+            list_item.setLabel(str(title))
+            utils.log("V20+ emergency fallback: set label only, no deprecated setInfo", "DEBUG")
 
 
 def set_art(list_item: ListItem, raw_art: Dict[str, str]) -> None:

@@ -466,50 +466,12 @@ class ListItemBuilder:
                 if kodi_version == 19:
                     # v19 - use addStreamInfo methods (not deprecated in v19)
                     ListItemBuilder._add_stream_info_deprecated(li, stream_details)
-                elif kodi_version == 20:
-                    # v20 - use InfoTag methods if available, otherwise properties
-                    try:
-                        info_tag = li.getVideoInfoTag()
-                        video_streams = stream_details.get('video', [])
-                        if video_streams and isinstance(video_streams[0], dict):
-                            video_stream = video_streams[0]
-                            if hasattr(info_tag, 'addVideoStream'):
-                                info_tag.addVideoStream(video_stream)
-                            else:
-                                # Fallback to properties for v20
-                                codec = video_stream.get('codec', '')
-                                if codec:
-                                    li.setProperty('VideoCodec', codec)
-                        
-                        audio_streams = stream_details.get('audio', [])
-                        if audio_streams and isinstance(audio_streams[0], dict):
-                            audio_stream = audio_streams[0]
-                            if hasattr(info_tag, 'addAudioStream'):
-                                info_tag.addAudioStream(audio_stream)
-                            else:
-                                # Fallback to properties for v20
-                                codec = audio_stream.get('codec', '')
-                                if codec:
-                                    li.setProperty('AudioCodec', codec)
-                    except Exception:
-                        # Properties fallback for v20 if InfoTag methods fail
-                        video_streams = stream_details.get('video', [])
-                        if video_streams and isinstance(video_streams[0], dict):
-                            codec = video_streams[0].get('codec', '')
-                            if codec:
-                                li.setProperty('VideoCodec', codec)
-                        
-                        audio_streams = stream_details.get('audio', [])
-                        if audio_streams and isinstance(audio_streams[0], dict):
-                            codec = audio_streams[0].get('codec', '')
-                            if codec:
-                                li.setProperty('AudioCodec', codec)
                 else:
-                    # v21+ - ONLY use InfoTag methods, NO deprecated methods
+                    # v20+ - ONLY use InfoTag methods, NO deprecated addStreamInfo
                     try:
                         info_tag = li.getVideoInfoTag()
                         
-                        # Process video streams for v21+
+                        # Process video streams for v20+
                         video_streams = stream_details.get('video', [])
                         if video_streams and isinstance(video_streams, list):
                             for video_stream in video_streams:
@@ -517,7 +479,7 @@ class ListItemBuilder:
                                     info_tag.addVideoStream(video_stream)
                                     break  # Only add first stream
                         
-                        # Process audio streams for v21+
+                        # Process audio streams for v20+
                         audio_streams = stream_details.get('audio', [])
                         if audio_streams and isinstance(audio_streams, list):
                             for audio_stream in audio_streams:
@@ -525,27 +487,32 @@ class ListItemBuilder:
                                     info_tag.addAudioStream(audio_stream)
                                     break  # Only add first stream
                         
-                        # Process subtitle streams for v21+
+                        # Process subtitle streams for v20+ (was missing)
                         subtitle_streams = stream_details.get('subtitle', [])
                         if subtitle_streams and isinstance(subtitle_streams, list):
                             for subtitle_stream in subtitle_streams:
                                 if isinstance(subtitle_stream, dict) and hasattr(info_tag, 'addSubtitleStream'):
                                     info_tag.addSubtitleStream(subtitle_stream)
                                     break  # Only add first stream
+                                    
                     except Exception:
-                        # For v21+, avoid any fallback that might use deprecated methods
+                        # For v20+, avoid any fallback that might use deprecated methods
                         # Just use essential properties if InfoTag completely fails
                         video_streams = stream_details.get('video', [])
-                        if video_streams and isinstance(video_streams[0], dict):
-                            codec = video_streams[0].get('codec', '')
-                            if codec:
-                                li.setProperty('VideoCodec', codec)
+                        if video_streams and isinstance(video_streams, list) and video_streams:
+                            video_stream = video_streams[0]
+                            if isinstance(video_stream, dict):
+                                codec = video_stream.get('codec', '')
+                                if codec:
+                                    li.setProperty('VideoCodec', codec)
                         
                         audio_streams = stream_details.get('audio', [])
-                        if audio_streams and isinstance(audio_streams[0], dict):
-                            codec = audio_streams[0].get('codec', '')
-                            if codec:
-                                li.setProperty('AudioCodec', codec)
+                        if audio_streams and isinstance(audio_streams, list) and audio_streams:
+                            audio_stream = audio_streams[0]
+                            if isinstance(audio_stream, dict):
+                                codec = audio_stream.get('codec', '')
+                                if codec:
+                                    li.setProperty('AudioCodec', codec)
             except Exception:
                 pass
 

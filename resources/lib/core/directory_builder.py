@@ -46,7 +46,8 @@ def add_options_header_item(ctx: dict, handle: int):
 
         # Set basic properties without complex info to avoid issues
         li.setProperty('IsPlayable', 'false')
-        utils.log("Set IsPlayable to false", "DEBUG")
+        li.setIsFolder(False)  # Ensure it's treated as a non-folder item
+        utils.log("Set IsPlayable to false and isFolder to false", "DEBUG")
 
         # Set simple art using addon icon
         try:

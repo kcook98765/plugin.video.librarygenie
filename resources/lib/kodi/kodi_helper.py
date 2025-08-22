@@ -252,8 +252,18 @@ class KodiHelper:
             if isinstance(item_data, dict) and 'duration' in item_data and item_data['duration']:
                 try:
                     duration = int(item_data['duration'])
-                    duration = str(duration)
-                    list_item.addStreamInfo('video', {'duration': duration})
+                    # Use InfoTag method for v20+ or property for v19
+                    if utils.get_kodi_version() >= 20:
+                        try:
+                            info_tag = list_item.getVideoInfoTag()
+                            if hasattr(info_tag, 'setDuration'):
+                                info_tag.setDuration(duration)
+                        except Exception:
+                            # Fallback to property for v20+
+                            list_item.setProperty('duration', str(duration))
+                    else:
+                        # v19 - use addStreamInfo (not deprecated in v19)
+                        list_item.addStreamInfo('video', {'duration': duration})
                 except (ValueError, TypeError):
                     pass
 
