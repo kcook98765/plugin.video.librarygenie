@@ -324,7 +324,8 @@ class ListingDAO:
             WHERE li.list_id = ?
             ORDER BY li.search_score DESC, m.title ASC
         """
-        return self.execute_query(sql, (list_id,), fetch_all=True)
+        result = self.execute_query(sql, (list_id,), fetch_all=True)
+        return result if result is not None else []
 
     def get_list_media_count(self, list_id):
         """Get media count for a list"""
