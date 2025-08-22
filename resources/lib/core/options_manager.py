@@ -285,7 +285,10 @@ class OptionsManager:
             elif "Settings" in selected_text:
                 utils.log("=== EXECUTING: OPEN SETTINGS ===", "DEBUG")
                 utils.log("=== ABOUT TO OPEN SETTINGS WINDOW ===", "DEBUG")
-                xbmc.executebuiltin("Addon.OpenSettings(plugin.video.librarygenie)")
+                from resources.lib.config.addon_ref import get_addon
+                addon = get_addon()
+                addon_id = addon.getAddonInfo("id")
+                xbmc.executebuiltin(f"Addon.OpenSettings({addon_id})")
                 utils.log("=== COMPLETED: OPEN SETTINGS - SETTINGS WINDOW CLOSED ===", "DEBUG")
             else:
                 utils.log(f"=== UNKNOWN OPTION SELECTED: {selected_text} ===", "WARNING")
