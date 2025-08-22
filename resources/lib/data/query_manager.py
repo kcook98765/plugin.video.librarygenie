@@ -264,7 +264,23 @@ class QueryManager(Singleton):
         if fid:
             return {'id': fid, 'name': "Search History"}
         created = self.create_folder("Search History", None)
-        return {'id': created['id'], 'name': created['name']}
+        
+        # Handle version differences: v19 returns int, v21+ returns dict
+        if isinstance(created, dict):
+            # v21+ behavior - created is a dict with id and name
+            return {'id': created['id'], 'name': created['name']}
+        elif isinstance(created, int):
+            # v19 behavior - created is just the ID, return with known name
+            return {'id': created, 'name': "Search History"}
+        else:
+            # Fallback - fetch the folder by name to get complete info
+            folder = self.get_folder_by_name("Search History")
+            if folder:
+                return {'id': folder['id'], 'name': folder['name']}
+            else:
+                # Should not happen, but safety fallback
+                utils.log("Failed to ensure Search History folder - unexpected return type", "ERROR")
+                return {'id': 0, 'name': "Search History"}
 
     def execute_rpc_query(self, rpc: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Execute RPC-like query and return list contents."""
