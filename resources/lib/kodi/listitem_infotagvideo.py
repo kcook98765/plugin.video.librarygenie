@@ -107,16 +107,25 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
             # Clean up info_dict for setInfo compatibility
             clean_info = {}
             for key, value in info_dict.items():
-                if not value:  # Skip empty values
+                # Skip None, empty, or invalid values
+                if value is None or (isinstance(value, (str, list, dict)) and not value):
                     continue
 
                 # Handle cast with v19 ListItem.setCast() which supports thumbnails
                 if key == 'cast' and isinstance(value, list):
-                    _set_full_cast(list_item, value)
+                    try:
+                        _set_full_cast(list_item, value)
+                    except Exception as cast_error:
+                        utils.log(f"v19 cast setting failed: {str(cast_error)}", "WARNING")
                     continue  # Don't add cast to clean_info since it's handled separately
-                elif key in ['country', 'director', 'genre', 'studio'] and isinstance(value, list):
-                    # Convert lists to comma-separated strings for setInfo
-                    clean_info[key] = ' / '.join(str(item) for item in value if item)
+                elif key in ['country', 'director', 'genre', 'studio', 'writer'] and isinstance(value, list):
+                    # Convert lists to comma-separated strings for setInfo - ensure all items are strings
+                    string_items = []
+                    for item in value:
+                        if item is not None and str(item).strip():
+                            string_items.append(str(item).strip())
+                    if string_items:
+                        clean_info[key] = ' / '.join(string_items)
                 elif key == 'mediatype':
                     # Skip mediatype for v19 setInfo
                     continue
@@ -124,8 +133,26 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                     # Handle uniqueid for v19 - setInfo expects it as a dict but may not handle it properly
                     # Skip for setInfo and handle separately
                     continue
+                elif key == 'ratings':
+                    # Skip ratings dict for v19 setInfo - it can't handle complex rating structures
+                    continue
+                elif key == 'streamdetails':
+                    # Skip streamdetails for v19 setInfo
+                    continue
+                elif key == 'resume':
+                    # Skip resume for v19 setInfo - handle separately with properties
+                    continue
                 else:
-                    clean_info[key] = value
+                    # Ensure all other values are properly converted to strings/numbers for v19
+                    if isinstance(value, (int, float)):
+                        clean_info[key] = value
+                    elif isinstance(value, str) and value.strip():
+                        clean_info[key] = value.strip()
+                    elif value is not None:
+                        # Convert other types to string, but skip empty results
+                        str_value = str(value).strip()
+                        if str_value and str_value != 'None':
+                            clean_info[key] = str_value
 
             # Handle uniqueid separately for v19 compatibility
             uniqueid_data = info_dict.get('uniqueid')
