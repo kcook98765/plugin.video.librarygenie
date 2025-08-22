@@ -1410,7 +1410,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
                     else:
                         utils.log(f"=== SIMILARITY_SEARCH: No imdb_exports entry for {imdb_id} ===", "DEBUG")
                 except Exception as e:
-                    utils.log(f"=== SIMILARITY_SEARCH: Error looking up title/year for {imdb_id}: {str(e)} ===", "ERROR")RROR")
+                    utils.log(f"=== SIMILARITY_SEARCH: Error looking up title/year for {imdb_id}: {str(e)} ===", "ERROR")
 
                 # Create media item data with search metadata - use looked up data if available
                 media_item_data = {
