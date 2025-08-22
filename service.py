@@ -2,9 +2,10 @@ import time
 import json
 import xbmc
 import xbmcaddon
-from resources.lib.config.config_manager import Config
-from resources.lib.data.query_manager import QueryManager
 from resources.lib.utils import utils
+from resources.lib.config.config_manager import Config
+from resources.lib.config.settings_manager import SettingsManager
+from resources.lib.integrations.remote_api.favorites_sync_manager import FavoritesSyncManager
 
 ADDON = xbmcaddon.Addon()
 MON = xbmc.Monitor()
@@ -77,6 +78,14 @@ def ensure_database_ready():
             utils.log(f"Created Imported Lists folder: {imported_lists_folder}", "DEBUG")
         else:
             utils.log("Imported Lists folder already exists", "DEBUG")
+
+        # Create Kodi Favorites folder if it doesn't exist
+        kodi_favorites_folder_id = query_manager.get_folder_id_by_name("Kodi Favorites")
+        if not kodi_favorites_folder_id:
+            kodi_favorites_folder = query_manager.create_folder("Kodi Favorites", None)
+            utils.log(f"Created Kodi Favorites folder: {kodi_favorites_folder}", "DEBUG")
+        else:
+            utils.log("Kodi Favorites folder already exists", "DEBUG")
 
         utils.log("Database setup completed successfully", "INFO")
         return True
@@ -180,7 +189,7 @@ def start_library_scan(show_status_on_completion=False):
 
         # Use the efficient incremental approach with notifications
         success = upload_manager.get_full_kodi_movie_collection_and_store_locally(
-            use_notifications=True, 
+            use_notifications=True,
             show_modal_on_completion=show_status_on_completion  # Show modal only when requested
         )
 
@@ -238,13 +247,51 @@ class ServiceMonitor(xbmc.Monitor):
             except Exception:
                 pass
 
+class LibraryGenieService:
+    def __init__(self):
+        self.config = Config()
+        self.settings = SettingsManager()
+        self.monitor = xbmc.Monitor()
+        self.favorites_sync_manager = FavoritesSyncManager()
+        self.last_favorites_sync = 0
+
+    def run(self):
+        utils.log("LibraryGenie service started", "INFO")
+
+        while not self.monitor.abortRequested():
+            try:
+                current_time = xbmc.getInfoLabel('System.Time(unix)')
+                current_time = int(current_time) if current_time else 0
+
+                # Check if it's time for favorites sync
+                if self.settings.is_favorites_sync_enabled():
+                    sync_interval = self.settings.get_favorites_sync_interval()
+                    if current_time - self.last_favorites_sync >= sync_interval:
+                        utils.log(f"Running favorites sync (interval: {sync_interval}s)", "DEBUG")
+                        self.favorites_sync_manager.sync_favorites()
+                        self.last_favorites_sync = current_time
+
+            except Exception as e:
+                utils.log(f"Error in service loop: {str(e)}", "ERROR")
+
+            # Wait for next cycle or abort
+            if self.monitor.waitForAbort(10):
+                break
+
+        utils.log("LibraryGenie service stopped", "INFO")
+
 def main():
     utils.log(f"{ID} service starting", "INFO")
 
     init_once()
     mon = ServiceMonitor()
+    service = LibraryGenieService()
 
-    # Periodic loop
+    # Start the service in a separate thread
+    service_thread = xbmc.Thread(service.run)
+    service_thread.start()
+
+    # Periodic loop for monitoring and other tasks
     # Use waitForAbort(timeout) so Kodi can shut down the service instantly
     while not mon.abortRequested():
         if not _get_bool('service_enabled', True):

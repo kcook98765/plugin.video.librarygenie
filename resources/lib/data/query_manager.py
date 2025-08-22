@@ -1147,7 +1147,17 @@ class QueryManager(Singleton):
         return self._listing.get_unique_list_name(base_name, folder_id)
 
     def delete_list_and_contents(self, list_id):
-        return self._listing.delete_list_and_contents(list_id)
+        """Delete a list and all its contents"""
+        with self.get_connection() as conn:
+            conn.execute("DELETE FROM list_items WHERE list_id = ?", (list_id,))
+            conn.execute("DELETE FROM lists WHERE id = ?", (list_id,))
+        self._log_operation("DELETE", f"List {list_id} and contents")
+
+    def clear_list_contents(self, list_id):
+        """Clear all items from a list without deleting the list itself"""
+        with self.get_connection() as conn:
+            conn.execute("DELETE FROM list_items WHERE list_id = ?", (list_id,))
+        self._log_operation("DELETE", f"Contents of list {list_id}")
 
     def fetch_all_lists(self):
         return self._listing.fetch_all_lists()

@@ -6,7 +6,8 @@
         <setting type="sep" />
         <setting id="clear_all_local_data" type="action" label="Clear All Local Lists and Folders" action="RunScript(plugin.video.librarygenie,clear_all_local_data)" />
         <setting id="import_from_shortlist" type="action" label="Import From Shortlist" option="close" action="RunScript(plugin.video.librarygenie, import_from_shortlist)" visible="System.HasAddon(plugin.program.shortlist)"/>
-        <setting id="import_favorites" type="action" label="Import from Favorites" action="RunPlugin(plugin://plugin.video.librarygenie/?action=import_favorites)" visible="true" />
+        <setting id="sync_favorites" type="bool" label="Sync Favorites" default="true" />
+        <setting id="favorites_sync_interval" type="number" label="Favorites Sync Interval (seconds)" default="60" />
         <setting id="addon_library_status" type="action" label="Addon Library Status" action="RunScript(plugin.video.librarygenie,addon_library_status)" />
 
         <setting type="sep"/>
