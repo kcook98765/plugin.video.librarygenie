@@ -199,7 +199,7 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
 
         return
 
-    # For Kodi v20+, try InfoTag methods first with enhanced error handling
+    # For Kodi v20+, use InfoTag methods exclusively to avoid deprecation warnings
     try:
         # Get the InfoTag for the specified content type
         info_tag = list_item.getVideoInfoTag()
@@ -232,11 +232,10 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
         if hasattr(info_tag, 'setMediaType'):
             try:
                 info_tag.setMediaType(mediatype)
-                # Set mediatype
             except Exception as e:
-                utils.log(f"V20+ setMediaType failed: {str(e)}", "WARNING")
+                utils.log(f"V20+ setMediaType failed: {str(e)}", "DEBUG")
 
-        # Process each property with improved V20+ handling
+        # Process each property with improved V20+ handling - continue on individual failures
         infotag_success_count = 0
 
         for key, value in info_dict.items():
@@ -249,9 +248,6 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                     cast_success = _set_full_cast(list_item, value)
                     if cast_success:
                         infotag_success_count += 1
-                        # Cast set successfully
-                    else:
-                        utils.log("V20+ cast set without images (fallback used)", "DEBUG")
 
                 elif key in ['year', 'runtime', 'duration', 'votes'] and isinstance(value, (int, str)):
                     # Integer properties
@@ -262,9 +258,9 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                             if int_value > 0:
                                 getattr(info_tag, method_name)(int_value)
                                 infotag_success_count += 1
-                                # numeric_fields[key][1](int_value)
-                        except (ValueError, TypeError) as convert_error:
-                            utils.log(f"V20+ {method_name} conversion failed: {str(convert_error)}", "WARNING")
+                        except (ValueError, TypeError):
+                            # Skip invalid values silently for v20+
+                            pass
 
                 elif key == 'rating' and isinstance(value, (int, float, str)):
                     # Float rating property
@@ -273,9 +269,9 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                             float_value = float(value)
                             info_tag.setRating(float_value)
                             infotag_success_count += 1
-                            # numeric_fields[key][1](float_value)
-                        except (ValueError, TypeError) as rating_error:
-                            utils.log(f"V20+ setRating failed: {str(rating_error)}", "WARNING")
+                        except (ValueError, TypeError):
+                            # Skip invalid values silently for v20+
+                            pass
 
                 elif key in ['director', 'writer', 'genre', 'studio', 'country']:
                     # List properties that need special handling
@@ -288,16 +284,15 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                                 if clean_list:
                                     getattr(info_tag, method_name)(clean_list)
                                     infotag_success_count += 1
-                                    # string_list_fields[key][1](clean_list)
                             else:
                                 # Convert string to list
                                 items = [item.strip() for item in str(value).split('/') if item.strip()]
                                 if items:
                                     getattr(info_tag, method_name)(items)
                                     infotag_success_count += 1
-                                    # string_list_fields[key][1](items)
-                        except Exception as list_error:
-                            utils.log(f"V20+ {method_name} failed: {str(list_error)}", "WARNING")
+                        except Exception:
+                            # Continue processing other fields even if one fails
+                            pass
 
                 else:
                     # String properties
@@ -306,89 +301,73 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
                         try:
                             getattr(info_tag, method_name)(str(value))
                             infotag_success_count += 1
-                            if key == 'plot':
-                                # Plot set successfully
-                                pass
-                            else:
-                                # string_list_fields[key][1](str(value))
-                                pass
-                        except Exception as string_error:
-                            utils.log(f"V20+ {method_name} failed: {str(string_error)}", "WARNING")
+                        except Exception:
+                            # Continue processing other fields even if one fails
+                            pass
 
-            except Exception as property_error:
-                utils.log(f"V20+ InfoTag processing failed for {key}: {str(property_error)}", "WARNING")
+            except Exception:
+                # Continue processing other properties even if one fails
+                continue
 
-        if infotag_success_count > 0:
-            # Handle resume data with version-appropriate methods
-            resume_data = info_dict.get('resume', {})
-            if isinstance(resume_data, dict) and any(resume_data.values()):
-                try:
-                    position = float(resume_data.get('position', 0))
-                    total = float(resume_data.get('total', 0))
+        # Handle resume data with version-appropriate methods
+        resume_data = info_dict.get('resume', {})
+        if isinstance(resume_data, dict) and any(resume_data.values()):
+            try:
+                position = float(resume_data.get('position', 0))
+                total = float(resume_data.get('total', 0))
 
-                    if position > 0:
-                        try:
-                            if hasattr(info_tag, 'setResumePoint'):
-                                info_tag.setResumePoint(position, total)
-                                utils.log(f"V20+ setResumePoint successful: {position}s of {total}s", "DEBUG")
-                            else:
-                                # Fallback to property method
-                                list_item.setProperty('resumetime', str(position))
-                                if total > 0:
-                                    list_item.setProperty('totaltime', str(total))
-                                utils.log(f"V20+ resume fallback to properties: {position}s of {total}s", "DEBUG")
-                        except Exception as resume_error:
-                            # Final fallback to property method
+                if position > 0:
+                    try:
+                        if hasattr(info_tag, 'setResumePoint'):
+                            info_tag.setResumePoint(position, total)
+                        else:
+                            # Fallback to property method for older v20
                             list_item.setProperty('resumetime', str(position))
                             if total > 0:
                                 list_item.setProperty('totaltime', str(total))
-                            utils.log(f"V20+ resume error fallback: {str(resume_error)}", "WARNING")
-                except (ValueError, TypeError) as resume_convert_error:
-                    utils.log(f"V20+ resume data conversion failed: {str(resume_convert_error)}", "WARNING")
-
-            # InfoTag methods completed
-        else:
-            utils.log("V20+ No InfoTag methods succeeded, falling back to setInfo", "WARNING")
-            raise Exception("All V20+ InfoTag methods failed")
-
-    except Exception as e:
-        # Enhanced fallback to setInfo for v20+ if InfoTag fails
-        utils.log(f"V20+ InfoTag failed, falling back to setInfo: {str(e)}", "WARNING")
-        try:
-            # Clean up info_dict for setInfo compatibility
-            clean_info = {}
-            for key, value in info_dict.items():
-                if not value:
-                    continue
-
-                # Cast is handled separately by _set_full_cast function
-                if key == 'cast' and isinstance(value, list):
-                    cast_success = _set_full_cast(list_item, value)
-                    utils.log(f"Fallback cast handling: {'success' if cast_success else 'no images'}", "DEBUG")
-                    continue  # Skip adding to clean_info
-                elif key in ['country', 'director', 'genre', 'studio'] and isinstance(value, list):
-                    clean_info[key] = ' / '.join(str(item) for item in value if item)
-                else:
-                    clean_info[key] = value
-
-            list_item.setInfo(content_type, clean_info)
-
-            # Handle resume data for v20+ setInfo fallback using properties
-            resume_data = info_dict.get('resume', {})
-            if isinstance(resume_data, dict) and any(resume_data.values()):
-                try:
-                    position = float(resume_data.get('position', 0))
-                    total = float(resume_data.get('total', 0))
-
-                    if position > 0:
+                    except Exception:
+                        # Final fallback to property method
                         list_item.setProperty('resumetime', str(position))
                         if total > 0:
                             list_item.setProperty('totaltime', str(total))
-                        utils.log(f"v20+ fallback resume properties set: {position}s of {total}s", "DEBUG")
-                except (ValueError, TypeError) as resume_error:
-                    utils.log(f"v20+ fallback resume data conversion failed: {str(resume_error)}", "WARNING")
-        except Exception as fallback_error:
-            utils.log(f"Fallback setInfo also failed: {str(fallback_error)}", "ERROR")
+            except (ValueError, TypeError):
+                pass
+
+        # For v21+, avoid setInfo fallback completely to prevent deprecation warnings
+        if utils.get_kodi_version() >= 21:
+            utils.log(f"V21+ InfoTag processing completed with {infotag_success_count} successful fields", "DEBUG")
+            return
+
+        # For v20 only, allow limited setInfo fallback if most InfoTag methods failed
+        if infotag_success_count < 3:
+            utils.log("V20 InfoTag had limited success, using minimal setInfo fallback", "DEBUG")
+            try:
+                # Very limited fallback for v20 - only essential fields
+                essential_info = {}
+                if info_dict.get('title'):
+                    essential_info['title'] = str(info_dict['title'])
+                if info_dict.get('plot'):
+                    essential_info['plot'] = str(info_dict['plot'])
+                if essential_info:
+                    list_item.setInfo(content_type, essential_info)
+            except Exception:
+                pass
+
+    except Exception as e:
+        # For v21+, log but don't fall back to deprecated methods
+        if utils.get_kodi_version() >= 21:
+            utils.log(f"V21+ InfoTag processing had errors but avoiding deprecated setInfo: {str(e)}", "DEBUG")
+        else:
+            # For v20, allow very limited fallback
+            utils.log(f"V20 InfoTag failed, using very limited setInfo: {str(e)}", "DEBUG")
+            try:
+                essential_info = {}
+                if info_dict.get('title'):
+                    essential_info['title'] = str(info_dict['title'])
+                if essential_info:
+                    list_item.setInfo(content_type, essential_info)
+            except Exception:
+                pass
 
 
 def set_art(list_item: ListItem, raw_art: Dict[str, str]) -> None:

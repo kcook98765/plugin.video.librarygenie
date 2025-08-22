@@ -462,19 +462,24 @@ class ListItemBuilder:
         stream_details = media_info.get('streamdetails', {})
         if isinstance(stream_details, dict):
             try:
-                if utils.is_kodi_v20_plus():
-                    # Use v20+ InfoTag methods to avoid deprecation warnings
-                    try:
-                        info_tag = li.getVideoInfoTag()
-                        # Skip stream detail methods as they are not reliably handled by v20+ InfoTag
-                        # Use property fallback instead
-                        ListItemBuilder._add_stream_info_deprecated(li, stream_details)
-                    except Exception:
-                        # Fallback to deprecated methods
-                        ListItemBuilder._add_stream_info_deprecated(li, stream_details)
-                else:
-                    # v19 - use deprecated methods
+                if utils.is_kodi_v19():
+                    # v19 - use deprecated methods since InfoTag is unreliable
                     ListItemBuilder._add_stream_info_deprecated(li, stream_details)
+                else:
+                    # v20+ - skip deprecated stream methods to avoid warnings
+                    # Stream details are handled by InfoTag internally when possible
+                    # Only set essential stream properties if needed
+                    video_streams = stream_details.get('video', [])
+                    if video_streams and isinstance(video_streams[0], dict):
+                        codec = video_streams[0].get('codec', '')
+                        if codec:
+                            li.setProperty('VideoCodec', codec)
+                    
+                    audio_streams = stream_details.get('audio', [])
+                    if audio_streams and isinstance(audio_streams[0], dict):
+                        codec = audio_streams[0].get('codec', '')
+                        if codec:
+                            li.setProperty('AudioCodec', codec)
             except Exception:
                 pass
 
