@@ -816,7 +816,7 @@ class QueryManager(Singleton):
                 search_score REAL DEFAULT 0,
                 flagged INTEGER DEFAULT 0,
                 FOREIGN KEY (list_id) REFERENCES lists (id),
-                FOREIGNKEY (media_item_id) REFERENCES media_items (id)
+                FOREIGN KEY (media_item_id) REFERENCES media_items (id)
             )""",
 
 
