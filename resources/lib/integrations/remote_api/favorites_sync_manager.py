@@ -106,28 +106,19 @@ class FavoritesSyncManager:
         data_str = json.dumps(minimal_data, sort_keys=True)
         return hashlib.sha256(data_str.encode('utf-8')).hexdigest()
 
-    def get_kodi_favorites_folder_id(self):
-        """Get or create the protected 'Kodi Favorites' folder at root level"""
-        folder_id = self.query_manager.get_folder_id_by_name("Kodi Favorites", None)
-        if not folder_id:
-            folder_result = self.query_manager.create_folder("Kodi Favorites", None)
-            folder_id = folder_result['id'] if isinstance(folder_result, dict) else folder_result
-            utils.log(f"Created 'Kodi Favorites' folder with ID: {folder_id}", "INFO")
-        return folder_id
-
-    def get_favorites_list_id(self, folder_id):
-        """Get or create the favorites list within the Kodi Favorites folder"""
-        lists = self.query_manager.fetch_lists(folder_id)
-        list_name = "Current Favorites"
+    def get_kodi_favorites_list_id(self):
+        """Get or create the protected 'Kodi Favorites' list at root level"""
+        # Look for existing list at root level (None parent)
+        lists = self.query_manager.fetch_lists(None)
+        list_name = "Kodi Favorites"
         
-        # Look for existing list
         for list_item in lists:
             if list_item['name'] == list_name:
                 return list_item['id']
         
-        # Create new list
-        list_result = self.query_manager.create_list(list_name, folder_id)
-        list_id = list_result['id']
+        # Create new list at root level
+        list_result = self.query_manager.create_list(list_name, None)
+        list_id = list_result['id'] if isinstance(list_result, dict) else list_result
         utils.log(f"Created '{list_name}' list with ID: {list_id}", "INFO")
         return list_id
 
@@ -215,9 +206,8 @@ class FavoritesSyncManager:
     def apply_favorites_changes(self, added_items, removed_identities, changed_items):
         """Apply the detected changes to the Kodi Favorites folder"""
         try:
-            # Get or create the Kodi Favorites folder and list
-            folder_id = self.get_kodi_favorites_folder_id()
-            list_id = self.get_favorites_list_id(folder_id)
+            # Get or create the Kodi Favorites list at root level
+            list_id = self.get_kodi_favorites_list_id()
 
             # Process added items
             for item in added_items:
@@ -271,10 +261,13 @@ class FavoritesSyncManager:
         except Exception as e:
             utils.log(f"Error applying favorites changes: {str(e)}", "ERROR")
 
-    def rebuild_favorites_list(self, list_id):
+    def rebuild_favorites_list(self):
         """Rebuild the entire favorites list from current Kodi favorites"""
         try:
             utils.log("Rebuilding favorites list", "DEBUG")
+            
+            # Get the favorites list ID
+            list_id = self.get_kodi_favorites_list_id()
             
             # Clear existing list contents
             self.query_manager.clear_list_contents(list_id)
@@ -319,6 +312,9 @@ class FavoritesSyncManager:
         
         # Reset snapshot to force full sync
         self.last_snapshot = {'items': {}, 'signature': ''}
+        
+        # Run full rebuild
+        self.rebuild_favorites_list()
         
         # Run sync
         result = self.sync_favorites()
