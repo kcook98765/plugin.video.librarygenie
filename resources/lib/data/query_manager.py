@@ -219,6 +219,10 @@ class QueryManager(Singleton):
         result = self.execute_query(sql, (list_id,), fetch_one=True)
         return result['count'] if result else 0
 
+    def get_list_media_items(self, list_id: int) -> List[Dict]:
+        """Get media items in a list (alias for fetch_list_items_with_details)"""
+        return self.fetch_list_items_with_details(list_id)
+
     def fetch_list_by_id(self, list_id: int) -> Optional[Dict]:
         """Fetch list details by ID"""
         sql = "SELECT * FROM lists WHERE id = ?"

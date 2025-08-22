@@ -222,7 +222,7 @@ class FavoritesSyncManager:
 
             # Get current favorites from Kodi and current list contents
             current_favorites = self.favorites_importer._fetch_favourites_media()
-            current_list_items = self.query_manager.get_list_media_items(list_id)
+            current_list_items = self.query_manager.fetch_list_items_with_details(list_id)
 
             # Create lookup dictionaries for efficient matching
             kodi_favorites_by_identity = {}
@@ -299,7 +299,7 @@ class FavoritesSyncManager:
                 for item in items_to_remove:
                     try:
                         # Remove from list (but keep media item in database)
-                        self.query_manager.remove_media_from_list(list_id, item['id'])
+                        self.query_manager.remove_media_item_from_list(list_id, item['id'])
                         utils.log(f"Removed '{item.get('title', 'Unknown')}' from favorites list", "INFO")
                     except Exception as e:
                         utils.log(f"Error removing item from list: {str(e)}", "ERROR")
@@ -335,7 +335,7 @@ class FavoritesSyncManager:
                             )
 
                             # Update the media item
-                            self.query_manager.update_media_item(list_item['id'], updated_media_dict)
+                            self.query_manager.update_data('media_items', updated_media_dict, 'id = ?', (list_item['id'],))
                             utils.log(f"Updated favorite metadata for '{new_title}'", "INFO")
                     except Exception as e:
                         utils.log(f"Error updating changed item: {str(e)}", "ERROR")
@@ -413,7 +413,7 @@ class FavoritesSyncManager:
                 list_id = self.get_kodi_favorites_list_id()
 
             # Clear existing list contents
-            self.query_manager.clear_list_contents(list_id)
+            self.query_manager.clear_list_items(list_id)
 
             # Get current favorites and rebuild
             current_favorites = self.favorites_importer._fetch_favourites_media()
