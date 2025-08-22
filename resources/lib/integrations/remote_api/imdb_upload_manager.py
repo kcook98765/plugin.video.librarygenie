@@ -107,9 +107,9 @@ class IMDbUploadManager:
 
 
     def get_full_kodi_movie_collection_and_store_locally(self, use_notifications=False):
-        """Get all movies from Kodi and store locally with optimal single-pass processing"""
+        """Get all movies from Kodi and store locally with incremental batch processing"""
         try:
-            utils.log("Starting optimized full Kodi movie collection retrieval", "INFO")
+            utils.log("Starting incremental Kodi movie collection retrieval and storage", "INFO")
 
             if use_notifications:
                 utils.show_notification("LibraryGenie", "Starting library scan...", time=3000)
@@ -119,27 +119,14 @@ class IMDbUploadManager:
             self.query_manager.execute_write("DELETE FROM media_items WHERE source = 'lib'")
             utils.log("Cleared existing library data from database", "INFO")
 
-            # Use optimized single-pass collection with progress callback
-            progress_callback = None
-            if use_notifications:
-                def progress_callback(percent, message):
-                    if percent % 10 == 0:  # Show every 10%
-                        utils.show_notification("LibraryGenie", f"{message} ({percent}%)", time=1500)
+            # Use incremental approach - retrieve and store each batch immediately
+            total_stored = self._retrieve_and_store_movies_incrementally(use_notifications)
 
-            # Get all movies with comprehensive properties in single pass
-            all_movies = self.jsonrpc.get_movies_with_imdb(progress_callback)
-
-            if not all_movies:
-                utils.log("No movies retrieved from Kodi library", "ERROR")
+            if total_stored == 0:
+                utils.log("No movies were stored from Kodi library", "ERROR")
                 return False
 
-            utils.log(f"Retrieved {len(all_movies)} movies with full metadata in single pass", "INFO")
-
-            if use_notifications:
-                utils.show_notification("LibraryGenie", f"Processing {len(all_movies)} movies...", time=2000)
-
-            # Process and store with optimized single-pass approach
-            self._process_and_store_movies_optimized(all_movies, use_notifications)
+            utils.log(f"Successfully stored {total_stored} movies with incremental processing", "INFO")
 
             if use_notifications:
                 utils.show_notification("LibraryGenie", "Scan complete!", time=2000)
@@ -147,7 +134,7 @@ class IMDbUploadManager:
             return True
 
         except Exception as e:
-            utils.log(f"Error retrieving Kodi movie collection: {str(e)}", "ERROR")
+            utils.log(f"Error in incremental movie collection: {str(e)}", "ERROR")
             import traceback
             utils.log(f"Traceback: {traceback.format_exc()}", "ERROR")
 
@@ -155,6 +142,57 @@ class IMDbUploadManager:
                 utils.show_notification("LibraryGenie", "Library scan failed", time=5000)
 
             return False
+
+    def _process_and_store_single_batch(self, movies, batch_num, use_notifications=False):
+        """Process and store a single batch of movies immediately after JSON-RPC retrieval."""
+        try:
+            batch_valid_movies = []
+            batch_light_data = []
+            batch_heavy_data = []
+            batch_export_data = []
+
+            utils.log(f"Processing JSON-RPC batch {batch_num}: {len(movies)} movies", "INFO")
+
+            # Process each movie in this batch
+            for movie in movies:
+                # Extract and validate IMDb ID
+                imdb_id = self._extract_imdb_id(movie)
+                if not imdb_id:
+                    continue
+
+                movie['imdbnumber'] = imdb_id
+                batch_valid_movies.append(movie)
+
+                # Separate light and heavy data in single pass
+                light_movie_data, heavy_movie_data = self._separate_movie_data(movie, imdb_id)
+
+                if light_movie_data:
+                    batch_light_data.append(light_movie_data)
+
+                if heavy_movie_data:
+                    batch_heavy_data.append(heavy_movie_data)
+
+                # Prepare export data
+                batch_export_data.append({
+                    'kodi_id': movie.get('movieid', 0),
+                    'imdb_id': imdb_id,
+                    'title': movie.get('title', ''),
+                    'year': movie.get('year', 0)
+                })
+
+            # Store all data types immediately in atomic transaction
+            stored_count = 0
+            if batch_light_data or batch_heavy_data or batch_export_data:
+                stored_count = self._store_both_metadata_types_simultaneously(
+                    batch_light_data, batch_heavy_data, batch_export_data
+                )
+
+            utils.log(f"Batch {batch_num} complete: {stored_count} movies stored immediately", "INFO")
+            return stored_count
+
+        except Exception as e:
+            utils.log(f"Error processing batch {batch_num}: {str(e)}", "ERROR")
+            return 0
 
     def _process_and_store_movies_optimized(self, movies, use_notifications=False):
         """Process and store movies with optimized single-pass approach - no second pass needed"""
@@ -422,16 +460,16 @@ class IMDbUploadManager:
                     utils.log(f"Error clearing {description}: {str(e)}", "ERROR")
                     raise  # Re-raise to trigger transaction rollback
 
-    def _retrieve_all_movies_from_kodi(self, use_notifications):
-        """Retrieve all movies from Kodi library using JSON-RPC."""
-        utils.log("Getting all movies with IMDb information from Kodi library", "INFO")
+    def _retrieve_and_store_movies_incrementally(self, use_notifications):
+        """Retrieve movies from Kodi and store each batch immediately for continuous progress."""
+        utils.log("Starting incremental movie retrieval and storage from Kodi library", "INFO")
         
         if use_notifications:
             utils.show_notification("LibraryGenie", "Starting movie retrieval from Kodi...", time=3000)
 
         batch_size = 100
         start = 0
-        all_movies = []
+        total_stored = 0
         last_notification = 0
         total = 0
 
@@ -483,16 +521,19 @@ class IMDbUploadManager:
             
             # Show total count immediately after first batch
             if start == 0 and use_notifications and total > 0:
-                utils.show_notification("LibraryGenie", f"Found {total} movies in library, retrieving...", time=3000)
+                utils.show_notification("LibraryGenie", f"Found {total} movies in library, processing...", time=3000)
 
-            # Update progress tracking (more frequent for better user experience)
-            current_count = len(all_movies) + len(movies)
-            if use_notifications and (current_count - last_notification >= 1000 or start == 0):
-                progress_percent = int((current_count / total) * 100) if total > 0 else 0
-                utils.show_notification("LibraryGenie", f"Retrieved {current_count} of {total} movies ({progress_percent}%)", time=2000)
-                last_notification = current_count
+            # Process and store this batch immediately
+            if movies:
+                batch_stored = self._process_and_store_single_batch(movies, start // batch_size + 1, use_notifications)
+                total_stored += batch_stored
 
-            all_movies.extend(movies)
+            # Update progress tracking with storage progress
+            current_retrieved = start + len(movies)
+            if use_notifications and (current_retrieved - last_notification >= 500 or start == 0):
+                progress_percent = int((current_retrieved / total) * 100) if total > 0 else 0
+                utils.show_notification("LibraryGenie", f"Processed {current_retrieved} of {total} movies ({progress_percent}%) - {total_stored} stored", time=2000)
+                last_notification = current_retrieved
 
             # Check if we're done
             if len(movies) < batch_size or start + batch_size >= total:
@@ -500,12 +541,12 @@ class IMDbUploadManager:
 
             start += batch_size
 
-        utils.log(f"Movie retrieval complete: {len(all_movies)} movies retrieved from Kodi library", "INFO")
+        utils.log(f"Incremental processing complete: {total_stored} movies stored from {start + len(movies) if movies else start} retrieved", "INFO")
 
         if use_notifications:
-            utils.show_notification("LibraryGenie", f"Retrieval complete! Processing {len(all_movies)} movies...", time=3000)
+            utils.show_notification("LibraryGenie", f"Complete! {total_stored} movies processed and stored", time=3000)
 
-        return all_movies
+        return total_stored
 
     def _process_and_store_movies(self, all_movies, use_notifications):
         """Process movies and store them in database with batching."""
