@@ -1,4 +1,3 @@
-import time
 import json
 import xbmc
 import xbmcaddon
@@ -6,23 +5,27 @@ from resources.lib.utils import utils
 from resources.lib.config.config_manager import Config
 from resources.lib.config.settings_manager import SettingsManager
 from resources.lib.data.query_manager import QueryManager
-from resources.lib.integrations.remote_api.favorites_sync_manager import FavoritesSyncManager
 
 ADDON = xbmcaddon.Addon()
 MON = xbmc.Monitor()
 ID = ADDON.getAddonInfo('id')
 
+
 def _get_bool(k, d=False):
     return ADDON.getSettingBool(k) if ADDON.getSetting(k) != '' else d
+
 
 def _get_int(k, d=0):
     return int(ADDON.getSettingInt(k)) if ADDON.getSetting(k) != '' else d
 
+
 def _set_bool(k, v):
     ADDON.setSettingBool(k, v)
 
+
 def _set_int(k, v):
     ADDON.setSettingInt(k, int(v))
+
 
 def init_once():
     """Idempotent: create/upgrade schema + seed baseline data."""
@@ -32,11 +35,8 @@ def init_once():
             utils.log(f"{ID} database setup failed during init", "ERROR")
             return
 
-        # Check if library scanning is needed (this handles initial scan prompting)
+        # Check if library scanning is needed (initial scan prompting)
         check_and_prompt_library_scan()
-
-        # Favorites sync is handled by main.py when user enters the addon
-        utils.log("Favorites sync disabled during service startup", "DEBUG")
 
         # Mark initialization as complete
         if not _get_bool('init_done', False):
@@ -45,6 +45,7 @@ def init_once():
         utils.log(f"{ID} service init complete", "INFO")
     except Exception as e:
         utils.log(f"{ID} init error: {e}", "ERROR")
+
 
 def handle_periodic_tasks():
     """Do lightweight, repeatable work here."""
@@ -62,6 +63,7 @@ def handle_periodic_tasks():
     except Exception as e:
         utils.log(f"{ID} periodic task error: {e}", "ERROR")
 
+
 def ensure_database_ready():
     """Ensure database and all required tables/folders are properly set up"""
     try:
@@ -71,59 +73,83 @@ def ensure_database_ready():
         # Setup all database tables
         query_manager.setup_database()
 
-        # Check if this is a fresh database (no library data) - skip folder/list creation during initial scan
-        imdb_result = query_manager.execute_query("SELECT COUNT(*) as count FROM imdb_exports", fetch_one=True)
-        imdb_count = imdb_result['count'] if imdb_result and isinstance(imdb_result, dict) and 'count' in imdb_result else 0
+        # fresh database = skip folder/list creation during initial scan
+        imdb_result = query_manager.execute_query(
+            "SELECT COUNT(*) as count FROM imdb_exports", fetch_one=True)
+        imdb_count = imdb_result['count'] if imdb_result and isinstance(
+            imdb_result, dict) and 'count' in imdb_result else 0
 
-        media_result = query_manager.execute_query("SELECT COUNT(*) as count FROM media_items", fetch_one=True)
-        media_count = media_result['count'] if media_result and isinstance(media_result, dict) and 'count' in media_result else 0
+        media_result = query_manager.execute_query(
+            "SELECT COUNT(*) as count FROM media_items", fetch_one=True)
+        media_count = media_result['count'] if media_result and isinstance(
+            media_result, dict) and 'count' in media_result else 0
 
         if imdb_count == 0 and media_count == 0:
-            utils.log("Fresh database detected - skipping folder/list creation until after initial library scan", "INFO")
+            utils.log(
+                "Empty database - skipping folder/list creation",
+                "INFO")
             return True
 
-        # Only create folders and lists if we have existing data (not during initial setup)
-        utils.log("Existing data found - ensuring required folders and lists exist", "DEBUG")
-
         # Ensure required system folders exist
-        search_history_folder_id = query_manager.get_folder_id_by_name("Search History")
+        search_history_folder_id = query_manager.get_folder_id_by_name(
+            "Search History")
         if not search_history_folder_id:
-            search_history_result = query_manager.create_folder("Search History", None)
+            search_history_result = query_manager.create_folder(
+                "Search History", None)
             if isinstance(search_history_result, dict):
                 search_history_folder_id = search_history_result['id']
             else:
                 search_history_folder_id = search_history_result
-            utils.log(f"Search History folder ensured: {search_history_folder_id}", "DEBUG")
+            utils.log(
+                f"Search History folder ensured: {search_history_folder_id}",
+                "DEBUG")
 
-        imported_lists_folder_id = query_manager.get_folder_id_by_name("Imported Lists")
+        imported_lists_folder_id = query_manager.get_folder_id_by_name(
+            "Imported Lists")
         if not imported_lists_folder_id:
-            imported_lists_result = query_manager.create_folder("Imported Lists", None)
+            imported_lists_result = query_manager.create_folder(
+                "Imported Lists", None)
             if isinstance(imported_lists_result, dict):
                 imported_lists_folder_id = imported_lists_result['id']
             else:
                 imported_lists_folder_id = imported_lists_result
-            utils.log(f"Created Imported Lists folder: {imported_lists_folder_id}", "DEBUG")
+            utils.log(
+                f"Created Imported Lists folder: {imported_lists_folder_id}",
+                "DEBUG")
 
         # Ensure reserved lists exist - but only if QueryManager has the methods
         try:
             if hasattr(query_manager, 'ensure_kodi_favorites_list'):
-                kodi_favorites_list = query_manager.ensure_kodi_favorites_list()
+                kodi_favorites_list = query_manager.ensure_kodi_favorites_list(
+                )
                 if kodi_favorites_list:
-                    list_id = kodi_favorites_list['id'] if isinstance(kodi_favorites_list, dict) else kodi_favorites_list
-                    utils.log(f"Ensured Kodi Favorites list exists with ID: {list_id}", "DEBUG")
+                    list_id = kodi_favorites_list['id'] if isinstance(
+                        kodi_favorites_list, dict) else kodi_favorites_list
+                    utils.log(
+                        f"Ensured Kodi Favorites list exists with ID: {list_id}",
+                        "DEBUG")
             else:
-                utils.log("QueryManager missing ensure_kodi_favorites_list method - skipping", "DEBUG")
+                utils.log(
+                    "QueryManager missing ensure_kodi_favorites_list method - skipping",
+                    "DEBUG")
         except Exception as e:
             utils.log(f"Error ensuring Kodi Favorites list: {e}", "ERROR")
 
         try:
             if hasattr(query_manager, 'ensure_shortlist_imports_list'):
-                shortlist_imports_list = query_manager.ensure_shortlist_imports_list()
+                shortlist_imports_list = query_manager.ensure_shortlist_imports_list(
+                )
                 if shortlist_imports_list:
-                    list_id = shortlist_imports_list['id'] if isinstance(shortlist_imports_list, dict) else shortlist_imports_list
-                    utils.log(f"Ensured Shortlist Imports list exists with ID: {list_id}", "DEBUG")
+                    list_id = shortlist_imports_list['id'] if isinstance(
+                        shortlist_imports_list,
+                        dict) else shortlist_imports_list
+                    utils.log(
+                        f"Ensured Shortlist Imports list exists with ID: {list_id}",
+                        "DEBUG")
             else:
-                utils.log("QueryManager missing ensure_shortlist_imports_list method - skipping", "DEBUG")
+                utils.log(
+                    "QueryManager missing ensure_shortlist_imports_list method - skipping",
+                    "DEBUG")
         except Exception as e:
             utils.log(f"Error ensuring Shortlist Imports list: {e}", "ERROR")
 
@@ -134,6 +160,7 @@ def ensure_database_ready():
         utils.log(f"Error ensuring database ready: {e}", "ERROR")
         return False
 
+
 def check_and_prompt_library_scan():
     """Check if library data exists and prompt user for initial scan if needed"""
     try:
@@ -143,24 +170,27 @@ def check_and_prompt_library_scan():
         # Always check actual database content - don't rely solely on settings
         # Check if we have any library data in both tables
         imdb_result = query_manager.execute_query(
-            "SELECT COUNT(*) as count FROM imdb_exports",
-            fetch_one=True
-        )
+            "SELECT COUNT(*) as count FROM imdb_exports", fetch_one=True)
 
         media_result = query_manager.execute_query(
             "SELECT COUNT(*) as count FROM media_items WHERE source = 'lib'",
-            fetch_one=True
-        )
+            fetch_one=True)
 
-        imdb_count = imdb_result['count'] if imdb_result and isinstance(imdb_result, dict) and 'count' in imdb_result else 0
-        media_count = media_result['count'] if media_result and isinstance(media_result, dict) and 'count' in media_result else 0
+        imdb_count = imdb_result['count'] if imdb_result and isinstance(
+            imdb_result, dict) and 'count' in imdb_result else 0
+        media_count = media_result['count'] if media_result and isinstance(
+            media_result, dict) and 'count' in media_result else 0
 
-        utils.log(f"Library data check: found {imdb_count} items in imdb_exports, {media_count} items in media_items", "INFO")
+        utils.log(
+            f"Library data check: found {imdb_count} items in imdb_exports, {media_count} items in media_items",
+            "INFO")
 
         # Check current settings state
         scan_declined = _get_bool('library_scan_declined', False)
         library_scanned = _get_bool('library_scanned', False)
-        utils.log(f"Current settings - library_scanned: {library_scanned}, library_scan_declined: {scan_declined}", "INFO")
+        utils.log(
+            f"Current settings - library_scanned: {library_scanned}, library_scan_declined: {scan_declined}",
+            "INFO")
 
         # If no actual data exists, reset settings and prompt for scan
         if imdb_count == 0 and media_count == 0:
@@ -168,7 +198,8 @@ def check_and_prompt_library_scan():
             _set_bool('library_scanned', False)
             _set_bool('library_scan_declined', False)
 
-            utils.log("No library data found - prompting user for scan", "INFO")
+            utils.log("No library data found - prompting user for scan",
+                      "INFO")
 
             # Force prompt on completely empty database (fresh wipe scenario)
             prompt_user_for_library_scan()
@@ -176,10 +207,13 @@ def check_and_prompt_library_scan():
             # Library data exists - mark as scanned and clear decline flag
             _set_bool('library_scanned', True)
             _set_bool('library_scan_declined', False)
-            utils.log(f"Library data exists (imdb_exports: {imdb_count}, media_items: {media_count}) - marking as scanned", "INFO")
+            utils.log(
+                f"Library data exists (imdb_exports: {imdb_count}, media_items: {media_count}) - marking as scanned",
+                "INFO")
 
     except Exception as e:
         utils.log(f"Error checking library scan status: {e}", "ERROR")
+
 
 def prompt_user_for_library_scan(force_prompt=False):
     """Show modal to user asking permission to scan library"""
@@ -205,12 +239,13 @@ def prompt_user_for_library_scan(force_prompt=False):
                     "• Take a few minutes depending on library size\n\n"
                     "Would you like to start the scan now?",
                     nolabel="Not Now",
-                    yeslabel="Start Scan"
-                )
+                    yeslabel="Start Scan")
 
                 if response:
                     # User agreed - start the scan
-                    utils.log("User approved library scan - starting background scan", "INFO")
+                    utils.log(
+                        "User approved library scan - starting background scan",
+                        "INFO")
                     _set_bool('library_scan_declined', False)
                     # Pass True to show the modal on completion
                     start_library_scan(show_status_on_completion=True)
@@ -230,6 +265,7 @@ def prompt_user_for_library_scan(force_prompt=False):
     except Exception as e:
         utils.log(f"Error prompting user for library scan: {e}", "ERROR")
 
+
 def start_library_scan(show_status_on_completion=False):
     """Start the library scan process"""
     try:
@@ -241,7 +277,8 @@ def start_library_scan(show_status_on_completion=False):
         # Use the efficient incremental approach with notifications
         success = upload_manager.get_full_kodi_movie_collection_and_store_locally(
             use_notifications=True,
-            show_modal_on_completion=show_status_on_completion  # Show modal only when requested
+            show_modal_on_completion=
+            show_status_on_completion  # Show modal only when requested
         )
 
         if success:
@@ -251,6 +288,7 @@ def start_library_scan(show_status_on_completion=False):
 
     except Exception as e:
         utils.log(f"Error in background library scan: {str(e)}", "ERROR")
+
 
 def handle_command(topic, message):
     """
@@ -282,7 +320,9 @@ def handle_command(topic, message):
     except Exception as e:
         utils.log(f"{ID} command error: {e}", "ERROR")
 
+
 class ServiceMonitor(xbmc.Monitor):
+
     def onSettingsChanged(self):
         # Settings changed from UI—no restart needed
         utils.log(f"{ID} settings changed", "INFO")
@@ -294,11 +334,14 @@ class ServiceMonitor(xbmc.Monitor):
             try:
                 payload = json.loads(data)
                 if payload.get("message") and payload.get("sender") == ID:
-                    handle_command(payload.get("sender", ""), payload.get("message"))
+                    handle_command(payload.get("sender", ""),
+                                   payload.get("message"))
             except Exception:
                 pass
 
+
 class LibraryGenieService:
+
     def __init__(self):
         self.config = Config()
         self.settings = SettingsManager()
@@ -323,6 +366,7 @@ class LibraryGenieService:
                 break
 
         utils.log("LibraryGenie service stopped", "INFO")
+
 
 def main():
     utils.log(f"{ID} service starting", "INFO")
@@ -358,6 +402,7 @@ def main():
             break
 
     utils.log(f"{ID} service stopping", "INFO")
+
 
 if __name__ == "__main__":
     main()
