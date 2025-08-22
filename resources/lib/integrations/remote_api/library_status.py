@@ -107,11 +107,11 @@ def show_library_status():
                                 # Assuming ISO format date string
                                 parsed_date = datetime.datetime.fromisoformat(upload_date.replace('Z', '+00:00'))
                                 formatted_date = parsed_date.strftime('%Y-%m-%d %H:%M:%S')
-                                last_upload_info = f"{upload_count} movies ({batch_type})\nDate: {formatted_date}"
+                                last_upload_info = f"{upload_count} movies ({batch_type}) on {formatted_date}"
                             else:
                                 last_upload_info = f"{upload_count} movies ({batch_type})"
                         except:
-                            last_upload_info = f"{upload_count} movies ({batch_type})\nDate: {upload_date}"
+                            last_upload_info = f"{upload_count} movies ({batch_type}) on {upload_date}"
 
                     server_status = f"Connected - {server_count} movies on server"
                 else:
