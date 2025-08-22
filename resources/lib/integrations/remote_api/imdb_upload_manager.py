@@ -826,16 +826,19 @@ class IMDbUploadManager:
 
             else:
                 # Need to scan library first - show modal on completion for manual scans
-                full_movies = self.get_full_kodi_movie_collection_and_store_locally(use_notifications=True, show_modal_on_completion=True)
+                scan_result = self.get_full_kodi_movie_collection_and_store_locally(use_notifications=True, show_modal_on_completion=True)
                 collection_progress.close()
 
-                if not full_movies:
-                    xbmcgui.Dialog().ok("Error", "No movies with valid IMDb IDs found in Kodi library")
+                if not scan_result:
+                    xbmcgui.Dialog().ok("Error", "Failed to scan library or no movies found")
                     return False
 
-                # Extract only tt-prefixed IMDB IDs for server upload (ignore non-tt entries)
-                movies = [{'imdb_id': movie.get('imdbnumber')} for movie in full_movies
-                         if movie.get('imdbnumber') and str(movie.get('imdbnumber')).startswith('tt')]
+                # Get movies from database after successful scan
+                imdb_results = self.query_manager.execute_query(
+                    "SELECT imdb_id FROM imdb_exports WHERE imdb_id IS NOT NULL AND imdb_id != '' AND imdb_id LIKE 'tt%'",
+                    fetch_all=True
+                )
+                movies = [{'imdb_id': result['imdb_id']} for result in (imdb_results or [])]
 
         except Exception as e:
             collection_progress.close()
@@ -937,16 +940,19 @@ class IMDbUploadManager:
 
         try:
             # Get full movie data and store locally in single efficient step, using notifications
-            full_movies = self.get_full_kodi_movie_collection_and_store_locally(use_notifications=True, show_modal_on_completion=True)
+            scan_result = self.get_full_kodi_movie_collection_and_store_locally(use_notifications=True, show_modal_on_completion=True)
             collection_progress.close()
 
-            if not full_movies:
-                xbmcgui.Dialog().ok("Error", "No movies with valid IMDb IDs found in Kodi library")
+            if not scan_result:
+                xbmcgui.Dialog().ok("Error", "Failed to scan library or no movies found")
                 return False
 
-            # Extract only tt-prefixed IMDB IDs for server upload (ignore non-tt entries)
-            movies = [{'imdb_id': movie.get('imdbnumber')} for movie in full_movies
-                     if movie.get('imdbnumber') and str(movie.get('imdbnumber')).startswith('tt')]
+            # Get movies from database after successful scan
+            imdb_results = self.query_manager.execute_query(
+                "SELECT imdb_id FROM imdb_exports WHERE imdb_id IS NOT NULL AND imdb_id != '' AND imdb_id LIKE 'tt%'",
+                fetch_all=True
+            )
+            movies = [{'imdb_id': result['imdb_id']} for result in (imdb_results or [])]
 
         except Exception as e:
             collection_progress.close()
