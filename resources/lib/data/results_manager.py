@@ -365,6 +365,7 @@ class ResultsManager(Singleton):
                     r['_viewing_list_id'] = list_id
                     r['media_id'] = r.get('id') or r.get('media_id')
 
+                    # Only build ListItem when actually displaying the list (not during sync)
                     from resources.lib.kodi.listitem_builder import ListItemBuilder
                     list_item = ListItemBuilder.build_video_item(r, is_search_history=is_search_history)
 

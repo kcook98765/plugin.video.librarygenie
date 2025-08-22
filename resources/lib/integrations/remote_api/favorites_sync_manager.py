@@ -735,7 +735,7 @@ class FavoritesSyncManager:
                     # Create media dict with library enhancement if available
                     media_dict = self._create_media_dict_from_favorite(original_fav, filedetails, kodi_movie)
 
-                    # Insert into database
+                    # Insert into database (no ListItem building during sync)
                     self.query_manager.insert_media_item_and_add_to_list(list_id, media_dict)
                     utils.log(f"Added new favorite '{title}' to list", "INFO")
 

@@ -466,9 +466,9 @@ class ListItemBuilder:
                 pass
 
 
-        # Handle stream details with v20+ compatibility
+        # Handle stream details with v20+ compatibility - skip for favorites_import to avoid deprecation warnings
         stream_details = media_info.get('streamdetails', {})
-        if isinstance(stream_details, dict):
+        if isinstance(stream_details, dict) and source != 'favorites_import':
             try:
                 if utils.is_kodi_v19():
                     # v19 - use deprecated methods since InfoTag is unreliable
