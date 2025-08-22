@@ -18,7 +18,7 @@ class FavoritesSyncManager:
         self.settings = SettingsManager()
         self.query_manager = QueryManager(self.config.db_path)
         self.favorites_importer = FavoritesImporter()
-        self.snapshot_file = os.path.join(self.config.addon_data_path, 'fav_snapshot.json')
+        self.snapshot_file = os.path.join(self.config.profile, 'fav_snapshot.json')
         self.last_snapshot = {}
         self.load_snapshot()
 
@@ -46,7 +46,7 @@ class FavoritesSyncManager:
             }
             
             # Ensure addon_data directory exists
-            addon_data_dir = xbmcvfs.translatePath(self.config.addon_data_path)
+            addon_data_dir = xbmcvfs.translatePath(self.config.profile)
             if not os.path.exists(addon_data_dir):
                 os.makedirs(addon_data_dir)
             
