@@ -140,24 +140,27 @@ def show_library_status():
             else:
                 return "Weak"
 
-        coverage_color = get_coverage_color(imdb_percentage)
-        coverage_assessment = get_coverage_assessment(imdb_percentage)
+        
+
+        # Calculate IMDb coverage as percentage of unique IMDb IDs vs total library items
+        unique_imdb_coverage = (unique_imdb_count / total_library_items * 100) if total_library_items > 0 else 0
+        
+        # Use unique IMDb coverage for color coding and assessment
+        coverage_color = get_coverage_color(unique_imdb_coverage)
+        coverage_assessment = get_coverage_assessment(unique_imdb_coverage)
 
         # Build compact status message
         status_lines = [
             "=== ADDON LIBRARY STATUS ===",
-            "",
             f"[COLOR {coverage_color}]LOCAL LIBRARY[/COLOR] {total_library_items:,}",
-            f"  • Unique IMDb: {unique_imdb_count:,} ({imdb_percentage:.0f}% coverage)",
+            f"  • Unique IMDb: {unique_imdb_count:,} ({unique_imdb_coverage:.0f}% coverage)",
             f"  • Items without IMDb: {total_library_items - items_with_imdb:,} (not covered)",
-            "",
         ]
 
         # Add AI search assessment for non-authenticated users
         if not is_authenticated:
             status_lines.extend([
-                f"[COLOR {coverage_color}]AI SEARCH[/COLOR] {coverage_assessment} ({imdb_percentage:.0f}% IMDb coverage)",
-                "",
+                f"[COLOR {coverage_color}]AI SEARCH[/COLOR] {coverage_assessment} ({unique_imdb_coverage:.0f}% IMDb coverage)",
             ])
         else:
             # Add server status for authenticated users
@@ -165,7 +168,6 @@ def show_library_status():
             status_lines.extend([
                 f"[COLOR {server_color}]SERVER STATUS[/COLOR] {server_status.replace('Status: ', '')}",
                 f"  • Last upload: {last_upload_info}",
-                "",
             ])
 
             # Add sync status comparison only if authenticated and we have server data
@@ -178,7 +180,6 @@ def show_library_status():
                 status_lines.extend([
                     f"[COLOR {sync_color}]SYNC STATUS[/COLOR] {sync_status_text}",
                     f"  • Server: {server_count:,} | Local: {unique_imdb_count:,} | Export ready: {exports_unique:,}",
-                    "",
                 ])
 
 
