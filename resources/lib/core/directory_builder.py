@@ -115,11 +115,11 @@ def build_root_directory(handle: int):
         # Add Kodi Favorites list right after Options & Tools (if sync is enabled)
         from resources.lib.config.settings_manager import SettingsManager
         settings = SettingsManager()
-        
+
         if settings.is_favorites_sync_enabled():
             # Use reserved list ID 1 for Kodi Favorites
             kodi_favorites_list = query_manager.fetch_list_by_id(1)
-            
+
             if kodi_favorites_list and kodi_favorites_list['name'] == "Kodi Favorites":
                 list_count = query_manager.get_list_media_count(1)
                 display_title = f"Kodi Favorites ({list_count})"
@@ -132,19 +132,18 @@ def build_root_directory(handle: int):
         # Add Shortlist Imports list (only if it has content)
         # Use reserved list ID 2 for Shortlist Imports
         shortlist_imports_list = query_manager.fetch_list_by_id(2)
-        
+
         if shortlist_imports_list and shortlist_imports_list['name'] == "Shortlist Imports":
             list_count = query_manager.get_list_media_count(2)
             utils.log(f"Shortlist Imports list found with {list_count} items", "DEBUG")
-            if list_count > 0:  # Only show if it has content
-                display_title = f"Shortlist Imports ({list_count})"
-                li = ListItemBuilder.build_folder_item(f"📥 {display_title}", is_folder=True, item_type='playlist')
-                li.setProperty('lg_type', 'list')
-                add_context_menu_for_item(li, 'list', list_id=2)
-                url = build_plugin_url({'action': 'browse_list', 'list_id': 2, 'view': 'list'})
-                xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
-            else:
-                utils.log("Shortlist Imports list is empty, not displaying", "DEBUG")
+            # The logic in the original code that skipped empty lists is removed here,
+            # ensuring Shortlist Imports is always displayed.
+            display_title = f"Shortlist Imports ({list_count})"
+            li = ListItemBuilder.build_folder_item(f"📥 {display_title}", is_folder=True, item_type='playlist')
+            li.setProperty('lg_type', 'list')
+            add_context_menu_for_item(li, 'list', list_id=2)
+            url = build_plugin_url({'action': 'browse_list', 'list_id': 2, 'view': 'list'})
+            xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
 
         # Get top-level folders
         top_level_folders = query_manager.fetch_folders(None) # None for root
@@ -176,23 +175,22 @@ def build_root_directory(handle: int):
 
         # Add top-level lists
         for list_item in top_level_lists:
-            list_count = query_manager.get_list_media_count(list_item['id'])
+            list_id = list_item['id']
+            list_name = list_item['name']
 
-            # Check if this list contains a count pattern like "(number)" at the end
-            # Search history lists already include count, regular lists need count added
-            import re
-            has_count_in_name = re.search(r'\(\d+\)$', list_item['name'])
+            # Get media count for the list
+            media_count = query_manager.get_list_media_count(list_id)
 
-            if has_count_in_name:
-                # List already has count in name (likely search history), use as-is
-                display_title = list_item['name']
-            else:
-                # Regular list, add count
-                display_title = f"{list_item['name']} ({list_count})"
-            li = ListItemBuilder.build_folder_item(f"📋 {display_title}", is_folder=True, item_type='playlist')
+            # Always show system lists (ID 1-10), skip other empty lists
+            is_system_list = 1 <= list_id <= 10
+            if media_count == 0 and not is_system_list:
+                continue
+
+            display_name = f"{list_name} ({media_count})"
+            li = ListItemBuilder.build_folder_item(f"📋 {display_name}", is_folder=True, item_type='playlist')
             li.setProperty('lg_type', 'list')
-            add_context_menu_for_item(li, 'list', list_id=list_item['id'])
-            url = build_plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
+            add_context_menu_for_item(li, 'list', list_id=list_id)
+            url = build_plugin_url({'action': 'browse_list', 'list_id': list_id, 'view': 'list'})
             xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
 
     except Exception as e:

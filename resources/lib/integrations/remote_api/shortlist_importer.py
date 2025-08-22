@@ -795,6 +795,10 @@ class ShortlistImporter:
             progress.close()
 
             if not progress.iscanceled():
+                # Verify final count
+                final_count = self.query_manager.get_list_media_count(shortlist_list_id)
+                utils.log(f"Final verification: Shortlist Imports list contains {final_count} items", "INFO")
+                
                 message = f"Successfully imported {len(all_media_items)} items from {len(lists)} Shortlist lists"
                 xbmcgui.Dialog().notification("LibraryGenie", message, xbmcgui.NOTIFICATION_INFO, 5000)
                 utils.log(f"=== Shortlist import complete: {len(all_media_items)} items from {len(lists)} lists imported ===", "INFO")
