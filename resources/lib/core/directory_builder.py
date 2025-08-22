@@ -136,20 +136,21 @@ def build_root_directory(handle: int):
         if shortlist_imports_list and shortlist_imports_list['name'] == "Shortlist Imports":
             list_count = query_manager.get_list_media_count(2)
             utils.log(f"Shortlist Imports list found with {list_count} items", "DEBUG")
-            # The logic in the original code that skipped empty lists is removed here,
-            # ensuring Shortlist Imports is always displayed.
-            display_title = f"Shortlist Imports ({list_count})"
-            li = ListItemBuilder.build_folder_item(f"📥 {display_title}", is_folder=True, item_type='playlist')
-            li.setProperty('lg_type', 'list')
-            add_context_menu_for_item(li, 'list', list_id=2)
-            url = build_plugin_url({'action': 'browse_list', 'list_id': 2, 'view': 'list'})
-            xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
+            # Only show Shortlist Imports if it has content
+            if list_count > 0:
+                display_title = f"Shortlist Imports ({list_count})"
+                li = ListItemBuilder.build_folder_item(f"📥 {display_title}", is_folder=True, item_type='playlist')
+                li.setProperty('lg_type', 'list')
+                add_context_menu_for_item(li, 'list', list_id=2)
+                url = build_plugin_url({'action': 'browse_list', 'list_id': 2, 'view': 'list'})
+                xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
 
         # Get top-level folders
         top_level_folders = query_manager.fetch_folders(None) # None for root
 
-        # Get top-level lists (excluding Kodi Favorites which we already added)
-        top_level_lists = [list_item for list_item in query_manager.fetch_lists(None) if list_item['name'] != "Kodi Favorites"]
+        # Get top-level lists (excluding system lists which we handle separately)
+        top_level_lists = [list_item for list_item in query_manager.fetch_lists(None) 
+                          if list_item['name'] not in ["Kodi Favorites", "Shortlist Imports"]]
 
         # Add top-level folders (excluding protected folders that are empty or accessed via Options & Tools)
         for folder in top_level_folders:
