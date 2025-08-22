@@ -260,6 +260,13 @@ def is_shield_tv():
         pass
     return False
 
+def should_log_debug():
+    """Check if debug logging should be enabled (reduces overhead on Shield TV)"""
+    if is_shield_tv():
+        # Reduce debug logging on Shield TV for performance
+        return False
+    return True
+
 def setup_remote_api():
     """Launch remote API setup wizard"""
     try:
