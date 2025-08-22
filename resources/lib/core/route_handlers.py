@@ -1391,9 +1391,11 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
                 try:
                     lookup_query = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
                     lookup_result = query_manager.execute_query(lookup_query, (imdb_id,), fetch_one=True)
-                    if lookup_result:
-                        title_lookup = lookup_result.get('title', '')
-                        year_lookup = int(lookup_result.get('year', 0) or 0)
+                    if lookup_result and len(lookup_result) > 0:
+                        # lookup_result is a list, so access the first element
+                        result_row = lookup_result[0]
+                        title_lookup = result_row.get('title', '')
+                        year_lookup = int(result_row.get('year', 0) or 0)
                         utils.log(f"=== SIMILARITY_SEARCH: Found title/year for {imdb_id}: '{title_lookup}' ({year_lookup}) ===", "DEBUG")
                     else:
                         utils.log(f"=== SIMILARITY_SEARCH: No imdb_exports entry for {imdb_id} ===", "DEBUG")
