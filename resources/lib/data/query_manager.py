@@ -8,6 +8,7 @@ from typing import Optional, List, Dict, Any, Union, Tuple, Generator
 from resources.lib.utils import utils
 from resources.lib.utils.singleton_base import Singleton
 from resources.lib.config.config_manager import Config
+from resources.lib.utils import utils
 import json
 import xbmcgui # Import xbmcgui
 import xbmc # Import xbmc
@@ -126,7 +127,7 @@ class QueryManager(Singleton):
         sql: str,
         params: Tuple[Any, ...] = (),
         fetch_one: bool = False,
-        fetch_all: bool = False
+        fetch_all: bool = True
     ) -> Union[Dict[str, Any], List[Dict[str, Any]], None]:
         """Execute a SELECT query and return results as dicts."""
         with self._lock:
@@ -137,9 +138,12 @@ class QueryManager(Singleton):
                 if fetch_one:
                     row = cursor.fetchone()
                     result = dict(row) if row else None
-                else:
+                elif fetch_all:
                     rows = cursor.fetchall()
                     result = [dict(row) for row in rows]
+                else:
+                    # Default case - return empty list
+                    result = []
 
                 cursor.close()
                 return result
@@ -154,7 +158,7 @@ class QueryManager(Singleton):
             conn = self._get_connection()
             try:
                 cursor = conn.execute(sql, params)
-                lastrowid = cursor.lastrowid
+                lastrowid = cursor.lastrowid or 0
                 conn.commit()
                 cursor.close()
                 return lastrowid
@@ -170,7 +174,7 @@ class QueryManager(Singleton):
             conn = self._get_connection()
             try:
                 cursor = conn.executemany(sql, seq_of_params)
-                rowcount = cursor.rowcount
+                rowcount = cursor.rowcount or 0
                 conn.commit()
                 cursor.close()
                 return rowcount
@@ -937,86 +941,86 @@ class QueryManager(Singleton):
     def get_folder_depth(self, folder_id: int) -> int:
         return self._listing.get_folder_depth(folder_id)
 
-    def get_folder_by_name(self, name: str, parent_id: Optional[int] = None):
+    def get_folder_by_name(self, name: str, parent_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
         return self._listing.get_folder_by_name(name, parent_id)
 
-    def get_folder_id_by_name(self, name: str, parent_id: Optional[int] = None):
+    def get_folder_id_by_name(self, name: str, parent_id: Optional[int] = None) -> Optional[int]:
         return self._listing.get_folder_id_by_name(name, parent_id)
 
-    def insert_folder(self, name: str, parent_id: Optional[int]):
+    def insert_folder(self, name: str, parent_id: Optional[int]) -> int:
         return self._listing.insert_folder(name, parent_id)
 
-    def create_folder(self, name: str, parent_id: Optional[int]):
+    def create_folder(self, name: str, parent_id: Optional[int]) -> Dict[str, Any]:
         return self._listing.create_folder(name, parent_id)
 
-    def update_folder_name(self, folder_id: int, new_name: str):
+    def update_folder_name(self, folder_id: int, new_name: str) -> bool:
         return self._listing.update_folder_name(folder_id, new_name)
 
-    def get_folder_media_count(self, folder_id: int):
+    def get_folder_media_count(self, folder_id: int) -> int:
         return self._listing.get_folder_media_count(folder_id)
 
-    def fetch_folder_by_id(self, folder_id: int):
+    def fetch_folder_by_id(self, folder_id: int) -> Optional[Dict[str, Any]]:
         return self._listing.fetch_folder_by_id(folder_id)
 
-    def update_folder_parent(self, folder_id: int, new_parent_id: Optional[int]):
+    def update_folder_parent(self, folder_id: int, new_parent_id: Optional[int]) -> bool:
         return self._listing.update_folder_parent(folder_id, new_parent_id)
 
-    def fetch_folders_with_item_status(self, parent_id: Optional[int], media_item_id: int):
+    def fetch_folders_with_item_status(self, parent_id: Optional[int], media_item_id: int) -> List[Dict[str, Any]]:
         return self._listing.fetch_folders_with_item_status(parent_id, media_item_id)
 
-    def fetch_all_folders(self):
+    def fetch_all_folders(self) -> List[Dict[str, Any]]:
         return self._listing.fetch_all_folders()
 
     # LISTS
-    def get_lists(self, folder_id: Optional[int] = None):
+    def get_lists(self, folder_id: Optional[int] = None) -> List[Dict[str, Any]]:
         return self._listing.get_lists(folder_id)
 
-    def fetch_lists_direct(self, folder_id: Optional[int] = None):
+    def fetch_lists_direct(self, folder_id: Optional[int] = None) -> List[Dict[str, Any]]:
         return self._listing.fetch_lists_direct(folder_id)
 
-    def get_list_items(self, list_id: int):
+    def get_list_items(self, list_id: int) -> List[Dict[str, Any]]:
         return self._listing.get_list_items(list_id)
 
-    def get_list_media_count(self, list_id: int):
+    def get_list_media_count(self, list_id: int) -> int:
         return self._listing.get_list_media_count(list_id)
 
-    def fetch_lists_with_item_status(self, folder_id: Optional[int], media_item_id: int):
+    def fetch_lists_with_item_status(self, folder_id: Optional[int], media_item_id: int) -> List[Dict[str, Any]]:
         return self._listing.fetch_lists_with_item_status(folder_id, media_item_id)
 
-    def fetch_all_lists_with_item_status(self, media_item_id: int):
+    def fetch_all_lists_with_item_status(self, media_item_id: int) -> List[Dict[str, Any]]:
         return self._listing.fetch_all_lists_with_item_status(media_item_id)
 
-    def update_list_folder(self, list_id: int, folder_id: Optional[int]):
+    def update_list_folder(self, list_id: int, folder_id: Optional[int]) -> bool:
         return self._listing.update_list_folder(list_id, folder_id)
 
-    def get_list_id_by_name(self, name: str, folder_id: Optional[int] = None):
+    def get_list_id_by_name(self, name: str, folder_id: Optional[int] = None) -> Optional[int]:
         return self._listing.get_list_id_by_name(name, folder_id)
 
-    def get_lists_for_item(self, media_item_id: int):
+    def get_lists_for_item(self, media_item_id: int) -> List[Dict[str, Any]]:
         return self._listing.get_lists_for_item(media_item_id)
 
-    def get_item_id_by_title_and_list(self, title: str, list_id: int):
+    def get_item_id_by_title_and_list(self, title: str, list_id: int) -> Optional[int]:
         return self._listing.get_item_id_by_title_and_list(title, list_id)
 
-    def create_list(self, name: str, folder_id: Optional[int] = None):
+    def create_list(self, name: str, folder_id: Optional[int] = None) -> Dict[str, Any]:
         return self._listing.create_list(name, folder_id)
 
-    def get_unique_list_name(self, base_name: str, folder_id: Optional[int] = None):
+    def get_unique_list_name(self, base_name: str, folder_id: Optional[int] = None) -> str:
         return self._listing.get_unique_list_name(base_name, folder_id)
 
-    def fetch_all_lists(self):
+    def fetch_all_lists(self) -> List[Dict[str, Any]]:
         return self._listing.fetch_all_lists()
 
-    def fetch_list_by_id(self, list_id: int):
+    def fetch_list_by_id(self, list_id: int) -> Optional[Dict[str, Any]]:
         return self._listing.fetch_list_by_id(list_id)
 
-    def remove_media_item_from_list(self, list_id: int, media_item_id: int):
+    def remove_media_item_from_list(self, list_id: int, media_item_id: int) -> bool:
         return self._listing.remove_media_item_from_list(list_id, media_item_id)
 
-    def get_list_item_by_media_id(self, list_id: int, media_item_id: int):
+    def get_list_item_by_media_id(self, list_id: int, media_item_id: int) -> Optional[Dict[str, Any]]:
         return self._listing.get_list_item_by_media_id(list_id, media_item_id)
 
-    def fetch_list_items_with_details(self, list_id: int):
+    def fetch_list_items_with_details(self, list_id: int) -> List[Dict[str, Any]]:
         return self._listing.fetch_list_items_with_details(list_id)
 
     # Convenience alias preserved for backward compatibility
