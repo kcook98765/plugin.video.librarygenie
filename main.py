@@ -463,102 +463,9 @@ def browse_search_history():
     return folder_list_manager.browse_search_history()
 
 def main():
-    # Check if initial setup is required before allowing addon to function
-    # This must run BEFORE favorites sync to prevent false positives
-    try:
-        from resources.lib.config.config_manager import Config
-        from resources.lib.data.query_manager import QueryManager
-        from resources.lib.utils import utils
-        import xbmcaddon
-        import xbmcgui
+    # Library scan check removed - now handled only by service on startup
 
-        config = Config()
-        query_manager = QueryManager(config.db_path)
-        addon = xbmcaddon.Addon()
-
-        # Check if library has been scanned
-        library_scanned = addon.getSettingBool('library_scanned') if addon.getSetting('library_scanned') != '' else False
-        library_scan_declined = addon.getSettingBool('library_scan_declined') if addon.getSetting('library_scan_declined') != '' else False
-
-        # Check for actual library data - use more specific queries to avoid false positives from favorites
-        imdb_result = query_manager.execute_query(
-            "SELECT COUNT(*) as count FROM imdb_exports",
-            fetch_one=True
-        )
-        # Only count library items, not favorites imports
-        library_media_result = query_manager.execute_query(
-            "SELECT COUNT(*) as count FROM media_items WHERE source = 'lib'",
-            fetch_one=True
-        )
-
-        imdb_count = imdb_result['count'] if imdb_result else 0
-        library_media_count = library_media_result['count'] if library_media_result else 0
-
-        utils.log(f"Addon navigation check - library_scanned: {library_scanned}, declined: {library_scan_declined}, imdb_count: {imdb_count}, library_media_count: {library_media_count}", "DEBUG")
-
-        # If no actual library data exists, block addon usage (regardless of previous decline)
-        if not library_scanned and imdb_count == 0 and library_media_count == 0:
-            utils.log("Blocking addon usage - initial setup required", "INFO")
-            
-            # Show modal requiring initial setup
-            response = xbmcgui.Dialog().yesno(
-                "LibraryGenie - Setup Required",
-                "LibraryGenie requires an initial library scan to function.\n\n"
-                "This one-time scan will:\n"
-                "• Index your movies with IMDb information\n"
-                "• Enable search and list management\n"
-                "• Take a few minutes depending on library size\n\n"
-                "The addon cannot be used without this setup.\n\n"
-                "Would you like to start the scan now?",
-                nolabel="Not Now",
-                yeslabel="Start Scan"
-            )
-
-            if response:
-                # User agreed - start the scan
-                utils.log("User approved library scan from addon navigation - starting scan", "INFO")
-                addon.setSettingBool('library_scan_declined', False)
-                
-                try:
-                    from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
-                    upload_manager = IMDbUploadManager()
-                    success = upload_manager.get_full_kodi_movie_collection_and_store_locally(
-                        use_notifications=True,
-                        show_modal_on_completion=True
-                    )
-                    
-                    if success:
-                        utils.log("Library scan completed successfully from addon navigation", "INFO")
-                        # Continue to addon after successful scan
-                    else:
-                        utils.log("Library scan failed from addon navigation", "ERROR")
-                        xbmcgui.Dialog().ok("LibraryGenie", "Library scan failed. Please try again from addon settings.")
-                        return
-                        
-                except Exception as scan_error:
-                    utils.log(f"Error during library scan from addon navigation: {str(scan_error)}", "ERROR")
-                    xbmcgui.Dialog().ok("LibraryGenie", "Library scan error. Please try again from addon settings.")
-                    return
-            else:
-                # User declined - remember their choice and exit
-                utils.log("User declined library scan from addon navigation", "INFO")
-                addon.setSettingBool('library_scan_declined', True)
-                
-                xbmcgui.Dialog().ok(
-                    "LibraryGenie - Setup Required", 
-                    "LibraryGenie cannot function without the initial library scan.\n\n"
-                    "You can start the scan later from:\n"
-                    "• Addon Settings > Library Management\n"
-                    "• Or by accessing LibraryGenie again"
-                )
-                return
-
-    except Exception as e:
-        utils.log(f"Error in addon navigation setup check: {str(e)}", "ERROR")
-        # Don't block addon on error - let it try to continue
-
-    # Only run favorites sync AFTER initial setup check passes
-    # This prevents favorites from interfering with setup detection
+    # Favorites sync re-enabled for root level access only
     try:
         from resources.lib.config.settings_manager import SettingsManager
         from resources.lib.integrations.remote_api.favorites_sync_manager import FavoritesSyncManager
@@ -576,10 +483,15 @@ def main():
                     # Double-check that library data exists before running favorites sync
                     config = Config()
                     query_manager = QueryManager(config.db_path)
+                    
+                    # Check both tables to ensure we have actual library data
                     imdb_result = query_manager.execute_query("SELECT COUNT(*) as count FROM imdb_exports", fetch_one=True)
                     imdb_count = imdb_result['count'] if imdb_result else 0
                     
-                    if imdb_count > 0:
+                    media_result = query_manager.execute_query("SELECT COUNT(*) as count FROM media_items WHERE source = 'lib'", fetch_one=True)
+                    media_count = media_result['count'] if media_result else 0
+                    
+                    if imdb_count > 0 or media_count > 0:
                         utils.log("Root navigation detected - triggering favorites sync", "DEBUG")
                         sync_manager = FavoritesSyncManager()
                         # Sync in isolation - no UI operations should happen during this
@@ -590,7 +502,7 @@ def main():
                         import time
                         time.sleep(0.1)
                     else:
-                        utils.log("Skipping favorites sync - no library data available yet", "DEBUG")
+                        utils.log("Skipping favorites sync - no library data available yet (initial scan needed)", "DEBUG")
             except Exception as e:
                 utils.log(f"Error in root navigation favorites sync: {str(e)}", "ERROR")
                 # Don't let sync errors prevent addon from loading
