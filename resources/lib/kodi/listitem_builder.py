@@ -174,8 +174,16 @@ class ListItemBuilder:
         
         # Log if this is happening on a different thread than expected
         main_thread_names = ['MainThread', 'Thread-1', 'CApplication']
+        thread_id = current_thread.ident
+        
+        # Check if this matches the thread from deprecation warnings (T:26384)
+        if thread_id == 26384:
+            utils.log(f"LISTITEM_BUILD_VIDEO: DEPRECATION_THREAD_DETECTED - This is thread {thread_id} which caused deprecation warnings!", "ERROR")
+            utils.log(f"LISTITEM_BUILD_VIDEO: DEPRECATION_THREAD_DETECTED - Call chain: {caller_chain}", "ERROR")
+            utils.log(f"LISTITEM_BUILD_VIDEO: DEPRECATION_THREAD_DETECTED - Item source: {source}, title: {title}", "ERROR")
+        
         if current_thread.name not in main_thread_names and 'T:' not in current_thread.name:
-            utils.log(f"LISTITEM_BUILD_VIDEO: WARNING - Building on unexpected thread: {current_thread.name}", "WARNING")
+            utils.log(f"LISTITEM_BUILD_VIDEO: WARNING - Building on unexpected thread: {current_thread.name} (ID: {thread_id})", "WARNING")
             
         # Check for sync-related stack frames and log them specifically
         sync_related_frames = []
@@ -189,21 +197,31 @@ class ListItemBuilder:
         
         # Prevent ListItem building during sync operations
         if item_dict.get('_sync_operation') or item_dict.get('_no_listitem_building') or item_dict.get('_background_sync'):
-            utils.log(f"LISTITEM_BUILD_VIDEO: Preventing ListItem building for '{title}' - sync flags detected", "WARNING")
+            utils.log(f"LISTITEM_BUILD_VIDEO: SYNC_PREVENTION - Preventing ListItem building for '{title}' - sync flags detected", "WARNING")
+            utils.log(f"LISTITEM_BUILD_VIDEO: SYNC_PREVENTION - Flags: sync={item_dict.get('_sync_operation')}, no_listitem={item_dict.get('_no_listitem_building')}, background={item_dict.get('_background_sync')}", "WARNING")
             return None
 
         # Check thread name for sync operations
         if 'FavoritesSync' in current_thread.name or 'Sync' in current_thread.name:
-            utils.log(f"LISTITEM_BUILD_VIDEO: Preventing ListItem building for '{title}' - sync thread detected", "WARNING")
+            utils.log(f"LISTITEM_BUILD_VIDEO: SYNC_PREVENTION - Preventing ListItem building for '{title}' - sync thread detected: {current_thread.name}", "WARNING")
             return None
 
         # Check call stack for sync functions
         frame_names = [frame.function for frame in stack_frames]
-        sync_functions = ['sync_favorites', '_apply_database_changes', 'sync_only_store_media_item_to_list', '_create_media_dict_from_favorite', 'FavoritesSync']
+        sync_functions = ['sync_favorites', '_apply_database_changes', 'sync_only_store_media_item_to_list', '_create_media_dict_from_favorite', 'FavoritesSync', 'insert_or_get_media_item']
         detected_sync_functions = [func for func in sync_functions if func in frame_names]
         if detected_sync_functions:
-            utils.log(f"LISTITEM_BUILD_VIDEO: CRITICAL - Preventing ListItem building for '{title}' - sync operation in call stack: {detected_sync_functions}", "ERROR")
-            utils.log(f"LISTITEM_BUILD_VIDEO: This should have been prevented by sync flags - investigate why flags were bypassed", "ERROR")
+            utils.log(f"LISTITEM_BUILD_VIDEO: SYNC_PREVENTION - CRITICAL - Preventing ListItem building for '{title}' - sync operation in call stack: {detected_sync_functions}", "ERROR")
+            utils.log(f"LISTITEM_BUILD_VIDEO: SYNC_PREVENTION - This should have been prevented by sync flags - investigate why flags were bypassed", "ERROR")
+            utils.log(f"LISTITEM_BUILD_VIDEO: SYNC_PREVENTION - Full call chain: {caller_chain}", "ERROR")
+            return None
+
+        # Additional check for any database operations that might be sync-related
+        db_operations = ['execute_query', 'insert_data', 'update_data', 'fetch_list_items_with_details']
+        detected_db_ops = [func for func in db_operations if func in frame_names]
+        if detected_db_ops and any(sync_term in ' '.join(frame_names).lower() for sync_term in ['sync', 'favorite']):
+            utils.log(f"LISTITEM_BUILD_VIDEO: SYNC_PREVENTION - Database operation detected during potential sync: {detected_db_ops}", "ERROR")
+            utils.log(f"LISTITEM_BUILD_VIDEO: SYNC_PREVENTION - Frames with sync terms: {[f for f in frame_names if any(sync_term in f.lower() for sync_term in ['sync', 'favorite'])]}", "ERROR")
             return None
 
 

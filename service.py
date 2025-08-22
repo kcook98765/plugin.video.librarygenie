@@ -37,18 +37,20 @@ def init_once():
 
         # Sync Kodi favorites to reserved list ID 1 - but only if library data exists
         try:
-            # Check if we have actual library data before running favorites sync
-            imdb_result = query_manager.execute_query("SELECT COUNT(*) as count FROM imdb_exports", fetch_one=True)
-            imdb_count = imdb_result['count'] if imdb_result else 0
-            
-            if imdb_count > 0:
-                sync_manager = FavoritesSyncManager()
-                sync_manager.sync_favorites()
-                utils.log("Favorites sync completed during service startup", "DEBUG")
-            else:
-                utils.log("Skipping favorites sync during startup - no library data available yet", "DEBUG")
+            # Create local query_manager instance for favorites sync
+            from resources.lib.data.query_manager import QueryManager
+            from resources.lib.config.config_manager import Config
+            local_config = Config()
+            local_query_manager = QueryManager(local_config.db_path)
+
+            # Ensure reserved lists exist before sync
+            local_query_manager.ensure_kodi_favorites_list()
+            local_query_manager.ensure_shortlist_imports_list()
+
+            sync_manager = FavoritesSyncManager()
+            sync_manager.sync_favorites()
         except Exception as e:
-            utils.log(f"Error syncing favorites during startup: {e}", "ERROR")
+            utils.log(f"Error syncing favorites during startup: {str(e)}", "ERROR")
 
         # Mark initialization as complete
         if not _get_bool('init_done', False):
@@ -119,7 +121,7 @@ def ensure_database_ready():
         except Exception as e:
             utils.log(f"Error ensuring Shortlist Imports list: {e}", "ERROR")
 
-        
+
 
         utils.log("Database setup completed successfully", "INFO")
         return True
@@ -150,7 +152,7 @@ def check_and_prompt_library_scan():
         media_count = media_result['count'] if media_result else 0
 
         utils.log(f"Library data check: found {imdb_count} items in imdb_exports, {media_count} items in media_items", "INFO")
-        
+
         # Check current settings state
         scan_declined = _get_bool('library_scan_declined', False)
         library_scanned = _get_bool('library_scanned', False)
@@ -163,7 +165,7 @@ def check_and_prompt_library_scan():
             _set_bool('library_scan_declined', False)
 
             utils.log("No library data found - prompting user for scan", "INFO")
-            
+
             # Force prompt on completely empty database (fresh wipe scenario)
             prompt_user_for_library_scan()
         else:
@@ -186,7 +188,7 @@ def prompt_user_for_library_scan(force_prompt=False):
                 # Give Kodi a moment to fully start up
                 import time
                 time.sleep(2)
-                
+
                 dialog = xbmcgui.Dialog()
 
                 # Show informational dialog explaining the need

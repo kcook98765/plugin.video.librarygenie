@@ -696,6 +696,9 @@ class FavoritesSyncManager:
     def _apply_database_changes(self, list_id, added_items, removed_identities, changed_items, current_favorites):
         """Apply changes to the database without any UI dependencies"""
         try:
+            import threading
+            current_thread = threading.current_thread()
+            utils.log(f"SYNC_DATABASE_CHANGES: Starting on thread {current_thread.name} (ID: {current_thread.ident})", "DEBUG")
             # Create lookup for current favorites by identity
             favorites_by_identity = {}
             for fav in current_favorites:
@@ -742,8 +745,15 @@ class FavoritesSyncManager:
                     media_dict = self._create_media_dict_from_favorite(original_fav, filedetails, kodi_movie)
 
                     # Insert into database using sync-only method (guaranteed no ListItem building)
+                    utils.log(f"SYNC_DATABASE_INSERT: About to insert '{title}' with sync flags: {media_dict.get('_sync_operation', False)}, {media_dict.get('_no_listitem_building', False)}, {media_dict.get('_background_sync', False)}", "DEBUG")
+                    
+                    # Double-check sync flags are set
+                    media_dict['_sync_operation'] = True
+                    media_dict['_no_listitem_building'] = True
+                    media_dict['_background_sync'] = True
+                    
                     self.query_manager.sync_only_store_media_item_to_list(list_id, media_dict)
-                    utils.log(f"Added new favorite '{title}' to list", "INFO")
+                    utils.log(f"SYNC_DATABASE_INSERT: Successfully added new favorite '{title}' to list", "INFO")
 
             # Process removed items (favorites no longer in Kodi)
             if removed_identities:
