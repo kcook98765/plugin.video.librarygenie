@@ -202,21 +202,12 @@ class IMDbUploadManager:
                         'year': movie.get('year', 0)
                     })
 
-                # Store all data atomically in single transaction
+                # Store all data types simultaneously in single atomic transaction
                 if batch_light_data or batch_heavy_data or batch_export_data:
-                    with self.query_manager.transaction():
-                        # Insert light media items
-                        if batch_light_data:
-                            self._bulk_insert_media_items(batch_light_data)
-                            processed += len(batch_light_data)
-
-                        # Store heavy metadata in batch (no individual logging)
-                        if batch_heavy_data:
-                            self._bulk_store_heavy_metadata_silent(batch_heavy_data)
-
-                        # Store export data  
-                        if batch_export_data:
-                            self._bulk_insert_export_data(batch_export_data)
+                    batch_processed = self._store_both_metadata_types_simultaneously(
+                        batch_light_data, batch_heavy_data, batch_export_data
+                    )
+                    processed += batch_processed
 
                 # Progress notifications
                 progress_percent = int((processed / total_movies) * 100)
@@ -314,20 +305,30 @@ class IMDbUploadManager:
                          for data in batch_export_data]
         self.query_manager.executemany_write(sql, data_to_insert)
 
-    def _bulk_store_heavy_metadata_silent(self, heavy_metadata_list):
-        """Store heavy metadata in bulk without individual logging"""
+    def _store_both_metadata_types_simultaneously(self, batch_light_data, batch_heavy_data, batch_export_data):
+        """Store light media items, heavy metadata, and export data simultaneously in one transaction"""
         try:
-            if not heavy_metadata_list:
-                return True
+            with self.query_manager.transaction():
+                stored_count = 0
+                
+                # Store light metadata first
+                if batch_light_data:
+                    self._bulk_insert_media_items(batch_light_data)
+                    stored_count = len(batch_light_data)
 
-            utils.log(f"Storing heavy metadata for {len(heavy_metadata_list)} movies", "INFO")
+                # Store heavy metadata in same transaction (no separate queuing)
+                if batch_heavy_data:
+                    self.query_manager.store_heavy_meta_batch(batch_heavy_data)
 
-            # Use the batch method (without silent parameter as it's not supported)
-            return self.query_manager.store_heavy_meta_batch(heavy_metadata_list)
-
+                # Store export data in same transaction
+                if batch_export_data:
+                    self._bulk_insert_export_data(batch_export_data)
+                    
+                return stored_count
+                
         except Exception as e:
-            utils.log(f"Error in bulk heavy metadata storage: {str(e)}", "ERROR")
-            return False
+            utils.log(f"Error storing batch metadata simultaneously: {str(e)}", "ERROR")
+            return 0
 
 
 
