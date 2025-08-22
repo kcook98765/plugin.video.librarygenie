@@ -557,8 +557,46 @@ def main():
         utils.log(f"Error in addon navigation setup check: {str(e)}", "ERROR")
         # Don't block addon on error - let it try to continue
 
-    # Favorites sync is now handled only by the service startup with proper delay
-    # No sync needed during navigation - service handles it once at startup
+    # Only run favorites sync AFTER initial setup check passes
+    # This prevents favorites from interfering with setup detection
+    try:
+        from resources.lib.config.settings_manager import SettingsManager
+        from resources.lib.integrations.remote_api.favorites_sync_manager import FavoritesSyncManager
+        from resources.lib.utils import utils
+        import sys
+
+        # Check if we're at root level (no specific action parameters)
+        at_root = (len(sys.argv) <= 2 or
+                  (len(sys.argv) >= 3 and (not sys.argv[2] or sys.argv[2] in ('', '?'))))
+
+        if at_root:
+            try:
+                settings = SettingsManager()
+                if settings.is_favorites_sync_enabled():
+                    # Double-check that library data exists before running favorites sync
+                    config = Config()
+                    query_manager = QueryManager(config.db_path)
+                    imdb_result = query_manager.execute_query("SELECT COUNT(*) as count FROM imdb_exports", fetch_one=True)
+                    imdb_count = imdb_result['count'] if imdb_result else 0
+                    
+                    if imdb_count > 0:
+                        utils.log("Root navigation detected - triggering favorites sync", "DEBUG")
+                        sync_manager = FavoritesSyncManager()
+                        # Sync in isolation - no UI operations should happen during this
+                        sync_result = sync_manager.sync_favorites()
+                        utils.log("Favorites sync completed", "DEBUG")
+                        
+                        # Small delay to ensure sync completes before UI operations
+                        import time
+                        time.sleep(0.1)
+                    else:
+                        utils.log("Skipping favorites sync - no library data available yet", "DEBUG")
+            except Exception as e:
+                utils.log(f"Error in root navigation favorites sync: {str(e)}", "ERROR")
+                # Don't let sync errors prevent addon from loading
+    except Exception as e:
+        # Don't let sync errors prevent addon from loading
+        utils.log(f"Error in main sync setup: {str(e)}", "ERROR")
 
     from resources.lib.config.addon_helper import run_addon
     run_addon()

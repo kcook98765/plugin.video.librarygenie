@@ -171,14 +171,14 @@ class FavoritesSyncManager:
                     ]
                 }
             }
-
+            
             resp = xbmc.executeJSONRPC(json.dumps(req))
             data = json.loads(resp)
-
+            
             if "error" in data:
                 utils.log(f"Files.GetFileDetails failed for path={path}: {data['error']}", "DEBUG")
                 return {}
-
+                
             return data.get("result", {}).get("filedetails", {})
         except Exception as e:
             utils.log(f"Files.GetFileDetails failed for path={path}: {e}", "DEBUG")
@@ -231,32 +231,32 @@ class FavoritesSyncManager:
                     "limits": {"start": 0, "end": 10000}
                 }
             }
-
+            
             resp = xbmc.executeJSONRPC(json.dumps(req))
             data = json.loads(resp)
-
+            
             if "error" in data:
                 utils.log(f"SYNC_LIB_LOOKUP error (precise filter): {data['error']}", "DEBUG")
                 return None
-
+                
             movies = data.get("result", {}).get("movies", []) or []
-
+            
             # If precise filter fails, fall back to broad parent query
             if not movies:
                 utils.log(f"SYNC_LIB_LOOKUP: Precise filter failed, falling back to broad parent query", "DEBUG")
                 req["params"]["filter"] = {
                     "field": "path", "operator": "startswith", "value": parent
                 }
-
+                
                 resp = xbmc.executeJSONRPC(json.dumps(req))
                 data = json.loads(resp)
-
+                
                 if "error" in data:
                     utils.log(f"SYNC_LIB_LOOKUP error (broad filter): {data['error']}", "DEBUG")
                     return None
-
+                    
                 movies = data.get("result", {}).get("movies", []) or []
-
+                
         except Exception as e:
             utils.log(f"SYNC_LIB_LOOKUP error (path match): {e}", "DEBUG")
             return None
@@ -292,7 +292,7 @@ class FavoritesSyncManager:
                         "value": title
                     },
                     "properties": [
-                        "title", "year", "plot", "rating", "runtime", "genre", "director",
+                        "title", "year", "plot", "rating", "runtime", "genre", "director", 
                         "cast", "studio", "mpaa", "tagline", "writer", "country", "premiered",
                         "dateadded", "votes", "trailer", "file", "art", "imdbnumber", "uniqueid"
                     ]
@@ -315,7 +315,7 @@ class FavoritesSyncManager:
 
             # Strategy 2: Fuzzy title search if exact match fails
             req["params"]["filter"]["operator"] = "contains"
-
+            
             resp = xbmc.executeJSONRPC(json.dumps(req))
             data = json.loads(resp)
 
@@ -433,7 +433,8 @@ class FavoritesSyncManager:
         if kodi_movie:
             # Use Kodi library data - this is preferred when available
             utils.log(f"SYNC_DATA_CONVERSION: Using KODI LIBRARY data for '{kodi_movie.get('title')}'", "DEBUG")
-            # Duration calculation with streamdetails preference but don't store streamdetails
+
+            # Duration calculation with streamdetails preference
             duration_seconds = 0
             streamdetails = kodi_movie.get('streamdetails', {})
             if isinstance(streamdetails, dict) and streamdetails.get('video'):
@@ -442,7 +443,7 @@ class FavoritesSyncManager:
                     stream_duration = self._safe_convert_int(video_streams[0].get('duration', 0))
                     if 60 <= stream_duration <= 21600:  # 1 minute to 6 hours range
                         duration_seconds = stream_duration
-
+            
             if duration_seconds == 0:
                 runtime_minutes = self._safe_convert_int(kodi_movie.get('runtime', 0))
                 duration_seconds = runtime_minutes * 60 if runtime_minutes > 0 else 0
@@ -462,9 +463,6 @@ class FavoritesSyncManager:
                 cast_string = ', '.join(actor_names) if actor_names else ''
 
             media_dict = {
-                '_sync_operation': True,
-                '_no_listitem_building': True,
-                '_background_sync': True,
                 'title': self._safe_convert_string(kodi_movie.get('title'), 'Unknown Title'),
                 'year': self._safe_convert_int(kodi_movie.get('year')),
                 'plot': self._safe_convert_string(kodi_movie.get('plot')),
@@ -495,7 +493,6 @@ class FavoritesSyncManager:
                 'uniqueid': '',
                 'stream_url': '',
                 'status': 'available'
-                # NOTE: Deliberately excluding 'streamdetails' to prevent deprecated ListItem building warnings
             }
 
             # Extract and process art data
@@ -518,10 +515,10 @@ class FavoritesSyncManager:
             media_dict['uniqueid'] = json.dumps(uniqueid) if uniqueid else ''
 
         else:
-            # Use favorite data only (limited metadata)
-            utils.log(f"SYNC_DATA_CONVERSION: Using FAVORITES data only for '{fav_item.get('title', 'Unknown')}'", "DEBUG")
-            
-            # Duration calculation with streamdetails preference but don't store streamdetails
+            # Use Favorites data with filedetails enhancement
+            utils.log(f"SYNC_DATA_CONVERSION: Using FAVORITES data for '{title}'", "DEBUG")
+
+            # Duration calculation with streamdetails preference
             duration_seconds = 0
             if filedetails:
                 streamdetails = filedetails.get('streamdetails', {})
@@ -531,11 +528,11 @@ class FavoritesSyncManager:
                         stream_duration = self._safe_convert_int(video_streams[0].get('duration', 0))
                         if 60 <= stream_duration <= 21600:
                             duration_seconds = stream_duration
-
+            
             if duration_seconds == 0 and filedetails:
                 runtime_minutes = self._safe_convert_int(filedetails.get('runtime', 0))
                 duration_from_field = self._safe_convert_int(filedetails.get('duration', 0))
-
+                
                 if duration_from_field > 0:
                     duration_seconds = duration_from_field
                 elif runtime_minutes > 0:
@@ -544,11 +541,8 @@ class FavoritesSyncManager:
             art = (filedetails or {}).get('art', {})
             thumb = (filedetails or {}).get('thumbnail') or self._safe_convert_string(fav_item.get('thumbnail'))
             fan = (filedetails or {}).get('fanart')
-            
+
             media_dict = {
-                '_sync_operation': True,
-                '_no_listitem_building': True,
-                '_background_sync': True,
                 'title': title.strip() if title else 'Unknown',
                 'year': 0,
                 'plot': '',
@@ -579,9 +573,7 @@ class FavoritesSyncManager:
                 'uniqueid': '',
                 'stream_url': '',
                 'status': 'available'
-                # NOTE: Deliberately excluding 'streamdetails' to prevent deprecated ListItem building warnings
             }
-
 
         return media_dict
 
@@ -611,11 +603,6 @@ class FavoritesSyncManager:
         if xbmc.Player().isPlaying():
             utils.log("Media is playing, skipping favorites sync", "DEBUG")
             return False
-
-        # Set global sync state to prevent ListItem building on any thread
-        from resources.lib.kodi.listitem_builder import set_sync_active
-        sync_id = f"favorites_sync_{int(time.time() * 1000)}"
-        set_sync_active(sync_id)
 
         utils.log("=== Starting Favorites Sync Process ===", "DEBUG")
         start_time = time.time()
@@ -670,7 +657,7 @@ class FavoritesSyncManager:
                     added_items.append(current_item)
                 else:
                     last_item = last_items[identity]
-                    if (current_item['title'] != last_item['title'] or
+                    if (current_item['title'] != last_item['title'] or 
                         current_item['thumbnail'] != last_item['thumbnail']):
                         changed_items.append((current_item, last_item))
 
@@ -692,29 +679,17 @@ class FavoritesSyncManager:
             elapsed_time = time.time() - start_time
             utils.log(f"Favorites sync completed in {elapsed_time:.2f} seconds", "INFO")
 
-            # Clear global sync state
-            from resources.lib.kodi.listitem_builder import set_sync_inactive
-            set_sync_inactive(sync_id)
-
             return True
 
         except Exception as e:
             utils.log(f"Error in favorites sync: {str(e)}", "ERROR")
             import traceback
             utils.log(f"Favorites sync traceback: {traceback.format_exc()}", "ERROR")
-            
-            # Ensure sync state is cleared even on error
-            from resources.lib.kodi.listitem_builder import set_sync_inactive
-            set_sync_inactive(sync_id)
-            
             return False
 
     def _apply_database_changes(self, list_id, added_items, removed_identities, changed_items, current_favorites):
         """Apply changes to the database without any UI dependencies"""
         try:
-            import threading
-            current_thread = threading.current_thread()
-            utils.log(f"SYNC_DATABASE_CHANGES: Starting on thread {current_thread.name} (ID: {current_thread.ident})", "DEBUG")
             # Create lookup for current favorites by identity
             favorites_by_identity = {}
             for fav in current_favorites:
@@ -761,15 +736,8 @@ class FavoritesSyncManager:
                     media_dict = self._create_media_dict_from_favorite(original_fav, filedetails, kodi_movie)
 
                     # Insert into database using sync-only method (guaranteed no ListItem building)
-                    utils.log(f"SYNC_DATABASE_INSERT: About to insert '{title}' with sync flags: {media_dict.get('_sync_operation', False)}, {media_dict.get('_no_listitem_building', False)}, {media_dict.get('_background_sync', False)}", "DEBUG")
-                    
-                    # Double-check sync flags are set
-                    media_dict['_sync_operation'] = True
-                    media_dict['_no_listitem_building'] = True
-                    media_dict['_background_sync'] = True
-                    
-                    self.query_manager.sync_only_store_media_item_to_list(list_id, media_dict)
-                    utils.log(f"SYNC_DATABASE_INSERT: Successfully added new favorite '{title}' to list", "INFO")
+                    self.query_manager.sync_store_media_item_to_list(list_id, media_dict)
+                    utils.log(f"Added new favorite '{title}' to list", "INFO")
 
             # Process removed items (favorites no longer in Kodi)
             if removed_identities:
@@ -784,7 +752,7 @@ class FavoritesSyncManager:
                     # Check if this list item corresponds to a removed favorite
                     item_found_in_kodi = False
                     for fav in current_favorites:
-                        if (fav.get('path', '') == item_path or
+                        if (fav.get('path', '') == item_path or 
                             (fav.get('title', '').lower() == item_title.lower() and item_title)):
                             item_found_in_kodi = True
                             break
@@ -847,26 +815,15 @@ class FavoritesSyncManager:
         """Force a complete sync regardless of changes"""
         utils.log("=== Starting Forced Favorites Sync ===", "INFO")
 
-        # Set global sync state
-        from resources.lib.kodi.listitem_builder import set_sync_active
-        sync_id = f"force_sync_{int(time.time() * 1000)}"
-        set_sync_active(sync_id)
+        # Reset snapshot to force full sync
+        self.last_snapshot = {'items': {}, 'signature': ''}
 
-        try:
-            # Reset snapshot to force full sync
-            self.last_snapshot = {'items': {}, 'signature': ''}
+        # Run sync
+        result = self.sync_favorites()
 
-            # Run sync
-            result = self.sync_favorites()
+        if result:
+            utils.log("Forced favorites sync completed successfully", "INFO")
+        else:
+            utils.log("Forced favorites sync failed or no changes detected", "WARNING")
 
-            if result:
-                utils.log("Forced favorites sync completed successfully", "INFO")
-            else:
-                utils.log("Forced favorites sync failed or no changes detected", "WARNING")
-
-            return result
-
-        finally:
-            # Always clear sync state
-            from resources.lib.kodi.listitem_builder import set_sync_inactive
-            set_sync_inactive(sync_id)
+        return result

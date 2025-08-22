@@ -366,18 +366,6 @@ class ResultsManager(Singleton):
                     r['media_id'] = r.get('id') or r.get('media_id')
 
                     # Only build ListItem when actually displaying the list (not during sync)
-                    # Check if this is being called from a sync operation by looking at the call stack
-                    import inspect
-                    frame_names = [frame.function for frame in inspect.stack()]
-                    is_sync_operation = any(sync_func in frame_names for sync_func in [
-                        'sync_favorites', '_apply_database_changes', 'sync_only_store_media_item_to_list'
-                    ])
-                    
-                    if is_sync_operation:
-                        utils.log(f"Skipping ListItem building for favorites import item '{r.get('title', 'Unknown')}' during sync operation", "DEBUG")
-                        continue
-
-                    utils.log(f"=== RESULTS_MANAGER: About to build ListItem for favorites_import item '{r.get('title', 'Unknown')}' ===", "INFO")
                     from resources.lib.kodi.listitem_builder import ListItemBuilder
                     list_item = ListItemBuilder.build_video_item(r, is_search_history=is_search_history)
 
@@ -520,7 +508,6 @@ class ResultsManager(Singleton):
                         utils.log(f"LISTITEM_INPUT_DATA: {key} = {repr(value)}", "INFO")
                 utils.log(f"=== END LISTITEM_INPUT_DATA ===", "INFO")
 
-                utils.log(f"=== RESULTS_MANAGER: About to build ListItem for library/search item '{title}' (match: {kodi_movie is not None}) ===", "INFO")
                 from resources.lib.kodi.listitem_builder import ListItemBuilder
                 list_item = ListItemBuilder.build_video_item(item_dict, is_search_history=is_search_history)
 
@@ -542,7 +529,6 @@ class ResultsManager(Singleton):
                 item['_viewing_list_id'] = list_id
                 item['media_id'] = item.get('id') or item.get('media_id')
 
-                utils.log(f"=== RESULTS_MANAGER: About to build ListItem for external item '{item.get('title', 'Unknown')}' ===", "INFO")
                 from resources.lib.kodi.listitem_builder import ListItemBuilder
                 list_item = ListItemBuilder.build_video_item(item, is_search_history=is_search_history)
 

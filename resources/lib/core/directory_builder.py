@@ -138,7 +138,6 @@ def build_root_directory(handle: int):
             if kodi_favorites_list and kodi_favorites_list['name'] == "Kodi Favorites":
                 list_count = query_manager.get_list_media_count(1)
                 display_title = f"Kodi Favorites ({list_count})"
-                utils.log(f"=== DIRECTORY_BUILDER: About to build folder ListItem for Kodi Favorites: '{display_title}' ===", "INFO")
                 li = ListItemBuilder.build_folder_item(f"⭐ {display_title}", is_folder=True, item_type='playlist')
                 li.setProperty('lg_type', 'list')
                 add_context_menu_for_item(li, 'list', list_id=1)

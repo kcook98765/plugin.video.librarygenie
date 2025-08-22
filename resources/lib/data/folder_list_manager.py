@@ -90,7 +90,6 @@ class FolderListManager:
     def browse_search_history(self):
         """Browse the search history by navigating to the Search History folder"""
         utils.log("=== BROWSE_SEARCH_HISTORY FUNCTION CALLED ===", "INFO")
-        utils.log("=== FOLDER_LIST_MANAGER: No ListItem building occurs in browse_search_history - navigation only ===", "INFO")
         try:
             # Get Search History folder ID
             search_history_folder_id = self.db_manager.get_folder_id_by_name("Search History")

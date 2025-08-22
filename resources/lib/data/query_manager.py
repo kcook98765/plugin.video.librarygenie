@@ -2,36 +2,32 @@ import sqlite3
 import os
 import threading
 import re
-import time
 from contextlib import contextmanager
-from typing import Optional, List, Dict, Any, Union, Tuple, Generator
+from typing import Optional, List, Dict, Any, Union, Tuple
 from resources.lib.utils import utils
 from resources.lib.utils.singleton_base import Singleton
 from resources.lib.config.config_manager import Config
 import json
-import xbmcgui # Import xbmcgui
-import xbmc # Import xbmc
 
 
 class QueryManager(Singleton):
     """Central SQLite connection manager with pooling and transaction support."""
 
-    def __init__(self, db_path: str) -> None:
+    def __init__(self, db_path: str):
         # If the singleton was already initialized, warn on path drift and return.
         if hasattr(self, '_initialized') and self._initialized:
             if getattr(self, 'db_path', None) and self.db_path != db_path:
                 utils.log(f"QueryManager: Ignoring new db_path '{db_path}' (already initialized with '{self.db_path}')", "WARNING")
             return
 
-        self.db_path: str = db_path
-        self._connection: Optional[sqlite3.Connection] = None
-        self._lock: threading.RLock = threading.RLock()
-        self._initialized: bool = False
+        self.db_path = db_path
+        self._connection = None
+        self._lock = threading.RLock()
         self._ensure_connection()
 
         # Initialize DAO with query and write executors
         from resources.lib.data.dao.listing_dao import ListingDAO
-        self._listing: ListingDAO = ListingDAO(self.execute_query, self.execute_write)
+        self._listing = ListingDAO(self.execute_query, self.execute_write)
 
         self._initialized = True
 
@@ -76,15 +72,13 @@ class QueryManager(Singleton):
             return False
 
         rows = self.execute_query(f"PRAGMA table_info({table_name})", fetch_all=True)
-        if not rows:
-            return False
-        column_names = [row_dict['name'] for row_dict in rows if isinstance(row_dict, dict) and 'name' in row_dict]
+        column_names = [row['name'] for row in rows]
         return column_name in column_names
 
     # -------------------------
     # Connection / PRAGMAs
     # -------------------------
-    def _ensure_connection(self) -> None:
+    def _ensure_connection(self):
         """Ensure we have a properly configured SQLite connection."""
         if self._connection is not None:
             return
@@ -113,11 +107,9 @@ class QueryManager(Singleton):
 
         utils.log("QueryManager: SQLite connection established with optimized settings", "DEBUG")
 
-    def _get_connection(self) -> sqlite3.Connection:
+    def _get_connection(self):
         """Internal method to get the managed connection."""
         self._ensure_connection()
-        if self._connection is None:
-            raise RuntimeError("Failed to establish database connection")
         return self._connection
 
     # -------------------------
@@ -126,10 +118,10 @@ class QueryManager(Singleton):
     def execute_query(
         self,
         sql: str,
-        params: Tuple[Any, ...] = (),
+        params: Tuple = (),
         fetch_one: bool = False,
-        fetch_all: bool = True
-    ) -> Union[Dict[str, Any], List[Dict[str, Any]], None]:
+        fetch_all: bool = False
+    ) -> Union[Dict, List[Dict], None]:
         """Execute a SELECT query and return results as dicts."""
         with self._lock:
             try:
@@ -139,12 +131,9 @@ class QueryManager(Singleton):
                 if fetch_one:
                     row = cursor.fetchone()
                     result = dict(row) if row else None
-                elif fetch_all:
+                else:
                     rows = cursor.fetchall()
                     result = [dict(row) for row in rows]
-                else:
-                    # Default case - return empty list
-                    result = []
 
                 cursor.close()
                 return result
@@ -153,13 +142,13 @@ class QueryManager(Singleton):
                 utils.log(f"SQL: {sql}, Params: {params}", "ERROR")
                 raise
 
-    def execute_write(self, sql: str, params: Tuple[Any, ...] = ()) -> int:
+    def execute_write(self, sql: str, params: Tuple = ()) -> int:
         """Execute an INSERT/UPDATE/DELETE and return lastrowid."""
         with self._lock:
             conn = self._get_connection()
             try:
                 cursor = conn.execute(sql, params)
-                lastrowid = cursor.lastrowid or 0
+                lastrowid = cursor.lastrowid
                 conn.commit()
                 cursor.close()
                 return lastrowid
@@ -169,13 +158,13 @@ class QueryManager(Singleton):
                 utils.log(f"SQL: {sql}, Params: {params}", "ERROR")
                 raise
 
-    def executemany_write(self, sql: str, seq_of_params: List[Tuple[Any, ...]]) -> int:
+    def executemany_write(self, sql: str, seq_of_params: List[Tuple]) -> int:
         """Execute multiple statements and return rowcount."""
         with self._lock:
             conn = self._get_connection()
             try:
                 cursor = conn.executemany(sql, seq_of_params)
-                rowcount = cursor.rowcount or 0
+                rowcount = cursor.rowcount
                 conn.commit()
                 cursor.close()
                 return rowcount
@@ -186,7 +175,7 @@ class QueryManager(Singleton):
                 raise
 
     @contextmanager
-    def transaction(self) -> Generator[sqlite3.Connection, None, None]:
+    def transaction(self):
         """Transaction context manager for atomic operations."""
         with self._lock:
             conn = self._get_connection()
@@ -203,21 +192,6 @@ class QueryManager(Singleton):
     # -------------------------
     # Minimal, Stable Public API (non-DAO)
     # -------------------------
-
-    def delete_data(self, table_name: str, where_clause: str) -> bool:
-        """Delete data from table with where clause - used by folder_list_manager"""
-        if not self._validate_table_exists(table_name):
-            utils.log(f"Invalid or non-existent table: {table_name}", "ERROR")
-            return False
-
-        try:
-            # Use direct SQL execution for delete operations
-            sql = f"DELETE FROM {table_name} WHERE {where_clause}"
-            self.execute_write(sql)
-            return True
-        except Exception as e:
-            utils.log(f"Error deleting data from {table_name}: {str(e)}", "ERROR")
-            return False
 
     def delete_folder(self, folder_id: int) -> bool:
         """Delete a folder and all its contents atomically."""
@@ -247,13 +221,11 @@ class QueryManager(Singleton):
         """Get all descendant folder IDs recursively (uses DAO for reads)."""
         descendant_ids: List[int] = []
 
-        def _walk(pid: int) -> None:
-            folders = self.get_folders(pid)
-            if folders:
-                for child in folders:
-                    cid = child['id']
-                    descendant_ids.append(cid)
-                    _walk(cid)
+        def _walk(pid: int):
+            for child in self.get_folders(pid) or []:
+                cid = child['id']
+                descendant_ids.append(cid)
+                _walk(cid)
 
         _walk(folder_id)
         return descendant_ids
@@ -261,7 +233,7 @@ class QueryManager(Singleton):
     def get_folder_path(self, folder_id: int) -> str:
         """Get full path of a folder (uses DAO for reads)."""
         parts: List[str] = []
-        current_id: Optional[int] = folder_id
+        current_id = folder_id
 
         while current_id:
             folder = self.fetch_folder_by_id(current_id)
@@ -272,7 +244,7 @@ class QueryManager(Singleton):
 
         return "/".join(parts) if parts else ""
 
-    def ensure_search_history_folder(self) -> Dict[str, Any]:
+    def ensure_search_history_folder(self) -> Dict:
         """Ensure 'Search History' folder exists."""
         fid = self.get_folder_id_by_name("Search History")
         if fid:
@@ -294,7 +266,7 @@ class QueryManager(Singleton):
         """
         return self.execute_query(query, (list_id,), fetch_all=True)
 
-    def save_llm_response(self, description: str, response_data: Dict[str, Any]) -> int:
+    def save_llm_response(self, description: str, response_data: Any) -> int:
         """Save LLM API response into original_requests."""
         query = "INSERT INTO original_requests (description, response_json) VALUES (?, ?)"
         return self.execute_write(query, (description, json.dumps(response_data)))
@@ -531,46 +503,10 @@ class QueryManager(Singleton):
         query = "SELECT * FROM media_items WHERE kodi_id = ? AND media_type = ?"
         return self.execute_query(query, (kodi_dbid, media_type), fetch_one=True) or {}
 
-    def clear_all_local_data(self) -> None:
-        """Clear all local database data"""
-        utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW CONFIRMATION MODAL ===", "DEBUG")
-        if not xbmcgui.Dialog().yesno('Clear All Local Data', 'This will delete all lists, folders, and search history.\n\nAre you sure?'):
-            utils.log("=== CLEAR_ALL_LOCAL_DATA: CONFIRMATION MODAL CLOSED - CANCELLED ===", "DEBUG")
-            return
-        utils.log("=== CLEAR_ALL_LOCAL_DATA: CONFIRMATION MODAL CLOSED - CONFIRMED ===", "DEBUG")
-
-        try:
-            # Clear user-created content and media cache
-            self.delete_data('list_items', '1=1')
-            self.delete_data('lists', '1=1')
-            self.delete_data('folders', '1=1')
-            self.delete_data('media_items', '1=1')
-            # Preserve imdb_exports - they contain valuable library reference data
-
-            # Recreate protected folders
-            search_folder_id = self.get_folder_id_by_name("Search History")
-            if not search_folder_id:
-                search_folder_id = self.insert_folder("Search History", None)
-
-            imported_lists_folder_id = self.get_folder_id_by_name("Imported Lists")
-            if not imported_lists_folder_id:
-                imported_lists_folder_id = self.insert_folder("Imported Lists", None)
-
-            utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW SUCCESS NOTIFICATION ===", "DEBUG")
-            xbmcgui.Dialog().notification('LibraryGenie', 'All local data cleared')
-            utils.log("=== CLEAR_ALL_LOCAL_DATA: SUCCESS NOTIFICATION CLOSED ===", "DEBUG")
-            xbmc.executebuiltin('Container.Refresh')
-        except Exception as e:
-            utils.log(f"Error clearing local data: {str(e)}", "ERROR")
-            utils.log("=== CLEAR_ALL_LOCAL_DATA: ABOUT TO SHOW ERROR NOTIFICATION ===", "DEBUG")
-            xbmcgui.Dialog().notification('LibraryGenie', 'Failed to clear data')
-            utils.log("=== CLEAR_ALL_LOCAL_DATA: ERROR NOTIFICATION CLOSED ===", "DEBUG")
-
-
     # -------------------------
     # Schema Setup / Bootstrap
     # -------------------------
-    def setup_database(self) -> None:
+    def setup_database(self):
         """Setup all database tables."""
         db_dir = os.path.dirname(self.db_path)
         if db_dir and not os.path.exists(db_dir):
@@ -658,7 +594,7 @@ class QueryManager(Singleton):
         # Ensure system lists exist
         self.ensure_system_lists()
 
-    def setup_movies_reference_table(self) -> None:
+    def setup_movies_reference_table(self):
         """Create movies_reference table and indexes."""
         with self._lock:
             conn = self._get_connection()
@@ -692,10 +628,11 @@ class QueryManager(Singleton):
 
             conn.commit()
 
-    def store_heavy_meta_batch(self, heavy_metadata_list: List[Dict[str, Any]]) -> None:
+    def store_heavy_meta_batch(self, heavy_metadata_list: List[Dict[str, Any]]):
         """Store heavy metadata for multiple movies in batch."""
         if not heavy_metadata_list:
             return
+        import time
 
         with self._lock:
             conn = self._get_connection()
@@ -739,7 +676,7 @@ class QueryManager(Singleton):
                 utils.log(f"Error storing heavy metadata batch: {str(e)}", "ERROR")
                 raise
 
-    def get_heavy_meta_by_movieids(self, movieids: List[int], refresh: bool = False) -> Dict[int, Dict[str, Any]]:
+    def get_heavy_meta_by_movieids(self, movieids: List[int], refresh: bool = False):
         """Get heavy metadata for multiple movie IDs with caching (delegated to DAO)."""
         return self._listing.get_heavy_meta_by_movieids(movieids, refresh)
 
@@ -769,8 +706,9 @@ class QueryManager(Singleton):
             self.executemany_write(sql, data)
             utils.log(f"Successfully inserted {len(movies)} movies into imdb_exports", "INFO")
 
-    def ensure_kodi_favorites_list(self) -> Dict[str, Any]:
-        """Ensure Kodi Favorites list exists and return it."""
+    def ensure_system_lists(self):
+        """Ensure reserved system lists exist (IDs 1 and 2)."""
+        # ID 1: Kodi Favorites
         existing = self.fetch_list_by_id(1)
         if not existing:
             utils.log("Creating reserved Kodi Favorites list with ID 1", "DEBUG")
@@ -778,18 +716,14 @@ class QueryManager(Singleton):
                 "INSERT INTO lists (id, name, folder_id, protected) VALUES (?, ?, ?, ?)",
                 (1, "Kodi Favorites", None, 1)
             )
-            return {'id': 1, 'name': "Kodi Favorites", 'folder_id': None, 'protected': 1}
         elif existing['name'] != "Kodi Favorites":
             utils.log(f"Updating list ID 1 to be Kodi Favorites (was: {existing['name']})", "DEBUG")
             self.execute_write(
                 "UPDATE lists SET name=?, folder_id=NULL, protected=1 WHERE id=?",
                 ("Kodi Favorites", 1)
             )
-            existing['name'] = "Kodi Favorites"
-        return existing
 
-    def ensure_shortlist_imports_list(self) -> Dict[str, Any]:
-        """Ensure Shortlist Imports list exists and return it."""
+        # ID 2: Shortlist Imports
         existing = self.fetch_list_by_id(2)
         if not existing:
             utils.log("Creating reserved Shortlist Imports list with ID 2", "DEBUG")
@@ -797,20 +731,12 @@ class QueryManager(Singleton):
                 "INSERT INTO lists (id, name, folder_id, protected) VALUES (?, ?, ?, ?)",
                 (2, "Shortlist Imports", None, 1)
             )
-            return {'id': 2, 'name': "Shortlist Imports", 'folder_id': None, 'protected': 1}
         elif existing['name'] != "Shortlist Imports":
             utils.log(f"Updating list ID 2 to be Shortlist Imports (was: {existing['name']})", "DEBUG")
             self.execute_write(
                 "UPDATE lists SET name=?, folder_id=NULL, protected=1 WHERE id=?",
                 ("Shortlist Imports", 2)
             )
-            existing['name'] = "Shortlist Imports"
-        return existing
-
-    def ensure_system_lists(self) -> None:
-        """Ensure reserved system lists exist (IDs 1 and 2)."""
-        self.ensure_kodi_favorites_list()
-        self.ensure_shortlist_imports_list()
 
     def get_valid_imdb_numbers(self) -> List[str]:
         query = """
@@ -922,105 +848,7 @@ class QueryManager(Singleton):
             utils.log(f"SYNC_STORE: Error storing media item: {str(e)}", "ERROR")
             return False
 
-    def insert_or_get_media_item(self, media_data: Dict[str, Any]) -> Optional[int]:
-        """Insert or get existing media item, return ID."""
-        try:
-            # Use existing insert_media_item method
-            media_id = self.insert_media_item(media_data)
-            if media_id:
-                return media_id
-            
-            # If insert failed, try to find existing
-            title = media_data.get('title', '')
-            year = media_data.get('year', 0)
-            source = media_data.get('source', '')
-            
-            existing = self.execute_query(
-                "SELECT id FROM media_items WHERE title = ? AND year = ? AND source = ? LIMIT 1",
-                (title, year, source),
-                fetch_one=True
-            )
-            
-            return existing['id'] if existing else None
-            
-        except Exception as e:
-            utils.log(f"Error in insert_or_get_media_item: {str(e)}", "ERROR")
-            return None
-
-    def add_media_item_to_list(self, list_id: int, media_item_id: int) -> bool:
-        """Add media item to list (database only, no UI operations)."""
-        try:
-            # Check if already exists
-            existing = self.execute_query(
-                "SELECT id FROM list_items WHERE list_id = ? AND media_item_id = ?",
-                (list_id, media_item_id),
-                fetch_one=True
-            )
-            
-            if existing:
-                utils.log(f"Media item {media_item_id} already in list {list_id}", "DEBUG")
-                return True
-            
-            # Insert new list item
-            self.execute_write(
-                "INSERT INTO list_items (list_id, media_item_id, search_score) VALUES (?, ?, ?)",
-                (list_id, media_item_id, 0)
-            )
-            
-            utils.log(f"Added media item {media_item_id} to list {list_id}", "DEBUG")
-            return True
-            
-        except Exception as e:
-            utils.log(f"Error adding media item to list: {str(e)}", "ERROR")
-            return False
-
-    def sync_only_store_media_item_to_list(self, list_id, media_item):
-        """
-        Store media item to list without any ListItem building - designed for sync operations.
-        This method guarantees no UI operations will occur during background sync processes.
-        """
-        try:
-            # Validate required fields
-            if not media_item.get('title'):
-                utils.log("Cannot store media item without title", "ERROR")
-                return False
-
-            # Set multiple sync flags to prevent any UI operations
-            media_item['_sync_operation'] = True
-            media_item['_no_listitem_building'] = True
-            media_item['_background_sync'] = True
-
-            # Explicitly mark this thread as a sync operation
-            import threading
-            current_thread = threading.current_thread()
-            original_name = current_thread.name
-            current_thread.name = f"FavoritesSync-{original_name}"
-
-            utils.log(f"SYNC_ONLY_STORE: Starting for '{media_item.get('title')}' on thread {current_thread.name}", "DEBUG")
-            utils.log(f"SYNC_ONLY_STORE: Sync flags set - sync: {media_item.get('_sync_operation')}, no_listitem: {media_item.get('_no_listitem_building')}, background: {media_item.get('_background_sync')}", "DEBUG")
-
-            # Insert or get existing media item
-            media_id = self.insert_or_get_media_item(media_item)
-            if not media_id:
-                utils.log(f"Failed to insert/get media item: {media_item.get('title')}", "ERROR")
-                return False
-
-            # Add to list without any UI operations
-            success = self.add_media_item_to_list(list_id, media_id)
-            if success:
-                utils.log(f"Successfully added '{media_item.get('title')}' to list {list_id} (sync mode)", "DEBUG")
-            else:
-                utils.log(f"Failed to add '{media_item.get('title')}' to list {list_id} (sync mode)", "ERROR")
-
-            # Restore thread name
-            current_thread.name = original_name
-            return success
-
-        except Exception as e:
-            utils.log(f"Error in sync_only_store_media_item_to_list: {str(e)}", "ERROR")
-            return False
-
-    def close(self) -> None:
+    def close(self):
         """Close the database connection."""
         with self._lock:
             if self._connection:
@@ -1036,101 +864,101 @@ class QueryManager(Singleton):
     # DAO Delegation (Canonical)
     # -------------------------
     # FOLDERS
-    def get_folders(self, parent_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    def get_folders(self, parent_id: Optional[int] = None):
         return self._listing.get_folders(parent_id)
 
-    def fetch_folders_direct(self, parent_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    def fetch_folders_direct(self, parent_id: Optional[int] = None):
         return self._listing.fetch_folders_direct(parent_id)
 
-    def insert_folder_direct(self, name: str, parent_id: Optional[int]) -> int:
+    def insert_folder_direct(self, name: str, parent_id: Optional[int]):
         return self._listing.insert_folder_direct(name, parent_id)
 
-    def update_folder_name_direct(self, folder_id: int, new_name: str) -> bool:
+    def update_folder_name_direct(self, folder_id: int, new_name: str):
         return self._listing.update_folder_name_direct(folder_id, new_name)
 
-    def get_folder_depth(self, folder_id: int) -> int:
+    def get_folder_depth(self, folder_id: int):
         return self._listing.get_folder_depth(folder_id)
 
-    def get_folder_by_name(self, name: str, parent_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+    def get_folder_by_name(self, name: str, parent_id: Optional[int] = None):
         return self._listing.get_folder_by_name(name, parent_id)
 
-    def get_folder_id_by_name(self, name: str, parent_id: Optional[int] = None) -> Optional[int]:
+    def get_folder_id_by_name(self, name: str, parent_id: Optional[int] = None):
         return self._listing.get_folder_id_by_name(name, parent_id)
 
-    def insert_folder(self, name: str, parent_id: Optional[int]) -> int:
+    def insert_folder(self, name: str, parent_id: Optional[int]):
         return self._listing.insert_folder(name, parent_id)
 
-    def create_folder(self, name: str, parent_id: Optional[int]) -> Dict[str, Any]:
+    def create_folder(self, name: str, parent_id: Optional[int]):
         return self._listing.create_folder(name, parent_id)
 
-    def update_folder_name(self, folder_id: int, new_name: str) -> bool:
+    def update_folder_name(self, folder_id: int, new_name: str):
         return self._listing.update_folder_name(folder_id, new_name)
 
-    def get_folder_media_count(self, folder_id: int) -> int:
+    def get_folder_media_count(self, folder_id: int):
         return self._listing.get_folder_media_count(folder_id)
 
-    def fetch_folder_by_id(self, folder_id: int) -> Optional[Dict[str, Any]]:
+    def fetch_folder_by_id(self, folder_id: int):
         return self._listing.fetch_folder_by_id(folder_id)
 
-    def update_folder_parent(self, folder_id: int, new_parent_id: Optional[int]) -> bool:
+    def update_folder_parent(self, folder_id: int, new_parent_id: Optional[int]):
         return self._listing.update_folder_parent(folder_id, new_parent_id)
 
-    def fetch_folders_with_item_status(self, parent_id: Optional[int], media_item_id: int) -> List[Dict[str, Any]]:
+    def fetch_folders_with_item_status(self, parent_id: Optional[int], media_item_id: int):
         return self._listing.fetch_folders_with_item_status(parent_id, media_item_id)
 
-    def fetch_all_folders(self) -> List[Dict[str, Any]]:
+    def fetch_all_folders(self):
         return self._listing.fetch_all_folders()
 
     # LISTS
-    def get_lists(self, folder_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    def get_lists(self, folder_id: Optional[int] = None):
         return self._listing.get_lists(folder_id)
 
-    def fetch_lists_direct(self, folder_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    def fetch_lists_direct(self, folder_id: Optional[int] = None):
         return self._listing.fetch_lists_direct(folder_id)
 
-    def get_list_items(self, list_id: int) -> List[Dict[str, Any]]:
+    def get_list_items(self, list_id: int):
         return self._listing.get_list_items(list_id)
 
-    def get_list_media_count(self, list_id: int) -> int:
+    def get_list_media_count(self, list_id: int):
         return self._listing.get_list_media_count(list_id)
 
-    def fetch_lists_with_item_status(self, folder_id: Optional[int], media_item_id: int) -> List[Dict[str, Any]]:
+    def fetch_lists_with_item_status(self, folder_id: Optional[int], media_item_id: int):
         return self._listing.fetch_lists_with_item_status(folder_id, media_item_id)
 
-    def fetch_all_lists_with_item_status(self, media_item_id: int) -> List[Dict[str, Any]]:
+    def fetch_all_lists_with_item_status(self, media_item_id: int):
         return self._listing.fetch_all_lists_with_item_status(media_item_id)
 
-    def update_list_folder(self, list_id: int, folder_id: Optional[int]) -> bool:
+    def update_list_folder(self, list_id: int, folder_id: Optional[int]):
         return self._listing.update_list_folder(list_id, folder_id)
 
-    def get_list_id_by_name(self, name: str, folder_id: Optional[int] = None) -> Optional[int]:
+    def get_list_id_by_name(self, name: str, folder_id: Optional[int] = None):
         return self._listing.get_list_id_by_name(name, folder_id)
 
-    def get_lists_for_item(self, media_item_id: int) -> List[Dict[str, Any]]:
+    def get_lists_for_item(self, media_item_id: int):
         return self._listing.get_lists_for_item(media_item_id)
 
-    def get_item_id_by_title_and_list(self, title: str, list_id: int) -> Optional[int]:
+    def get_item_id_by_title_and_list(self, title: str, list_id: int):
         return self._listing.get_item_id_by_title_and_list(title, list_id)
 
-    def create_list(self, name: str, folder_id: Optional[int] = None) -> Dict[str, Any]:
+    def create_list(self, name: str, folder_id: Optional[int] = None):
         return self._listing.create_list(name, folder_id)
 
-    def get_unique_list_name(self, base_name: str, folder_id: Optional[int] = None) -> str:
+    def get_unique_list_name(self, base_name: str, folder_id: Optional[int] = None):
         return self._listing.get_unique_list_name(base_name, folder_id)
 
-    def fetch_all_lists(self) -> List[Dict[str, Any]]:
+    def fetch_all_lists(self):
         return self._listing.fetch_all_lists()
 
-    def fetch_list_by_id(self, list_id: int) -> Optional[Dict[str, Any]]:
+    def fetch_list_by_id(self, list_id: int):
         return self._listing.fetch_list_by_id(list_id)
 
-    def remove_media_item_from_list(self, list_id: int, media_item_id: int) -> bool:
+    def remove_media_item_from_list(self, list_id: int, media_item_id: int):
         return self._listing.remove_media_item_from_list(list_id, media_item_id)
 
-    def get_list_item_by_media_id(self, list_id: int, media_item_id: int) -> Optional[Dict[str, Any]]:
+    def get_list_item_by_media_id(self, list_id: int, media_item_id: int):
         return self._listing.get_list_item_by_media_id(list_id, media_item_id)
 
-    def fetch_list_items_with_details(self, list_id: int) -> List[Dict[str, Any]]:
+    def fetch_list_items_with_details(self, list_id: int):
         return self._listing.fetch_list_items_with_details(list_id)
 
     # Convenience alias preserved for backward compatibility

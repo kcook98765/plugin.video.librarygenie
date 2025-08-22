@@ -22,7 +22,6 @@ class KodiHelper:
         xbmcplugin.setContent(self.addon_handle, content_type)
 
         for item in items:
-            utils.log(f"=== KODI_HELPER: About to build ListItem for item '{item.get('title', 'Unknown')}' in list_items ===", "INFO")
             list_item = ListItemBuilder.build_video_item(item)
             url = f'{self.addon_url}?action=play_item&id={item.get("id")}'
 
@@ -65,7 +64,6 @@ class KodiHelper:
     def list_folders_and_lists(self, folders, lists):
         from resources.lib.kodi.listitem_builder import ListItemBuilder
         for folder in folders:
-            utils.log(f"=== KODI_HELPER: About to build folder ListItem for folder '{folder['name']}' ===", "INFO")
             list_item = ListItemBuilder.build_folder_item(folder['name'], is_folder=True, item_type='folder')
             url = f'{self.addon_url}?action=browse_folder&folder_id={folder["id"]}'
             utils.log(f"Adding folder: {folder['name']} with URL - {url}", "DEBUG")
@@ -127,7 +125,6 @@ class KodiHelper:
 
         # Add items and end directory
         for item in items:
-            utils.log(f"=== KODI_HELPER: About to build ListItem for item '{item.get('title', 'Unknown')}' in list_items ===", "INFO")
             list_item = ListItemBuilder.build_video_item(item)
             url = f'{self.addon_url}?action=play_item&id={item.get("id")}'
             xbmcplugin.addDirectoryItem(
