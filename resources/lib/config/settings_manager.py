@@ -71,6 +71,12 @@ class SettingsManager:
         from resources.lib.integrations.remote_api.library_status import show_library_status
         return show_library_status()
 
+    def view_upload_status(self):
+        """Show upload status dialog"""
+        from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
+        upload_manager = IMDbUploadManager()
+        return upload_manager.get_upload_status()
+
     @property 
     def addon_path(self):
         return xbmcvfs.translatePath(self.addon.getAddonInfo('path'))
