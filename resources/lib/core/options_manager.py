@@ -155,9 +155,9 @@ class OptionsManager:
             utils.log(f"Pre-modal window state: {xbmcgui.getCurrentWindowId()}", "DEBUG")
             utils.log("=== CREATING xbmcgui.Dialog() INSTANCE ===", "DEBUG")
 
-            # Check if we're on Shield TV for optimized handling
-            if utils.is_shield_tv():
-                utils.log("=== SHIELD TV DETECTED: Using optimized dialog handling ===", "DEBUG")
+            # Check if device needs modal dialog optimization
+            if utils.needs_modal_optimization():
+                utils.log("=== SLOW DEVICE DETECTED: Using optimized dialog handling ===", "DEBUG")
                 # Give extra time for any previous animations to complete
                 xbmc.sleep(200)
                 # Force close any lingering dialogs
@@ -175,8 +175,8 @@ class OptionsManager:
             from typing import List, Union, cast
             typed_options = cast(List[Union[str, xbmcgui.ListItem]], self.options)
             
-            # On Shield TV, add a small delay before showing dialog to ensure animations are complete
-            if utils.is_shield_tv():
+            # On slow devices, add a small delay before showing dialog to ensure animations are complete
+            if utils.needs_modal_optimization():
                 xbmc.sleep(150)
             
             selected_option = dialog.select("LibraryGenie - Options & Tools", typed_options)
@@ -188,9 +188,9 @@ class OptionsManager:
             utils.log(f"=== OPTIONS MODAL DIALOG CLOSED, SELECTION: {selected_option}, DURATION: {dialog_duration:.1f}s ===", "DEBUG")
             utils.log(f"Post-modal window state: {xbmcgui.getCurrentWindowId()}", "DEBUG")
 
-            # Shield TV specific cleanup
-            if utils.is_shield_tv() and dialog_duration > 2.0:
-                utils.log(f"=== SHIELD TV: Long dialog duration ({dialog_duration:.1f}s) - performing cleanup ===", "DEBUG")
+            # Slow device specific cleanup
+            if utils.needs_modal_optimization() and dialog_duration > 2.0:
+                utils.log(f"=== SLOW DEVICE: Long dialog duration ({dialog_duration:.1f}s) - performing cleanup ===", "DEBUG")
                 xbmc.executebuiltin("Dialog.Close(all,true)")
                 xbmc.sleep(100)
 

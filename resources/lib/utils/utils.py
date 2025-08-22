@@ -260,10 +260,39 @@ def is_shield_tv():
         pass
     return False
 
+def needs_modal_optimization():
+    """Check if device needs modal dialog optimization (slow devices, older Kodi versions)"""
+    try:
+        import xbmc
+        
+        # Always optimize for Kodi v19 due to known modal animation issues
+        if is_kodi_v19():
+            return True
+            
+        # Optimize for Shield TV (known performance issues)
+        if is_shield_tv():
+            return True
+            
+        # Optimize for Android devices in general (often resource-constrained)
+        if xbmc.getInfoLabel("System.Platform.Android"):
+            return True
+            
+        # Optimize for ARM-based devices (typically slower)
+        cpu_info = xbmc.getInfoLabel("System.CpuUsage")
+        platform_arch = xbmc.getInfoLabel("System.BuildVersion")
+        if any(arch in platform_arch.lower() for arch in ['arm', 'aarch64']):
+            return True
+            
+        # Default to no optimization for powerful devices
+        return False
+    except:
+        # If detection fails, err on the side of optimization
+        return True
+
 def should_log_debug():
-    """Check if debug logging should be enabled (reduces overhead on Shield TV)"""
-    if is_shield_tv():
-        # Reduce debug logging on Shield TV for performance
+    """Check if debug logging should be enabled (reduces overhead on slow devices)"""
+    if needs_modal_optimization():
+        # Reduce debug logging on devices that need optimization for performance
         return False
     return True
 
