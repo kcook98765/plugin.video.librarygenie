@@ -154,43 +154,426 @@ class FavoritesSyncManager:
 
         return False
 
-    def _create_media_dict_from_favorite(self, fav_item):
-        """Create media dict directly from favorite item data without external lookups"""
+    def _get_file_details(self, path):
+        """Query Files.GetFileDetails for a path"""
+        try:
+            req = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "Files.GetFileDetails",
+                "params": {
+                    "file": path,
+                    "media": "video",
+                    "properties": [
+                        "file", "title", "thumbnail", "fanart", "art",
+                        "runtime", "streamdetails", "resume",
+                        "dateadded", "imdbnumber", "uniqueid"
+                    ]
+                }
+            }
+            
+            resp = xbmc.executeJSONRPC(json.dumps(req))
+            data = json.loads(resp)
+            
+            if "error" in data:
+                utils.log(f"Files.GetFileDetails failed for path={path}: {data['error']}", "DEBUG")
+                return {}
+                
+            return data.get("result", {}).get("filedetails", {})
+        except Exception as e:
+            utils.log(f"Files.GetFileDetails failed for path={path}: {e}", "DEBUG")
+            return {}
+
+    def _split_parent_and_filename(self, path):
+        """Return (parent, filename) for URL-like paths (smb, nfs, file)"""
+        if not path:
+            return "", ""
+        # Kodi uses forward slashes in URLs
+        idx = path.rfind("/")
+        if idx <= 0:
+            return "", path
+        return path[:idx + 1], path[idx + 1:]
+
+    def _library_match_from_path(self, path):
+        """
+        Use parent folder 'startswith' and then match filename in-memory.
+        Only meaningful for real file URLs (smb://, nfs://, file://).
+        """
+        if not path or path.startswith("plugin://") or path.startswith("videodb://") or path.startswith("pvr://"):
+            return None
+
+        parent, filename = self._split_parent_and_filename(path)
+        if not parent or not filename:
+            return None
+
+        utils.log(f"SYNC_LIB_LOOKUP: Attempting path+filename match: parent={parent} filename={filename}", "DEBUG")
+
+        props = [
+            "title", "year", "plot", "rating", "runtime", "genre", "director",
+            "cast", "studio", "mpaa", "tagline", "writer", "country", "premiered",
+            "dateadded", "votes", "trailer", "file", "art", "imdbnumber", "uniqueid", "streamdetails"
+        ]
+
+        try:
+            # Use precise server-side filter with AND condition
+            req = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "VideoLibrary.GetMovies",
+                "params": {
+                    "filter": {
+                        "and": [
+                            {"field": "path", "operator": "startswith", "value": parent},
+                            {"field": "filename", "operator": "is", "value": filename}
+                        ]
+                    },
+                    "properties": props,
+                    "limits": {"start": 0, "end": 10000}
+                }
+            }
+            
+            resp = xbmc.executeJSONRPC(json.dumps(req))
+            data = json.loads(resp)
+            
+            if "error" in data:
+                utils.log(f"SYNC_LIB_LOOKUP error (precise filter): {data['error']}", "DEBUG")
+                return None
+                
+            movies = data.get("result", {}).get("movies", []) or []
+            
+            # If precise filter fails, fall back to broad parent query
+            if not movies:
+                utils.log(f"SYNC_LIB_LOOKUP: Precise filter failed, falling back to broad parent query", "DEBUG")
+                req["params"]["filter"] = {
+                    "field": "path", "operator": "startswith", "value": parent
+                }
+                
+                resp = xbmc.executeJSONRPC(json.dumps(req))
+                data = json.loads(resp)
+                
+                if "error" in data:
+                    utils.log(f"SYNC_LIB_LOOKUP error (broad filter): {data['error']}", "DEBUG")
+                    return None
+                    
+                movies = data.get("result", {}).get("movies", []) or []
+                
+        except Exception as e:
+            utils.log(f"SYNC_LIB_LOOKUP error (path match): {e}", "DEBUG")
+            return None
+
+        # Match filename in results
+        filename_lower = filename.lower()
+        for m in movies:
+            mf = (m.get("file") or "").lower()
+            if mf.endswith("/" + filename_lower) or mf.endswith("\\" + filename_lower) or mf.endswith(filename_lower):
+                utils.log(f"SYNC_LIB_MATCH: Found by path/filename -> {m.get('title')} ({m.get('year')})", "DEBUG")
+                return m
+
+        return None
+
+    def _lookup_in_kodi_library(self, title, year=None):
+        """Try to find movie in Kodi library using comprehensive JSONRPC search"""
+        if not title or not title.strip():
+            return None
+        title = title.strip()
+
+        utils.log(f"SYNC_KODI_LOOKUP: Searching for '{title}' ({year})", "DEBUG")
+
+        try:
+            # Strategy 1: Direct title search
+            req = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "VideoLibrary.GetMovies",
+                "params": {
+                    "filter": {
+                        "field": "title",
+                        "operator": "is",
+                        "value": title
+                    },
+                    "properties": [
+                        "title", "year", "plot", "rating", "runtime", "genre", "director", 
+                        "cast", "studio", "mpaa", "tagline", "writer", "country", "premiered",
+                        "dateadded", "votes", "trailer", "file", "art", "imdbnumber", "uniqueid"
+                    ]
+                }
+            }
+
+            resp = xbmc.executeJSONRPC(json.dumps(req))
+            data = json.loads(resp)
+
+            if "error" not in data and 'result' in data and 'movies' in data['result']:
+                movies = data['result']['movies']
+                utils.log(f"SYNC_KODI_LOOKUP: Found {len(movies)} exact title matches", "DEBUG")
+
+                # Look for year match in exact title matches
+                for movie in movies:
+                    movie_year = movie.get('year', 0)
+                    if not year or abs(movie_year - year) <= 1:
+                        utils.log(f"SYNC_KODI_SUCCESS: Exact match found - '{movie.get('title')}' ({movie_year})", "DEBUG")
+                        return movie
+
+            # Strategy 2: Fuzzy title search if exact match fails
+            req["params"]["filter"]["operator"] = "contains"
+            
+            resp = xbmc.executeJSONRPC(json.dumps(req))
+            data = json.loads(resp)
+
+            if "error" not in data and 'result' in data and 'movies' in data['result']:
+                movies = data['result']['movies']
+                utils.log(f"SYNC_KODI_LOOKUP: Found {len(movies)} fuzzy title matches", "DEBUG")
+
+                # Score matches by title similarity and year closeness
+                best_match = None
+                best_score = 0
+
+                for movie in movies:
+                    movie_title = movie.get('title', '').lower()
+                    movie_year = movie.get('year', 0)
+
+                    # Title similarity score
+                    title_score = 0
+                    if title.lower() in movie_title:
+                        title_score = 0.8
+                    elif movie_title in title.lower():
+                        title_score = 0.6
+
+                    # Year score
+                    year_score = 0
+                    if year and movie_year:
+                        year_diff = abs(movie_year - year)
+                        if year_diff == 0:
+                            year_score = 0.3
+                        elif year_diff == 1:
+                            year_score = 0.2
+                        elif year_diff <= 2:
+                            year_score = 0.1
+
+                    total_score = title_score + year_score
+
+                    if total_score > best_score and total_score >= 0.6:  # Minimum threshold
+                        best_match = movie
+                        best_score = total_score
+
+                if best_match:
+                    utils.log(f"SYNC_KODI_SUCCESS: Best fuzzy match found - '{best_match.get('title')}' ({best_match.get('year')}) with score {best_score}", "DEBUG")
+                    return best_match
+
+        except Exception as e:
+            utils.log(f"SYNC_KODI_ERROR: Library lookup failed: {str(e)}", "ERROR")
+
+        utils.log(f"SYNC_KODI_RESULT: No library match found for '{title}' ({year})", "DEBUG")
+        return None
+
+    def _safe_convert_int(self, value, default=0):
+        """Safely convert value to integer with fallback"""
+        if value is None:
+            return default
+        try:
+            if isinstance(value, str):
+                if not value.strip():
+                    return default
+                return int(float(value))
+            elif isinstance(value, (int, float)):
+                return int(value)
+            else:
+                return default
+        except (ValueError, TypeError):
+            return default
+
+    def _safe_convert_float(self, value, default=0.0):
+        """Safely convert value to float with fallback"""
+        if value is None:
+            return default
+        try:
+            if isinstance(value, str):
+                if not value.strip():
+                    return default
+                return float(value)
+            elif isinstance(value, (int, float)):
+                return float(value)
+            else:
+                return default
+        except (ValueError, TypeError):
+            return default
+
+    def _safe_convert_string(self, value, default=''):
+        """Safely convert value to string with fallback"""
+        if value is None:
+            return default
+        try:
+            if isinstance(value, str):
+                return value.strip()
+            else:
+                return str(value).strip()
+        except:
+            return default
+
+    def _safe_list_to_string(self, value, default=''):
+        """Safely convert list or other value to comma-separated string"""
+        if value is None:
+            return default
+        try:
+            if isinstance(value, list):
+                clean_items = [str(item).strip() for item in value if item is not None and str(item).strip()]
+                return ', '.join(clean_items) if clean_items else default
+            elif isinstance(value, str):
+                return value.strip() if value.strip() else default
+            else:
+                converted = str(value).strip()
+                return converted if converted else default
+        except:
+            return default
+
+    def _create_media_dict_from_favorite(self, fav_item, filedetails=None, kodi_movie=None):
+        """Create media dict from favorite item with optional library enhancement"""
         path = fav_item.get('path', '')
         title = fav_item.get('title', 'Unknown')
 
-        media_dict = {
-            'title': title.strip() if title else 'Unknown',
-            'year': 0,
-            'plot': '',
-            'rating': 0.0,
-            'duration': 0,
-            'genre': '',
-            'director': '',
-            'cast': '',
-            'studio': '',
-            'mpaa': '',
-            'tagline': '',
-            'writer': '',
-            'country': '',
-            'premiered': '',
-            'dateadded': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'votes': 0,
-            'trailer': '',
-            'path': path,
-            'play': path,
-            'kodi_id': 0,
-            'media_type': 'movie',
-            'source': 'favorites_import',
-            'imdbnumber': '',
-            'thumbnail': fav_item.get('thumbnail', ''),
-            'poster': '',
-            'fanart': '',
-            'art': '',
-            'uniqueid': '',
-            'stream_url': '',
-            'status': 'available'
-        }
+        if kodi_movie:
+            # Use Kodi library data - this is preferred when available
+            utils.log(f"SYNC_DATA_CONVERSION: Using KODI LIBRARY data for '{kodi_movie.get('title')}'", "DEBUG")
+
+            # Duration calculation with streamdetails preference
+            duration_seconds = 0
+            streamdetails = kodi_movie.get('streamdetails', {})
+            if isinstance(streamdetails, dict) and streamdetails.get('video'):
+                video_streams = streamdetails['video']
+                if isinstance(video_streams, list) and len(video_streams) > 0:
+                    stream_duration = self._safe_convert_int(video_streams[0].get('duration', 0))
+                    if 60 <= stream_duration <= 21600:  # 1 minute to 6 hours range
+                        duration_seconds = stream_duration
+            
+            if duration_seconds == 0:
+                runtime_minutes = self._safe_convert_int(kodi_movie.get('runtime', 0))
+                duration_seconds = runtime_minutes * 60 if runtime_minutes > 0 else 0
+
+            # Cast processing: Extract actor names from cast array
+            cast_data = kodi_movie.get('cast', [])
+            cast_string = ''
+            if isinstance(cast_data, list):
+                actor_names = []
+                for actor in cast_data[:10]:  # Limit to 10 actors
+                    if isinstance(actor, dict):
+                        name = actor.get('name', '')
+                        if name:
+                            actor_names.append(name)
+                    elif isinstance(actor, str):
+                        actor_names.append(actor)
+                cast_string = ', '.join(actor_names) if actor_names else ''
+
+            media_dict = {
+                'title': self._safe_convert_string(kodi_movie.get('title'), 'Unknown Title'),
+                'year': self._safe_convert_int(kodi_movie.get('year')),
+                'plot': self._safe_convert_string(kodi_movie.get('plot')),
+                'rating': self._safe_convert_float(kodi_movie.get('rating')),
+                'duration': duration_seconds,
+                'genre': self._safe_list_to_string(kodi_movie.get('genre')),
+                'director': self._safe_list_to_string(kodi_movie.get('director')),
+                'cast': cast_string,
+                'studio': self._safe_list_to_string(kodi_movie.get('studio')),
+                'mpaa': self._safe_convert_string(kodi_movie.get('mpaa')),
+                'tagline': self._safe_convert_string(kodi_movie.get('tagline')),
+                'writer': self._safe_list_to_string(kodi_movie.get('writer')),
+                'country': self._safe_list_to_string(kodi_movie.get('country')),
+                'premiered': self._safe_convert_string(kodi_movie.get('premiered')),
+                'dateadded': self._safe_convert_string(kodi_movie.get('dateadded')),
+                'votes': self._safe_convert_int(kodi_movie.get('votes')),
+                'trailer': self._safe_convert_string(kodi_movie.get('trailer')),
+                'path': path,  # Keep original favorite path
+                'play': self._safe_convert_string(kodi_movie.get('file')),  # Use library file for playback
+                'kodi_id': self._safe_convert_int(kodi_movie.get('movieid')),
+                'media_type': 'movie',
+                'source': 'favorites_import',
+                'imdbnumber': '',
+                'thumbnail': fav_item.get('thumbnail', ''),  # Keep favorite thumbnail as fallback
+                'poster': '',
+                'fanart': '',
+                'art': '',
+                'uniqueid': '',
+                'stream_url': '',
+                'status': 'available'
+            }
+
+            # Extract and process art data
+            art = kodi_movie.get('art', {})
+            if isinstance(art, dict):
+                media_dict['thumbnail'] = self._safe_convert_string(art.get('thumb')) or media_dict['thumbnail']
+                media_dict['poster'] = self._safe_convert_string(art.get('poster'))
+                media_dict['fanart'] = self._safe_convert_string(art.get('fanart'))
+                media_dict['art'] = json.dumps(art) if art else ''
+
+            # Extract IMDb ID and other unique identifiers
+            uniqueid = kodi_movie.get('uniqueid', {})
+            imdbnumber_direct = kodi_movie.get('imdbnumber', '')
+
+            if isinstance(uniqueid, dict) and uniqueid.get('imdb'):
+                media_dict['imdbnumber'] = self._safe_convert_string(uniqueid['imdb'])
+            elif imdbnumber_direct:
+                media_dict['imdbnumber'] = self._safe_convert_string(imdbnumber_direct)
+
+            media_dict['uniqueid'] = json.dumps(uniqueid) if uniqueid else ''
+
+        else:
+            # Use Favorites data with filedetails enhancement
+            utils.log(f"SYNC_DATA_CONVERSION: Using FAVORITES data for '{title}'", "DEBUG")
+
+            # Duration calculation with streamdetails preference
+            duration_seconds = 0
+            if filedetails:
+                streamdetails = filedetails.get('streamdetails', {})
+                if isinstance(streamdetails, dict) and streamdetails.get('video'):
+                    video_streams = streamdetails['video']
+                    if isinstance(video_streams, list) and len(video_streams) > 0:
+                        stream_duration = self._safe_convert_int(video_streams[0].get('duration', 0))
+                        if 60 <= stream_duration <= 21600:
+                            duration_seconds = stream_duration
+            
+            if duration_seconds == 0 and filedetails:
+                runtime_minutes = self._safe_convert_int(filedetails.get('runtime', 0))
+                duration_from_field = self._safe_convert_int(filedetails.get('duration', 0))
+                
+                if duration_from_field > 0:
+                    duration_seconds = duration_from_field
+                elif runtime_minutes > 0:
+                    duration_seconds = runtime_minutes * 60
+
+            art = (filedetails or {}).get('art', {})
+            thumb = (filedetails or {}).get('thumbnail') or self._safe_convert_string(fav_item.get('thumbnail'))
+            fan = (filedetails or {}).get('fanart')
+
+            media_dict = {
+                'title': title.strip() if title else 'Unknown',
+                'year': 0,
+                'plot': '',
+                'rating': 0.0,
+                'duration': duration_seconds,
+                'genre': '',
+                'director': '',
+                'cast': '',
+                'studio': '',
+                'mpaa': '',
+                'tagline': '',
+                'writer': '',
+                'country': '',
+                'premiered': '',
+                'dateadded': self._safe_convert_string((filedetails or {}).get('dateadded')),
+                'votes': 0,
+                'trailer': '',
+                'path': path,
+                'play': path,
+                'kodi_id': 0,
+                'media_type': 'movie',
+                'source': 'favorites_import',
+                'imdbnumber': self._safe_convert_string((filedetails or {}).get('imdbnumber')),
+                'thumbnail': self._safe_convert_string(thumb),
+                'poster': self._safe_convert_string(art.get('poster')) if isinstance(art, dict) else '',
+                'fanart': self._safe_convert_string(fan),
+                'art': json.dumps(art) if isinstance(art, dict) and art else '',
+                'uniqueid': '',
+                'stream_url': '',
+                'status': 'available'
+            }
 
         return media_dict
 
@@ -333,8 +716,24 @@ class FavoritesSyncManager:
                         utils.log(f"Favorite '{title}' already exists in list, skipping", "DEBUG")
                         continue
 
-                    # Create media dict directly from favorite data
-                    media_dict = self._create_media_dict_from_favorite(original_fav)
+                    # Try strongest library mapping first: path+filename (non-plugin / non-videodb)
+                    kodi_movie = self._library_match_from_path(path)
+
+                    # If videodb:// favourite or plugin:// with no path match: try title lookup
+                    if not kodi_movie:
+                        if path.startswith("videodb://"):
+                            kodi_movie = self._lookup_in_kodi_library(title, None)
+                        elif not path.startswith(("smb://", "nfs://", "file://")):
+                            # plugin://, pvr:// etc. -> title-based lookup might still succeed
+                            kodi_movie = self._lookup_in_kodi_library(title, None)
+
+                    filedetails = None
+                    if not kodi_movie:
+                        # Pull filedetails only when we don't have library data
+                        filedetails = self._get_file_details(path)
+
+                    # Create media dict with library enhancement if available
+                    media_dict = self._create_media_dict_from_favorite(original_fav, filedetails, kodi_movie)
 
                     # Insert into database
                     self.query_manager.insert_media_item_and_add_to_list(list_id, media_dict)
@@ -383,8 +782,23 @@ class FavoritesSyncManager:
                     try:
                         original_fav = favorites_by_identity.get(current_item['identity'])
                         if original_fav:
-                            # Get updated media dict
-                            updated_media_dict = self._create_media_dict_from_favorite(original_fav)
+                            path = original_fav.get("path", "")
+                            title = original_fav.get("title", "")
+
+                            # Try library lookup for updated data
+                            kodi_movie = self._library_match_from_path(path)
+                            if not kodi_movie:
+                                if path.startswith("videodb://"):
+                                    kodi_movie = self._lookup_in_kodi_library(title, None)
+                                elif not path.startswith(("smb://", "nfs://", "file://")):
+                                    kodi_movie = self._lookup_in_kodi_library(title, None)
+
+                            filedetails = None
+                            if not kodi_movie:
+                                filedetails = self._get_file_details(path)
+
+                            # Get updated media dict with library enhancement
+                            updated_media_dict = self._create_media_dict_from_favorite(original_fav, filedetails, kodi_movie)
 
                             # Update the media item
                             self.query_manager.update_data('media_items', updated_media_dict, 'id = ?', (list_item['id'],))
