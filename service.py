@@ -5,6 +5,7 @@ import xbmcaddon
 from resources.lib.utils import utils
 from resources.lib.config.config_manager import Config
 from resources.lib.config.settings_manager import SettingsManager
+from resources.lib.data.query_manager import QueryManager
 from resources.lib.integrations.remote_api.favorites_sync_manager import FavoritesSyncManager
 
 ADDON = xbmcaddon.Addon()
