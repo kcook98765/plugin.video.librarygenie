@@ -56,7 +56,7 @@ def _get_addon_artwork_fallbacks() -> dict:
         'fanart': f"{media}/fanart.jpg",
         'banner': f"{media}/banner.jpg",
         'landscape': f"{media}/landscape.jpg",
-        'clearart': f"{media}/clearart.jpg",
+        'clearart': f"{media}/clearart.jpg',
         'clearlogo': f"{media}/clearlogo.png",
         'folder': f"{media}/list_folder.png",
         'playlist': f"{media}/list_playlist.png"
@@ -516,7 +516,7 @@ class ListItemBuilder:
             except Exception:
                 pass
 
-        # Set content properties - handle non-playable items  
+        # Set content properties - handle non-playable items
         is_playable = True  # Default to playable
 
         # For favorites imports without valid file paths, mark as non-playable
@@ -660,6 +660,10 @@ class ListItemBuilder:
 
         list_item = xbmcgui.ListItem(label=clean_name)
         list_item.setIsFolder(is_folder)
+
+        # Version-aware logging
+        kodi_version = utils.get_kodi_version()
+        utils.log(f"BUILD_FOLDER_ITEM: Using Kodi v{kodi_version} for folder '{name}'", "DEBUG")
 
         # Choose appropriate icon based on item type
         if item_type in ['playlist', 'list']:
