@@ -2,8 +2,9 @@ import sqlite3
 import os
 import threading
 import re
+import time
 from contextlib import contextmanager
-from typing import Optional, List, Dict, Any, Union, Tuple
+from typing import Optional, List, Dict, Any, Union, Tuple, Generator
 from resources.lib.utils import utils
 from resources.lib.utils.singleton_base import Singleton
 from resources.lib.config.config_manager import Config
@@ -13,21 +14,22 @@ import json
 class QueryManager(Singleton):
     """Central SQLite connection manager with pooling and transaction support."""
 
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str) -> None:
         # If the singleton was already initialized, warn on path drift and return.
         if hasattr(self, '_initialized') and self._initialized:
             if getattr(self, 'db_path', None) and self.db_path != db_path:
                 utils.log(f"QueryManager: Ignoring new db_path '{db_path}' (already initialized with '{self.db_path}')", "WARNING")
             return
 
-        self.db_path = db_path
-        self._connection = None
-        self._lock = threading.RLock()
+        self.db_path: str = db_path
+        self._connection: Optional[sqlite3.Connection] = None
+        self._lock: threading.RLock = threading.RLock()
+        self._initialized: bool = False
         self._ensure_connection()
 
         # Initialize DAO with query and write executors
         from resources.lib.data.dao.listing_dao import ListingDAO
-        self._listing = ListingDAO(self.execute_query, self.execute_write)
+        self._listing: ListingDAO = ListingDAO(self.execute_query, self.execute_write)
 
         self._initialized = True
 
@@ -78,7 +80,7 @@ class QueryManager(Singleton):
     # -------------------------
     # Connection / PRAGMAs
     # -------------------------
-    def _ensure_connection(self):
+    def _ensure_connection(self) -> None:
         """Ensure we have a properly configured SQLite connection."""
         if self._connection is not None:
             return
@@ -107,9 +109,11 @@ class QueryManager(Singleton):
 
         utils.log("QueryManager: SQLite connection established with optimized settings", "DEBUG")
 
-    def _get_connection(self):
+    def _get_connection(self) -> sqlite3.Connection:
         """Internal method to get the managed connection."""
         self._ensure_connection()
+        if self._connection is None:
+            raise RuntimeError("Failed to establish database connection")
         return self._connection
 
     # -------------------------
@@ -118,10 +122,10 @@ class QueryManager(Singleton):
     def execute_query(
         self,
         sql: str,
-        params: Tuple = (),
+        params: Tuple[Any, ...] = (),
         fetch_one: bool = False,
         fetch_all: bool = False
-    ) -> Union[Dict, List[Dict], None]:
+    ) -> Union[Dict[str, Any], List[Dict[str, Any]], None]:
         """Execute a SELECT query and return results as dicts."""
         with self._lock:
             try:
@@ -142,7 +146,7 @@ class QueryManager(Singleton):
                 utils.log(f"SQL: {sql}, Params: {params}", "ERROR")
                 raise
 
-    def execute_write(self, sql: str, params: Tuple = ()) -> int:
+    def execute_write(self, sql: str, params: Tuple[Any, ...] = ()) -> int:
         """Execute an INSERT/UPDATE/DELETE and return lastrowid."""
         with self._lock:
             conn = self._get_connection()
@@ -158,7 +162,7 @@ class QueryManager(Singleton):
                 utils.log(f"SQL: {sql}, Params: {params}", "ERROR")
                 raise
 
-    def executemany_write(self, sql: str, seq_of_params: List[Tuple]) -> int:
+    def executemany_write(self, sql: str, seq_of_params: List[Tuple[Any, ...]]) -> int:
         """Execute multiple statements and return rowcount."""
         with self._lock:
             conn = self._get_connection()
@@ -175,7 +179,7 @@ class QueryManager(Singleton):
                 raise
 
     @contextmanager
-    def transaction(self):
+    def transaction(self) -> Generator[sqlite3.Connection, None, None]:
         """Transaction context manager for atomic operations."""
         with self._lock:
             conn = self._get_connection()
@@ -221,11 +225,13 @@ class QueryManager(Singleton):
         """Get all descendant folder IDs recursively (uses DAO for reads)."""
         descendant_ids: List[int] = []
 
-        def _walk(pid: int):
-            for child in self.get_folders(pid) or []:
-                cid = child['id']
-                descendant_ids.append(cid)
-                _walk(cid)
+        def _walk(pid: int) -> None:
+            folders = self.get_folders(pid)
+            if folders:
+                for child in folders:
+                    cid = child['id']
+                    descendant_ids.append(cid)
+                    _walk(cid)
 
         _walk(folder_id)
         return descendant_ids
@@ -233,7 +239,7 @@ class QueryManager(Singleton):
     def get_folder_path(self, folder_id: int) -> str:
         """Get full path of a folder (uses DAO for reads)."""
         parts: List[str] = []
-        current_id = folder_id
+        current_id: Optional[int] = folder_id
 
         while current_id:
             folder = self.fetch_folder_by_id(current_id)
@@ -244,7 +250,7 @@ class QueryManager(Singleton):
 
         return "/".join(parts) if parts else ""
 
-    def ensure_search_history_folder(self) -> Dict:
+    def ensure_search_history_folder(self) -> Dict[str, Any]:
         """Ensure 'Search History' folder exists."""
         fid = self.get_folder_id_by_name("Search History")
         if fid:
@@ -266,7 +272,7 @@ class QueryManager(Singleton):
         """
         return self.execute_query(query, (list_id,), fetch_all=True)
 
-    def save_llm_response(self, description: str, response_data: Any) -> int:
+    def save_llm_response(self, description: str, response_data: Dict[str, Any]) -> int:
         """Save LLM API response into original_requests."""
         query = "INSERT INTO original_requests (description, response_json) VALUES (?, ?)"
         return self.execute_write(query, (description, json.dumps(response_data)))
@@ -506,7 +512,7 @@ class QueryManager(Singleton):
     # -------------------------
     # Schema Setup / Bootstrap
     # -------------------------
-    def setup_database(self):
+    def setup_database(self) -> None:
         """Setup all database tables."""
         db_dir = os.path.dirname(self.db_path)
         if db_dir and not os.path.exists(db_dir):
@@ -594,7 +600,7 @@ class QueryManager(Singleton):
         # Ensure system lists exist
         self.ensure_system_lists()
 
-    def setup_movies_reference_table(self):
+    def setup_movies_reference_table(self) -> None:
         """Create movies_reference table and indexes."""
         with self._lock:
             conn = self._get_connection()
@@ -628,11 +634,10 @@ class QueryManager(Singleton):
 
             conn.commit()
 
-    def store_heavy_meta_batch(self, heavy_metadata_list: List[Dict[str, Any]]):
+    def store_heavy_meta_batch(self, heavy_metadata_list: List[Dict[str, Any]]) -> None:
         """Store heavy metadata for multiple movies in batch."""
         if not heavy_metadata_list:
             return
-        import time
 
         with self._lock:
             conn = self._get_connection()
@@ -676,7 +681,7 @@ class QueryManager(Singleton):
                 utils.log(f"Error storing heavy metadata batch: {str(e)}", "ERROR")
                 raise
 
-    def get_heavy_meta_by_movieids(self, movieids: List[int], refresh: bool = False):
+    def get_heavy_meta_by_movieids(self, movieids: List[int], refresh: bool = False) -> Dict[int, Dict[str, Any]]:
         """Get heavy metadata for multiple movie IDs with caching (delegated to DAO)."""
         return self._listing.get_heavy_meta_by_movieids(movieids, refresh)
 
@@ -706,7 +711,7 @@ class QueryManager(Singleton):
             self.executemany_write(sql, data)
             utils.log(f"Successfully inserted {len(movies)} movies into imdb_exports", "INFO")
 
-    def ensure_system_lists(self):
+    def ensure_system_lists(self) -> None:
         """Ensure reserved system lists exist (IDs 1 and 2)."""
         # ID 1: Kodi Favorites
         existing = self.fetch_list_by_id(1)
@@ -848,7 +853,7 @@ class QueryManager(Singleton):
             utils.log(f"SYNC_STORE: Error storing media item: {str(e)}", "ERROR")
             return False
 
-    def close(self):
+    def close(self) -> None:
         """Close the database connection."""
         with self._lock:
             if self._connection:
@@ -864,19 +869,19 @@ class QueryManager(Singleton):
     # DAO Delegation (Canonical)
     # -------------------------
     # FOLDERS
-    def get_folders(self, parent_id: Optional[int] = None):
+    def get_folders(self, parent_id: Optional[int] = None) -> List[Dict[str, Any]]:
         return self._listing.get_folders(parent_id)
 
-    def fetch_folders_direct(self, parent_id: Optional[int] = None):
+    def fetch_folders_direct(self, parent_id: Optional[int] = None) -> List[Dict[str, Any]]:
         return self._listing.fetch_folders_direct(parent_id)
 
-    def insert_folder_direct(self, name: str, parent_id: Optional[int]):
+    def insert_folder_direct(self, name: str, parent_id: Optional[int]) -> int:
         return self._listing.insert_folder_direct(name, parent_id)
 
-    def update_folder_name_direct(self, folder_id: int, new_name: str):
+    def update_folder_name_direct(self, folder_id: int, new_name: str) -> bool:
         return self._listing.update_folder_name_direct(folder_id, new_name)
 
-    def get_folder_depth(self, folder_id: int):
+    def get_folder_depth(self, folder_id: int) -> int:
         return self._listing.get_folder_depth(folder_id)
 
     def get_folder_by_name(self, name: str, parent_id: Optional[int] = None):
