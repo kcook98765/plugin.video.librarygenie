@@ -26,7 +26,7 @@ from resources.lib.core.route_handlers import (
 )
 from resources.lib.kodi.listitem_builder import ListItemBuilder
 from resources.lib.core import route_handlers
-
+from urllib.parse import parse_qsl # Import parse_qsl for parameter parsing
 
 # Add addon directory to Python path
 addon_dir = os.path.dirname(os.path.abspath(__file__))
@@ -295,200 +295,159 @@ def browse_list(list_id):
         xbmcplugin.endOfDirectory(handle, succeeded=False)
 
 def router(paramstring):
-    """Main router function to handle different actions"""
-    log(f"Router called with: {paramstring}", "DEBUG")
+    """
+    Router function to handle plugin URLs and dispatch to appropriate handlers
+    """
+    try:
+        log(f"Router called with: {paramstring}", "DEBUG")
 
-    # Initialize navigation manager first
-    from resources.lib.core.navigation_manager import get_navigation_manager
-    nav_manager = get_navigation_manager()
+        # Clean up navigation state
+        from resources.lib.core.navigation_manager import get_navigation_manager
+        nav_manager = get_navigation_manager()
+        nav_manager.cleanup_stuck_navigation()
 
-    params = parse_params(paramstring)
-    action = params.get('action', [None])[0]
+        # Parse parameters from URL - handle both with and without leading '?'
+        clean_paramstring = paramstring.lstrip('?') if paramstring else ''
+        params = dict(parse_qsl(clean_paramstring))
+        action = params.get('action')
 
-    # Cleanup any stuck navigation states first
-    nav_manager.cleanup_stuck_navigation()
+        log(f"Parsed action: {action}", "DEBUG")
+        log(f"All params: {params}", "DEBUG")
 
-    log(f"Parsed action: {action}", "DEBUG")
-    log(f"All params: {params}", "DEBUG")
-
-    # Check for deferred option execution from RunScript
-    if len(sys.argv) >= 3 and sys.argv[1] == 'deferred_option':
-        log("=== HANDLING DEFERRED OPTION EXECUTION FROM MAIN ===", "DEBUG")
-        try:
-            option_index = int(sys.argv[2])
-            # Retrieve stored folder context
-            folder_context_str = xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.DeferredFolderContext)")
-            folder_context = None
-            if folder_context_str and folder_context_str != "None":
-                try:
-                    folder_context = int(folder_context_str)
-                except ValueError:
-                    pass
-            # Clear the property
-            xbmc.executebuiltin("ClearProperty(LibraryGenie.DeferredFolderContext,Home)")
-            options_manager.execute_deferred_option(option_index, folder_context)
-        except Exception as e:
-            log(f"Error in deferred option execution: {str(e)}", "ERROR")
-        return
-
-    # Check if paramstr is valid and not empty before parsing
-    if not params:
-        log("Received empty paramstr, building root directory.", "WARNING")
-        nav_manager.clear_navigation_flags()
-        build_root_directory(ADDON_HANDLE)
-        return
-
-    # Parse parameters using the new utility - handle both string and dict inputs
-    if isinstance(params, str):
-        q = parse_params(params)
-    elif isinstance(params, dict):
-        q = params
-    else:
-        log(f"Unexpected params type: {type(params)}, treating as empty", "WARNING")
-        q = {}
-
-    action = q.get("action", [""])[0] if isinstance(q.get("action", [""]), list) else q.get("action", "")
-
-    log(f"Action determined: {action}", "DEBUG")
-
-    if action == "search":
-        log("Handling search action", "DEBUG")
-        try:
-            from resources.lib.kodi.window_search import SearchWindow
-            from resources.lib.core.navigation_manager import get_navigation_manager
-
-            search_window = SearchWindow()
-            search_window.doModal()
-
-            # Check if we need to navigate after search
-            target_url = search_window.get_target_url()
-            if target_url:
-                log(f"Navigating to search results: {target_url}", "DEBUG")
-                nav_manager = get_navigation_manager()
-                nav_manager.navigate_to_url(target_url, replace=False)
-        except Exception as e:
-            log(f"Error in search action: {str(e)}", "ERROR")
-            xbmcgui.Dialog().notification("LibraryGenie", "Search failed", xbmcgui.NOTIFICATION_ERROR)
-    elif action == 'setup_remote_api':
-        log("Handling setup_remote_api action", "DEBUG")
-        try:
-            from resources.lib.integrations.remote_api.remote_api_setup import run_setup
-            run_setup()
-        except Exception as e:
-            log(f"Error in setup_remote_api action: {str(e)}", "ERROR")
-            xbmcgui.Dialog().notification("LibraryGenie", "Failed to setup Remote API", xbmcgui.NOTIFICATION_ERROR)
-    elif action == 'browse_folder':
-        log("Handling browse_folder action", "DEBUG")
-        try:
-            folder_id = q.get('folder_id', [None])[0]
-            if folder_id:
-                nav_manager.set_navigation_in_progress(False)
-                browse_folder(q) # Pass the parsed params to browse_folder
-            else:
-                log("Missing folder_id for browse_folder action, returning to root.", "WARNING")
-                build_root_directory(ADDON_HANDLE)
-        except Exception as e:
-            log(f"Error in browse_folder action: {str(e)}", "ERROR")
-            xbmcgui.Dialog().notification("LibraryGenie", "Error browsing folder", xbmcgui.NOTIFICATION_ERROR)
-    elif action == 'show_options':
-        log("Routing to options action", "DEBUG")
-        # Check if we're in the middle of navigation to prevent dialog conflicts
-        if nav_manager.is_navigation_in_progress():
-            log("Navigation in progress, skipping options dialog", "DEBUG")
+        # If no action specified, build root directory
+        if not action or not clean_paramstring.strip():
+            log("Received empty paramstr, building root directory.", "DEBUG")
+            nav_manager.clear_navigation_flags()
+            build_root_directory(ADDON_HANDLE) # Pass ADDON_HANDLE to build_root_directory
             return
-        options_manager.show_options_menu(q)
-        # IMPORTANT: Do NOT call endOfDirectory() here - this is a RunPlugin action
-        return
-    elif action == 'create_list':
-        log("Routing to create_list action", "DEBUG")
-        create_list(q)
-        return
-    elif action == 'rename_list':
-        log("Routing to rename_list action", "DEBUG")
-        rename_list(q)
-        return
-    elif action == 'delete_list':
-        log("Routing to delete_list action", "DEBUG")
-        delete_list(q)
-        return
-    elif action == 'move_list':
-        log("Routing to move_list action", "DEBUG")
-        move_list(q)
-        return
-    elif action == 'remove_from_list':
-        log("Routing to remove_from_list action", "DEBUG")
-        remove_from_list(q)
-        return
-    elif action == 'rename_folder':
-        log("Routing to rename_folder action", "DEBUG")
-        rename_folder(q)
-        return
-    elif action == 'delete_folder':
-        log("Routing to delete_folder action", "DEBUG")
-        delete_folder(q)
-        return
-    elif action == 'move_folder':
-        log("Routing to move_folder action", "DEBUG")
-        move_folder(q)
-        return
-    elif action == 'create_folder':
-        log("Routing to create_subfolder action", "DEBUG")
-        create_subfolder(q)
-        return
-    elif action == 'add_movies_to_list':
-        log("Routing to add_movies_to_list action", "DEBUG")
-        add_movies_to_list(q)
-        return
-    elif action == 'clear_list':
-        log("Routing to clear_list action", "DEBUG")
-        clear_list(q)
-        return
-    elif action == 'export_list':
-        log("Routing to export_list action", "DEBUG")
-        export_list(q)
-        return
-    elif action == 'show_item_details':
-        log("Routing to show_item_details action", "DEBUG")
-        show_item_details(q)
-        return
-    elif action == 'play_movie':
-        log("Routing to play_movie action", "DEBUG")
-        play_movie(q)
-        return
-    elif action == 'browse_list':
-        list_id = q.get('list_id', [None])[0]
-        if list_id:
-            # Set proper content for list view
-            xbmcplugin.setPluginCategory(ADDON_HANDLE, "Search Results")
-            xbmcplugin.setContent(ADDON_HANDLE, "movies")
-            nav_manager.set_navigation_in_progress(False)
+
+        # Handle different actions
+        if action == 'browse_folder':
+            folder_id = params.get('folder_id')
+            browse_folder(params) # Pass the entire params dict to browse_folder
+        elif action == 'browse_list':
+            list_id = params.get('list_id')
             browse_list(list_id)
+        elif action == 'search':
+            run_search_flow()
+        elif action == 'browse_search_history':
+            browse_search_history()
+        elif action == 'show_options':
+            # Handle options menu
+            options_manager = OptionsManager()
+            # Convert params to the format expected by show_options_menu
+            list_params = {}
+            for key, value in params.items():
+                if key != 'action':
+                    list_params[key] = [value] if not isinstance(value, list) else value
+            options_manager.show_options_menu(list_params)
         else:
-            log("No list_id provided for browse_list action", "WARNING")
-            show_empty_directory(ADDON_HANDLE)
-        return
-    elif action == 'separator':
-        # Do nothing for separator items
-        log("Received separator action, doing nothing.", "DEBUG")
-        pass
-    elif action == 'find_similar':
-        from resources.lib.core.route_handlers import find_similar_movies
-        find_similar_movies(params)
-    elif action == 'find_similar_from_plugin':
-        route_handlers.find_similar_movies_from_plugin(params)
-    elif action == 'add_to_list_from_context':
-        route_handlers.add_to_list_from_context(params)
-    elif action == 'add_to_list':
-        route_handlers.add_to_list(params)
-    elif action == 'dev_display_directory':
-        log("Routing to dev_display_directory action", "DEBUG")
-        from resources.lib.core.route_handlers import dev_display_imdb_data_directory
-        dev_display_imdb_data_directory(q)
-        return
-    else:
-        # Default: build root directory if action is not recognized or empty
-        log(f"Unrecognized action '{action}' or no action specified, building root directory.", "DEBUG")
-        build_root_directory(ADDON_HANDLE)
+            # Handle other actions through route_handlers
+            from resources.lib.core.route_handlers import route_action
+
+            # Convert single values to lists for compatibility
+            list_params = {}
+            for key, value in params.items():
+                if key != 'action':
+                    list_params[key] = [value] if not isinstance(value, list) else value
+
+            route_action(action, list_params)
+
+    except Exception as e:
+        log(f"Error in router: {str(e)}", "ERROR")
+        import traceback
+        log(f"Router traceback: {traceback.format_exc()}", "ERROR")
+        # Fallback: show a simple notification and then build root directory
+        import xbmcgui
+        xbmcgui.Dialog().notification('LibraryGenie', 'Error processing request', xbmcgui.NOTIFICATION_ERROR)
+        nav_manager.clear_navigation_flags()
+        build_root_directory(ADDON_HANDLE) # Pass ADDON_HANDLE to build_root_directory
+
+
+# Add handle_show_options function here
+def handle_show_options(params):
+    """Handle the Options & Tools menu display"""
+    try:
+        log("=== SHOW_OPTIONS: Starting options menu display ===", "INFO")
+
+        # Use the OptionsManager to show the options menu
+        options_manager = OptionsManager()
+        options_manager.show_options_menu(params)
+
+        log("=== SHOW_OPTIONS: Options menu completed ===", "INFO")
+
+    except Exception as e:
+        log(f"Error in handle_show_options: {str(e)}", "ERROR")
+        import traceback
+        log(f"handle_show_options traceback: {traceback.format_exc()}", "ERROR")
+
+        # Fallback: show a simple notification
+        import xbmcgui
+        xbmcgui.Dialog().notification('LibraryGenie', 'Options menu error', xbmcgui.NOTIFICATION_ERROR)
+
+
+def handle_browse_folder(params):
+    """Handle folder browsing with proper context detection"""
+    try:
+        folder_id = params.get('folder_id', [None])[0]
+        if folder_id and str(folder_id).isdigit():
+            folder_id = int(folder_id)
+        else:
+            folder_id = None
+
+        handle = int(sys.argv[1])
+
+        # Set up context for folder browsing
+        ctx = detect_context({
+            'action': 'browse_folder',
+            'folder_id': folder_id,
+            'view': 'folder'
+        })
+
+        # Add Options & Tools header for consistent navigation
+        add_options_header_item(ctx, handle)
+
+        # Get folder contents
+        config = Config() # Assuming Config is available
+        query_manager = QueryManager(config.db_path)
+
+        subfolders = query_manager.fetch_folders(folder_id)
+        lists = query_manager.fetch_lists(folder_id)
+
+        # Build directory items
+        for folder in subfolders:
+            li = ListItemBuilder.build_folder_item(f"📁 {folder['name']}", is_folder=True)
+            li.setProperty('lg_type', 'folder')
+            add_context_menu_for_item(li, 'folder', folder_id=folder['id'])
+            url = build_plugin_url({'action': 'browse_folder', 'folder_id': folder['id'], 'view': 'folder'})
+            xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
+
+        for list_item in lists:
+            list_id = list_item['id']
+            list_name = list_item['name']
+
+            # Get media count for the list
+            media_count = query_manager.get_list_media_count(list_id)
+            display_name = f"{list_name} ({media_count})"
+
+            li = ListItemBuilder.build_folder_item(f"📋 {display_name}", is_folder=True, item_type='playlist')
+            li.setProperty('lg_type', 'list')
+            add_context_menu_for_item(li, 'list', list_id=list_id)
+            url = build_plugin_url({'action': 'browse_list', 'list_id': list_id, 'view': 'list'})
+            xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
+
+        # Check if directory is empty
+        if not subfolders and not lists:
+            show_empty_directory(handle, "This folder is empty.")
+        else:
+            xbmcplugin.setContent(handle, 'files')
+            xbmcplugin.endOfDirectory(handle)
+
+    except Exception as e:
+        log(f"Error in handle_browse_folder: {str(e)}", "ERROR")
+        import traceback
+        log(f"handle_browse_folder traceback: {traceback.format_exc()}", "ERROR")
+        show_empty_directory(handle, "Error loading folder contents.")
 
 # Expose functions that other modules need to import
 def create_new_folder_at_root():
@@ -504,50 +463,143 @@ def browse_search_history():
     return folder_list_manager.browse_search_history()
 
 def main():
-    """Main addon entry point"""
-    log("=== LibraryGenie addon starting ===", "INFO")
-    log(f"Command line args: {sys.argv}", "DEBUG")
-
+    # Check if initial setup is required before allowing addon to function
+    # This must run BEFORE favorites sync to prevent false positives
     try:
-        log("Initializing addon components", "DEBUG")
+        from resources.lib.config.config_manager import Config
+        from resources.lib.data.query_manager import QueryManager
+        from resources.lib.utils import utils
+        import xbmcaddon
+        import xbmcgui
 
-        # Check for deferred option execution from RunScript
-        if len(sys.argv) >= 3 and sys.argv[1] == 'deferred_option':
-            log("=== HANDLING DEFERRED OPTION EXECUTION FROM MAIN ===", "DEBUG")
-            try:
-                option_index = int(sys.argv[2])
-                # Retrieve stored folder context
-                folder_context_str = xbmc.getInfoLabel("Window(Home).Property(LibraryGenie.DeferredFolderContext)")
-                folder_context = None
-                if folder_context_str and folder_context_str != "None":
-                    try:
-                        folder_context = int(folder_context_str)
-                    except ValueError:
-                        pass
-                # Clear the property
-                xbmc.executebuiltin("ClearProperty(LibraryGenie.DeferredFolderContext,Home)")
-                options_manager.execute_deferred_option(option_index, folder_context)
-            except Exception as e:
-                log(f"Error in deferred option execution: {str(e)}", "ERROR")
-            return
+        config = Config()
+        query_manager = QueryManager(config.db_path)
+        addon = xbmcaddon.Addon()
 
-        # Handle plugin routing
-        if len(sys.argv) >= 3:
-            log("Plugin routing detected", "DEBUG")
-            router(sys.argv[2])
-            return
+        # Check if library has been scanned
+        library_scanned = addon.getSettingBool('library_scanned') if addon.getSetting('library_scanned') != '' else False
+        library_scan_declined = addon.getSettingBool('library_scan_declined') if addon.getSetting('library_scan_declined') != '' else False
 
-        # Fallback: Run the addon helper if no other conditions met
-        log("No specific action detected, running default addon helper.", "DEBUG")
-        run_addon()
+        # Check for actual library data - use more specific queries to avoid false positives from favorites
+        imdb_result = query_manager.execute_query(
+            "SELECT COUNT(*) as count FROM imdb_exports",
+            fetch_one=True
+        )
+        # Only count library items, not favorites imports
+        library_media_result = query_manager.execute_query(
+            "SELECT COUNT(*) as count FROM media_items WHERE source = 'lib'",
+            fetch_one=True
+        )
 
-        log("Configuration initialized - database setup is handled by background service", "DEBUG")
+        imdb_count = imdb_result['count'] if imdb_result else 0
+        library_media_count = library_media_result['count'] if library_media_result else 0
 
-        log("=== LibraryGenie addon startup complete ===", "INFO")
+        utils.log(f"Addon navigation check - library_scanned: {library_scanned}, declined: {library_scan_declined}, imdb_count: {imdb_count}, library_media_count: {library_media_count}", "DEBUG")
+
+        # If no actual library data exists, block addon usage (regardless of previous decline)
+        if not library_scanned and imdb_count == 0 and library_media_count == 0:
+            utils.log("Blocking addon usage - initial setup required", "INFO")
+            
+            # Show modal requiring initial setup
+            response = xbmcgui.Dialog().yesno(
+                "LibraryGenie - Setup Required",
+                "LibraryGenie requires an initial library scan to function.\n\n"
+                "This one-time scan will:\n"
+                "• Index your movies with IMDb information\n"
+                "• Enable search and list management\n"
+                "• Take a few minutes depending on library size\n\n"
+                "The addon cannot be used without this setup.\n\n"
+                "Would you like to start the scan now?",
+                nolabel="Not Now",
+                yeslabel="Start Scan"
+            )
+
+            if response:
+                # User agreed - start the scan
+                utils.log("User approved library scan from addon navigation - starting scan", "INFO")
+                addon.setSettingBool('library_scan_declined', False)
+                
+                try:
+                    from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
+                    upload_manager = IMDbUploadManager()
+                    success = upload_manager.get_full_kodi_movie_collection_and_store_locally(
+                        use_notifications=True,
+                        show_modal_on_completion=True
+                    )
+                    
+                    if success:
+                        utils.log("Library scan completed successfully from addon navigation", "INFO")
+                        # Continue to addon after successful scan
+                    else:
+                        utils.log("Library scan failed from addon navigation", "ERROR")
+                        xbmcgui.Dialog().ok("LibraryGenie", "Library scan failed. Please try again from addon settings.")
+                        return
+                        
+                except Exception as scan_error:
+                    utils.log(f"Error during library scan from addon navigation: {str(scan_error)}", "ERROR")
+                    xbmcgui.Dialog().ok("LibraryGenie", "Library scan error. Please try again from addon settings.")
+                    return
+            else:
+                # User declined - remember their choice and exit
+                utils.log("User declined library scan from addon navigation", "INFO")
+                addon.setSettingBool('library_scan_declined', True)
+                
+                xbmcgui.Dialog().ok(
+                    "LibraryGenie - Setup Required", 
+                    "LibraryGenie cannot function without the initial library scan.\n\n"
+                    "You can start the scan later from:\n"
+                    "• Addon Settings > Library Management\n"
+                    "• Or by accessing LibraryGenie again"
+                )
+                return
+
     except Exception as e:
-        log(f"CRITICAL ERROR in main(): {str(e)}", "ERROR")
-        import traceback
-        log(f"Full traceback: {traceback.format_exc()}", "ERROR")
+        utils.log(f"Error in addon navigation setup check: {str(e)}", "ERROR")
+        # Don't block addon on error - let it try to continue
+
+    # Only run favorites sync AFTER initial setup check passes
+    # This prevents favorites from interfering with setup detection
+    try:
+        from resources.lib.config.settings_manager import SettingsManager
+        from resources.lib.integrations.remote_api.favorites_sync_manager import FavoritesSyncManager
+        from resources.lib.utils import utils
+        import sys
+
+        # Check if we're at root level (no specific action parameters)
+        at_root = (len(sys.argv) <= 2 or
+                  (len(sys.argv) >= 3 and (not sys.argv[2] or sys.argv[2] in ('', '?'))))
+
+        if at_root:
+            try:
+                settings = SettingsManager()
+                if settings.is_favorites_sync_enabled():
+                    # Double-check that library data exists before running favorites sync
+                    config = Config()
+                    query_manager = QueryManager(config.db_path)
+                    imdb_result = query_manager.execute_query("SELECT COUNT(*) as count FROM imdb_exports", fetch_one=True)
+                    imdb_count = imdb_result['count'] if imdb_result else 0
+                    
+                    if imdb_count > 0:
+                        utils.log("Root navigation detected - triggering favorites sync", "DEBUG")
+                        sync_manager = FavoritesSyncManager()
+                        # Sync in isolation - no UI operations should happen during this
+                        sync_result = sync_manager.sync_favorites()
+                        utils.log("Favorites sync completed", "DEBUG")
+                        
+                        # Small delay to ensure sync completes before UI operations
+                        import time
+                        time.sleep(0.1)
+                    else:
+                        utils.log("Skipping favorites sync - no library data available yet", "DEBUG")
+            except Exception as e:
+                utils.log(f"Error in root navigation favorites sync: {str(e)}", "ERROR")
+                # Don't let sync errors prevent addon from loading
+    except Exception as e:
+        # Don't let sync errors prevent addon from loading
+        utils.log(f"Error in main sync setup: {str(e)}", "ERROR")
+
+    from resources.lib.config.addon_helper import run_addon
+    run_addon()
 
 if __name__ == '__main__':
     main()

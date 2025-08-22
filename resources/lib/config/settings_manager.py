@@ -39,9 +39,21 @@ class SettingsManager:
         """Check if favorites sync is enabled"""
         return self.get_setting('sync_favorites', 'true').lower() == 'true'
     
-    def get_favorites_sync_interval(self):
-        """Get favorites sync interval in seconds"""
-        return int(self.get_setting('favorites_sync_interval', '60'))
+    def import_from_shortlist(self):
+        """Trigger shortlist import"""
+        from resources.lib.integrations.remote_api.shortlist_importer import import_from_shortlist
+        result = import_from_shortlist()
+        
+        # Refresh container to show new imports
+        try:
+            from resources.lib.core.navigation_manager import get_navigation_manager
+            nav_manager = get_navigation_manager()
+            nav_manager.refresh_current_container("Shortlist Import Complete")
+        except Exception as e:
+            from resources.lib.utils import utils
+            utils.log(f"Could not refresh container after shortlist import: {str(e)}", "DEBUG")
+        
+        return result
 
     def addon_library_status(self):
         """Show addon library status dialog"""

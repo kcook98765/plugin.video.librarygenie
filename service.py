@@ -35,6 +35,21 @@ def init_once():
         # Check if library scanning is needed
         check_and_prompt_library_scan()
 
+        # Sync Kodi favorites to reserved list ID 1 - but only if library data exists
+        try:
+            # Check if we have actual library data before running favorites sync
+            imdb_result = query_manager.execute_query("SELECT COUNT(*) as count FROM imdb_exports", fetch_one=True)
+            imdb_count = imdb_result['count'] if imdb_result else 0
+            
+            if imdb_count > 0:
+                sync_manager = FavoritesSyncManager()
+                sync_manager.sync_favorites()
+                utils.log("Favorites sync completed during service startup", "DEBUG")
+            else:
+                utils.log("Skipping favorites sync during startup - no library data available yet", "DEBUG")
+        except Exception as e:
+            utils.log(f"Error syncing favorites during startup: {e}", "ERROR")
+
         # Mark initialization as complete
         if not _get_bool('init_done', False):
             _set_bool('init_done', True)
@@ -72,20 +87,39 @@ def ensure_database_ready():
         search_history_folder_id = query_manager.get_folder_id_by_name("Search History")
         if not search_history_folder_id:
             search_history_result = query_manager.create_folder("Search History", None)
-            search_history_folder_id = search_history_result['id']
+            if isinstance(search_history_result, dict):
+                search_history_folder_id = search_history_result['id']
+            else:
+                search_history_folder_id = search_history_result
             utils.log(f"Search History folder ensured: {search_history_folder_id}", "DEBUG")
 
         imported_lists_folder_id = query_manager.get_folder_id_by_name("Imported Lists")
         if not imported_lists_folder_id:
             imported_lists_result = query_manager.create_folder("Imported Lists", None)
-            imported_lists_folder_id = imported_lists_result['id']
+            if isinstance(imported_lists_result, dict):
+                imported_lists_folder_id = imported_lists_result['id']
+            else:
+                imported_lists_folder_id = imported_lists_result
             utils.log(f"Created Imported Lists folder: {imported_lists_folder_id}", "DEBUG")
 
-        # Remove obsolete "Kodi Favorites" folder if it exists (we now use list ID 1 directly)
-        kodi_favorites_folder_id = query_manager.get_folder_id_by_name("Kodi Favorites")
-        if kodi_favorites_folder_id:
-            utils.log(f"Removing obsolete Kodi Favorites folder (ID: {kodi_favorites_folder_id})", "INFO")
-            query_manager.delete_folder(kodi_favorites_folder_id)
+        # Ensure reserved lists exist
+        try:
+            kodi_favorites_list = query_manager.ensure_kodi_favorites_list()
+            if kodi_favorites_list:
+                list_id = kodi_favorites_list['id'] if isinstance(kodi_favorites_list, dict) else kodi_favorites_list
+                utils.log(f"Ensured Kodi Favorites list exists with ID: {list_id}", "DEBUG")
+        except Exception as e:
+            utils.log(f"Error ensuring Kodi Favorites list: {e}", "ERROR")
+
+        try:
+            shortlist_imports_list = query_manager.ensure_shortlist_imports_list()
+            if shortlist_imports_list:
+                list_id = shortlist_imports_list['id'] if isinstance(shortlist_imports_list, dict) else shortlist_imports_list
+                utils.log(f"Ensured Shortlist Imports list exists with ID: {list_id}", "DEBUG")
+        except Exception as e:
+            utils.log(f"Error ensuring Shortlist Imports list: {e}", "ERROR")
+
+        
 
         utils.log("Database setup completed successfully", "INFO")
         return True
@@ -116,6 +150,11 @@ def check_and_prompt_library_scan():
         media_count = media_result['count'] if media_result else 0
 
         utils.log(f"Library data check: found {imdb_count} items in imdb_exports, {media_count} items in media_items", "INFO")
+        
+        # Check current settings state
+        scan_declined = _get_bool('library_scan_declined', False)
+        library_scanned = _get_bool('library_scanned', False)
+        utils.log(f"Current settings - library_scanned: {library_scanned}, library_scan_declined: {scan_declined}", "INFO")
 
         # If no actual data exists, reset settings and prompt for scan
         if imdb_count == 0 and media_count == 0:
@@ -124,6 +163,8 @@ def check_and_prompt_library_scan():
             _set_bool('library_scan_declined', False)
 
             utils.log("No library data found - prompting user for scan", "INFO")
+            
+            # Force prompt on completely empty database (fresh wipe scenario)
             prompt_user_for_library_scan()
         else:
             # Library data exists - mark as scanned and clear decline flag
@@ -134,7 +175,7 @@ def check_and_prompt_library_scan():
     except Exception as e:
         utils.log(f"Error checking library scan status: {e}", "ERROR")
 
-def prompt_user_for_library_scan():
+def prompt_user_for_library_scan(force_prompt=False):
     """Show modal to user asking permission to scan library"""
     try:
         import xbmcgui
@@ -142,6 +183,10 @@ def prompt_user_for_library_scan():
 
         def show_dialog():
             try:
+                # Give Kodi a moment to fully start up
+                import time
+                time.sleep(2)
+                
                 dialog = xbmcgui.Dialog()
 
                 # Show informational dialog explaining the need
@@ -252,7 +297,6 @@ class LibraryGenieService:
         self.config = Config()
         self.settings = SettingsManager()
         self.monitor = xbmc.Monitor()
-        self.last_sync_time = 0
 
         utils.log("LibraryGenie service started", "INFO")
 
@@ -261,40 +305,8 @@ class LibraryGenieService:
 
         while not self.monitor.abortRequested():
             try:
-                # Run favorites sync more frequently and check for addon access
-                if self.settings.is_favorites_sync_enabled():
-                    sync_interval = self.settings.get_favorites_sync_interval()
-                    current_time = time.time()
-
-                    # Check if it's time for a regular sync
-                    should_sync = (current_time - self.last_sync_time >= sync_interval)
-
-                    # Also sync if we detect the addon has been accessed recently
-                    # Check if LibraryGenie addon window is active or was recently active
-                    try:
-                        import xbmc
-                        window_id = xbmc.getInfoLabel('System.CurrentWindow')
-                        addon_accessed = 'plugin.video.librarygenie' in str(window_id)
-
-                        # Force sync if addon accessed and it's been more than 30 seconds since last sync
-                        if addon_accessed and (current_time - self.last_sync_time >= 30):
-                            should_sync = True
-                            utils.log("Addon accessed, triggering favorites sync", "DEBUG")
-                    except:
-                        pass
-
-                    if should_sync:
-                        utils.log(f"Running favorites sync (interval: {sync_interval}s)", "DEBUG")
-
-                        try:
-                            sync_manager = FavoritesSyncManager()
-                            if sync_manager.sync_favorites():
-                                self.last_sync_time = current_time
-                        except Exception as e:
-                            utils.log(f"Error in favorites sync: {str(e)}", "ERROR")
-                else:
-                    # Reset sync timer when disabled to avoid immediate sync when re-enabled
-                    self.last_sync_time = time.time()
+                # Service loop for other background tasks if needed
+                pass
 
             except Exception as e:
                 utils.log(f"Error in service loop: {str(e)}", "ERROR")

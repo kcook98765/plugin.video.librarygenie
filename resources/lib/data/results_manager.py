@@ -356,26 +356,20 @@ class ResultsManager(Singleton):
                     # Check if item has a valid playable path
                     playable_path = r.get('path') or r.get('play') or r.get('file')
 
-                    # Skip items without valid playable paths (similar to shortlist import logic)
+                    # Skip items without valid playable paths
                     if not playable_path or not str(playable_path).strip():
                         utils.log(f"Skipping favorites import item '{r.get('title', 'Unknown')}' - no valid playable path", "DEBUG")
                         continue
 
-                    # Validate the path is actually playable (basic check)
-                    path_str = str(playable_path).strip()
-                    if not (path_str.startswith(('smb://', 'nfs://', 'http://', 'https://', 'ftp://', 'ftps://', 'plugin://', '/')) or
-                            '\\' in path_str):  # Windows network paths
-                        utils.log(f"Skipping favorites import item '{r.get('title', 'Unknown')}' - invalid path format: {path_str}", "DEBUG")
-                        continue
-
-                    # For favorites imports, use the stored data directly
+                    # For favorites imports, use the stored data directly without external processing
                     r['_viewing_list_id'] = list_id
                     r['media_id'] = r.get('id') or r.get('media_id')
 
+                    # Only build ListItem when actually displaying the list (not during sync)
                     from resources.lib.kodi.listitem_builder import ListItemBuilder
                     list_item = ListItemBuilder.build_video_item(r, is_search_history=is_search_history)
 
-                    # Use the playable path directly instead of info URL
+                    # Use the playable path directly
                     item_url = playable_path
                     display_items.append((item_url, list_item, False))
                     continue
