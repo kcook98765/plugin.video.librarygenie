@@ -433,11 +433,6 @@ class FavoritesSyncManager:
         if kodi_movie:
             # Use Kodi library data - this is preferred when available
             utils.log(f"SYNC_DATA_CONVERSION: Using KODI LIBRARY data for '{kodi_movie.get('title')}'", "DEBUG")
-            # Add sync flags to library match data too
-            if isinstance(kodi_movie, dict):
-                kodi_movie['_sync_operation'] = True
-                kodi_movie['_no_listitem_building'] = True
-                kodi_movie['_background_sync'] = True
             # Duration calculation with streamdetails preference
             duration_seconds = 0
             streamdetails = kodi_movie.get('streamdetails', {})
@@ -467,6 +462,9 @@ class FavoritesSyncManager:
                 cast_string = ', '.join(actor_names) if actor_names else ''
 
             media_dict = {
+                '_sync_operation': True,
+                '_no_listitem_building': True,
+                '_background_sync': True,
                 'title': self._safe_convert_string(kodi_movie.get('title'), 'Unknown Title'),
                 'year': self._safe_convert_int(kodi_movie.get('year')),
                 'plot': self._safe_convert_string(kodi_movie.get('plot')),

@@ -769,9 +769,8 @@ class QueryManager(Singleton):
             self.executemany_write(sql, data)
             utils.log(f"Successfully inserted {len(movies)} movies into imdb_exports", "INFO")
 
-    def ensure_system_lists(self) -> None:
-        """Ensure reserved system lists exist (IDs 1 and 2)."""
-        # ID 1: Kodi Favorites
+    def ensure_kodi_favorites_list(self) -> Dict[str, Any]:
+        """Ensure Kodi Favorites list exists and return it."""
         existing = self.fetch_list_by_id(1)
         if not existing:
             utils.log("Creating reserved Kodi Favorites list with ID 1", "DEBUG")
@@ -779,14 +778,18 @@ class QueryManager(Singleton):
                 "INSERT INTO lists (id, name, folder_id, protected) VALUES (?, ?, ?, ?)",
                 (1, "Kodi Favorites", None, 1)
             )
+            return {'id': 1, 'name': "Kodi Favorites", 'folder_id': None, 'protected': 1}
         elif existing['name'] != "Kodi Favorites":
             utils.log(f"Updating list ID 1 to be Kodi Favorites (was: {existing['name']})", "DEBUG")
             self.execute_write(
                 "UPDATE lists SET name=?, folder_id=NULL, protected=1 WHERE id=?",
                 ("Kodi Favorites", 1)
             )
+            existing['name'] = "Kodi Favorites"
+        return existing
 
-        # ID 2: Shortlist Imports
+    def ensure_shortlist_imports_list(self) -> Dict[str, Any]:
+        """Ensure Shortlist Imports list exists and return it."""
         existing = self.fetch_list_by_id(2)
         if not existing:
             utils.log("Creating reserved Shortlist Imports list with ID 2", "DEBUG")
@@ -794,12 +797,20 @@ class QueryManager(Singleton):
                 "INSERT INTO lists (id, name, folder_id, protected) VALUES (?, ?, ?, ?)",
                 (2, "Shortlist Imports", None, 1)
             )
+            return {'id': 2, 'name': "Shortlist Imports", 'folder_id': None, 'protected': 1}
         elif existing['name'] != "Shortlist Imports":
             utils.log(f"Updating list ID 2 to be Shortlist Imports (was: {existing['name']})", "DEBUG")
             self.execute_write(
                 "UPDATE lists SET name=?, folder_id=NULL, protected=1 WHERE id=?",
                 ("Shortlist Imports", 2)
             )
+            existing['name'] = "Shortlist Imports"
+        return existing
+
+    def ensure_system_lists(self) -> None:
+        """Ensure reserved system lists exist (IDs 1 and 2)."""
+        self.ensure_kodi_favorites_list()
+        self.ensure_shortlist_imports_list()
 
     def get_valid_imdb_numbers(self) -> List[str]:
         query = """
@@ -911,6 +922,58 @@ class QueryManager(Singleton):
             utils.log(f"SYNC_STORE: Error storing media item: {str(e)}", "ERROR")
             return False
 
+    def insert_or_get_media_item(self, media_data: Dict[str, Any]) -> Optional[int]:
+        """Insert or get existing media item, return ID."""
+        try:
+            # Use existing insert_media_item method
+            media_id = self.insert_media_item(media_data)
+            if media_id:
+                return media_id
+            
+            # If insert failed, try to find existing
+            title = media_data.get('title', '')
+            year = media_data.get('year', 0)
+            source = media_data.get('source', '')
+            
+            existing = self.execute_query(
+                "SELECT id FROM media_items WHERE title = ? AND year = ? AND source = ? LIMIT 1",
+                (title, year, source),
+                fetch_one=True
+            )
+            
+            return existing['id'] if existing else None
+            
+        except Exception as e:
+            utils.log(f"Error in insert_or_get_media_item: {str(e)}", "ERROR")
+            return None
+
+    def add_media_item_to_list(self, list_id: int, media_item_id: int) -> bool:
+        """Add media item to list (database only, no UI operations)."""
+        try:
+            # Check if already exists
+            existing = self.execute_query(
+                "SELECT id FROM list_items WHERE list_id = ? AND media_item_id = ?",
+                (list_id, media_item_id),
+                fetch_one=True
+            )
+            
+            if existing:
+                utils.log(f"Media item {media_item_id} already in list {list_id}", "DEBUG")
+                return True
+            
+            # Insert new list item
+            self.execute_write(
+                "INSERT INTO list_items (list_id, media_item_id, search_score) VALUES (?, ?, ?)",
+                (list_id, media_item_id, 0)
+            )
+            
+            utils.log(f"Added media item {media_item_id} to list {list_id}", "DEBUG")
+            return True
+            
+        except Exception as e:
+            utils.log(f"Error adding media item to list: {str(e)}", "ERROR")
+            return False
+
     def sync_only_store_media_item_to_list(self, list_id, media_item):
         """
         Store media item to list without any ListItem building - designed for sync operations.
@@ -930,7 +993,11 @@ class QueryManager(Singleton):
             # Explicitly mark this thread as a sync operation
             import threading
             current_thread = threading.current_thread()
-            current_thread.name = f"FavoritesSync-{current_thread.name}"
+            original_name = current_thread.name
+            current_thread.name = f"FavoritesSync-{original_name}"
+
+            utils.log(f"SYNC_ONLY_STORE: Starting for '{media_item.get('title')}' on thread {current_thread.name}", "DEBUG")
+            utils.log(f"SYNC_ONLY_STORE: Sync flags set - sync: {media_item.get('_sync_operation')}, no_listitem: {media_item.get('_no_listitem_building')}, background: {media_item.get('_background_sync')}", "DEBUG")
 
             # Insert or get existing media item
             media_id = self.insert_or_get_media_item(media_item)
@@ -945,6 +1012,8 @@ class QueryManager(Singleton):
             else:
                 utils.log(f"Failed to add '{media_item.get('title')}' to list {list_id} (sync mode)", "ERROR")
 
+            # Restore thread name
+            current_thread.name = original_name
             return success
 
         except Exception as e:
