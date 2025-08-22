@@ -440,17 +440,17 @@ class ListItemBuilder:
                             if hasattr(info_tag, 'setResumePoint'):
                                 info_tag.setResumePoint(position, total)
                             else:
-                                # Fallback to deprecated method
+                                # Fallback to properties (non-deprecated approach for v20+)
                                 li.setProperty('resumetime', str(position))
                                 if total > 0:
                                     li.setProperty('totaltime', str(total))
                         except Exception:
-                            # Fallback to deprecated method
+                            # Fallback to properties (non-deprecated approach for v20+)
                             li.setProperty('resumetime', str(position))
                             if total > 0:
                                 li.setProperty('totaltime', str(total))
                     else:
-                        # v19 - use deprecated methods
+                        # v19 - use property methods (these are not deprecated in v19)
                         li.setProperty('resumetime', str(position))
                         if total > 0:
                             li.setProperty('totaltime', str(total))
@@ -463,12 +463,11 @@ class ListItemBuilder:
         if isinstance(stream_details, dict):
             try:
                 if utils.is_kodi_v19():
-                    # v19 - use deprecated methods since InfoTag is unreliable
+                    # v19 - use addStreamInfo methods (not deprecated in v19)
                     ListItemBuilder._add_stream_info_deprecated(li, stream_details)
                 else:
-                    # v20+ - skip deprecated stream methods to avoid warnings
-                    # Stream details are handled by InfoTag internally when possible
-                    # Only set essential stream properties if needed
+                    # v20+ - avoid addStreamInfo methods that are deprecated
+                    # Use InfoTag or properties instead
                     video_streams = stream_details.get('video', [])
                     if video_streams and isinstance(video_streams[0], dict):
                         codec = video_streams[0].get('codec', '')
@@ -658,9 +657,9 @@ class ListItemBuilder:
 
     @staticmethod
     def _add_stream_info_deprecated(list_item, stream_details):
-        """Adds stream details using deprecated methods for compatibility with older Kodi versions."""
-        # This method is a fallback for versions where setVideoStream, setAudioStream, setSubtitleStream are deprecated
-        # or not available. It aims to set properties that might be recognized by older Kodi clients or skins.
+        """Adds stream details using addStreamInfo methods for Kodi v19 compatibility."""
+        # This method uses addStreamInfo which is not deprecated in v19, only in v20+
+        # For v20+ we avoid these methods entirely in the calling code
         video_streams = stream_details.get('video', [])
         audio_streams = stream_details.get('audio', [])
         subtitle_streams = stream_details.get('subtitle', [])
@@ -668,36 +667,51 @@ class ListItemBuilder:
         if video_streams:
             for stream in video_streams:
                 if isinstance(stream, dict):
-                    codec = stream.get('codec', '')
-                    resolution = stream.get('resolution', '')
-                    aspect_ratio = stream.get('aspect_ratio', '')
-                    lang = stream.get('language', '')
-                    # Using generic properties as specific ones are deprecated
-                    list_item.setProperty('VideoCodec', codec)
-                    list_item.setProperty('VideoResolution', resolution)
-                    list_item.setProperty('VideoAspectRatio', aspect_ratio)
-                    list_item.setProperty('VideoLanguage', lang)
+                    try:
+                        # Use addStreamInfo for v19 (not deprecated there)
+                        list_item.addStreamInfo('video', stream)
+                        break  # Only add first video stream
+                    except Exception:
+                        # Fallback to properties
+                        codec = stream.get('codec', '')
+                        resolution = stream.get('resolution', '')
+                        aspect_ratio = stream.get('aspect_ratio', '')
+                        lang = stream.get('language', '')
+                        list_item.setProperty('VideoCodec', codec)
+                        list_item.setProperty('VideoResolution', resolution)
+                        list_item.setProperty('VideoAspectRatio', aspect_ratio)
+                        list_item.setProperty('VideoLanguage', lang)
 
         if audio_streams:
             for stream in audio_streams:
                 if isinstance(stream, dict):
-                    codec = stream.get('codec', '')
-                    channels = stream.get('channels', '')
-                    language = stream.get('language', '')
-                    bitrate = stream.get('bitrate', '')
-
-                    list_item.setProperty('AudioCodec', codec)
-                    list_item.setProperty('AudioChannels', str(channels))
-                    list_item.setProperty('AudioLanguage', language)
-                    list_item.setProperty('AudioBitrate', str(bitrate))
+                    try:
+                        # Use addStreamInfo for v19 (not deprecated there)
+                        list_item.addStreamInfo('audio', stream)
+                        break  # Only add first audio stream
+                    except Exception:
+                        # Fallback to properties
+                        codec = stream.get('codec', '')
+                        channels = stream.get('channels', '')
+                        language = stream.get('language', '')
+                        bitrate = stream.get('bitrate', '')
+                        list_item.setProperty('AudioCodec', codec)
+                        list_item.setProperty('AudioChannels', str(channels))
+                        list_item.setProperty('AudioLanguage', language)
+                        list_item.setProperty('AudioBitrate', str(bitrate))
 
         if subtitle_streams:
             for stream in subtitle_streams:
                 if isinstance(stream, dict):
-                    language = stream.get('language', '')
-                    codec = stream.get('codec', '')
-                    forced = stream.get('forced', False)
-
-                    list_item.setProperty('SubtitleLanguage', language)
-                    list_item.setProperty('SubtitleCodec', codec)
-                    list_item.setProperty('SubtitleForced', str(forced).lower())
+                    try:
+                        # Use addStreamInfo for v19 (not deprecated there)
+                        list_item.addStreamInfo('subtitle', stream)
+                        break  # Only add first subtitle stream
+                    except Exception:
+                        # Fallback to properties
+                        language = stream.get('language', '')
+                        codec = stream.get('codec', '')
+                        forced = stream.get('forced', False)
+                        list_item.setProperty('SubtitleLanguage', language)
+                        list_item.setProperty('SubtitleCodec', codec)
+                        list_item.setProperty('SubtitleForced', str(forced).lower())
