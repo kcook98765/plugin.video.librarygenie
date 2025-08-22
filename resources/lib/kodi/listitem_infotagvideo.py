@@ -338,16 +338,15 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
             utils.log(f"V21+ InfoTag processing completed with {infotag_success_count} successful fields", "DEBUG")
             return
 
-        # For v20 only, allow limited setInfo fallback if most InfoTag methods failed
-        if infotag_success_count < 3:
-            utils.log("V20 InfoTag had limited success, using minimal setInfo fallback", "DEBUG")
+        # For v20 only, avoid setInfo unless absolutely critical and InfoTag completely failed
+        if infotag_success_count < 1:  # Only if InfoTag completely failed
+            utils.log("V20 InfoTag completely failed, using minimal setInfo for critical fields only", "DEBUG")
             try:
-                # Very limited fallback for v20 - only essential fields
+                # Extremely limited fallback for v20 - avoid deprecated setInfo where possible
+                # Only set the most critical field if InfoTag completely failed
                 essential_info = {}
-                if info_dict.get('title'):
+                if info_dict.get('title') and not hasattr(list_item.getVideoInfoTag(), 'setTitle'):
                     essential_info['title'] = str(info_dict['title'])
-                if info_dict.get('plot'):
-                    essential_info['plot'] = str(info_dict['plot'])
                 if essential_info:
                     list_item.setInfo(content_type, essential_info)
             except Exception:
@@ -358,16 +357,20 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
         if utils.get_kodi_version() >= 21:
             utils.log(f"V21+ InfoTag processing had errors but avoiding deprecated setInfo: {str(e)}", "DEBUG")
         else:
-            # For v20, allow very limited fallback
-            utils.log(f"V20 InfoTag failed, using very limited setInfo: {str(e)}", "DEBUG")
-            try:
-                essential_info = {}
-                if info_dict.get('title'):
-                    essential_info['title'] = str(info_dict['title'])
-                if essential_info:
-                    list_item.setInfo(content_type, essential_info)
-            except Exception:
-                pass
+            # For v20, allow very limited fallback only if InfoTag completely unusable
+            if utils.get_kodi_version() == 20:
+                utils.log(f"V20 InfoTag failed, using very limited setInfo: {str(e)}", "DEBUG")
+                try:
+                    essential_info = {}
+                    if info_dict.get('title'):
+                        essential_info['title'] = str(info_dict['title'])
+                    if essential_info:
+                        list_item.setInfo(content_type, essential_info)
+                except Exception:
+                    pass
+            else:
+                # v21+ - completely avoid deprecated setInfo
+                utils.log(f"V{utils.get_kodi_version()}+ InfoTag failed but avoiding deprecated setInfo: {str(e)}", "DEBUG")
 
 
 def set_art(list_item: ListItem, raw_art: Dict[str, str]) -> None:

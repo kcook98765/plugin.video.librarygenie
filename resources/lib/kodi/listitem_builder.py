@@ -462,23 +462,51 @@ class ListItemBuilder:
         stream_details = media_info.get('streamdetails', {})
         if isinstance(stream_details, dict):
             try:
-                if utils.is_kodi_v19():
+                kodi_version = utils.get_kodi_version()
+                if kodi_version == 19:
                     # v19 - use addStreamInfo methods (not deprecated in v19)
                     ListItemBuilder._add_stream_info_deprecated(li, stream_details)
                 else:
                     # v20+ - avoid addStreamInfo methods that are deprecated
-                    # Use InfoTag or properties instead
-                    video_streams = stream_details.get('video', [])
-                    if video_streams and isinstance(video_streams[0], dict):
-                        codec = video_streams[0].get('codec', '')
-                        if codec:
-                            li.setProperty('VideoCodec', codec)
-                    
-                    audio_streams = stream_details.get('audio', [])
-                    if audio_streams and isinstance(audio_streams[0], dict):
-                        codec = audio_streams[0].get('codec', '')
-                        if codec:
-                            li.setProperty('AudioCodec', codec)
+                    # Use InfoTag methods for v20+
+                    try:
+                        info_tag = li.getVideoInfoTag()
+                        video_streams = stream_details.get('video', [])
+                        if video_streams and isinstance(video_streams[0], dict):
+                            video_stream = video_streams[0]
+                            if hasattr(info_tag, 'addVideoStream'):
+                                # Use new InfoTag methods for v20+
+                                info_tag.addVideoStream(video_stream)
+                            else:
+                                # Fallback to properties
+                                codec = video_stream.get('codec', '')
+                                if codec:
+                                    li.setProperty('VideoCodec', codec)
+                        
+                        audio_streams = stream_details.get('audio', [])
+                        if audio_streams and isinstance(audio_streams[0], dict):
+                            audio_stream = audio_streams[0]
+                            if hasattr(info_tag, 'addAudioStream'):
+                                # Use new InfoTag methods for v20+
+                                info_tag.addAudioStream(audio_stream)
+                            else:
+                                # Fallback to properties
+                                codec = audio_stream.get('codec', '')
+                                if codec:
+                                    li.setProperty('AudioCodec', codec)
+                    except Exception:
+                        # Fallback to properties for v20+ if InfoTag methods fail
+                        video_streams = stream_details.get('video', [])
+                        if video_streams and isinstance(video_streams[0], dict):
+                            codec = video_streams[0].get('codec', '')
+                            if codec:
+                                li.setProperty('VideoCodec', codec)
+                        
+                        audio_streams = stream_details.get('audio', [])
+                        if audio_streams and isinstance(audio_streams[0], dict):
+                            codec = audio_streams[0].get('codec', '')
+                            if codec:
+                                li.setProperty('AudioCodec', codec)
             except Exception:
                 pass
 
@@ -657,9 +685,13 @@ class ListItemBuilder:
 
     @staticmethod
     def _add_stream_info_deprecated(list_item, stream_details):
-        """Adds stream details using addStreamInfo methods for Kodi v19 compatibility."""
-        # This method uses addStreamInfo which is not deprecated in v19, only in v20+
-        # For v20+ we avoid these methods entirely in the calling code
+        """Adds stream details using addStreamInfo methods - ONLY for Kodi v19."""
+        # This method should ONLY be called for v19 where addStreamInfo is not deprecated
+        # Double-check version to ensure we don't call deprecated methods in v20+
+        if utils.get_kodi_version() != 19:
+            utils.log("WARNING: _add_stream_info_deprecated called on non-v19 Kodi - skipping to avoid deprecation warnings", "WARNING")
+            return
+            
         video_streams = stream_details.get('video', [])
         audio_streams = stream_details.get('audio', [])
         subtitle_streams = stream_details.get('subtitle', [])
@@ -668,7 +700,7 @@ class ListItemBuilder:
             for stream in video_streams:
                 if isinstance(stream, dict):
                     try:
-                        # Use addStreamInfo for v19 (not deprecated there)
+                        # Use addStreamInfo for v19 ONLY (not deprecated in v19)
                         list_item.addStreamInfo('video', stream)
                         break  # Only add first video stream
                     except Exception:
@@ -686,7 +718,7 @@ class ListItemBuilder:
             for stream in audio_streams:
                 if isinstance(stream, dict):
                     try:
-                        # Use addStreamInfo for v19 (not deprecated there)
+                        # Use addStreamInfo for v19 ONLY (not deprecated in v19)
                         list_item.addStreamInfo('audio', stream)
                         break  # Only add first audio stream
                     except Exception:
@@ -704,7 +736,7 @@ class ListItemBuilder:
             for stream in subtitle_streams:
                 if isinstance(stream, dict):
                     try:
-                        # Use addStreamInfo for v19 (not deprecated there)
+                        # Use addStreamInfo for v19 ONLY (not deprecated in v19)
                         list_item.addStreamInfo('subtitle', stream)
                         break  # Only add first subtitle stream
                     except Exception:
