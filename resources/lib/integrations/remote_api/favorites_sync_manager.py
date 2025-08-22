@@ -9,14 +9,12 @@ from resources.lib.utils import utils
 from resources.lib.config.config_manager import Config
 from resources.lib.config.settings_manager import SettingsManager
 from resources.lib.data.query_manager import QueryManager
-from resources.lib.integrations.remote_api.favorites_importer import FavoritesImporter
 
 class FavoritesSyncManager:
     def __init__(self):
         self.config = Config()
         self.settings = SettingsManager()
         self.query_manager = QueryManager(self.config.db_path)
-        self.favorites_importer = FavoritesImporter()
         self.snapshot_file = os.path.join(self.config.profile, 'fav_snapshot.json')
         self.last_snapshot = {}
         self.load_snapshot()
@@ -105,6 +103,97 @@ class FavoritesSyncManager:
         data_str = json.dumps(minimal_data, sort_keys=True)
         return hashlib.sha256(data_str.encode('utf-8')).hexdigest()
 
+    def _fetch_favourites_media(self):
+        """Fetch media favorites directly from Kodi JSON-RPC"""
+        try:
+            req = {
+                "jsonrpc": "2.0", 
+                "id": 1, 
+                "method": "Favourites.GetFavourites",
+                "params": {
+                    "type": "media",
+                    "properties": ["path", "thumbnail", "window", "windowparameter"]
+                }
+            }
+
+            resp = xbmc.executeJSONRPC(json.dumps(req))
+            data = json.loads(resp)
+
+            if "error" in data:
+                utils.log(f"JSON-RPC error fetching favorites: {data['error']}", "ERROR")
+                return []
+
+            result = data.get("result", {})
+            favs = result.get("favourites", []) or []
+            utils.log(f"Fetched {len(favs)} media favorites", "DEBUG")
+            return favs
+
+        except Exception as e:
+            utils.log(f"Error fetching favorites: {str(e)}", "ERROR")
+            return []
+
+    def _is_playable_video(self, path):
+        """Quick check for playable video paths without heavy RPC calls"""
+        if not path:
+            return False
+
+        # Plugin video URLs are always playable
+        if path.startswith("plugin://plugin.video."):
+            return True
+
+        # videodb:// URLs are always playable
+        if path.startswith("videodb://"):
+            return True
+
+        # Check common video file extensions
+        video_extensions = ('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.m4v', '.ts', '.mpg', '.mpeg')
+        base_path = path.split('|')[0] if '|' in path else path
+
+        if base_path and any(base_path.lower().endswith(ext) for ext in video_extensions):
+            return True
+
+        return False
+
+    def _create_media_dict_from_favorite(self, fav_item):
+        """Create media dict directly from favorite item data without external lookups"""
+        path = fav_item.get('path', '')
+        title = fav_item.get('title', 'Unknown')
+
+        media_dict = {
+            'title': title.strip() if title else 'Unknown',
+            'year': 0,
+            'plot': '',
+            'rating': 0.0,
+            'duration': 0,
+            'genre': '',
+            'director': '',
+            'cast': '',
+            'studio': '',
+            'mpaa': '',
+            'tagline': '',
+            'writer': '',
+            'country': '',
+            'premiered': '',
+            'dateadded': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'votes': 0,
+            'trailer': '',
+            'path': path,
+            'play': path,
+            'kodi_id': 0,
+            'media_type': 'movie',
+            'source': 'favorites_import',
+            'imdbnumber': '',
+            'thumbnail': fav_item.get('thumbnail', ''),
+            'poster': '',
+            'fanart': '',
+            'art': '',
+            'uniqueid': '',
+            'stream_url': '',
+            'status': 'available'
+        }
+
+        return media_dict
+
     def get_kodi_favorites_list_id(self):
         """Get or create the protected 'Kodi Favorites' list at root level"""
         # Look for existing list at root level (None parent)
@@ -122,7 +211,7 @@ class FavoritesSyncManager:
         return list_id
 
     def sync_favorites(self):
-        """Main sync function - checks for changes and updates the Kodi Favorites folder"""
+        """Main sync function - checks for changes and updates the Kodi Favorites list"""
         if not self.settings.is_favorites_sync_enabled():
             utils.log("Favorites sync is disabled", "DEBUG")
             return False
@@ -137,16 +226,17 @@ class FavoritesSyncManager:
 
         try:
             # Fetch current favorites from Kodi
-            current_favorites = self.favorites_importer._fetch_favourites_media()
+            current_favorites = self._fetch_favourites_media()
             if not current_favorites:
                 utils.log("No media favorites found in Kodi", "DEBUG")
                 return False
 
-            # Canonicalize and index current favorites
+            # Filter for playable video items and canonicalize
             current_items = {}
             for fav in current_favorites:
-                canonical = self.canonicalize_favorite(fav)
-                current_items[canonical['identity']] = canonical
+                if fav.get('type') == 'media' and self._is_playable_video(fav.get('path', '')):
+                    canonical = self.canonicalize_favorite(fav)
+                    current_items[canonical['identity']] = canonical
 
             # Compute signature of current state
             current_signature = self.compute_signature(current_items)
@@ -195,9 +285,9 @@ class FavoritesSyncManager:
 
             utils.log(f"Sync changes: {len(added_items)} added, {len(removed_identities)} removed, {len(changed_items)} changed", "INFO")
 
-            # Apply changes to LibraryGenie incrementally
+            # Apply changes to database
             if added_items or removed_identities or changed_items or current_list_count == 0:
-                self.apply_favorites_changes_incrementally(added_items, removed_identities, changed_items)
+                self._apply_database_changes(list_id, added_items, removed_identities, changed_items, current_favorites)
 
             # Save new snapshot
             self.save_snapshot(current_items, current_signature)
@@ -214,63 +304,39 @@ class FavoritesSyncManager:
             utils.log(f"Favorites sync traceback: {traceback.format_exc()}", "ERROR")
             return False
 
-    def apply_favorites_changes_incrementally(self, added_items, removed_identities, changed_items):
-        """Apply changes incrementally by aligning list with current Kodi favorites without wiping first"""
+    def _apply_database_changes(self, list_id, added_items, removed_identities, changed_items, current_favorites):
+        """Apply changes to the database without any UI dependencies"""
         try:
-            # Use reserved Kodi Favorites list (ID 1)
-            list_id = 1
-
-            # Get current favorites from Kodi and current list contents
-            current_favorites = self.favorites_importer._fetch_favourites_media()
-            current_list_items = self.query_manager.fetch_list_items_with_details(list_id)
-
-            # Create lookup dictionaries for efficient matching
-            kodi_favorites_by_identity = {}
-            list_items_by_path = {}
-            list_items_by_title = {}
-
-            # Index current Kodi favorites
+            # Create lookup for current favorites by identity
+            favorites_by_identity = {}
             for fav in current_favorites:
-                if self.favorites_importer._is_playable_video(fav.get('path', '')):
+                if fav.get('type') == 'media' and self._is_playable_video(fav.get('path', '')):
                     identity = self.create_identity_key(fav)
-                    kodi_favorites_by_identity[identity] = fav
+                    favorites_by_identity[identity] = fav
 
-            # Index current list items
-            for item in current_list_items:
-                path = item.get('path', '')
-                title = item.get('title', '')
-                if path:
-                    list_items_by_path[path] = item
-                if title:
-                    list_items_by_title[title.lower()] = item
+            # Get current list contents for matching
+            current_list_items = self.query_manager.fetch_list_items_with_details(list_id)
+            list_items_by_path = {item.get('path', ''): item for item in current_list_items if item.get('path')}
+            list_items_by_title = {item.get('title', '').lower(): item for item in current_list_items if item.get('title')}
 
-            # Process only added items (new favorites not in list)
+            # Process added items
             for item in added_items:
                 utils.log(f"Adding new favorite: {item['title']}", "DEBUG")
 
-                original_fav = kodi_favorites_by_identity.get(item['identity'])
+                original_fav = favorites_by_identity.get(item['identity'])
                 if original_fav:
-                    path = original_fav.get("path") or ""
-                    title = original_fav.get("title") or ""
+                    path = original_fav.get("path", "")
+                    title = original_fav.get("title", "")
 
                     # Check if item is already in list (by path or title)
                     if path in list_items_by_path or title.lower() in list_items_by_title:
                         utils.log(f"Favorite '{title}' already exists in list, skipping", "DEBUG")
                         continue
 
-                    # Try library matching first
-                    kodi_movie = self.favorites_importer._library_match_from_path(path)
-                    if not kodi_movie and (path.startswith("videodb://") or not path.startswith(("smb://", "nfs://", "file://"))):
-                        kodi_movie = self.favorites_importer.lookup_in_kodi_library(title)
+                    # Create media dict directly from favorite data
+                    media_dict = self._create_media_dict_from_favorite(original_fav)
 
-                    filedetails = None if kodi_movie else self.favorites_importer._get_file_details(path)
-
-                    media_dict = self.favorites_importer.convert_favorite_item_to_media_dict(
-                        fav=original_fav,
-                        filedetails=filedetails,
-                        kodi_movie=kodi_movie
-                    )
-
+                    # Insert into database
                     self.query_manager.insert_media_item_and_add_to_list(list_id, media_dict)
                     utils.log(f"Added new favorite '{title}' to list", "INFO")
 
@@ -314,25 +380,11 @@ class FavoritesSyncManager:
 
                 list_item = list_items_by_path.get(old_path)
                 if list_item and new_title != list_item.get('title', ''):
-                    # Update the title and other metadata if needed
                     try:
-                        original_fav = kodi_favorites_by_identity.get(current_item['identity'])
+                        original_fav = favorites_by_identity.get(current_item['identity'])
                         if original_fav:
                             # Get updated media dict
-                            path = original_fav.get("path") or ""
-                            title = original_fav.get("title") or ""
-
-                            kodi_movie = self.favorites_importer._library_match_from_path(path)
-                            if not kodi_movie and (path.startswith("videodb://") or not path.startswith(("smb://", "nfs://", "file://"))):
-                                kodi_movie = self.favorites_importer.lookup_in_kodi_library(title)
-
-                            filedetails = None if kodi_movie else self.favorites_importer._get_file_details(path)
-
-                            updated_media_dict = self.favorites_importer.convert_favorite_item_to_media_dict(
-                                fav=original_fav,
-                                filedetails=filedetails,
-                                kodi_movie=kodi_movie
-                            )
+                            updated_media_dict = self._create_media_dict_from_favorite(original_fav)
 
                             # Update the media item
                             self.query_manager.update_data('media_items', updated_media_dict, 'id = ?', (list_item['id'],))
@@ -340,130 +392,20 @@ class FavoritesSyncManager:
                     except Exception as e:
                         utils.log(f"Error updating changed item: {str(e)}", "ERROR")
 
-            utils.log("Incremental favorites sync completed", "INFO")
+            utils.log("Database changes applied successfully", "INFO")
 
         except Exception as e:
-            utils.log(f"Error in incremental favorites sync: {str(e)}", "ERROR")
+            utils.log(f"Error applying database changes: {str(e)}", "ERROR")
 
-    def apply_favorites_changes(self, added_items, removed_identities, changed_items):
-        """Apply the detected changes to the Kodi Favorites folder (legacy method for manual imports)"""
-        try:
-            # Use reserved Kodi Favorites list (ID 1)  
-            list_id = 1
-
-            # Process added items
-            for item in added_items:
-                utils.log(f"Adding favorite: {item['title']}", "DEBUG")
-
-                # Find the original favorite data for this item
-                original_fav = None
-                current_favorites = self.favorites_importer._fetch_favourites_media()
-                for fav in current_favorites:
-                    if self.create_identity_key(fav) == item['identity']:
-                        original_fav = fav
-                        break
-
-                if original_fav and self.favorites_importer._is_playable_video(original_fav.get('path', '')):
-                    # Convert to media dict and add to list
-                    path = original_fav.get("path") or ""
-                    title = original_fav.get("title") or ""
-
-                    # Try library matching first
-                    kodi_movie = self.favorites_importer._library_match_from_path(path)
-                    if not kodi_movie and (path.startswith("videodb://") or not path.startswith(("smb://", "nfs://", "file://"))):
-                        kodi_movie = self.favorites_importer.lookup_in_kodi_library(title)
-
-                    filedetails = None if kodi_movie else self.favorites_importer._get_file_details(path)
-
-                    media_dict = self.favorites_importer.convert_favorite_item_to_media_dict(
-                        fav=original_fav,
-                        filedetails=filedetails,
-                        kodi_movie=kodi_movie
-                    )
-
-                    self.query_manager.insert_media_item_and_add_to_list(list_id, media_dict)
-
-            # Process removed items
-            if removed_identities:
-                utils.log(f"Removing {len(removed_identities)} favorites", "DEBUG")
-                # For now, we'll clear the list and rebuild it since we don't have
-                # a reliable way to match individual items to remove
-                # This could be optimized in the future
-                self.rebuild_favorites_list(list_id)
-
-            # Process changed items (rename/update metadata)
-            for current_item, last_item in changed_items:
-                utils.log(f"Updating favorite: {last_item['title']} -> {current_item['title']}", "DEBUG")
-                # For simplicity, we'll handle this in the rebuild as well
-
-            # If we had removals or changes, rebuild the entire list
-            if removed_identities or changed_items:
-                self.rebuild_favorites_list(list_id)
-
-        except Exception as e:
-            utils.log(f"Error applying favorites changes: {str(e)}", "ERROR")
-
-    def rebuild_favorites_list(self, list_id=None):
-        """Rebuild the entire favorites list from current Kodi favorites"""
-        try:
-            utils.log("Rebuilding favorites list", "DEBUG")
-
-            # Get the favorites list ID if not provided
-            if list_id is None:
-                list_id = 1 # Use reserved Kodi Favorites list (ID 1)
-
-            # Clear existing list contents
-            self.query_manager.clear_list_items(list_id)
-
-            # Get current favorites and rebuild
-            current_favorites = self.favorites_importer._fetch_favourites_media()
-            playable_items = []
-
-            for fav in current_favorites:
-                path = fav.get("path", "")
-                if self.favorites_importer._is_playable_video(path):
-                    playable_items.append(fav)
-
-            # Add all playable items back to the list
-            for fav in playable_items:
-                path = fav.get("path") or ""
-                title = fav.get("title") or ""
-
-                # Try library matching
-                kodi_movie = self.favorites_importer._library_match_from_path(path)
-                if not kodi_movie and (path.startswith("videodb://") or not path.startswith(("smb://", "nfs://", "file://"))):
-                    kodi_movie = self.favorites_importer.lookup_in_kodi_library(title)
-
-                filedetails = None if kodi_movie else self.favorites_importer._get_file_details(path)
-
-                media_dict = self.favorites_importer.convert_favorite_item_to_media_dict(
-                    fav=fav,
-                    filedetails=filedetails,
-                    kodi_movie=kodi_movie
-                )
-
-                self.query_manager.insert_media_item_and_add_to_list(list_id, media_dict)
-
-            utils.log(f"Rebuilt favorites list with {len(playable_items)} items", "INFO")
-
-        except Exception as e:
-            utils.log(f"Error rebuilding favorites list: {str(e)}", "ERROR")
-
-    def force_sync(self, use_incremental=True):
+    def force_sync(self):
         """Force a complete sync regardless of changes"""
         utils.log("=== Starting Forced Favorites Sync ===", "INFO")
 
-        if use_incremental:
-            # Reset snapshot to force full sync but use incremental method
-            self.last_snapshot = {'items': {}, 'signature': ''}
+        # Reset snapshot to force full sync
+        self.last_snapshot = {'items': {}, 'signature': ''}
 
-            # Run sync with incremental updates
-            result = self.sync_favorites()
-        else:
-            # Legacy method: full rebuild
-            self.last_snapshot = {'items': {}, 'signature': ''}
-            self.rebuild_favorites_list()
-            result = self.sync_favorites()
+        # Run sync
+        result = self.sync_favorites()
 
         if result:
             utils.log("Forced favorites sync completed successfully", "INFO")
