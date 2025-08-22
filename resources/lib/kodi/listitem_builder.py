@@ -476,25 +476,25 @@ class ListItemBuilder:
                 try:
                     if utils.is_kodi_v19():
                         # v19 - use deprecated methods since InfoTag is unreliable
-                    if stream_details:
-                        ListItemBuilder._add_stream_info_deprecated(li, stream_details)
-                else:
-                    # v20+ - skip deprecated stream methods to avoid warnings
-                    # Stream details are handled by InfoTag internally when possible
-                    # Only set essential stream properties if needed
-                    video_streams = stream_details.get('video', [])
-                    if video_streams and isinstance(video_streams[0], dict):
-                        codec = video_streams[0].get('codec', '')
-                        if codec:
-                            li.setProperty('VideoCodec', codec)
-                    
-                    audio_streams = stream_details.get('audio', [])
-                    if audio_streams and isinstance(audio_streams[0], dict):
-                        codec = audio_streams[0].get('codec', '')
-                        if codec:
-                            li.setProperty('AudioCodec', codec)
-            except Exception:
-                pass
+                        if stream_details:
+                            ListItemBuilder._add_stream_info_deprecated(li, stream_details)
+                    else:
+                        # v20+ - skip deprecated stream methods to avoid warnings
+                        # Stream details are handled by InfoTag internally when possible
+                        # Only set essential stream properties if needed
+                        video_streams = stream_details.get('video', [])
+                        if video_streams and isinstance(video_streams[0], dict):
+                            codec = video_streams[0].get('codec', '')
+                            if codec:
+                                li.setProperty('VideoCodec', codec)
+                        
+                        audio_streams = stream_details.get('audio', [])
+                        if audio_streams and isinstance(audio_streams[0], dict):
+                            codec = audio_streams[0].get('codec', '')
+                            if codec:
+                                li.setProperty('AudioCodec', codec)
+                except Exception:
+                    pass
 
         # Set content properties - handle non-playable items  
         is_playable = True  # Default to playable
