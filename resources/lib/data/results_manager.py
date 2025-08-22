@@ -366,6 +366,17 @@ class ResultsManager(Singleton):
                     r['media_id'] = r.get('id') or r.get('media_id')
 
                     # Only build ListItem when actually displaying the list (not during sync)
+                    # Check if this is being called from a sync operation by looking at the call stack
+                    import inspect
+                    frame_names = [frame.function for frame in inspect.stack()]
+                    is_sync_operation = any(sync_func in frame_names for sync_func in [
+                        'sync_favorites', '_apply_database_changes', 'sync_only_store_media_item_to_list'
+                    ])
+                    
+                    if is_sync_operation:
+                        utils.log(f"Skipping ListItem building for favorites import item '{r.get('title', 'Unknown')}' during sync operation", "DEBUG")
+                        continue
+
                     from resources.lib.kodi.listitem_builder import ListItemBuilder
                     list_item = ListItemBuilder.build_video_item(r, is_search_history=is_search_history)
 
