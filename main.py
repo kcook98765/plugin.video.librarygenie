@@ -496,8 +496,8 @@ def main():
 
         utils.log(f"Addon navigation check - library_scanned: {library_scanned}, declined: {library_scan_declined}, imdb_count: {imdb_count}, library_media_count: {library_media_count}", "DEBUG")
 
-        # If no actual library data and user hasn't scanned, block addon usage
-        if not library_scanned and imdb_count == 0 and library_media_count == 0 and not library_scan_declined:
+        # If no actual library data exists, block addon usage (regardless of previous decline)
+        if not library_scanned and imdb_count == 0 and library_media_count == 0:
             utils.log("Blocking addon usage - initial setup required", "INFO")
             
             # Show modal requiring initial setup
