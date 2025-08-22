@@ -736,7 +736,7 @@ class FavoritesSyncManager:
                     media_dict = self._create_media_dict_from_favorite(original_fav, filedetails, kodi_movie)
 
                     # Insert into database using sync-only method (guaranteed no ListItem building)
-                    self.query_manager.sync_store_media_item_to_list(list_id, media_dict)
+                    self.query_manager.sync_only_store_media_item_to_list(list_id, media_dict)
                     utils.log(f"Added new favorite '{title}' to list", "INFO")
 
             # Process removed items (favorites no longer in Kodi)

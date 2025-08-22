@@ -911,6 +911,93 @@ class QueryManager(Singleton):
             utils.log(f"SYNC_STORE: Error storing media item: {str(e)}", "ERROR")
             return False
 
+    def sync_only_store_media_item_to_list(self, list_id, media_dict):
+        """
+        Store media item to list during favorites sync - pure data storage only.
+        No ListItem building, no UI operations, optimized for batch sync operations.
+        """
+        try:
+            utils.log(f"SYNC_ONLY_STORE: Storing '{media_dict.get('title', 'Unknown')}' to list {list_id}", "DEBUG")
+
+            # Ensure required fields are present with defaults
+            media_dict_clean = {
+                'title': media_dict.get('title', 'Unknown'),
+                'year': media_dict.get('year', 0),
+                'plot': media_dict.get('plot', ''),
+                'rating': media_dict.get('rating', 0.0),
+                'duration': media_dict.get('duration', 0),
+                'genre': media_dict.get('genre', ''),
+                'director': media_dict.get('director', ''),
+                'cast': media_dict.get('cast', ''),
+                'studio': media_dict.get('studio', ''),
+                'mpaa': media_dict.get('mpaa', ''),
+                'tagline': media_dict.get('tagline', ''),
+                'writer': media_dict.get('writer', ''),
+                'country': media_dict.get('country', ''),
+                'premiered': media_dict.get('premiered', ''),
+                'dateadded': media_dict.get('dateadded', ''),
+                'votes': media_dict.get('votes', 0),
+                'trailer': media_dict.get('trailer', ''),
+                'path': media_dict.get('path', ''),
+                'play': media_dict.get('play', ''),
+                'kodi_id': media_dict.get('kodi_id', 0),
+                'media_type': media_dict.get('media_type', 'movie'),
+                'source': media_dict.get('source', 'favorites_import'),
+                'imdbnumber': media_dict.get('imdbnumber', ''),
+                'thumbnail': media_dict.get('thumbnail', ''),
+                'poster': media_dict.get('poster', ''),
+                'fanart': media_dict.get('fanart', ''),
+                'art': media_dict.get('art', ''),
+                'uniqueid': media_dict.get('uniqueid', ''),
+                'stream_url': media_dict.get('stream_url', ''),
+                'status': media_dict.get('status', 'available')
+            }
+
+            # Direct database insertion - no store_media_item to avoid any UI logic
+            sql = """
+                INSERT OR REPLACE INTO media_items 
+                (title, year, plot, rating, duration, genre, director, cast, studio, mpaa, 
+                 tagline, writer, country, premiered, dateadded, votes, trailer, path, play, 
+                 kodi_id, media_type, source, imdbnumber, thumbnail, poster, fanart, art, 
+                 uniqueid, stream_url, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+
+            params = (
+                media_dict_clean['title'], media_dict_clean['year'], media_dict_clean['plot'],
+                media_dict_clean['rating'], media_dict_clean['duration'], media_dict_clean['genre'],
+                media_dict_clean['director'], media_dict_clean['cast'], media_dict_clean['studio'],
+                media_dict_clean['mpaa'], media_dict_clean['tagline'], media_dict_clean['writer'],
+                media_dict_clean['country'], media_dict_clean['premiered'], media_dict_clean['dateadded'],
+                media_dict_clean['votes'], media_dict_clean['trailer'], media_dict_clean['path'],
+                media_dict_clean['play'], media_dict_clean['kodi_id'], media_dict_clean['media_type'],
+                media_dict_clean['source'], media_dict_clean['imdbnumber'], media_dict_clean['thumbnail'],
+                media_dict_clean['poster'], media_dict_clean['fanart'], media_dict_clean['art'],
+                media_dict_clean['uniqueid'], media_dict_clean['stream_url'], media_dict_clean['status']
+            )
+
+            media_item_id = self.execute_write(sql, params)
+
+            # Check if already in list to avoid duplicates
+            existing = self._listing.get_list_item_by_media_id(list_id, media_item_id)
+            if existing:
+                utils.log(f"SYNC_ONLY_STORE: Media item {media_item_id} already in list {list_id}, skipping list insertion", "DEBUG")
+                return media_item_id
+
+            # Direct list insertion - no UI operations
+            list_sql = "INSERT INTO list_items (list_id, media_item_id) VALUES (?, ?)"
+            self.execute_write(list_sql, (list_id, media_item_id))
+
+            utils.log(f"SYNC_ONLY_STORE: Successfully stored '{media_dict_clean['title']}' (ID: {media_item_id}) to list {list_id}", "DEBUG")
+
+            return media_item_id
+
+        except Exception as e:
+            utils.log(f"SYNC_ONLY_STORE: Error storing '{media_dict.get('title', 'Unknown')}' to list {list_id}: {str(e)}", "ERROR")
+            import traceback
+            utils.log(f"SYNC_ONLY_STORE: Traceback: {traceback.format_exc()}", "ERROR")
+            return None
+
     def close(self) -> None:
         """Close the database connection."""
         with self._lock:
