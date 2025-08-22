@@ -1,4 +1,3 @@
-
 import time
 import json
 import xbmc
@@ -49,12 +48,12 @@ def handle_periodic_tasks():
         # - Clean up old search results
         # - Refresh cached data
         # - Sync with remote services if configured
-        
+
         # For now, just log that the service is running
         utils.log(f"{ID} periodic task executed", "DEBUG")
-        
+
         # You can add more periodic tasks here later
-        
+
     except Exception as e:
         utils.log(f"{ID} periodic task error: {e}", "ERROR")
 
@@ -66,11 +65,11 @@ def ensure_database_ready():
 
         # Setup all database tables
         query_manager.setup_database()
-        
+
         # Ensure required system folders exist
         search_history_folder = query_manager.ensure_search_history_folder()
         utils.log(f"Search History folder ensured: {search_history_folder}", "DEBUG")
-        
+
         # Create Imported Lists folder if it doesn't exist
         imported_lists_folder_id = query_manager.get_folder_id_by_name("Imported Lists")
         if not imported_lists_folder_id:
@@ -81,7 +80,7 @@ def ensure_database_ready():
 
         utils.log("Database setup completed successfully", "INFO")
         return True
-        
+
     except Exception as e:
         utils.log(f"Error ensuring database ready: {e}", "ERROR")
         return False
@@ -91,30 +90,30 @@ def check_and_prompt_library_scan():
     try:
         config = Config()
         query_manager = QueryManager(config.db_path)
-        
+
         # Always check actual database content - don't rely solely on settings
         # Check if we have any library data in both tables
         imdb_result = query_manager.execute_query(
             "SELECT COUNT(*) as count FROM imdb_exports",
             fetch_one=True
         )
-        
+
         media_result = query_manager.execute_query(
             "SELECT COUNT(*) as count FROM media_items WHERE source = 'lib'",
             fetch_one=True
         )
-        
+
         imdb_count = imdb_result['count'] if imdb_result else 0
         media_count = media_result['count'] if media_result else 0
-        
+
         utils.log(f"Library data check: found {imdb_count} items in imdb_exports, {media_count} items in media_items", "INFO")
-        
+
         # If no actual data exists, reset settings and prompt for scan
         if imdb_count == 0 and media_count == 0:
             # Reset scan settings since database is empty
             _set_bool('library_scanned', False)
             _set_bool('library_scan_declined', False)
-            
+
             utils.log("No library data found - prompting user for scan", "INFO")
             prompt_user_for_library_scan()
         else:
@@ -122,7 +121,7 @@ def check_and_prompt_library_scan():
             _set_bool('library_scanned', True)
             _set_bool('library_scan_declined', False)
             utils.log(f"Library data exists (imdb_exports: {imdb_count}, media_items: {media_count}) - marking as scanned", "INFO")
-            
+
     except Exception as e:
         utils.log(f"Error checking library scan status: {e}", "ERROR")
 
@@ -131,11 +130,11 @@ def prompt_user_for_library_scan():
     try:
         import xbmcgui
         import threading
-        
+
         def show_dialog():
             try:
                 dialog = xbmcgui.Dialog()
-                
+
                 # Show informational dialog explaining the need
                 response = dialog.yesno(
                     "LibraryGenie - Initial Setup",
@@ -148,71 +147,50 @@ def prompt_user_for_library_scan():
                     nolabel="Not Now",
                     yeslabel="Start Scan"
                 )
-                
+
                 if response:
                     # User agreed - start the scan
                     utils.log("User approved library scan - starting background scan", "INFO")
                     _set_bool('library_scan_declined', False)
-                    start_library_scan()
+                    # Pass True to show the modal on completion
+                    start_library_scan(show_status_on_completion=True)
                 else:
                     # User declined - remember their choice
                     utils.log("User declined library scan", "INFO")
                     _set_bool('library_scan_declined', True)
-                    
+
             except Exception as e:
                 utils.log(f"Error in dialog thread: {e}", "ERROR")
-        
+
         # Run dialog in separate thread to avoid blocking service
         dialog_thread = threading.Thread(target=show_dialog)
         dialog_thread.daemon = True
         dialog_thread.start()
-        
+
     except Exception as e:
         utils.log(f"Error prompting user for library scan: {e}", "ERROR")
 
-def start_library_scan():
-    """Start the library scanning process in background"""
+def start_library_scan(show_status_on_completion=False):
+    """Start the library scan process"""
     try:
-        import threading
-        
-        def scan_worker():
-            try:
-                utils.log("Starting background library scan", "INFO")
-                
-                # Import the upload manager and use its scanning method
-                from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
-                
-                upload_manager = IMDbUploadManager()
-                
-                # Run only the collection and storage part (not upload)
-                success = upload_manager.get_full_kodi_movie_collection_and_store_locally(use_notifications=True)
-                
-                if success:
-                    _set_bool('library_scanned', True)
-                    utils.log("Background library scan completed successfully", "INFO")
-                    
-                    # Show simple completion notification only - no modal during background scan
-                    import xbmcgui
-                    xbmcgui.Dialog().notification(
-                        "LibraryGenie", 
-                        "Background scan complete!", 
-                        xbmcgui.NOTIFICATION_INFO,
-                        3000
-                    )
-                        
-                else:
-                    utils.log("Background library scan failed", "ERROR")
-                    
-            except Exception as e:
-                utils.log(f"Error in library scan worker: {e}", "ERROR")
-        
-        # Start scan in background thread
-        scan_thread = threading.Thread(target=scan_worker)
-        scan_thread.daemon = True
-        scan_thread.start()
-        
+        from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
+
+        utils.log("Starting background library scan", "INFO")
+        upload_manager = IMDbUploadManager()
+
+        # Use the efficient incremental approach with notifications
+        success = upload_manager.get_full_kodi_movie_collection_and_store_locally(
+            use_notifications=True, 
+            show_modal_on_completion=show_status_on_completion  # Show modal only when requested
+        )
+
+        if success:
+            utils.log("Background library scan completed successfully", "INFO")
+        else:
+            utils.log("Background library scan failed", "ERROR")
+
     except Exception as e:
-        utils.log(f"Error starting library scan: {e}", "ERROR")
+        utils.log(f"Error in background library scan: {str(e)}", "ERROR")
 
 def handle_command(topic, message):
     """
@@ -224,7 +202,7 @@ def handle_command(topic, message):
             return
         data = json.loads(message or "{}")
         cmd = data.get("cmd")
-        
+
         if cmd == "refresh_lists":
             utils.log(f"{ID} refresh_lists command received", "INFO")
             handle_periodic_tasks()
@@ -240,7 +218,7 @@ def handle_command(topic, message):
             _set_bool('library_scanned', False)
             _set_bool('library_scan_declined', False)
             check_and_prompt_library_scan()
-        
+
     except Exception as e:
         utils.log(f"{ID} command error: {e}", "ERROR")
 
@@ -262,7 +240,7 @@ class ServiceMonitor(xbmc.Monitor):
 
 def main():
     utils.log(f"{ID} service starting", "INFO")
-    
+
     init_once()
     mon = ServiceMonitor()
 

@@ -339,7 +339,9 @@ class IMDbUploadManager:
         if not batch_data:
             return 0
 
-        utils.log(f"=== STORING LIGHT METADATA BATCH: {len(batch_data)} movies ===", "INFO")
+        # Only log for first batch to reduce spam
+        if len(batch_data) <= 100:
+            utils.log(f"=== STORING LIGHT METADATA BATCH: {len(batch_data)} movies ===", "DEBUG")
         
         columns = ', '.join(batch_data[0].keys())
         placeholders = ', '.join(['?' for _ in batch_data[0]])
@@ -347,7 +349,9 @@ class IMDbUploadManager:
         values_list = [tuple(movie_data.values()) for movie_data in batch_data]
         result = self.query_manager.executemany_write(query, values_list)
         
-        utils.log(f"Successfully stored light metadata for {len(batch_data)} movies", "INFO")
+        # Only log success for first batch
+        if len(batch_data) <= 100:
+            utils.log(f"Successfully stored light metadata for {len(batch_data)} movies", "DEBUG")
         return result
 
     def _bulk_insert_export_data(self, batch_export_data):
@@ -355,14 +359,18 @@ class IMDbUploadManager:
         if not batch_export_data:
             return
 
-        utils.log(f"=== STORING EXPORT DATA BATCH: {len(batch_export_data)} movies ===", "INFO")
+        # Only log for first batch to reduce spam
+        if len(batch_export_data) <= 100:
+            utils.log(f"=== STORING EXPORT DATA BATCH: {len(batch_export_data)} movies ===", "DEBUG")
         
         sql = "INSERT OR REPLACE INTO imdb_exports (kodi_id, imdb_id, title, year) VALUES (?, ?, ?, ?)"
         data_to_insert = [(data['kodi_id'], data['imdb_id'], data['title'], data['year']) 
                          for data in batch_export_data]
         self.query_manager.executemany_write(sql, data_to_insert)
         
-        utils.log(f"Successfully stored export data for {len(batch_export_data)} movies", "INFO")
+        # Only log success for first batch
+        if len(batch_export_data) <= 100:
+            utils.log(f"Successfully stored export data for {len(batch_export_data)} movies", "DEBUG")
 
     def _store_both_metadata_types_simultaneously(self, batch_light_data, batch_heavy_data, batch_export_data):
         """Store light media items, heavy metadata, and export data simultaneously in one transaction"""
@@ -371,7 +379,9 @@ class IMDbUploadManager:
             heavy_count = len(batch_heavy_data) if batch_heavy_data else 0
             export_count = len(batch_export_data) if batch_export_data else 0
             
-            utils.log(f"=== SIMULTANEOUS STORAGE TRANSACTION: {light_count} light + {heavy_count} heavy + {export_count} export ===", "INFO")
+            # Only log details for first few batches to reduce spam
+            if light_count <= 100:  # First batch or small batches
+                utils.log(f"=== SIMULTANEOUS STORAGE TRANSACTION: {light_count} light + {heavy_count} heavy + {export_count} export ===", "DEBUG")
             
             with self.query_manager.transaction():
                 stored_count = 0
@@ -389,7 +399,10 @@ class IMDbUploadManager:
                 if batch_export_data:
                     self._bulk_insert_export_data(batch_export_data)
                 
-                utils.log(f"=== TRANSACTION COMPLETED: All {light_count + heavy_count + export_count} records committed atomically ===", "INFO")
+                # Only log completion for debugging
+                if light_count <= 100:
+                    utils.log(f"=== TRANSACTION COMPLETED: All {light_count + heavy_count + export_count} records committed atomically ===", "DEBUG")
+                
                 return stored_count
                 
         except Exception as e:
