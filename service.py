@@ -35,26 +35,7 @@ def init_once():
         # Check if library scanning is needed (this handles initial scan prompting)
         check_and_prompt_library_scan()
 
-        # Favorites sync disabled during service startup
-        # Only run favorites sync if we have library data (skip during initial scan)
-        # 
-        # Keeping code for potential future use:
-        # try:
-        #     config = Config()
-        #     query_manager = QueryManager(config.db_path)
-        #     
-        #     # Check if we have actual library data before running favorites sync
-        #     imdb_result = query_manager.execute_query("SELECT COUNT(*) as count FROM imdb_exports", fetch_one=True)
-        #     imdb_count = imdb_result['count'] if imdb_result else 0
-        #     
-        #     if imdb_count > 0:
-        #         sync_manager = FavoritesSyncManager()
-        #         sync_manager.sync_favorites()
-        #         utils.log("Favorites sync completed during service startup", "DEBUG")
-        #     else:
-        #         utils.log("Skipping favorites sync during startup - no library data available yet", "DEBUG")
-        # except Exception as e:
-        #     utils.log(f"Error syncing favorites during startup: {e}", "ERROR")
+        # Favorites sync is handled by main.py when user enters the addon
         utils.log("Favorites sync disabled during service startup", "DEBUG")
 
         # Mark initialization as complete
