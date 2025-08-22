@@ -289,7 +289,9 @@ def main():
     service = LibraryGenieService()
 
     # Start the service in a separate thread
-    service_thread = xbmc.Thread(service.run)
+    import threading
+    service_thread = threading.Thread(target=service.run)
+    service_thread.daemon = True
     service_thread.start()
 
     # Periodic loop for monitoring and other tasks
