@@ -84,7 +84,7 @@ def run_addon():
         # Handle direct script actions from settings
         script_actions = [
             'setup_remote_api', 'manual_setup_remote_api', 'test_remote_api',
-            'upload_library_full', 'upload_library_delta', 'upload_status', 
+            'upload_library_full', 'upload_library_delta', 'upload_status',
             'clear_server_library', 'show_main_window', 'clear_all_local_data',
             'import_from_shortlist', 'addon_library_status'
         ]
@@ -102,7 +102,7 @@ def run_addon():
                 utils.log("Importing from shortlist", "INFO")
                 from resources.lib.config.settings_manager import SettingsManager
                 settings_manager = SettingsManager()
-                settings_manager.import_from_favorites()
+                settings_manager.import_from_shortlist()
                 return
             elif action == 'addon_library_status':
                 utils.log("Showing addon library status", "INFO")
