@@ -221,15 +221,19 @@ def get_kodi_version():
     if _KODI_VERSION_CACHE is not None:
         return _KODI_VERSION_CACHE
 
+    # First run detection - log when version detection is happening for the first time
+    log("=== FIRST RUN: Detecting Kodi version for the first time ===", "INFO")
+    
     try:
         import xbmc
         version_info = xbmc.getInfoLabel("System.BuildVersion")
         _KODI_VERSION_CACHE = int(version_info.split('.')[0])
-        log(f"Detected and cached Kodi version: {_KODI_VERSION_CACHE}", "INFO")
+        log(f"=== FIRST RUN: Successfully detected and cached Kodi version: {_KODI_VERSION_CACHE} ===", "INFO")
+        log(f"Full build version info: {version_info}", "DEBUG")
         return _KODI_VERSION_CACHE
     except Exception as e:
         _KODI_VERSION_CACHE = 21  # Default to latest if detection fails
-        log(f"Could not detect Kodi version, defaulting to v{_KODI_VERSION_CACHE}: {str(e)}", "WARNING")
+        log(f"=== FIRST RUN: Could not detect Kodi version, defaulting to v{_KODI_VERSION_CACHE}: {str(e)} ===", "WARNING")
         return _KODI_VERSION_CACHE
 
 def log_once(key, message, level="DEBUG"):
