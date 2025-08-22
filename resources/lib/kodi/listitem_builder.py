@@ -56,7 +56,7 @@ def _get_addon_artwork_fallbacks() -> dict:
         'fanart': f"{media}/fanart.jpg",
         'banner': f"{media}/banner.jpg",
         'landscape': f"{media}/landscape.jpg",
-        'clearart': f"{media}/clearart.jpg',
+        'clearart': f"{media}/clearart.jpg",
         'clearlogo': f"{media}/clearlogo.png",
         'folder': f"{media}/list_folder.png",
         'playlist': f"{media}/list_playlist.png"
