@@ -8,7 +8,6 @@ from typing import Optional, List, Dict, Any, Union, Tuple, Generator
 from resources.lib.utils import utils
 from resources.lib.utils.singleton_base import Singleton
 from resources.lib.config.config_manager import Config
-from resources.lib.utils import utils
 import json
 import xbmcgui # Import xbmcgui
 import xbmc # Import xbmc
