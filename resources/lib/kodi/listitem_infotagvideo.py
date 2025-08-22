@@ -333,17 +333,16 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
             except (ValueError, TypeError):
                 pass
 
-        # For v21+, avoid setInfo fallback completely to prevent deprecation warnings
+        # For v21+, completely avoid any setInfo fallback to prevent deprecation warnings
         if utils.get_kodi_version() >= 21:
-            utils.log(f"V21+ InfoTag processing completed with {infotag_success_count} successful fields", "DEBUG")
+            utils.log(f"V21+ InfoTag processing completed with {infotag_success_count} successful fields - no setInfo fallback", "DEBUG")
             return
 
-        # For v20 only, avoid setInfo unless absolutely critical and InfoTag completely failed
-        if infotag_success_count < 1:  # Only if InfoTag completely failed
+        # For v20 only, minimal setInfo fallback if InfoTag completely failed
+        if infotag_success_count < 1:
             utils.log("V20 InfoTag completely failed, using minimal setInfo for critical fields only", "DEBUG")
             try:
-                # Extremely limited fallback for v20 - avoid deprecated setInfo where possible
-                # Only set the most critical field if InfoTag completely failed
+                # Extremely limited fallback for v20 only
                 essential_info = {}
                 if info_dict.get('title') and not hasattr(list_item.getVideoInfoTag(), 'setTitle'):
                     essential_info['title'] = str(info_dict['title'])

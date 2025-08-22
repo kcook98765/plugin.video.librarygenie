@@ -458,7 +458,7 @@ class ListItemBuilder:
                 pass
 
 
-        # Handle stream details with v20+ compatibility
+        # Handle stream details with version-specific compatibility
         stream_details = media_info.get('streamdetails', {})
         if isinstance(stream_details, dict):
             try:
@@ -466,19 +466,17 @@ class ListItemBuilder:
                 if kodi_version == 19:
                     # v19 - use addStreamInfo methods (not deprecated in v19)
                     ListItemBuilder._add_stream_info_deprecated(li, stream_details)
-                else:
-                    # v20+ - avoid addStreamInfo methods that are deprecated
-                    # Use InfoTag methods for v20+
+                elif kodi_version == 20:
+                    # v20 - use InfoTag methods if available, otherwise properties
                     try:
                         info_tag = li.getVideoInfoTag()
                         video_streams = stream_details.get('video', [])
                         if video_streams and isinstance(video_streams[0], dict):
                             video_stream = video_streams[0]
                             if hasattr(info_tag, 'addVideoStream'):
-                                # Use new InfoTag methods for v20+
                                 info_tag.addVideoStream(video_stream)
                             else:
-                                # Fallback to properties
+                                # Fallback to properties for v20
                                 codec = video_stream.get('codec', '')
                                 if codec:
                                     li.setProperty('VideoCodec', codec)
@@ -487,15 +485,56 @@ class ListItemBuilder:
                         if audio_streams and isinstance(audio_streams[0], dict):
                             audio_stream = audio_streams[0]
                             if hasattr(info_tag, 'addAudioStream'):
-                                # Use new InfoTag methods for v20+
                                 info_tag.addAudioStream(audio_stream)
                             else:
-                                # Fallback to properties
+                                # Fallback to properties for v20
                                 codec = audio_stream.get('codec', '')
                                 if codec:
                                     li.setProperty('AudioCodec', codec)
                     except Exception:
-                        # Fallback to properties for v20+ if InfoTag methods fail
+                        # Properties fallback for v20 if InfoTag methods fail
+                        video_streams = stream_details.get('video', [])
+                        if video_streams and isinstance(video_streams[0], dict):
+                            codec = video_streams[0].get('codec', '')
+                            if codec:
+                                li.setProperty('VideoCodec', codec)
+                        
+                        audio_streams = stream_details.get('audio', [])
+                        if audio_streams and isinstance(audio_streams[0], dict):
+                            codec = audio_streams[0].get('codec', '')
+                            if codec:
+                                li.setProperty('AudioCodec', codec)
+                else:
+                    # v21+ - ONLY use InfoTag methods, NO deprecated methods
+                    try:
+                        info_tag = li.getVideoInfoTag()
+                        
+                        # Process video streams for v21+
+                        video_streams = stream_details.get('video', [])
+                        if video_streams and isinstance(video_streams, list):
+                            for video_stream in video_streams:
+                                if isinstance(video_stream, dict) and hasattr(info_tag, 'addVideoStream'):
+                                    info_tag.addVideoStream(video_stream)
+                                    break  # Only add first stream
+                        
+                        # Process audio streams for v21+
+                        audio_streams = stream_details.get('audio', [])
+                        if audio_streams and isinstance(audio_streams, list):
+                            for audio_stream in audio_streams:
+                                if isinstance(audio_stream, dict) and hasattr(info_tag, 'addAudioStream'):
+                                    info_tag.addAudioStream(audio_stream)
+                                    break  # Only add first stream
+                        
+                        # Process subtitle streams for v21+
+                        subtitle_streams = stream_details.get('subtitle', [])
+                        if subtitle_streams and isinstance(subtitle_streams, list):
+                            for subtitle_stream in subtitle_streams:
+                                if isinstance(subtitle_stream, dict) and hasattr(info_tag, 'addSubtitleStream'):
+                                    info_tag.addSubtitleStream(subtitle_stream)
+                                    break  # Only add first stream
+                    except Exception:
+                        # For v21+, avoid any fallback that might use deprecated methods
+                        # Just use essential properties if InfoTag completely fails
                         video_streams = stream_details.get('video', [])
                         if video_streams and isinstance(video_streams[0], dict):
                             codec = video_streams[0].get('codec', '')
@@ -555,12 +594,16 @@ class ListItemBuilder:
         # Get context menu items from centralized builder
         context_menu_items = context_builder.build_video_context_menu(media_info, context)
 
-        # Add context menu to ListItem with v19 compatibility fix
-        if utils.is_kodi_v19():
+        # Add context menu to ListItem with version-specific compatibility
+        kodi_version = utils.get_kodi_version()
+        if kodi_version == 19:
             # v19 requires replaceItems=True for reliable context menu display
             li.addContextMenuItems(context_menu_items, replaceItems=True)
+        elif kodi_version >= 21:
+            # v21+ - use replaceItems=False to avoid any potential setInfo conflicts
+            li.addContextMenuItems(context_menu_items, replaceItems=False)
         else:
-            # v20+ can use replaceItems=False to preserve existing items
+            # v20 - use replaceItems=False to preserve existing items
             li.addContextMenuItems(context_menu_items, replaceItems=False)
 
         # Try to get play URL from different possible locations
