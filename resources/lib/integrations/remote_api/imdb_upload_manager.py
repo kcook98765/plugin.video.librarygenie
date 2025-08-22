@@ -210,9 +210,9 @@ class IMDbUploadManager:
                             self._bulk_insert_media_items(batch_light_data)
                             processed += len(batch_light_data)
 
-                        # Store heavy metadata
+                        # Store heavy metadata in batch (no individual logging)
                         if batch_heavy_data:
-                            self.query_manager.store_heavy_meta_batch(batch_heavy_data)
+                            self._bulk_store_heavy_metadata_silent(batch_heavy_data)
 
                         # Store export data  
                         if batch_export_data:
@@ -313,6 +313,17 @@ class IMDbUploadManager:
         data_to_insert = [(data['kodi_id'], data['imdb_id'], data['title'], data['year']) 
                          for data in batch_export_data]
         self.query_manager.executemany_write(sql, data_to_insert)
+
+    def _bulk_store_heavy_metadata_silent(self, heavy_metadata_list):
+        """Store heavy metadata for multiple movies in batch without debug logging spam"""
+        if not heavy_metadata_list:
+            return
+
+        # Only log summary, not individual movie details
+        utils.log(f"Storing heavy metadata for {len(heavy_metadata_list)} movies", "INFO")
+
+        # Use QueryManager's store_heavy_meta_batch method without individual logging
+        self.query_manager.store_heavy_meta_batch(heavy_metadata_list, silent=True)
 
     
 

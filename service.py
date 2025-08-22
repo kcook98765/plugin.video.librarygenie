@@ -204,7 +204,7 @@ def start_library_scan():
                     try:
                         # Wait a moment for database operations to complete
                         import time
-                        time.sleep(1)
+                        time.sleep(2)
                         
                         utils.log("Showing addon status modal after initial scan", "INFO")
                         from resources.lib.integrations.remote_api.library_status import show_library_status
