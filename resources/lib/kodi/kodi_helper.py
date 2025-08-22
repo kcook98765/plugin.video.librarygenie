@@ -40,36 +40,9 @@ class KodiHelper:
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_RATING)
         xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_DATEADDED)
 
-        # Force content type and views with debugging
+        # Set content type to inherit user's preferred movie view
         utils.log(f"Setting content type to: {content_type}", "DEBUG")
         xbmcplugin.setContent(self.addon_handle, content_type)
-
-        # Try different view modes
-        view_modes = {
-            'list': 50,
-            'poster': 51,
-            'icon': 52,
-            'wide': 55,
-            'wall': 500,
-            'fanart': 502,
-            'media': 504
-        }
-
-        # Set default view mode to poster
-        default_mode = view_modes['poster']
-        utils.log(f"Setting default view mode: {default_mode}", "DEBUG")
-
-        # Set skin view modes
-        for mode_name, mode_id in view_modes.items():
-            xbmc.executebuiltin(f'Container.SetViewMode({mode_id})')
-
-        # Force views mode
-        xbmc.executebuiltin('SetProperty(ForcedViews,1,Home)')
-        xbmcplugin.setProperty(self.addon_handle, 'ForcedView', 'true')
-
-        # Enable skin forced views
-        xbmc.executebuiltin('Skin.SetBool(ForcedViews)')
-        xbmc.executebuiltin('Container.SetForceViewMode(true)')
 
         xbmcplugin.endOfDirectory(self.addon_handle)
 
@@ -116,10 +89,11 @@ class KodiHelper:
         """Display items in a list"""
         utils.log(f"Showing list with ID: {list_id}", "DEBUG")
         from resources.lib.config.config_manager import get_config
+        from resources.lib.data.query_manager import QueryManager
         from resources.lib.kodi.listitem_builder import ListItemBuilder
         config = get_config()
-        db_manager = DatabaseManager(config.db_path)
-        items = db_manager.query_manager.fetch_list_items_with_details(list_id)
+        db_manager = QueryManager(config.db_path)
+        items = db_manager.fetch_list_items_with_details(list_id)
 
         # Set content type and force views
         xbmcplugin.setContent(self.addon_handle, 'movies')
@@ -146,28 +120,8 @@ class KodiHelper:
             xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_UNSORTED)
             utils.log("Enabled all sort methods with score-based default order", "DEBUG")
 
-        # Set view modes
-        view_modes = {
-            'list': 50,
-            'poster': 51,
-            'icon': 52,
-            'wide': 55,
-            'wall': 500,
-            'fanart': 502,
-            'media': 504
-        }
-
-        # Set default view mode to poster
-        default_mode = view_modes['poster']
-        utils.log(f"Setting default view mode: {default_mode}", "DEBUG")
-
-        # Set skin view modes
-        for mode_name, mode_id in view_modes.items():
-            xbmc.executebuiltin(f'Container.SetViewMode({mode_id})')
-
-        # Force views mode
-        xbmcplugin.setProperty(self.addon_handle, 'ForcedView', 'true')
-        xbmc.executebuiltin('Container.SetForceViewMode(true)')
+        # Let Kodi use the user's preferred movie view mode
+        utils.log("Using user's preferred movie view mode", "DEBUG")
 
         # Add items and end directory
         for item in items:
@@ -186,8 +140,9 @@ class KodiHelper:
             utils.log(f"Play item called with item_id: {item_id} (type: {type(item_id)})", "DEBUG")
 
             from resources.lib.config.config_manager import get_config
+            from resources.lib.data.query_manager import QueryManager
             config = get_config()
-            db_manager = DatabaseManager(config.db_path)
+            db_manager = QueryManager(config.db_path)
 
             # Handle item_id from various input types and ensure valid integer
             utils.log(f"Original item_id: {item_id}", "DEBUG")
@@ -214,7 +169,7 @@ class KodiHelper:
                 return False
 
             # Query the database for item using database manager
-            result = db_manager.query_manager.execute_query(
+            result = db_manager.execute_query(
                 "SELECT * FROM media_items WHERE id = ?", 
                 (item_id,), 
                 fetch_one=True

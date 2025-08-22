@@ -31,5 +31,8 @@
         </item>
       </menu>
     </extension>
+    
+    <!-- Background service for periodic tasks -->
+    <extension point="xbmc.service" library="service.py" start="login" />
   
 </addon>

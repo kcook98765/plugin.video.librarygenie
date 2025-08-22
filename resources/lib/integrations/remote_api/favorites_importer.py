@@ -663,7 +663,11 @@ class FavoritesImporter:
             favorites_folder_id = self.query_manager.get_folder_id_by_name("Favorites", imported_folder_id)
             if not favorites_folder_id:
                 favorites_folder_result = self.query_manager.create_folder("Favorites", imported_folder_id)
-                favorites_folder_id = favorites_folder_result['id']
+                # Handle both dict and int return types from create_folder
+                if isinstance(favorites_folder_result, dict):
+                    favorites_folder_id = favorites_folder_result['id']
+                else:
+                    favorites_folder_id = favorites_folder_result
 
             utils.log(f"Favorites subfolder ID: {favorites_folder_id}", "DEBUG")
 

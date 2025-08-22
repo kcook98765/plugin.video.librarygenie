@@ -35,10 +35,18 @@ class SettingsManager:
         from resources.lib.integrations.remote_api.authenticate_code import authenticate_with_code
         return authenticate_with_code()
 
-    def import_from_favorites(self):
-        """Trigger favorites import"""
-        from resources.lib.integrations.remote_api.favorites_importer import import_from_favorites
-        return import_from_favorites()
+    def is_favorites_sync_enabled(self):
+        """Check if favorites sync is enabled"""
+        return self.get_setting('sync_favorites', 'true').lower() == 'true'
+    
+    def get_favorites_sync_interval(self):
+        """Get favorites sync interval in seconds"""
+        return int(self.get_setting('favorites_sync_interval', '60'))
+
+    def addon_library_status(self):
+        """Show addon library status dialog"""
+        from resources.lib.integrations.remote_api.library_status import show_library_status
+        return show_library_status()
 
     @property 
     def addon_path(self):

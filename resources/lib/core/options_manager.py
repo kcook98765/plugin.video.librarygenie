@@ -155,6 +155,15 @@ class OptionsManager:
             utils.log(f"Pre-modal window state: {xbmcgui.getCurrentWindowId()}", "DEBUG")
             utils.log("=== CREATING xbmcgui.Dialog() INSTANCE ===", "DEBUG")
 
+            # Check if device needs modal dialog optimization
+            if utils.needs_modal_optimization():
+                utils.log("=== SLOW DEVICE DETECTED: Using optimized dialog handling ===", "DEBUG")
+                # Give extra time for any previous animations to complete
+                xbmc.sleep(200)
+                # Force close any lingering dialogs
+                xbmc.executebuiltin("Dialog.Close(all,true)")
+                xbmc.sleep(100)
+
             # Use a timeout mechanism to prevent hanging
             dialog_start_time = time.time()
             dialog = xbmcgui.Dialog()
@@ -165,6 +174,11 @@ class OptionsManager:
 
             from typing import List, Union, cast
             typed_options = cast(List[Union[str, xbmcgui.ListItem]], self.options)
+            
+            # On slow devices, add a small delay before showing dialog to ensure animations are complete
+            if utils.needs_modal_optimization():
+                xbmc.sleep(150)
+            
             selected_option = dialog.select("LibraryGenie - Options & Tools", typed_options)
 
             # Clear dialog state property
@@ -173,6 +187,12 @@ class OptionsManager:
             dialog_duration = time.time() - dialog_start_time
             utils.log(f"=== OPTIONS MODAL DIALOG CLOSED, SELECTION: {selected_option}, DURATION: {dialog_duration:.1f}s ===", "DEBUG")
             utils.log(f"Post-modal window state: {xbmcgui.getCurrentWindowId()}", "DEBUG")
+
+            # Slow device specific cleanup
+            if utils.needs_modal_optimization() and dialog_duration > 2.0:
+                utils.log(f"=== SLOW DEVICE: Long dialog duration ({dialog_duration:.1f}s) - performing cleanup ===", "DEBUG")
+                xbmc.executebuiltin("Dialog.Close(all,true)")
+                xbmc.sleep(100)
 
             # Check for timeout condition
             if dialog_duration > 4.0:  # If dialog took more than 4 seconds

@@ -109,23 +109,58 @@ def build_root_directory(handle: int):
     # Add list and folder items here based on existing database content
     try:
         config = Config()
+        # Get query manager - database setup is handled by service
         query_manager = QueryManager(config.db_path)
+
+        # Add Kodi Favorites list right after Options & Tools (if sync is enabled)
+        from resources.lib.config.settings_manager import SettingsManager
+        settings = SettingsManager()
+
+        if settings.is_favorites_sync_enabled():
+            # Use reserved list ID 1 for Kodi Favorites
+            kodi_favorites_list = query_manager.fetch_list_by_id(1)
+
+            if kodi_favorites_list and kodi_favorites_list['name'] == "Kodi Favorites":
+                list_count = query_manager.get_list_media_count(1)
+                display_title = f"Kodi Favorites ({list_count})"
+                li = ListItemBuilder.build_folder_item(f"⭐ {display_title}", is_folder=True, item_type='playlist')
+                li.setProperty('lg_type', 'list')
+                add_context_menu_for_item(li, 'list', list_id=1)
+                url = build_plugin_url({'action': 'browse_list', 'list_id': 1, 'view': 'list'})
+                xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
+
+        # Add Shortlist Imports list (only if it has content)
+        # Use reserved list ID 2 for Shortlist Imports
+        shortlist_imports_list = query_manager.fetch_list_by_id(2)
+
+        if shortlist_imports_list and shortlist_imports_list['name'] == "Shortlist Imports":
+            list_count = query_manager.get_list_media_count(2)
+            utils.log(f"Shortlist Imports list found with {list_count} items", "DEBUG")
+            # Only show Shortlist Imports if it has content
+            if list_count > 0:
+                display_title = f"Shortlist Imports ({list_count})"
+                li = ListItemBuilder.build_folder_item(f"📥 {display_title}", is_folder=True, item_type='playlist')
+                li.setProperty('lg_type', 'list')
+                add_context_menu_for_item(li, 'list', list_id=2)
+                url = build_plugin_url({'action': 'browse_list', 'list_id': 2, 'view': 'list'})
+                xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
 
         # Get top-level folders
         top_level_folders = query_manager.fetch_folders(None) # None for root
 
-        # Get top-level lists
-        top_level_lists = query_manager.fetch_lists(None) # None for root
+        # Get top-level lists (excluding system lists which we handle separately)
+        top_level_lists = [list_item for list_item in query_manager.fetch_lists(None) 
+                          if list_item['name'] not in ["Kodi Favorites", "Shortlist Imports"]]
 
         # Add top-level folders (excluding protected folders that are empty or accessed via Options & Tools)
         for folder in top_level_folders:
             # Skip protected folders - they're accessed via Options & Tools menu or hidden when empty
             if folder['name'] in ["Search History", "Imported Lists"]:
-                # Check if the folder has any content (lists or subfolders with content)
+                # Check if the folder has any content (lists or subfolders)
                 folder_count = query_manager.get_folder_media_count(folder['id'])
                 subfolders = query_manager.fetch_folders(folder['id'])
                 has_subfolders = len(subfolders) > 0
-                
+
                 # Only show if it has content (lists or subfolders)
                 if folder_count == 0 and not has_subfolders:
                     continue
@@ -141,23 +176,22 @@ def build_root_directory(handle: int):
 
         # Add top-level lists
         for list_item in top_level_lists:
-            list_count = query_manager.get_list_media_count(list_item['id'])
+            list_id = list_item['id']
+            list_name = list_item['name']
 
-            # Check if this list contains a count pattern like "(number)" at the end
-            # Search history lists already include count, regular lists need count added
-            import re
-            has_count_in_name = re.search(r'\(\d+\)$', list_item['name'])
+            # Get media count for the list
+            media_count = query_manager.get_list_media_count(list_id)
 
-            if has_count_in_name:
-                # List already has count in name (likely search history), use as-is
-                display_title = list_item['name']
-            else:
-                # Regular list, add count
-                display_title = f"{list_item['name']} ({list_count})"
-            li = ListItemBuilder.build_folder_item(f"📋 {display_title}", is_folder=True, item_type='playlist')
+            # Always show system lists (ID 1-10), skip other empty lists
+            is_system_list = 1 <= list_id <= 10
+            if media_count == 0 and not is_system_list:
+                continue
+
+            display_name = f"{list_name} ({media_count})"
+            li = ListItemBuilder.build_folder_item(f"📋 {display_name}", is_folder=True, item_type='playlist')
             li.setProperty('lg_type', 'list')
-            add_context_menu_for_item(li, 'list', list_id=list_item['id'])
-            url = build_plugin_url({'action': 'browse_list', 'list_id': list_item['id'], 'view': 'list'})
+            add_context_menu_for_item(li, 'list', list_id=list_id)
+            url = build_plugin_url({'action': 'browse_list', 'list_id': list_id, 'view': 'list'})
             xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
 
     except Exception as e:
@@ -174,7 +208,7 @@ def show_empty_directory(handle: int, message="No items to display."):
         li = ListItemBuilder.build_folder_item(message, is_folder=False)
         li.setProperty('IsPlayable', 'false')
         xbmcplugin.addDirectoryItem(handle, "", li, False)
-        xbmcplugin.endOfDirectory(handle, succeeded=True)
+        xbmcbmcplugin.endOfDirectory(handle, succeeded=True)
     except Exception as e:
         utils.log(f"Error showing empty directory: {str(e)}", "ERROR")
         # Fallback: just end directory to prevent hanging

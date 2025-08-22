@@ -31,18 +31,18 @@ class QueryManager(Singleton):
         """Validate SQL identifier against safe pattern"""
         if not identifier or not isinstance(identifier, str):
             return False
-            
+
         # Check safe name pattern: alphanumeric, underscore, no spaces, reasonable length
         if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', identifier) or len(identifier) > 64:
             return False
-        
+
         # Additional check: identifier must not be a SQL keyword
         sql_keywords = {
             'select', 'insert', 'update', 'delete', 'drop', 'create', 'alter', 
             'table', 'index', 'view', 'trigger', 'database', 'schema', 'from',
             'where', 'join', 'union', 'group', 'order', 'having', 'limit'
         }
-        
+
         return identifier.lower() not in sql_keywords
 
     def _validate_table_exists(self, table_name):
@@ -50,7 +50,7 @@ class QueryManager(Singleton):
         if not self._validate_sql_identifier(table_name):
             utils.log(f"Invalid table identifier: {table_name}", "ERROR")
             return False
-            
+
         result = self.execute_query(
             "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
             (table_name,),
@@ -62,16 +62,16 @@ class QueryManager(Singleton):
         """Validate column exists in specified table"""
         if not self._validate_sql_identifier(table_name) or not self._validate_sql_identifier(column_name):
             return False
-            
+
         if not self._validate_table_exists(table_name):
             return False
-            
+
         # Use PRAGMA table_info to check column existence
         result = self.execute_query(
             f"PRAGMA table_info({table_name})",
             fetch_all=True
         )
-        
+
         column_names = [row['name'] for row in result]
         return column_name in column_names
 
@@ -266,10 +266,38 @@ class QueryManager(Singleton):
         return result['id'] if result else None
 
     def create_list(self, name: str, folder_id: Optional[int] = None) -> Dict:
-        """Create a new list"""
-        data = {'name': name, 'folder_id': folder_id}
+        """Create a new list (skips reserved IDs 1-10)"""
+        # For system lists like Kodi Favorites, use specific methods
+        if name == "Kodi Favorites":
+            return self.ensure_kodi_favorites_list()
+        elif name == "Shortlist Imports":
+            return self.ensure_shortlist_imports_list()
+            
+        data = {'name': name, 'folder_id': folder_id, 'protected': 0}
         list_id = self.insert_data('lists', data)
         return {'id': list_id, 'name': name, 'folder_id': folder_id}
+    
+    def ensure_kodi_favorites_list(self) -> Dict:
+        """Ensure Kodi Favorites list exists with reserved ID 1"""
+        existing_list = self.fetch_list_by_id(1)
+        
+        if existing_list:
+            # Verify it's the correct list - if not, update it
+            if existing_list['name'] != "Kodi Favorites":
+                self.update_data('lists', {'name': 'Kodi Favorites', 'folder_id': None, 'protected': 1}, 'id = ?', (1,))
+            return {'id': 1, 'name': 'Kodi Favorites', 'folder_id': None}
+        
+        # Create list with reserved ID 1
+        self.execute_write(
+            "INSERT INTO lists (id, name, folder_id, protected) VALUES (?, ?, ?, ?)",
+            (1, "Kodi Favorites", None, 1)
+        )
+        
+        return {'id': 1, 'name': 'Kodi Favorites', 'folder_id': None}
+    
+    def is_reserved_list_id(self, list_id: int) -> bool:
+        """Check if list ID is reserved (1-10)"""
+        return 1 <= list_id <= 10
 
     def create_folder(self, name: str, parent_id: Optional[int] = None) -> Dict:
         """Create a new folder"""
@@ -392,19 +420,56 @@ class QueryManager(Singleton):
         """Insert media item and add to list atomically"""
         try:
             with self.transaction() as conn:
-                # Insert media item
-                columns = list(media_item_data.keys())
-                placeholders = ['?' for _ in columns]
-                sql = f"INSERT INTO media_items ({', '.join(columns)}) VALUES ({', '.join(placeholders)})"
-                cursor = conn.execute(sql, tuple(media_item_data.values()))
-                media_id = cursor.lastrowid
+                # Try to find existing media item first
+                kodi_id = media_item_data.get('kodi_id', 0)
+                play = media_item_data.get('play', '')
+                
+                existing_check = conn.execute(
+                    "SELECT id FROM media_items WHERE kodi_id = ? AND play = ?",
+                    (kodi_id, play)
+                ).fetchone()
+                
+                if existing_check:
+                    media_id = existing_check[0]
+                    utils.log(f"Found existing media item with ID: {media_id}", "DEBUG")
+                else:
+                    # Insert new media item using INSERT OR IGNORE to handle duplicates
+                    columns = list(media_item_data.keys())
+                    placeholders = ['?' for _ in columns]
+                    sql = f"INSERT OR IGNORE INTO media_items ({', '.join(columns)}) VALUES ({', '.join(placeholders)})"
+                    cursor = conn.execute(sql, tuple(media_item_data.values()))
+                    media_id = cursor.lastrowid
+                    
+                    # If lastrowid is 0, the item already existed, so get its ID
+                    if not media_id:
+                        existing_result = conn.execute(
+                            "SELECT id FROM media_items WHERE kodi_id = ? AND play = ?",
+                            (kodi_id, play)
+                        ).fetchone()
+                        if existing_result:
+                            media_id = existing_result[0]
+                        else:
+                            utils.log("Failed to get media item ID after insert", "ERROR")
+                            return False
+                    
+                    utils.log(f"Created new media item with ID: {media_id}", "DEBUG")
 
-                # Add to list with search score
-                search_score = media_item_data.get('search_score', 0)
-                conn.execute(
-                    "INSERT INTO list_items (list_id, media_item_id, search_score) VALUES (?, ?, ?)",
-                    (list_id, media_id, search_score)
-                )
+                # Check if already in list
+                existing_list_item = conn.execute(
+                    "SELECT id FROM list_items WHERE list_id = ? AND media_item_id = ?",
+                    (list_id, media_id)
+                ).fetchone()
+                
+                if not existing_list_item:
+                    # Add to list with search score
+                    search_score = media_item_data.get('search_score', 0)
+                    conn.execute(
+                        "INSERT INTO list_items (list_id, media_item_id, search_score) VALUES (?, ?, ?)",
+                        (list_id, media_id, search_score)
+                    )
+                    utils.log(f"Added media item {media_id} to list {list_id}", "DEBUG")
+                else:
+                    utils.log(f"Media item {media_id} already in list {list_id}", "DEBUG")
 
             return True
         except Exception as e:
@@ -473,7 +538,7 @@ class QueryManager(Singleton):
         if not self._validate_table_exists('media_items'):
             utils.log("Table media_items does not exist", "ERROR")
             return []
-            
+
         conditions = ["title LIKE ?"]
         params = [f"%{title}%"]
 
@@ -537,14 +602,14 @@ class QueryManager(Singleton):
         media_data.setdefault('duration', 0)
         media_data.setdefault('votes', 0)
         media_data.setdefault('title', 'Unknown')
-        
+
         # Set proper source based on kodi_id presence
         if 'source' not in media_data:
             if media_data.get('kodi_id', 0) > 0:
                 media_data['source'] = 'lib'
             else:
                 media_data['source'] = 'unknown'
-        
+
         media_data.setdefault('media_type', 'movie')
 
         # Ensure search_score is included if present in input data
@@ -665,13 +730,13 @@ class QueryManager(Singleton):
         if not self._validate_table_exists(table):
             utils.log(f"Invalid or non-existent table: {table}", "ERROR")
             raise ValueError(f"Invalid table name: {table}")
-            
+
         # Validate all column names
         for column in data.keys():
             if not self._validate_column_exists(table, column):
                 utils.log(f"Invalid column {column} for table {table}", "ERROR")
                 raise ValueError(f"Invalid column name: {column}")
-        
+
         columns = ', '.join(data.keys())
         placeholders = ', '.join('?' for _ in data)
         query = f'INSERT INTO {table} ({columns}) VALUES ({placeholders})'
@@ -683,7 +748,7 @@ class QueryManager(Singleton):
         if not self._validate_table_exists('media_items'):
             utils.log("Table media_items does not exist", "ERROR")
             return []
-            
+
         conditions = ["title LIKE ?"]
         params = [f"%{title}%"]
 
@@ -695,7 +760,7 @@ class QueryManager(Singleton):
             params.append(f"%{director}%")
 
         where_clause = " AND ".join(conditions)
-        
+
         # Use explicit column list (all validated as existing columns)
         query = f"""
             SELECT DISTINCT
@@ -720,7 +785,7 @@ class QueryManager(Singleton):
             if 'cast' in item and isinstance(item['cast'], str):
                 try:
                     item['cast'] = json.loads(item['cast'])
-                except JSONDecodeError:
+                except json.JSONDecodeError:
                     item['cast'] = []
 
         return results
@@ -740,7 +805,7 @@ class QueryManager(Singleton):
         db_dir = os.path.dirname(self.db_path)
         if not os.path.exists(db_dir):
             os.makedirs(db_dir, exist_ok=True)
-            
+
         fields_str = ', '.join(Config.FIELDS)
 
         table_creations = [
@@ -770,29 +835,18 @@ class QueryManager(Singleton):
             f"""CREATE TABLE IF NOT EXISTS media_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 {fields_str},
-                file TEXT,
                 UNIQUE (kodi_id, play)
             )""",
             """CREATE TABLE IF NOT EXISTS list_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 list_id INTEGER,
                 media_item_id INTEGER,
+                search_score REAL DEFAULT 0,
                 flagged INTEGER DEFAULT 0,
                 FOREIGN KEY (list_id) REFERENCES lists (id),
                 FOREIGN KEY (media_item_id) REFERENCES media_items (id)
             )""",
-            """CREATE TABLE IF NOT EXISTS whitelist (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                list_id INTEGER,
-                title TEXT,
-                FOREIGN KEY (list_id) REFERENCES lists (id)
-            )""",
-            """CREATE TABLE IF NOT EXISTS blacklist (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                list_id INTEGER,
-                title TEXT,
-                FOREIGN KEY (list_id) REFERENCES lists (id)
-            )""",
+
 
             """CREATE TABLE IF NOT EXISTS original_requests (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -800,15 +854,8 @@ class QueryManager(Singleton):
                 response_json TEXT,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )""",
-            """CREATE TABLE IF NOT EXISTS parsed_movies (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                request_id INTEGER,
-                title TEXT,
-                year INTEGER,
-                director TEXT,
-                FOREIGN KEY (request_id) REFERENCES original_requests (id)
-            )""",
-            
+
+
             """CREATE TABLE IF NOT EXISTS movie_heavy_meta (
                 kodi_movieid INTEGER PRIMARY KEY,
                 imdbnumber TEXT,
@@ -830,23 +877,7 @@ class QueryManager(Singleton):
                 cursor.execute(create_sql)
             conn.commit()
 
-            # Add migration for search_score column if it doesn't exist
-            try:
-                cursor.execute("SELECT search_score FROM media_items LIMIT 1")
-            except sqlite3.OperationalError:
-                # Column doesn't exist, add it
-                utils.log("Adding search_score column to media_items table", "INFO")
-                cursor.execute("ALTER TABLE media_items ADD COLUMN search_score REAL")
-                conn.commit()
 
-            # Add migration for file column if it doesn't exist
-            try:
-                cursor.execute("SELECT file FROM media_items LIMIT 1")
-            except sqlite3.OperationalError:
-                # Column doesn't exist, add it
-                utils.log("Adding file column to media_items table", "INFO")
-                cursor.execute("ALTER TABLE media_items ADD COLUMN file TEXT")
-                conn.commit()
 
             # Create index for movie_heavy_meta table
             try:
@@ -857,6 +888,9 @@ class QueryManager(Singleton):
 
         # Setup movies reference table as well
         self.setup_movies_reference_table()
+        
+        # Ensure system lists exist
+        self.ensure_system_lists()
 
     def setup_movies_reference_table(self):
         """Create movies_reference table and indexes"""
@@ -905,10 +939,12 @@ class QueryManager(Singleton):
         if not heavy_metadata_list:
             return
 
-        utils.log(f"=== STORING HEAVY METADATA BATCH: {len(heavy_metadata_list)} movies ===", "INFO")
+        # Minimal logging for heavy metadata storage
+        if len(heavy_metadata_list) <= 5:
+            utils.log(f"Storing heavy metadata: {len(heavy_metadata_list)} movies", "DEBUG")
 
         import time
-        
+
         with self._lock:
             conn = self._get_connection()
             try:
@@ -917,16 +953,16 @@ class QueryManager(Singleton):
 
                 current_time = int(time.time())
 
-                # Log sample data before storage
-                if heavy_metadata_list:
+                # Log sample data before storage (only for first batch to reduce spam)
+                if heavy_metadata_list and len(heavy_metadata_list) == 1:
                     sample_movie = heavy_metadata_list[0]
-                    utils.log("=== SAMPLE HEAVY METADATA BEFORE STORAGE ===", "INFO")
+                    utils.log("=== SAMPLE HEAVY METADATA BEFORE STORAGE ===", "DEBUG")
                     for key, value in sample_movie.items():
                         if isinstance(value, str) and len(value) > 200:
-                            utils.log(f"BEFORE_STORAGE: {key} = {value[:200]}... (truncated)", "INFO")
+                            utils.log(f"BEFORE_STORAGE: {key} = {value[:200]}... (truncated)", "DEBUG")
                         else:
-                            utils.log(f"BEFORE_STORAGE: {key} = {repr(value)}", "INFO")
-                    utils.log("=== END SAMPLE BEFORE STORAGE ===", "INFO")
+                            utils.log(f"BEFORE_STORAGE: {key} = {repr(value)}", "DEBUG")
+                    utils.log("=== END SAMPLE BEFORE STORAGE ===", "DEBUG")
 
                 for movie_data in heavy_metadata_list:
                     movieid = movie_data.get('movieid')
@@ -941,16 +977,16 @@ class QueryManager(Singleton):
                     uniqueid_json = json.dumps(movie_data.get('uniqueid', {}))
                     tags_json = json.dumps(movie_data.get('tag', []))
 
-                    # Log what's being stored for first movie
-                    if movie_data == heavy_metadata_list[0]:
-                        utils.log("=== JSON FIELDS BEING STORED ===", "INFO")
-                        utils.log(f"STORAGE_JSON: cast_json = {cast_json[:200]}{'...' if len(cast_json) > 200 else ''}", "INFO")
-                        utils.log(f"STORAGE_JSON: ratings_json = {ratings_json}", "INFO")
-                        utils.log(f"STORAGE_JSON: showlink_json = {showlink_json}", "INFO")
-                        utils.log(f"STORAGE_JSON: stream_json = {stream_json[:200]}{'...' if len(stream_json) > 200 else ''}", "INFO")
-                        utils.log(f"STORAGE_JSON: uniqueid_json = {uniqueid_json}", "INFO")
-                        utils.log(f"STORAGE_JSON: tags_json = {tags_json}", "INFO")
-                        utils.log("=== END JSON FIELDS BEING STORED ===", "INFO")
+                    # Log what's being stored for first movie (only for single movie batches to reduce spam)
+                    if movie_data == heavy_metadata_list[0] and len(heavy_metadata_list) == 1:
+                        utils.log("=== JSON FIELDS BEING STORED ===", "DEBUG")
+                        utils.log(f"STORAGE_JSON: cast_json = {cast_json[:200]}{'...' if len(cast_json) > 200 else ''}", "DEBUG")
+                        utils.log(f"STORAGE_JSON: ratings_json = {ratings_json}", "DEBUG")
+                        utils.log(f"STORAGE_JSON: showlink_json = {showlink_json}", "DEBUG")
+                        utils.log(f"STORAGE_JSON: stream_json = {stream_json[:200]}{'...' if len(stream_json) > 200 else ''}", "DEBUG")
+                        utils.log(f"STORAGE_JSON: uniqueid_json = {uniqueid_json}", "DEBUG")
+                        utils.log(f"STORAGE_JSON: tags_json = {tags_json}", "DEBUG")
+                        utils.log("=== END JSON FIELDS BEING STORED ===", "DEBUG")
 
                     # Insert or replace heavy metadata
                     cursor.execute("""
@@ -971,10 +1007,13 @@ class QueryManager(Singleton):
                     ))
 
                 conn.commit()
-                utils.log(f"Successfully stored heavy metadata for {len(heavy_metadata_list)} movies", "INFO")
+                # Only log transaction commits for larger batches
+                if len(heavy_metadata_list) > 50:
+                    utils.log(f"Committed heavy metadata transaction: {len(heavy_metadata_list)} movies", "DEBUG")
 
-                # Verify storage by checking first movie
-                if heavy_metadata_list:
+
+                # Verify storage by checking first movie (only for first batch to reduce spam)
+                if heavy_metadata_list and len(heavy_metadata_list) == 1:
                     first_movieid = heavy_metadata_list[0].get('movieid')
                     if first_movieid:
                         cursor.execute("SELECT * FROM movie_heavy_meta WHERE kodi_movieid = ?", (first_movieid,))
@@ -983,13 +1022,13 @@ class QueryManager(Singleton):
                             # Get column names
                             column_names = [description[0] for description in cursor.description]
                             stored_dict = dict(zip(column_names, stored_row))
-                            utils.log("=== VERIFICATION OF STORED HEAVY METADATA ===", "INFO")
+                            utils.log("=== VERIFICATION OF STORED HEAVY METADATA ===", "DEBUG")
                             for key, value in stored_dict.items():
                                 if isinstance(value, str) and len(value) > 200:
-                                    utils.log(f"STORED_VERIFY: {key} = {value[:200]}... (truncated)", "INFO")
+                                    utils.log(f"STORED_VERIFY: {key} = {value[:200]}... (truncated)", "DEBUG")
                                 else:
-                                    utils.log(f"STORED_VERIFY: {key} = {repr(value)}", "INFO")
-                            utils.log("=== END VERIFICATION ===", "INFO")
+                                    utils.log(f"STORED_VERIFY: {key} = {repr(value)}", "DEBUG")
+                            utils.log("=== END VERIFICATION ===", "DEBUG")
                         else:
                             utils.log(f"ERROR: No stored heavy metadata found for movieid {first_movieid}", "ERROR")
 
@@ -1003,7 +1042,7 @@ class QueryManager(Singleton):
         # This method relies on ListingDAO. If ListingDAO is not updated to use the new
         # QueryManager methods correctly, this might break. Assuming ListingDAO is compatible.
         return self._listing.get_heavy_meta_by_movieids(movieids, refresh)
-        
+
     def get_imdb_export_stats(self) -> Dict[str, Any]:
         """Get statistics about IMDB numbers in exports"""
         query = """
@@ -1033,7 +1072,7 @@ class QueryManager(Singleton):
             (kodi_id, imdb_id, title, year)
             VALUES (?, ?, ?, ?)
         """
-        
+
         data_to_insert = []
         for movie in movies:
             data_to_insert.append((
@@ -1061,6 +1100,50 @@ class QueryManager(Singleton):
                     else:
                         utils.log(f"ERROR: No stored export data found for imdb_id {first_imdb}", "ERROR")
 
+    def ensure_shortlist_imports_list(self) -> Dict:
+        """Ensure Shortlist Imports list exists with reserved ID 2"""
+        existing_list = self.fetch_list_by_id(2)
+        
+        if existing_list:
+            # Verify it's the correct list - if not, update it
+            if existing_list['name'] != "Shortlist Imports":
+                self.update_data('lists', {'name': 'Shortlist Imports', 'folder_id': None, 'protected': 1}, 'id = ?', (2,))
+            return {'id': 2, 'name': 'Shortlist Imports', 'folder_id': None}
+        
+        # Create list with reserved ID 2
+        self.execute_write(
+            "INSERT INTO lists (id, name, folder_id, protected) VALUES (?, ?, ?, ?)",
+            (2, "Shortlist Imports", None, 1)
+        )
+        
+        return {'id': 2, 'name': 'Shortlist Imports', 'folder_id': None}
+
+    def ensure_system_lists(self):
+        """Ensure reserved system lists exist"""
+        # Ensure Kodi Favorites list exists with ID 1
+        existing_list = self.fetch_list_by_id(1)
+        if not existing_list:
+            utils.log("Creating reserved Kodi Favorites list with ID 1", "DEBUG")
+            self.execute_write(
+                "INSERT INTO lists (id, name, folder_id, protected) VALUES (?, ?, ?, ?)",
+                (1, "Kodi Favorites", None, 1)
+            )
+        elif existing_list['name'] != "Kodi Favorites":
+            utils.log(f"Updating list ID 1 to be Kodi Favorites (was: {existing_list['name']})", "DEBUG")
+            self.update_data('lists', {'name': 'Kodi Favorites', 'folder_id': None, 'protected': 1}, 'id = ?', (1,))
+
+        # Ensure Shortlist Imports list exists with ID 2
+        existing_list = self.fetch_list_by_id(2)
+        if not existing_list:
+            utils.log("Creating reserved Shortlist Imports list with ID 2", "DEBUG")
+            self.execute_write(
+                "INSERT INTO lists (id, name, folder_id, protected) VALUES (?, ?, ?, ?)",
+                (2, "Shortlist Imports", None, 1)
+            )
+        elif existing_list['name'] != "Shortlist Imports":
+            utils.log(f"Updating list ID 2 to be Shortlist Imports (was: {existing_list['name']})", "DEBUG")
+            self.update_data('lists', {'name': 'Shortlist Imports', 'folder_id': None, 'protected': 1}, 'id = ?', (2,))
+
     def get_valid_imdb_numbers(self) -> List[str]:
         """Get all valid IMDB numbers from exports table"""
         query = """
@@ -1086,15 +1169,6 @@ class QueryManager(Singleton):
     def __del__(self):
         """Clean up connections when the instance is destroyed"""
         self.close()
-
-    # The close method is already defined above, so this is redundant.
-    # def close(self):
-    #     """Close the database connection"""
-    #     with self._lock:
-    #         if self._connection:
-    #             self._connection.close()
-    #             self._connection = None
-    #             utils.log("QueryManager: Database connection closed", "DEBUG")
 
     # --- DAO Delegation Methods (kept for compatibility with existing calls) ---
     # These methods delegate to the ListingDAO instance.
@@ -1185,7 +1259,17 @@ class QueryManager(Singleton):
         return self._listing.get_unique_list_name(base_name, folder_id)
 
     def delete_list_and_contents(self, list_id):
-        return self._listing.delete_list_and_contents(list_id)
+        """Delete a list and all its contents"""
+        with self.get_connection() as conn:
+            conn.execute("DELETE FROM list_items WHERE list_id = ?", (list_id,))
+            conn.execute("DELETE FROM lists WHERE id = ?", (list_id,))
+        self._log_operation("DELETE", f"List {list_id} and contents")
+
+    def clear_list_contents(self, list_id):
+        """Clear all items from a list without deleting the list itself"""
+        with self.get_connection() as conn:
+            conn.execute("DELETE FROM list_items WHERE list_id = ?", (list_id,))
+        self._log_operation("DELETE", f"Contents of list {list_id}")
 
     def fetch_all_lists(self):
         return self._listing.fetch_all_lists()

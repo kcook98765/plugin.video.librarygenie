@@ -10,6 +10,13 @@ from typing import List, Union, cast
 # Import QueryManager here as it's used in multiple functions
 from resources.lib.data.query_manager import QueryManager
 
+# Import ResultsManager and NavigationManager here as they are used in browse_list
+from resources.lib.data.results_manager import ResultsManager
+from resources.lib.core.navigation_manager import NavigationManager
+
+# Assume xbmcplugin is available in the environment
+import xbmcplugin
+
 def play_movie(params):
     """Play a movie from Kodi library using movieid"""
     try:
@@ -179,6 +186,18 @@ def delete_list(params):
     try:
         config = Config()
         query_manager = QueryManager(config.db_path)
+
+        # Get list info
+        list_info = query_manager.fetch_list_by_id(list_id)
+        if not list_info:
+            utils.log(f"List {list_id} not found", "ERROR")
+            xbmcgui.Dialog().notification('LibraryGenie', 'List not found', xbmcgui.NOTIFICATION_ERROR)
+            return
+
+        # Check if this is a protected system list
+        if list_info.get('protected', 0) == 1 or query_manager.is_reserved_list_id(int(list_id)):
+            xbmcgui.Dialog().notification('LibraryGenie', 'Cannot delete system list', xbmcgui.NOTIFICATION_WARNING)
+            return
 
         # Use transaction for atomic delete operation
         with query_manager.transaction() as conn:
@@ -1354,7 +1373,7 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
 
             if imdb and imdb.startswith('tt'):
                 search_results.append({
-                    'imdbnumber': imdb,
+                    'imdb_id': imdb,
                     'score': score,
                     'search_score': score
                 })
@@ -1366,8 +1385,8 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
             utils.log(f"=== SIMILARITY_SEARCH: Creating media items for {len(search_results)} results ===", "DEBUG")
 
             for i, result in enumerate(search_results):
-                imdb_id = result['imdbnumber']
-                search_score = result.get('search_score', 0)
+                imdb_id = result['imdb_id']
+                search_score = float(result.get('search_score', 0))
 
                 utils.log(f"=== SIMILARITY_SEARCH: Processing result {i+1}/{len(search_results)}: {imdb_id} (score: {search_score}) ===", "DEBUG")
 
@@ -1377,26 +1396,23 @@ def _perform_similarity_search(imdb_id, title, from_context_menu=False):
 
                 try:
                     lookup_query = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
-                    lookup_result = query_manager.execute_query(lookup_query, (imdb_id,))
+                    lookup_result = query_manager.execute_query(lookup_query, (imdb_id,), fetch_one=True)
                     if lookup_result:
-                        title_lookup = lookup_result[0].get('title', '')
-                        year_lookup = int(lookup_result[0].get('year', 0) or 0)
+                        title_lookup = lookup_result.get('title', '')
+                        year_lookup = int(lookup_result.get('year', 0) or 0)
                         utils.log(f"=== SIMILARITY_SEARCH: Found title/year for {imdb_id}: '{title_lookup}' ({year_lookup}) ===", "DEBUG")
                     else:
                         utils.log(f"=== SIMILARITY_SEARCH: No imdb_exports entry for {imdb_id} ===", "DEBUG")
                 except Exception as e:
                     utils.log(f"=== SIMILARITY_SEARCH: Error looking up title/year for {imdb_id}: {str(e)} ===", "ERROR")
 
-                # Create media item with available data
+                # Create media item data with search metadata - use looked up data if available
                 media_item_data = {
-                    'kodi_id': 0,
-                    'title': title_lookup or f'IMDB: {imdb_id}',
-                    'year': year_lookup,
+                    'title': title_lookup if title_lookup else 'Unknown',
+                    'year': year_lookup if year_lookup > 0 else 0,
                     'imdbnumber': imdb_id,
-                    'source': 'search',
-                    'plot': '',
-                    'rating': 0.0,
                     'search_score': search_score,
+                    'source': 'search',
                     'media_type': 'movie'
                 }
 

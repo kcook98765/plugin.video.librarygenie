@@ -132,10 +132,6 @@ class ResultsManager(Singleton):
             list_items = self.query_manager.fetch_list_items_with_details(list_id)
             utils.log(f"=== BUILD_DISPLAY_ITEMS: Retrieved {len(list_items)} list items ===", "INFO")
 
-            if not list_items:
-                utils.log(f"=== BUILD_DISPLAY_ITEMS: No items found for list {list_id} ===", "INFO")
-                return []
-
             # Log first item structure for debugging (reduced verbosity)
             if list_items and utils.should_log_debug():
                 first_item = list_items[0]
@@ -317,17 +313,12 @@ class ResultsManager(Singleton):
                 utils.log(f"=== MERGE_ERROR: Missing heavy data for movieids: {missing_heavy_movieids} ===", "ERROR")
             batch_movies = light_movies
 
-            if batch_movies:
-                # Log complete merged data for first movie
+            # Reduced logging for Shield TV performance
+            if batch_movies and utils.should_log_debug():
                 first_movie = batch_movies[0]
-                utils.log(f"=== MERGED_DATA: First movie complete merged data ===", "INFO")
-                for key, value in first_movie.items():
-                    # Truncate very long values for readability
-                    if isinstance(value, str) and len(value) > 200:
-                        utils.log(f"MERGED_DATA: {key} = {value[:200]}... (truncated)", "INFO")
-                    else:
-                        utils.log(f"MERGED_DATA: {key} = {repr(value)}", "INFO")
-                utils.log(f"=== END MERGED_DATA ===", "INFO")
+                utils.log(f"=== MERGED_DATA: First movie merged successfully ===", "DEBUG")
+                utils.log(f"MERGED_DATA: Keys: {list(first_movie.keys())[:10]}...", "DEBUG")  # Only show first 10 keys
+                utils.log(f"=== END MERGED_DATA ===", "DEBUG")
 
             # Build a simple matcher key: (normalized_title, year_int)
             def _key(t, y):
@@ -550,6 +541,18 @@ class ResultsManager(Singleton):
                 # Use file path or fallback URL for external items
                 item_url = item.get('file', f"external://{item.get('id', 'unknown')}")
                 display_items.append((item_url, list_item, False))
+
+            if not display_items:
+                utils.log(f"No display items found for list {list_id}", "INFO")
+                # Create a helpful message item for empty lists
+                import xbmcgui
+                li = xbmcgui.ListItem("This list is empty")
+                li.setInfo('video', {
+                    'title': 'This list is empty',
+                    'plot': 'This list contains no items yet. You can add items using the Options & Tools menu or import from your Kodi library.'
+                })
+                # Make it non-playable by not setting a URL
+                return [li]
 
             utils.log(f"=== BUILD_DISPLAY_ITEMS: Created {len(display_items)} display items ===", "DEBUG")
             return display_items

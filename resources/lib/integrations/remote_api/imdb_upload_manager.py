@@ -1,10 +1,10 @@
-
 import xbmcgui
 import json
 from resources.lib.utils import utils
 from resources.lib.integrations.jsonrpc.jsonrpc_manager import JSONRPC
-from resources.lib.integrations.remote_api.remote_client import RemoteAPIClient
+from resources.lib.integrations.remote_api.remote_api_client import RemoteAPIClient
 from resources.lib.config.config_manager import Config
+from resources.lib.data.query_manager import QueryManager
 import time
 
 class IMDbUploadManager:
@@ -12,6 +12,7 @@ class IMDbUploadManager:
         self.config = Config()
         self.remote_client = RemoteAPIClient()
         self.jsonrpc = JSONRPC()
+        self.query_manager = QueryManager(self.config.db_path)
 
     def get_kodi_movie_collection(self, progress_dialog=None):
         """Get all movies from Kodi library with IMDb IDs (for compatibility)"""
@@ -70,21 +71,24 @@ class IMDbUploadManager:
                         match = re.search(r'tt\d+', imdb_id)
                         imdb_id = match.group(0) if match else ''
 
-                # Validate and store
-                if imdb_id and imdb_id.startswith('tt') and len(imdb_id) > 2:
-                    movie['imdbnumber'] = imdb_id
-                    valid_movies.append(movie)
+                # Store IMDb ID (may be empty) and add all movies to collection
+                movie['imdbnumber'] = imdb_id if imdb_id else ''
+                valid_movies.append(movie)
 
-                    # Log only for first movie to avoid spam
-                    if len(valid_movies) == 1:
+                # Log only for first movie to avoid spam
+                if len(valid_movies) == 1:
+                    if imdb_id:
                         utils.log(f"IMDb extraction method working - first valid ID: '{imdb_id}' for '{movie.get('title', 'Unknown')}'", "INFO")
+                    else:
+                        utils.log(f"First movie '{movie.get('title', 'Unknown')}' has no valid IMDb ID - will still be stored locally", "INFO")
 
             if progress_dialog:
                 progress_dialog.update(100, f"Found {len(valid_movies)} movies with valid IMDb IDs")
 
-            # Debug logging for troubleshooting
-            if len(valid_movies) == 0 and len(movies) > 0:
-                utils.log("=== DEBUG: No valid IMDb IDs found, analyzing first few movies ===", "WARNING")
+            # Debug logging for troubleshooting upload readiness
+            movies_with_valid_imdb = [m for m in valid_movies if m.get('imdbnumber') and m.get('imdbnumber').startswith('tt') and len(m.get('imdbnumber', '')) > 2]
+            if len(movies_with_valid_imdb) == 0 and len(movies) > 0:
+                utils.log("=== DEBUG: No movies with valid IMDb IDs found for server upload, analyzing first few movies ===", "WARNING")
                 for i, movie in enumerate(movies[:5]):  # Check first 5 movies
                     title = movie.get('title', 'Unknown')
                     imdbnumber = movie.get('imdbnumber', '')
@@ -97,7 +101,8 @@ class IMDbUploadManager:
                     utils.log(f"  - Raw movie data: {json.dumps(movie, indent=2)}", "WARNING")
                 utils.log("=== END DEBUG ANALYSIS ===", "WARNING")
 
-            utils.log(f"Found {len(valid_movies)} movies with valid IMDb IDs out of {len(movies)} total movies", "INFO")
+            movies_with_valid_imdb = [m for m in valid_movies if m.get('imdbnumber') and m.get('imdbnumber').startswith('tt') and len(m.get('imdbnumber', '')) > 2]
+            utils.log(f"Found {len(valid_movies)} total library movies, {len(movies_with_valid_imdb)} with valid IMDb IDs for server upload", "INFO")
             return valid_movies
 
         except Exception as e:
@@ -105,140 +110,400 @@ class IMDbUploadManager:
             return []
 
 
-    def get_full_kodi_movie_collection_and_store_locally(self, use_notifications=False):
-        """Get complete Kodi movie collection with all metadata and store locally for caching"""
+    def get_full_kodi_movie_collection_and_store_locally(self, use_notifications=False, show_modal_on_completion=False):
+        """Get all movies from Kodi and store locally with incremental batch processing"""
         try:
-            utils.log("=== STARTING FULL KODI MOVIE COLLECTION AND LOCAL STORAGE ===", "INFO")
-
-            # Get movie data using JSONRPC manager
-            full_movies = self._retrieve_all_movies_from_kodi(use_notifications)
-
-            if not full_movies:
-                utils.log("No movies found in Kodi library", "WARNING")
-                return []
-
-            utils.log(f"Retrieved {len(full_movies)} movies from Kodi", "INFO")
+            utils.log("Starting incremental Kodi movie collection retrieval and storage", "INFO")
 
             if use_notifications:
-                from resources.lib.utils import utils as notification_utils
-                notification_utils.show_notification("LibraryGenie", f"Processing {len(full_movies)} movies...", time=3000)
+                utils.show_notification("LibraryGenie", "Starting library scan...", time=3000)
 
-            # Log sample movie data
-            if full_movies:
-                utils.log("=== SAMPLE MOVIE DATA ===", "INFO")
-                sample_movie = full_movies[0]
-                for key, value in sample_movie.items():
-                    if isinstance(value, str) and len(value) > 200:
-                        utils.log(f"MOVIE_DATA: {key} = {value[:200]}... (truncated)", "INFO")
-                    else:
-                        utils.log(f"MOVIE_DATA: {key} = {repr(value)}", "INFO")
-                utils.log("=== END SAMPLE MOVIE DATA ===", "INFO")
+            # Clear existing data first
+            self.query_manager.execute_write("DELETE FROM imdb_exports")
+            self.query_manager.execute_write("DELETE FROM media_items WHERE source = 'lib'")
+            utils.log("Cleared existing library data from database", "INFO")
 
-            # Store basic data in imdb_exports table (only light fields for search)
-            export_movies = []
-            heavy_metadata_list = []
+            # Use incremental approach - retrieve and store each batch immediately
+            total_stored = self._retrieve_and_store_movies_incrementally(use_notifications)
 
-            for movie in full_movies:
-                imdb_id = movie.get('imdbnumber', '')
-                if imdb_id and imdb_id.startswith('tt'):
-                    # Only store basic search data in imdb_exports
-                    export_movie = {
+            if total_stored == 0:
+                utils.log("No movies were stored from Kodi library", "ERROR")
+                return False
+
+            utils.log(f"Successfully stored {total_stored} movies with incremental processing", "INFO")
+
+            if use_notifications:
+                utils.show_notification("LibraryGenie", "Scan complete!", time=2000)
+
+            # Only show modal when explicitly requested (not during background service scan)
+            if show_modal_on_completion:
+                try:
+                    utils.log("Showing addon status modal after scan completion", "INFO")
+                    from resources.lib.integrations.remote_api.library_status import show_library_status
+                    show_library_status()
+                except Exception as e:
+                    utils.log(f"Error showing addon status after scan: {str(e)}", "ERROR")
+
+            return True
+
+        except Exception as e:
+            utils.log(f"Error in incremental movie collection: {str(e)}", "ERROR")
+            import traceback
+            utils.log(f"Traceback: {traceback.format_exc()}", "ERROR")
+
+            if use_notifications:
+                utils.show_notification("LibraryGenie", "Library scan failed", time=5000)
+
+            return False
+
+    def _process_and_store_single_batch(self, movies, batch_num, use_notifications=False):
+        """Process and store a single batch of movies immediately after JSON-RPC retrieval."""
+        try:
+            batch_valid_movies = []
+            batch_light_data = []
+            batch_heavy_data = []
+            batch_export_data = []
+
+            utils.log(f"Processing JSON-RPC batch {batch_num}: {len(movies)} movies", "INFO")
+
+            # Process each movie in this batch
+            for movie in movies:
+                # Extract IMDb ID (may be None/empty for some movies)
+                imdb_id = self._extract_imdb_id(movie)
+                
+                # Store ALL movies from library, regardless of IMDb validity
+                movie['imdbnumber'] = imdb_id if imdb_id else ''
+                batch_valid_movies.append(movie)
+
+                # Separate light and heavy data in single pass
+                light_movie_data, heavy_movie_data = self._separate_movie_data(movie, imdb_id if imdb_id else '')
+
+                if light_movie_data:
+                    batch_light_data.append(light_movie_data)
+
+                if heavy_movie_data:
+                    batch_heavy_data.append(heavy_movie_data)
+
+                # Prepare export data - only add to exports if valid IMDb ID exists
+                if imdb_id:
+                    batch_export_data.append({
+                        'kodi_id': movie.get('movieid', 0),
                         'imdb_id': imdb_id,
                         'title': movie.get('title', ''),
                         'year': movie.get('year', 0)
-                    }
-                    export_movies.append(export_movie)
+                    })
 
-                    # Prepare heavy metadata for separate storage
-                    movieid = movie.get('movieid')
-                    if movieid:
-                        heavy_metadata_list.append(movie)
-
-            if export_movies:
-                utils.log(f"Storing {len(export_movies)} movies in imdb_exports table (light fields only)", "INFO")
-
-                # Log sample export data before storage
-                if export_movies:
-                    utils.log("=== SAMPLE EXPORT DATA FOR IMDB_EXPORTS TABLE ===", "INFO")
-                    sample_export = export_movies[0]
-                    for key, value in sample_export.items():
-                        utils.log(f"EXPORT_DATA: {key} = {repr(value)}", "INFO")
-                    utils.log("=== END SAMPLE EXPORT DATA ===", "INFO")
-
-                # Use standard method to get DatabaseManager with proper db_path
-                from resources.lib.data.database_manager import DatabaseManager
-                config = Config()
-                db_manager = DatabaseManager(config.db_path)
-                db_manager.insert_imdb_export(export_movies)
-
-                # Store heavy metadata separately in movie_heavy_meta table
-                if heavy_metadata_list:
-                    utils.log(f"Storing heavy metadata for {len(heavy_metadata_list)} movies", "INFO")
-                    db_manager.query_manager.store_heavy_meta_batch(heavy_metadata_list)
-
-                # Verify what was actually stored
-                utils.log("=== VERIFYING STORED DATA IN IMDB_EXPORTS ===", "INFO")
-                sample_imdb = export_movies[0]['imdb_id']
-                stored_data = db_manager.query_manager.execute_query(
-                    "SELECT * FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1",
-                    (sample_imdb,), fetch_one=True
+            # Store all data types immediately in atomic transaction
+            stored_count = 0
+            if batch_light_data or batch_heavy_data or batch_export_data:
+                stored_count = self._store_both_metadata_types_simultaneously(
+                    batch_light_data, batch_heavy_data, batch_export_data
                 )
-                if stored_data:
-                    utils.log("=== STORED DATA VERIFICATION ===", "INFO")
-                    for key, value in stored_data.items():
-                        utils.log(f"STORED: {key} = {repr(value)}", "INFO")
-                    utils.log("=== END STORED DATA VERIFICATION ===", "INFO")
 
-            utils.log(f"Successfully processed {len(full_movies)} movies with complete metadata", "INFO")
-            return full_movies
+            utils.log(f"Batch {batch_num} complete: {stored_count} movies stored (all library items), {len(batch_export_data)} with valid IMDb IDs", "INFO")
+            return stored_count
 
         except Exception as e:
-            utils.log(f"Error getting full Kodi movie collection: {str(e)}", "ERROR")
-            import traceback
-            utils.log(f"Traceback: {traceback.format_exc()}", "ERROR")
-            return []
+            utils.log(f"Error processing batch {batch_num}: {str(e)}", "ERROR")
+            return 0
 
-    def _clear_existing_library_data(self, db_manager):
+    def _process_and_store_movies_optimized(self, movies, use_notifications=False):
+        """Process and store movies with optimized single-pass approach - no second pass needed"""
+        try:
+            utils.log(f"Starting optimized processing of {len(movies)} movies (single pass)", "INFO")
+
+            if use_notifications:
+                utils.show_notification("LibraryGenie", f"Starting processing of {len(movies)} movies...", time=2000)
+
+            batch_size = 100
+            total_movies = len(movies)
+            processed = 0
+            total_batches = (total_movies + batch_size - 1) // batch_size
+
+            # Process in batches with atomic transactions
+            for i in range(0, total_movies, batch_size):
+                batch = movies[i:i + batch_size]
+                batch_num = i // batch_size + 1
+                batch_valid_movies = []
+                batch_light_data = []
+                batch_heavy_data = []
+                batch_export_data = []
+
+                # Process each movie in batch
+                for movie in batch:
+                    # Extract and validate IMDb ID
+                    imdb_id = self._extract_imdb_id(movie)
+                    if not imdb_id:
+                        continue
+
+                    movie['imdbnumber'] = imdb_id
+                    batch_valid_movies.append(movie)
+
+                    # Separate light and heavy data in single pass
+                    light_movie_data, heavy_movie_data = self._separate_movie_data(movie, imdb_id)
+
+                    if light_movie_data:
+                        batch_light_data.append(light_movie_data)
+
+                    if heavy_movie_data:
+                        batch_heavy_data.append(heavy_movie_data)
+
+                    # Prepare export data
+                    batch_export_data.append({
+                        'kodi_id': movie.get('movieid', 0),
+                        'imdb_id': imdb_id,
+                        'title': movie.get('title', ''),
+                        'year': movie.get('year', 0)
+                    })
+
+                # Store all data types simultaneously in single atomic transaction
+                if batch_light_data or batch_heavy_data or batch_export_data:
+                    batch_processed = self._store_both_metadata_types_simultaneously(
+                        batch_light_data, batch_heavy_data, batch_export_data
+                    )
+                    processed += batch_processed
+
+                # Progress notifications
+                progress_percent = int((processed / total_movies) * 100)
+                show_progress = (total_batches <= 5 or progress_percent % 20 == 0 or 
+                               processed == total_movies or batch_num == 1)
+
+                if use_notifications and show_progress:
+                    utils.show_notification("LibraryGenie", f"Processing: {progress_percent}%", time=1500)
+
+                # Minimal logging - only log every 50 batches or at start/end
+                if batch_num % 50 == 0 or batch_num == 1 or batch_num == total_batches:
+                    utils.log(f"Progress: {progress_percent}% - Batch {batch_num}/{total_batches} ({processed}/{total_movies} movies)", "INFO")
+
+            utils.log(f"Successfully processed {processed} movies in optimized single pass", "INFO")
+
+        except Exception as e:
+            utils.log(f"Error in optimized movie processing: {str(e)}", "ERROR")
+            raise
+
+    def _separate_movie_data(self, movie, imdb_id):
+        """Separate movie data into light and heavy components in single pass"""
+        try:
+            movieid = movie.get('movieid', 0)
+
+            # Light data for media_items table
+            light_data = {
+                'kodi_id': movieid,
+                'title': movie.get('title', ''),
+                'year': movie.get('year', 0),
+                'source': 'lib',
+                'media_type': 'movie',
+                'imdbnumber': imdb_id,
+                'plot': movie.get('plot', ''),
+                'genre': self._process_list_field(movie.get('genre', [])),
+                'director': self._process_list_field(movie.get('director', [])),
+                'rating': movie.get('rating', 0.0),
+                'duration': movie.get('runtime', 0),
+                'premiered': movie.get('premiered', ''),
+                'votes': movie.get('votes', 0),
+                'file': movie.get('file', ''),
+                'thumbnail': movie.get('thumbnail', ''),
+                'fanart': movie.get('fanart', ''),
+                'tagline': movie.get('tagline', ''),
+                'writer': self._process_list_field(movie.get('writer', [])),
+                'mpaa': movie.get('mpaa', ''),
+                'country': self._process_list_field(movie.get('country', [])),
+                'dateadded': movie.get('dateadded', ''),
+                'studio': self._process_list_field(movie.get('studio', []))
+            }
+
+            # Heavy data for movie_heavy_meta table (only if movieid exists)
+            heavy_data = None
+            if movieid:
+                heavy_data = {
+                    'movieid': movieid,
+                    'imdbnumber': imdb_id,
+                    'cast': movie.get('cast', []),
+                    'ratings': movie.get('ratings', {}),
+                    'showlink': movie.get('showlink', []),
+                    'streamdetails': movie.get('streamdetails', {}),
+                    'uniqueid': movie.get('uniqueid', {}),
+                    'tag': movie.get('tag', [])
+                }
+
+            return light_data, heavy_data
+
+        except Exception as e:
+            utils.log(f"Error separating movie data: {str(e)}", "ERROR")
+            return None, None
+
+    def _process_list_field(self, field_value):
+        """Process list fields for database storage"""
+        if isinstance(field_value, list):
+            return ', '.join(str(item) for item in field_value if item)
+        return str(field_value) if field_value else ''
+
+    def _bulk_insert_media_items(self, batch_data):
+        """Bulk insert light media item data"""
+        if not batch_data:
+            return 0
+
+        # Only log for first batch to reduce spam
+        if len(batch_data) <= 100:
+            utils.log(f"=== STORING LIGHT METADATA BATCH: {len(batch_data)} movies ===", "DEBUG")
+
+        columns = ', '.join(batch_data[0].keys())
+        placeholders = ', '.join(['?' for _ in batch_data[0]])
+        query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
+        values_list = [tuple(movie_data.values()) for movie_data in batch_data]
+        result = self.query_manager.executemany_write(query, values_list)
+
+        # Only log success for first batch
+        if len(batch_data) <= 100:
+            utils.log(f"Successfully stored light metadata for {len(batch_data)} movies", "DEBUG")
+        return result
+
+    def _bulk_insert_export_data(self, batch_export_data):
+        """Bulk insert export data"""
+        if not batch_export_data:
+            return
+
+        # Only log for first batch to reduce spam
+        if len(batch_export_data) <= 100:
+            utils.log(f"=== STORING EXPORT DATA BATCH: {len(batch_export_data)} movies ===", "DEBUG")
+
+        sql = "INSERT OR REPLACE INTO imdb_exports (kodi_id, imdb_id, title, year) VALUES (?, ?, ?, ?)"
+        data_to_insert = [(data['kodi_id'], data['imdb_id'], data['title'], data['year']) 
+                         for data in batch_export_data]
+        self.query_manager.executemany_write(sql, data_to_insert)
+
+        # Only log success for first batch
+        if len(batch_export_data) <= 100:
+            utils.log(f"Successfully stored export data for {len(batch_export_data)} movies", "DEBUG")
+
+    def _store_both_metadata_types_simultaneously(self, batch_light_data, batch_heavy_data, batch_export_data):
+        """Store light media items, heavy metadata, and export data simultaneously in one transaction"""
+        try:
+            light_count = len(batch_light_data) if batch_light_data else 0
+            heavy_count = len(batch_heavy_data) if batch_heavy_data else 0
+            export_count = len(batch_export_data) if batch_export_data else 0
+
+            # Only log details for first few batches to reduce spam
+            if light_count <= 100:  # First batch or small batches
+                utils.log(f"=== SIMULTANEOUS STORAGE TRANSACTION: {light_count} light + {heavy_count} heavy + {export_count} export ===", "DEBUG")
+
+            with self.query_manager.transaction():
+                stored_count = 0
+
+                # Store light metadata first
+                if batch_light_data:
+                    self._bulk_insert_media_items(batch_light_data)
+                    stored_count = len(batch_light_data)
+
+                # Store heavy metadata in same transaction (no separate queuing)
+                if batch_heavy_data:
+                    self.query_manager.store_heavy_meta_batch(batch_heavy_data)
+
+                # Store export data in same transaction
+                if batch_export_data:
+                    self._bulk_insert_export_data(batch_export_data)
+
+                # Only log completion for debugging
+                if light_count <= 100:
+                    utils.log(f"=== TRANSACTION COMPLETED: All {light_count + heavy_count + export_count} records committed atomically ===", "DEBUG")
+
+                return stored_count
+
+        except Exception as e:
+            utils.log(f"Error storing batch metadata simultaneously: {str(e)}", "ERROR")
+            return 0
+
+
+
+    def _clear_existing_library_data(self):
         """Clear existing library data from database tables atomically."""
         try:
             utils.log("Starting atomic clear of existing library data", "INFO")
 
-            # Get existing count for logging with explicit alias
-            count_result = db_manager.query_manager.execute_query(
-                "SELECT COUNT(*) as lib_count FROM media_items WHERE source = 'lib'",
-                fetch_one=True
-            )
-            existing_count = count_result['lib_count'] if count_result else 0
-
+            # Get existing count for logging - simplified approach
+            existing_count = self._get_library_item_count()
             if existing_count > 0:
                 utils.log(f"Found {existing_count} existing library items to clear", "INFO")
+            else:
+                utils.log("No existing library items found", "INFO")
 
-            # Clear all library data in a single transaction using public transaction context
-            with db_manager.query_manager.transaction():
-                # Clear media_items table
-                db_manager.query_manager.execute_write("DELETE FROM media_items WHERE source = 'lib'")
-                
-                # Clear heavy metadata table
-                db_manager.query_manager.execute_write("DELETE FROM movie_heavy_meta")
-                
-                # Clear imdb_exports table
-                db_manager.query_manager.execute_write("DELETE FROM imdb_exports")
+            # Clear all library data in a single atomic transaction
+            self._execute_library_data_clear()
 
             utils.log(f"Successfully cleared {existing_count} library items and all related data", "INFO")
 
         except Exception as e:
-            utils.log(f"Warning: Could not clear existing library data: {str(e)}", "WARNING")
-            utils.log("Continuing with upload process despite clearing failure", "INFO")
+            utils.log(f"Error clearing existing library data: {str(e)}", "ERROR")
+            # Re-raise the exception since this is a critical operation
+            # The caller should decide whether to continue or abort
+            raise
 
-    def _retrieve_all_movies_from_kodi(self, use_notifications):
-        """Retrieve all movies from Kodi library using JSON-RPC."""
-        utils.log("Getting all movies with IMDb information from Kodi library", "INFO")
+    def _get_library_item_count(self):
+        """Get count of existing library items with robust error handling."""
+        try:
+            count_result = self.query_manager.execute_query(
+                "SELECT COUNT(*) as lib_count FROM media_items WHERE source = 'lib'",
+                fetch_one=True
+            )
+
+            if not count_result:
+                return 0
+
+            # Handle different possible return formats from execute_query
+            if isinstance(count_result, dict):
+                return int(count_result.get('lib_count', 0))
+            elif isinstance(count_result, (list, tuple)) and len(count_result) > 0:
+                first_item = count_result[0]
+                if isinstance(first_item, dict):
+                    return int(first_item.get('lib_count', 0))
+                else:
+                    # Direct numeric value
+                    return int(first_item)
+            else:
+                # If we get here, count_result is not in expected format
+                utils.log(f"Unexpected count_result format: {type(count_result)} - {count_result}", "WARNING")
+                return 0
+
+        except (ValueError, TypeError, KeyError) as e:
+            utils.log(f"Error getting library item count: {str(e)}", "WARNING")
+            return 0
+
+    def _execute_library_data_clear(self):
+        """Execute the actual clearing of library data in a transaction."""
+        with self.query_manager.transaction():
+            # Clear in dependency order to avoid foreign key conflicts
+            clear_operations = [
+                ("media_items WHERE source = 'lib'", "library media items"),
+                ("movie_heavy_meta", "heavy metadata"),
+                ("imdb_exports", "IMDb exports")
+            ]
+
+            for table_condition, description in clear_operations:
+                try:
+                    affected_rows = self.query_manager.execute_write(f"DELETE FROM {table_condition}")
+                    utils.log(f"Cleared {description}: {affected_rows} rows affected", "DEBUG")
+                except Exception as e:
+                    utils.log(f"Error clearing {description}: {str(e)}", "ERROR")
+                    raise  # Re-raise to trigger transaction rollback
+
+    def _retrieve_and_store_movies_incrementally(self, use_notifications):
+        """Retrieve movies from Kodi and store each batch immediately for continuous progress."""
+        utils.log("Starting incremental movie retrieval and storage from Kodi library", "INFO")
+
+        # Show only initial notification
+        if use_notifications:
+            utils.show_notification("LibraryGenie", "Starting library scan...", time=2000)
 
         batch_size = 100
         start = 0
-        all_movies = []
-        last_notification = 0
+        total_stored = 0
         total = 0
+        start_time = time.time()
+
+        # Progress tracking variables
+        progress_dialog = None
+        step_size = 1  # Will be calculated after we know total
+        last_update_count = 0
 
         while True:
             # Execute JSON-RPC call
@@ -249,19 +514,62 @@ class IMDbUploadManager:
 
             response = self.jsonrpc.execute("VideoLibrary.GetMovies", params)
 
+            # Log minimal response data for first batch only (reduced verbosity)
+            if start == 0:
+                if 'result' in response and 'movies' in response['result']:
+                    movies = response['result']['movies']
+                    utils.log(f"First batch analysis: {len(movies)} movies retrieved successfully", "DEBUG")
+                    if movies:
+                        first_movie = movies[0]
+                        utils.log(f"Sample movie: '{first_movie.get('title', 'Unknown')}' ({first_movie.get('year', 'N/A')}) - IMDb: {first_movie.get('imdbnumber', 'N/A')}", "DEBUG")
+                else:
+                    utils.log("No 'result' or 'movies' key found in response", "ERROR")
+                    if 'error' in response:
+                        utils.log(f"Error in response: {response['error']}", "ERROR")
+
             if 'result' not in response or 'movies' not in response['result']:
                 break
 
             movies = response['result']['movies']
             total = response['result']['limits']['total']
 
-            # Update progress tracking (less frequent logging)
-            current_count = len(all_movies) + len(movies)
-            if use_notifications and (current_count - last_notification >= 2000):
-                utils.show_notification("LibraryGenie", f"Scanned {current_count} of {total} movies...", time=2000)
-                last_notification = current_count
+            # Initialize progress dialog after first batch when we know the total
+            if start == 0 and total > 0:
+                # Calculate smart step size for ~15 updates during processing
+                step_size = max(1, total // 15)
 
-            all_movies.extend(movies)
+                # Create persistent progress dialog (only if notifications enabled)
+                if use_notifications:
+                    import xbmcgui
+                    progress_dialog = xbmcgui.DialogProgressBG()
+                    progress_dialog.create("LibraryGenie", f"Processing {total} movies...")
+
+                utils.log(f"Progress tracking: {total} movies, updating every {step_size} items", "INFO")
+
+            # Process and store this batch immediately
+            if movies:
+                batch_stored = self._process_and_store_single_batch(movies, start // batch_size + 1, use_notifications)
+                total_stored += batch_stored
+
+            # Smart progress tracking with minimal UI updates
+            current_retrieved = start + len(movies)
+            progress_percent = int((current_retrieved / total) * 100) if total > 0 else 0
+
+            # Update progress dialog only when we hit step boundaries or completion
+            if progress_dialog and (current_retrieved - last_update_count >= step_size or current_retrieved >= total):
+                elapsed = time.time() - start_time
+                rate = current_retrieved / elapsed if elapsed > 0 else 0
+
+                # Update the persistent progress dialog
+                progress_dialog.update(progress_percent, f"LibraryGenie", f"{current_retrieved}/{total} • {rate:.0f}/s")
+                last_update_count = current_retrieved
+
+            # Log progress less frequently to reduce spam
+            batch_num = start // batch_size + 1
+            if batch_num % 10 == 0 or batch_num == 1 or current_retrieved >= total:
+                elapsed = time.time() - start_time
+                rate = current_retrieved / elapsed if elapsed > 0 else 0
+                utils.log(f"SCAN PROGRESS: {progress_percent}% - {current_retrieved}/{total} movies processed and stored in {elapsed:.1f}s ({rate:.1f} movies/sec)", "INFO")
 
             # Check if we're done
             if len(movies) < batch_size or start + batch_size >= total:
@@ -269,14 +577,22 @@ class IMDbUploadManager:
 
             start += batch_size
 
-        utils.log(f"Movie retrieval complete: {len(all_movies)} movies retrieved from Kodi library", "INFO")
+        # Clean up progress dialog
+        if progress_dialog:
+            progress_dialog.close()
 
+        # Final summary
+        elapsed = time.time() - start_time
+        rate = total_stored / elapsed if elapsed > 0 else 0
+        utils.log(f"SCAN COMPLETE: {total_stored} movies processed and stored in {elapsed:.1f}s ({rate:.1f} movies/sec)", "INFO")
+
+        # Show final completion notification
         if use_notifications:
-            utils.show_notification("LibraryGenie", f"Scan complete! Processing {len(all_movies)} movies...", time=3000)
+            utils.show_notification("LibraryGenie", f"Complete! {total_stored} movies in {elapsed:.1f}s • {rate:.0f}/s", time=3000)
 
-        return all_movies
+        return total_stored
 
-    def _process_and_store_movies(self, all_movies, db_manager, use_notifications):
+    def _process_and_store_movies(self, all_movies, use_notifications):
         """Process movies and store them in database with batching."""
         utils.log("Starting movie processing and storage phase", "INFO")
 
@@ -293,7 +609,7 @@ class IMDbUploadManager:
 
             # Process this batch
             batch_valid_movies, batch_stored_count = self._process_movie_batch(
-                batch_movies, batch_num, db_manager
+                batch_movies, batch_num
             )
 
             valid_movies.extend(batch_valid_movies)
@@ -314,14 +630,14 @@ class IMDbUploadManager:
 
         return valid_movies, stored_count
 
-    def _process_movie_batch(self, batch_movies, batch_num, db_manager):
-        """Process a single batch of movies with transaction management."""        
+    def _process_movie_batch(self, batch_movies, batch_num):
+        """Process a single batch of movies with transaction management."""
         batch_valid_movies = []
         batch_stored_count = 0
 
         try:
             # Use public transaction context manager
-            with query_manager.transaction():
+            with self.query_manager.transaction():
                 batch_data = []
                 heavy_metadata_list = []
 
@@ -344,11 +660,11 @@ class IMDbUploadManager:
 
                 # Bulk insert batch data using public executemany_write
                 if batch_data:
-                    batch_stored_count = self._bulk_insert_movies(batch_data, db_manager)
+                    batch_stored_count = self._bulk_insert_movies(batch_data)
 
                 # Store heavy metadata in same transaction using public methods
                 if heavy_metadata_list:
-                    self._store_heavy_metadata_batch(heavy_metadata_list, db_manager)
+                    self._store_heavy_metadata_batch(heavy_metadata_list)
 
         except Exception as e:
             utils.log(f"Batch {batch_num} error: {str(e)}", "ERROR")
@@ -356,104 +672,92 @@ class IMDbUploadManager:
         return batch_valid_movies, batch_stored_count
 
     def _extract_imdb_id(self, movie):
-        """Extract IMDb ID from movie data with v19/v20+ compatibility."""
+        """Extract raw IMDb ID from movie data without modification."""
         imdb_id = ''
 
         # Method 1: uniqueid.imdb (preferred for v19 compatibility)
         if 'uniqueid' in movie and isinstance(movie.get('uniqueid'), dict):
-            imdb_id = movie.get('uniqueid', {}).get('imdb', '')
+            uniqueid_imdb = movie.get('uniqueid', {}).get('imdb', '')
+            if uniqueid_imdb:
+                imdb_id = str(uniqueid_imdb).strip()
 
-        # Method 2: imdbnumber fallback (only if it looks like an IMDb ID)
+        # Method 2: imdbnumber fallback
         if not imdb_id:
             fallback_id = movie.get('imdbnumber', '')
-            if fallback_id and str(fallback_id).strip().startswith('tt'):
+            if fallback_id:
                 imdb_id = str(fallback_id).strip()
 
-        # Validate IMDb ID format
-        if imdb_id and imdb_id.startswith('tt') and len(imdb_id) > 2:
-            return imdb_id
+        # Only clean URL prefixes, but preserve raw IMDb values as-is
+        if imdb_id:
+            # Remove URL prefixes if present
+            if imdb_id.startswith('imdb://'):
+                imdb_id = imdb_id[7:]
+            elif 'imdb.com' in imdb_id:
+                import re
+                match = re.search(r'tt\d+', imdb_id)
+                imdb_id = match.group(0) if match else ''
+
+            # Return raw IMDb ID without any format validation or modification
+            return imdb_id if imdb_id else None
 
         return None
 
     def _prepare_movie_data(self, movie, imdb_id):
-        """Prepare movie data dictionary for database insertion."""
-        return {
-            'kodi_id': movie.get('movieid', 0),
-            'title': movie.get('title', ''),
-            'year': movie.get('year', 0),
-            'imdbnumber': imdb_id,
-            'source': 'lib',
-            'play': movie.get('file', ''),
-            'poster': movie.get('art', {}).get('poster', '') if movie.get('art') else '',
-            'fanart': movie.get('art', {}).get('fanart', '') if movie.get('art') else '',
-            'plot': movie.get('plot', ''),
-            'rating': float(movie.get('rating', 0)),
-            'votes': int(movie.get('votes', 0)),
-            'duration': int(movie.get('runtime', 0)),
-            'mpaa': movie.get('mpaa', ''),
-            'genre': ','.join(movie.get('genre', [])) if isinstance(movie.get('genre'), list) else movie.get('genre', ''),
-            'director': ','.join(movie.get('director', [])) if isinstance(movie.get('director'), list) else movie.get('director', ''),
-            'studio': ','.join(movie.get('studio', [])) if isinstance(movie.get('studio'), list) else movie.get('studio', ''),
-            'country': ','.join(movie.get('country', [])) if isinstance(movie.get('country'), list) else movie.get('country', ''),
-            'writer': ','.join(movie.get('writer', [])) if isinstance(movie.get('writer'), list) else movie.get('writer', ''),
-            'cast': json.dumps(movie.get('cast', [])),
-            'art': json.dumps(movie.get('art', {}))
-        }
+        """Prepare movie data for database insertion"""
+        try:
+            # Basic movie data preparation
+            movie_data = {
+                'kodi_id': movie.get('movieid', 0),
+                'title': movie.get('title', ''),
+                'year': movie.get('year', 0),
+                'source': 'lib',
+                'media_type': 'movie',
+                'imdbnumber': imdb_id
+            }
 
-    def _store_heavy_metadata_batch(self, heavy_metadata_list, db_manager):
-        """Store heavy metadata for multiple movies in batch using public executemany_write."""
+            # Add other available fields with proper type conversion
+            for field in ['plot', 'genre', 'director', 'rating', 'duration', 'premiered', 'votes']:
+                if field in movie:
+                    value = movie[field]
+
+                    # Convert lists to comma-separated strings for database storage
+                    if isinstance(value, list):
+                        if field in ['genre', 'director']:
+                            # Join list items with comma separator
+                            movie_data[field] = ', '.join(str(item) for item in value if item)
+                        else:
+                            # For other list fields, take first item or convert to string
+                            movie_data[field] = str(value[0]) if value else ''
+                    else:
+                        movie_data[field] = value
+
+            return movie_data
+
+        except Exception as e:
+            utils.log(f"Error preparing movie data: {str(e)}", "ERROR")
+            return {}
+
+    def _store_heavy_metadata_batch(self, heavy_metadata_list):
+        """Store heavy metadata for multiple movies in batch using QueryManager."""
         if not heavy_metadata_list:
             return
 
-        utils.log(f"Storing heavy metadata for {len(heavy_metadata_list)} movies in transaction", "DEBUG")
+        # Only log for first few batches and summary to reduce spam
+        if len(heavy_metadata_list) <= 5:
+            utils.log(f"=== STORING HEAVY METADATA BATCH: {len(heavy_metadata_list)} movies ===", "INFO")
+        elif len(heavy_metadata_list) > 50:  # Only log for larger batches
+            utils.log(f"Storing heavy metadata batch: {len(heavy_metadata_list)} movies", "DEBUG")
 
-        try:
-            import time
-            current_time = int(time.time())
+        # Use QueryManager's store_heavy_meta_batch method
+        self.query_manager.store_heavy_meta_batch(heavy_metadata_list)
 
-            # Prepare batch data for executemany
-            heavy_meta_values = []
-            for movie_data in heavy_metadata_list:
-                movieid = movie_data.get('movieid')
-                if not movieid:
-                    continue
+        # Only log completion for larger batches
+        if len(heavy_metadata_list) > 50:
+            utils.log(f"Stored heavy metadata for {len(heavy_metadata_list)} movies", "DEBUG")
 
-                # Convert complex fields to JSON
-                cast_json = json.dumps(movie_data.get('cast', []))
-                ratings_json = json.dumps(movie_data.get('ratings', {}))
-                showlink_json = json.dumps(movie_data.get('showlink', []))
-                stream_json = json.dumps(movie_data.get('streamdetails', {}))
-                uniqueid_json = json.dumps(movie_data.get('uniqueid', {}))
-                tags_json = json.dumps(movie_data.get('tag', []))
 
-                heavy_meta_values.append((
-                    movieid,
-                    movie_data.get('imdbnumber', ''),
-                    cast_json,
-                    ratings_json, 
-                    showlink_json,
-                    stream_json,
-                    uniqueid_json,
-                    tags_json,
-                    current_time
-                ))
-
-            # Bulk insert using public executemany_write
-            if heavy_meta_values:
-                query = """
-                    INSERT OR REPLACE INTO movie_heavy_meta 
-                    (kodi_movieid, imdbnumber, cast_json, ratings_json, showlink_json, 
-                     stream_json, uniqueid_json, tags_json, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """
-                db_manager.query_manager.executemany_write(query, heavy_meta_values)
-
-        except Exception as e:
-            utils.log(f"Error storing heavy metadata batch: {str(e)}", "ERROR")
-            raise
-
-    def _bulk_insert_movies(self, batch_data, db_manager):
-        """Bulk insert movie data into database using public executemany_write."""
+    def _bulk_insert_movies(self, batch_data):
+        """Bulk insert movie data into database using QueryManager."""
         if not batch_data:
             return 0
 
@@ -463,16 +767,16 @@ class IMDbUploadManager:
         query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
 
         values_list = [tuple(movie_data.values()) for movie_data in batch_data]
-        db_manager.query_manager.executemany_write(query, values_list)
+        self.query_manager.executemany_write(query, values_list)
 
         return len(batch_data)
 
-    def _populate_imdb_exports(self, valid_movies, db_manager):
+    def _populate_imdb_exports(self, valid_movies):
         """Populate imdb_exports table for search functionality."""
         if valid_movies:
             try:
                 utils.log("Populating imdb_exports table for search functionality", "INFO")
-                db_manager.insert_imdb_export(valid_movies)
+                self.query_manager.insert_imdb_export(valid_movies)
                 utils.log(f"Populated imdb_exports table with {len(valid_movies)} entries", "INFO")
             except Exception as e:
                 utils.log(f"Error populating imdb_exports table: {str(e)}", "WARNING")
@@ -488,17 +792,34 @@ class IMDbUploadManager:
         collection_progress.create("Preparing Upload", "Gathering movies from Kodi library...")
 
         try:
-            # Get full movie data and store locally in single efficient step, using notifications
-            full_movies = self.get_full_kodi_movie_collection_and_store_locally(use_notifications=True)
-            collection_progress.close()
+            # Check if library data already exists from service scan
+            existing_count = self._get_library_item_count()
 
-            if not full_movies:
-                xbmcgui.Dialog().ok("Error", "No movies with valid IMDb IDs found in Kodi library")
-                return False
+            if existing_count > 0:
+                # Use existing data
+                utils.log(f"Using existing library data ({existing_count} items)", "INFO")
+                collection_progress.update(90, "Using existing library data...")
 
-            # Extract just IMDB IDs for remote upload
-            movies = [{'imdb_id': movie.get('imdbnumber')} for movie in full_movies
-                     if movie.get('imdbnumber')]
+                # Get IMDb IDs from existing data
+                imdb_results = self.query_manager.execute_query(
+                    "SELECT imdb_id FROM imdb_exports WHERE imdb_id IS NOT NULL AND imdb_id != '' AND imdb_id LIKE 'tt%'",
+                    fetch_all=True
+                )
+                movies = [{'imdb_id': result['imdb_id']} for result in imdb_results]
+                collection_progress.close()
+
+            else:
+                # Need to scan library first - show modal on completion for manual scans
+                full_movies = self.get_full_kodi_movie_collection_and_store_locally(use_notifications=True, show_modal_on_completion=True)
+                collection_progress.close()
+
+                if not full_movies:
+                    xbmcgui.Dialog().ok("Error", "No movies with valid IMDb IDs found in Kodi library")
+                    return False
+
+                # Extract only tt-prefixed IMDB IDs for server upload (ignore non-tt entries)
+                movies = [{'imdb_id': movie.get('imdbnumber')} for movie in full_movies
+                         if movie.get('imdbnumber') and str(movie.get('imdbnumber')).startswith('tt')]
 
         except Exception as e:
             collection_progress.close()
@@ -512,52 +833,80 @@ class IMDbUploadManager:
         ):
             return False
 
-        progress = xbmcgui.DialogProgress()
-        progress.create("Uploading Library", "Starting full library sync...")
+        # Show start notification
+        utils.show_notification("LibraryGenie", f"Starting upload of {len(movies)} movies...", time=5000)
 
         try:
-            # Create progress callback function
+            # Create progress callback function with frequent percentage updates
             def progress_callback(current_chunk, total_chunks, chunk_size, current_item=None):
-                if progress.iscanceled():
-                    return False  # Signal to cancel the upload
-
                 percent = int((current_chunk / total_chunks) * 100)
-                message = f"Uploading chunk {current_chunk} of {total_chunks} ({chunk_size} movies)"
-                if current_item:
-                    message += f"\nProcessing: {current_item}"
 
-                # Only log every 4th chunk to reduce spam
-                if current_chunk % 4 == 0 or current_chunk == 1 or current_chunk == total_chunks:
-                    utils.log(f"Upload progress: {percent}% - Chunk {current_chunk}/{total_chunks}", "INFO")
+                # Show progress notifications every 10% or at key points
+                show_notification = False
+                notification_message = ""
 
-                progress.update(percent, message)
+                if current_chunk == 1:
+                    show_notification = True
+                    notification_message = f"Upload starting... 0%"
+                elif current_chunk == total_chunks:
+                    show_notification = True
+                    notification_message = f"Upload finalizing... 100%"
+                elif percent % 10 == 0 and current_chunk > 1:
+                    # Show every 10% increment
+                    show_notification = True
+                    notification_message = f"Upload progress: {percent}%"
+                elif total_chunks <= 10:
+                    # For small uploads, show every chunk
+                    show_notification = True
+                    notification_message = f"Upload progress: {percent}%"
+
+                if show_notification:
+                    utils.show_notification("LibraryGenie", notification_message, time=2000)
+
+                # Log progress more frequently for debugging
+                if current_chunk % 2 == 0 or current_chunk == 1 or current_chunk == total_chunks:
+                    utils.log(f"Upload progress: {percent}% - Chunk {current_chunk}/{total_chunks} ({chunk_size} movies)", "INFO")
+
                 return True  # Continue uploading
 
             result = self.remote_client._chunked_movie_upload(movies, mode='replace', progress_callback=progress_callback)
 
-            progress.close()
-
             if result.get('success'):
-                # Try multiple ways to get the uploaded count
-                uploaded_count = (
-                    result.get('user_movie_count') or
-                    result.get('final_tallies', {}).get('total_movies') or
-                    result.get('final_tallies', {}).get('successful_imports') or
-                    len(movies)
-                )
-                message = f"Successfully uploaded {uploaded_count} movies"
+                # Get detailed upload statistics
+                final_tallies = result.get('final_tallies', {})
+                accepted = final_tallies.get('accepted', 0)
+                duplicates = final_tallies.get('duplicates', 0)
+                invalid = final_tallies.get('invalid', 0)
+                user_movie_count = result.get('user_movie_count', 0)
+
                 utils.log(f"Upload result: {result}", "DEBUG")
-                xbmcgui.Dialog().ok("Upload Complete", message)
+                utils.log(f"Upload statistics - Accepted: {accepted}, Duplicates: {duplicates}, Invalid: {invalid}, Final count: {user_movie_count}", "INFO")
+
+                # For replace mode, focus on final count rather than duplicate detection
+                # Replace mode is authoritative so duplicates are expected during replacement
+                if user_movie_count > 0:
+                    utils.show_notification("LibraryGenie", f"Library replaced! {user_movie_count} movies on server", time=5000)
+                elif invalid > 0 and user_movie_count == 0:
+                    utils.show_notification("LibraryGenie", f"Upload failed: {invalid} movies had invalid IMDb IDs", time=8000)
+                else:
+                    utils.show_notification("LibraryGenie", f"Upload completed but no movies were added. Check server logs.", time=8000)
+
+                # Show addon status modal after upload (regardless of result)
+                try:
+                    from resources.lib.integrations.remote_api.library_status import show_library_status
+                    show_library_status()
+                except Exception as e:
+                    utils.log(f"Error showing addon status after upload: {str(e)}", "ERROR")
+
                 return True
             else:
                 error_msg = result.get('error', 'Unknown error occurred')
-                xbmcgui.Dialog().ok("Upload Failed", f"Upload failed: {error_msg}")
+                utils.show_notification("LibraryGenie", f"Upload failed: {error_msg}", time=8000)
                 return False
 
         except Exception as e:
-            progress.close()
             utils.log(f"Error during library upload: {str(e)}", "ERROR")
-            xbmcgui.Dialog().ok("Error", f"Upload failed: {str(e)}")
+            utils.show_notification("LibraryGenie", f"Upload failed: {str(e)}", time=8000)
             return False
 
     def upload_library_delta_sync(self):
@@ -572,16 +921,16 @@ class IMDbUploadManager:
 
         try:
             # Get full movie data and store locally in single efficient step, using notifications
-            full_movies = self.get_full_kodi_movie_collection_and_store_locally(use_notifications=True)
+            full_movies = self.get_full_kodi_movie_collection_and_store_locally(use_notifications=True, show_modal_on_completion=True)
             collection_progress.close()
 
             if not full_movies:
                 xbmcgui.Dialog().ok("Error", "No movies with valid IMDb IDs found in Kodi library")
                 return False
 
-            # Extract just IMDB IDs for remote upload
+            # Extract only tt-prefixed IMDB IDs for server upload (ignore non-tt entries)
             movies = [{'imdb_id': movie.get('imdbnumber')} for movie in full_movies
-                     if movie.get('imdbnumber')]
+                     if movie.get('imdbnumber') and str(movie.get('imdbnumber')).startswith('tt')]
 
         except Exception as e:
             collection_progress.close()

@@ -177,14 +177,34 @@ class SearchWindow:
 
                 # Add each match to the list
                 for match in matches:
-                    # Prepare media item data
+                    imdb_id = match.get('imdb_id', '')
+                    search_score = match.get('score', 0)
+                    
+                    # Look up title and year from imdb_exports if available
+                    title_lookup = 'Unknown'
+                    year_lookup = 0
+                    
+                    if imdb_id:
+                        try:
+                            lookup_query = """SELECT title, year FROM imdb_exports WHERE imdb_id = ? ORDER BY id DESC LIMIT 1"""
+                            lookup_result = query_manager.execute_query(lookup_query, (imdb_id,), fetch_one=True)
+                            if lookup_result:
+                                title_lookup = lookup_result.get('title', 'Unknown')
+                                year_lookup = int(lookup_result.get('year', 0) or 0)
+                                utils.log(f"SEARCH_SAVE: Found title/year for {imdb_id}: '{title_lookup}' ({year_lookup})", "DEBUG")
+                            else:
+                                utils.log(f"SEARCH_SAVE: No imdb_exports entry for {imdb_id}", "DEBUG")
+                        except Exception as e:
+                            utils.log(f"SEARCH_SAVE: Error looking up title/year for {imdb_id}: {str(e)}", "ERROR")
+
+                    # Prepare media item data with looked up data if available
                     media_item_data = {
-                        'title': match.get('title', 'Unknown'),
-                        'year': match.get('year', 0),
-                        'imdbnumber': match.get('imdb_id', ''),
+                        'title': title_lookup,
+                        'year': year_lookup,
+                        'imdbnumber': imdb_id,
                         'source': 'search',
                         'media_type': 'movie',
-                        'search_score': match.get('score', 0),
+                        'search_score': search_score,
                         'plot': match.get('plot', ''),
                         'genre': match.get('genre', ''),
                         'director': match.get('director', ''),

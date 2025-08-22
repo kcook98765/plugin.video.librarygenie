@@ -74,15 +74,15 @@ def run_search_flow():
         # Extract list ID for navigation
         list_id = target_url.split('list_id=')[1]
         log(f"=== MAIN: Scheduling navigation to list {list_id} ===", "DEBUG")
-        
+
         # Use background thread navigation with proper Kodi integration
         import threading
         import time
-        
+
         def navigate_to_list():
             try:
                 log(f"=== MAIN_NAVIGATION: Starting navigation to list {list_id} ===", "DEBUG")
-                
+
                 # Build the target URL
                 from resources.lib.config.addon_ref import get_addon
                 from urllib.parse import urlencode
@@ -90,23 +90,23 @@ def run_search_flow():
                 addon_id = addon.getAddonInfo("id")
                 params = urlencode({'action': 'browse_list', 'list_id': str(list_id)})
                 final_url = f"plugin://{addon_id}/?{params}"
-                
+
                 log(f"=== MAIN_NAVIGATION: Target URL: {final_url} ===", "DEBUG")
-                
+
                 # Clear any dialog states
                 xbmc.executebuiltin("Dialog.Close(all,true)")
                 time.sleep(0.2)
-                
+
                 # Use Kodi's built-in navigation that preserves back button
                 xbmc.executebuiltin(f'ActivateWindow(videos,"{final_url}",return)')
-                
+
                 log(f"=== MAIN_NAVIGATION: Navigation completed ===", "DEBUG")
-                
+
             except Exception as e:
                 log(f"Error in main navigation thread: {str(e)}", "ERROR")
                 import traceback
                 log(f"Main navigation traceback: {traceback.format_exc()}", "ERROR")
-        
+
         # Start navigation in background
         nav_thread = threading.Thread(target=navigate_to_list)
         nav_thread.daemon = True
@@ -480,11 +480,6 @@ def router(paramstring):
         route_handlers.add_to_list_from_context(params)
     elif action == 'add_to_list':
         route_handlers.add_to_list(params)
-    elif action == 'import_favorites':
-        log("Routing to import_favorites action", "DEBUG")
-        from resources.lib.integrations.remote_api.favorites_importer import import_from_favorites
-        import_from_favorites()
-        return
     elif action == 'dev_display_directory':
         log("Routing to dev_display_directory action", "DEBUG")
         from resources.lib.core.route_handlers import dev_display_imdb_data_directory
@@ -546,17 +541,7 @@ def main():
         log("No specific action detected, running default addon helper.", "DEBUG")
         run_addon()
 
-        # Ensure Search History folder exists
-        log("Setting up configuration and database for first run", "DEBUG")
-        config = Config()
-        query_manager = QueryManager(config.db_path)
-        query_manager.setup_database()  # Ensure database is set up
-        # Create folders if they don't exist
-        query_manager.ensure_search_history_folder()
-        folder_id = query_manager.get_folder_id_by_name("Imported Lists")
-        if not folder_id:
-            query_manager.create_folder("Imported Lists", None)
-        log("Configuration and database setup complete", "DEBUG")
+        log("Configuration initialized - database setup is handled by background service", "DEBUG")
 
         log("=== LibraryGenie addon startup complete ===", "INFO")
     except Exception as e:

@@ -16,11 +16,12 @@ class Config:
         return cls._instance
 
     FIELDS = [
-        "cast TEXT", "country TEXT", "dateadded TEXT", "director TEXT", "duration INTEGER", "fanart TEXT", "file TEXT", "genre TEXT",
-        "imdbnumber TEXT", "kodi_id INTEGER", "media_type TEXT", "mpaa TEXT", "path TEXT", "play TEXT", "plot TEXT",
-        "premiered TEXT", "rating REAL", "search_score REAL", "source TEXT", "status TEXT", "stream_url TEXT", "studio TEXT",
-        "tagline TEXT", "thumbnail TEXT", "poster TEXT", "art TEXT", "title TEXT", "trailer TEXT", "uniqueid TEXT",
-        "votes INTEGER", "writer TEXT", "year INTEGER"
+        "cast TEXT", "country TEXT", "dateadded TEXT", "director TEXT", "duration INTEGER", 
+        "fanart TEXT", "file TEXT", "genre TEXT", "imdbnumber TEXT", "kodi_id INTEGER", 
+        "media_type TEXT", "mpaa TEXT", "path TEXT", "play TEXT", "plot TEXT", "premiered TEXT", 
+        "rating REAL", "search_score REAL", "source TEXT", "status TEXT", "stream_url TEXT", 
+        "studio TEXT", "tagline TEXT", "thumbnail TEXT", "poster TEXT", "art TEXT", 
+        "title TEXT", "trailer TEXT", "uniqueid TEXT", "votes INTEGER", "writer TEXT", "year INTEGER"
     ]
 
     def __init__(self):

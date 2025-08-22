@@ -99,6 +99,35 @@ def log(message, level=None):
             "Released database connection for batch",
             "Progress update:",
             "Processing: Uploading movies",
+            # JSON-RPC response analysis spam patterns
+            "=== JSON-RPC RESPONSE ANALYSIS",
+            "Response keys:",
+            "Result keys:",
+            "Number of movies in first batch:",
+            "=== MOVIE",
+            "DETAILED DATA ===",
+            "MOVIE_1:",
+            "MOVIE_2:",
+            "MOVIE_3:",
+            "=== END MOVIE",
+            "=== END JSON-RPC RESPONSE ANALYSIS ===",
+            # Progress and transaction spam patterns
+            "Progress tracking:",
+            "updating every",
+            "items",
+            "Processing JSON-RPC batch",
+            "=== SIMULTANEOUS STORAGE TRANSACTION:",
+            "=== STORING LIGHT METADATA BATCH:",
+            "Successfully stored light metadata for",
+            "=== STORING HEAVY METADATA BATCH:",
+            "Committed heavy metadata transaction:",
+            "=== STORING EXPORT DATA BATCH:",
+            "Successfully stored export data for",
+            "=== TRANSACTION COMPLETED:",
+            "records committed atomically",
+            "=== JSONRPC TIMING:",
+            "executed in",
+            "ms ===",
             # Kodi match data spam patterns
             "=== KODI_MATCH_DATA: Item",
             "KODI_MATCH_DATA:",
@@ -217,6 +246,55 @@ def is_kodi_v19():
 def is_kodi_v20_plus():
     """Check if running on Kodi v20 or higher (Nexus+)"""
     return get_kodi_version() >= 20
+
+def is_shield_tv():
+    """Check if running on NVIDIA Shield TV"""
+    try:
+        import xbmc
+        # Shield TV typically reports as Android with specific build info
+        platform = xbmc.getInfoLabel("System.Platform.Android")
+        if platform:
+            build_version = xbmc.getInfoLabel("System.BuildVersion")
+            return "tegra" in build_version.lower() or "shield" in build_version.lower()
+    except:
+        pass
+    return False
+
+def needs_modal_optimization():
+    """Check if device needs modal dialog optimization (slow devices, older Kodi versions)"""
+    try:
+        import xbmc
+        
+        # Always optimize for Kodi v19 due to known modal animation issues
+        if is_kodi_v19():
+            return True
+            
+        # Optimize for Shield TV (known performance issues)
+        if is_shield_tv():
+            return True
+            
+        # Optimize for Android devices in general (often resource-constrained)
+        if xbmc.getInfoLabel("System.Platform.Android"):
+            return True
+            
+        # Optimize for ARM-based devices (typically slower)
+        cpu_info = xbmc.getInfoLabel("System.CpuUsage")
+        platform_arch = xbmc.getInfoLabel("System.BuildVersion")
+        if any(arch in platform_arch.lower() for arch in ['arm', 'aarch64']):
+            return True
+            
+        # Default to no optimization for powerful devices
+        return False
+    except:
+        # If detection fails, err on the side of optimization
+        return True
+
+def should_log_debug():
+    """Check if debug logging should be enabled (reduces overhead on slow devices)"""
+    if needs_modal_optimization():
+        # Reduce debug logging on devices that need optimization for performance
+        return False
+    return True
 
 def setup_remote_api():
     """Launch remote API setup wizard"""

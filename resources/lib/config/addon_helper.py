@@ -56,7 +56,7 @@ def clear_all_local_data():
                         utils.log(f"Failed to delete root-level list {list_item['name']}", "WARNING")
                 except Exception as e:
                     utils.log(f"Error deleting root-level list {list_item['name']}: {str(e)}", "WARNING")
-            
+
             dialog.notification("LibraryGenie", "All local data cleared successfully.", xbmcgui.NOTIFICATION_INFO, 3000)
             utils.log("Successfully cleared all local data.", "INFO")
 
@@ -86,7 +86,7 @@ def run_addon():
             'setup_remote_api', 'manual_setup_remote_api', 'test_remote_api',
             'upload_library_full', 'upload_library_delta', 'upload_status', 
             'clear_server_library', 'show_main_window', 'clear_all_local_data',
-            'import_from_shortlist'
+            'import_from_shortlist', 'addon_library_status'
         ]
 
         if len(sys.argv) > 1 and sys.argv[1] in script_actions:
@@ -99,9 +99,17 @@ def run_addon():
                 run_setup()
                 return  # Early return to prevent normal startup
             elif action == 'import_from_shortlist':
-                from resources.lib.integrations.remote_api.shortlist_importer import import_from_shortlist
-                import_from_shortlist()
-                return  # Early return to prevent normal startup
+                utils.log("Importing from shortlist", "INFO")
+                from resources.lib.config.settings_manager import SettingsManager
+                settings_manager = SettingsManager()
+                settings_manager.import_from_favorites()
+                return
+            elif action == 'addon_library_status':
+                utils.log("Showing addon library status", "INFO")
+                from resources.lib.config.settings_manager import SettingsManager
+                settings_manager = SettingsManager()
+                settings_manager.addon_library_status()
+                return
         else:
             args = sys.argv[2][1:] if len(sys.argv) > 2 else ""
             params = urllib.parse.parse_qs(args)

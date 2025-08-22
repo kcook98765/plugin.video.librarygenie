@@ -158,19 +158,30 @@ class JSONRPC:
         limit = 100
         total_estimated = None
         cached_count = 0
+        last_notification = 0
+        current_count = 0
 
         while True:
+            current_count = len(all_movies)
+
             # Update progress if callback provided
             if progress_callback:
                 if total_estimated and total_estimated > 0:
-                    percent = min(80, int((len(all_movies) / total_estimated) * 80))
-                    progress_callback.update(percent, f"Retrieved {len(all_movies)} of {total_estimated} movies (cached {cached_count})...")
-                    if progress_callback.iscanceled():
-                        break
+                    percent = min(80, int((current_count / total_estimated) * 80))
+                    if current_count - last_notification >= 1000:
+                        progress_callback(
+                            percent,
+                            f"Retrieved {current_count} of {total_estimated} movies (cached {cached_count})..."
+                        )
+                        last_notification = current_count
                 else:
-                    progress_callback.update(10, f"Retrieved {len(all_movies)} movies (cached {cached_count})...")
-                    if progress_callback.iscanceled():
-                        break
+                    if current_count - last_notification >= 1000:
+                        progress_callback(10, f"Retrieved {current_count} movies (cached {cached_count})...")
+                        last_notification = current_count
+
+                if hasattr(progress_callback, 'iscanceled') and progress_callback.iscanceled():
+                    log("Progress callback indicated cancellation", "INFO")
+                    break
 
             response = self.get_movies(start, limit, properties=properties)
 
@@ -246,7 +257,11 @@ class JSONRPC:
 
             start += limit
 
-        log(f"Retrieved {len(all_movies)} total movies from Kodi library", "INFO")
+        # Final progress update
+        if progress_callback:
+            progress_callback(95, f"Processing {len(all_movies)} movies...")
+
+        log(f"Movie retrieval complete: {len(all_movies)} movies retrieved from Kodi library", "INFO")
         log(f"Cached heavy metadata for {cached_count} movies", "INFO")
         return all_movies
 
