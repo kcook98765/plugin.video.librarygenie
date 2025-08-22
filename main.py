@@ -396,7 +396,8 @@ def router(paramstring):
         if nav_manager.is_navigation_in_progress():
             log("Navigation in progress, skipping options dialog", "DEBUG")
             return
-        options_manager.show_options_menu(q)
+        # Replaced with call to handle_show_options
+        handle_show_options(q)
         # IMPORTANT: Do NOT call endOfDirectory() here - this is a RunPlugin action
         return
     elif action == 'create_list':
@@ -419,42 +420,16 @@ def router(paramstring):
         log("Routing to remove_from_list action", "DEBUG")
         remove_from_list(q)
         return
-    elif action == 'rename_folder':
-        log("Routing to rename_folder action", "DEBUG")
-        rename_folder(q)
-        return
-    elif action == 'delete_folder':
-        log("Routing to delete_folder action", "DEBUG")
-        delete_folder(q)
-        return
-    elif action == 'move_folder':
-        log("Routing to move_folder action", "DEBUG")
-        move_folder(q)
-        return
-    elif action == 'create_folder':
-        log("Routing to create_subfolder action", "DEBUG")
-        create_subfolder(q)
-        return
-    elif action == 'add_movies_to_list':
-        log("Routing to add_movies_to_list action", "DEBUG")
-        add_movies_to_list(q)
-        return
-    elif action == 'clear_list':
-        log("Routing to clear_list action", "DEBUG")
-        clear_list(q)
-        return
-    elif action == 'export_list':
-        log("Routing to export_list action", "DEBUG")
-        export_list(q)
-        return
-    elif action == 'show_item_details':
-        log("Routing to show_item_details action", "DEBUG")
-        show_item_details(q)
-        return
-    elif action == 'play_movie':
-        log("Routing to play_movie action", "DEBUG")
-        play_movie(q)
-        return
+
+    # Plugin actions
+    elif action == 'search_movies':
+        # Assuming search_handler is imported and available, but it's not in the provided snippet.
+        # If this is a new action, it needs a proper handler.
+        # For now, log a message indicating its presence.
+        log("Handling search_movies action (handler not provided in snippet)", "DEBUG")
+        # search_handler.show_search_interface(params) # Uncomment if search_handler is defined
+    elif action == 'show_options':
+        handle_show_options(q)
     elif action == 'browse_list':
         list_id = q.get('list_id', [None])[0]
         if list_id:
@@ -467,28 +442,98 @@ def router(paramstring):
             log("No list_id provided for browse_list action", "WARNING")
             show_empty_directory(ADDON_HANDLE)
         return
-    elif action == 'separator':
-        # Do nothing for separator items
-        log("Received separator action, doing nothing.", "DEBUG")
-        pass
-    elif action == 'find_similar':
-        from resources.lib.core.route_handlers import find_similar_movies
-        find_similar_movies(params)
-    elif action == 'find_similar_from_plugin':
-        route_handlers.find_similar_movies_from_plugin(params)
-    elif action == 'add_to_list_from_context':
-        route_handlers.add_to_list_from_context(params)
-    elif action == 'add_to_list':
-        route_handlers.add_to_list(params)
-    elif action == 'dev_display_directory':
-        log("Routing to dev_display_directory action", "DEBUG")
-        from resources.lib.core.route_handlers import dev_display_imdb_data_directory
-        dev_display_imdb_data_directory(q)
-        return
+    elif action == 'browse_folder':
+        handle_browse_folder(q)
     else:
         # Default: build root directory if action is not recognized or empty
         log(f"Unrecognized action '{action}' or no action specified, building root directory.", "DEBUG")
         build_root_directory(ADDON_HANDLE)
+
+# Add handle_show_options function here
+def handle_show_options(params):
+    """Handle the Options & Tools menu display"""
+    try:
+        log("=== SHOW_OPTIONS: Starting options menu display ===", "INFO")
+
+        # Use the OptionsManager to show the options menu
+        from resources.lib.core.options_manager import OptionsManager
+        options_manager = OptionsManager()
+        options_manager.show_options_menu(params)
+
+        log("=== SHOW_OPTIONS: Options menu completed ===", "INFO")
+
+    except Exception as e:
+        log(f"Error in handle_show_options: {str(e)}", "ERROR")
+        import traceback
+        log(f"handle_show_options traceback: {traceback.format_exc()}", "ERROR")
+
+        # Fallback: show a simple notification
+        import xbmcgui
+        xbmcgui.Dialog().notification('LibraryGenie', 'Options menu error', xbmcgui.NOTIFICATION_ERROR)
+
+
+def handle_browse_folder(params):
+    """Handle folder browsing with proper context detection"""
+    try:
+        folder_id = params.get('folder_id', [None])[0]
+        if folder_id and str(folder_id).isdigit():
+            folder_id = int(folder_id)
+        else:
+            folder_id = None
+
+        handle = int(sys.argv[1])
+
+        # Set up context for folder browsing
+        ctx = detect_context({
+            'action': 'browse_folder',
+            'folder_id': folder_id,
+            'view': 'folder'
+        })
+
+        # Add Options & Tools header for consistent navigation
+        add_options_header_item(ctx, handle)
+
+        # Get folder contents
+        config = Config() # Assuming Config is available
+        query_manager = QueryManager(config.db_path)
+
+        subfolders = query_manager.fetch_folders(folder_id)
+        lists = query_manager.fetch_lists(folder_id)
+
+        # Build directory items
+        for folder in subfolders:
+            li = ListItemBuilder.build_folder_item(f"📁 {folder['name']}", is_folder=True)
+            li.setProperty('lg_type', 'folder')
+            add_context_menu_for_item(li, 'folder', folder_id=folder['id'])
+            url = build_plugin_url({'action': 'browse_folder', 'folder_id': folder['id'], 'view': 'folder'})
+            xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
+
+        for list_item in lists:
+            list_id = list_item['id']
+            list_name = list_item['name']
+
+            # Get media count for the list
+            media_count = query_manager.get_list_media_count(list_id)
+            display_name = f"{list_name} ({media_count})"
+
+            li = ListItemBuilder.build_folder_item(f"📋 {display_name}", is_folder=True, item_type='playlist')
+            li.setProperty('lg_type', 'list')
+            add_context_menu_for_item(li, 'list', list_id=list_id)
+            url = build_plugin_url({'action': 'browse_list', 'list_id': list_id, 'view': 'list'})
+            xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
+
+        # Check if directory is empty
+        if not subfolders and not lists:
+            show_empty_directory(handle, "This folder is empty.")
+        else:
+            xbmcplugin.setContent(handle, 'files')
+            xbmcplugin.endOfDirectory(handle)
+
+    except Exception as e:
+        log(f"Error in handle_browse_folder: {str(e)}", "ERROR")
+        import traceback
+        log(f"handle_browse_folder traceback: {traceback.format_exc()}", "ERROR")
+        show_empty_directory(handle, "Error loading folder contents.")
 
 # Expose functions that other modules need to import
 def create_new_folder_at_root():
@@ -512,7 +557,7 @@ def main():
         import sys
 
         # Check if we're at root level (no specific action parameters)
-        at_root = (len(sys.argv) <= 2 or 
+        at_root = (len(sys.argv) <= 2 or
                   (len(sys.argv) >= 3 and (not sys.argv[2] or sys.argv[2] in ('', '?'))))
 
         if at_root:

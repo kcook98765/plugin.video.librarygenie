@@ -38,61 +38,66 @@ def add_context_menu_for_item(li: xbmcgui.ListItem, item_type: str, **ids):
 def add_options_header_item(ctx: dict, handle: int):
     """Add the options and tools header item as a non-folder RunPlugin item"""
     try:
+        utils.log("=== STARTING OPTIONS & TOOLS HEADER CREATION ===", "INFO")
+        
         # Create list item for options as non-folder
         li = xbmcgui.ListItem(label="[B]Options & Tools[/B]")
-        utils.log("Adding Options & Tools header item", "DEBUG")
+        utils.log("Created Options & Tools ListItem", "DEBUG")
 
-        # For Kodi v19, avoid setting video info entirely to prevent video info dialog
-        if utils.is_kodi_v19():
-            utils.log("Kodi v19 detected - skipping video info to prevent dialog issues", "INFO")
-        else:
-            # Set info dictionary for v20+ - NO mediatype to avoid video info dialog
-            info_dict = {
-                'title': 'Options & Tools',
-                'plot': 'Access list management tools, search options, and addon settings.'
+        # Set basic properties without complex info to avoid issues
+        li.setProperty('IsPlayable', 'false')
+        utils.log("Set IsPlayable to false", "DEBUG")
+
+        # Set simple art using addon icon
+        try:
+            from resources.lib.config.addon_ref import get_addon
+            addon = get_addon()
+            addon_path = addon.getAddonInfo("path")
+            icon_path = f"{addon_path}/resources/media/icon.jpg"
+
+            art_dict = {
+                'icon': icon_path,
+                'thumb': icon_path
             }
-            utils.log(f"=== SETTING INFO WITH DICT: {info_dict} ===", "INFO")
-            li.setInfo('video', info_dict)
-            utils.log("Successfully called li.setInfo('video', info_dict)", "INFO")
-
-        # Set custom icon for Options & Tools
-
-        from resources.lib.config.addon_ref import get_addon
-        addon = get_addon()
-        addon_path = addon.getAddonInfo("path")
-        icon_path = f"{addon_path}/resources/media/icon.jpg"
-
-        art_dict = {
-            'icon': icon_path,
-            'thumb': icon_path,
-            'poster': icon_path
-        }
-        li.setArt(art_dict)
+            li.setArt(art_dict)
+            utils.log("Set Options & Tools art", "DEBUG")
+        except Exception as art_error:
+            utils.log(f"Error setting art (continuing anyway): {str(art_error)}", "WARNING")
 
         # Build URL with current context using centralized URL builder
-        utils.log("=== BUILDING URL ===", "INFO")
         url_params = {
             'action': 'show_options',
-            'view': ctx.get('view'),
+            'view': ctx.get('view', 'root'),
         }
 
         # Only include list_id/folder_id if they exist
         if ctx.get('list_id'):
             url_params['list_id'] = ctx['list_id']
-            utils.log(f"Added list_id to URL params: {ctx['list_id']}", "INFO")
         if ctx.get('folder_id'):
             url_params['folder_id'] = ctx['folder_id']
-            utils.log(f"Added folder_id to URL params: {ctx['folder_id']}", "INFO")
 
-        utils.log(f"FOLDER_CONTEXT_DEBUG: Building options URL with params: {url_params}", "INFO")
+        utils.log(f"Building options URL with params: {url_params}", "DEBUG")
         url = build_plugin_url(url_params)
-        utils.log(f"FOLDER_CONTEXT_DEBUG: Built options URL: {url}", "INFO")
+        utils.log(f"Built options URL: {url}", "DEBUG")
 
         # Add as non-folder item for RunPlugin behavior
+        utils.log("Adding Options & Tools to directory", "INFO")
         xbmcplugin.addDirectoryItem(handle, url, li, isFolder=False)
+        utils.log("=== OPTIONS & TOOLS HEADER ADDED SUCCESSFULLY ===", "INFO")
 
     except Exception as e:
         utils.log(f"Error in Options & Tools ListItem build: {str(e)}", "ERROR")
+        import traceback
+        utils.log(f"Options & Tools creation traceback: {traceback.format_exc()}", "ERROR")
+        
+        # Try to add a basic fallback item
+        try:
+            fallback_li = xbmcgui.ListItem(label="[B]Options & Tools[/B]")
+            fallback_url = build_plugin_url({'action': 'show_options'})
+            xbmcplugin.addDirectoryItem(handle, fallback_url, fallback_li, isFolder=False)
+            utils.log("Added fallback Options & Tools item", "INFO")
+        except Exception as fallback_error:
+            utils.log(f"Even fallback Options & Tools creation failed: {str(fallback_error)}", "ERROR")
 
 def build_root_directory(handle: int):
     """Build the root directory with search option"""
