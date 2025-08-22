@@ -71,21 +71,24 @@ class IMDbUploadManager:
                         match = re.search(r'tt\d+', imdb_id)
                         imdb_id = match.group(0) if match else ''
 
-                # Validate and store
-                if imdb_id and imdb_id.startswith('tt') and len(imdb_id) > 2:
-                    movie['imdbnumber'] = imdb_id
-                    valid_movies.append(movie)
+                # Store IMDb ID (may be empty) and add all movies to collection
+                movie['imdbnumber'] = imdb_id if imdb_id else ''
+                valid_movies.append(movie)
 
-                    # Log only for first movie to avoid spam
-                    if len(valid_movies) == 1:
+                # Log only for first movie to avoid spam
+                if len(valid_movies) == 1:
+                    if imdb_id:
                         utils.log(f"IMDb extraction method working - first valid ID: '{imdb_id}' for '{movie.get('title', 'Unknown')}'", "INFO")
+                    else:
+                        utils.log(f"First movie '{movie.get('title', 'Unknown')}' has no valid IMDb ID - will still be stored locally", "INFO")
 
             if progress_dialog:
                 progress_dialog.update(100, f"Found {len(valid_movies)} movies with valid IMDb IDs")
 
-            # Debug logging for troubleshooting
-            if len(valid_movies) == 0 and len(movies) > 0:
-                utils.log("=== DEBUG: No valid IMDb IDs found, analyzing first few movies ===", "WARNING")
+            # Debug logging for troubleshooting upload readiness
+            movies_with_valid_imdb = [m for m in valid_movies if m.get('imdbnumber') and m.get('imdbnumber').startswith('tt') and len(m.get('imdbnumber', '')) > 2]
+            if len(movies_with_valid_imdb) == 0 and len(movies) > 0:
+                utils.log("=== DEBUG: No movies with valid IMDb IDs found for server upload, analyzing first few movies ===", "WARNING")
                 for i, movie in enumerate(movies[:5]):  # Check first 5 movies
                     title = movie.get('title', 'Unknown')
                     imdbnumber = movie.get('imdbnumber', '')
@@ -98,7 +101,8 @@ class IMDbUploadManager:
                     utils.log(f"  - Raw movie data: {json.dumps(movie, indent=2)}", "WARNING")
                 utils.log("=== END DEBUG ANALYSIS ===", "WARNING")
 
-            utils.log(f"Found {len(valid_movies)} movies with valid IMDb IDs out of {len(movies)} total movies", "INFO")
+            movies_with_valid_imdb = [m for m in valid_movies if m.get('imdbnumber') and m.get('imdbnumber').startswith('tt') and len(m.get('imdbnumber', '')) > 2]
+            utils.log(f"Found {len(valid_movies)} total library movies, {len(movies_with_valid_imdb)} with valid IMDb IDs for server upload", "INFO")
             return valid_movies
 
         except Exception as e:
@@ -164,16 +168,15 @@ class IMDbUploadManager:
 
             # Process each movie in this batch
             for movie in movies:
-                # Extract and validate IMDb ID
+                # Extract IMDb ID (may be None/empty for some movies)
                 imdb_id = self._extract_imdb_id(movie)
-                if not imdb_id:
-                    continue
-
-                movie['imdbnumber'] = imdb_id
+                
+                # Store ALL movies from library, regardless of IMDb validity
+                movie['imdbnumber'] = imdb_id if imdb_id else ''
                 batch_valid_movies.append(movie)
 
                 # Separate light and heavy data in single pass
-                light_movie_data, heavy_movie_data = self._separate_movie_data(movie, imdb_id)
+                light_movie_data, heavy_movie_data = self._separate_movie_data(movie, imdb_id if imdb_id else '')
 
                 if light_movie_data:
                     batch_light_data.append(light_movie_data)
@@ -181,13 +184,14 @@ class IMDbUploadManager:
                 if heavy_movie_data:
                     batch_heavy_data.append(heavy_movie_data)
 
-                # Prepare export data
-                batch_export_data.append({
-                    'kodi_id': movie.get('movieid', 0),
-                    'imdb_id': imdb_id,
-                    'title': movie.get('title', ''),
-                    'year': movie.get('year', 0)
-                })
+                # Prepare export data - only add to exports if valid IMDb ID exists
+                if imdb_id:
+                    batch_export_data.append({
+                        'kodi_id': movie.get('movieid', 0),
+                        'imdb_id': imdb_id,
+                        'title': movie.get('title', ''),
+                        'year': movie.get('year', 0)
+                    })
 
             # Store all data types immediately in atomic transaction
             stored_count = 0
@@ -196,7 +200,7 @@ class IMDbUploadManager:
                     batch_light_data, batch_heavy_data, batch_export_data
                 )
 
-            utils.log(f"Batch {batch_num} complete: {stored_count} movies stored immediately", "INFO")
+            utils.log(f"Batch {batch_num} complete: {stored_count} movies stored (all library items), {len(batch_export_data)} with valid IMDb IDs", "INFO")
             return stored_count
 
         except Exception as e:
@@ -802,9 +806,9 @@ class IMDbUploadManager:
                     xbmcgui.Dialog().ok("Error", "No movies with valid IMDb IDs found in Kodi library")
                     return False
 
-                # Extract just IMDB IDs for remote upload
+                # Extract just valid IMDB IDs for remote upload (filter out empty/invalid ones)
                 movies = [{'imdb_id': movie.get('imdbnumber')} for movie in full_movies
-                         if movie.get('imdbnumber')]
+                         if movie.get('imdbnumber') and movie.get('imdbnumber').startswith('tt') and len(movie.get('imdbnumber', '')) > 2]
 
         except Exception as e:
             collection_progress.close()
@@ -913,9 +917,9 @@ class IMDbUploadManager:
                 xbmcgui.Dialog().ok("Error", "No movies with valid IMDb IDs found in Kodi library")
                 return False
 
-            # Extract just IMDB IDs for remote upload
+            # Extract just valid IMDB IDs for remote upload (filter out empty/invalid ones)
             movies = [{'imdb_id': movie.get('imdbnumber')} for movie in full_movies
-                     if movie.get('imdbnumber')]
+                     if movie.get('imdbnumber') and movie.get('imdbnumber').startswith('tt') and len(movie.get('imdbnumber', '')) > 2]
 
         except Exception as e:
             collection_progress.close()
