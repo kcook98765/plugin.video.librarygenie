@@ -72,6 +72,10 @@ class QueryManager(Singleton):
             return False
 
         rows = self.execute_query(f"PRAGMA table_info({table_name})", fetch_all=True)
+        if rows is None:
+            utils.log(f"Could not fetch column information for table {table_name}", "ERROR")
+            return False
+        
         column_names = [row['name'] for row in rows]
         return column_name in column_names
 
