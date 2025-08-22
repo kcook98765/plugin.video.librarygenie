@@ -1,4 +1,3 @@
-
 """
 ListingDAO - Data Access Object for folder and list operations
 Extracted from QueryManager to separate concerns while maintaining the same API
@@ -10,110 +9,6 @@ import json
 from contextlib import contextmanager
 from resources.lib.utils import utils
 from resources.lib.config.config_manager import Config
-
-class ListingDAO:
-    """Data Access Object for folder and list operations"""
-    
-    def __init__(self, execute_query_func, execute_write_func):
-        """Initialize with QueryManager's execute functions"""
-        self.execute_query = execute_query_func
-        self.execute_write = execute_write_func
-    
-    def get_folders(self, parent_id=None):
-        """Get folders by parent ID"""
-        if parent_id is None:
-            sql = "SELECT * FROM folders WHERE parent_id IS NULL ORDER BY name"
-            params = ()
-        else:
-            sql = "SELECT * FROM folders WHERE parent_id = ? ORDER BY name"
-            params = (parent_id,)
-        return self.execute_query(sql, params, fetch_all=True)
-    
-    def get_lists(self, folder_id=None):
-        """Get lists by folder ID"""
-        if folder_id is None:
-            sql = "SELECT * FROM lists WHERE folder_id IS NULL ORDER BY name"
-            params = ()
-        else:
-            sql = "SELECT * FROM lists WHERE folder_id = ? ORDER BY name"
-            params = (folder_id,)
-        return self.execute_query(sql, params, fetch_all=True)
-    
-    def create_folder(self, name, parent_id=None):
-        """Create a new folder"""
-        sql = "INSERT INTO folders (name, parent_id) VALUES (?, ?)"
-        folder_id = self.execute_write(sql, (name, parent_id))
-        return {'id': folder_id, 'name': name, 'parent_id': parent_id}
-    
-    def create_list(self, name, folder_id=None):
-        """Create a new list"""
-        sql = "INSERT INTO lists (name, folder_id) VALUES (?, ?)"
-        list_id = self.execute_write(sql, (name, folder_id))
-        return {'id': list_id, 'name': name, 'folder_id': folder_id}
-    
-    def insert_list_item(self, list_id, media_item_id):
-        """Insert a list item"""
-        sql = "INSERT INTO list_items (list_id, media_item_id) VALUES (?, ?)"
-        return self.execute_write(sql, (list_id, media_item_id))
-    
-    def get_heavy_meta_by_movieids(self, movieids, refresh=False):
-        """Get heavy metadata for multiple movie IDs"""
-        if not movieids:
-            return {}
-            
-        placeholders = ','.join(['?' for _ in movieids])
-        sql = f"""
-            SELECT kodi_movieid, imdbnumber, cast_json, ratings_json, 
-                   showlink_json, stream_json, uniqueid_json, tags_json
-            FROM movie_heavy_meta 
-            WHERE kodi_movieid IN ({placeholders})
-        """
-        
-        results = self.execute_query(sql, tuple(movieids), fetch_all=True)
-        heavy_meta = {}
-        
-        for row in results:
-            movieid = row['kodi_movieid']
-            heavy_meta[movieid] = {
-                'cast': json.loads(row['cast_json'] or '[]'),
-                'ratings': json.loads(row['ratings_json'] or '{}'),
-                'showlink': json.loads(row['showlink_json'] or '[]'),
-                'streamdetails': json.loads(row['stream_json'] or '{}'),
-                'uniqueid': json.loads(row['uniqueid_json'] or '{}'),
-                'tag': json.loads(row['tags_json'] or '[]')
-            }
-        
-        return heavy_meta
-    
-    # Placeholder methods that delegate to main QueryManager
-    def fetch_folders_direct(self, parent_id=None):
-        return self.get_folders(parent_id)
-    
-    def fetch_lists_direct(self, folder_id=None):
-        return self.get_lists(folder_id)
-    
-    def insert_folder_direct(self, name, parent_id):
-        return self.create_folder(name, parent_id)
-    
-    def update_folder_name_direct(self, folder_id, new_name):
-        sql = "UPDATE folders SET name = ? WHERE id = ?"
-        self.execute_write(sql, (new_name, folder_id))
-        return True
-    
-    def get_folder_depth(self, folder_id):
-        # Implement folder depth calculation
-        depth = 0
-        current_id = folder_id
-        
-        while current_id:
-            sql = "SELECT parent_id FROM folders WHERE id = ?"
-            result = self.execute_query(sql, (current_id,), fetch_one=True)
-            if not result or not result.get('parent_id'):
-                break
-            current_id = result['parent_id']
-            depth += 1
-            
-        return depth
 
 class ListingDAO:
     """Data Access Object for folder and list database operations"""
@@ -143,7 +38,8 @@ class ListingDAO:
         else:
             sql = "SELECT * FROM folders WHERE parent_id = ? ORDER BY name"
             params = (parent_id,)
-        return self.execute_query(sql, params, fetch_all=True)
+        result = self.execute_query(sql, params, fetch_all=True)
+        return result if result is not None else []
 
     def fetch_folders_direct(self, parent_id=None):
         """Direct folder fetch without transformation"""
@@ -304,7 +200,8 @@ class ListingDAO:
         else:
             sql = "SELECT * FROM lists WHERE folder_id = ? ORDER BY name"
             params = (folder_id,)
-        return self.execute_query(sql, params, fetch_all=True)
+        result = self.execute_query(sql, params, fetch_all=True)
+        return result if result is not None else []
 
     def fetch_lists_direct(self, folder_id=None):
         """Direct list fetch without transformation"""
@@ -463,7 +360,7 @@ class ListingDAO:
 
         try:
             current_time = int(time.time())
-            
+
             # Always use query manager executors for consistency
             # First try to update existing record
             update_sql = """
@@ -486,7 +383,7 @@ class ListingDAO:
             # Check if record exists (since execute_write doesn't return rowcount)
             check_sql = "SELECT kodi_movieid FROM movie_heavy_meta WHERE kodi_movieid = ?"
             existing = self.execute_query(check_sql, (movieid,), fetch_one=True)
-            
+
             if not existing:
                 # No record found, try insert
                 insert_sql = """
