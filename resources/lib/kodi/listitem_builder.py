@@ -336,7 +336,7 @@ class ListItemBuilder:
                             pass
                         break
 
-        # Handle cast data
+        # Handle cast data with v19 compatibility
         cast = media_info.get('cast', [])
         if cast:
             try:
@@ -347,13 +347,37 @@ class ListItemBuilder:
                     except json.JSONDecodeError:
                         cast = []
 
-                # Ensure cast is a list
+                # Ensure cast is a list and normalize structure for v19
                 if not isinstance(cast, list):
                     cast = []
 
-                info_dict['cast'] = cast
+                # Normalize cast entries for v19 compatibility
+                normalized_cast = []
+                for actor in cast:
+                    if isinstance(actor, dict):
+                        # Standard dict format - ensure all required keys exist
+                        normalized_actor = {
+                            'name': str(actor.get('name', '')),
+                            'role': str(actor.get('role', '')),
+                            'order': int(actor.get('order', 0)) if str(actor.get('order', '')).isdigit() else 0,
+                            'thumbnail': str(actor.get('thumbnail', ''))
+                        }
+                        if normalized_actor['name']:  # Only add if name exists
+                            normalized_cast.append(normalized_actor)
+                    elif isinstance(actor, str):
+                        # String format - convert to dict
+                        if actor.strip():
+                            normalized_cast.append({
+                                'name': str(actor.strip()),
+                                'role': '',
+                                'order': len(normalized_cast),
+                                'thumbnail': ''
+                            })
 
-            except Exception:
+                info_dict['cast'] = normalized_cast
+
+            except Exception as e:
+                utils.log(f"Cast processing error (v19 compatibility): {str(e)}", "WARNING")
                 info_dict['cast'] = []
         
         # Handle other heavy metadata fields for search results
