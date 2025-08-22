@@ -107,10 +107,13 @@ def add_options_header_item(ctx: dict, handle: int):
 
 def build_root_directory(handle: int):
     """Build the root directory with search option"""
+    utils.log(f"=== BUILD_ROOT_DIRECTORY CALLED with handle: {handle} ===", "INFO")
+    
     try:
         # Add options header - always add it at root level first
         utils.log("=== BUILDING ROOT DIRECTORY: Adding Options & Tools header ===", "INFO")
         ctx = detect_context({'view': 'root'})
+        utils.log(f"Detected context: {ctx}", "DEBUG")
         add_options_header_item(ctx, handle)
         utils.log("=== ROOT DIRECTORY: Options & Tools header added successfully ===", "INFO")
     except Exception as e:

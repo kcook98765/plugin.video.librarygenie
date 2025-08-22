@@ -349,7 +349,7 @@ def router(paramstring):
 
     action = q.get("action", [""])[0] if isinstance(q.get("action", [""]), list) else q.get("action", "")
 
-    log(f"Action determined: {action}", "DEBUG")
+    log(f"Action determined: '{action}', params: {q}", "DEBUG")
 
     if action == "search":
         log("Handling search action", "DEBUG")

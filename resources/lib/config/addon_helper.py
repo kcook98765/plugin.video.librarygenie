@@ -134,71 +134,11 @@ def run_addon():
         utils.log("Initializing Kodi helper", "DEBUG")
         kodi_helper = KodiHelper()
 
-        # MainWindow functionality has been moved to plugin-based approach
-        utils.log("Using plugin-based routing instead of MainWindow", "DEBUG")
-
-        # Handle context menu vs direct launch
-        if listitem_context:
-            utils.log("Processing context menu click", "DEBUG")
-            # Context menu functionality has been moved to plugin-based approach
-            utils.log("Context menu handling deprecated - using plugin routing", "INFO")
-            xbmcgui.Dialog().notification("LibraryGenie", "Use addon menu instead of context menu", xbmcgui.NOTIFICATION_INFO, 3000)
-            return
-        elif action == 'show_list':
-            # Handle specific list display
-            params = urllib.parse.parse_qs(args)
-            list_id = params.get('list_id', [None])[0]
-            if list_id:
-                kodi_helper.show_list(int(list_id))
-            return
-        else:
-            # Handle different actions
-            if action == 'show_main_window':
-                utils.log("Main window functionality deprecated - using plugin routing", "INFO")
-                xbmcgui.Dialog().notification("LibraryGenie", "Main window has been replaced with plugin interface", xbmcgui.NOTIFICATION_INFO, 3000)
-            elif action == 'setup_remote_api':
-                utils.log("Setting up remote API", "DEBUG")
-                utils.setup_remote_api()
-            elif action == 'manual_setup_remote_api':
-                utils.log("Manual remote API setup", "DEBUG")
-                from resources.lib.integrations.remote_api.remote_api_setup import manual_setup_remote_api
-                manual_setup_remote_api()
-            elif action == 'test_remote_api':
-                utils.log("Testing remote API connection", "DEBUG")
-                from resources.lib.integrations.remote_api.remote_api_client import RemoteAPIClient
-                client = RemoteAPIClient()
-                if client.test_connection():
-                    utils.show_notification("Remote API", "Connection test successful!")
-                else:
-                    utils.show_notification("Remote API", "Connection test failed!", icon=xbmcgui.NOTIFICATION_ERROR)
-            elif action == 'upload_library_full':
-                utils.log("Starting full library upload", "DEBUG")
-                from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
-                upload_manager = IMDbUploadManager()
-                upload_manager.upload_library_full_sync()
-            elif action == 'upload_library_delta':
-                utils.log("Starting delta library sync", "DEBUG")
-                from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
-                upload_manager = IMDbUploadManager()
-                upload_manager.upload_library_delta_sync()
-            elif action == 'upload_status':
-                utils.log("Checking upload status", "DEBUG")
-                from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
-                upload_manager = IMDbUploadManager()
-                upload_manager.get_upload_status()
-            elif action == 'clear_server_library':
-                utils.log("Clearing server library", "DEBUG")
-                from resources.lib.integrations.remote_api.imdb_upload_manager import IMDbUploadManager
-                upload_manager = IMDbUploadManager()
-                upload_manager.clear_server_library()
-            elif action == 'clear_all_local_data':
-                clear_all_local_data()
-            else:
-                # Always show root directory for direct launch or unknown action
-                root_folders = query_manager.fetch_folders(None)  # Get root folders
-                root_lists = query_manager.fetch_lists(None)  # Get root lists
-                kodi_helper.list_folders_and_lists(root_folders, root_lists)
-                return
+        # Using plugin-based routing instead of MainWindow
+        log(f"Using plugin-based routing instead of MainWindow with args: {args}", "DEBUG")
+        import main
+        main.router(args)
+        return
 
     except Exception as e:
         utils.log(f"Error running addon: {str(e)}", "ERROR")
