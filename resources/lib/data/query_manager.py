@@ -700,8 +700,16 @@ class QueryManager(Singleton):
             FROM imdb_exports
         """
         result = self.execute_query(query, fetch_one=True)
-        total = result['total'] if result else 0
-        valid_imdb = result['valid_imdb'] if result else 0
+        
+        if result is None:
+            return {
+                'total': 0,
+                'valid_imdb': 0,
+                'percentage': 0
+            }
+        
+        total = result.get('total', 0)
+        valid_imdb = result.get('valid_imdb', 0)
         return {
             'total': total,
             'valid_imdb': valid_imdb,
