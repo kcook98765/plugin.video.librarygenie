@@ -31,18 +31,18 @@ class QueryManager(Singleton):
         """Validate SQL identifier against safe pattern"""
         if not identifier or not isinstance(identifier, str):
             return False
-            
+
         # Check safe name pattern: alphanumeric, underscore, no spaces, reasonable length
         if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', identifier) or len(identifier) > 64:
             return False
-        
+
         # Additional check: identifier must not be a SQL keyword
         sql_keywords = {
             'select', 'insert', 'update', 'delete', 'drop', 'create', 'alter', 
             'table', 'index', 'view', 'trigger', 'database', 'schema', 'from',
             'where', 'join', 'union', 'group', 'order', 'having', 'limit'
         }
-        
+
         return identifier.lower() not in sql_keywords
 
     def _validate_table_exists(self, table_name):
@@ -50,7 +50,7 @@ class QueryManager(Singleton):
         if not self._validate_sql_identifier(table_name):
             utils.log(f"Invalid table identifier: {table_name}", "ERROR")
             return False
-            
+
         result = self.execute_query(
             "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
             (table_name,),
@@ -62,16 +62,16 @@ class QueryManager(Singleton):
         """Validate column exists in specified table"""
         if not self._validate_sql_identifier(table_name) or not self._validate_sql_identifier(column_name):
             return False
-            
+
         if not self._validate_table_exists(table_name):
             return False
-            
+
         # Use PRAGMA table_info to check column existence
         result = self.execute_query(
             f"PRAGMA table_info({table_name})",
             fetch_all=True
         )
-        
+
         column_names = [row['name'] for row in result]
         return column_name in column_names
 
@@ -473,7 +473,7 @@ class QueryManager(Singleton):
         if not self._validate_table_exists('media_items'):
             utils.log("Table media_items does not exist", "ERROR")
             return []
-            
+
         conditions = ["title LIKE ?"]
         params = [f"%{title}%"]
 
@@ -537,14 +537,14 @@ class QueryManager(Singleton):
         media_data.setdefault('duration', 0)
         media_data.setdefault('votes', 0)
         media_data.setdefault('title', 'Unknown')
-        
+
         # Set proper source based on kodi_id presence
         if 'source' not in media_data:
             if media_data.get('kodi_id', 0) > 0:
                 media_data['source'] = 'lib'
             else:
                 media_data['source'] = 'unknown'
-        
+
         media_data.setdefault('media_type', 'movie')
 
         # Ensure search_score is included if present in input data
@@ -665,13 +665,13 @@ class QueryManager(Singleton):
         if not self._validate_table_exists(table):
             utils.log(f"Invalid or non-existent table: {table}", "ERROR")
             raise ValueError(f"Invalid table name: {table}")
-            
+
         # Validate all column names
         for column in data.keys():
             if not self._validate_column_exists(table, column):
                 utils.log(f"Invalid column {column} for table {table}", "ERROR")
                 raise ValueError(f"Invalid column name: {column}")
-        
+
         columns = ', '.join(data.keys())
         placeholders = ', '.join('?' for _ in data)
         query = f'INSERT INTO {table} ({columns}) VALUES ({placeholders})'
@@ -683,7 +683,7 @@ class QueryManager(Singleton):
         if not self._validate_table_exists('media_items'):
             utils.log("Table media_items does not exist", "ERROR")
             return []
-            
+
         conditions = ["title LIKE ?"]
         params = [f"%{title}%"]
 
@@ -695,7 +695,7 @@ class QueryManager(Singleton):
             params.append(f"%{director}%")
 
         where_clause = " AND ".join(conditions)
-        
+
         # Use explicit column list (all validated as existing columns)
         query = f"""
             SELECT DISTINCT
@@ -740,7 +740,7 @@ class QueryManager(Singleton):
         db_dir = os.path.dirname(self.db_path)
         if not os.path.exists(db_dir):
             os.makedirs(db_dir, exist_ok=True)
-            
+
         fields_str = ', '.join(Config.FIELDS)
 
         table_creations = [
@@ -781,7 +781,7 @@ class QueryManager(Singleton):
                 FOREIGN KEY (list_id) REFERENCES lists (id),
                 FOREIGN KEY (media_item_id) REFERENCES media_items (id)
             )""",
-            
+
 
             """CREATE TABLE IF NOT EXISTS original_requests (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -789,8 +789,8 @@ class QueryManager(Singleton):
                 response_json TEXT,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )""",
-            
-            
+
+
             """CREATE TABLE IF NOT EXISTS movie_heavy_meta (
                 kodi_movieid INTEGER PRIMARY KEY,
                 imdbnumber TEXT,
@@ -812,7 +812,7 @@ class QueryManager(Singleton):
                 cursor.execute(create_sql)
             conn.commit()
 
-            
+
 
             # Create index for movie_heavy_meta table
             try:
@@ -874,7 +874,7 @@ class QueryManager(Singleton):
         utils.log(f"=== STORING HEAVY METADATA BATCH: {len(heavy_metadata_list)} movies ===", "INFO")
 
         import time
-        
+
         with self._lock:
             conn = self._get_connection()
             try:
@@ -937,7 +937,10 @@ class QueryManager(Singleton):
                     ))
 
                 conn.commit()
-                utils.log(f"Successfully stored heavy metadata for {len(heavy_metadata_list)} movies", "INFO")
+                # Only log transaction commits for larger batches
+                if len(heavy_metadata_list) > 50:
+                    utils.log(f"Committed heavy metadata transaction: {len(heavy_metadata_list)} movies", "DEBUG")
+
 
                 # Verify storage by checking first movie (only for first batch to reduce spam)
                 if heavy_metadata_list and len(heavy_metadata_list) == 1:
@@ -969,7 +972,7 @@ class QueryManager(Singleton):
         # This method relies on ListingDAO. If ListingDAO is not updated to use the new
         # QueryManager methods correctly, this might break. Assuming ListingDAO is compatible.
         return self._listing.get_heavy_meta_by_movieids(movieids, refresh)
-        
+
     def get_imdb_export_stats(self) -> Dict[str, Any]:
         """Get statistics about IMDB numbers in exports"""
         query = """
@@ -999,7 +1002,7 @@ class QueryManager(Singleton):
             (kodi_id, imdb_id, title, year)
             VALUES (?, ?, ?, ?)
         """
-        
+
         data_to_insert = []
         for movie in movies:
             data_to_insert.append((

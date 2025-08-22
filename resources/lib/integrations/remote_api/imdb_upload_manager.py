@@ -207,7 +207,7 @@ class IMDbUploadManager:
         """Process and store movies with optimized single-pass approach - no second pass needed"""
         try:
             utils.log(f"Starting optimized processing of {len(movies)} movies (single pass)", "INFO")
-            
+
             if use_notifications:
                 utils.show_notification("LibraryGenie", f"Starting processing of {len(movies)} movies...", time=2000)
 
@@ -267,9 +267,9 @@ class IMDbUploadManager:
                 if use_notifications and show_progress:
                     utils.show_notification("LibraryGenie", f"Processing: {progress_percent}%", time=1500)
 
-                # Reduced logging
-                if batch_num % 10 == 0 or batch_num == 1 or batch_num == total_batches:
-                    utils.log(f"Optimized progress: {progress_percent}% - Batch {batch_num}/{total_batches} ({processed}/{total_movies} movies)", "INFO")
+                # Minimal logging - only log every 50 batches or at start/end
+                if batch_num % 50 == 0 or batch_num == 1 or batch_num == total_batches:
+                    utils.log(f"Progress: {progress_percent}% - Batch {batch_num}/{total_batches} ({processed}/{total_movies} movies)", "INFO")
 
             utils.log(f"Successfully processed {processed} movies in optimized single pass", "INFO")
 
@@ -342,13 +342,13 @@ class IMDbUploadManager:
         # Only log for first batch to reduce spam
         if len(batch_data) <= 100:
             utils.log(f"=== STORING LIGHT METADATA BATCH: {len(batch_data)} movies ===", "DEBUG")
-        
+
         columns = ', '.join(batch_data[0].keys())
         placeholders = ', '.join(['?' for _ in batch_data[0]])
         query = f'INSERT OR IGNORE INTO media_items ({columns}) VALUES ({placeholders})'
         values_list = [tuple(movie_data.values()) for movie_data in batch_data]
         result = self.query_manager.executemany_write(query, values_list)
-        
+
         # Only log success for first batch
         if len(batch_data) <= 100:
             utils.log(f"Successfully stored light metadata for {len(batch_data)} movies", "DEBUG")
@@ -362,12 +362,12 @@ class IMDbUploadManager:
         # Only log for first batch to reduce spam
         if len(batch_export_data) <= 100:
             utils.log(f"=== STORING EXPORT DATA BATCH: {len(batch_export_data)} movies ===", "DEBUG")
-        
+
         sql = "INSERT OR REPLACE INTO imdb_exports (kodi_id, imdb_id, title, year) VALUES (?, ?, ?, ?)"
         data_to_insert = [(data['kodi_id'], data['imdb_id'], data['title'], data['year']) 
                          for data in batch_export_data]
         self.query_manager.executemany_write(sql, data_to_insert)
-        
+
         # Only log success for first batch
         if len(batch_export_data) <= 100:
             utils.log(f"Successfully stored export data for {len(batch_export_data)} movies", "DEBUG")
@@ -378,14 +378,14 @@ class IMDbUploadManager:
             light_count = len(batch_light_data) if batch_light_data else 0
             heavy_count = len(batch_heavy_data) if batch_heavy_data else 0
             export_count = len(batch_export_data) if batch_export_data else 0
-            
+
             # Only log details for first few batches to reduce spam
             if light_count <= 100:  # First batch or small batches
                 utils.log(f"=== SIMULTANEOUS STORAGE TRANSACTION: {light_count} light + {heavy_count} heavy + {export_count} export ===", "DEBUG")
-            
+
             with self.query_manager.transaction():
                 stored_count = 0
-                
+
                 # Store light metadata first
                 if batch_light_data:
                     self._bulk_insert_media_items(batch_light_data)
@@ -398,13 +398,13 @@ class IMDbUploadManager:
                 # Store export data in same transaction
                 if batch_export_data:
                     self._bulk_insert_export_data(batch_export_data)
-                
+
                 # Only log completion for debugging
                 if light_count <= 100:
                     utils.log(f"=== TRANSACTION COMPLETED: All {light_count + heavy_count + export_count} records committed atomically ===", "DEBUG")
-                
+
                 return stored_count
-                
+
         except Exception as e:
             utils.log(f"Error storing batch metadata simultaneously: {str(e)}", "ERROR")
             return 0
@@ -485,7 +485,7 @@ class IMDbUploadManager:
     def _retrieve_and_store_movies_incrementally(self, use_notifications):
         """Retrieve movies from Kodi and store each batch immediately for continuous progress."""
         utils.log("Starting incremental movie retrieval and storage from Kodi library", "INFO")
-        
+
         # Show only initial notification
         if use_notifications:
             utils.show_notification("LibraryGenie", "Starting library scan...", time=2000)
@@ -495,7 +495,7 @@ class IMDbUploadManager:
         total_stored = 0
         total = 0
         start_time = time.time()
-        
+
         # Progress tracking variables
         progress_dialog = None
         step_size = 1  # Will be calculated after we know total
@@ -546,18 +546,18 @@ class IMDbUploadManager:
 
             movies = response['result']['movies']
             total = response['result']['limits']['total']
-            
+
             # Initialize progress dialog after first batch when we know the total
             if start == 0 and total > 0:
                 # Calculate smart step size for ~15 updates during processing
                 step_size = max(1, total // 15)
-                
+
                 # Create persistent progress dialog (only if notifications enabled)
                 if use_notifications:
                     import xbmcgui
                     progress_dialog = xbmcgui.DialogProgressBG()
                     progress_dialog.create("LibraryGenie", f"Processing {total} movies...")
-                
+
                 utils.log(f"Progress tracking: {total} movies, updating every {step_size} items", "INFO")
 
             # Process and store this batch immediately
@@ -568,16 +568,16 @@ class IMDbUploadManager:
             # Smart progress tracking with minimal UI updates
             current_retrieved = start + len(movies)
             progress_percent = int((current_retrieved / total) * 100) if total > 0 else 0
-            
+
             # Update progress dialog only when we hit step boundaries or completion
             if progress_dialog and (current_retrieved - last_update_count >= step_size or current_retrieved >= total):
                 elapsed = time.time() - start_time
                 rate = current_retrieved / elapsed if elapsed > 0 else 0
-                
+
                 # Update the persistent progress dialog
                 progress_dialog.update(progress_percent, f"LibraryGenie", f"{current_retrieved}/{total} • {rate:.0f}/s")
                 last_update_count = current_retrieved
-            
+
             # Log progress less frequently to reduce spam
             batch_num = start // batch_size + 1
             if batch_num % 10 == 0 or batch_num == 1 or current_retrieved >= total:
@@ -594,7 +594,7 @@ class IMDbUploadManager:
         # Clean up progress dialog
         if progress_dialog:
             progress_dialog.close()
-        
+
         # Final summary
         elapsed = time.time() - start_time
         rate = total_stored / elapsed if elapsed > 0 else 0
@@ -748,11 +748,16 @@ class IMDbUploadManager:
         # Only log for first few batches and summary to reduce spam
         if len(heavy_metadata_list) <= 5:
             utils.log(f"=== STORING HEAVY METADATA BATCH: {len(heavy_metadata_list)} movies ===", "INFO")
-        elif len(heavy_metadata_list) % 1000 == 0:
-            utils.log(f"=== STORING HEAVY METADATA BATCH: {len(heavy_metadata_list)} movies ===", "INFO")
+        elif len(heavy_metadata_list) > 50:  # Only log for larger batches
+            utils.log(f"Storing heavy metadata batch: {len(heavy_metadata_list)} movies", "DEBUG")
 
         # Use QueryManager's store_heavy_meta_batch method
         self.query_manager.store_heavy_meta_batch(heavy_metadata_list)
+
+        # Only log completion for larger batches
+        if len(heavy_metadata_list) > 50:
+            utils.log(f"Stored heavy metadata for {len(heavy_metadata_list)} movies", "DEBUG")
+
 
     def _bulk_insert_movies(self, batch_data):
         """Bulk insert movie data into database using QueryManager."""
