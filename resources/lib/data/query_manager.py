@@ -976,3 +976,68 @@ class QueryManager(Singleton):
     # Convenience alias preserved for backward compatibility
     def get_list_media_items(self, list_id: int) -> List[Dict]:
         return self.fetch_list_items_with_details(list_id)
+
+    def is_reserved_list_id(self, list_id: int) -> bool:
+        """Check if a list ID is reserved for system lists"""
+        return list_id in [1, 2]  # IDs 1 and 2 are reserved for system lists
+
+    def move_list_to_folder(self, list_id: int, target_folder_id: Optional[int]) -> bool:
+        """Move a list to a different folder"""
+        try:
+            self.execute_write('UPDATE lists SET folder_id = ? WHERE id = ?', (target_folder_id, int(list_id)))
+            return True
+        except Exception as e:
+            utils.log(f"Error moving list {list_id} to folder {target_folder_id}: {str(e)}", "ERROR")
+            return False
+
+    def ensure_kodi_favorites_list(self) -> Dict:
+        """Ensure 'Kodi Favorites' list exists with ID 1"""
+        existing = self.fetch_list_by_id(1)
+        if existing:
+            return existing
+        
+        # Create the list with specific ID
+        self.execute_write(
+            "INSERT INTO lists (id, name, folder_id, protected) VALUES (?, ?, ?, ?)",
+            (1, "Kodi Favorites", None, 1)
+        )
+        return {'id': 1, 'name': "Kodi Favorites", 'folder_id': None, 'protected': 1}
+
+    def ensure_shortlist_imports_list(self) -> Dict:
+        """Ensure 'Shortlist Imports' list exists with ID 2"""
+        existing = self.fetch_list_by_id(2)
+        if existing:
+            return existing
+        
+        # Create the list with specific ID
+        self.execute_write(
+            "INSERT INTO lists (id, name, folder_id, protected) VALUES (?, ?, ?, ?)",
+            (2, "Shortlist Imports", None, 1)
+        )
+        return {'id': 2, 'name': "Shortlist Imports", 'folder_id': None, 'protected': 1}
+
+    def update_data(self, table: str, data: Dict[str, Any], where_clause: str, params: Tuple) -> bool:
+        """Update data in a table with validation"""
+        if not self._validate_table_exists(table):
+            utils.log(f"Invalid or non-existent table: {table}", "ERROR")
+            return False
+        
+        # Validate columns exist
+        for column in data.keys():
+            if not self._validate_column_exists(table, column):
+                utils.log(f"Invalid column {column} for table {table}", "ERROR")
+                return False
+        
+        try:
+            # Build SET clause
+            set_clause = ', '.join([f"{col} = ?" for col in data.keys()])
+            sql = f"UPDATE {table} SET {set_clause} WHERE {where_clause}"
+            
+            # Combine data values with where parameters
+            all_params = tuple(data.values()) + params
+            
+            self.execute_write(sql, all_params)
+            return True
+        except Exception as e:
+            utils.log(f"Error updating {table}: {str(e)}", "ERROR")
+            return False
