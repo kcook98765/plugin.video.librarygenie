@@ -54,7 +54,7 @@ def show_library_status():
             "SELECT COUNT(*) as count FROM media_items WHERE source = 'lib' AND imdbnumber IS NOT NULL AND imdbnumber != '' AND imdbnumber LIKE 'tt%'",
             fetch_one=True
         )
-        items_with_imdb = imdb_result.get('count', 0) if imdb_result and isinstance(imdb_result, dict) else 0 0
+        items_with_imdb = imdb_result.get('count', 0) if imdb_result and isinstance(imdb_result, dict) else 0
 
         # Get unique IMDb IDs count from media_items
         unique_imdb_result = query_manager.execute_query(
@@ -208,7 +208,7 @@ def show_library_status():
                 if tmdb_available.get('count', 0) > 0:
                     tmdb_percentage = tmdb_available.get('percentage', 0)
                     tmdb_color = "green" if tmdb_percentage >= 98 else "yellow" if tmdb_percentage >= 90 else "red"
-                    status_lines.append(f"  • TMDB metadata: {tmdb_percentage:.1f}%")ge:.1f}%")
+                    status_lines.append(f"  • TMDB metadata: {tmdb_percentage:.1f}%")
                 
                 if opensearch_indexed.get('count', 0) > 0:
                     search_percentage = opensearch_indexed.get('percentage', 0)
@@ -244,16 +244,7 @@ def show_library_status():
                     "",
                     f"[COLOR {sync_color}]SYNC STATUS[/COLOR] {sync_status_text}",
                     f"  • Server: {server_count:,} | Local unique: {unique_imdb_count:,} | Export ready: {exports_unique:,}",
-                import xbmcgui
-from resources.lib.utils import utils
-from resources.lib.config.config_manager import Config
-from resources.lib.data.query_manager import QueryManager
-from resources.lib.integrations.remote_api.remote_api_client import RemoteAPIClient
-
-def show_scrollable_status_dialog(title, lines):
-    """Show a scrollable dialog using select method for better navigation"""
-    dialog = xbmcgui.Dialog()
-    dialog.select(title, lines)
+                ])
 
         utils.log("LIBRARY_STATUS: Status summary generated successfully", "INFO")
         # utils.log(f"LIBRARY_STATUS: Total: {total_library_items}, IMDb: {items_with_imdb}, Unique IMDb: {unique_imdb_count}, Duplicates: {duplicate_imdb_count}, Authenticated: {is_authenticated}, Server: {server_count if is_authenticated else 'N/A'}", "INFO") # Updated log to remove duplicate count
@@ -272,5 +263,4 @@ def show_scrollable_status_dialog(title, lines):
         xbmcgui.Dialog().ok(
             'Library Status Error', 
             f'Error gathering library status:\n{str(e)}'
-        )str(e)}'
         )
