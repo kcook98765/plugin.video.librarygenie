@@ -403,31 +403,20 @@ class KodiHelper:
             utils.log("Gathering cast information", "DEBUG")
             cast = []
             for i in range(1, 21):  # Assuming a maximum of 20 cast members
-                try:
-                    name = xbmc.getInfoLabel(f'ListItem.CastAndRole.{i}.Name')
-                    if not name or not str(name).strip():
-                        continue
-                    
-                    role = xbmc.getInfoLabel(f'ListItem.CastAndRole.{i}.Role')
-                    thumbnail = xbmc.getInfoLabel(f'ListItem.CastAndRole.{i}.Thumb')
-                    order = i - 1  # Zero-based index
-                    
-                    # Ensure all values are strings for v19 compatibility
-                    cast_member = {
-                        'name': str(name).strip(),
-                        'role': str(role).strip() if role else '',
-                        'order': order,
-                        'thumbnail': str(thumbnail).strip() if thumbnail else ''
-                    }
-                    
-                    utils.log(f"Cast member {i}: {cast_member['name']} as {cast_member['role']}", "DEBUG")
-                    cast.append(cast_member)
-                    
-                except Exception as cast_error:
-                    utils.log(f"Error processing cast member {i}: {str(cast_error)}", "DEBUG")
+                name = xbmc.getInfoLabel(f'ListItem.CastAndRole.{i}.Name')
+                if not name:
                     continue
-                    
-            return json.dumps(cast) if isinstance(cast, list) else "[]"
+                role = xbmc.getInfoLabel(f'ListItem.CastAndRole.{i}.Role')
+                order = i - 1  # Zero-based index
+                utils.log(f"Cast member {i}: {name} as {role}", "DEBUG")
+                thumbnail = xbmc.getInfoLabel(f'ListItem.CastAndRole.{i}.Thumb')
+                cast.append({
+                    'name': name,
+                    'role': role,
+                    'order': order,
+                    'thumbnail': thumbnail
+                })
+            return json.dumps(cast) if isinstance(cast, list) else cast
         except Exception as e:
             utils.log(f"Error getting cast info: {str(e)}", "ERROR")
             return "[]"

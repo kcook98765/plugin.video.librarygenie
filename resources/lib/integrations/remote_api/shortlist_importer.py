@@ -470,29 +470,19 @@ class ShortlistImporter:
             runtime_minutes = self.safe_convert_int(kodi_movie.get('runtime', 0))
             duration_seconds = runtime_minutes * 60 if runtime_minutes > 0 else 0
 
-            # Cast processing: Extract actor names from cast array (v19 compatible)
+            # Cast processing: Extract actor names from cast array
             cast_data = kodi_movie.get('cast', [])
             cast_string = ''
             if isinstance(cast_data, list):
                 actor_names = []
                 for actor in cast_data[:10]:  # Limit to 10 actors
-                    try:
-                        if isinstance(actor, dict):
-                            name = str(actor.get('name', '')).strip()
-                            if name:
-                                actor_names.append(name)
-                        elif isinstance(actor, str):
-                            name = str(actor).strip()
-                            if name:
-                                actor_names.append(name)
-                    except (TypeError, AttributeError) as e:
-                        # Skip malformed cast entries in v19
-                        utils.log(f"Skipping malformed cast entry: {actor}, error: {str(e)}", "DEBUG")
-                        continue
+                    if isinstance(actor, dict):
+                        name = actor.get('name', '')
+                        if name:
+                            actor_names.append(name)
+                    elif isinstance(actor, str):
+                        actor_names.append(actor)
                 cast_string = ', '.join(actor_names) if actor_names else ''
-            elif isinstance(cast_data, str):
-                # Handle case where cast is already a string (v19 edge case)
-                cast_string = str(cast_data)[:200]  # Limit length
 
             media_dict = {
                 'title': self.safe_convert_string(kodi_movie.get('title'), 'Unknown Title'),
