@@ -423,8 +423,8 @@ class QueryManager(Singleton):
             (imdb_id, imdb_id, kodi_id),
             fetch_one=True
         )
-        if row:
-            return row['id'] or 0
+        if row and isinstance(row, dict):
+            return row.get('id', 0) or 0
 
         data = {
             'kodi_id': int(kodi_id or 0),
@@ -454,8 +454,8 @@ class QueryManager(Singleton):
             (title, year, play),
             fetch_one=True
         )
-        if existing:
-            return existing['id'] or 0
+        if existing and isinstance(existing, dict):
+            return existing.get('id', 0) or 0
         return self.insert_media_item(payload) or 0
 
     def insert_list_item(self, list_id: int, media_item_id: int) -> int:
@@ -726,7 +726,7 @@ class QueryManager(Singleton):
         """
         result = self.execute_query(query, fetch_one=True)
         
-        if not isinstance(result, dict):
+        if not result or not isinstance(result, dict):
             return {
                 'total': 0,
                 'valid_imdb': 0,
