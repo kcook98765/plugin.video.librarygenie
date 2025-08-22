@@ -867,6 +867,9 @@ class QueryManager(Singleton):
     def get_folders(self, parent_id: Optional[int] = None):
         return self._listing.get_folders(parent_id)
 
+    def fetch_folders(self, parent_id: Optional[int] = None):
+        return self._listing.get_folders(parent_id)
+
     def fetch_folders_direct(self, parent_id: Optional[int] = None):
         return self._listing.fetch_folders_direct(parent_id)
 
@@ -911,6 +914,9 @@ class QueryManager(Singleton):
 
     # LISTS
     def get_lists(self, folder_id: Optional[int] = None):
+        return self._listing.get_lists(folder_id)
+
+    def fetch_lists(self, folder_id: Optional[int] = None):
         return self._listing.get_lists(folder_id)
 
     def fetch_lists_direct(self, folder_id: Optional[int] = None):
