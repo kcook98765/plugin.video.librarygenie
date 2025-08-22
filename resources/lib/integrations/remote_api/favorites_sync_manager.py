@@ -158,12 +158,17 @@ class FavoritesSyncManager:
             list_id = self.get_kodi_favorites_list_id()
             current_list_count = self.query_manager.get_list_media_count(list_id)
             
-            if current_signature == last_signature and current_list_count > 0:
+            # Force rebuild if list is empty but we have favorites
+            force_rebuild = (current_list_count == 0 and len(current_items) > 0)
+            
+            if current_signature == last_signature and current_list_count > 0 and not force_rebuild:
                 elapsed_time = time.time() - start_time
                 utils.log(f"Favorites unchanged, no sync needed (checked in {elapsed_time:.2f}s)", "DEBUG")
                 return False
-            elif current_list_count == 0 and len(current_items) > 0:
+            elif force_rebuild:
                 utils.log(f"Favorites list is empty but we have {len(current_items)} favorites - forcing rebuild", "INFO")
+            elif current_signature != last_signature:
+                utils.log(f"Favorites signature changed: {last_signature[:8]}... -> {current_signature[:8]}...", "INFO")
 
             utils.log(f"Favorites changed - proceeding with sync", "INFO")
 
