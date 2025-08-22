@@ -39,7 +39,10 @@ class SettingsManager:
         """Check if favorites sync is enabled"""
         return self.get_setting('sync_favorites', 'true').lower() == 'true'
     
-    
+    def import_from_shortlist(self):
+        """Trigger shortlist import"""
+        from resources.lib.integrations.remote_api.shortlist_importer import import_from_shortlist
+        return import_from_shortlist()
 
     def addon_library_status(self):
         """Show addon library status dialog"""
