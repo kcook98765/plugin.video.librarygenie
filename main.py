@@ -333,7 +333,7 @@ def router(paramstring):
 
     # Check if paramstr is valid and not empty before parsing
     if not params:
-        log("Received empty paramstr, building root directory.", "WARNING")
+        log("Received empty paramstr, building root directory.", "DEBUG")
         nav_manager.clear_navigation_flags()
         build_root_directory(ADDON_HANDLE)
         return
@@ -447,6 +447,7 @@ def router(paramstring):
     else:
         # Default: build root directory if action is not recognized or empty
         log(f"Unrecognized action '{action}' or no action specified, building root directory.", "DEBUG")
+        nav_manager.clear_navigation_flags()
         build_root_directory(ADDON_HANDLE)
 
 # Add handle_show_options function here

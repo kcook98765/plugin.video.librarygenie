@@ -77,8 +77,14 @@ def add_options_header_item(ctx: dict, handle: int):
             url_params['folder_id'] = ctx['folder_id']
 
         utils.log(f"Building options URL with params: {url_params}", "DEBUG")
-        url = build_plugin_url(url_params)
-        utils.log(f"Built options URL: {url}", "DEBUG")
+        try:
+            url = build_plugin_url(url_params)
+            utils.log(f"Built options URL: {url}", "DEBUG")
+        except Exception as url_error:
+            utils.log(f"Error building options URL: {str(url_error)}", "ERROR")
+            # Fallback to simple URL
+            url = build_plugin_url({'action': 'show_options'})
+            utils.log(f"Using fallback options URL: {url}", "DEBUG")
 
         # Add as non-folder item for RunPlugin behavior
         utils.log("Adding Options & Tools to directory", "INFO")
@@ -101,9 +107,16 @@ def add_options_header_item(ctx: dict, handle: int):
 
 def build_root_directory(handle: int):
     """Build the root directory with search option"""
-    # Add options header - always add it at root level
-    ctx = detect_context({'view': 'root'})
-    add_options_header_item(ctx, handle)
+    try:
+        # Add options header - always add it at root level first
+        utils.log("=== BUILDING ROOT DIRECTORY: Adding Options & Tools header ===", "INFO")
+        ctx = detect_context({'view': 'root'})
+        add_options_header_item(ctx, handle)
+        utils.log("=== ROOT DIRECTORY: Options & Tools header added successfully ===", "INFO")
+    except Exception as e:
+        utils.log(f"Error adding Options & Tools header: {str(e)}", "ERROR")
+        import traceback
+        utils.log(f"Options header error traceback: {traceback.format_exc()}", "ERROR")
 
     # Add list and folder items here based on existing database content
     try:
