@@ -101,6 +101,13 @@ def set_info_tag(list_item: ListItem, info_dict: Dict, content_type: str = 'vide
         utils.log("Invalid or empty info_dict provided to set_info_tag", "WARNING")
         return
 
+    # Log InfoTag usage with thread info
+    import threading
+    current_thread = threading.current_thread()
+    title = info_dict.get('title', 'Unknown')
+    utils.log(f"=== SET_INFO_TAG: Setting info for '{title}' on thread {current_thread.name} (ID: {current_thread.ident}) ===", "INFO")
+
+
     # For Kodi v19, use setInfo directly since InfoTag setters are unreliable
     if utils.is_kodi_v19():
         try:

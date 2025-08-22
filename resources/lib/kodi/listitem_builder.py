@@ -168,9 +168,24 @@ class ListItemBuilder:
         source = item_dict.get('source', 'unknown') if isinstance(item_dict, dict) else 'unknown'
         
         utils.log(f"=== LISTITEM_BUILD_VIDEO: Starting for '{title}' (source: {source}) ===", "INFO")
-        utils.log(f"LISTITEM_BUILD_VIDEO: Thread: {current_thread.name}", "INFO")
+        utils.log(f"LISTITEM_BUILD_VIDEO: Thread: {current_thread.name} (ID: {current_thread.ident})", "INFO")
         utils.log(f"LISTITEM_BUILD_VIDEO: Call chain: {caller_chain}", "INFO")
         utils.log(f"LISTITEM_BUILD_VIDEO: is_search_history: {is_search_history}", "INFO")
+        
+        # Log if this is happening on a different thread than expected
+        main_thread_names = ['MainThread', 'Thread-1', 'CApplication']
+        if current_thread.name not in main_thread_names and 'T:' not in current_thread.name:
+            utils.log(f"LISTITEM_BUILD_VIDEO: WARNING - Building on unexpected thread: {current_thread.name}", "WARNING")
+            
+        # Check for sync-related stack frames and log them specifically
+        sync_related_frames = []
+        for frame in stack_frames:
+            frame_file = frame.filename.split('/')[-1]
+            if any(sync_term in frame.function.lower() for sync_term in ['sync', 'favorite', 'import']):
+                sync_related_frames.append(f"{frame_file}:{frame.function}():{frame.lineno}")
+        
+        if sync_related_frames:
+            utils.log(f"LISTITEM_BUILD_VIDEO: SYNC_CONTEXT detected in call stack: {' -> '.join(sync_related_frames)}", "WARNING")
         
         # Prevent ListItem building during sync operations
         if item_dict.get('_sync_operation') or item_dict.get('_no_listitem_building') or item_dict.get('_background_sync'):
@@ -509,6 +524,7 @@ class ListItemBuilder:
                     if utils.is_kodi_v19():
                         # v19 - use deprecated methods since InfoTag is unreliable
                         if stream_details:
+                            utils.log(f"LISTITEM_BUILD_VIDEO: About to call deprecated stream methods for '{title}' on thread {current_thread.name}", "INFO")
                             ListItemBuilder._add_stream_info_deprecated(li, stream_details)
                     else:
                         # v20+ - skip deprecated stream methods to avoid warnings
@@ -728,6 +744,23 @@ class ListItemBuilder:
     @staticmethod
     def _add_stream_info_deprecated(list_item, stream_details):
         """Adds stream details using deprecated methods for compatibility with older Kodi versions."""
+        import threading
+        current_thread = threading.current_thread()
+        utils.log(f"=== DEPRECATED_STREAM_INFO: Called on thread {current_thread.name} (ID: {current_thread.ident}) ===", "INFO")
+        
+        # Get call stack to see what led to this deprecated call
+        import inspect
+        stack_frames = inspect.stack()
+        caller_info = []
+        for i, frame in enumerate(stack_frames[1:8], 1):
+            func_name = frame.function
+            file_name = frame.filename.split('/')[-1]
+            line_no = frame.lineno
+            caller_info.append(f"{file_name}:{func_name}():{line_no}")
+        
+        caller_chain = " -> ".join(caller_info)
+        utils.log(f"DEPRECATED_STREAM_INFO: Call chain: {caller_chain}", "INFO")
+        
         # This method is a fallback for versions where setVideoStream, setAudioStream, setSubtitleStream are deprecated
         # or not available. It aims to set properties that might be recognized by older Kodi clients or skins.
         video_streams = stream_details.get('video', [])
@@ -735,6 +768,7 @@ class ListItemBuilder:
         subtitle_streams = stream_details.get('subtitle', [])
 
         if video_streams:
+            utils.log(f"DEPRECATED_STREAM_INFO: Processing {len(video_streams)} video streams", "INFO")
             for stream in video_streams:
                 if isinstance(stream, dict):
                     codec = stream.get('codec', '')
@@ -748,6 +782,7 @@ class ListItemBuilder:
                     list_item.setProperty('VideoLanguage', lang)
 
         if audio_streams:
+            utils.log(f"DEPRECATED_STREAM_INFO: Processing {len(audio_streams)} audio streams", "INFO")
             for stream in audio_streams:
                 if isinstance(stream, dict):
                     codec = stream.get('codec', '')
