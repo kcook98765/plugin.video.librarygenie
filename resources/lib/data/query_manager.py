@@ -278,7 +278,10 @@ class QueryManager(Singleton):
             WHERE li.list_id = ?
             ORDER BY li.search_score DESC, m.title ASC
         """
-        return self.execute_query(query, (list_id,), fetch_all=True)
+        result = self.execute_query(query, (list_id,), fetch_all=True)
+        if not isinstance(result, list):
+            return []
+        return result
 
     def save_llm_response(self, description: str, response_data: Any) -> int:
         """Save LLM API response into original_requests."""
@@ -328,7 +331,10 @@ class QueryManager(Singleton):
             WHERE {where_clause}
             ORDER BY title COLLATE NOCASE
         """
-        return self.execute_query(query, tuple(params), fetch_all=True)
+        result = self.execute_query(query, tuple(params), fetch_all=True)
+        if not isinstance(result, list):
+            return []
+        return result
 
     def insert_media_item(self, data: Dict[str, Any]) -> Optional[int]:
         """Insert a media item and return its ID (keeps your existing normalization)."""
@@ -498,6 +504,8 @@ class QueryManager(Singleton):
             ORDER BY title COLLATE NOCASE
         """
         results = self.execute_query(query, tuple(params), fetch_all=True)
+        if not isinstance(results, list):
+            return []
 
         # Normalize JSON-ish fields
         for item in results:
@@ -787,7 +795,7 @@ class QueryManager(Singleton):
             ORDER BY imdb_id
         """
         results = self.execute_query(query, fetch_all=True)
-        if results is None:
+        if not isinstance(results, list):
             return []
         return [r['imdb_id'] for r in results]
 
