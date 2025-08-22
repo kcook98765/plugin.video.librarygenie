@@ -577,7 +577,7 @@ class IMDbUploadManager:
                 rate = current_retrieved / elapsed if elapsed > 0 else 0
 
                 # Update the persistent progress dialog
-                progress_dialog.update(progress_percent, f"LibraryGenie", f"{current_retrieved}/{total} • {rate:.0f}/s")
+                progress_dialog.update(progress_percent, "LibraryGenie", f"{current_retrieved}/{total} • {rate:.0f}/s")
                 last_update_count = current_retrieved
 
             # Log progress less frequently to reduce spam
@@ -637,12 +637,12 @@ class IMDbUploadManager:
                 last_notification_stored = stored_count
 
         # Summary logging
-        utils.log(f"=== MOVIE PROCESSING SUMMARY ===", "INFO")
+        utils.log("=== MOVIE PROCESSING SUMMARY ===", "INFO")
         utils.log(f"Total movies processed: {len(all_movies)}", "INFO")
         utils.log(f"Movies with valid IMDb IDs: {len(valid_movies)}", "INFO")
         utils.log(f"Movies stored in database: {stored_count}", "INFO")
         utils.log(f"Batches processed: {total_batches}", "INFO")
-        utils.log(f"=== PROCESSING COMPLETE ===", "INFO")
+        utils.log("=== PROCESSING COMPLETE ===", "INFO")
 
         return valid_movies, stored_count
 
@@ -866,10 +866,10 @@ class IMDbUploadManager:
 
                 if current_chunk == 1:
                     show_notification = True
-                    notification_message = f"Upload starting... 0%"
+                    notification_message = "Upload starting... 0%"
                 elif current_chunk == total_chunks:
                     show_notification = True
-                    notification_message = f"Upload finalizing... 100%"
+                    notification_message = "Upload finalizing... 100%"
                 elif percent % 10 == 0 and current_chunk > 1:
                     # Show every 10% increment
                     show_notification = True
@@ -908,7 +908,7 @@ class IMDbUploadManager:
                 elif invalid > 0 and user_movie_count == 0:
                     utils.show_notification("LibraryGenie", f"Upload failed: {invalid} movies had invalid IMDb IDs", time=8000)
                 else:
-                    utils.show_notification("LibraryGenie", f"Upload completed but no movies were added. Check server logs.", time=8000)
+                    utils.show_notification("LibraryGenie", "Upload completed but no movies were added. Check server logs.", time=8000)
 
                 # Show addon status modal after upload (regardless of result)
                 try:
