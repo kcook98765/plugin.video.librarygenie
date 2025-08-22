@@ -18,6 +18,7 @@ class RemoteAPIClient(Singleton):
     def _make_request(self, method, endpoint, data=None, headers=None):
         """Make HTTP request to the API"""
         if not self.base_url or not self.api_key:
+            log("Missing base_url or api_key for API request", "ERROR")
             return None
 
         url = f"{self.base_url.rstrip('/')}{endpoint}"
@@ -28,6 +29,17 @@ class RemoteAPIClient(Singleton):
 
         if headers:
             request_headers.update(headers)
+
+        # Log request details
+        log(f"=== HTTP REQUEST START ===", "DEBUG")
+        log(f"Method: {method}", "DEBUG")
+        log(f"URL: {url}", "DEBUG")
+        log(f"Headers: {dict(request_headers)}", "DEBUG")
+        if data:
+            log(f"Request body: {json.dumps(data, indent=2)}", "DEBUG")
+        else:
+            log("Request body: None", "DEBUG")
+        log(f"=== HTTP REQUEST END ===", "DEBUG")
 
         try:
             # Create request object
@@ -46,17 +58,52 @@ class RemoteAPIClient(Singleton):
                 request.get_method = lambda: method
 
             # Make request
+            log("Making HTTP request...", "DEBUG")
             response = urllib.request.urlopen(request, timeout=30)
 
-            if response.getcode() == 200:
-                response_data = response.read().decode('utf-8')
-                return json.loads(response_data)
+            # Log response details
+            response_code = response.getcode()
+            response_headers = dict(response.headers)
+            response_data = response.read().decode('utf-8')
+            
+            log(f"=== HTTP RESPONSE START ===", "DEBUG")
+            log(f"Status Code: {response_code}", "DEBUG")
+            log(f"Response Headers: {response_headers}", "DEBUG")
+            log(f"Response Body: {response_data}", "DEBUG")
+            log(f"=== HTTP RESPONSE END ===", "DEBUG")
+
+            if response_code == 200:
+                try:
+                    parsed_data = json.loads(response_data)
+                    log(f"Successfully parsed JSON response", "DEBUG")
+                    return parsed_data
+                except json.JSONDecodeError as e:
+                    log(f"Failed to parse JSON response: {str(e)}", "ERROR")
+                    log(f"Raw response was: {response_data}", "ERROR")
+                    return None
             else:
-                log(f"API request failed: {response.getcode()}", "ERROR")
+                log(f"API request failed with status code: {response_code}", "ERROR")
                 return None
 
+        except urllib.error.HTTPError as e:
+            log(f"=== HTTP ERROR RESPONSE START ===", "ERROR")
+            log(f"HTTP Error Code: {e.code}", "ERROR")
+            log(f"HTTP Error Reason: {e.reason}", "ERROR")
+            try:
+                error_body = e.read().decode('utf-8')
+                log(f"Error Response Body: {error_body}", "ERROR")
+            except Exception as read_error:
+                log(f"Could not read error response body: {str(read_error)}", "ERROR")
+            log(f"=== HTTP ERROR RESPONSE END ===", "ERROR")
+            return None
+        except urllib.error.URLError as e:
+            log(f"URL/Network error: {str(e)}", "ERROR")
+            log(f"Failed URL: {url}", "ERROR")
+            return None
         except Exception as e:
-            log(f"API request error: {str(e)}", "ERROR")
+            log(f"Unexpected error in API request: {str(e)}", "ERROR")
+            import traceback
+            log(f"Full traceback: {traceback.format_exc()}", "ERROR")
             return None
 
     def exchange_pairing_code(self, pairing_code):
