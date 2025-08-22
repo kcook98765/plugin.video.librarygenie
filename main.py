@@ -464,6 +464,7 @@ def browse_search_history():
 
 def main():
     # Check if initial setup is required before allowing addon to function
+    # This must run BEFORE favorites sync to prevent false positives
     try:
         from resources.lib.config.config_manager import Config
         from resources.lib.data.query_manager import QueryManager
@@ -479,23 +480,24 @@ def main():
         library_scanned = addon.getSettingBool('library_scanned') if addon.getSetting('library_scanned') != '' else False
         library_scan_declined = addon.getSettingBool('library_scan_declined') if addon.getSetting('library_scan_declined') != '' else False
 
-        # Also check actual database content
+        # Check for actual library data - use more specific queries to avoid false positives from favorites
         imdb_result = query_manager.execute_query(
             "SELECT COUNT(*) as count FROM imdb_exports",
             fetch_one=True
         )
-        media_result = query_manager.execute_query(
+        # Only count library items, not favorites imports
+        library_media_result = query_manager.execute_query(
             "SELECT COUNT(*) as count FROM media_items WHERE source = 'lib'",
             fetch_one=True
         )
 
         imdb_count = imdb_result['count'] if imdb_result else 0
-        media_count = media_result['count'] if media_result else 0
+        library_media_count = library_media_result['count'] if library_media_result else 0
 
-        utils.log(f"Addon navigation check - library_scanned: {library_scanned}, declined: {library_scan_declined}, imdb_count: {imdb_count}, media_count: {media_count}", "DEBUG")
+        utils.log(f"Addon navigation check - library_scanned: {library_scanned}, declined: {library_scan_declined}, imdb_count: {imdb_count}, library_media_count: {library_media_count}", "DEBUG")
 
-        # If no library data and user hasn't scanned, block addon usage
-        if not library_scanned and imdb_count == 0 and media_count == 0 and not library_scan_declined:
+        # If no actual library data and user hasn't scanned, block addon usage
+        if not library_scanned and imdb_count == 0 and library_media_count == 0 and not library_scan_declined:
             utils.log("Blocking addon usage - initial setup required", "INFO")
             
             # Show modal requiring initial setup
@@ -555,7 +557,8 @@ def main():
         utils.log(f"Error in addon navigation setup check: {str(e)}", "ERROR")
         # Don't block addon on error - let it try to continue
 
-    # Trigger favorites sync when navigating to root if sync is enabled
+    # Only run favorites sync AFTER initial setup check passes
+    # This prevents favorites from interfering with setup detection
     try:
         from resources.lib.config.settings_manager import SettingsManager
         from resources.lib.integrations.remote_api.favorites_sync_manager import FavoritesSyncManager
@@ -570,10 +573,19 @@ def main():
             try:
                 settings = SettingsManager()
                 if settings.is_favorites_sync_enabled():
-                    utils.log("Root navigation detected - triggering favorites sync", "DEBUG")
-                    sync_manager = FavoritesSyncManager()
-                    sync_manager.sync_favorites()
-                    utils.log("Favorites sync completed", "DEBUG")
+                    # Double-check that library data exists before running favorites sync
+                    config = Config()
+                    query_manager = QueryManager(config.db_path)
+                    imdb_result = query_manager.execute_query("SELECT COUNT(*) as count FROM imdb_exports", fetch_one=True)
+                    imdb_count = imdb_result['count'] if imdb_result else 0
+                    
+                    if imdb_count > 0:
+                        utils.log("Root navigation detected - triggering favorites sync", "DEBUG")
+                        sync_manager = FavoritesSyncManager()
+                        sync_manager.sync_favorites()
+                        utils.log("Favorites sync completed", "DEBUG")
+                    else:
+                        utils.log("Skipping favorites sync - no library data available yet", "DEBUG")
             except Exception as e:
                 utils.log(f"Error in root navigation favorites sync: {str(e)}", "ERROR")
                 # Don't let sync errors prevent addon from loading
