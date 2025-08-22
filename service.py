@@ -283,7 +283,8 @@ class LibraryGenieService:
                     except:
                         pass
 
-                    if should_sync:</old_str>
+                    if should_sync:
+                        utils.log(f"Running favorites sync (interval: {sync_interval}s)", "DEBUG")</old_str>
                         utils.log(f"Running favorites sync (interval: {sync_interval}s)", "DEBUG")
 
                         try:
