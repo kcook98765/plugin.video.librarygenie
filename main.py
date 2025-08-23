@@ -336,7 +336,7 @@ def router(handle, paramstr):
         folder_id = query_params.get('folder_id')
         browse_folder(query_params) # Pass the entire params dict to browse_folder
     elif action == 'browse_list':
-        list_id = query_params.get('list_id')
+        list_id = query_params.get('list_id', [None])[0]
         browse_list(list_id)
     elif action == 'search':
         run_search_flow()
