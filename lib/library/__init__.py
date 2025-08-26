@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Library Module
+LibraryGenie - Library Module
 Local library indexing and scanning functionality
 """
 

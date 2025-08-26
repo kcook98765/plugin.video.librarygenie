@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Phase 12 Remote Integration
+LibraryGenie - Phase 12 Remote Integration
 Optional remote API integration with privacy-first design
 """
 
