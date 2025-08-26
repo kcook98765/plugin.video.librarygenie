@@ -7,9 +7,12 @@ Handles authorization prompts and user guidance
 """
 
 try:
-    from typing import Optional
+    from typing import Dict, Any, List, Optional
 except ImportError:
     # Python < 3.5 fallback
+    Dict = dict
+    Any = object
+    List = list
     Optional = object
 
 import xbmcgui

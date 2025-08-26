@@ -8,12 +8,13 @@ Handles token storage and authorization status
 
 from datetime import datetime, timezone
 try:
-    from typing import Optional, Dict, Any
+    from typing import Dict, Any, List, Optional
 except ImportError:
     # Python < 3.5 fallback
-    Optional = object
     Dict = dict
     Any = object
+    List = list
+    Optional = object
 
 import json
 import os
