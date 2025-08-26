@@ -33,8 +33,6 @@ class QueryManager:
 
             # Ensure default list exists
             self._ensure_default_list()
-            # Ensure sample media data exists
-            self._ensure_sample_data()
 
             self._initialized = True
             self.logger.info("Data layer initialization complete")
@@ -312,70 +310,7 @@ class QueryManager:
         except Exception as e:
             self.logger.warning(f"Could not ensure default list: {e}")
 
-    def _ensure_sample_data(self):
-        """Create sample media items for testing if none exist"""
-        try:
-            # Check if media_items table has any data
-            result = self.conn_manager.execute_single(
-                "SELECT COUNT(*) as count FROM media_items"
-            )
-
-            if result and result['count'] == 0:
-                self.logger.info("Creating sample media items for testing")
-
-                sample_movies = [
-                    {
-                        'media_type': 'movie',
-                        'title': 'The Matrix',
-                        'year': 1999,
-                        'imdbnumber': 'tt0133093',
-                        'source': 'sample',
-                        'plot': 'A computer hacker learns from mysterious rebels about the true nature of his reality.',
-                        'rating': 8.7,
-                        'genre': 'Action, Sci-Fi',
-                        'director': 'Lana Wachowski, Lilly Wachowski'
-                    },
-                    {
-                        'media_type': 'movie', 
-                        'title': 'Inception',
-                        'year': 2010,
-                        'imdbnumber': 'tt1375666',
-                        'source': 'sample',
-                        'plot': 'A thief who steals corporate secrets through dream-sharing technology.',
-                        'rating': 8.8,
-                        'genre': 'Action, Sci-Fi, Thriller',
-                        'director': 'Christopher Nolan'
-                    },
-                    {
-                        'media_type': 'movie',
-                        'title': 'The Godfather',
-                        'year': 1972,
-                        'imdbnumber': 'tt0068646',
-                        'source': 'sample',
-                        'plot': 'The aging patriarch of an organized crime dynasty transfers control to his reluctant son.',
-                        'rating': 9.2,
-                        'genre': 'Crime, Drama',
-                        'director': 'Francis Ford Coppola'
-                    }
-                ]
-
-                with self.conn_manager.transaction() as conn:
-                    for movie in sample_movies:
-                        conn.execute("""
-                            INSERT INTO media_items (
-                                media_type, title, year, imdbnumber, source, plot,
-                                rating, genre, director
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """, [
-                            movie['media_type'], movie['title'], movie['year'],
-                            movie['imdbnumber'], movie['source'], movie['plot'],
-                            movie['rating'], movie['genre'], movie['director']
-                        ])
-
-                self.logger.info(f"Created {len(sample_movies)} sample media items")
-
-        except Exception as e:
-            self.logger.warning(f"Could not create sample data: {e}")
+    
 
     def close(self):
         """Close database connections"""
