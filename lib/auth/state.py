@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -25,22 +24,22 @@ def is_authorized():
     try:
         if not xbmcvfs.exists(_FILE):
             return False
-            
+
         with xbmcvfs.File(_FILE, 'r') as f:
             content = f.read()
             if isinstance(content, bytes):
                 content = content.decode('utf-8')
-            
+
             data = json.loads(content)
             access_token = data.get('access_token')
-            
+
             if not access_token:
                 return False
-                
+
             # TODO: Check token expiry in future phases
             logger.debug("Device is authorized")
             return True
-            
+
     except Exception as e:
         logger.debug(f"Authorization check failed: {e}")
         return False
@@ -51,15 +50,15 @@ def get_access_token():
     try:
         if not xbmcvfs.exists(_FILE):
             return None
-            
+
         with xbmcvfs.File(_FILE, 'r') as f:
             content = f.read()
             if isinstance(content, bytes):
                 content = content.decode('utf-8')
-            
+
             data = json.loads(content)
             return data.get('access_token')
-            
+
     except Exception as e:
         logger.error(f"Failed to get access token: {e}")
         return None
@@ -71,30 +70,35 @@ def save_tokens(tokens: dict):
         # Ensure profile directory exists
         if not xbmcvfs.exists(_PATH):
             xbmcvfs.mkdirs(_PATH)
-        
+
         # Write tokens to file
         with xbmcvfs.File(_FILE, 'w') as f:
-            token_data = json.dumps(tokens, indent=2)
-            f.write(bytearray(token_data, 'utf-8'))
-        
+            f.write(json.dumps(tokens).encode('utf-8'))
+
         logger.info("Authorization tokens saved successfully")
-        
+
     except Exception as e:
         logger.error(f"Failed to save tokens: {e}")
         raise
 
 
-def clear_tokens():
-    """Clear stored authorization tokens"""
+def get_tokens():
+    """Get stored tokens"""
     try:
-        if xbmcvfs.exists(_FILE):
-            xbmcvfs.delete(_FILE)
-            logger.info("Authorization tokens cleared")
-        else:
-            logger.debug("No tokens to clear")
-            
-    except Exception as e:
-        logger.error(f"Failed to clear tokens: {e}")
+        with xbmcvfs.File(_FILE) as f:
+            data = json.loads(f.read().decode('utf-8'))
+        return data
+    except Exception:
+        return None
+
+
+def clear_tokens():
+    """Clear stored tokens"""
+    try:
+        xbmcvfs.delete(_FILE)
+        return True
+    except Exception:
+        return False
 
 
 def get_token_info():
@@ -102,14 +106,14 @@ def get_token_info():
     try:
         if not xbmcvfs.exists(_FILE):
             return {"exists": False}
-            
+
         with xbmcvfs.File(_FILE, 'r') as f:
             content = f.read()
             if isinstance(content, bytes):
                 content = content.decode('utf-8')
-            
+
             data = json.loads(content)
-            
+
             # Return sanitized info (no actual tokens)
             return {
                 "exists": True,
@@ -117,7 +121,7 @@ def get_token_info():
                 "has_refresh_token": bool(data.get('refresh_token')),
                 "token_type": data.get('token_type', 'Bearer')
             }
-            
+
     except Exception as e:
         logger.error(f"Failed to get token info: {e}")
         return {"exists": False, "error": str(e)}

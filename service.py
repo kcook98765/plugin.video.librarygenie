@@ -3,162 +3,126 @@
 
 """
 Movie List Manager - Background Service
-Handles background tasks and periodic operations
+Handles token refresh and optional library monitoring
 """
 
-import threading
 import time
 import xbmc
 import xbmcaddon
 
 from lib.config import get_config
+from lib.auth.refresh import maybe_refresh
 from lib.utils.logger import get_logger
 
 
 class BackgroundService:
-    """Background service for Movie List Manager"""
+    """Background service for token refresh and library monitoring"""
 
     def __init__(self):
         self.logger = get_logger(__name__)
         self.config = get_config()
+        self.addon = xbmcaddon.Addon()
         self.monitor = xbmc.Monitor()
-        self.running = False
 
-    def start(self):
-        """Start the background service"""
-        self.logger.info("Movie List Manager background service starting...")
-        self.running = True
+        # Service configuration
+        self.interval = self.config.get_background_interval_seconds()
+        self.track_library_changes = self.config.get_bool("track_library_changes", True)
 
-        # Check if background task is enabled
-        task_enabled = self.config.get("background_task_enabled", True)
+        self.logger.info(f"Background service starting (interval: {self.interval}s)")
 
-        if not task_enabled:
-            self.logger.info("Background task is disabled, service will remain idle")
-            # Sleep quietly and respond to shutdown requests only
-            while self.running and not self.monitor.abortRequested():
-                if self.monitor.waitForAbort(30):  # Check every 30 seconds
-                    break
-            self.logger.info("Movie List Manager background service stopped (was idle)")
-            return
-
-        # Get safe interval from config (with clamping)
-        interval = self.config.get_background_interval_seconds()
-        self.logger.info(f"Background task enabled with {interval}s interval")
-
-        while self.running and not self.monitor.abortRequested():
+        # Initialize library scanner if needed
+        self._library_scanner = None
+        if self.track_library_changes:
             try:
-                # Perform background tasks
-                self._background_tick()
+                from lib.library.scanner import get_library_scanner
+                self._library_scanner = get_library_scanner()
+                self.logger.debug("Library scanner initialized for background monitoring")
+            except Exception as e:
+                self.logger.warning(f"Failed to initialize library scanner: {e}")
 
-                # Wait for next iteration or abort
-                if self.monitor.waitForAbort(interval):
-                    break
+    def run(self):
+        """Main service loop"""
+        self.logger.info("Background service started")
+
+        # Perform initial checks
+        self._initial_setup()
+
+        # Main loop
+        while not self.monitor.abortRequested():
+            try:
+                # Token refresh check
+                self._check_and_refresh_token()
+
+                # Library change detection (if enabled)
+                if self.track_library_changes and self._library_scanner:
+                    self._check_library_changes()
 
             except Exception as e:
-                self.logger.error(f"Error in background service: {e}")
-                # Wait before retrying on error (1 minute)
-                if self.monitor.waitForAbort(60):
-                    break
+                self.logger.error(f"Background service error: {e}")
 
-        self.logger.info("Movie List Manager background service stopped")
+            # Wait for next cycle or abort
+            if self.monitor.waitForAbort(self.interval):
+                break
 
-    def stop(self):
-        """Stop the background service"""
-        self.running = False
+        self.logger.info("Background service stopped")
 
-    def _background_tick(self):
-        """Perform one iteration of background tasks"""
-        self.logger.debug("Background service tick")
-
-        # Initialize database if not done yet
-        if not hasattr(self, '_db_initialized'):
-            try:
-                from lib.data import QueryManager
-                query_manager = QueryManager()
-                query_manager.initialize()
-                self._db_initialized = True
-                self.logger.info("Database initialized by background service")
-            except Exception as e:
-                self.logger.error(f"Failed to initialize database: {e}")
-                return
-
-        # Initialize library scanner if not done yet
-        if not hasattr(self, '_library_scanner'):
-            try:
-                from lib.library import LibraryScanner
-                self._library_scanner = LibraryScanner()
-                self.logger.debug("Library scanner initialized by background service")
-            except Exception as e:
-                self.logger.error(f"Failed to initialize library scanner: {e}")
-                return
-
-        # Check if this is first run and library needs indexing
-        if not hasattr(self, '_initial_scan_done'):
-            try:
-                if not self._library_scanner.is_library_indexed():
-                    self.logger.info("Library not indexed, performing initial full scan")
-                    result = self._library_scanner.perform_full_scan()
-                    
-                    if result.get("success"):
-                        self.logger.info(f"Initial scan complete: {result.get('items_added', 0)} movies indexed")
-                    else:
-                        self.logger.warning(f"Initial scan failed: {result.get('error', 'Unknown error')}")
-                else:
-                    self.logger.debug("Library already indexed, skipping initial scan")
-                
-                self._initial_scan_done = True
-            except Exception as e:
-                self.logger.error(f"Failed during initial scan check: {e}")
-                return
-
-        # Perform delta scan for library changes
+    def _initial_setup(self):
+        """Perform initial setup tasks"""
         try:
-            # Check if we should skip during playback to avoid interruption
+            # Check if library needs initial indexing
+            if self._library_scanner and not self._library_scanner.is_library_indexed():
+                self.logger.info("Library not indexed, performing initial scan")
+                result = self._library_scanner.perform_full_scan()
+
+                if result.get("success"):
+                    self.logger.info(f"Initial scan complete: {result.get('items_added', 0)} movies indexed")
+                else:
+                    self.logger.warning(f"Initial scan failed: {result.get('error', 'Unknown error')}")
+
+        except Exception as e:
+            self.logger.error(f"Initial setup failed: {e}")
+
+    def _check_and_refresh_token(self):
+        """Check and refresh authentication token if needed"""
+        try:
+            success = maybe_refresh()
+            if not success:
+                # Token refresh failed or not authorized
+                # This is normal if user hasn't authorized yet
+                pass
+
+        except Exception as e:
+            self.logger.error(f"Token refresh check failed: {e}")
+
+    def _check_library_changes(self):
+        """Check for library changes using delta scan"""
+        try:
+            # Skip during playback to avoid interruption
             if xbmc.Player().isPlaying():
-                self.logger.debug("Skipping library scan during playback")
                 return
-                
+
             result = self._library_scanner.perform_delta_scan()
-            
+
             if result.get("success"):
                 changes = result.get("items_added", 0) + result.get("items_removed", 0)
                 if changes > 0:
-                    self.logger.debug(f"Delta scan: +{result.get('items_added', 0)} -{result.get('items_removed', 0)} movies")
+                    self.logger.debug(f"Library changes detected: +{result.get('items_added', 0)} -{result.get('items_removed', 0)} movies")
             else:
-                self.logger.warning(f"Delta scan failed: {result.get('error', 'Unknown error')}")
-                
+                self.logger.warning(f"Library scan failed: {result.get('error', 'Unknown error')}")
+
         except Exception as e:
-            self.logger.error(f"Failed during delta scan: {e}")
-
-        # Scan favorites if enabled
-        if self.config.get("favorites_integration_enabled", False):
-            try:
-                from lib.kodi.favorites_manager import get_favorites_manager
-                
-                favorites_manager = get_favorites_manager()
-                result = favorites_manager.scan_favorites()
-                
-                if result.get("success") and result.get("scan_type") == "full":
-                    self.logger.info(f"Favorites scan: {result.get('items_mapped', 0)} mapped")
-            except Exception as e:
-                self.logger.error(f"Error in background favorites scan: {e}")
-        
-        # Future tasks:
-        # - Sync with external services (if enabled)
-        # - Clean up old removed items
-        # - Update metadata cache
+            self.logger.error(f"Library change detection failed: {e}")
 
 
-def main():
-    """Main service entry point"""
-    logger = get_logger(__name__)
-
+def run():
+    """Service entry point"""
     try:
         service = BackgroundService()
-        service.start()
+        service.run()
     except Exception as e:
-        logger.error(f"Failed to start background service: {e}")
+        logger = get_logger(__name__)
+        logger.error(f"Background service crashed: {e}")
 
 
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    run()
