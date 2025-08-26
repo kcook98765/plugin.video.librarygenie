@@ -104,22 +104,22 @@ class EnhancedQueryInterpreter:
     def _get_setting_bool(self, key: str, default: bool) -> bool:
         """Get boolean setting with fallback"""
         try:
-            value = self.config.get_setting(key, str(default).lower())
-            return value.lower() in ('true', '1', 'yes', 'on')
+            value = self.config.get(key, str(default).lower())
+            return str(value).lower() in ('true', '1', 'yes', 'on')
         except Exception:
             return default
 
     def _get_setting_string(self, key: str, default: str) -> str:
         """Get string setting with fallback"""
         try:
-            return self.config.get_setting(key, default)
+            return str(self.config.get(key, default))
         except Exception:
             return default
 
     def _get_setting_int(self, key: str, default: int) -> int:
         """Get integer setting with fallback"""
         try:
-            value = self.config.get_setting(key, str(default))
+            value = self.config.get(key, str(default))
             return int(value)
         except Exception:
             return default

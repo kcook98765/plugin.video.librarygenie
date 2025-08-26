@@ -50,16 +50,12 @@ class ConfigManager:
     def get(self, key, default=None):
         """Get configuration value with safe fallback"""
         try:
-            setting_type = self._get_setting_type(key)
-            if setting_type == "bool":
-                return self._addon.getSettingBool(key)
-            elif setting_type == "int":
-                return self._addon.getSettingInt(key)
-            elif setting_type == "number":
-                return self._addon.getSettingNumber(key)
+            # Always try string first as it's most compatible
+            value = self._addon.getSettingString(key)
+            if value:
+                return value
             else:
-                value = self._addon.getSettingString(key)
-                return value if value else self._defaults.get(key, default)
+                return self._defaults.get(key, default)
         except Exception:
             # Return default value if setting read fails
             return self._defaults.get(key, default)
