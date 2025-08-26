@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Phase 12 Remote Cache
+LibraryGenie - Phase 12 Remote Cache
 Local caching for remote API results with TTL support
 """
 

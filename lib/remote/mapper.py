@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Phase 12 Remote Mapper  
+LibraryGenie - Phase 12 Remote Mapper  
 Maps remote search results to local library items
 """
 

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Backup Manager
+LibraryGenie - Backup Manager
 Handles automatic scheduled backups with retention policies
 """
 

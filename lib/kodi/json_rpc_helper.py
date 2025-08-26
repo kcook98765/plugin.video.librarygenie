@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Phase 3 JSON-RPC Helper
+LibraryGenie - Phase 3 JSON-RPC Helper
 Centralized, robust JSON-RPC communication with retry/backoff and proper error handling
 """
 

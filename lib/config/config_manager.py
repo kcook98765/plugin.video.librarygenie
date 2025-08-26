@@ -3,7 +3,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Configuration Manager
+LibraryGenie - Configuration Manager
 Reads Kodi settings and manages addon configuration
 """
 

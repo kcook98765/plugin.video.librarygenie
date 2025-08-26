@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Import Engine
+LibraryGenie - Import Engine
 Safely imports and merges JSON/CSV data with validation and preview
 """
 

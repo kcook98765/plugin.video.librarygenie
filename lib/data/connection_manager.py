@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Database Connection Manager
+LibraryGenie - Database Connection Manager
 Handles SQLite connections with proper safety and performance settings
 """
 
