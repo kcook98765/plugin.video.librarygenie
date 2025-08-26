@@ -1,11 +1,10 @@
+# LibraryGenie Development Notes for Replit
 
-# LibraryGenie - Replit Development Notes
-
-This document contains Replit-specific development information for the LibraryGenie Kodi addon.
+This document contains development notes specific to working with this project in the Replit environment.
 
 ## Python Version
 
-This project uses **Python 3.8** to maintain compatibility with Kodi v19 "Matrix" and newer versions.
+This project targets **Python 3.8+** as used by Kodi 19+. All typing imports should use standard `from typing import` syntax without version fallbacks since Python 3.8 has full typing support. When implementing new features or fixing issues, ensure compatibility with Python 3.8 syntax and standard library features.
 
 ### Key Compatibility Notes for Coding Tasks:
 
@@ -13,7 +12,7 @@ This project uses **Python 3.8** to maintain compatibility with Kodi v19 "Matrix
 - **Avoid Python 3.9+ features** such as:
   - Built-in generics (`list[str]`, `dict[str, int]`) → use `typing.List`, `typing.Dict`
   - `str.removeprefix()` / `str.removesuffix()` (added in 3.9)
-  - `zoneinfo` module (added in 3.9) 
+  - `zoneinfo` module (added in 3.9)
   - `match`/`case` pattern matching (added in 3.10)
   - Newer typing features like `typing.Self`, `typing.TypeAlias` (3.11+)
 

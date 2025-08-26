@@ -7,14 +7,7 @@ Tracks UI state to prevent notification spam and manage user experience
 """
 
 import time
-try:
-    from typing import Dict, Any, List, Optional
-except ImportError:
-    # Python < 3.5 fallback
-    Dict = dict
-    Any = object
-    List = list
-    Optional = object
+from typing import Dict, Any, List, Optional
 
 from ..utils.logger import get_logger
 

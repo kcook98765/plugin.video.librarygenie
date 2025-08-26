@@ -8,13 +8,7 @@ Entry point for plugin operations and routing
 """
 
 import sys
-try:
-    from typing import Dict, Any, Optional
-except ImportError:
-    # Python < 3.5 fallback
-    Dict = dict
-    Any = object
-    Optional = object
+from typing import Dict, Any, Optional
 
 import xbmcaddon
 import xbmcgui

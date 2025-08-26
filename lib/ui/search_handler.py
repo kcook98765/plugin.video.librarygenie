@@ -7,13 +7,7 @@ LibraryGenie - Search Handler
 Provides UI bridge for search functionality with remote/local engine selection
 """
 
-try:
-    from typing import Dict, Any, List
-except ImportError:
-    # Python < 3.5 fallback
-    Dict = dict
-    Any = object
-    List = list
+from typing import Dict, Any, List
 
 import xbmcgui
 import xbmcaddon
