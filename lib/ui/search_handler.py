@@ -7,6 +7,7 @@ LibraryGenie - Search Handler
 Provides UI bridge for search functionality with remote/local engine selection
 """
 
+from __future__ import annotations
 from typing import Dict, Any, List
 
 import xbmcgui

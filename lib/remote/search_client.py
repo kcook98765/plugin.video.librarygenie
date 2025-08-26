@@ -10,6 +10,7 @@ import json
 import urllib.request
 import urllib.parse
 import urllib.error
+from __future__ import annotations
 from typing import Dict, Any, List, Optional
 
 from ..auth.state import is_authorized, get_access_token

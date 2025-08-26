@@ -7,6 +7,7 @@ JSON-RPC based search for local Kodi library content with uniform output format
 """
 
 import json
+from __future__ import annotations
 from typing import Dict, Any, List, Optional
 
 import xbmc
