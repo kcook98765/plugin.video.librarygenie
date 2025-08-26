@@ -57,10 +57,20 @@ def show_main_menu(handle):
 
 def show_search_menu(handle):
     """Show search interface"""
-    from lib.ui.search_handler import SearchHandler
-    
-    search_handler = SearchHandler(handle)
-    search_handler.prompt_and_show()
+    try:
+        from lib.ui.search_handler import SearchHandler
+        
+        search_handler = SearchHandler(handle)
+        search_handler.prompt_and_show()
+    except Exception as e:
+        logger = get_logger(__name__)
+        logger.error(f"Error importing or using SearchHandler: {e}")
+        addon = xbmcaddon.Addon()
+        xbmcgui.Dialog().notification(
+            addon.getLocalizedString(35002),
+            f"Search error: {str(e)}",
+            xbmcgui.NOTIFICATION_ERROR
+        )
 
 
 def show_remote_search_menu(handle):
