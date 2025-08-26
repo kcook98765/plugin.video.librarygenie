@@ -1,0 +1,442 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Movie List Manager - Phase 4 Enhanced Favorites Parser
+Rock-solid parsing with tolerant XML handling, deterministic path normalization,
+and comprehensive classification system
+"""
+
+import os
+import re
+import xml.etree.ElementTree as ET
+from typing import List, Dict, Optional, Tuple
+from urllib.parse import unquote, quote
+from pathlib import Path
+
+import xbmcvfs
+
+from ..utils.logger import get_logger
+
+
+class Phase4FavoritesParser:
+    """Phase 4: Rock-solid favorites parser with robust XML handling and path normalization"""
+    
+    def __init__(self):
+        self.logger = get_logger(__name__)
+    
+    def find_favorites_file(self) -> Optional[str]:
+        """Find Kodi favourites.xml file using special://profile/ consistently"""
+        try:
+            profile_path = xbmcvfs.translatePath('special://profile/')
+            favorites_path = os.path.join(profile_path, 'favourites.xml')
+            
+            if os.path.isfile(favorites_path):
+                self.logger.info(f"Found favorites file via special://profile/: {favorites_path}")
+                return favorites_path
+            else:
+                self.logger.info("Favorites file not found at special://profile/favourites.xml")
+                return None
+            
+            # Fallback paths for development/testing outside Kodi
+            fallback_paths = []
+            home_dir = os.path.expanduser('~')
+            
+            # Development test path
+            test_path = os.path.join('tests', 'data', 'favourites.xml')
+            if os.path.exists(test_path):
+                fallback_paths.append(test_path)
+            
+            # Platform-specific fallback paths (for development)
+            fallback_paths.extend([
+                # Windows
+                os.path.join(home_dir, 'AppData', 'Roaming', 'Kodi', 'userdata', 'favourites.xml'),
+                # Linux
+                os.path.join(home_dir, '.kodi', 'userdata', 'favourites.xml'),
+                os.path.join(home_dir, '.local', 'share', 'kodi', 'userdata', 'favourites.xml'),
+                # macOS
+                os.path.join(home_dir, 'Library', 'Application Support', 'Kodi', 'userdata', 'favourites.xml'),
+            ])
+            
+            # Try fallback paths
+            for path in fallback_paths:
+                if path and os.path.isfile(path):
+                    self.logger.info(f"Found favorites file (fallback): {path}")
+                    return path
+            
+            self.logger.info("No favorites file found")
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Error locating favorites file: {e}")
+            return None
+    
+    def get_file_modified_time(self, file_path: str) -> Optional[str]:
+        """Get file modification time as ISO string"""
+        try:
+            if os.path.isfile(file_path):
+                mtime = os.path.getmtime(file_path)
+                from datetime import datetime
+                return datetime.fromtimestamp(mtime).isoformat()
+            return None
+        except Exception as e:
+            self.logger.error(f"Error getting file modification time: {e}")
+            return None
+    
+    def parse_favorites_file(self, file_path: str) -> List[Dict]:
+        """Parse favourites.xml with tolerant XML handling"""
+        favorites = []
+        
+        try:
+            if not os.path.isfile(file_path):
+                self.logger.info(f"Favorites file not found: {file_path}")
+                return favorites
+            
+            # Phase 4: Tolerant XML parsing
+            favorites = self._parse_xml_tolerantly(file_path)
+            
+            self.logger.info(f"Parsed {len(favorites)} favorites from {file_path}")
+            return favorites
+            
+        except Exception as e:
+            self.logger.error(f"Error parsing favorites file: {e}")
+            return []
+    
+    def _parse_xml_tolerantly(self, file_path: str) -> List[Dict]:
+        """Parse XML with tolerance for whitespace, CDATA, and unexpected nodes"""
+        favorites = []
+        
+        try:
+            # Read file content
+            with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+                content = f.read()
+            
+            # Handle empty files
+            if not content.strip():
+                self.logger.debug("Favorites file is empty")
+                return favorites
+            
+            # Parse with error handling
+            try:
+                root = ET.fromstring(content)
+            except ET.ParseError as e:
+                self.logger.warning(f"XML parse error: {e}")
+                # Try to recover by cleaning the content
+                content = self._clean_xml_content(content)
+                try:
+                    root = ET.fromstring(content)
+                    self.logger.debug("XML recovered after cleaning")
+                except ET.ParseError as e2:
+                    self.logger.error(f"XML unrecoverable: {e2}")
+                    return favorites
+            
+            # Handle different root tag variations
+            if root.tag not in ['favourites', 'favorites']:
+                self.logger.warning(f"Unexpected root tag: {root.tag} (expected 'favourites' or 'favorites')")
+                # Continue anyway - maybe it's a variant
+            
+            # Process each favorite entry with per-row error handling
+            for i, element in enumerate(root):
+                try:
+                    favorite = self._parse_favorite_element(element)
+                    if favorite:
+                        favorites.append(favorite)
+                except Exception as e:
+                    self.logger.debug(f"Failed to parse favorite element {i}: {e}")
+                    continue  # Skip this row, continue with others
+            
+            return favorites
+            
+        except Exception as e:
+            self.logger.error(f"Error in tolerant XML parsing: {e}")
+            return []
+    
+    def _clean_xml_content(self, content: str) -> str:
+        """Clean XML content to handle common formatting issues"""
+        try:
+            # Remove null bytes
+            content = content.replace('\x00', '')
+            
+            # Ensure proper XML declaration if missing
+            if not content.strip().startswith('<?xml'):
+                content = '<?xml version="1.0" encoding="utf-8"?>\n' + content
+            
+            # Handle common encoding issues
+            content = content.replace('&', '&amp;')
+            content = content.replace('&amp;amp;', '&amp;')  # Fix double encoding
+            
+            return content
+            
+        except Exception as e:
+            self.logger.error(f"Error cleaning XML content: {e}")
+            return content
+    
+    def _parse_favorite_element(self, element: ET.Element) -> Optional[Dict]:
+        """Parse individual favorite element with robust extraction"""
+        try:
+            # Handle different element names
+            if element.tag not in ['favourite', 'favorite']:
+                return None
+            
+            # Extract display label
+            name = element.get('name', '').strip()
+            if not name:
+                # Try element text as fallback
+                name = (element.text or '').strip()
+            
+            if not name:
+                return None
+            
+            # Extract target (URL or command)
+            target = ''
+            
+            # First try element text (most common)
+            if element.text:
+                target = element.text.strip()
+            
+            # If no text, try CDATA or other child elements
+            if not target:
+                # Handle CDATA sections
+                for child in element:
+                    if child.text:
+                        target = child.text.strip()
+                        break
+            
+            # Extract thumb reference if present
+            thumb_ref = ''
+            thumb_element = element.find('thumb')
+            if thumb_element is not None and thumb_element.text:
+                thumb_ref = thumb_element.text.strip()
+            
+            if not target:
+                return None
+            
+            # Phase 4: Classify and normalize
+            classification = self._classify_favorite_target(target)
+            normalized_key = self._create_normalized_key(target, classification)
+            
+            return {
+                'name': name,
+                'target_raw': target,
+                'target_classification': classification,
+                'normalized_key': normalized_key,
+                'thumb_ref': thumb_ref
+            }
+            
+        except Exception as e:
+            self.logger.debug(f"Error parsing favorite element: {e}")
+            return None
+    
+    def _classify_favorite_target(self, target: str) -> str:
+        """Classify favorite by target scheme - Phase 4 comprehensive classification"""
+        try:
+            target_lower = target.lower().strip()
+            
+            # File/URL schemes we can attempt to map
+            mappable_schemes = [
+                'file://', 'smb://', 'nfs://', 'udf://', 
+                'iso9660://', 'zip://', 'rar://', 'stack://'
+            ]
+            
+            for scheme in mappable_schemes:
+                if target_lower.startswith(scheme):
+                    return 'mappable_file'
+            
+            # Kodi video database references
+            if target_lower.startswith('videodb://'):
+                return 'videodb'
+            
+            # Unsupported for mapping (skip mapping, but may display)
+            unsupported_schemes = [
+                'plugin://', 'script://', 'addon:'
+            ]
+            
+            for scheme in unsupported_schemes:
+                if target_lower.startswith(scheme):
+                    return 'plugin_or_script'
+            
+            # Kodi built-in commands
+            builtin_patterns = [
+                'activatewindow(', 'runscript(', 'runplugin(',
+                'playlistplayer.', 'player.', 'system.'
+            ]
+            
+            for pattern in builtin_patterns:
+                if pattern in target_lower:
+                    return 'builtin_command'
+            
+            # Plain file paths (no scheme)
+            if self._looks_like_file_path(target):
+                return 'mappable_file'
+            
+            return 'unknown'
+            
+        except Exception as e:
+            self.logger.debug(f"Error classifying target '{target}': {e}")
+            return 'unknown'
+    
+    def _looks_like_file_path(self, target: str) -> bool:
+        """Check if target looks like a plain file path"""
+        try:
+            # Common video file extensions
+            video_extensions = [
+                '.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv', 
+                '.m4v', '.ts', '.m2ts', '.webm', '.ogv', '.3gp'
+            ]
+            
+            target_lower = target.lower()
+            
+            # Has video extension
+            if any(target_lower.endswith(ext) for ext in video_extensions):
+                return True
+            
+            # Looks like Windows path
+            if re.match(r'^[A-Za-z]:[\\\/]', target):
+                return True
+            
+            # Looks like Unix absolute path
+            if target.startswith('/'):
+                return True
+            
+            # Contains path separators and looks file-like
+            if ('/' in target or '\\' in target) and '.' in target:
+                return True
+            
+            return False
+            
+        except Exception:
+            return False
+    
+    def _create_normalized_key(self, target: str, classification: str) -> str:
+        """Create deterministic canonical key for mapping and uniqueness"""
+        try:
+            if classification == 'videodb':
+                return self._normalize_videodb_key(target)
+            elif classification in ['mappable_file']:
+                return self._normalize_file_path_key(target)
+            else:
+                # For non-mappable items, use a simple normalized form
+                return target.lower().strip()
+                
+        except Exception as e:
+            self.logger.debug(f"Error creating normalized key for '{target}': {e}")
+            return target.lower().strip()
+    
+    def _normalize_videodb_key(self, target: str) -> str:
+        """Normalize videodb:// URLs to extract movie dbid"""
+        try:
+            # Pattern: videodb://movies/titles/<id>...
+            match = re.search(r'videodb://movies/titles/(\d+)', target.lower())
+            if match:
+                return f"videodb_movie_{match.group(1)}"
+            
+            # Fallback: just use the full videodb URL normalized
+            return target.lower().replace(' ', '').replace('\t', '')
+            
+        except Exception:
+            return target.lower()
+    
+    def _normalize_file_path_key(self, target: str) -> str:
+        """Normalize file paths for deterministic canonical keys"""
+        try:
+            # Start with the raw target
+            key = target.strip()
+            
+            # Extract and normalize scheme
+            scheme = ''
+            path_part = key
+            
+            # Handle schemes
+            for scheme_prefix in ['file://', 'smb://', 'nfs://', 'udf://', 
+                                'iso9660://', 'zip://', 'rar://', 'stack://']:
+                if key.lower().startswith(scheme_prefix):
+                    scheme = scheme_prefix.lower()
+                    path_part = key[len(scheme_prefix):]
+                    break
+            
+            # Handle SMB credentials - strip from key but preserve host/share/path
+            if scheme == 'smb://':
+                # Pattern: smb://user:pass@host/share/path -> smb://host/share/path
+                match = re.match(r'^([^@]+@)?(.+)$', path_part)
+                if match and match.group(1):  # Has credentials
+                    path_part = match.group(2)  # Use part after @
+            
+            # Handle stack:// - normalize first component as key
+            if scheme == 'stack://':
+                # Pattern: stack://file1 , file2 , file3
+                first_file = path_part.split(' ,')[0].strip()
+                if first_file:
+                    # Recursively normalize the first file
+                    return self._normalize_file_path_key(first_file)
+            
+            # Handle archive paths (zip://, rar://)
+            if scheme in ['zip://', 'rar://']:
+                # Pattern: zip://archive.zip/inner/path
+                parts = path_part.split('/', 1)
+                if len(parts) == 2:
+                    archive_path, inner_path = parts
+                    # Normalize both parts
+                    archive_normalized = self._normalize_path_component(archive_path)
+                    inner_normalized = self._normalize_path_component(inner_path)
+                    path_part = f"{archive_normalized}/{inner_normalized}"
+                else:
+                    path_part = self._normalize_path_component(path_part)
+            else:
+                # Regular path normalization
+                path_part = self._normalize_path_component(path_part)
+            
+            # Reconstruct with normalized scheme and path
+            if scheme:
+                return f"{scheme}{path_part}"
+            else:
+                return path_part
+            
+        except Exception as e:
+            self.logger.debug(f"Error normalizing file path '{target}': {e}")
+            return target.lower()
+    
+    def _normalize_path_component(self, path: str) -> str:
+        """Normalize individual path component"""
+        try:
+            # Percent-decode once (safely)
+            try:
+                decoded = unquote(path)
+            except Exception:
+                decoded = path
+            
+            # Convert backslashes to forward slashes
+            normalized = decoded.replace('\\', '/')
+            
+            # Collapse duplicate slashes
+            while '//' in normalized:
+                normalized = normalized.replace('//', '/')
+            
+            # Lowercase for case-insensitive matching
+            normalized = normalized.lower()
+            
+            # Strip trailing slash unless root
+            if len(normalized) > 1 and normalized.endswith('/'):
+                normalized = normalized[:-1]
+            
+            # Drop query strings and fragments for file-like schemes
+            if '?' in normalized:
+                normalized = normalized.split('?')[0]
+            if '#' in normalized:
+                normalized = normalized.split('#')[0]
+            
+            return normalized
+            
+        except Exception:
+            return path.lower()
+
+
+# Global Phase 4 parser instance
+_phase4_parser_instance = None
+
+
+def get_phase4_favorites_parser(test_file_path: Optional[str] = None):
+    """Get global Phase 4 favorites parser instance"""
+    global _phase4_parser_instance
+    if _phase4_parser_instance is None or test_file_path:
+        _phase4_parser_instance = Phase4FavoritesParser(test_file_path)
+    return _phase4_parser_instance

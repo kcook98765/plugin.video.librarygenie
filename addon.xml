@@ -1,38 +1,26 @@
-<addon id="plugin.video.librarygenie" version="1.0.6" name="LibraryGenie" provider-name="kcook98765">
-    <!-- """ /addon.xml """ -->
-    <requires>
-        <import addon="xbmc.python" version="3.0.0"/>
-    </requires>
-    <extension point="xbmc.python.pluginsource" library="main.py">
-        <provides>video</provides>
-    </extension>
-  <!-- Plugin entry only; no custom windows needed -->
-    <extension point="xbmc.addon.metadata">
-        <summary>LibraryGenie is a Kodi addon handles lists and integration with AI enabled features.</summary>
-        <description>LibraryGenie bridges your local Kodi media library with remote AI-powered search capabilities. The addon enables natural language queries, intelligent list management, and seamless synchronization with remote search APIs.</description>
-        <platform>all</platform>
-        <license>MIT</license>
-        <forum></forum>
-        <website></website>
-        <source></source>
-        <assets>
-            <icon>resources/media/icon.jpg</icon>
-            <fanart>resources/media/fanart.jpg</fanart>
-            <banner>resources/media/banner.jpg</banner>
-            <clearlogo>resources/media/clearlogo.png</clearlogo>
-            <screenshot>resources/media/landscape.jpg</screenshot>
-        </assets>
-    </extension>
-    <extension point="kodi.context.item">
-      <menu id="kodi.core.main">
-        <item library="resources/lib/context.py">
-          <label>LibraryGenie</label>
-          <visible>String.IsEqual(ListItem.DBTYPE,movie) | [String.StartsWith(ListItem.Path,plugin://) + !ListItem.IsFolder] | [String.Contains(ListItem.Path,plugin.video.librarygenie) + ListItem.IsFolder]</visible>
-        </item>
-      </menu>
-    </extension>
-    
-    <!-- Background service for periodic tasks -->
-    <extension point="xbmc.service" library="service.py" start="login" />
-  
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="plugin.video.library.genie"
+       name="Movie List Manager"
+       version="0.1.0"
+       provider-name="Movie List Team">
+  <requires>
+    <import addon="xbmc.python" version="3.0.0"/>
+  </requires>
+  <extension point="xbmc.python.pluginsource" library="plugin.py">
+    <provides>video</provides>
+  </extension>
+  <extension point="xbmc.service" library="service.py" start="login"/>
+  <extension point="xbmc.addon.metadata">
+    <platform>all</platform>
+    <license>GPL-2.0-or-later</license>
+    <summary lang="en_GB">Advanced list and folder management for Kodi with disaster recovery</summary>
+    <description lang="en_GB">Movie List Manager provides comprehensive list and folder management for Kodi with disaster recovery, intelligent media matching, and enhanced search capabilities. Features include hierarchical folder organization, portable NDJSON export/import, rich artwork integration, fast offline search with year filtering, and optional privacy-first remote services. Supports mixed content types including movies, TV episodes, music videos, and external plugin items.</description>
+    <disclaimer lang="en_GB">This addon requires no external accounts to function properly. All features work offline by default. Remote services are optional, privacy-first, and require explicit user opt-in configuration. The addon creates a local SQLite database for efficient list management and search functionality.</disclaimer>
+    <language>en</language>
+    <forum>https://forum.kodi.tv/</forum>
+    <assets>
+      <icon>icon.png</icon>
+      <fanart>fanart.png</fanart>
+    </assets>
+  </extension>
 </addon>

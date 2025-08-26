@@ -1,0 +1,252 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Movie List Manager - Phase 3 JSON-RPC Helper
+Centralized, robust JSON-RPC communication with retry/backoff and proper error handling
+"""
+
+import json
+import time
+from typing import Dict, List, Optional, Any, Union
+from dataclasses import dataclass
+
+import xbmc
+
+from ..utils.logger import get_logger
+from ..config import get_config
+
+
+@dataclass
+class JsonRpcError:
+    """Structured error response from JSON-RPC operations"""
+    type: str  # "timeout", "network", "method_error", "parse_error", "unknown"
+    message: str
+    retryable: bool
+    original_error: Optional[Exception] = None
+
+
+@dataclass 
+class JsonRpcResponse:
+    """Structured response from JSON-RPC operations"""
+    success: bool
+    data: Optional[Dict[str, Any]] = None
+    error: Optional[JsonRpcError] = None
+
+
+class JsonRpcHelper:
+    """Phase 3: Centralized JSON-RPC helper with timeout, retry/backoff, and structured error handling"""
+    
+    def __init__(self):
+        self.logger = get_logger(__name__)
+        self.config = get_config()
+        
+        # Phase 3 settings with safe defaults
+        self._timeout = self._clamp_timeout(self.config.get("jsonrpc_timeout_seconds", 10))
+        self._retry_count = 2  # Fixed retry count
+        self._base_backoff = 0.5  # Base backoff delay in seconds
+    
+    def execute_request(self, method: str, params: Optional[Dict[str, Any]] = None, 
+                       request_id: int = 1) -> JsonRpcResponse:
+        """
+        Execute JSON-RPC request with retry/backoff policy
+        
+        Args:
+            method: JSON-RPC method name
+            params: Method parameters
+            request_id: Request ID for tracking
+            
+        Returns:
+            JsonRpcResponse with success/data or error information
+        """
+        if not KODI_AVAILABLE:
+            return self._mock_response(method, params)
+        
+        request = {
+            "jsonrpc": "2.0",
+            "method": method,
+            "params": params or {},
+            "id": request_id
+        }
+        
+        last_error = None
+        
+        # Retry loop with exponential backoff
+        for attempt in range(self._retry_count + 1):
+            try:
+                self.logger.debug(f"JSON-RPC request (attempt {attempt + 1}): {method}")
+                
+                # Execute request with timeout handling
+                response_str = xbmc.executeJSONRPC(json.dumps(request))
+                
+                # Parse response
+                try:
+                    response = json.loads(response_str)
+                except json.JSONDecodeError as e:
+                    error = JsonRpcError(
+                        type="parse_error",
+                        message=f"Failed to parse JSON response: {str(e)}",
+                        retryable=False,
+                        original_error=e
+                    )
+                    return JsonRpcResponse(success=False, error=error)
+                
+                # Check for JSON-RPC errors
+                if "error" in response:
+                    error_data = response["error"]
+                    error = JsonRpcError(
+                        type="method_error",
+                        message=f"JSON-RPC method error: {error_data}",
+                        retryable=False,  # Method errors are not retryable
+                        original_error=None
+                    )
+                    self.logger.error(f"JSON-RPC method error for {method}: {error_data}")
+                    return JsonRpcResponse(success=False, error=error)
+                
+                # Success - return result
+                result = response.get("result", {})
+                self.logger.debug(f"JSON-RPC request successful: {method}")
+                return JsonRpcResponse(success=True, data=result)
+                
+            except Exception as e:
+                last_error = e
+                
+                # Classify error type
+                error_type = self._classify_error(e)
+                is_retryable = error_type in ["timeout", "network"]
+                
+                if not is_retryable or attempt >= self._retry_count:
+                    # Don't retry logic errors or if we've exhausted retries
+                    error = JsonRpcError(
+                        type=error_type,
+                        message=f"JSON-RPC request failed: {str(e)}",
+                        retryable=is_retryable,
+                        original_error=e
+                    )
+                    self.logger.error(f"JSON-RPC request failed for {method}: {str(e)}")
+                    return JsonRpcResponse(success=False, error=error)
+                
+                # Retryable error - apply backoff
+                backoff_delay = self._base_backoff * (2 ** attempt)  # Exponential backoff
+                self.logger.warning(f"JSON-RPC request failed (attempt {attempt + 1}), retrying in {backoff_delay}s: {str(e)}")
+                time.sleep(backoff_delay)
+        
+        # Should not reach here, but handle it gracefully
+        error = JsonRpcError(
+            type="unknown",
+            message=f"Unexpected error after {self._retry_count + 1} attempts",
+            retryable=False,
+            original_error=last_error
+        )
+        return JsonRpcResponse(success=False, error=error)
+    
+    def get_movies_page(self, offset: int, limit: int, properties: Optional[List[str]] = None) -> JsonRpcResponse:
+        """Get a page of movies with specified properties"""
+        
+        # Default properties for lightweight delta scans
+        if properties is None:
+            properties = [
+                "title", "year", "imdbnumber", "uniqueid", "file", "dateadded",
+                "art", "plot", "plotoutline", "runtime", "rating", "genre", 
+                "mpaa", "director", "country", "studio", "playcount", "resume"
+            ]
+        
+        params = {
+            "properties": properties,
+            "limits": {
+                "start": offset,
+                "end": offset + limit
+            }
+        }
+        
+        return self.execute_request("VideoLibrary.GetMovies", params)
+    
+    def get_movies_lightweight(self, offset: int, limit: int) -> JsonRpcResponse:
+        """Get movies with minimal properties for delta scans"""
+        
+        lightweight_properties = ["file", "dateadded", "title"]
+        
+        params = {
+            "properties": lightweight_properties,
+            "limits": {
+                "start": offset,
+                "end": offset + limit
+            }
+        }
+        
+        return self.execute_request("VideoLibrary.GetMovies", params)
+    
+    def get_movie_count(self) -> JsonRpcResponse:
+        """Get total count of movies in library"""
+        
+        params = {
+            "properties": ["title"],
+            "limits": {"start": 0, "end": 1}
+        }
+        
+        return self.execute_request("VideoLibrary.GetMovies", params)
+    
+    def _classify_error(self, error: Exception) -> str:
+        """Classify error type for retry decision"""
+        error_str = str(error).lower()
+        
+        if "timeout" in error_str:
+            return "timeout"
+        elif "network" in error_str or "connection" in error_str:
+            return "network"
+        elif "method" in error_str or "params" in error_str:
+            return "method_error"
+        elif "json" in error_str or "parse" in error_str:
+            return "parse_error"
+        else:
+            return "unknown"
+    
+    def _clamp_timeout(self, timeout: int) -> int:
+        """Clamp timeout to safe range (5-30 seconds)"""
+        return max(5, min(30, timeout))
+    
+    def _mock_response(self, method: str, params: Optional[Dict[str, Any]]) -> JsonRpcResponse:
+        """Return mock response for testing outside Kodi"""
+        
+        if method == "VideoLibrary.GetMovies":
+            # Mock multi-page response for testing
+            limits = params.get("limits", {}) if params else {}
+            start = limits.get("start", 0)
+            end = limits.get("end", 100)
+            
+            # Simulate pages
+            total_movies = 250  # Mock total
+            page_size = end - start
+            
+            movies = []
+            for i in range(start, min(end, total_movies)):
+                movies.append({
+                    "movieid": i + 1,
+                    "title": f"Mock Movie {i + 1}",
+                    "year": 2000 + (i % 24),
+                    "file": f"/movies/mock_movie_{i + 1}.mkv",
+                    "dateadded": "2023-01-15 10:30:00"
+                })
+            
+            return JsonRpcResponse(
+                success=True,
+                data={
+                    "movies": movies,
+                    "limits": {"total": total_movies}
+                }
+            )
+        
+        # Default mock response
+        return JsonRpcResponse(success=True, data={})
+
+
+# Global helper instance
+_helper_instance = None
+
+
+def get_json_rpc_helper():
+    """Get global JSON-RPC helper instance"""
+    global _helper_instance
+    if _helper_instance is None:
+        _helper_instance = JsonRpcHelper()
+    return _helper_instance
