@@ -7,7 +7,14 @@ Robust year parsing with explicit rules and edge case handling
 """
 
 import re
-from typing import Optional, Tuple, Union
+try:
+    from typing import Optional, Tuple, Union
+except ImportError:
+    # Python < 3.5 fallback
+    Optional = object
+    Tuple = tuple
+    Union = object
+
 from ..utils.logger import get_logger
 
 

@@ -8,18 +8,25 @@ Consistent text normalization for both indexing and querying
 
 import re
 import unicodedata
-from typing import List
+try:
+    from typing import Optional, Set
+except ImportError:
+    # Python < 3.5 fallback
+    Optional = object
+    Set = set
+
+from ..utils.logger import get_logger
 
 
 class TextNormalizer:
     """Unified text normalizer for consistent indexing and querying"""
-    
+
     def __init__(self):
         # Precompiled regex patterns for efficiency
         self._punctuation_pattern = re.compile(r'[^\w\s]')
         self._whitespace_pattern = re.compile(r'\s+')
         self._hyphen_pattern = re.compile(r'[-–—_]')
-    
+
     def normalize(self, text: str) -> str:
         """
         Normalize text using deterministic, language-agnostic rules:
@@ -30,35 +37,35 @@ class TextNormalizer:
         """
         if not text:
             return ""
-        
+
         try:
             # 1. Unicode NFKD normalize and remove diacritics
             # NFKD decomposes characters, then we filter out combining characters
             normalized = unicodedata.normalize('NFKD', text)
             # Remove diacritics (combining characters) - category Mn and Mc
             normalized = ''.join(
-                char for char in normalized 
+                char for char in normalized
                 if unicodedata.category(char) not in ('Mn', 'Mc')
             )
-            
+
             # 2. Lowercase with casefold() (more aggressive than lower())
             normalized = normalized.casefold()
-            
+
             # 3. Replace hyphens and underscores with spaces first
             normalized = self._hyphen_pattern.sub(' ', normalized)
-            
+
             # 4. Replace all punctuation with spaces
             normalized = self._punctuation_pattern.sub(' ', normalized)
-            
+
             # 5. Collapse multiple spaces and trim
             normalized = self._whitespace_pattern.sub(' ', normalized).strip()
-            
+
             return normalized
-            
+
         except Exception:
             # Fallback to basic normalization
             return text.lower().strip() if text else ""
-    
+
     def normalize_tokens(self, text: str) -> List[str]:
         """
         Normalize text and split into tokens
@@ -66,7 +73,7 @@ class TextNormalizer:
         normalized = self.normalize(text)
         if not normalized:
             return []
-        
+
         # Split on whitespace and filter out empty tokens
         tokens = [token for token in normalized.split() if token]
         return tokens
