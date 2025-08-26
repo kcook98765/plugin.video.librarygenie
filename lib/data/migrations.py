@@ -377,6 +377,24 @@ class MigrationManager:
                     ('enable_decade_shorthand', 'false')
             """)
 
+            # Library scan log table
+            conn.execute("""
+                CREATE TABLE library_scan_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    scan_type TEXT NOT NULL,
+                    start_time TEXT NOT NULL,
+                    end_time TEXT,
+                    total_items INTEGER DEFAULT 0,
+                    items_added INTEGER DEFAULT 0,
+                    items_updated INTEGER DEFAULT 0,
+                    items_removed INTEGER DEFAULT 0,
+                    error TEXT,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                )
+            """)
+
+            conn.execute("CREATE INDEX idx_library_scan_log_type_time ON library_scan_log (scan_type, start_time)")
+
             # Create a default list in both tables for compatibility
             conn.execute("""
                 INSERT INTO user_list (name) VALUES ('My Movies')
