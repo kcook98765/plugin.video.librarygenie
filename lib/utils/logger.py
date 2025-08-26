@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -9,6 +8,11 @@ Kodi-specific logging implementation
 
 import logging
 import sys
+try:
+    from typing import Optional
+except ImportError:
+    # Python < 3.5 fallback
+    Optional = object
 
 import xbmc
 

@@ -8,7 +8,11 @@ Reads Kodi settings and manages addon configuration
 """
 
 import xbmcaddon
-from typing import Optional
+try:
+    from typing import Optional
+except ImportError:
+    # Python < 3.5 fallback
+    Optional = object
 
 
 class ConfigManager:

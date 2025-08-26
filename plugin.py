@@ -1,18 +1,23 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
-LibraryGenie - Main Plugin Entry Point
-Handles routing and top-level navigation for the Kodi addon
+LibraryGenie - Plugin Entry Point
+Handles plugin URL routing and main menu display
 """
 
 import sys
-from urllib.parse import parse_qsl
+import urllib.parse
+try:
+    from typing import Dict, Any
+except ImportError:
+    # Python < 3.5 fallback
+    Dict = dict
+    Any = object
+
 import xbmcaddon
 import xbmcplugin
 import xbmcgui
-import urllib.parse
 
 # Import our addon modules
 from lib.addon import AddonController
@@ -24,24 +29,24 @@ from lib.auth.state import is_authorized
 def show_main_menu(handle):
     """Show main menu with auth-aware options"""
     addon = xbmcaddon.Addon()
-    
+
     # Search (always visible)
     search_item = xbmcgui.ListItem(label=addon.getLocalizedString(35014))  # "Search"
     search_url = f"{sys.argv[0]}?action=search"
     xbmcplugin.addDirectoryItem(handle, search_url, search_item, True)
-    
+
     # Lists (always visible)
     lists_item = xbmcgui.ListItem(label=addon.getLocalizedString(35016))  # "Lists"
     lists_url = f"{sys.argv[0]}?action=lists"
     xbmcplugin.addDirectoryItem(handle, lists_url, lists_item, True)
-    
+
     # Auth-dependent menu items
     if is_authorized():
         # Sign out (visible only when authorized)
         signout_item = xbmcgui.ListItem(label=addon.getLocalizedString(35027))  # "Sign out"
         signout_url = f"{sys.argv[0]}?action=signout"
         xbmcplugin.addDirectoryItem(handle, signout_url, signout_item, False)
-        
+
         # Remote features (when authorized)
         remote_lists_item = xbmcgui.ListItem(label=addon.getLocalizedString(35017))  # "Remote Lists"
         remote_lists_url = f"{sys.argv[0]}?action=remote_lists"
@@ -51,7 +56,7 @@ def show_main_menu(handle):
         auth_item = xbmcgui.ListItem(label=addon.getLocalizedString(35028))  # "Authorize device"
         auth_url = f"{sys.argv[0]}?action=authorize"
         xbmcplugin.addDirectoryItem(handle, auth_url, auth_item, False)
-    
+
     xbmcplugin.endOfDirectory(handle)
 
 
@@ -59,7 +64,7 @@ def show_search_menu(handle):
     """Show search interface"""
     try:
         from lib.ui.search_handler import SearchHandler
-        
+
         search_handler = SearchHandler(handle)
         search_handler.prompt_and_show()
     except Exception as e:
@@ -106,9 +111,9 @@ def handle_authorize():
 def handle_signout():
     """Handle user sign out"""
     from lib.auth.state import clear_tokens
-    
+
     addon = xbmcaddon.Addon()
-    
+
     # Confirm sign out
     if xbmcgui.Dialog().yesno(
         addon.getLocalizedString(35029),  # "Sign out"
@@ -147,7 +152,7 @@ def main():
 
         # Route based on action parameter
         action = params.get('action', '')
-        
+
         if action == 'search':
             show_search_menu(addon_handle)
         elif action == 'lists':
