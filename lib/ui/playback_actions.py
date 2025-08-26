@@ -300,7 +300,7 @@ class PlaybackContextMenuHandler:
         
         elif action == "queue_movie":
             success = self.playback_handler.queue_movie(kodi_id)
-            if success and KODI_AVAILABLE:
+            if success:
                 # Show confirmation
                 xbmcgui.Dialog().notification(self._get_string(35002) if hasattr(self, '_get_string') else "Movie List Manager", 
                                             self._get_string(35010) if hasattr(self, '_get_string') else "Movie added to playlist", 

@@ -59,9 +59,6 @@ class JsonRpcHelper:
         Returns:
             JsonRpcResponse with success/data or error information
         """
-        if not KODI_AVAILABLE:
-            return self._mock_response(method, params)
-        
         request = {
             "jsonrpc": "2.0",
             "method": method,

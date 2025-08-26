@@ -88,9 +88,6 @@ class KodiJsonRpcClient:
     def get_movie_count(self) -> int:
         """Get total count of movies in library"""
         
-        if not KODI_AVAILABLE:
-            return len(self._get_mock_movies(0, None)["movies"])
-        
         request = {
             "jsonrpc": "2.0",
             "method": "VideoLibrary.GetMovies",
@@ -120,11 +117,6 @@ class KodiJsonRpcClient:
     
     def get_movies_quick_check(self) -> List[Dict[str, Any]]:
         """Quick check of library IDs and basic metadata for delta detection"""
-        
-        if not KODI_AVAILABLE:
-            mock_data = self._get_mock_movies(0, None)
-            return [{"movieid": m["kodi_id"], "file": m["file_path"], "dateadded": m["date_added"]} 
-                   for m in mock_data["movies"]]
         
         request = {
             "jsonrpc": "2.0", 

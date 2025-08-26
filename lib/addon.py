@@ -765,25 +765,18 @@ class AddonController:
 
     def _open_settings(self):
         """Open addon settings"""
-        if KODI_AVAILABLE:
-            addon = xbmcaddon.Addon()
-            addon.openSettings()
-        else:
-            self.logger.info("Settings opened (stub mode)")
+        addon = xbmcaddon.Addon()
+        addon.openSettings()
 
     def _show_error_dialog(self, message):
         """Show error dialog to user"""
-        if KODI_AVAILABLE:
-            xbmcgui.Dialog().ok(self._get_string(35002), message)
-        else:
-            self.logger.error(f"Error dialog: {message}")
+        xbmcgui.Dialog().ok(self._get_string(35002), message)
 
     def _get_string(self, string_id):
         """Get localized string by ID"""
-        if KODI_AVAILABLE:
-            try:
-                addon = xbmcaddon.Addon()
-                return addon.getLocalizedString(string_id)
+        try:
+            addon = xbmcaddon.Addon()
+            return addon.getLocalizedString(string_id)
             except:
                 pass
 
