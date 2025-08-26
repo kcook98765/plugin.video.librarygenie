@@ -7,8 +7,9 @@ LibraryGenie - Main Addon Controller
 Entry point for plugin operations and routing
 """
 
-import sys
 from __future__ import annotations
+
+import sys
 from typing import Dict, Any, Optional
 
 import xbmcaddon
