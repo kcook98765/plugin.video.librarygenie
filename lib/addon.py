@@ -777,7 +777,7 @@ class AddonController:
         try:
             addon = xbmcaddon.Addon()
             return addon.getLocalizedString(string_id)
-            except:
+            except Exception:
                 pass
 
         # Fallback strings for testing

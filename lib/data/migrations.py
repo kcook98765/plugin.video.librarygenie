@@ -12,31 +12,31 @@ from ..utils.logger import get_logger
 
 class MigrationManager:
     """Manages database schema migrations"""
-    
+
     def __init__(self):
         self.logger = get_logger(__name__)
         self.conn_manager = get_connection_manager()
-        
+
     def ensure_initialized(self):
         """Ensure database is initialized with latest schema"""
         try:
             current_version = self._get_schema_version()
             self.logger.debug(f"Current schema version: {current_version}")
-            
+
             # Apply migrations in order
             for migration in self._get_migrations():
                 if migration['version'] > current_version:
                     self.logger.info(f"Applying migration {migration['version']}: {migration['name']}")
                     self._apply_migration(migration)
                     self._set_schema_version(migration['version'])
-            
+
             final_version = self._get_schema_version()
             self.logger.info(f"Database initialized at schema version {final_version}")
-            
+
         except Exception as e:
             self.logger.error(f"Database initialization failed: {e}")
             raise
-    
+
     def _get_schema_version(self):
         """Get current schema version"""
         try:
@@ -47,7 +47,7 @@ class MigrationManager:
         except Exception:
             # Schema version table doesn't exist yet
             return 0
-    
+
     def _set_schema_version(self, version):
         """Record schema version"""
         with self.conn_manager.transaction() as conn:
@@ -55,13 +55,13 @@ class MigrationManager:
                 "INSERT INTO schema_version (version, applied_at) VALUES (?, datetime('now'))",
                 [version]
             )
-    
+
     def _apply_migration(self, migration):
         """Apply a single migration"""
         with self.conn_manager.transaction() as conn:
             for statement in migration['sql']:
                 conn.execute(statement)
-    
+
     def _get_migrations(self):
         """Get all available migrations in order"""
         return [
@@ -89,7 +89,7 @@ class MigrationManager:
                     """,
                     """
                     CREATE TABLE list_item (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        id INTEGER PRIMARYKEY AUTOINCREMENT,
                         list_id INTEGER NOT NULL,
                         title TEXT NOT NULL,
                         year INTEGER,
@@ -159,7 +159,7 @@ class MigrationManager:
                     """,
                     """
                     CREATE TABLE library_scan_log (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        id INTEGER PRIMARYKEY AUTOINCREMENT,
                         scan_type TEXT NOT NULL, -- 'full' or 'delta'
                         started_at TEXT NOT NULL,
                         completed_at TEXT,
@@ -209,7 +209,7 @@ class MigrationManager:
                     # Add table to track list operation history
                     """
                     CREATE TABLE list_operation_log (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        id INTEGER PRIMARYKEY AUTOINCREMENT,
                         operation TEXT NOT NULL, -- 'add' or 'remove'
                         list_id INTEGER NOT NULL,
                         library_movie_id INTEGER,
@@ -256,7 +256,7 @@ class MigrationManager:
                     # Table to track favorites file state
                     """
                     CREATE TABLE favorites_scan_log (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        id INTEGER PRIMARYKEY AUTOINCREMENT,
                         scan_type TEXT NOT NULL, -- 'full', 'check'
                         file_path TEXT NOT NULL,
                         file_modified TEXT, -- ISO timestamp of file modification
@@ -318,7 +318,7 @@ class MigrationManager:
                     # Table to store search history/preferences per user
                     """
                     CREATE TABLE search_history (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        id INTEGER PRIMARYKEY AUTOINCREMENT,
                         query_text TEXT NOT NULL,
                         scope_type TEXT NOT NULL DEFAULT 'library', -- 'library', 'list'
                         scope_id INTEGER, -- list_id if scope_type = 'list'
@@ -557,10 +557,15 @@ class MigrationManager:
                 'version': 9,
                 'name': 'Phase 5: Enhanced search with improved normalization',
                 'sql': [
-                    # Add normalized_path column for file path searching (if not exists)
+                    # Add normalized_title column to media_items if it doesn't exist
                     """
                     ALTER TABLE library_movie 
-                    ADD COLUMN normalized_path TEXT DEFAULT ''
+                    ADD COLUMN normalized_title TEXT
+                    """,
+                    # Add normalized_path column to media_items if it doesn't exist
+                    """
+                    ALTER TABLE library_movie 
+                    ADD COLUMN normalized_path TEXT
                     """,
                     # Update normalized_path using Phase 5 normalizer approach
                     """
@@ -577,7 +582,7 @@ class MigrationManager:
                     # Add search preferences table for user settings
                     """
                     CREATE TABLE IF NOT EXISTS search_preferences (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        id INTEGER PRIMARYKEY AUTOINCREMENT,
                         preference_key TEXT NOT NULL UNIQUE,
                         preference_value TEXT NOT NULL,
                         created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -601,6 +606,33 @@ class MigrationManager:
                 ]
             }
         ]
+
+    def _execute_safe(self, sql: str, params=None):
+        """Execute SQL with proper error handling"""
+        try:
+            self.conn_manager.execute_write(sql, params or [])
+        except Exception as e:
+            self.logger.error(f"Migration SQL failed: {sql[:100]}... Error: {e}")
+            raise
+
+    def _column_exists(self, table_name: str, column_name: str) -> bool:
+        """Check if a column exists in a table"""
+        try:
+            result = self.conn_manager.execute_single(
+                "PRAGMA table_info(?)", [table_name]
+            )
+            if result:
+                # PRAGMA table_info returns a list of column info
+                columns_info = self.conn_manager.execute_many(
+                    "PRAGMA table_info(?)", [table_name]
+                )
+                for column_info in columns_info:
+                    if column_info and len(column_info) > 1 and column_info[1] == column_name:
+                        return True
+            return False
+        except Exception as e:
+            self.logger.debug(f"Error checking column existence: {e}")
+            return False
 
 
 # Global migration manager instance
