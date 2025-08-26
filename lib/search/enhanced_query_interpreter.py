@@ -7,7 +7,17 @@ Enhanced search query parsing with robust year parsing and improved normalizatio
 """
 
 import re
-from typing import Dict, Any, List, Optional, Tuple, Union
+try:
+    from typing import Dict, Any, List, Optional, Tuple, Union
+except ImportError:
+    # Python < 3.5 fallback
+    Dict = dict
+    Any = object
+    List = list
+    Optional = object
+    Tuple = tuple
+    Union = object
+
 from .normalizer import get_text_normalizer
 from .year_parser import get_year_parser
 from ..utils.logger import get_logger

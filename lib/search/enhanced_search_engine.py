@@ -7,7 +7,15 @@ Enhanced SQL building, paging UI, and performance optimizations
 """
 
 from datetime import datetime
-from typing import List, Dict, Any, Tuple
+try:
+    from typing import List, Dict, Any, Tuple
+except ImportError:
+    # Python < 3.5 fallback
+    List = list
+    Dict = dict
+    Any = object
+    Tuple = tuple
+
 from .enhanced_query_interpreter import SearchQuery
 from .normalizer import get_text_normalizer
 from ..data import get_connection_manager
