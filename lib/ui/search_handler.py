@@ -2,165 +2,127 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Search UI Handler
-Handles search user interface and result presentation
+Movie List Manager - Search Handler
+Provides UI bridge for search functionality with remote/local engine selection
 """
-
-from typing import Optional
-from urllib.parse import urlencode
 
 import xbmcgui
 import xbmcplugin
-
-from ..search.local_engine import search_local
 from ..auth.state import is_authorized
+from ..remote.search_client import search_remote, RemoteError
+from ..search.local_engine import search_local
 from ..utils.logger import get_logger
-from ..config import get_config
 
 
-class SearchUI:
-    """Handles search user interface operations"""
+class SearchHandler:
+    """Handles search UI and result display"""
 
-    def __init__(self, handle: int, base_url: str):
-        self.handle = handle
-        self.base_url = base_url
+    def __init__(self, addon_handle):
+        self.addon_handle = addon_handle
         self.logger = get_logger(__name__)
-        self.config = get_config()
 
     def prompt_and_show(self):
-        """Prompt user for search query and display results"""
+        """Prompt user for search query and show results"""
         # Get search query from user
         query = xbmcgui.Dialog().input(
-            "Search Movies & TV Shows",
+            "Search Movies",
             type=xbmcgui.INPUT_ALPHANUM
         )
 
         if not query or not query.strip():
-            # User cancelled or entered empty query
-            self._show_empty_directory()
             return
 
-        self.logger.info(f"User search query: '{query}'")
-
-        # For Phase 3, always use local search
-        # Phase 5 will add remote search when authorized
-        self._show_local_results(query)
-
-    def _show_local_results(self, query: str):
-        """Show local search results"""
+        # Perform search with engine selection
         try:
-            # Get search limit from config
-            limit = self.config.get_int("search_page_size", 50)
-
-            # Perform local search
-            results = search_local(query, limit=limit)
-
-            if not results:
-                self._show_no_results(query)
-                return
-
-            # Add results to directory
-            for item in results:
-                self._add_search_result_item(item)
-
-            # Add search info
-            info_label = f"Local search: {len(results)} result(s) for '{query}'"
-            if len(results) >= limit:
-                info_label += f" (limited to {limit})"
-
-            li = xbmcgui.ListItem(f"[COLOR gray]{info_label}[/COLOR]")
-            xbmcplugin.addDirectoryItem(self.handle, "", li, False)
-
-            xbmcplugin.endOfDirectory(self.handle)
+            results = self._perform_search(query.strip())
+            self._display_results(results, query)
 
         except Exception as e:
-            self.logger.error(f"Error showing local search results: {e}")
-            self._show_error("Search failed. Please try again.")
-
-    def _add_search_result_item(self, item: dict):
-        """Add a single search result item to the directory"""
-        try:
-            label = item.get('label', 'Unknown Item')
-            path = item.get('path', '')
-            art = item.get('art', {})
-            item_type = item.get('type', 'unknown')
-
-            # Create list item
-            li = xbmcgui.ListItem(label)
-
-            # Set artwork
-            if art:
-                li.setArt(art)
-
-            # Set info based on type
-            if item_type == 'movie':
-                self._set_movie_info(li, item)
-            elif item_type == 'episode':
-                self._set_episode_info(li, item)
-
-            # Set as playable
-            li.setProperty('IsPlayable', 'true')
-
-            # Add to directory
-            xbmcplugin.addDirectoryItem(
-                self.handle,
-                path,
-                li,
-                False  # Not a folder
+            self.logger.error(f"Search failed: {e}")
+            xbmcgui.Dialog().notification(
+                "Search Error",
+                "Search failed. Check logs for details.",
+                xbmcgui.NOTIFICATION_ERROR
             )
 
-        except Exception as e:
-            self.logger.error(f"Error adding search result item: {e}")
+    def _perform_search(self, query):
+        """
+        Perform search using remote or local engine with fallback
 
-    def _set_movie_info(self, li: xbmcgui.ListItem, item: dict):
-        """Set movie-specific info for list item"""
-        info = {
-            'mediatype': 'movie',
-            'title': item.get('title', ''),
-            'plot': item.get('plot', ''),
-            'rating': item.get('rating', 0.0),
-            'genre': item.get('genre', []),
-            'director': item.get('director', []),
-            'duration': item.get('runtime', 0),
-            'mpaa': item.get('mpaa', ''),
-            'imdbnumber': item.get('imdbnumber', '')
-        }
+        Args:
+            query: Search query string
 
-        year = item.get('year')
-        if year:
-            info['year'] = year
+        Returns:
+            list: Search results
+        """
+        results = []
 
-        li.setInfo('video', info)
+        # Try remote search if authorized
+        if is_authorized():
+            try:
+                self.logger.debug("Using remote search (authorized)")
+                remote_response = search_remote(query, page=1, page_size=100)
+                results = remote_response.get('items', [])
+                self.logger.info(f"Remote search returned {len(results)} results")
 
-    def _set_episode_info(self, li: xbmcgui.ListItem, item: dict):
-        """Set episode-specific info for list item"""
-        info = {
-            'mediatype': 'episode',
-            'title': item.get('title', ''),
-            'tvshowtitle': item.get('showtitle', ''),
-            'season': item.get('season', 0),
-            'episode': item.get('episode', 0),
-            'plot': item.get('plot', ''),
-            'rating': item.get('rating', 0.0),
-            'duration': item.get('runtime', 0),
-            'aired': item.get('firstaired', '')
-        }
+            except RemoteError as e:
+                self.logger.warning(f"Remote search failed, falling back to local: {e}")
+                results = search_local(query, limit=200)
 
-        li.setInfo('video', info)
+        else:
+            # Use local search when not authorized
+            self.logger.debug("Using local search (not authorized)")
+            results = search_local(query, limit=200)
 
-    def _show_no_results(self, query: str):
-        """Show message when no results found"""
-        message = f"No results found for '{query}'"
-        li = xbmcgui.ListItem(f"[COLOR orange]{message}[/COLOR]")
-        xbmcplugin.addDirectoryItem(self.handle, "", li, False)
-        xbmcplugin.endOfDirectory(self.handle)
+        return results
 
-    def _show_error(self, message: str):
-        """Show error message"""
-        li = xbmcgui.ListItem(f"[COLOR red]Error: {message}[/COLOR]")
-        xbmcplugin.addDirectoryItem(self.handle, "", li, False)
-        xbmcplugin.endOfDirectory(self.handle)
+    def _display_results(self, results, query):
+        """Display search results in Kodi"""
+        if not results:
+            xbmcgui.Dialog().notification(
+                "No Results",
+                f"No movies found for '{query}'",
+                xbmcgui.NOTIFICATION_INFO
+            )
+            return
 
-    def _show_empty_directory(self):
-        """Show empty directory (for cancelled searches)"""
-        xbmcplugin.endOfDirectory(self.handle)
+        # Add directory items for each result
+        for item in results:
+            list_item = xbmcgui.ListItem(
+                label=item.get('label', 'Unknown'),
+                label2=item.get('year', '')
+            )
+
+            # Set artwork if available
+            art = item.get('art', {})
+            if art:
+                list_item.setArt(art)
+
+            # Set info
+            info = {
+                'title': item.get('label', 'Unknown'),
+                'mediatype': item.get('type', 'movie')
+            }
+
+            if item.get('year'):
+                info['year'] = item['year']
+
+            list_item.setInfo('video', info)
+
+            # Set playable if we have a path
+            is_playable = bool(item.get('path'))
+            list_item.setProperty('IsPlayable', 'true' if is_playable else 'false')
+
+            # Add to directory
+            url = item.get('path', '')
+            xbmcplugin.addDirectoryItem(
+                self.addon_handle,
+                url,
+                list_item,
+                isFolder=False
+            )
+
+        # Finish directory
+        xbmcplugin.endOfDirectory(self.addon_handle)
+
+        self.logger.info(f"Displayed {len(results)} search results for '{query}'")
