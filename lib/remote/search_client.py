@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -11,6 +10,7 @@ import json
 import urllib.request
 import urllib.parse
 import urllib.error
+from typing import Dict, Any, List, Optional
 from ..auth.state import is_authorized, get_access_token
 from ..config import get_config
 from ..utils.logger import get_logger
@@ -88,13 +88,13 @@ def search_remote(query, page=1, page_size=100):
                 # Map remote results to uniform format
                 items = data.get('items', [])
                 mapped_items = [_map_remote_item(item) for item in items]
-                
+
                 result = {
                     'items': mapped_items,
                     'total': data.get('total', len(mapped_items)),
                     'used_remote': True
                 }
-                
+
                 logger.debug(f"Remote search successful: {len(mapped_items)} results")
                 return result
             else:
@@ -122,15 +122,15 @@ def search_remote(query, page=1, page_size=100):
         raise RemoteError(f"request failed: {e}")
 
 
-def _map_remote_item(remote_item):
+def _map_remote_item(remote_item: Dict[str, Any]) -> Dict[str, Any]:
     """Map remote item to uniform format with local file preference"""
     logger = get_logger(__name__)
-    
+
     # Try to map to local file if we have IMDB/TMDB IDs
     local_path = _find_local_path(remote_item)
-    
+
     # Create uniform item dict
-    mapped_item = {
+    mapped_item: Dict[str, Any] = {
         'label': remote_item.get('title', 'Unknown'),
         'path': local_path or remote_item.get('stream_url', ''),
         'art': remote_item.get('art', {}),
@@ -151,7 +151,7 @@ def _map_remote_item(remote_item):
         '_source': 'remote',
         '_local_mapped': bool(local_path)
     }
-    
+
     # Add episode-specific fields if applicable
     if remote_item.get('type') == 'episode':
         mapped_item.update({
@@ -159,26 +159,26 @@ def _map_remote_item(remote_item):
             'season': remote_item.get('season', 0),
             'episode': remote_item.get('episode', 0)
         })
-    
+
     return mapped_item
 
 
-def _find_local_path(remote_item):
+def _find_local_path(remote_item: Dict[str, Any]) -> Optional[str]:
     """
     Try to find local file path by matching IMDB/TMDB IDs
     Returns local path if found, None otherwise
     """
     try:
         from ..data.connection_manager import get_connection_manager
-        
+
         imdb_id = remote_item.get('imdb_id')
         tmdb_id = remote_item.get('tmdb_id')
-        
+
         if not (imdb_id or tmdb_id):
             return None
-        
+
         conn_manager = get_connection_manager()
-        
+
         # Try IMDB ID first
         if imdb_id:
             query = """
@@ -189,7 +189,7 @@ def _find_local_path(remote_item):
             result = conn_manager.fetch_one(query, (imdb_id,))
             if result:
                 return result[0]
-        
+
         # Try TMDB ID
         if tmdb_id:
             query = """
@@ -200,9 +200,9 @@ def _find_local_path(remote_item):
             result = conn_manager.fetch_one(query, (tmdb_id,))
             if result:
                 return result[0]
-        
+
         return None
-        
+
     except Exception as e:
         logger = get_logger(__name__)
         logger.debug(f"Could not map remote item to local: {e}")
