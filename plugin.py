@@ -22,7 +22,8 @@ from lib.auth.auth_helper import get_auth_helper
 def show_search_menu(handle):
     """Show search interface"""
     # Placeholder for search functionality
-    list_item = xbmcgui.ListItem(label="Search functionality coming soon...")
+    addon = xbmcaddon.Addon()
+    list_item = xbmcgui.ListItem(label=addon.getLocalizedString(35014))
     xbmcplugin.addDirectoryItem(handle, "", list_item, False)
     xbmcplugin.endOfDirectory(handle)
 
@@ -30,7 +31,8 @@ def show_search_menu(handle):
 def show_remote_search_menu(handle):
     """Show remote search interface"""
     # Placeholder for remote search functionality
-    list_item = xbmcgui.ListItem(label="Remote search functionality coming soon...")
+    addon = xbmcaddon.Addon()
+    list_item = xbmcgui.ListItem(label=addon.getLocalizedString(35015))
     xbmcplugin.addDirectoryItem(handle, "", list_item, False)
     xbmcplugin.endOfDirectory(handle)
 
@@ -38,7 +40,8 @@ def show_remote_search_menu(handle):
 def show_lists_menu(handle):
     """Show lists management interface"""
     # Placeholder for lists functionality
-    list_item = xbmcgui.ListItem(label="Lists functionality coming soon...")
+    addon = xbmcaddon.Addon()
+    list_item = xbmcgui.ListItem(label=addon.getLocalizedString(35016))
     xbmcplugin.addDirectoryItem(handle, "", list_item, False)
     xbmcplugin.endOfDirectory(handle)
 
@@ -46,7 +49,8 @@ def show_lists_menu(handle):
 def show_remote_lists_menu(handle):
     """Show remote lists interface"""
     # Placeholder for remote lists functionality
-    list_item = xbmcgui.ListItem(label="Remote lists functionality coming soon...")
+    addon = xbmcaddon.Addon()
+    list_item = xbmcgui.ListItem(label=addon.getLocalizedString(35017))
     xbmcplugin.addDirectoryItem(handle, "", list_item, False)
     xbmcplugin.endOfDirectory(handle)
 
@@ -79,9 +83,10 @@ def main():
         # Try to show error to user if possible
         try:
             import xbmcgui
+            addon = xbmcaddon.Addon()
             xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "Plugin failed to start. Check logs.",
+                addon.getLocalizedString(35002),
+                addon.getLocalizedString(35013),
                 xbmcgui.NOTIFICATION_ERROR
             )
         except:

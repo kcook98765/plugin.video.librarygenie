@@ -7,6 +7,7 @@ Provides UI bridge for search functionality with remote/local engine selection
 """
 
 import xbmcgui
+import xbmcaddon
 
 from ..search.enhanced_search_engine import get_enhanced_search_engine
 from ..remote.search_client import search_remote, RemoteError
@@ -26,8 +27,9 @@ class SearchHandler:
     def prompt_and_show(self):
         """Prompt user for search query and show results"""
         # Get search query from user
+        addon = xbmcaddon.Addon()
         query = xbmcgui.Dialog().input(
-            "Search Movies",
+            addon.getLocalizedString(35018),
             type=xbmcgui.INPUT_ALPHANUM
         )
 
@@ -41,9 +43,10 @@ class SearchHandler:
 
         except Exception as e:
             self.logger.error(f"Search failed: {e}")
+            addon = xbmcaddon.Addon()
             xbmcgui.Dialog().notification(
-                "Search Error",
-                "Search failed. Check logs for details.",
+                addon.getLocalizedString(35021),
+                addon.getLocalizedString(35022),
                 xbmcgui.NOTIFICATION_ERROR
             )
 
@@ -81,9 +84,10 @@ class SearchHandler:
     def _display_results(self, results, query):
         """Display search results in Kodi"""
         if not results:
+            addon = xbmcaddon.Addon()
             xbmcgui.Dialog().notification(
-                "No Results",
-                f"No movies found for '{query}'",
+                addon.getLocalizedString(35019),
+                addon.getLocalizedString(35020) % query,
                 xbmcgui.NOTIFICATION_INFO
             )
             return
@@ -148,9 +152,10 @@ class SearchHandler:
                 self.logger.warning(f"Remote search failed: {e}")
                 # Show fallback notification (once per session)
                 if session_state.should_show_notification("remote_search_fallback", 600):
+                    addon = xbmcaddon.Addon()
                     xbmcgui.Dialog().notification(
-                        "LibraryGenie",
-                        "Remote search unavailable, using local search",
+                        addon.getLocalizedString(35002),
+                        addon.getLocalizedString(35023),
                         xbmcgui.NOTIFICATION_WARNING,
                         4000
                     )
@@ -159,9 +164,10 @@ class SearchHandler:
                 self.logger.error(f"Remote search error: {e}")
                 # Show fallback notification (once per session)
                 if session_state.should_show_notification("remote_search_error", 600):
+                    addon = xbmcaddon.Addon()
                     xbmcgui.Dialog().notification(
-                        "LibraryGenie",
-                        "Remote search failed, using local search",
+                        addon.getLocalizedString(35002),
+                        addon.getLocalizedString(35024),
                         xbmcgui.NOTIFICATION_WARNING,
                         4000
                     )
@@ -178,9 +184,10 @@ class SearchHandler:
                 self.logger.error(f"Local search failed: {e}")
                 results = []
                 # Show error notification
+                addon = xbmcaddon.Addon()
                 xbmcgui.Dialog().notification(
-                    "LibraryGenie",
-                    "Search failed - please try again",
+                    addon.getLocalizedString(35002),
+                    addon.getLocalizedString(35025),
                     xbmcgui.NOTIFICATION_ERROR,
                     4000
                 )
@@ -226,9 +233,10 @@ class SearchHandler:
 
         except Exception as e:
             self.logger.error(f"Remote search failed: {e}")
+            addon = xbmcaddon.Addon()
             xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "Remote search failed - please try again",
+                addon.getLocalizedString(35002),
+                addon.getLocalizedString(35026),
                 xbmcgui.NOTIFICATION_ERROR,
                 4000
             )

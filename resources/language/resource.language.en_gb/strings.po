@@ -772,7 +772,7 @@ msgid "Playback Error"
 msgstr ""
 
 msgctxt "#35002"
-msgid "Movie List Manager"
+msgid "LibraryGenie"
 msgstr ""
 
 msgctxt "#35003"
@@ -813,4 +813,61 @@ msgstr ""
 
 msgctxt "#35012"
 msgid "Failed to clear remote cache."
+msgstr ""
+
+# Additional UI Messages
+msgctxt "#35013"
+msgid "Plugin failed to start. Check logs."
+msgstr ""
+
+msgctxt "#35014"
+msgid "Search functionality coming soon..."
+msgstr ""
+
+msgctxt "#35015"
+msgid "Remote search functionality coming soon..."
+msgstr ""
+
+msgctxt "#35016"
+msgid "Lists functionality coming soon..."
+msgstr ""
+
+msgctxt "#35017"
+msgid "Remote lists functionality coming soon..."
+msgstr ""
+
+msgctxt "#35018"
+msgid "Search Movies"
+msgstr ""
+
+msgctxt "#35019"
+msgid "No Results"
+msgstr ""
+
+msgctxt "#35020"
+msgid "No movies found for '%s'"
+msgstr ""
+
+msgctxt "#35021"
+msgid "Search Error"
+msgstr ""
+
+msgctxt "#35022"
+msgid "Search failed. Check logs for details."
+msgstr ""
+
+msgctxt "#35023"
+msgid "Remote search unavailable, using local search"
+msgstr ""
+
+msgctxt "#35024"
+msgid "Remote search failed, using local search"
+msgstr ""
+
+msgctxt "#35025"
+msgid "Search failed - please try again"
+msgstr ""
+
+msgctxt "#35026"
+msgid "Remote search failed - please try again"
 msgstr ""
