@@ -42,6 +42,11 @@ def get_import_export_settings() -> Dict[str, Any]:
         "export_chunk_size": 1000,  # Items per chunk for large exports
         "import_batch_size": 500,  # Items per transaction for imports
         "backup_ui_updates": True,  # Show progress during backup operations
+        
+        # Background Service Settings
+        "background_interval_minutes": 5,  # Background service interval (minimum 1 minute)
+        "track_library_changes": False,  # Monitor library for changes
+        "background_token_refresh": True,  # Enable background token refresh
     }
 
 
@@ -135,6 +140,11 @@ def get_setting_descriptions() -> Dict[str, str]:
         "export_chunk_size": "Number of items to process at once during export",
         "import_batch_size": "Number of items to import in each database transaction",
         "backup_ui_updates": "Show progress information during backup operations",
+        
+        # Background Service Descriptions
+        "background_interval_minutes": "How often the background service runs (minimum 1 minute)",
+        "track_library_changes": "Monitor Kodi library for changes in the background",
+        "background_token_refresh": "Automatically refresh authentication tokens",
     }
 
 
@@ -171,6 +181,10 @@ def validate_setting_value(setting_key: str, value: Any) -> tuple[bool, str]:
             valid_types = {"lists", "list_items", "favorites", "library_snapshot"}
             if not all(t in valid_types for t in value):
                 return False, f"Invalid export types. Valid: {valid_types}"
+        
+        elif setting_key == "background_interval_minutes":
+            if not isinstance(value, int) or value < 1 or value > 1440:  # Max 24 hours
+                return False, "Background interval must be between 1 and 1440 minutes"
         
         return True, ""
         

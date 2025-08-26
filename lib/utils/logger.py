@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -52,17 +53,18 @@ def get_logger(name):
 def _update_logger_level(logger):
     """Update logger level based on config setting"""
     try:
+        # Use safe import to avoid circular dependencies during early initialization
         from ..config import get_config
 
         config = get_config()
-        debug_enabled = config.get("debug_logging", False)
+        debug_enabled = config.get_bool("debug_logging", False)
 
         if debug_enabled:
             logger.setLevel(logging.DEBUG)
         else:
             logger.setLevel(logging.INFO)
     except Exception:
-        # Fallback to INFO level if config is not available
+        # Fallback to INFO level if config is not available or fails
         logger.setLevel(logging.INFO)
 
 

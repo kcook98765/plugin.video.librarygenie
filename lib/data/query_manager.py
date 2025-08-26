@@ -27,17 +27,17 @@ class QueryManager:
 
         try:
             self.logger.info("Initializing SQLite data layer")
-            
+
             # Apply migrations to ensure schema is up to date
             self.migration_manager.ensure_initialized()
-            
+
             # Ensure default list exists
             self._ensure_default_list()
-            
+
             self._initialized = True
             self.logger.info("Data layer initialization complete")
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Failed to initialize data layer: {e}")
             return False
@@ -46,7 +46,7 @@ class QueryManager:
         """Get all user lists from database"""
         try:
             self.logger.debug("Getting user lists from database")
-            
+
             lists = self.conn_manager.execute_query("""
                 SELECT 
                     id,
@@ -57,7 +57,7 @@ class QueryManager:
                 FROM user_list 
                 ORDER BY created_at ASC
             """)
-            
+
             # Convert to expected format
             result = []
             for row in lists:
@@ -69,10 +69,10 @@ class QueryManager:
                     "created": row['created_at'][:10] if row['created_at'] else '',
                     "modified": row['updated_at'][:10] if row['updated_at'] else '',
                 })
-            
+
             self.logger.debug(f"Retrieved {len(result)} lists")
             return result
-            
+
         except Exception as e:
             self.logger.error(f"Failed to get user lists: {e}")
             return []
@@ -81,7 +81,7 @@ class QueryManager:
         """Get items in a specific list from database"""
         try:
             self.logger.debug(f"Getting items for list {list_id}")
-            
+
             items = self.conn_manager.execute_query("""
                 SELECT id, title, year, imdb_id, tmdb_id, created_at
                 FROM list_item 
@@ -89,7 +89,7 @@ class QueryManager:
                 ORDER BY created_at DESC
                 LIMIT ? OFFSET ?
             """, [int(list_id), limit, offset])
-            
+
             # Convert to expected format
             result = []
             for row in items:
@@ -101,10 +101,10 @@ class QueryManager:
                     "tmdb_id": row['tmdb_id'],
                     "created": row['created_at'][:10] if row['created_at'] else '',
                 })
-            
+
             self.logger.debug(f"Retrieved {len(result)} items for list {list_id}")
             return result
-            
+
         except Exception as e:
             self.logger.error(f"Failed to get list items: {e}")
             return []
@@ -114,25 +114,25 @@ class QueryManager:
         if not name or not name.strip():
             self.logger.warning("Attempted to create list with empty name")
             return {"error": "empty_name"}
-        
+
         name = name.strip()
-        
+
         try:
             self.logger.info(f"Creating list '{name}'")
-            
+
             with self.conn_manager.transaction() as conn:
                 cursor = conn.execute("""
                     INSERT INTO user_list (name) VALUES (?)
                 """, [name])
-                
+
                 list_id = cursor.lastrowid
-                
+
             return {
                 "id": str(list_id),
                 "name": name,
                 "description": description
             }
-            
+
         except Exception as e:
             error_msg = str(e).lower()
             if "unique constraint" in error_msg:
@@ -146,15 +146,15 @@ class QueryManager:
         """Add an item to a list in database"""
         try:
             self.logger.info(f"Adding '{title}' to list {list_id}")
-            
+
             with self.conn_manager.transaction() as conn:
                 cursor = conn.execute("""
                     INSERT INTO list_item (list_id, title, year, imdb_id, tmdb_id)
                     VALUES (?, ?, ?, ?, ?)
                 """, [int(list_id), title, year, imdb_id, tmdb_id])
-                
+
                 item_id = cursor.lastrowid
-            
+
             return {
                 "id": str(item_id),
                 "title": title,
@@ -162,7 +162,7 @@ class QueryManager:
                 "imdb_id": imdb_id,
                 "tmdb_id": tmdb_id
             }
-            
+
         except Exception as e:
             self.logger.error(f"Failed to add item '{title}' to list {list_id}: {e}")
             return None
@@ -173,9 +173,9 @@ class QueryManager:
             result = self.conn_manager.execute_single("""
                 SELECT COUNT(*) as count FROM list_item WHERE list_id = ?
             """, [int(list_id)])
-            
+
             return result['count'] if result else 0
-            
+
         except Exception as e:
             self.logger.error(f"Failed to count items in list {list_id}: {e}")
             return 0
@@ -184,12 +184,12 @@ class QueryManager:
         """Delete a list from database"""
         try:
             self.logger.info(f"Deleting list {list_id}")
-            
+
             with self.conn_manager.transaction() as conn:
                 conn.execute("DELETE FROM user_list WHERE id = ?", [int(list_id)])
-            
+
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Failed to delete list {list_id}: {e}")
             return False
@@ -198,15 +198,15 @@ class QueryManager:
         """Delete an item from a list in database"""
         try:
             self.logger.info(f"Deleting item {item_id} from list {list_id}")
-            
+
             with self.conn_manager.transaction() as conn:
                 conn.execute("""
                     DELETE FROM list_item 
                     WHERE id = ? AND list_id = ?
                 """, [int(item_id), int(list_id)])
-            
+
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Failed to delete item {item_id} from list {list_id}: {e}")
             return False
@@ -216,30 +216,30 @@ class QueryManager:
         if not new_name or not new_name.strip():
             self.logger.warning("Attempted to rename list with empty name")
             return {"error": "empty_name"}
-        
+
         new_name = new_name.strip()
-        
+
         try:
             self.logger.info(f"Renaming list {list_id} to '{new_name}'")
-            
+
             with self.conn_manager.transaction() as conn:
                 # Check if list exists
                 existing = conn.execute(
                     "SELECT name FROM user_list WHERE id = ?", [int(list_id)]
                 ).fetchone()
-                
+
                 if not existing:
                     return {"error": "list_not_found"}
-                
+
                 # Update the list name
                 conn.execute("""
                     UPDATE user_list 
                     SET name = ?, updated_at = datetime('now')
                     WHERE id = ?
                 """, [new_name, int(list_id)])
-                
+
             return {"success": True, "name": new_name}
-            
+
         except Exception as e:
             error_msg = str(e).lower()
             if "unique constraint" in error_msg:
@@ -253,21 +253,21 @@ class QueryManager:
         """Delete a list and cascade delete its items"""
         try:
             self.logger.info(f"Deleting list {list_id}")
-            
+
             with self.conn_manager.transaction() as conn:
                 # Check if list exists
                 existing = conn.execute(
                     "SELECT name FROM user_list WHERE id = ?", [int(list_id)]
                 ).fetchone()
-                
+
                 if not existing:
                     return {"error": "list_not_found"}
-                
+
                 # Delete list (items cascade automatically via foreign key)
                 conn.execute("DELETE FROM user_list WHERE id = ?", [int(list_id)])
-            
+
             return {"success": True}
-            
+
         except Exception as e:
             self.logger.error(f"Failed to delete list {list_id}: {e}")
             return {"error": "database_error"}
@@ -282,7 +282,7 @@ class QueryManager:
                 FROM user_list 
                 WHERE id = ?
             """, [int(list_id)])
-            
+
             if result:
                 return {
                     "id": str(result['id']),
@@ -294,27 +294,23 @@ class QueryManager:
                 }
             else:
                 return None
-                
+
         except Exception as e:
             self.logger.error(f"Failed to get list {list_id}: {e}")
             return None
 
     def _ensure_default_list(self):
-        """Ensure a default list exists"""
+        """Ensure at least one default list exists"""
         try:
-            # Check if any lists exist
-            result = self.conn_manager.execute_single(
-                "SELECT COUNT(*) as count FROM user_list"
-            )
-            
-            if result and result['count'] == 0:
-                self.logger.info("No lists found, creating default list")
-                result = self.create_list("Default")
-                if result and "error" in result:
-                    self.logger.warning("Failed to create default list, continuing anyway")
-                
+            lists = self.get_user_lists()
+            if not lists:
+                self.logger.info("Creating default list")
+                self.create_list("My Movies") # Corrected to use create_list
+
         except Exception as e:
-            self.logger.error(f"Failed to ensure default list: {e}")
+            self.logger.warning(f"Could not ensure default list: {e}")
+
+    
 
     def close(self):
         """Close database connections"""

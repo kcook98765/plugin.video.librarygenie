@@ -1,6 +1,6 @@
-# Movie List Manager Developer Guidance
+# LibraryGenie Developer Guidance
 
-This document provides guidance for developers working on Movie List Manager. It outlines architecture, coding practices, and integration details.
+This document provides guidance for developers working on LibraryGenie. It outlines architecture, coding practices, and integration details.
 
 ---
 
@@ -89,7 +89,7 @@ Movie List Manager consists of three main layers:
 
 ## Developer Notes
 
-- **Logging**: Use consistent prefixes (`[Movie List Manager]`).  
+- **Logging**: Use consistent prefixes (`[LibraryGenie]`).  
 - **Error handling**: Catch exceptions, log clearly, continue gracefully.  
 - **Testing**: Validate with both small and large libraries.  
 - **Extensibility**: Keep new features modular (e.g., additional integrations in `integrations/`).  
@@ -105,4 +105,4 @@ Movie List Manager consists of three main layers:
 
 ---
 
-This guidance ensures consistency, reliability, and performance for Movie List Manager development.
+This guidance ensures consistency, reliability, and performance for LibraryGenie development.

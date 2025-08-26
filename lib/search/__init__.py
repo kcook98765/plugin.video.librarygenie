@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -6,7 +7,7 @@ Movie List Manager - Search Module
 Fast, offline search across local library and lists with filters and sorting
 """
 
-from .query_interpreter import get_query_interpreter
-from .search_engine import get_search_engine
+from .enhanced_query_interpreter import get_enhanced_query_interpreter, SearchQuery
+from .enhanced_search_engine import get_enhanced_search_engine
 
-__all__ = ['get_query_interpreter', 'get_search_engine']
+__all__ = ['get_enhanced_query_interpreter', 'get_enhanced_search_engine', 'SearchQuery']

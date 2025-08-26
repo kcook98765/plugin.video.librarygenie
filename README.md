@@ -1,6 +1,6 @@
-# Movie List Manager — Robust List Management for Kodi
+# LibraryGenie — Robust List Management for Kodi
 
-Movie List Manager is a Kodi addon that provides advanced, flexible list and folder management with disaster recovery, portability, and intelligent media matching. It supports mixed content types, portable exports, and optional integration with external services.
+LibraryGenie is a Kodi addon that provides advanced, flexible list and folder management with disaster recovery, portability, and intelligent media matching. It supports mixed content types, portable exports, and optional integration with external services.
 
 ---
 
@@ -166,7 +166,7 @@ All changes must pass:
 
 ## Favorites (Read-Only) Integration
 
-Movie List Manager provides seamless integration with Kodi's built-in Favorites system, allowing you to:
+LibraryGenie provides seamless integration with Kodi's built-in Favorites system, allowing you to:
 
 - **View Favorites**: Display favorites that map to your movie library
 - **Quick Add**: Add mapped favorites to your custom lists  
@@ -196,7 +196,7 @@ Favorites that don't map to your library (plugins, scripts, missing files) can b
 
 ## Search
 
-Movie List Manager provides powerful local search with precision and predictability:
+LibraryGenie provides powerful local search with precision and predictability:
 
 ### Search Features
 
@@ -289,7 +289,7 @@ Enable debug logging in addon settings → General → Debug & Logging to get de
 
 If the addon stops working correctly:
 
-1. **Soft Reset**: Clear addon data in Kodi settings → Add-ons → Installed → Video add-ons → Movie List Manager → Configure
+1. **Soft Reset**: Clear addon data in Kodi settings → Add-ons → Installed → Video add-ons → LibraryGenie → Configure
 2. **Database Reset**: Delete `movie_lists.db` from addon_data folder to start fresh
 3. **Complete Reinstall**: Uninstall addon, delete addon_data folder, reinstall
 

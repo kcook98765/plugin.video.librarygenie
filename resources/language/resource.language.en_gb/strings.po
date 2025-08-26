@@ -1,10 +1,10 @@
 # Kodi Media Center language file
-# Addon Name: Movie List Manager
+# Addon Name: LibraryGenie
 # Addon id: plugin.video.library.genie
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Movie List Manager\n"
+"Project-Id-Version: LibraryGenie\n"
 "Report-Msgid-Bugs-To: support@movielist.com\n"
 "POT-Creation-Date: 2025-01-01 12:00+0000\n"
 "PO-Revision-Date: 2025-01-01 12:00+0000\n"
@@ -210,6 +210,27 @@ msgctxt "#30112"
 msgid "Background interval (minutes)"
 msgstr ""
 
+# Settings Categories - Additional
+msgctxt "#30450"
+msgid "Background Service"
+msgstr ""
+
+msgctxt "#30460"
+msgid "Search"
+msgstr ""
+
+msgctxt "#30470"
+msgid "Service Tasks"
+msgstr ""
+
+msgctxt "#30471"
+msgid "Background interval (seconds)"
+msgstr ""
+
+msgctxt "#30480"
+msgid "Advanced & Debug"
+msgstr ""
+
 # Advanced Settings (Phase 3)
 msgctxt "#30300"
 msgid "Advanced"
@@ -272,19 +293,60 @@ msgstr ""
 
 # List Management Actions
 msgctxt "#30400"
-msgid "New List"
+msgid "Remote Services"
 msgstr ""
 
-msgctxt "#30401"
-msgid "Rename List"
+msgctxt "#30410"
+msgid "Authentication"
 msgstr ""
 
-msgctxt "#30402"
-msgid "Delete List"
+msgctxt "#30411"
+msgid "Remote server URL"
 msgstr ""
 
-msgctxt "#30403"
-msgid "View List"
+msgctxt "#30412"
+msgid "Device name"
+msgstr ""
+
+msgctxt "#30413"
+msgid "Auth polling interval (seconds)"
+msgstr ""
+
+msgctxt "#30420"
+msgid "Library Sync"
+msgstr ""
+
+msgctxt "#30421"
+msgid "Track library changes"
+msgstr ""
+
+# List Management Actions
+msgctxt "#30400"
+msgid "Remote Services"
+msgstr ""
+
+msgctxt "#30410"
+msgid "Authentication"
+msgstr ""
+
+msgctxt "#30411"
+msgid "Remote server URL"
+msgstr ""
+
+msgctxt "#30412"
+msgid "Device name"
+msgstr ""
+
+msgctxt "#30413"
+msgid "Auth polling interval (seconds)"
+msgstr ""
+
+msgctxt "#30420"
+msgid "Library Sync"
+msgstr ""
+
+msgctxt "#30421"
+msgid "Track library changes"
 msgstr ""
 
 # Dialog Messages
@@ -731,7 +793,7 @@ msgid "Playback Error"
 msgstr ""
 
 msgctxt "#35002"
-msgid "Movie List Manager"
+msgid "LibraryGenie"
 msgstr ""
 
 msgctxt "#35003"
@@ -774,3 +836,83 @@ msgctxt "#35012"
 msgid "Failed to clear remote cache."
 msgstr ""
 
+# Additional UI Messages
+msgctxt "#35013"
+msgid "Plugin failed to start. Check logs."
+msgstr ""
+
+msgctxt "#35014"
+msgid "Search functionality coming soon..."
+msgstr ""
+
+msgctxt "#35015"
+msgid "Remote search functionality coming soon..."
+msgstr ""
+
+msgctxt "#35016"
+msgid "Lists functionality coming soon..."
+msgstr ""
+
+msgctxt "#35017"
+msgid "Remote lists functionality coming soon..."
+msgstr ""
+
+msgctxt "#35018"
+msgid "Search Movies"
+msgstr ""
+
+msgctxt "#35019"
+msgid "No Results"
+msgstr ""
+
+msgctxt "#35020"
+msgid "No movies found for '%s'"
+msgstr ""
+
+msgctxt "#35021"
+msgid "Search Error"
+msgstr ""
+
+msgctxt "#35022"
+msgid "Search failed. Check logs for details."
+msgstr ""
+
+msgctxt "#35023"
+msgid "Remote search unavailable, using local search"
+msgstr ""
+
+msgctxt "#35024"
+msgid "Remote search failed, using local search"
+msgstr ""
+
+msgctxt "#35025"
+msgid "Search failed - please try again"
+msgstr ""
+
+msgctxt "#35026"
+msgid "Remote search failed"
+msgstr ""
+
+msgctxt "#35027"
+msgid "Sign out"
+msgstr ""
+
+msgctxt "#35028"
+msgid "Authorize device"
+msgstr ""
+
+msgctxt "#35029"
+msgid "Sign out"
+msgstr ""
+
+msgctxt "#35030"
+msgid "Are you sure you want to sign out?"
+msgstr ""
+
+msgctxt "#35031"
+msgid "Signed out successfully"
+msgstr ""
+
+msgctxt "#35032"
+msgid "Sign out failed"
+msgstr ""

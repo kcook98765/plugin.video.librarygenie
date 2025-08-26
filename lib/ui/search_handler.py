@@ -1,331 +1,261 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Phase 5 Search Handler
-UI integration for Phase 5 enhanced search functionality
+LibraryGenie - Search Handler
+Provides UI bridge for search functionality with remote/local engine selection
 """
 
-import xbmc
 import xbmcgui
+import xbmcaddon
 import xbmcplugin
-from urllib.parse import urlencode
-from typing import Dict, Any, Optional, List
 
-from ..search.enhanced_query_interpreter import get_enhanced_query_interpreter, SearchQuery
-from ..search.enhanced_search_engine import get_enhanced_search_engine, SearchResult
-from ..ui.movie_renderer import get_movie_renderer
-from ..config import get_config
+from ..search.local_engine import LocalSearchEngine
+from ..remote.search_client import search_remote, RemoteError
+from ..auth.state import is_authorized
+from ..auth.auth_helper import get_auth_helper
+from ..ui.session_state import get_session_state
 from ..utils.logger import get_logger
 
 
 class SearchHandler:
-    """Phase 5: Enhanced search handler with improved UI and navigation"""
-    
-    def __init__(self):
+    """Handles search UI and result display with engine switching"""
+
+    def __init__(self, addon_handle):
+        self.addon_handle = addon_handle
         self.logger = get_logger(__name__)
-        self.config = get_config()
-        self.query_interpreter = get_enhanced_query_interpreter()
-        self.search_engine = get_enhanced_search_engine()
-        self.movie_renderer = get_movie_renderer()
-    
-    def show_search_dialog(self) -> bool:
-        """Show search input dialog with Phase 5 enhancements"""
+        self.local_engine = LocalSearchEngine()
+        self._remote_fallback_notified = False
+
+    def prompt_and_show(self):
+        """Prompt user for search query and show results"""
+        # Get search query from user
+        addon = xbmcaddon.Addon()
+        query = xbmcgui.Dialog().input(
+            addon.getLocalizedString(35018),
+            type=xbmcgui.INPUT_ALPHANUM
+        )
+
+        if not query or not query.strip():
+            return
+
+        # Perform search with engine selection
         try:
-            # Get localized strings
-            dialog = xbmcgui.Dialog()
-            
-            # Show input dialog with hint
-            user_input = dialog.input(
-                "Search Movies",  # TODO: Localize
-                defaultt="",
-                type=xbmcgui.INPUT_ALPHANUM
+            results = self._perform_search(query.strip())
+            self._display_results(results, query)
+
+        except Exception as e:
+            self.logger.error(f"Search failed: {e}")
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35021),
+                addon.getLocalizedString(35022),
+                xbmcgui.NOTIFICATION_ERROR
             )
-            
-            if user_input:
-                # Parse and execute search
-                query = self.query_interpreter.parse_query(user_input)
-                
-                if self.query_interpreter.is_empty_query(query):
-                    # Show empty query hint
-                    hint = self.query_interpreter.get_empty_query_hint()
-                    dialog.notification("Search", hint, xbmcgui.NOTIFICATION_INFO, 3000)  # TODO: Add string_getter for localization
-                    return False
-                
-                # Navigate to search results
-                self._navigate_to_search_results(query)
-                return True
-            
-            return False
-            
-        except Exception as e:
-            self.logger.error(f"Error showing search dialog: {e}")
-            return False
-    
-    def show_search_results(self, params: Dict[str, Any]) -> bool:
-        """Show search results with Phase 5 enhanced paging"""
+
+    def _perform_search(self, query):
+        """
+        Perform search using remote or local engine with fallback
+
+        Args:
+            query: Search query string
+
+        Returns:
+            dict: Search results with metadata
+        """
+        # Engine switch: authorized users try remote first
+        if is_authorized():
+            try:
+                self.logger.debug("Using remote search (authorized)")
+                results = search_remote(query, page=1, page_size=100)
+                self.logger.info(f"Remote search returned {len(results.get('items', []))} results")
+                return results
+
+            except RemoteError as e:
+                self.logger.warning(f"Remote search failed, falling back to local: {e}")
+                self._show_fallback_notification()
+                return self._search_local(query, limit=200)
+
+            except Exception as e:
+                self.logger.error(f"Remote search error, falling back to local: {e}")
+                self._show_fallback_notification()
+                return self._search_local(query, limit=200)
+
+        else:
+            # Non-authorized users use local search
+            self.logger.debug("Using local search (not authorized)")
+            return self._search_local(query, limit=200)
+
+    def _search_local(self, query, limit=200):
+        """Perform local search using local engine"""
         try:
-            # Parse query from URL parameters
-            query = self._parse_query_from_params(params)
-            
-            # Execute search
-            result = self.search_engine.search(query)
-            
-            # Build directory listing
-            self._build_search_results_directory(query, result)
-            
-            return True
-            
+            return self.local_engine.search(query, limit=limit)
         except Exception as e:
-            self.logger.error(f"Error showing search results: {e}")
-            self._show_search_error()
-            return False
-    
-    def _parse_query_from_params(self, params: Dict[str, Any]) -> SearchQuery:
-        """Parse search query from URL parameters"""
-        try:
-            # Extract search parameters
-            query_text = params.get("q", "")
-            scope_type = params.get("scope_type", "library")
-            scope_id = params.get("scope_id")
-            sort_method = params.get("sort", "title_asc")
-            page_offset = int(params.get("offset", "0"))
-            
-            # Convert scope_id to int if present
-            if scope_id:
-                scope_id = int(scope_id)
-            
-            # Parse query with parameters
-            query = self.query_interpreter.parse_query(
-                query_text,
-                scope_type=scope_type,
-                scope_id=scope_id,
-                sort_method=sort_method,
-                page_offset=page_offset
+            self.logger.error(f"Local search failed: {e}")
+            return {'items': [], 'total': 0, 'used_remote': False}
+
+    def _show_fallback_notification(self):
+        """Show one-shot notification about remote fallback (don't spam)"""
+        session_state = get_session_state()
+        
+        if session_state.should_show_notification("remote_search_fallback", 600):
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),  # "LibraryGenie"
+                addon.getLocalizedString(35023),  # "Remote unavailable, using local"
+                xbmcgui.NOTIFICATION_WARNING,
+                4000
             )
-            
-            return query
-            
-        except Exception as e:
-            self.logger.error(f"Error parsing query from params: {e}")
-            # Return empty query as fallback
-            return SearchQuery()
-    
-    def _navigate_to_search_results(self, query: SearchQuery):
-        """Navigate to search results page with query parameters"""
-        try:
-            # Build URL parameters
-            params = {
-                "action": "search_results",
-                "q": query.original_text,
-                "scope_type": query.scope_type,
-                "sort": query.sort_method,
-                "offset": str(query.page_offset)
+
+    def _display_results(self, results, query):
+        """Display search results in Kodi"""
+        items = results.get('items', [])
+        
+        if not items:
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35019),
+                addon.getLocalizedString(35020) % query,
+                xbmcgui.NOTIFICATION_INFO
+            )
+            return
+
+        # Add directory items for each result
+        for item in items:
+            list_item = xbmcgui.ListItem(
+                label=item.get('label', 'Unknown'),
+                label2=item.get('year', '')
+            )
+
+            # Set artwork if available
+            art = item.get('art', {})
+            if art:
+                list_item.setArt(art)
+
+            # Set info
+            info = {
+                'title': item.get('title', item.get('label', 'Unknown')),
+                'mediatype': item.get('type', 'movie')
             }
-            
-            if query.scope_id:
-                params["scope_id"] = str(query.scope_id)
-            
-            # Build URL
-            base_url = f"plugin://{self.config.addon_id}/"
-            url = f"{base_url}?{urlencode(params)}"
-            
-            # Navigate
-            xbmc.executebuiltin(f"Container.Update({url})")
-            
-        except Exception as e:
-            self.logger.error(f"Error navigating to search results: {e}")
-    
-    def _build_search_results_directory(self, query: SearchQuery, result: SearchResult):
-        """Build Kodi directory with search results and Phase 5 paging"""
-        try:
-            handle = int(self.config.addon_handle)
-            
-            # Add search summary header
-            self._add_search_summary_item(query, result)
-            
-            # Add previous page navigation if needed
-            if result.has_prev_page:
-                self._add_prev_page_item(query)
-            
-            # Add movie results
-            for movie in result.items:
-                self._add_movie_result_item(movie, query)
-            
-            # Add next page navigation if needed
-            if result.has_next_page:
-                self._add_next_page_item(query)
-            
-            # Add empty state if no results
-            if not result.items and not self.query_interpreter.is_empty_query(query):
-                self._add_no_results_item(query)
-            
-            # Finalize directory
-            xbmcplugin.setContent(handle, 'movies')
-            xbmcplugin.endOfDirectory(handle, succeeded=True, updateListing=False, cacheToDisc=False)
-            
-        except Exception as e:
-            self.logger.error(f"Error building search results directory: {e}")
-            xbmcplugin.endOfDirectory(handle, succeeded=False)
-    
-    def _add_search_summary_item(self, query: SearchQuery, result: SearchResult):
-        """Add search summary header item"""
-        try:
-            handle = int(self.config.addon_handle)
-            
-            # Build summary text
-            summary_parts = [
-                f"Results: {result.total_count}",
-                f"Page {result.current_page}/{result.page_count}",
-                f"Sorted by {result.sort_description}"
-            ]
-            
-            if result.scope_description:
-                summary_parts.append(f"Scope: {result.scope_description}")
-            
-            summary_text = " • ".join(summary_parts)
-            
-            # Create list item
-            list_item = xbmcgui.ListItem(summary_text)
-            list_item.setProperty('IsPlayable', 'false')
-            list_item.setInfo('video', {'title': summary_text, 'plot': result.query_summary})
-            
-            # Add to directory (non-clickable)
-            xbmcplugin.addDirectoryItem(handle, "", list_item, isFolder=False)
-            
-        except Exception as e:
-            self.logger.debug(f"Error adding search summary: {e}")
-    
-    def _add_prev_page_item(self, query: SearchQuery):
-        """Add previous page navigation item"""
-        try:
-            handle = int(self.config.addon_handle)
-            
-            # Calculate previous page offset
-            prev_offset = max(0, query.page_offset - query.page_size)
-            
-            # Build URL for previous page
-            params = {
-                "action": "search_results",
-                "q": query.original_text,
-                "scope_type": query.scope_type,
-                "sort": query.sort_method,
-                "offset": str(prev_offset)
-            }
-            
-            if query.scope_id:
-                params["scope_id"] = str(query.scope_id)
-            
-            url = f"plugin://{self.config.addon_id}/?{urlencode(params)}"
-            
-            # Create list item
-            list_item = xbmcgui.ListItem("◀ Previous page...")  # TODO: Localize
-            list_item.setProperty('IsPlayable', 'false')
-            list_item.setInfo('video', {'title': 'Previous page', 'plot': 'Go to previous page of results'})
-            
+
+            if item.get('year'):
+                info['year'] = item['year']
+            if item.get('plot'):
+                info['plot'] = item['plot']
+            if item.get('rating'):
+                info['rating'] = item['rating']
+
+            list_item.setInfo('video', info)
+
+            # Set playable if we have a path
+            is_playable = bool(item.get('path'))
+            list_item.setProperty('IsPlayable', 'true' if is_playable else 'false')
+
+            # Add source indicator for remote items
+            if item.get('_source') == 'remote':
+                if item.get('_local_mapped'):
+                    list_item.setProperty('IsLocal', 'true')
+                else:
+                    list_item.setProperty('IsRemote', 'true')
+
             # Add to directory
-            xbmcplugin.addDirectoryItem(handle, url, list_item, isFolder=True)
-            
-        except Exception as e:
-            self.logger.debug(f"Error adding previous page item: {e}")
-    
-    def _add_next_page_item(self, query: SearchQuery):
-        """Add next page navigation item"""
-        try:
-            handle = int(self.config.addon_handle)
-            
-            # Calculate next page offset
-            next_offset = query.page_offset + query.page_size
-            
-            # Build URL for next page
-            params = {
-                "action": "search_results",
-                "q": query.original_text,
-                "scope_type": query.scope_type,
-                "sort": query.sort_method,
-                "offset": str(next_offset)
-            }
-            
-            if query.scope_id:
-                params["scope_id"] = str(query.scope_id)
-            
-            url = f"plugin://{self.config.addon_id}/?{urlencode(params)}"
-            
-            # Create list item
-            list_item = xbmcgui.ListItem("Next page... ▶")  # TODO: Localize
-            list_item.setProperty('IsPlayable', 'false')
-            list_item.setInfo('video', {'title': 'Next page', 'plot': 'Go to next page of results'})
-            
-            # Add to directory
-            xbmcplugin.addDirectoryItem(handle, url, list_item, isFolder=True)
-            
-        except Exception as e:
-            self.logger.debug(f"Error adding next page item: {e}")
-    
-    def _add_movie_result_item(self, movie: Dict[str, Any], query: SearchQuery):
-        """Add movie result item with Phase 11 rich metadata"""
-        try:
-            handle = int(self.config.addon_handle)
-            
-            # Use movie renderer for consistent presentation
-            list_item = self.movie_renderer.create_movie_listitem(
-                movie, 
-                base_url=f"plugin://{self.config.addon_id}/",
-                action="play_movie"
+            url = item.get('path', '')
+            xbmcplugin.addDirectoryItem(
+                self.addon_handle,
+                url,
+                list_item,
+                isFolder=False
             )
-            
-            # Build playback URL
-            kodi_id = movie.get('kodi_id')
-            if kodi_id:
-                play_url = f"plugin://{self.config.addon_id}/?action=play_movie&kodi_id={kodi_id}"
-                xbmcplugin.addDirectoryItem(handle, play_url, list_item, isFolder=False)
-            
-        except Exception as e:
-            self.logger.debug(f"Error adding movie result item: {e}")
-    
-    def _add_no_results_item(self, query: SearchQuery):
-        """Add no results found item with helpful hints"""
+
+        # Finish directory
+        xbmcplugin.endOfDirectory(self.addon_handle)
+
+        # Log result summary
+        used_remote = results.get('used_remote', False)
+        source = "remote" if used_remote else "local"
+        self.logger.info(f"Displayed {len(items)} {source} search results for '{query}'")
+
+    def search_with_fallback(self, query, page=1, page_size=100):
+        """Search with remote first, fallback to local"""
+        if not query or not query.strip():
+            return {'items': [], 'total': 0, 'used_remote': False}
+
+        query = query.strip()
+        
+        # Engine switch logic
+        if is_authorized():
+            try:
+                remote_results = search_remote(query, page, page_size)
+                if remote_results.get('items'):
+                    self.logger.info(f"Remote search successful: {len(remote_results['items'])} results")
+                    return remote_results
+
+            except RemoteError as e:
+                self.logger.warning(f"Remote search failed: {e}")
+                self._show_fallback_notification()
+
+            except Exception as e:
+                self.logger.error(f"Remote search error: {e}")
+                self._show_fallback_notification()
+
+        # Use local search
         try:
-            handle = int(self.config.addon_handle)
-            
-            # Get localized hint
-            hint = self.query_interpreter.get_no_results_hint(query)
-            
-            # Create list item
-            list_item = xbmcgui.ListItem("No matches found")  # TODO: Localize
-            list_item.setProperty('IsPlayable', 'false')
-            list_item.setInfo('video', {
-                'title': 'No matches found',
-                'plot': hint
-            })
-            
-            # Add to directory (non-clickable)
-            xbmcplugin.addDirectoryItem(handle, "", list_item, isFolder=False)
-            
+            local_results = self.local_engine.search(query, limit=page_size, offset=(page-1)*page_size)
+            self.logger.info(f"Local search: {len(local_results.get('items', []))} results")
+            return local_results
+
         except Exception as e:
-            self.logger.debug(f"Error adding no results item: {e}")
-    
-    def _show_search_error(self):
-        """Show search error message"""
-        try:
-            dialog = xbmcgui.Dialog()
-            dialog.notification(
-                "Search Error",  # TODO: Localize
-                "Unable to perform search",  # TODO: Localize
+            self.logger.error(f"Local search failed: {e}")
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),
+                addon.getLocalizedString(35025),  # "Search failed"
                 xbmcgui.NOTIFICATION_ERROR,
-                5000
+                4000
             )
+            return {'items': [], 'total': 0, 'used_remote': False}
+
+    def handle_search_request(self, query):
+        """Handle search request from UI"""
+        if not query or not query.strip():
+            return []
+
+        query = query.strip()
+        self.logger.info(f"Search request: '{query}'")
+
+        try:
+            results = self.search_with_fallback(query)
+            return results.get('items', [])
+
         except Exception as e:
-            self.logger.error(f"Error showing search error dialog: {e}")
+            self.logger.error(f"Search request failed: {e}")
+            return []
 
+    def handle_remote_search_request(self, query):
+        """Handle remote-only search request with authorization check"""
+        if not query or not query.strip():
+            return []
 
-# Global search handler instance
-_search_handler_instance = None
+        # Check authorization and prompt if needed
+        auth_helper = get_auth_helper()
+        if not auth_helper.check_authorization_or_prompt("remote search"):
+            return []
 
+        query = query.strip()
+        self.logger.info(f"Remote search request: '{query}'")
 
-def get_search_handler():
-    """Get global search handler instance"""
-    global _search_handler_instance
-    if _search_handler_instance is None:
-        _search_handler_instance = SearchHandler()
-    return _search_handler_instance
+        try:
+            remote_results = search_remote(query)
+            return remote_results.get('items', [])
+
+        except Exception as e:
+            self.logger.error(f"Remote search failed: {e}")
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),
+                addon.getLocalizedString(35026),  # "Remote search failed"
+                xbmcgui.NOTIFICATION_ERROR,
+                4000
+            )
+            return []

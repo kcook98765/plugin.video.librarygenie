@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -7,6 +8,7 @@ Reads Kodi settings and manages addon configuration
 """
 
 import xbmcaddon
+from typing import Optional
 
 
 class ConfigManager:
@@ -19,7 +21,7 @@ class ConfigManager:
         self._defaults = {
             "debug_logging": False,
             "background_task_enabled": True,
-            "background_interval_minutes": 30,  # 30 minutes (Phase 2 safe default)
+            "background_interval_seconds": 120,  # 120 seconds (safer default)
             # Phase 3: Advanced settings with safe defaults
             "jsonrpc_page_size": 200,  # Items per JSON-RPC page
             "jsonrpc_timeout_seconds": 10,  # JSON-RPC request timeout
@@ -39,10 +41,14 @@ class ConfigManager:
             "search_include_file_path": False,
             "search_page_size": 50,
             "search_history_days": 30,
+            # Remote service settings
+            "remote_base_url": "",  # Blank by default for repo safety
+            "device_name": "Kodi",
+            "auth_poll_seconds": 3,
         }
 
     def get(self, key, default=None):
-        """Get configuration value"""
+        """Get configuration value with safe fallback"""
         try:
             setting_type = self._get_setting_type(key)
             if setting_type == "bool":
@@ -52,9 +58,31 @@ class ConfigManager:
             elif setting_type == "number":
                 return self._addon.getSettingNumber(key)
             else:
-                return self._addon.getSettingString(key)
-        except Exception as e:
+                value = self._addon.getSettingString(key)
+                return value if value else self._defaults.get(key, default)
+        except Exception:
             # Return default value if setting read fails
+            return self._defaults.get(key, default)
+
+    def get_bool(self, key, default=False):
+        """Get boolean setting with safe fallback"""
+        try:
+            return self._addon.getSettingBool(key)
+        except Exception:
+            return self._defaults.get(key, default)
+
+    def get_int(self, key, default=0):
+        """Get integer setting with safe fallback"""
+        try:
+            return self._addon.getSettingInt(key)
+        except Exception:
+            return self._defaults.get(key, default)
+
+    def get_float(self, key, default=0.0):
+        """Get float setting with safe fallback"""
+        try:
+            return self._addon.getSettingNumber(key)
+        except Exception:
             return self._defaults.get(key, default)
 
     def set(self, key, value):
@@ -69,8 +97,7 @@ class ConfigManager:
                 return self._addon.setSettingNumber(key, value)
             else:
                 return self._addon.setSettingString(key, str(value))
-        except Exception as e:
-            self.logger.warning(f"Failed to set setting {key}: {e}")
+        except Exception:
             return False
 
     def _get_setting_type(self, key):
@@ -90,17 +117,22 @@ class ConfigManager:
             "search_include_file_path",
         ]
         int_settings = [
-            "background_interval_minutes", "favorites_scan_interval_minutes", 
+            "background_interval_seconds", "favorites_scan_interval_minutes", 
             "search_page_size", "search_history_days",
             # Phase 3: Advanced settings
             "jsonrpc_page_size", "jsonrpc_timeout_seconds", 
-            "db_batch_size", "db_busy_timeout_ms"
+            "db_batch_size", "db_busy_timeout_ms",
+            # Remote service settings
+            "auth_poll_seconds",
         ]
+        float_settings = []
 
         if key in bool_settings:
             return "bool"
         elif key in int_settings:
             return "int"
+        elif key in float_settings:
+            return "number"
         else:
             return "string"
 
@@ -179,12 +211,12 @@ class ConfigManager:
 
 
 # Global config instance
-_config_instance = None
+_CFG: Optional[ConfigManager] = None
 
 
-def get_config():
+def get_config() -> ConfigManager:
     """Get global configuration instance"""
-    global _config_instance
-    if _config_instance is None:
-        _config_instance = ConfigManager()
-    return _config_instance
+    global _CFG
+    if _CFG is None:
+        _CFG = ConfigManager()
+    return _CFG

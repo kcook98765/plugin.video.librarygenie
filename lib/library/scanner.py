@@ -172,16 +172,16 @@ class LibraryScanner:
             
             # Last scan info
             last_scan = self.conn_manager.execute_single("""
-                SELECT scan_type, completed_at, items_found, items_added, items_removed
+                SELECT scan_type, end_time, total_items, items_added, items_removed
                 FROM library_scan_log 
-                WHERE completed_at IS NOT NULL 
+                WHERE end_time IS NOT NULL 
                 ORDER BY id DESC LIMIT 1
             """)
             
             if last_scan:
                 stats["last_scan_type"] = last_scan["scan_type"]
-                stats["last_scan_time"] = last_scan["completed_at"]
-                stats["last_scan_found"] = last_scan["items_found"]
+                stats["last_scan_time"] = last_scan["end_time"]
+                stats["last_scan_found"] = last_scan["total_items"]
                 stats["last_scan_added"] = last_scan["items_added"]
                 stats["last_scan_removed"] = last_scan["items_removed"]
             else:
@@ -372,7 +372,7 @@ class LibraryScanner:
         try:
             with self.conn_manager.transaction() as conn:
                 cursor = conn.execute("""
-                    INSERT INTO library_scan_log (scan_type, started_at)
+                    INSERT INTO library_scan_log (scan_type, start_time)
                     VALUES (?, ?)
                 """, [scan_type, started_at])
                 return cursor.lastrowid
@@ -393,8 +393,8 @@ class LibraryScanner:
             with self.conn_manager.transaction() as conn:
                 conn.execute("""
                     UPDATE library_scan_log 
-                    SET completed_at = ?, items_found = ?, items_added = ?, 
-                        items_updated = ?, items_removed = ?, error_message = ?
+                    SET end_time = ?, total_items = ?, items_added = ?, 
+                        items_updated = ?, items_removed = ?, error = ?
                     WHERE id = ?
                 """, [completed_at, items_found, items_added, items_updated, items_removed, error, scan_id])
         except Exception as e:
