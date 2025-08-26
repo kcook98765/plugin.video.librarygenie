@@ -147,6 +147,27 @@ Constraints:
 
 ---
 
+### `library_scan_log`
+Records library scan operations and their results.
+
+| Column         | Type    | Notes |
+|----------------|---------|-------|
+| `id`           | INTEGER | PRIMARY KEY AUTOINCREMENT |
+| `scan_type`    | TEXT    | `full`, `delta` |
+| `start_time`   | TEXT    | ISO 8601 timestamp |
+| `end_time`     | TEXT    | ISO 8601 timestamp (nullable) |
+| `total_items`  | INTEGER | Items found during scan |
+| `items_added`  | INTEGER | Items added to index |
+| `items_updated`| INTEGER | Items updated in index |
+| `items_removed`| INTEGER | Items removed from index |
+| `error`        | TEXT    | Error message if scan failed |
+| `created_at`   | TEXT    | Record creation timestamp |
+
+Indexes:
+- INDEX on `(scan_type, start_time)`.
+
+---
+
 ### `kv_cache`
 Generic key-value cache.
 

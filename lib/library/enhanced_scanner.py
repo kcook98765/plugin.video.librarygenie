@@ -500,8 +500,8 @@ class Phase3LibraryScanner:
             with self.conn_manager.transaction() as conn:
                 conn.execute("""
                     UPDATE library_scan_log 
-                    SET completed_at = ?, items_found = ?, items_added = ?, 
-                        items_updated = ?, items_removed = ?, error_message = ?
+                    SET end_time = ?, total_items = ?, items_added = ?, 
+                        items_updated = ?, items_removed = ?, error = ?
                     WHERE id = ?
                 """, [completed_at, items_found, items_added, items_updated, items_removed, error, scan_id])
         except Exception as e:
