@@ -8,6 +8,7 @@ Handles plugin URL routing and main menu display
 
 import sys
 import urllib.parse
+from urllib.parse import parse_qsl
 try:
     from typing import Dict, Any
 except ImportError:
