@@ -42,12 +42,12 @@ class SearchHandler:
             self.logger.debug(f"Parsed query: {parsed_query}")
 
             # Execute search using enhanced search engine
-            search_results = self.search_engine.search(parsed_query)
-            self.logger.debug(f"Found {len(search_results)} search results")
+            search_result = self.search_engine.search(parsed_query)
+            self.logger.debug(f"Found {len(search_result)} search results")
 
             # Convert search results to list format
             results = []
-            for result in search_results:
+            for result in search_result.items:
                 # Convert SearchResult to dict format expected by listitem renderer
                 item_dict = {
                     'title': result.title,
@@ -86,7 +86,13 @@ class SearchHandler:
                 return False
 
             self.logger.info(f"User search query: '{query}'")
-            return self._perform_search(query)
+            
+            # Parse the query
+            parsed_query = self.query_interpreter.parse_query(query)
+            
+            # Navigate to search results
+            self._navigate_to_search_results(parsed_query)
+            return True
 
         except Exception as e:
             self.logger.error(f"Search dialog error: {e}")
