@@ -2,11 +2,15 @@
 # -*- coding: utf-8 -*-
 
 """
-LibraryGenie - Background Service
-Handles token refresh and optional library monitoring
+LibraryGenie Background Service
+Handles background tasks like library scanning and sync operations
 """
 
+# All imports should be at module level but avoid network calls at import time
 import time
+import threading
+from typing import Optional
+
 import xbmc
 import xbmcaddon
 

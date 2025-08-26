@@ -16,6 +16,8 @@ from ..auth.auth_helper import get_auth_helper
 from ..ui.session_state import get_session_state
 from ..utils.logger import get_logger
 
+import xbmcplugin
+
 
 class SearchHandler:
     """Handles search UI and result display"""
@@ -72,14 +74,24 @@ class SearchHandler:
 
             except RemoteError as e:
                 self.logger.warning(f"Remote search failed, falling back to local: {e}")
-                results = search_local(query, limit=200)
+                results = self._search_local(query, limit=200)
 
         else:
             # Use local search when not authorized
             self.logger.debug("Using local search (not authorized)")
-            results = search_local(query, limit=200)
+            results = self._search_local(query, limit=200)
 
         return results
+
+    def _search_local(self, query, limit=200):
+        """Perform local search using enhanced search engine"""
+        try:
+            search_engine = get_enhanced_search_engine()
+            local_results = search_engine.search(query, limit=limit)
+            return local_results.get('items', [])
+        except Exception as e:
+            self.logger.error(f"Local search failed: {e}")
+            return []
 
     def _display_results(self, results, query):
         """Display search results in Kodi"""

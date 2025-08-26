@@ -86,17 +86,12 @@ class AddonController:
         try:
             self.logger.info("Handling search")
             
-            # Import search UI handler
+            # Import search UI handler (lazy import to avoid circular dependencies)
             from .ui.search_handler import SearchHandler
-            search_handler = SearchHandler()
+            search_handler = SearchHandler(self.handle)
             
             # Show search dialog and handle results
-            if search_handler.show_search_dialog():
-                # Search dialog handled navigation
-                pass
-            else:
-                # Return to main menu if search was cancelled
-                self._show_main_menu()
+            search_handler.prompt_and_show()
                 
         except Exception as e:
             self.logger.error(f"Error in search handling: {e}")
@@ -107,7 +102,7 @@ class AddonController:
         try:
             self.logger.info("Handling authorization")
             
-            # Import and run authorization flow
+            # Import and run authorization flow (lazy import)
             from .auth.device_code import run_authorize_flow
             run_authorize_flow()
             
@@ -117,7 +112,7 @@ class AddonController:
         except ImportError:
             self.logger.warning("Authorization module not available")
             xbmcgui.Dialog().notification(
-                "Movie List Manager",
+                self.addon.getAddonInfo('name'),
                 "Authorization not implemented yet",
                 xbmcgui.NOTIFICATION_INFO
             )
@@ -131,12 +126,12 @@ class AddonController:
         try:
             self.logger.info("Handling logout")
             
-            # Import and clear auth tokens
+            # Import and clear auth tokens (lazy import)
             from .auth.state import clear_tokens
             clear_tokens()
             
             xbmcgui.Dialog().notification(
-                "Movie List Manager",
+                self.addon.getAddonInfo('name'),
                 "Signed out successfully",
                 xbmcgui.NOTIFICATION_INFO
             )
@@ -147,7 +142,7 @@ class AddonController:
         except ImportError:
             self.logger.warning("Auth state module not available")
             xbmcgui.Dialog().notification(
-                "Movie List Manager",
+                self.addon.getAddonInfo('name'),
                 "Logout not implemented yet",
                 xbmcgui.NOTIFICATION_INFO
             )
@@ -159,6 +154,7 @@ class AddonController:
     def _is_authorized(self) -> bool:
         """Check if user is authorized"""
         try:
+            # Lazy import to avoid circular dependencies
             from .auth.state import is_authorized
             return is_authorized()
         except ImportError:
