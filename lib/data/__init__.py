@@ -8,6 +8,9 @@ Database operations and query management
 """
 
 from .query_manager import QueryManager
+from .connection_manager import get_connection_manager
+from .storage_manager import get_storage_manager
+from .migrations import get_migration_manager
 
 # Global query manager instance
 _query_manager = None
@@ -22,5 +25,8 @@ def get_query_manager() -> QueryManager:
 # Export main classes and functions
 __all__ = [
     'QueryManager',
-    'get_query_manager'
+    'get_query_manager',
+    'get_connection_manager',
+    'get_storage_manager',
+    'get_migration_manager'
 ]
