@@ -11,13 +11,13 @@ import urllib.request
 import urllib.parse
 import urllib.error
 try:
-    from typing import Dict, Any, Optional, List
+    from typing import Dict, Any, List, Optional
 except ImportError:
     # Python < 3.5 fallback
     Dict = dict
     Any = object
-    Optional = object
     List = list
+    Optional = object
 
 from ..auth.state import is_authorized, get_access_token
 from ..config import get_config
