@@ -1,0 +1,776 @@
+# Kodi Media Center language file
+# Addon Name: Movie List Manager
+# Addon id: plugin.video.library.genie
+
+msgid ""
+msgstr ""
+"Project-Id-Version: Movie List Manager\n"
+"Report-Msgid-Bugs-To: support@movielist.com\n"
+"POT-Creation-Date: 2025-01-01 12:00+0000\n"
+"PO-Revision-Date: 2025-01-01 12:00+0000\n"
+"Last-Translator: Movie List Team\n"
+"Language-Team: English\n"
+"Language: en_GB\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# Settings Categories
+msgctxt "#30000"
+msgid "General"
+msgstr ""
+
+msgctxt "#30100"
+msgid "Background"
+msgstr ""
+
+# General Settings
+msgctxt "#30010"
+msgid "Debug & Logging"
+msgstr ""
+
+msgctxt "#30011"
+msgid "Enable debug logging"
+msgstr ""
+
+msgctxt "#30020"
+msgid "User Interface"
+msgstr ""
+
+msgctxt "#30021"
+msgid "Confirm destructive actions"
+msgstr ""
+
+msgctxt "#30022"
+msgid "Show item counts next to list names"
+msgstr ""
+
+msgctxt "#30030"
+msgid "Library"
+msgstr ""
+
+msgctxt "#30031"
+msgid "Track library changes in background"
+msgstr ""
+
+msgctxt "#30032"
+msgid "Soft delete removed items (recommended)"
+msgstr ""
+
+msgctxt "#30040"
+msgid "Lists Integration"
+msgstr ""
+
+msgctxt "#30041"
+msgid "Default list for quick-add"
+msgstr ""
+
+msgctxt "#30042"
+msgid "Enable quick-add to default list"
+msgstr ""
+
+msgctxt "#30043"
+msgid "Show missing movie indicators"
+msgstr ""
+
+# Kodi Favorites Integration
+msgctxt "#30050"
+msgid "Kodi Favorites Integration"
+msgstr ""
+
+msgctxt "#30051"
+msgid "Enable Kodi Favorites integration (read-only)"
+msgstr ""
+
+msgctxt "#30052"
+msgid "Favorites scan interval (minutes)"
+msgstr ""
+
+msgctxt "#30053"
+msgid "Show unmapped favorites"
+msgstr ""
+
+msgctxt "#30054"
+msgid "Enable batch processing for large favorites files"
+msgstr ""
+
+# Phase 4 Favorites Messages
+msgctxt "#30055"
+msgid "Favorites file not found"
+msgstr ""
+
+msgctxt "#30056"
+msgid "No favorites found"
+msgstr ""
+
+msgctxt "#30057"
+msgid "Not in library"
+msgstr ""
+
+msgctxt "#30058"
+msgid "Unmapped"
+msgstr ""
+
+msgctxt "#30059"
+msgid "Favorites (Unmapped)"
+msgstr ""
+
+# Search Settings
+msgctxt "#30060"
+msgid "Search Settings"
+msgstr ""
+
+msgctxt "#30061"
+msgid "Match mode"
+msgstr ""
+
+msgctxt "#30062"
+msgid "Include file path in search"
+msgstr ""
+
+msgctxt "#30063"
+msgid "Search results per page"
+msgstr ""
+
+msgctxt "#30064"
+msgid "Enable decade shorthand (e.g., '90s)"
+msgstr ""
+
+msgctxt "#30065"
+msgid "Remember last search scope"
+msgstr ""
+
+msgctxt "#30066"
+msgid "Keep search history (days)"
+msgstr ""
+
+# Phase 5 Search UI Strings
+msgctxt "#30068"
+msgid "Results"
+msgstr ""
+
+msgctxt "#30069"
+msgid "Page"
+msgstr ""
+
+msgctxt "#30070"
+msgid "Sorted by"
+msgstr ""
+
+msgctxt "#30071"
+msgid "Scope"
+msgstr ""
+
+msgctxt "#30072"
+msgid "Next page..."
+msgstr ""
+
+msgctxt "#30073"
+msgid "Previous page..."
+msgstr ""
+
+msgctxt "#30074"
+msgid "Contains"
+msgstr ""
+
+msgctxt "#30075"
+msgid "Starts with"
+msgstr ""
+
+msgctxt "#30076"
+msgid "All library"
+msgstr ""
+
+msgctxt "#30077"
+msgid "List"
+msgstr ""
+
+msgctxt "#30078"
+msgid "No matches found"
+msgstr ""
+
+msgctxt "#30079"
+msgid "Try fewer words or remove the year filter"
+msgstr ""
+
+msgctxt "#30080"
+msgid "Enter search terms to find movies"
+msgstr ""
+
+# Background Settings
+msgctxt "#30110"
+msgid "Background Tasks"
+msgstr ""
+
+msgctxt "#30111"
+msgid "Enable background task"
+msgstr ""
+
+msgctxt "#30112"
+msgid "Background interval (minutes)"
+msgstr ""
+
+# Advanced Settings (Phase 3)
+msgctxt "#30300"
+msgid "Advanced"
+msgstr ""
+
+msgctxt "#30310"
+msgid "JSON-RPC Performance"
+msgstr ""
+
+msgctxt "#30311"
+msgid "JSON-RPC page size"
+msgstr ""
+
+msgctxt "#30312"
+msgid "JSON-RPC timeout (seconds)"
+msgstr ""
+
+msgctxt "#30320"
+msgid "Database Performance"
+msgstr ""
+
+msgctxt "#30321"
+msgid "Database batch size"
+msgstr ""
+
+msgctxt "#30322"
+msgid "Database busy timeout (ms)"
+msgstr ""
+
+# Settings Categories (continued)
+msgctxt "#30200"
+msgid "Lists"
+msgstr ""
+
+msgctxt "#30201"
+msgid "Settings"
+msgstr ""
+
+msgctxt "#30202"
+msgid "Sample List"
+msgstr ""
+
+# Menu Items
+msgctxt "#31200"
+msgid "My Lists"
+msgstr ""
+
+# Service and Background Messages  
+msgctxt "#30350"
+msgid "Background service starting"
+msgstr ""
+
+msgctxt "#30351"  
+msgid "Background service stopped"
+msgstr ""
+
+msgctxt "#30352"
+msgid "Background task is disabled"
+msgstr ""
+
+# List Management Actions
+msgctxt "#30400"
+msgid "New List"
+msgstr ""
+
+msgctxt "#30401"
+msgid "Rename List"
+msgstr ""
+
+msgctxt "#30402"
+msgid "Delete List"
+msgstr ""
+
+msgctxt "#30403"
+msgid "View List"
+msgstr ""
+
+# Dialog Messages
+msgctxt "#30500"
+msgid "Enter list name"
+msgstr ""
+
+msgctxt "#30501"
+msgid "Are you sure you want to delete this list?"
+msgstr ""
+
+msgctxt "#30502"
+msgid "This will permanently remove the list and all its items."
+msgstr ""
+
+msgctxt "#30503"
+msgid "Enter new name for list"
+msgstr ""
+
+msgctxt "#30504"
+msgid "Operation failed"
+msgstr ""
+
+msgctxt "#30505"
+msgid "List name cannot be empty"
+msgstr ""
+
+msgctxt "#30506"
+msgid "A list with this name already exists"
+msgstr ""
+
+msgctxt "#30507"
+msgid "Failed to create list"
+msgstr ""
+
+msgctxt "#30508"
+msgid "Failed to rename list"
+msgstr ""
+
+msgctxt "#30509"
+msgid "Failed to delete list"
+msgstr ""
+
+# List View Messages
+msgctxt "#30600"
+msgid "No items in this list"
+msgstr ""
+
+msgctxt "#30601"
+msgid "Add items to get started"
+msgstr ""
+
+msgctxt "#30602"
+msgid "List is empty"
+msgstr ""
+
+# Library Management Actions  
+msgctxt "#30700"
+msgid "Browse Library"
+msgstr ""
+
+msgctxt "#30701"
+msgid "Library Stats"
+msgstr ""
+
+msgctxt "#30702"
+msgid "Refresh Library Now"
+msgstr ""
+
+msgctxt "#30703"
+msgid "Purge Removed Items"
+msgstr ""
+
+# Library Status Messages
+msgctxt "#30800"
+msgid "Library not indexed yet"
+msgstr ""
+
+msgctxt "#30801"
+msgid "Use 'Refresh Library Now' to start indexing"
+msgstr ""
+
+msgctxt "#30802"
+msgid "Library indexing in progress..."
+msgstr ""
+
+msgctxt "#30803"
+msgid "Library refresh complete"
+msgstr ""
+
+msgctxt "#30804"
+msgid "Failed to refresh library"
+msgstr ""
+
+msgctxt "#30805"
+msgid "Are you sure you want to refresh the entire library?"
+msgstr ""
+
+msgctxt "#30806"
+msgid "This will re-scan all movies and may take several minutes."
+msgstr ""
+
+msgctxt "#30807"
+msgid "Library refresh started"
+msgstr ""
+
+# Library Stats Labels
+msgctxt "#30900"
+msgid "Total Movies"
+msgstr ""
+
+msgctxt "#30901"
+msgid "Removed Movies"
+msgstr ""
+
+msgctxt "#30902"
+msgid "Last Scan"
+msgstr ""
+
+msgctxt "#30903"
+msgid "Last Scan Type"
+msgstr ""
+
+msgctxt "#30904"
+msgid "Items Found"
+msgstr ""
+
+msgctxt "#30905"
+msgid "Items Added"
+msgstr ""
+
+msgctxt "#30906"
+msgid "Items Removed"
+msgstr ""
+
+msgctxt "#30907"
+msgid "Never"
+msgstr ""
+
+msgctxt "#30908"
+msgid "Full Scan"
+msgstr ""
+
+msgctxt "#30909"
+msgid "Delta Scan"
+msgstr ""
+
+# Library-List Context Menu Actions
+msgctxt "#31000"
+msgid "Add to List..."
+msgstr ""
+
+msgctxt "#31001"
+msgid "Quick Add to Default"
+msgstr ""
+
+msgctxt "#31010"
+msgid "Remove from List"
+msgstr ""
+
+msgctxt "#31011"
+msgid "Move to Another List..."
+msgstr ""
+
+# Library-List Operation Messages
+msgctxt "#31100"
+msgid "Select a list"
+msgstr ""
+
+msgctxt "#31101"
+msgid "Create New List"
+msgstr ""
+
+msgctxt "#31102"
+msgid "Added to list successfully"
+msgstr ""
+
+msgctxt "#31103"
+msgid "Movie is already in this list"
+msgstr ""
+
+msgctxt "#31104"
+msgid "Cannot add missing/removed movie"
+msgstr ""
+
+msgctxt "#31105"
+msgid "Removed from list successfully"
+msgstr ""
+
+msgctxt "#31106"
+msgid "Failed to add to list"
+msgstr ""
+
+msgctxt "#31107"
+msgid "Failed to remove from list"
+msgstr ""
+
+msgctxt "#31108"
+msgid "No default list configured"
+msgstr ""
+
+msgctxt "#31109"
+msgid "Movie moved to list successfully"
+msgstr ""
+
+msgctxt "#31110"
+msgid "Failed to move movie"
+msgstr ""
+
+msgctxt "#31111"
+msgid "Select target list"
+msgstr ""
+
+msgctxt "#31112"
+msgid "Are you sure you want to remove this movie from the list?"
+msgstr ""
+
+# Missing/Removed Item Indicators
+msgctxt "#31200"
+msgid "Missing"
+msgstr ""
+
+msgctxt "#31201"
+msgid "Removed from library"
+msgstr ""
+
+msgctxt "#31202"
+msgid "File not found"
+msgstr ""
+
+# Favorites UI and Operations
+msgctxt "#32000"
+msgid "Kodi Favorites (read-only)"
+msgstr ""
+
+msgctxt "#32001"
+msgid "Browse Kodi Favorites"
+msgstr ""
+
+msgctxt "#32002"
+msgid "Add Favorite to List..."
+msgstr ""
+
+msgctxt "#32003"
+msgid "Add All Favorites to List..."
+msgstr ""
+
+msgctxt "#32004"
+msgid "Refresh Favorites Now"
+msgstr ""
+
+msgctxt "#32005"
+msgid "Favorites Stats"
+msgstr ""
+
+msgctxt "#32006"
+msgid "No favorites found or mapped"
+msgstr ""
+
+msgctxt "#32007"
+msgid "Favorites file not found"
+msgstr ""
+
+msgctxt "#32008"
+msgid "Not in library"
+msgstr ""
+
+msgctxt "#32009"
+msgid "Total Favorites"
+msgstr ""
+
+msgctxt "#32010"
+msgid "Mapped to Library"
+msgstr ""
+
+msgctxt "#32011"
+msgid "Not Mapped"
+msgstr ""
+
+msgctxt "#32012"
+msgid "Last Scan"
+msgstr ""
+
+msgctxt "#32013"
+msgid "Scan Duration"
+msgstr ""
+
+msgctxt "#32014"
+msgid "Added to list successfully"
+msgstr ""
+
+msgctxt "#32015"
+msgid "Bulk add completed"
+msgstr ""
+
+msgctxt "#32016"
+msgid "Failed to add favorites"
+msgstr ""
+
+msgctxt "#32017"
+msgid "Favorites scanning..."
+msgstr ""
+
+msgctxt "#32018"
+msgid "Favorites integration disabled"
+msgstr ""
+
+msgctxt "#32019"
+msgid "Enable in settings to use this feature"
+msgstr ""
+
+msgctxt "#32020"
+msgid "Missing from library"
+msgstr ""
+
+# Search UI and Operations
+msgctxt "#33000"
+msgid "Search"
+msgstr ""
+
+msgctxt "#33001"
+msgid "Search Movies and Lists"
+msgstr ""
+
+msgctxt "#33002"
+msgid "Enter search terms"
+msgstr ""
+
+msgctxt "#33003"
+msgid "Search Filters"
+msgstr ""
+
+msgctxt "#33004"
+msgid "Year Filter"
+msgstr ""
+
+msgctxt "#33005"
+msgid "Search Scope"
+msgstr ""
+
+msgctxt "#33006"
+msgid "Sort Method"
+msgstr ""
+
+msgctxt "#33007"
+msgid "All Library"
+msgstr ""
+
+msgctxt "#33008"
+msgid "Current List"
+msgstr ""
+
+msgctxt "#33009"
+msgid "Title (A-Z)"
+msgstr ""
+
+msgctxt "#33010"
+msgid "Title (Z-A)"
+msgstr ""
+
+msgctxt "#33011"
+msgid "Year (Newest First)"
+msgstr ""
+
+msgctxt "#33012"
+msgid "Year (Oldest First)"
+msgstr ""
+
+msgctxt "#33013"
+msgid "Date Added (Newest)"
+msgstr ""
+
+msgctxt "#33014"
+msgid "Date Added (Oldest)"
+msgstr ""
+
+msgctxt "#33015"
+msgid "Search Results"
+msgstr ""
+
+msgctxt "#33016"
+msgid "No results found"
+msgstr ""
+
+msgctxt "#33017"
+msgid "Try different search terms or filters"
+msgstr ""
+
+msgctxt "#33018"
+msgid "Next Page"
+msgstr ""
+
+msgctxt "#33019"
+msgid "Previous Page"
+msgstr ""
+
+msgctxt "#33020"
+msgid "Enter year (e.g. 2020) or range (e.g. 1999-2003)"
+msgstr ""
+
+msgctxt "#33021"
+msgid "Empty search"
+msgstr ""
+
+msgctxt "#33022"
+msgid "Enter search terms or apply filters"
+msgstr ""
+
+msgctxt "#33023"
+msgid "Search Error"
+msgstr ""
+
+msgctxt "#33024"
+msgid "Filtered by:"
+msgstr ""
+
+msgctxt "#33025"
+msgid "results for"
+msgstr ""
+
+msgctxt "#33026"
+msgid "in list"
+msgstr ""
+
+msgctxt "#33027"
+msgid "including paths"
+msgstr ""
+
+msgctxt "#33028"
+msgid "Page"
+msgstr ""
+
+msgctxt "#33029"
+msgid "of"
+msgstr ""
+
+# Dialog Titles and Common Messages
+msgctxt "#35000"
+msgid "Search"
+msgstr ""
+
+msgctxt "#35001" 
+msgid "Playback Error"
+msgstr ""
+
+msgctxt "#35002"
+msgid "Movie List Manager"
+msgstr ""
+
+msgctxt "#35003"
+msgid "Export Complete"
+msgstr ""
+
+msgctxt "#35004"
+msgid "Import Complete" 
+msgstr ""
+
+msgctxt "#35005"
+msgid "Remote Connection Test"
+msgstr ""
+
+msgctxt "#35006"
+msgid "Connection Test Error"
+msgstr ""
+
+msgctxt "#35007"
+msgid "Cache Cleared"
+msgstr ""
+
+msgctxt "#35008"
+msgid "Cache Clear Failed"
+msgstr ""
+
+msgctxt "#35009"
+msgid "Cache Clear Error"
+msgstr ""
+
+msgctxt "#35010"
+msgid "Movie added to playlist"
+msgstr ""
+
+msgctxt "#35011"
+msgid "Remote cache has been cleared successfully."
+msgstr ""
+
+msgctxt "#35012"
+msgid "Failed to clear remote cache."
+msgstr ""
+

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<settings>
+  <!-- General Settings -->
+  <category label="30000">
+    <setting label="30010" type="lsep"/>
+    <setting id="debug_logging" type="bool" label="30011" default="false"/>
+    <setting label="30020" type="lsep"/>
+    <setting id="confirm_destructive_actions" type="bool" label="30021" default="true"/>
+    <setting id="show_item_counts" type="bool" label="30022" default="true"/>
+    <setting label="30030" type="lsep"/>
+    <setting id="track_library_changes" type="bool" label="30031" default="true"/>
+    <setting id="soft_delete_removed_items" type="bool" label="30032" default="true"/>
+    <setting label="30060" type="lsep"/>
+    <setting id="search_match_mode" type="select" label="30061" default="contains" values="contains|starts_with"/>
+    <setting id="search_include_file_path" type="bool" label="30062" default="false"/>
+    <setting id="search_page_size" type="slider" label="30063" default="50" range="25,5,200" option="int"/>
+    <setting id="search_enable_decade_shorthand" type="bool" label="30064" default="false"/>
+    <setting id="search_remember_scope" type="bool" label="30065" default="true"/>
+    <setting id="search_history_days" type="slider" label="30066" default="30" range="7,7,365" option="int"/>
+  </category>
+  
+  <!-- Lists Settings -->
+  <category label="30200">
+    <setting label="30040" type="lsep"/>
+    <setting id="set_default_list_action" type="action" label="30041" action="RunPlugin(plugin://plugin.video.library.genie/?action=set_default_list)"/>
+    <setting id="quick_add_enabled" type="bool" label="30042" default="false"/>
+    <setting id="show_missing_indicators" type="bool" label="30043" default="true"/>
+    <setting label="30050" type="lsep"/>
+    <setting id="favorites_integration_enabled" type="bool" label="30051" default="false"/>
+    <setting id="favorites_scan_interval_minutes" type="slider" label="30052" default="30" range="10,5,240" option="int"/>
+    <setting id="show_unmapped_favorites" type="bool" label="30053" default="false"/>
+    <setting id="favorites_batch_processing" type="bool" label="30054" default="true"/>
+  </category>
+  
+  <!-- Background Settings -->
+  <category label="30100">
+    <setting label="30110" type="lsep"/>
+    <setting id="background_task_enabled" type="bool" label="30111" default="true"/>
+    <setting id="background_interval_minutes" type="slider" label="30112" default="30" 
+             range="5,5,720" option="int" enable="eq(-1,true)"/>
+  </category>
+  
+  <!-- Advanced Settings (Phase 3) -->
+  <category label="30300">
+    <setting label="30310" type="lsep"/>
+    <setting id="jsonrpc_page_size" type="slider" label="30311" default="200" 
+             range="50,10,500" option="int"/>
+    <setting id="jsonrpc_timeout_seconds" type="slider" label="30312" default="10" 
+             range="5,1,30" option="int"/>
+    <setting label="30320" type="lsep"/>
+    <setting id="db_batch_size" type="slider" label="30321" default="200" 
+             range="50,10,500" option="int"/>
+    <setting id="db_busy_timeout_ms" type="slider" label="30322" default="3000" 
+             range="1000,500,10000" option="int"/>
+  </category>
+</settings>
