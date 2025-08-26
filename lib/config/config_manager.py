@@ -7,6 +7,48 @@ Reads Kodi settings and manages addon configuration
 """
 
 import xbmcaddon
+from typing import Optional
+
+from ..utils.logger import get_logger
+
+
+class ConfigManager:
+    """Manages addon configuration and settings"""
+    
+    def __init__(self):
+        self.addon = xbmcaddon.Addon()
+        self.logger = get_logger(__name__)
+        self.addon_id = self.addon.getAddonInfo('id')
+        self.addon_handle = None
+    
+    def get_setting(self, setting_id: str, default: str = "") -> str:
+        """Get a setting value from Kodi"""
+        try:
+            return self.addon.getSetting(setting_id) or default
+        except Exception as e:
+            self.logger.error(f"Error getting setting {setting_id}: {e}")
+            return default
+    
+    def set_setting(self, setting_id: str, value: str) -> bool:
+        """Set a setting value in Kodi"""
+        try:
+            self.addon.setSetting(setting_id, value)
+            return True
+        except Exception as e:
+            self.logger.error(f"Error setting {setting_id}: {e}")
+            return False
+
+
+# Global config instance
+_config_instance: Optional[ConfigManager] = None
+
+
+def get_config() -> ConfigManager:
+    """Get global config manager instance"""
+    global _config_instance
+    if _config_instance is None:
+        _config_instance = ConfigManager()
+    return _config_instance
 
 
 class ConfigManager:

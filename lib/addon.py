@@ -3,7 +3,7 @@
 # -*- coding: utf-8 -*-
 
 """
-LibraryGenie - Main Addon Controller
+Movie List Manager - Main Addon Controller
 Entry point for plugin operations and routing
 """
 
@@ -15,45 +15,35 @@ import xbmcgui
 import xbmcplugin
 
 from .utils.logger import get_logger
-from .data import get_query_manager
-from .ui.menu_builder import MenuBuilder
-from .ui.search_handler import SearchHandler
-from .ui.listitem_renderer import ListItemRenderer
+from .config import get_config
 
 
 class AddonController:
-    """Main controller for LibraryGenie addon operations"""
+    """Main controller for Movie List Manager addon operations"""
     
     def __init__(self, addon_handle: int, addon_url: str, addon_params: Dict[str, Any]):
         self.addon = xbmcaddon.Addon()
         self.handle = addon_handle
-        self.url = addon_url
+        self.base_url = addon_url
         self.params = addon_params
         self.logger = get_logger(__name__)
-        
-        # Initialize components
-        self.query_manager = get_query_manager()
-        self.menu_builder = MenuBuilder()
-        self.search_handler = SearchHandler()
-        self.listitem_renderer = ListItemRenderer()
+        self.cfg = get_config()
     
     def route(self):
         """Route requests to appropriate handlers"""
         try:
-            mode = self.params.get('mode', '')
+            mode = self.params.get('mode', 'home')
             
-            if mode == '':
-                self._show_main_menu()
-            elif mode == 'lists':
-                self._show_lists()
-            elif mode == 'view_list':
-                self._view_list()
-            elif mode == 'search':
+            self.logger.debug(f"Routing mode: {mode}")
+            
+            if mode == 'search':
                 self._handle_search()
-            elif mode == 'folders':
-                self._show_folders()
+            elif mode == 'authorize':
+                self._handle_authorize()
+            elif mode == 'logout':
+                self._handle_logout()
             else:
-                self.logger.warning(f"Unknown mode: {mode}")
+                # Default to home/main menu
                 self._show_main_menu()
                 
         except Exception as e:
@@ -67,109 +57,113 @@ class AddonController:
     def _show_main_menu(self):
         """Display the main menu"""
         try:
-            items = [
-                ('Lists', 'plugin://plugin.video.librarygenie/?mode=lists'),
-                ('Search', 'plugin://plugin.video.librarygenie/?mode=search'),
-                ('Folders', 'plugin://plugin.video.librarygenie/?mode=folders'),
-            ]
+            self.logger.info("Showing main menu")
             
-            for title, url in items:
-                listitem = xbmcgui.ListItem(title)
-                listitem.setInfo('video', {'title': title})
-                xbmcplugin.addDirectoryItem(self.handle, url, listitem, True)
+            items = []
+            
+            # Always show search
+            items.append(("Search", f"{self.base_url}?mode=search", True))
+            
+            # Show authorization status dependent items
+            if self._is_authorized():
+                items.append(("Sign out", f"{self.base_url}?mode=logout", False))
+            else:
+                items.append(("Authorize device", f"{self.base_url}?mode=authorize", False))
+            
+            # Add items to directory
+            for label, url, is_folder in items:
+                listitem = xbmcgui.ListItem(label)
+                listitem.setInfo('video', {'title': label})
+                xbmcplugin.addDirectoryItem(self.handle, url, listitem, is_folder)
             
             xbmcplugin.endOfDirectory(self.handle)
             
         except Exception as e:
             self.logger.error(f"Error showing main menu: {e}")
     
-    def _show_lists(self):
-        """Display all lists"""
-        try:
-            lists = self.query_manager.get_all_lists()
-            
-            for list_data in lists:
-                title = list_data['name']
-                url = f"plugin://plugin.video.librarygenie/?mode=view_list&list_id={list_data['id']}"
-                
-                listitem = xbmcgui.ListItem(title)
-                listitem.setInfo('video', {'title': title})
-                xbmcplugin.addDirectoryItem(self.handle, url, listitem, True)
-            
-            xbmcplugin.endOfDirectory(self.handle)
-            
-        except Exception as e:
-            self.logger.error(f"Error showing lists: {e}")
-    
-    def _view_list(self):
-        """Display items in a specific list"""
-        try:
-            list_id = self.params.get('list_id')
-            if not list_id:
-                return
-            
-            items = self.query_manager.get_list_items(int(list_id))
-            
-            for item in items:
-                listitem = self.listitem_renderer.create_listitem(item)
-                xbmcplugin.addDirectoryItem(
-                    self.handle,
-                    item.get('play', ''),
-                    listitem,
-                    False
-                )
-            
-            xbmcplugin.endOfDirectory(self.handle)
-            
-        except Exception as e:
-            self.logger.error(f"Error viewing list: {e}")
-    
     def _handle_search(self):
         """Handle search functionality"""
         try:
-            query = self.params.get('query')
+            self.logger.info("Handling search")
             
-            if not query:
-                # Show search input dialog
-                keyboard = xbmcgui.Dialog().input(
-                    'Search Movies',
-                    type=xbmcgui.INPUT_ALPHANUM
-                )
-                if keyboard:
-                    query = keyboard
-                else:
-                    return
+            # Import search UI handler
+            from .ui.search_handler import SearchHandler
+            search_handler = SearchHandler()
             
-            results = self.search_handler.search(query)
-            
-            for item in results:
-                listitem = self.listitem_renderer.create_listitem(item)
-                xbmcplugin.addDirectoryItem(
-                    self.handle,
-                    item.get('play', ''),
-                    listitem,
-                    False
-                )
-            
-            xbmcplugin.endOfDirectory(self.handle)
-            
-        except Exception as e:
-            self.logger.error(f"Error in search: {e}")
-    
-    def _show_folders(self):
-        """Display folder structure"""
-        try:
-            folders = self.query_manager.get_all_folders()
-            
-            for folder in folders:
-                title = folder['name']
-                url = f"plugin://plugin.video.librarygenie/?mode=folder&folder_id={folder['id']}"
+            # Show search dialog and handle results
+            if search_handler.show_search_dialog():
+                # Search dialog handled navigation
+                pass
+            else:
+                # Return to main menu if search was cancelled
+                self._show_main_menu()
                 
-                listitem = xbmcgui.ListItem(title)
-                listitem.setInfo('video', {'title': title})
-                xbmcplugin.addDirectoryItem(self.handle, url, listitem, True)
-            
-            xbmcplugin.endOfDirectory(self.handle)
-            
         except Exception as e:
-            self.logger.error(f"Error showing folders: {e}")
+            self.logger.error(f"Error in search handling: {e}")
+            self._show_main_menu()
+    
+    def _handle_authorize(self):
+        """Handle device authorization"""
+        try:
+            self.logger.info("Handling authorization")
+            
+            # Import and run authorization flow
+            from .auth.device_code import run_authorize_flow
+            run_authorize_flow()
+            
+            # Return to main menu after authorization attempt
+            self._show_main_menu()
+            
+        except ImportError:
+            self.logger.warning("Authorization module not available")
+            xbmcgui.Dialog().notification(
+                "Movie List Manager",
+                "Authorization not implemented yet",
+                xbmcgui.NOTIFICATION_INFO
+            )
+            self._show_main_menu()
+        except Exception as e:
+            self.logger.error(f"Error in authorization: {e}")
+            self._show_main_menu()
+    
+    def _handle_logout(self):
+        """Handle logout/sign out"""
+        try:
+            self.logger.info("Handling logout")
+            
+            # Import and clear auth tokens
+            from .auth.state import clear_tokens
+            clear_tokens()
+            
+            xbmcgui.Dialog().notification(
+                "Movie List Manager",
+                "Signed out successfully",
+                xbmcgui.NOTIFICATION_INFO
+            )
+            
+            # Return to main menu
+            self._show_main_menu()
+            
+        except ImportError:
+            self.logger.warning("Auth state module not available")
+            xbmcgui.Dialog().notification(
+                "Movie List Manager",
+                "Logout not implemented yet",
+                xbmcgui.NOTIFICATION_INFO
+            )
+            self._show_main_menu()
+        except Exception as e:
+            self.logger.error(f"Error in logout: {e}")
+            self._show_main_menu()
+    
+    def _is_authorized(self) -> bool:
+        """Check if user is authorized"""
+        try:
+            from .auth.state import is_authorized
+            return is_authorized()
+        except ImportError:
+            # Auth module not available, assume not authorized
+            return False
+        except Exception as e:
+            self.logger.error(f"Error checking authorization status: {e}")
+            return False
