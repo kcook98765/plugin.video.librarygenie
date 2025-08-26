@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -26,7 +27,7 @@ class MigrationManager:
             if current_version == 0:
                 self.logger.info("Initializing complete database schema")
                 self._create_complete_schema()
-                self._set_schema_version(1)
+                self._set_schema_version(8)
                 self.logger.info("Database initialized with complete schema")
             else:
                 self.logger.info(f"Database already initialized at version {current_version}")
@@ -55,7 +56,7 @@ class MigrationManager:
             )
 
     def _create_complete_schema(self):
-        """Create complete database schema"""
+        """Create complete database schema matching DATABASE_SCHEMA.md"""
         with self.conn_manager.transaction() as conn:
             # Schema version tracking
             conn.execute("""
@@ -65,7 +66,192 @@ class MigrationManager:
                 )
             """)
 
-            # User lists table
+            # Lists table
+            conn.execute("""
+                CREATE TABLE lists (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    folder_id INTEGER,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
+                )
+            """)
+
+            conn.execute("""
+                CREATE UNIQUE INDEX idx_lists_name_folder 
+                ON lists (name, folder_id)
+            """)
+
+            # Folders table
+            conn.execute("""
+                CREATE TABLE folders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    parent_id INTEGER,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    FOREIGN KEY (parent_id) REFERENCES folders(id) ON DELETE SET NULL
+                )
+            """)
+
+            conn.execute("""
+                CREATE UNIQUE INDEX idx_folders_name_parent 
+                ON folders (name, parent_id)
+            """)
+
+            # Media items table - core metadata
+            conn.execute("""
+                CREATE TABLE media_items (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    media_type TEXT NOT NULL,
+                    title TEXT,
+                    year INTEGER,
+                    imdbnumber TEXT,
+                    tmdb_id TEXT,
+                    kodi_id INTEGER,
+                    source TEXT,
+                    play TEXT,
+                    poster TEXT,
+                    fanart TEXT,
+                    plot TEXT,
+                    rating REAL,
+                    votes INTEGER,
+                    duration INTEGER,
+                    mpaa TEXT,
+                    genre TEXT,
+                    director TEXT,
+                    studio TEXT,
+                    country TEXT,
+                    writer TEXT,
+                    cast TEXT,
+                    art TEXT,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                )
+            """)
+
+            # Media items indexes
+            conn.execute("CREATE INDEX idx_media_items_imdbnumber ON media_items (imdbnumber)")
+            conn.execute("CREATE INDEX idx_media_items_media_type_kodi_id ON media_items (media_type, kodi_id)")
+            conn.execute("CREATE INDEX idx_media_items_title ON media_items (title COLLATE NOCASE)")
+            conn.execute("CREATE INDEX idx_media_items_year ON media_items (year)")
+
+            # List items table - associates media with lists
+            conn.execute("""
+                CREATE TABLE list_items (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    list_id INTEGER NOT NULL,
+                    media_item_id INTEGER NOT NULL,
+                    position INTEGER,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE,
+                    FOREIGN KEY (media_item_id) REFERENCES media_items(id) ON DELETE CASCADE
+                )
+            """)
+
+            conn.execute("""
+                CREATE UNIQUE INDEX idx_list_items_unique 
+                ON list_items (list_id, media_item_id)
+            """)
+
+            conn.execute("""
+                CREATE INDEX idx_list_items_position 
+                ON list_items (list_id, position)
+            """)
+
+            # Movie heavy meta table
+            conn.execute("""
+                CREATE TABLE movie_heavy_meta (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    kodi_movieid INTEGER,
+                    imdbnumber TEXT,
+                    cast_json TEXT,
+                    ratings_json TEXT,
+                    showlink_json TEXT,
+                    stream_json TEXT,
+                    uniqueid_json TEXT,
+                    tags_json TEXT,
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                )
+            """)
+
+            # IMDB exports table
+            conn.execute("""
+                CREATE TABLE imdb_exports (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    imdb_id TEXT,
+                    title TEXT,
+                    year INTEGER,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                )
+            """)
+
+            conn.execute("CREATE INDEX idx_imdb_exports_imdb_id ON imdb_exports (imdb_id)")
+
+            # IMDB to Kodi mapping
+            conn.execute("""
+                CREATE TABLE imdb_to_kodi (
+                    imdb_id TEXT,
+                    kodi_id INTEGER,
+                    media_type TEXT
+                )
+            """)
+
+            conn.execute("""
+                CREATE UNIQUE INDEX idx_imdb_to_kodi_unique 
+                ON imdb_to_kodi (imdb_id, kodi_id, media_type)
+            """)
+
+            # Key-value cache
+            conn.execute("""
+                CREATE TABLE kv_cache (
+                    key TEXT PRIMARY KEY,
+                    value TEXT,
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                )
+            """)
+
+            # Sync state for remote services
+            conn.execute("""
+                CREATE TABLE sync_state (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    local_snapshot TEXT,
+                    server_version TEXT,
+                    server_etag TEXT,
+                    last_sync_at TEXT,
+                    server_url TEXT
+                )
+            """)
+
+            # Auth state for remote services
+            conn.execute("""
+                CREATE TABLE auth_state (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    access_token TEXT,
+                    expires_at TEXT,
+                    token_type TEXT,
+                    scope TEXT
+                )
+            """)
+
+            # Pending operations for retry
+            conn.execute("""
+                CREATE TABLE pending_operations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    operation TEXT NOT NULL,
+                    imdb_ids TEXT,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    retry_count INTEGER DEFAULT 0,
+                    idempotency_key TEXT
+                )
+            """)
+
+            conn.execute("""
+                CREATE INDEX idx_pending_operations_processing 
+                ON pending_operations (operation, created_at)
+            """)
+
+            # Legacy compatibility tables for existing functionality
+            
+            # User list table (legacy compatibility)
             conn.execute("""
                 CREATE TABLE user_list (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -80,10 +266,10 @@ class MigrationManager:
                 ON user_list (name COLLATE NOCASE)
             """)
 
-            # Library movies table with all columns
+            # Library movie table (legacy compatibility)
             conn.execute("""
                 CREATE TABLE library_movie (
-                    id INTEGER PRIMARYKEY AUTOINCREMENT,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
                     kodi_id INTEGER NOT NULL UNIQUE,
                     title TEXT NOT NULL,
                     year INTEGER,
@@ -116,28 +302,13 @@ class MigrationManager:
             # Library movie indexes
             conn.execute("CREATE INDEX idx_library_movie_kodi_id ON library_movie (kodi_id)")
             conn.execute("CREATE INDEX idx_library_movie_imdb_id ON library_movie (imdb_id) WHERE imdb_id IS NOT NULL")
-            conn.execute("CREATE INDEX idx_library_movie_tmdb_id ON library_movie (tmdb_id) WHERE tmdb_id IS NOT NULL")
-            conn.execute("CREATE UNIQUE INDEX idx_library_movie_composite ON library_movie (title, year, file_path) WHERE is_removed = 0")
-            conn.execute("CREATE INDEX idx_library_movie_last_seen ON library_movie (last_seen)")
-            conn.execute("CREATE INDEX idx_library_movie_normalized_title ON library_movie (normalized_title) WHERE is_removed = 0")
             conn.execute("CREATE INDEX idx_library_movie_title_search ON library_movie (title COLLATE NOCASE) WHERE is_removed = 0")
             conn.execute("CREATE INDEX idx_library_movie_year_search ON library_movie (year) WHERE is_removed = 0 AND year IS NOT NULL")
-            conn.execute("CREATE INDEX idx_library_movie_file_path_search ON library_movie (file_path COLLATE NOCASE) WHERE is_removed = 0")
-            conn.execute("CREATE INDEX idx_library_movie_rating ON library_movie (rating DESC) WHERE is_removed = 0 AND rating > 0")
-            conn.execute("CREATE INDEX idx_library_movie_runtime ON library_movie (runtime) WHERE is_removed = 0 AND runtime > 0")
-            conn.execute("CREATE INDEX idx_library_movie_genre ON library_movie (genre) WHERE is_removed = 0 AND genre != ''")
-            conn.execute("CREATE INDEX idx_library_movie_date_added_desc ON library_movie (date_added DESC) WHERE is_removed = 0 AND date_added IS NOT NULL")
-            conn.execute("CREATE INDEX idx_library_movie_active_title ON library_movie (is_removed, title COLLATE NOCASE)")
-            conn.execute("CREATE INDEX idx_library_movie_active_year_title ON library_movie (is_removed, year, title COLLATE NOCASE) WHERE year IS NOT NULL")
-            conn.execute("CREATE INDEX idx_library_movie_imdb_active ON library_movie (imdb_id, is_removed) WHERE imdb_id IS NOT NULL")
-            conn.execute("CREATE INDEX idx_library_movie_tmdb_active ON library_movie (tmdb_id, is_removed) WHERE tmdb_id IS NOT NULL")
-            conn.execute("CREATE INDEX idx_library_movie_normalized_path ON library_movie (normalized_path) WHERE is_removed = 0 AND normalized_path != ''")
-            conn.execute("CREATE INDEX idx_library_movie_normalized_path_search ON library_movie (normalized_path) WHERE is_removed = 0 AND normalized_path != ''")
 
-            # List items table
+            # List item table (legacy compatibility)
             conn.execute("""
                 CREATE TABLE list_item (
-                    id INTEGER PRIMARYKEY AUTOINCREMENT,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
                     list_id INTEGER NOT NULL,
                     title TEXT NOT NULL,
                     year INTEGER,
@@ -150,101 +321,13 @@ class MigrationManager:
                 )
             """)
 
-            # List item indexes
             conn.execute("CREATE INDEX idx_list_item_list_id ON list_item (list_id)")
             conn.execute("CREATE UNIQUE INDEX idx_list_item_unique_external ON list_item (list_id, imdb_id) WHERE imdb_id IS NOT NULL")
-            conn.execute("CREATE INDEX idx_list_item_library_movie ON list_item (library_movie_id)")
-            conn.execute("CREATE UNIQUE INDEX idx_list_item_unique_library ON list_item (list_id, library_movie_id) WHERE library_movie_id IS NOT NULL")
-            conn.execute("CREATE INDEX idx_list_item_search ON list_item (list_id, library_movie_id) WHERE library_movie_id IS NOT NULL")
-            conn.execute("CREATE INDEX idx_list_item_position ON list_item (list_id, id)")
 
-            # Kodi favorites table
-            conn.execute("""
-                CREATE TABLE kodi_favorite (
-                    id INTEGER PRIMARYKEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    normalized_path TEXT NOT NULL UNIQUE,
-                    original_path TEXT NOT NULL,
-                    favorite_type TEXT NOT NULL,
-                    library_movie_id INTEGER,
-                    target_raw TEXT DEFAULT '',
-                    target_classification TEXT DEFAULT 'unknown',
-                    normalized_key TEXT DEFAULT '',
-                    present INTEGER NOT NULL DEFAULT 1,
-                    thumb_ref TEXT DEFAULT '',
-                    first_seen TEXT NOT NULL DEFAULT (datetime('now')),
-                    last_seen TEXT NOT NULL DEFAULT (datetime('now')),
-                    is_mapped INTEGER NOT NULL DEFAULT 0,
-                    is_missing INTEGER NOT NULL DEFAULT 0,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    FOREIGN KEY (library_movie_id) REFERENCES library_movie (id) ON DELETE SET NULL
-                )
-            """)
-
-            # Kodi favorites indexes
-            conn.execute("CREATE INDEX idx_kodi_favorite_normalized_path ON kodi_favorite (normalized_path)")
-            conn.execute("CREATE INDEX idx_kodi_favorite_library_movie ON kodi_favorite (library_movie_id) WHERE library_movie_id IS NOT NULL")
-            conn.execute("CREATE INDEX idx_kodi_favorite_mapped_active ON kodi_favorite (is_mapped, is_missing, library_movie_id) WHERE library_movie_id IS NOT NULL")
-            conn.execute("CREATE UNIQUE INDEX idx_kodi_favorite_normalized_key ON kodi_favorite (normalized_key) WHERE normalized_key != ''")
-            conn.execute("CREATE INDEX idx_kodi_favorite_present_mapped ON kodi_favorite (present, is_mapped, target_classification)")
-            conn.execute("CREATE INDEX idx_kodi_favorite_library_present ON kodi_favorite (library_movie_id, present) WHERE library_movie_id IS NOT NULL")
-
-            # Scan logs tables
-            conn.execute("""
-                CREATE TABLE library_scan_log (
-                    id INTEGER PRIMARYKEY AUTOINCREMENT,
-                    scan_type TEXT NOT NULL,
-                    started_at TEXT NOT NULL,
-                    completed_at TEXT,
-                    items_found INTEGER DEFAULT 0,
-                    items_added INTEGER DEFAULT 0,
-                    items_updated INTEGER DEFAULT 0,
-                    items_removed INTEGER DEFAULT 0,
-                    error_message TEXT,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-                )
-            """)
-
-            conn.execute("CREATE INDEX idx_library_scan_log_recent ON library_scan_log (completed_at DESC) WHERE completed_at IS NOT NULL")
-
-            conn.execute("""
-                CREATE TABLE favorites_scan_log (
-                    id INTEGER PRIMARYKEY AUTOINCREMENT,
-                    scan_type TEXT NOT NULL,
-                    file_path TEXT NOT NULL,
-                    file_modified TEXT,
-                    items_found INTEGER NOT NULL DEFAULT 0,
-                    items_mapped INTEGER NOT NULL DEFAULT 0,
-                    items_added INTEGER NOT NULL DEFAULT 0,
-                    items_updated INTEGER NOT NULL DEFAULT 0,
-                    scan_duration_ms INTEGER NOT NULL DEFAULT 0,
-                    success INTEGER NOT NULL DEFAULT 1,
-                    error_message TEXT,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-                )
-            """)
-
-            conn.execute("CREATE INDEX idx_favorites_scan_log_recent ON favorites_scan_log (created_at DESC)")
-
-            # Operation log table
-            conn.execute("""
-                CREATE TABLE list_operation_log (
-                    id INTEGER PRIMARYKEY AUTOINCREMENT,
-                    operation TEXT NOT NULL,
-                    list_id INTEGER NOT NULL,
-                    library_movie_id INTEGER,
-                    movie_title TEXT,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    FOREIGN KEY (list_id) REFERENCES user_list (id) ON DELETE CASCADE,
-                    FOREIGN KEY (library_movie_id) REFERENCES library_movie (id) ON DELETE SET NULL
-                )
-            """)
-
-            # Search tables
+            # Search and UI preferences tables
             conn.execute("""
                 CREATE TABLE search_history (
-                    id INTEGER PRIMARYKEY AUTOINCREMENT,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
                     query_text TEXT NOT NULL,
                     scope_type TEXT NOT NULL DEFAULT 'library',
                     scope_id INTEGER,
@@ -257,12 +340,9 @@ class MigrationManager:
                 )
             """)
 
-            conn.execute("CREATE INDEX idx_search_history_cleanup ON search_history (created_at)")
-            conn.execute("CREATE INDEX idx_search_history_recent ON search_history (created_at DESC, scope_type)")
-
             conn.execute("""
                 CREATE TABLE search_preferences (
-                    id INTEGER PRIMARYKEY AUTOINCREMENT,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
                     preference_key TEXT NOT NULL UNIQUE,
                     preference_value TEXT NOT NULL,
                     created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -270,12 +350,9 @@ class MigrationManager:
                 )
             """)
 
-            conn.execute("CREATE INDEX idx_search_preferences_key ON search_preferences (preference_key)")
-
-            # UI preferences table
             conn.execute("""
                 CREATE TABLE ui_preferences (
-                    id INTEGER PRIMARYKEY,
+                    id INTEGER PRIMARY KEY,
                     ui_density TEXT NOT NULL DEFAULT 'compact',
                     artwork_preference TEXT NOT NULL DEFAULT 'poster',
                     show_secondary_label INTEGER NOT NULL DEFAULT 1,
@@ -283,18 +360,6 @@ class MigrationManager:
                     fallback_icon TEXT DEFAULT 'DefaultVideo.png',
                     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
                 )
-            """)
-
-            # Triggers
-            conn.execute("""
-                CREATE TRIGGER update_user_list_timestamp
-                AFTER INSERT ON list_item
-                FOR EACH ROW
-                BEGIN
-                    UPDATE user_list 
-                    SET updated_at = datetime('now') 
-                    WHERE id = NEW.list_id;
-                END
             """)
 
             # Insert default data
@@ -310,6 +375,15 @@ class MigrationManager:
                     ('include_file_path', 'false'),
                     ('page_size', '50'),
                     ('enable_decade_shorthand', 'false')
+            """)
+
+            # Create a default list in both tables for compatibility
+            conn.execute("""
+                INSERT INTO user_list (name) VALUES ('My Movies')
+            """)
+
+            conn.execute("""
+                INSERT INTO lists (name) VALUES ('My Movies')
             """)
 
 
