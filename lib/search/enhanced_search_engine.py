@@ -98,27 +98,27 @@ class EnhancedSearchEngine:
     def _build_enhanced_sql_query(self, query: SearchQuery) -> Tuple[str, List]:
         """Enhanced SQL builder with improved parameterization"""
         params = []
-        where_clauses = ["lm.is_removed = 0"]
+        where_clauses = ["1=1"]  # Always true condition since media_items doesn't have is_removed column
 
         # Base SELECT with required fields
         if query.scope_type == "list":
             select_clause = """
-                SELECT DISTINCT lm.id, lm.kodi_id, lm.title, lm.year, lm.file_path, 
-                       lm.imdb_id, lm.tmdb_id, lm.created_at, 
-                       lm.poster, lm.fanart, lm.plot, lm.rating, lm.runtime,
-                       lm.genre, lm.director, lm.playcount
-                FROM library_movie lm
-                INNER JOIN list_item li ON li.library_movie_id = lm.id
+                SELECT DISTINCT mi.id, mi.kodi_id, mi.title, mi.year, mi.play as file_path, 
+                       mi.imdbnumber as imdb_id, mi.tmdb_id, mi.created_at, 
+                       mi.poster, mi.fanart, mi.plot, mi.rating, mi.duration as runtime,
+                       mi.genre, mi.director, 0 as playcount
+                FROM media_items mi
+                INNER JOIN list_items li ON li.media_item_id = mi.id
             """
             where_clauses.append("li.list_id = ?")
             params.append(query.scope_id)
         else:
             select_clause = """
-                SELECT lm.id, lm.kodi_id, lm.title, lm.year, lm.file_path, 
-                       lm.imdb_id, lm.tmdb_id, lm.created_at, 
-                       lm.poster, lm.fanart, lm.plot, lm.rating, lm.runtime,
-                       lm.genre, lm.director, lm.playcount
-                FROM library_movie lm
+                SELECT mi.id, mi.kodi_id, mi.title, mi.year, mi.play as file_path, 
+                       mi.imdbnumber as imdb_id, mi.tmdb_id, mi.created_at, 
+                       mi.poster, mi.fanart, mi.plot, mi.rating, mi.duration as runtime,
+                       mi.genre, mi.director, 0 as playcount
+                FROM media_items mi
             """
 
         # Enhanced text search with match modes
@@ -127,21 +127,24 @@ class EnhancedSearchEngine:
 
             for i, token in enumerate(query.tokens):
                 token_clauses = []
+                
+                # Normalize the token for comparison
+                normalized_token = self.normalizer.normalize(token)
 
                 # Title search with match mode
                 if query.match_mode == "starts_with" and i == 0:
-                    # First token must start the title
-                    token_clauses.append("lm.normalized_title LIKE ?")
-                    params.append(f"{token}%")
+                    # First token must start the title - use LOWER() for case-insensitive comparison
+                    token_clauses.append("LOWER(mi.title) LIKE ?")
+                    params.append(f"{normalized_token}%")
                 else:
                     # Contains mode for all tokens or non-first tokens in starts_with
-                    token_clauses.append("lm.normalized_title LIKE ?")
-                    params.append(f"%{token}%")
+                    token_clauses.append("LOWER(mi.title) LIKE ?")
+                    params.append(f"%{normalized_token}%")
 
                 # Optional file path search
                 if query.include_file_path:
-                    token_clauses.append("lm.normalized_path LIKE ?")
-                    params.append(f"%{token}%")
+                    token_clauses.append("LOWER(mi.play) LIKE ?")
+                    params.append(f"%{normalized_token}%")
 
                 # Combine token clauses with OR
                 if token_clauses:
@@ -151,15 +154,15 @@ class EnhancedSearchEngine:
             if text_clauses:
                 where_clauses.append(f"({' AND '.join(text_clauses)})")
 
-        # Phase 5: Enhanced year filtering
+        # Enhanced year filtering
         if query.year_filter is not None:
             if isinstance(query.year_filter, tuple):
                 # Year range
-                where_clauses.append("lm.year BETWEEN ? AND ?")
+                where_clauses.append("mi.year BETWEEN ? AND ?")
                 params.extend([query.year_filter[0], query.year_filter[1]])
             else:
                 # Exact year
-                where_clauses.append("lm.year = ?")
+                where_clauses.append("mi.year = ?")
                 params.append(query.year_filter)
 
         # Build final query
@@ -249,15 +252,15 @@ class EnhancedSearchEngine:
     def _get_sort_clause(self, sort_method: str) -> str:
         """Get SQL ORDER BY clause for sort method"""
         sort_mapping = {
-            "title_asc": "lm.normalized_title ASC",  # Phase 5: Use normalized_title
-            "title_desc": "lm.normalized_title DESC",
-            "year_asc": "lm.year ASC, lm.normalized_title ASC",
-            "year_desc": "lm.year DESC, lm.normalized_title ASC",
-            "added_desc": "lm.created_at DESC",
-            "added_asc": "lm.created_at ASC"
+            "title_asc": "mi.title ASC",
+            "title_desc": "mi.title DESC",
+            "year_asc": "mi.year ASC, mi.title ASC",
+            "year_desc": "mi.year DESC, mi.title ASC",
+            "added_desc": "mi.created_at DESC",
+            "added_asc": "mi.created_at ASC"
         }
 
-        return sort_mapping.get(sort_method, "lm.normalized_title ASC")
+        return sort_mapping.get(sort_method, "mi.title ASC")
 
     def _generate_enhanced_query_summary(self, query: SearchQuery, total_count: int) -> str:
         """Generate enhanced query summary"""
