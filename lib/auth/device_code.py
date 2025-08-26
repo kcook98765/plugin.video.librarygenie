@@ -116,18 +116,19 @@ def run_authorize_flow():
             logger.info("User cancelled authorization during code entry")
             return False
         
-        # Step 3: Poll for authorization
+        # Step 3: Poll for authorization with finite window
         logger.info("Starting authorization polling")
         poll_data = {"device_code": device_code}
         deadline = time.time() + expires_in
         attempt = 0
+        max_attempts = min(expires_in // poll_interval, 120)  # Cap at 120 attempts
         
         # Show progress dialog
         progress = xbmcgui.DialogProgress()
         progress.create("Device Authorization", "Waiting for authorization...")
         
         try:
-            while time.time() < deadline:
+            while time.time() < deadline and attempt < max_attempts:
                 attempt += 1
                 remaining = int(deadline - time.time())
                 
@@ -135,7 +136,7 @@ def run_authorize_flow():
                 percent = int((1 - remaining / expires_in) * 100)
                 progress.update(
                     percent,
-                    f"Waiting for authorization...",
+                    f"Waiting for authorization... (attempt {attempt}/{max_attempts})",
                     f"Time remaining: {remaining} seconds",
                     "Cancel to abort"
                 )
@@ -171,7 +172,7 @@ def run_authorize_flow():
                         save_tokens(token_data)
                         
                         progress.close()
-                        logger.info("Device authorization successful")
+                        logger.info("Device authorization successful (token not logged for security)")
                         
                         xbmcgui.Dialog().notification(
                             "LibraryGenie",
@@ -266,7 +267,7 @@ def test_authorization():
         req = urllib.request.Request(f"{base_url}/auth/test")
         req.add_header('Authorization', f'Bearer {token}')
         
-        with urllib.request.urlopen(req, timeout=5) as response:
+        with urllib.request.urlopen(req, timeout=10) as response:
             if response.getcode() == 200:
                 return True, "Authorization valid"
             else:

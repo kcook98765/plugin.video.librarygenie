@@ -57,10 +57,17 @@ def get_access_token():
                 content = content.decode('utf-8')
 
             data = json.loads(content)
-            return data.get('access_token')
+            token = data.get('access_token')
+            
+            if token:
+                logger.debug("Access token retrieved successfully")
+            else:
+                logger.debug("No access token found in storage")
+                
+            return token
 
     except Exception as e:
-        logger.error(f"Failed to get access token: {e}")
+        logger.error("Failed to get access token (token value not logged for security)")
         return None
 
 
@@ -75,29 +82,49 @@ def save_tokens(tokens: dict):
         with xbmcvfs.File(_FILE, 'w') as f:
             f.write(json.dumps(tokens).encode('utf-8'))
 
-        logger.info("Authorization tokens saved successfully")
+        logger.info("Authorization tokens saved successfully (token values not logged for security)")
 
     except Exception as e:
-        logger.error(f"Failed to save tokens: {e}")
+        logger.error("Failed to save tokens (token values not logged for security)")
         raise
 
 
 def get_tokens():
     """Get stored tokens"""
     try:
-        with xbmcvfs.File(_FILE) as f:
-            data = json.loads(f.read().decode('utf-8'))
-        return data
-    except Exception:
+        if not xbmcvfs.exists(_FILE):
+            return None
+            
+        with xbmcvfs.File(_FILE, 'r') as f:
+            content = f.read()
+            if isinstance(content, bytes):
+                content = content.decode('utf-8')
+                
+            data = json.loads(content)
+            logger.debug("Token data retrieved (values not logged for security)")
+            return data
+            
+    except Exception as e:
+        logger.error("Failed to get tokens (token values not logged for security)")
         return None
 
 
 def clear_tokens():
-    """Clear stored tokens"""
+    """Clear stored tokens and revoke authorization"""
     try:
-        xbmcvfs.delete(_FILE)
-        return True
-    except Exception:
+        if not xbmcvfs.exists(_FILE):
+            logger.debug("No token file exists to clear")
+            return True
+            
+        success = xbmcvfs.delete(_FILE)
+        if success:
+            logger.info("Authorization tokens cleared successfully")
+        else:
+            logger.warning("Failed to delete token file")
+        return success
+        
+    except Exception as e:
+        logger.error(f"Error clearing tokens: {e}")
         return False
 
 

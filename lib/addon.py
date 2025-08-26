@@ -128,13 +128,21 @@ class AddonController:
             
             # Import and clear auth tokens (lazy import)
             from .auth.state import clear_tokens
-            clear_tokens()
             
-            xbmcgui.Dialog().notification(
-                self.addon.getAddonInfo('name'),
-                "Signed out successfully",
-                xbmcgui.NOTIFICATION_INFO
-            )
+            success = clear_tokens()
+            
+            if success:
+                xbmcgui.Dialog().notification(
+                    self.addon.getAddonInfo('name'),
+                    "Signed out successfully",
+                    xbmcgui.NOTIFICATION_INFO
+                )
+            else:
+                xbmcgui.Dialog().notification(
+                    self.addon.getAddonInfo('name'),
+                    "Error during sign out",
+                    xbmcgui.NOTIFICATION_WARNING
+                )
             
             # Return to main menu
             self._show_main_menu()
@@ -149,6 +157,11 @@ class AddonController:
             self._show_main_menu()
         except Exception as e:
             self.logger.error(f"Error in logout: {e}")
+            xbmcgui.Dialog().notification(
+                self.addon.getAddonInfo('name'),
+                "Error during sign out",
+                xbmcgui.NOTIFICATION_ERROR
+            )
             self._show_main_menu()
     
     def _is_authorized(self) -> bool:
