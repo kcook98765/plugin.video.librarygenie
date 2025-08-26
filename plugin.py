@@ -156,14 +156,13 @@ def main():
         logger.error(f"Fatal error in plugin main: {e}")
         # Try to show error to user if possible
         try:
-            import xbmcgui
             addon = xbmcaddon.Addon()
             xbmcgui.Dialog().notification(
                 addon.getLocalizedString(35002),
                 addon.getLocalizedString(35013),
                 xbmcgui.NOTIFICATION_ERROR
             )
-        except:
+        except Exception:
             pass
 
 

@@ -95,7 +95,7 @@ class EnhancedSearchEngine:
         """Check if query has searchable content"""
         return bool(query.tokens) or query.year_filter is not None
 
-    def _build_enhanced_sql_query(self, query: SearchQuery) -> Tuple[str, List]:
+    def _build_enhanced_sql_query(self, query: SearchQuery) -> Tuple[str, List[Any]]:
         """Enhanced SQL builder with improved parameterization"""
         params = []
         where_clauses = ["1=1"]  # Always true condition since media_items doesn't have is_removed column
@@ -127,7 +127,7 @@ class EnhancedSearchEngine:
 
             for i, token in enumerate(query.tokens):
                 token_clauses = []
-                
+
                 # Normalize the token for comparison
                 normalized_token = self.normalizer.normalize(token)
 
@@ -173,7 +173,7 @@ class EnhancedSearchEngine:
 
         return full_query, params
 
-    def _execute_paginated_search(self, sql_query: str, params: List, query: SearchQuery) -> SearchResult:
+    def _execute_paginated_search(self, sql_query: str, params: List[Any], query: SearchQuery) -> SearchResult:
         """Efficient pagination with has-next-page check"""
         result = SearchResult()
 
@@ -213,7 +213,7 @@ class EnhancedSearchEngine:
             self.logger.error(f"Paginated search error: {e}")
             return result
 
-    def _get_approximate_count(self, sql_query: str, params: List, query: SearchQuery) -> int:
+    def _get_approximate_count(self, sql_query: str, params: List[Any], query: SearchQuery) -> int:
         """Get approximate total count for pagination"""
         try:
             # Convert to count query
@@ -241,7 +241,7 @@ class EnhancedSearchEngine:
         import re
 
         # Remove ORDER BY clause
-        count_sql = re.sub(r'\s+ORDER\s+BY\s+[^)]*$', '', main_sql, flags=re.IGNORECASE)
+        count_sql = re.sub(r'\s+ORDER\s+BY\s+.*$', '', main_sql, flags=re.IGNORECASE)
 
         # Replace SELECT fields with COUNT(*)
         select_pattern = r'SELECT\s+.*?\s+FROM'
