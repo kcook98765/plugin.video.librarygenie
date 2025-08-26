@@ -21,7 +21,7 @@ class ConfigManager:
         self._defaults = {
             "debug_logging": False,
             "background_task_enabled": True,
-            "background_interval_seconds": 60,  # 60 seconds (Phase 6/7 default)
+            "background_interval_seconds": 120,  # 120 seconds (safer default)
             # Phase 3: Advanced settings with safe defaults
             "jsonrpc_page_size": 200,  # Items per JSON-RPC page
             "jsonrpc_timeout_seconds": 10,  # JSON-RPC request timeout
@@ -42,7 +42,7 @@ class ConfigManager:
             "search_page_size": 50,
             "search_history_days": 30,
             # Remote service settings
-            "remote_base_url": "https://YOUR-LIBRARYGENIE/api",
+            "remote_base_url": "",  # Blank by default for repo safety
             "device_name": "Kodi",
             "auth_poll_seconds": 3,
         }

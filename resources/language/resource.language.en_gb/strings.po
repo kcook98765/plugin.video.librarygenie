@@ -210,6 +210,27 @@ msgctxt "#30112"
 msgid "Background interval (minutes)"
 msgstr ""
 
+# Settings Categories - Additional
+msgctxt "#30450"
+msgid "Background Service"
+msgstr ""
+
+msgctxt "#30460"
+msgid "Search"
+msgstr ""
+
+msgctxt "#30470"
+msgid "Service Tasks"
+msgstr ""
+
+msgctxt "#30471"
+msgid "Background interval (seconds)"
+msgstr ""
+
+msgctxt "#30480"
+msgid "Advanced & Debug"
+msgstr ""
+
 # Advanced Settings (Phase 3)
 msgctxt "#30300"
 msgid "Advanced"

@@ -1,4 +1,3 @@
-
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <settings>
   <!-- General Settings -->
@@ -19,7 +18,7 @@
     <setting id="search_remember_scope" type="bool" label="30065" default="true"/>
     <setting id="search_history_days" type="slider" label="30066" default="30" range="7,7,365" option="int"/>
   </category>
-  
+
   <!-- Lists Settings -->
   <category label="30200">
     <setting label="30040" type="lsep"/>
@@ -32,44 +31,44 @@
     <setting id="show_unmapped_favorites" type="bool" label="30053" default="false"/>
     <setting id="favorites_batch_processing" type="bool" label="30054" default="true"/>
   </category>
-  
+
   <!-- Background Settings -->
   <category label="30100">
     <setting label="30110" type="lsep"/>
     <setting id="background_task_enabled" type="bool" label="30111" default="true"/>
-    <setting id="background_interval_seconds" type="slider" label="30112" default="60" 
+    <setting id="background_interval_seconds" type="slider" label="30112" default="60"
              range="30,5,3600" option="int" enable="eq(-1,true)"/>
   </category>
-  
+
   <!-- Advanced Settings (Phase 3) -->
   <category label="30300">
     <setting label="30310" type="lsep"/>
-    <setting id="jsonrpc_page_size" type="slider" label="30311" default="200" 
+    <setting id="jsonrpc_page_size" type="slider" label="30311" default="200"
              range="50,10,500" option="int"/>
-    <setting id="jsonrpc_timeout_seconds" type="slider" label="30312" default="10" 
+    <setting id="jsonrpc_timeout_seconds" type="slider" label="30312" default="10"
              range="5,1,30" option="int"/>
     <setting label="30320" type="lsep"/>
-    <setting id="db_batch_size" type="slider" label="30321" default="200" 
+    <setting id="db_batch_size" type="slider" label="30321" default="200"
              range="50,10,500" option="int"/>
-    <setting id="db_busy_timeout_ms" type="slider" label="30322" default="3000" 
+    <setting id="db_busy_timeout_ms" type="slider" label="30322" default="3000"
              range="1000,500,10000" option="int"/>
   </category>
-  
+
   <!-- Remote Services Settings -->
   <category label="30400">
     <setting label="30410" type="lsep"/>
     <setting id="remote_base_url" type="text" label="30411" default="https://YOUR-LIBRARYGENIE/api"/>
     <setting id="device_name" type="text" label="30412" default="Kodi"/>
-    <setting id="auth_poll_seconds" type="slider" label="30413" default="3" 
+    <setting id="auth_poll_seconds" type="slider" label="30413" default="3"
              range="1,1,10" option="int"/>
     <setting label="30420" type="lsep"/>
     <setting id="track_library_changes" type="bool" label="30421" default="true"/>
   </category>
-    
-    <category label="30450">
-        <!-- Background Service -->
-        <setting id="background_interval_minutes" type="number" label="30451" help="30452" default="5" option="int" range="1,1440"/>
-        <setting id="track_library_changes" type="bool" label="30453" help="30454" default="false"/>
-        <setting id="background_token_refresh" type="bool" label="30455" help="30456" default="true"/>
-    </category>
+
+  <category label="30450">
+    <!-- Background Service -->
+    <setting id="background_interval_minutes" type="number" label="30451" help="30452" default="5" option="int" range="1,1440"/>
+    <setting id="track_library_changes" type="bool" label="30453" help="30454" default="false"/>
+    <setting id="background_token_refresh" type="bool" label="30455" help="30456" default="true"/>
+  </category>
 </settings>
