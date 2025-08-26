@@ -869,5 +869,29 @@ msgid "Search failed - please try again"
 msgstr ""
 
 msgctxt "#35026"
-msgid "Remote search failed - please try again"
+msgid "Remote search failed"
+msgstr ""
+
+msgctxt "#35027"
+msgid "Sign out"
+msgstr ""
+
+msgctxt "#35028"
+msgid "Authorize device"
+msgstr ""
+
+msgctxt "#35029"
+msgid "Sign out"
+msgstr ""
+
+msgctxt "#35030"
+msgid "Are you sure you want to sign out?"
+msgstr ""
+
+msgctxt "#35031"
+msgid "Signed out successfully"
+msgstr ""
+
+msgctxt "#35032"
+msgid "Sign out failed"
 msgstr ""

@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -8,23 +9,24 @@ Provides UI bridge for search functionality with remote/local engine selection
 
 import xbmcgui
 import xbmcaddon
+import xbmcplugin
 
-from ..search.enhanced_search_engine import get_enhanced_search_engine
+from ..search.local_engine import LocalSearchEngine
 from ..remote.search_client import search_remote, RemoteError
 from ..auth.state import is_authorized
 from ..auth.auth_helper import get_auth_helper
 from ..ui.session_state import get_session_state
 from ..utils.logger import get_logger
 
-import xbmcplugin
-
 
 class SearchHandler:
-    """Handles search UI and result display"""
+    """Handles search UI and result display with engine switching"""
 
     def __init__(self, addon_handle):
         self.addon_handle = addon_handle
         self.logger = get_logger(__name__)
+        self.local_engine = LocalSearchEngine()
+        self._remote_fallback_notified = False
 
     def prompt_and_show(self):
         """Prompt user for search query and show results"""
@@ -60,42 +62,57 @@ class SearchHandler:
             query: Search query string
 
         Returns:
-            list: Search results
+            dict: Search results with metadata
         """
-        results = []
-
-        # Try remote search if authorized
+        # Engine switch: authorized users try remote first
         if is_authorized():
             try:
                 self.logger.debug("Using remote search (authorized)")
-                remote_response = search_remote(query, page=1, page_size=100)
-                results = remote_response.get('items', [])
-                self.logger.info(f"Remote search returned {len(results)} results")
+                results = search_remote(query, page=1, page_size=100)
+                self.logger.info(f"Remote search returned {len(results.get('items', []))} results")
+                return results
 
             except RemoteError as e:
                 self.logger.warning(f"Remote search failed, falling back to local: {e}")
-                results = self._search_local(query, limit=200)
+                self._show_fallback_notification()
+                return self._search_local(query, limit=200)
+
+            except Exception as e:
+                self.logger.error(f"Remote search error, falling back to local: {e}")
+                self._show_fallback_notification()
+                return self._search_local(query, limit=200)
 
         else:
-            # Use local search when not authorized
+            # Non-authorized users use local search
             self.logger.debug("Using local search (not authorized)")
-            results = self._search_local(query, limit=200)
-
-        return results
+            return self._search_local(query, limit=200)
 
     def _search_local(self, query, limit=200):
-        """Perform local search using enhanced search engine"""
+        """Perform local search using local engine"""
         try:
-            search_engine = get_enhanced_search_engine()
-            local_results = search_engine.search(query, limit=limit)
-            return local_results.get('items', [])
+            return self.local_engine.search(query, limit=limit)
         except Exception as e:
             self.logger.error(f"Local search failed: {e}")
-            return []
+            return {'items': [], 'total': 0, 'used_remote': False}
+
+    def _show_fallback_notification(self):
+        """Show one-shot notification about remote fallback (don't spam)"""
+        session_state = get_session_state()
+        
+        if session_state.should_show_notification("remote_search_fallback", 600):
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),  # "LibraryGenie"
+                addon.getLocalizedString(35023),  # "Remote unavailable, using local"
+                xbmcgui.NOTIFICATION_WARNING,
+                4000
+            )
 
     def _display_results(self, results, query):
         """Display search results in Kodi"""
-        if not results:
+        items = results.get('items', [])
+        
+        if not items:
             addon = xbmcaddon.Addon()
             xbmcgui.Dialog().notification(
                 addon.getLocalizedString(35019),
@@ -105,7 +122,7 @@ class SearchHandler:
             return
 
         # Add directory items for each result
-        for item in results:
+        for item in items:
             list_item = xbmcgui.ListItem(
                 label=item.get('label', 'Unknown'),
                 label2=item.get('year', '')
@@ -118,18 +135,29 @@ class SearchHandler:
 
             # Set info
             info = {
-                'title': item.get('label', 'Unknown'),
+                'title': item.get('title', item.get('label', 'Unknown')),
                 'mediatype': item.get('type', 'movie')
             }
 
             if item.get('year'):
                 info['year'] = item['year']
+            if item.get('plot'):
+                info['plot'] = item['plot']
+            if item.get('rating'):
+                info['rating'] = item['rating']
 
             list_item.setInfo('video', info)
 
             # Set playable if we have a path
             is_playable = bool(item.get('path'))
             list_item.setProperty('IsPlayable', 'true' if is_playable else 'false')
+
+            # Add source indicator for remote items
+            if item.get('_source') == 'remote':
+                if item.get('_local_mapped'):
+                    list_item.setProperty('IsLocal', 'true')
+                else:
+                    list_item.setProperty('IsRemote', 'true')
 
             # Add to directory
             url = item.get('path', '')
@@ -143,72 +171,50 @@ class SearchHandler:
         # Finish directory
         xbmcplugin.endOfDirectory(self.addon_handle)
 
-        self.logger.info(f"Displayed {len(results)} search results for '{query}'")
+        # Log result summary
+        used_remote = results.get('used_remote', False)
+        source = "remote" if used_remote else "local"
+        self.logger.info(f"Displayed {len(items)} {source} search results for '{query}'")
 
     def search_with_fallback(self, query, page=1, page_size=100):
         """Search with remote first, fallback to local"""
-        results = []
-        used_remote = False
-        session_state = get_session_state()
+        if not query or not query.strip():
+            return {'items': [], 'total': 0, 'used_remote': False}
 
-        # Try remote search if authorized
+        query = query.strip()
+        
+        # Engine switch logic
         if is_authorized():
             try:
                 remote_results = search_remote(query, page, page_size)
                 if remote_results.get('items'):
-                    results = remote_results['items']
-                    used_remote = True
-                    self.logger.info(f"Remote search successful: {len(results)} results")
+                    self.logger.info(f"Remote search successful: {len(remote_results['items'])} results")
+                    return remote_results
 
             except RemoteError as e:
                 self.logger.warning(f"Remote search failed: {e}")
-                # Show fallback notification (once per session)
-                if session_state.should_show_notification("remote_search_fallback", 600):
-                    addon = xbmcaddon.Addon()
-                    xbmcgui.Dialog().notification(
-                        addon.getLocalizedString(35002),
-                        addon.getLocalizedString(35023),
-                        xbmcgui.NOTIFICATION_WARNING,
-                        4000
-                    )
+                self._show_fallback_notification()
 
             except Exception as e:
                 self.logger.error(f"Remote search error: {e}")
-                # Show fallback notification (once per session)
-                if session_state.should_show_notification("remote_search_error", 600):
-                    addon = xbmcaddon.Addon()
-                    xbmcgui.Dialog().notification(
-                        addon.getLocalizedString(35002),
-                        addon.getLocalizedString(35024),
-                        xbmcgui.NOTIFICATION_WARNING,
-                        4000
-                    )
+                self._show_fallback_notification()
 
-        # Use local search if remote failed or not authorized
-        if not results:
-            try:
-                search_engine = get_enhanced_search_engine()
-                local_results = search_engine.search(query, limit=page_size, offset=(page-1)*page_size)
-                results = local_results.get('items', [])
-                self.logger.info(f"Local search: {len(results)} results")
+        # Use local search
+        try:
+            local_results = self.local_engine.search(query, limit=page_size, offset=(page-1)*page_size)
+            self.logger.info(f"Local search: {len(local_results.get('items', []))} results")
+            return local_results
 
-            except Exception as e:
-                self.logger.error(f"Local search failed: {e}")
-                results = []
-                # Show error notification
-                addon = xbmcaddon.Addon()
-                xbmcgui.Dialog().notification(
-                    addon.getLocalizedString(35002),
-                    addon.getLocalizedString(35025),
-                    xbmcgui.NOTIFICATION_ERROR,
-                    4000
-                )
-
-        return {
-            'items': results,
-            'used_remote': used_remote,
-            'total': len(results)
-        }
+        except Exception as e:
+            self.logger.error(f"Local search failed: {e}")
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),
+                addon.getLocalizedString(35025),  # "Search failed"
+                xbmcgui.NOTIFICATION_ERROR,
+                4000
+            )
+            return {'items': [], 'total': 0, 'used_remote': False}
 
     def handle_search_request(self, query):
         """Handle search request from UI"""
@@ -248,7 +254,7 @@ class SearchHandler:
             addon = xbmcaddon.Addon()
             xbmcgui.Dialog().notification(
                 addon.getLocalizedString(35002),
-                addon.getLocalizedString(35026),
+                addon.getLocalizedString(35026),  # "Remote search failed"
                 xbmcgui.NOTIFICATION_ERROR,
                 4000
             )

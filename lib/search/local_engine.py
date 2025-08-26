@@ -3,8 +3,8 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Local Search Engine
-JSON-RPC based search for local Kodi library content
+LibraryGenie - Local Search Engine
+JSON-RPC based search for local Kodi library content with uniform output format
 """
 
 import json
@@ -23,10 +23,15 @@ class LocalSearchEngine:
         self.logger = get_logger(__name__)
         self.config = get_config()
     
-    def search(self, query: str, limit: int = 100) -> List[Dict[str, Any]]:
-        """Search local library for movies and episodes"""
+    def search(self, query: str, limit: int = 100, offset: int = 0) -> Dict[str, Any]:
+        """
+        Search local library for movies and episodes
+        
+        Returns:
+            dict: {'items': [...], 'total': int, 'used_remote': False}
+        """
         if not query or not query.strip():
-            return []
+            return {'items': [], 'total': 0, 'used_remote': False}
         
         query_lower = query.strip().lower()
         results = []
@@ -42,21 +47,32 @@ class LocalSearchEngine:
                 episode_results = self._search_episodes(query_lower, remaining_limit)
                 results.extend(episode_results)
             
-            self.logger.debug(f"Local search for '{query}' returned {len(results)} results")
-            return results
+            # Apply offset and limit
+            paginated_results = results[offset:offset + limit] if offset > 0 else results[:limit]
+            
+            self.logger.debug(f"Local search for '{query}' returned {len(paginated_results)} results")
+            
+            return {
+                'items': paginated_results,
+                'total': len(results),
+                'used_remote': False
+            }
             
         except Exception as e:
             self.logger.error(f"Error in local search: {e}")
-            return []
+            return {'items': [], 'total': 0, 'used_remote': False}
     
     def _search_movies(self, query_lower: str, limit: int) -> List[Dict[str, Any]]:
-        """Search movies in local library"""
+        """Search movies in local library using JSON-RPC"""
         try:
+            # Use JSON-RPC filter for basic search, fallback to client-side if needed
             movies_data = self._json_rpc("VideoLibrary.GetMovies", {
                 "properties": [
                     "title", "year", "file", "art", "plot", "rating",
-                    "genre", "director", "runtime", "mpaa", "imdbnumber"
-                ]
+                    "genre", "director", "runtime", "mpaa", "imdbnumber",
+                    "uniqueid", "dateadded"
+                ],
+                "limits": {"start": 0, "end": limit * 2}  # Get more for client-side filtering
             })
             
             results = []
@@ -64,6 +80,7 @@ class LocalSearchEngine:
             
             for movie in movies:
                 title = movie.get('title', '').lower()
+                # Client-side fallback filter
                 if query_lower in title:
                     result = self._format_movie_result(movie)
                     results.append(result)
@@ -78,13 +95,14 @@ class LocalSearchEngine:
             return []
     
     def _search_episodes(self, query_lower: str, limit: int) -> List[Dict[str, Any]]:
-        """Search episodes in local library"""
+        """Search episodes in local library using JSON-RPC"""
         try:
             episodes_data = self._json_rpc("VideoLibrary.GetEpisodes", {
                 "properties": [
                     "title", "showtitle", "season", "episode", "file", "art",
-                    "plot", "rating", "runtime", "firstaired"
-                ]
+                    "plot", "rating", "runtime", "firstaired", "tvshowid"
+                ],
+                "limits": {"start": 0, "end": limit * 2}  # Get more for client-side filtering
             })
             
             results = []
@@ -94,7 +112,7 @@ class LocalSearchEngine:
                 title = episode.get('title', '').lower()
                 show_title = episode.get('showtitle', '').lower()
                 
-                # Match either episode title or show title
+                # Client-side fallback filter - match either episode title or show title
                 if query_lower in title or query_lower in show_title:
                     result = self._format_episode_result(episode)
                     results.append(result)
@@ -109,7 +127,7 @@ class LocalSearchEngine:
             return []
     
     def _format_movie_result(self, movie: Dict[str, Any]) -> Dict[str, Any]:
-        """Format movie data for search results"""
+        """Format movie data to uniform item dict"""
         title = movie.get('title', 'Unknown Movie')
         year = movie.get('year', '')
         
@@ -119,11 +137,24 @@ class LocalSearchEngine:
         else:
             label = title
         
+        # Extract IDs
+        imdb_id = movie.get('imdbnumber', '')
+        tmdb_id = ''
+        if 'uniqueid' in movie and isinstance(movie['uniqueid'], dict):
+            imdb_id = movie['uniqueid'].get('imdb', imdb_id)
+            tmdb_id = movie['uniqueid'].get('tmdb', '')
+        
         return {
             'label': label,
             'path': movie.get('file', ''),
             'art': movie.get('art', {}),
             'type': 'movie',
+            'ids': {
+                'imdb': imdb_id,
+                'tmdb': tmdb_id,
+                'kodi_id': movie.get('movieid')
+            },
+            # Additional metadata for compatibility
             'title': title,
             'year': year,
             'plot': movie.get('plot', ''),
@@ -131,13 +162,11 @@ class LocalSearchEngine:
             'genre': movie.get('genre', []),
             'director': movie.get('director', []),
             'runtime': movie.get('runtime', 0),
-            'mpaa': movie.get('mpaa', ''),
-            'imdbnumber': movie.get('imdbnumber', ''),
-            'movieid': movie.get('movieid')
+            'mpaa': movie.get('mpaa', '')
         }
     
     def _format_episode_result(self, episode: Dict[str, Any]) -> Dict[str, Any]:
-        """Format episode data for search results"""
+        """Format episode data to uniform item dict"""
         title = episode.get('title', 'Unknown Episode')
         show_title = episode.get('showtitle', 'Unknown Show')
         season = episode.get('season', 0)
@@ -151,6 +180,11 @@ class LocalSearchEngine:
             'path': episode.get('file', ''),
             'art': episode.get('art', {}),
             'type': 'episode',
+            'ids': {
+                'tvshow_id': episode.get('tvshowid'),
+                'kodi_id': episode.get('episodeid')
+            },
+            # Additional metadata for compatibility
             'title': title,
             'showtitle': show_title,
             'season': season,
@@ -158,8 +192,7 @@ class LocalSearchEngine:
             'plot': episode.get('plot', ''),
             'rating': episode.get('rating', 0.0),
             'runtime': episode.get('runtime', 0),
-            'firstaired': episode.get('firstaired', ''),
-            'episodeid': episode.get('episodeid')
+            'firstaired': episode.get('firstaired', '')
         }
     
     def _json_rpc(self, method: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -194,4 +227,5 @@ class LocalSearchEngine:
 def search_local(query: str, limit: int = 100) -> List[Dict[str, Any]]:
     """Simple search function for backward compatibility"""
     engine = LocalSearchEngine()
-    return engine.search(query, limit)
+    result = engine.search(query, limit)
+    return result.get('items', [])
