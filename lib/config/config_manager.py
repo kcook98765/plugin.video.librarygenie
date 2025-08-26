@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -8,47 +9,6 @@ Reads Kodi settings and manages addon configuration
 
 import xbmcaddon
 from typing import Optional
-
-from ..utils.logger import get_logger
-
-
-class ConfigManager:
-    """Manages addon configuration and settings"""
-    
-    def __init__(self):
-        self.addon = xbmcaddon.Addon()
-        self.logger = get_logger(__name__)
-        self.addon_id = self.addon.getAddonInfo('id')
-        self.addon_handle = None
-    
-    def get_setting(self, setting_id: str, default: str = "") -> str:
-        """Get a setting value from Kodi"""
-        try:
-            return self.addon.getSetting(setting_id) or default
-        except Exception as e:
-            self.logger.error(f"Error getting setting {setting_id}: {e}")
-            return default
-    
-    def set_setting(self, setting_id: str, value: str) -> bool:
-        """Set a setting value in Kodi"""
-        try:
-            self.addon.setSetting(setting_id, value)
-            return True
-        except Exception as e:
-            self.logger.error(f"Error setting {setting_id}: {e}")
-            return False
-
-
-# Global config instance
-_config_instance: Optional[ConfigManager] = None
-
-
-def get_config() -> ConfigManager:
-    """Get global config manager instance"""
-    global _config_instance
-    if _config_instance is None:
-        _config_instance = ConfigManager()
-    return _config_instance
 
 
 class ConfigManager:
@@ -81,10 +41,14 @@ class ConfigManager:
             "search_include_file_path": False,
             "search_page_size": 50,
             "search_history_days": 30,
+            # Remote service settings
+            "remote_base_url": "https://YOUR-LIBRARYGENIE/api",
+            "device_name": "Kodi",
+            "auth_poll_seconds": 3,
         }
 
     def get(self, key, default=None):
-        """Get configuration value"""
+        """Get configuration value with safe fallback"""
         try:
             setting_type = self._get_setting_type(key)
             if setting_type == "bool":
@@ -94,9 +58,31 @@ class ConfigManager:
             elif setting_type == "number":
                 return self._addon.getSettingNumber(key)
             else:
-                return self._addon.getSettingString(key)
-        except Exception as e:
+                value = self._addon.getSettingString(key)
+                return value if value else self._defaults.get(key, default)
+        except Exception:
             # Return default value if setting read fails
+            return self._defaults.get(key, default)
+
+    def get_bool(self, key, default=False):
+        """Get boolean setting with safe fallback"""
+        try:
+            return self._addon.getSettingBool(key)
+        except Exception:
+            return self._defaults.get(key, default)
+
+    def get_int(self, key, default=0):
+        """Get integer setting with safe fallback"""
+        try:
+            return self._addon.getSettingInt(key)
+        except Exception:
+            return self._defaults.get(key, default)
+
+    def get_float(self, key, default=0.0):
+        """Get float setting with safe fallback"""
+        try:
+            return self._addon.getSettingNumber(key)
+        except Exception:
             return self._defaults.get(key, default)
 
     def set(self, key, value):
@@ -111,8 +97,7 @@ class ConfigManager:
                 return self._addon.setSettingNumber(key, value)
             else:
                 return self._addon.setSettingString(key, str(value))
-        except Exception as e:
-            self.logger.warning(f"Failed to set setting {key}: {e}")
+        except Exception:
             return False
 
     def _get_setting_type(self, key):
@@ -136,13 +121,18 @@ class ConfigManager:
             "search_page_size", "search_history_days",
             # Phase 3: Advanced settings
             "jsonrpc_page_size", "jsonrpc_timeout_seconds", 
-            "db_batch_size", "db_busy_timeout_ms"
+            "db_batch_size", "db_busy_timeout_ms",
+            # Remote service settings
+            "auth_poll_seconds",
         ]
+        float_settings = []
 
         if key in bool_settings:
             return "bool"
         elif key in int_settings:
             return "int"
+        elif key in float_settings:
+            return "number"
         else:
             return "string"
 
@@ -221,12 +211,12 @@ class ConfigManager:
 
 
 # Global config instance
-_config_instance = None
+_CFG: Optional[ConfigManager] = None
 
 
-def get_config():
+def get_config() -> ConfigManager:
     """Get global configuration instance"""
-    global _config_instance
-    if _config_instance is None:
-        _config_instance = ConfigManager()
-    return _config_instance
+    global _CFG
+    if _CFG is None:
+        _CFG = ConfigManager()
+    return _CFG
