@@ -105,10 +105,16 @@ def run_authorize_flow():
         
         # Step 2: Show user code and verification URI
         dialog = xbmcgui.Dialog()
-        dialog.ok(
+        proceed = dialog.yesno(
             "Device Authorization",
-            f"Go to: {verification_uri}\n\nEnter code: [B]{user_code}[/B]\n\nClick OK when you've entered the code on the website."
+            f"Go to: {verification_uri}\n\nEnter code: [B]{user_code}[/B]\n\nClick Yes when you've entered the code on the website.",
+            nolabel="Cancel",
+            yeslabel="I've Entered the Code"
         )
+        
+        if not proceed:
+            logger.info("User cancelled authorization during code entry")
+            return False
         
         # Step 3: Poll for authorization
         logger.info("Starting authorization polling")
