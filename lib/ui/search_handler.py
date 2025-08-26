@@ -43,7 +43,7 @@ class SearchHandler:
 
             # Execute search using enhanced search engine
             search_result = self.search_engine.search(parsed_query)
-            self.logger.debug(f"Found {len(search_result)} search results")
+            self.logger.debug(f"Found {len(search_result.items)} search results")
 
             # Convert search results to list format
             results = []
