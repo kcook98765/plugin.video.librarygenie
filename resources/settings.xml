@@ -36,8 +36,8 @@
   <category label="30100">
     <setting label="30110" type="lsep"/>
     <setting id="background_task_enabled" type="bool" label="30111" default="true"/>
-    <setting id="background_interval_minutes" type="slider" label="30112" default="30" 
-             range="5,5,720" option="int" enable="eq(-1,true)"/>
+    <setting id="background_interval_seconds" type="slider" label="30112" default="60" 
+             range="30,5,3600" option="int" enable="eq(-1,true)"/>
   </category>
   
   <!-- Advanced Settings (Phase 3) -->
@@ -61,5 +61,7 @@
     <setting id="device_name" type="text" label="30412" default="Kodi"/>
     <setting id="auth_poll_seconds" type="slider" label="30413" default="3" 
              range="1,1,10" option="int"/>
+    <setting label="30420" type="lsep"/>
+    <setting id="track_library_changes" type="bool" label="30421" default="true"/>
   </category>
 </settings>

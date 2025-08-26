@@ -272,19 +272,60 @@ msgstr ""
 
 # List Management Actions
 msgctxt "#30400"
-msgid "New List"
+msgid "Remote Services"
 msgstr ""
 
-msgctxt "#30401"
-msgid "Rename List"
+msgctxt "#30410"
+msgid "Authentication"
 msgstr ""
 
-msgctxt "#30402"
-msgid "Delete List"
+msgctxt "#30411"
+msgid "Remote server URL"
 msgstr ""
 
-msgctxt "#30403"
-msgid "View List"
+msgctxt "#30412"
+msgid "Device name"
+msgstr ""
+
+msgctxt "#30413"
+msgid "Auth polling interval (seconds)"
+msgstr ""
+
+msgctxt "#30420"
+msgid "Library Sync"
+msgstr ""
+
+msgctxt "#30421"
+msgid "Track library changes"
+msgstr ""
+
+# List Management Actions
+msgctxt "#30400"
+msgid "Remote Services"
+msgstr ""
+
+msgctxt "#30410"
+msgid "Authentication"
+msgstr ""
+
+msgctxt "#30411"
+msgid "Remote server URL"
+msgstr ""
+
+msgctxt "#30412"
+msgid "Device name"
+msgstr ""
+
+msgctxt "#30413"
+msgid "Auth polling interval (seconds)"
+msgstr ""
+
+msgctxt "#30420"
+msgid "Library Sync"
+msgstr ""
+
+msgctxt "#30421"
+msgid "Track library changes"
 msgstr ""
 
 # Dialog Messages
@@ -773,4 +814,3 @@ msgstr ""
 msgctxt "#35012"
 msgid "Failed to clear remote cache."
 msgstr ""
-

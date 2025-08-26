@@ -21,7 +21,7 @@ class ConfigManager:
         self._defaults = {
             "debug_logging": False,
             "background_task_enabled": True,
-            "background_interval_minutes": 30,  # 30 minutes (Phase 2 safe default)
+            "background_interval_seconds": 60,  # 60 seconds (Phase 6/7 default)
             # Phase 3: Advanced settings with safe defaults
             "jsonrpc_page_size": 200,  # Items per JSON-RPC page
             "jsonrpc_timeout_seconds": 10,  # JSON-RPC request timeout
@@ -117,7 +117,7 @@ class ConfigManager:
             "search_include_file_path",
         ]
         int_settings = [
-            "background_interval_minutes", "favorites_scan_interval_minutes", 
+            "background_interval_seconds", "favorites_scan_interval_minutes", 
             "search_page_size", "search_history_days",
             # Phase 3: Advanced settings
             "jsonrpc_page_size", "jsonrpc_timeout_seconds", 
