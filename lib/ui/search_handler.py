@@ -14,7 +14,7 @@ from typing import Dict, Any, Optional, List
 
 from ..search.enhanced_query_interpreter import get_enhanced_query_interpreter, SearchQuery
 from ..search.enhanced_search_engine import get_enhanced_search_engine, SearchResult
-from ..ui.movie_renderer import get_movie_renderer
+from ..ui.listitem_renderer import get_listitem_renderer
 from ..config import get_config
 from ..utils.logger import get_logger
 
@@ -27,7 +27,7 @@ class SearchHandler:
         self.config = get_config()
         self.query_interpreter = get_enhanced_query_interpreter()
         self.search_engine = get_enhanced_search_engine()
-        self.movie_renderer = get_movie_renderer()
+        self.movie_renderer = get_listitem_renderer()
     
     def show_search_dialog(self) -> bool:
         """Show search input dialog with Phase 5 enhancements"""
@@ -267,8 +267,8 @@ class SearchHandler:
         try:
             handle = int(self.config.addon_handle)
             
-            # Use movie renderer for consistent presentation
-            list_item = self.movie_renderer.create_movie_listitem(
+            # Use listitem renderer for consistent presentation
+            list_item = self.movie_renderer.create_listitem(
                 movie, 
                 base_url=f"plugin://{self.config.addon_id}/",
                 action="play_movie"
