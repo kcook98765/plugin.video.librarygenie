@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Phase 4 Enhanced Favorites Manager
+LibraryGenie - Phase 4 Enhanced Favorites Manager
 Robust favorites integration with reliable mapping, idempotent updates, and batch processing
 """
 

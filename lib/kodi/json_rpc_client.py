@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Kodi JSON-RPC Client
+LibraryGenie - Kodi JSON-RPC Client
 Safe, paginated communication with Kodi's video library
 """
 

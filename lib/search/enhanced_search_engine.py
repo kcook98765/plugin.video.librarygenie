@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Enhanced Search Engine
+LibraryGenie - Enhanced Search Engine
 Enhanced SQL building, paging UI, and performance optimizations
 """
 

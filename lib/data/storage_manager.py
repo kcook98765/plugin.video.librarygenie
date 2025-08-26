@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Storage Location Manager
+LibraryGenie - Storage Location Manager
 Manages database file location using Kodi's profile directory
 """
 

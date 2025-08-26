@@ -3,7 +3,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Complete Database Schema Setup
+LibraryGenie - Complete Database Schema Setup
 Creates the full database schema without incremental migrations
 """
 

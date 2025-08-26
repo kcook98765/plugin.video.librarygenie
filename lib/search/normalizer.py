@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Unified Text Normalizer
+LibraryGenie - Unified Text Normalizer
 Consistent text normalization for both indexing and querying
 """
 

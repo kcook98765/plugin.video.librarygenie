@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Storage Manager
+LibraryGenie - Storage Manager
 Handles file operations for import/export with atomic writes
 """
 

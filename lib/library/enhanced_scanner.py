@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Phase 3 Enhanced Library Scanner
+LibraryGenie - Phase 3 Enhanced Library Scanner
 Rock-solid scanner with paging, retry/backoff, DB hardening, and abort responsiveness
 """
 

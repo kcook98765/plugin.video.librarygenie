@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Context Menu System
+LibraryGenie - Context Menu System
 Handles context menus for library and list operations
 """
 

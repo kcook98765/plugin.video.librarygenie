@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Query Manager
+LibraryGenie - Query Manager
 Real SQLite-based data layer for list and item management
 """
 

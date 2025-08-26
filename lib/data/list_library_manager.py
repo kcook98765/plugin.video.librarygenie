@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - List-Library Integration
+LibraryGenie - List-Library Integration
 Handles operations between lists and library items
 """
 

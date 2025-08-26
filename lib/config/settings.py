@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Phase 10 Import/Export Settings
+LibraryGenie - Phase 10 Import/Export Settings
 Settings for backup management and import/export functionality
 """
 

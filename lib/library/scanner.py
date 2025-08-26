@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Library Scanner
+LibraryGenie - Library Scanner
 Handles full scans and delta detection of Kodi's video library
 """
 
