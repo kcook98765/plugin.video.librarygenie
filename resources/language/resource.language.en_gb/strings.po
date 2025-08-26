@@ -1,10 +1,10 @@
 # Kodi Media Center language file
-# Addon Name: Movie List Manager
+# Addon Name: LibraryGenie
 # Addon id: plugin.video.library.genie
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Movie List Manager\n"
+"Project-Id-Version: LibraryGenie\n"
 "Report-Msgid-Bugs-To: support@movielist.com\n"
 "POT-Creation-Date: 2025-01-01 12:00+0000\n"
 "PO-Revision-Date: 2025-01-01 12:00+0000\n"

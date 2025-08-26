@@ -1,7 +1,7 @@
-# Remote Server API — Movie List Manager
+# Remote Server API — LibraryGenie
 Version: v1 (draft)
 
-This document specifies the HTTP endpoints used by Movie List Manager’s optional remote services. The server **never stores user lists**; it only stores a user’s **set of IMDb IDs** and serves **search/similarity** that return IMDb IDs. All endpoints are JSON unless noted. Timestamps are ISO-8601 (UTC).
+This document specifies the HTTP endpoints used by LibraryGenie’s optional remote services. The server **never stores user lists**; it only stores a user’s **set of IMDb IDs** and serves **search/similarity** that return IMDb IDs. All endpoints are JSON unless noted. Timestamps are ISO-8601 (UTC).
 
 ---
 
@@ -28,7 +28,7 @@ Starts an 8–10 digit OTP pairing session that the user will enter in the Kodi 
 
 Request JSON:
 ```json
-{ "client_name": "kodi.Movie List Manager", "device_desc": "Living Room", "ttl_seconds": 300 }
+{ "client_name": "kodi.LibraryGenie", "device_desc": "Living Room", "ttl_seconds": 300 }
 ```
 
 Response JSON:

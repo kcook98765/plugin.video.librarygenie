@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Authentication Module
+LibraryGenie - Authentication Module
 """
 
 from .device_code import run_authorize_flow

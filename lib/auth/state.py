@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Authentication State Management
+LibraryGenie - Authentication State Management
 Handles token storage and authorization status
 """
 

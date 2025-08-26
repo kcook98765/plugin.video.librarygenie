@@ -3,7 +3,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Main Addon Controller
+LibraryGenie - Main Addon Controller
 Entry point for plugin operations and routing
 """
 
@@ -19,7 +19,7 @@ from .config import get_config
 
 
 class AddonController:
-    """Main controller for Movie List Manager addon operations"""
+    """Main controller for LibraryGenie addon operations"""
     
     def __init__(self, addon_handle: int, addon_url: str, addon_params: Dict[str, Any]):
         self.addon = xbmcaddon.Addon()
