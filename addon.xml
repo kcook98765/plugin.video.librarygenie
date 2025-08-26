@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.library.genie"
+<addon id="plugin.video.librarygenie"
        name="Movie List Manager"
        version="0.1.0"
        provider-name="Movie List Team">

@@ -103,7 +103,7 @@ class BackupManager:
         """List available backup files"""
         try:
             # Look for backup files in profile directory
-            files = self.storage_manager.list_export_files("plugin.video.library.genie_*_*.json")
+            files = self.storage_manager.list_export_files("plugin.video.librarygenie_*_*.json")
             
             backups = []
             for file_path, filename, file_size in files:
