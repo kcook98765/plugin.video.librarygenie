@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Phase 12 Remote HTTP Client
+LibraryGenie - Phase 12 Remote HTTP Client
 Safe HTTP client wrapper with timeouts, retries, and error handling
 """
 

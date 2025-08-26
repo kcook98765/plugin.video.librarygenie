@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Menu Builder
+LibraryGenie - Menu Builder
 Builds Kodi directory listings and menus
 """
 

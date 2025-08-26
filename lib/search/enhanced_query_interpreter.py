@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Enhanced Query Interpreter
+LibraryGenie - Enhanced Query Interpreter
 Enhanced search query parsing with robust year parsing and improved normalization
 """
 

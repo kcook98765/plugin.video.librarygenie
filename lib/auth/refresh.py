@@ -3,7 +3,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Token Refresh
+LibraryGenie - Token Refresh
 Handles automatic token refresh for LibraryGenie server
 """
 

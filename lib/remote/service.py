@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Phase 12 Remote Service
+LibraryGenie - Phase 12 Remote Service
 Main service class for remote API integration
 """
 

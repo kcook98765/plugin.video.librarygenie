@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Phase 11 Playback Actions
+LibraryGenie - Phase 11 Playback Actions
 Safe playback handlers using Kodi built-ins and JSON-RPC
 """
 
@@ -302,7 +302,7 @@ class PlaybackContextMenuHandler:
             success = self.playback_handler.queue_movie(kodi_id)
             if success:
                 # Show confirmation
-                xbmcgui.Dialog().notification(self._get_string(35002) if hasattr(self, '_get_string') else "Movie List Manager", 
+                xbmcgui.Dialog().notification(self._get_string(35002) if hasattr(self, '_get_string') else "LibraryGenie", 
                                             self._get_string(35010) if hasattr(self, '_get_string') else "Movie added to playlist", 
                                             xbmcgui.NOTIFICATION_INFO, 2000)
         

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Phase 11 ListItem Renderer
+LibraryGenie - Phase 11 ListItem Renderer
 Enhanced ListItem creation with artwork, metadata, and playback actions
 """
 

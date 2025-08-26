@@ -3,7 +3,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Session State Manager
+LibraryGenie - Session State Manager
 Tracks UI state to prevent notification spam and manage user experience
 """
 

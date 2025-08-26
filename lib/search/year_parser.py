@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Enhanced Year Parser
+LibraryGenie - Enhanced Year Parser
 Robust year parsing with explicit rules and edge case handling
 """
 

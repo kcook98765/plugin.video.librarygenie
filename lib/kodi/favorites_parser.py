@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Phase 4 Enhanced Favorites Parser
+LibraryGenie - Phase 4 Enhanced Favorites Parser
 Rock-solid parsing with tolerant XML handling, deterministic path normalization,
 and comprehensive classification system
 """
