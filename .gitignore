@@ -16,12 +16,17 @@ attached_assets/
 attached_assets/*
 
 # Replit specific
+.replit
 .upm/
 .config/
 .cache/
 .local/
 .bash_history
 .python_history
+
+# Project configuration files
+pyproject.toml
+uv.lock
 
 # Database
 *.db
