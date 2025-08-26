@@ -34,11 +34,10 @@ def main():
     )
 
     # Initialize addon controller
-    controller = AddonController(addon_handle, base_url)
+    controller = AddonController(addon_handle, base_url, params)
 
     # Route the request
-    action = params.get("action", "root")
-    controller.route(action, params)
+    controller.route()
 
 
 if __name__ == "__main__":
