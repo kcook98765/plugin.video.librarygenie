@@ -66,7 +66,7 @@ def show_search_menu(handle):
 def show_remote_search_menu(handle):
     """Show remote search interface"""
     addon = xbmcaddon.Addon()
-    list_item = xbmcgui.ListItem(label=addon.getLocalizedString(35015))
+    list_item = xbmcgui.ListItem(label=addon.getLocalizedString(35115))
     xbmcplugin.addDirectoryItem(handle, "", list_item, False)
     xbmcplugin.endOfDirectory(handle)
 
@@ -74,7 +74,7 @@ def show_remote_search_menu(handle):
 def show_lists_menu(handle):
     """Show lists management interface"""
     addon = xbmcaddon.Addon()
-    list_item = xbmcgui.ListItem(label=addon.getLocalizedString(35016))
+    list_item = xbmcgui.ListItem(label=addon.getLocalizedString(35116))
     xbmcplugin.addDirectoryItem(handle, "", list_item, False)
     xbmcplugin.endOfDirectory(handle)
 
@@ -82,7 +82,7 @@ def show_lists_menu(handle):
 def show_remote_lists_menu(handle):
     """Show remote lists interface"""
     addon = xbmcaddon.Addon()
-    list_item = xbmcgui.ListItem(label=addon.getLocalizedString(35017))
+    list_item = xbmcgui.ListItem(label=addon.getLocalizedString(35117))
     xbmcplugin.addDirectoryItem(handle, "", list_item, False)
     xbmcplugin.endOfDirectory(handle)
 

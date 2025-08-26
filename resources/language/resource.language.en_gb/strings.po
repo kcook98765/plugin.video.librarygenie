@@ -842,23 +842,40 @@ msgid "Plugin failed to start. Check logs."
 msgstr ""
 
 msgctxt "#35014"
-msgid "Search functionality coming soon..."
+msgid "Search"
 msgstr ""
 
 msgctxt "#35015"
-msgid "Remote search functionality coming soon..."
+msgid "Remote Search"
 msgstr ""
 
 msgctxt "#35016"
-msgid "Lists functionality coming soon..."
+msgid "Lists"
 msgstr ""
 
 msgctxt "#35017"
-msgid "Remote lists functionality coming soon..."
+msgid "Remote Lists"
 msgstr ""
 
 msgctxt "#35018"
 msgid "Search Movies"
+msgstr ""
+
+# Placeholder messages for stub screens
+msgctxt "#35114"
+msgid "Search functionality coming soon..."
+msgstr ""
+
+msgctxt "#35115"
+msgid "Remote search functionality coming soon..."
+msgstr ""
+
+msgctxt "#35116"
+msgid "Lists functionality coming soon..."
+msgstr ""
+
+msgctxt "#35117"
+msgid "Remote lists functionality coming soon..."
 msgstr ""
 
 msgctxt "#35019"
