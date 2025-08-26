@@ -27,7 +27,7 @@ class KodiLogHandler(logging.Handler):
             level = xbmc.LOGDEBUG
 
         message = self.format(record)
-        xbmc.log(f"[Movie List Manager] {message}", level)
+        xbmc.log(f"[LibraryGenie] {message}", level)
 
 
 def get_logger(name):
