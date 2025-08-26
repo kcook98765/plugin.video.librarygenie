@@ -1,6 +1,6 @@
-# Movie List Manager Database Schema
+# LibraryGenie Database Schema
 
-This document describes the SQLite database schema used by Movie List Manager for storing lists, folders, and media references.
+This document describes the SQLite database schema used by LibraryGenie for storing lists, folders, and media references.
 
 ---
 

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Background Service
+LibraryGenie - Background Service
 Handles token refresh and optional library monitoring
 """
 

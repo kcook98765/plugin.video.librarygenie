@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Export Engine
+LibraryGenie - Export Engine
 Creates JSON/CSV exports of lists, memberships, favorites, and library data
 """
 

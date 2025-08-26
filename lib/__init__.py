@@ -1,1 +1,1 @@
-# Movie List Manager - Library Package
+# LibraryGenie - Library Package

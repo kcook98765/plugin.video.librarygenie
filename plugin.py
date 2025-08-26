@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Main Plugin Entry Point
+LibraryGenie - Main Plugin Entry Point
 Handles routing and top-level navigation for the Kodi addon
 """
 
@@ -80,7 +80,7 @@ def main():
         try:
             import xbmcgui
             xbmcgui.Dialog().notification(
-                "Movie List Manager",
+                "LibraryGenie",
                 "Plugin failed to start. Check logs.",
                 xbmcgui.NOTIFICATION_ERROR
             )

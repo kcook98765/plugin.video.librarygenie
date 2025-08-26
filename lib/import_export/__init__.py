@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Import/Export Module
+LibraryGenie - Import/Export Module
 Safe backup and sharing of lists, memberships, and library data
 """
 

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Remote Search Client
+LibraryGenie - Remote Search Client
 Handles remote search requests with authentication
 """
 
@@ -62,7 +62,7 @@ def search_remote(query, page=1, page_size=100):
     # Create request with authorization
     headers = {
         "Authorization": f"Bearer {access_token}",
-        "User-Agent": "Movie List Manager Kodi Addon",
+        "User-Agent": "LibraryGenie Kodi Addon",
         "Content-Type": "application/json"
     }
 

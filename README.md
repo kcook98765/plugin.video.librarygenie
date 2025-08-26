@@ -1,6 +1,6 @@
-# Movie List Manager — Robust List Management for Kodi
+# LibraryGenie — Robust List Management for Kodi
 
-Movie List Manager is a Kodi addon that provides advanced, flexible list and folder management with disaster recovery, portability, and intelligent media matching. It supports mixed content types, portable exports, and optional integration with external services.
+LibraryGenie is a Kodi addon that provides advanced, flexible list and folder management with disaster recovery, portability, and intelligent media matching. It supports mixed content types, portable exports, and optional integration with external services.
 
 ---
 
@@ -196,7 +196,7 @@ Favorites that don't map to your library (plugins, scripts, missing files) can b
 
 ## Search
 
-Movie List Manager provides powerful local search with precision and predictability:
+LibraryGenie provides powerful local search with precision and predictability:
 
 ### Search Features
 

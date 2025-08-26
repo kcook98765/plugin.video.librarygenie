@@ -3,7 +3,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Device Code Authorization
+LibraryGenie - Device Code Authorization
 Implements OAuth2 device code flow for server authorization
 """
 
@@ -174,7 +174,7 @@ def run_authorize_flow():
                         logger.info("Device authorization successful")
                         
                         xbmcgui.Dialog().notification(
-                            "Movie List Manager",
+                            "LibraryGenie",
                             "Device authorized successfully!",
                             xbmcgui.NOTIFICATION_INFO,
                             5000
@@ -231,7 +231,7 @@ def run_authorize_flow():
         # Timeout reached
         logger.info("Authorization timed out")
         xbmcgui.Dialog().notification(
-            "Movie List Manager",
+            "LibraryGenie",
             "Authorization timed out. Please try again.",
             xbmcgui.NOTIFICATION_ERROR,
             5000

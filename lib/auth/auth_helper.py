@@ -3,7 +3,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Authorization Helper
+LibraryGenie - Authorization Helper
 Handles authorization prompts and user guidance
 """
 

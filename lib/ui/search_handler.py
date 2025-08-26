@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Search Handler
+LibraryGenie - Search Handler
 Provides UI bridge for search functionality with remote/local engine selection
 """
 
@@ -149,7 +149,7 @@ class SearchHandler:
                 # Show fallback notification (once per session)
                 if session_state.should_show_notification("remote_search_fallback", 600):
                     xbmcgui.Dialog().notification(
-                        "Movie List Manager",
+                        "LibraryGenie",
                         "Remote search unavailable, using local search",
                         xbmcgui.NOTIFICATION_WARNING,
                         4000
@@ -160,7 +160,7 @@ class SearchHandler:
                 # Show fallback notification (once per session)
                 if session_state.should_show_notification("remote_search_error", 600):
                     xbmcgui.Dialog().notification(
-                        "Movie List Manager",
+                        "LibraryGenie",
                         "Remote search failed, using local search",
                         xbmcgui.NOTIFICATION_WARNING,
                         4000
@@ -179,7 +179,7 @@ class SearchHandler:
                 results = []
                 # Show error notification
                 xbmcgui.Dialog().notification(
-                    "Movie List Manager",
+                    "LibraryGenie",
                     "Search failed - please try again",
                     xbmcgui.NOTIFICATION_ERROR,
                     4000
@@ -227,7 +227,7 @@ class SearchHandler:
         except Exception as e:
             self.logger.error(f"Remote search failed: {e}")
             xbmcgui.Dialog().notification(
-                "Movie List Manager",
+                "LibraryGenie",
                 "Remote search failed - please try again",
                 xbmcgui.NOTIFICATION_ERROR,
                 4000
