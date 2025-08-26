@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -9,10 +8,11 @@ Reads Kodi settings and manages addon configuration
 
 import xbmcaddon
 try:
-    from typing import Optional
+    from typing import Optional, List
 except ImportError:
     # Python < 3.5 fallback
     Optional = object
+    List = object
 
 
 class ConfigManager:
@@ -117,10 +117,10 @@ class ConfigManager:
             "search_include_file_path",
         ]
         int_settings = [
-            "background_interval_seconds", "favorites_scan_interval_minutes", 
+            "background_interval_seconds", "favorites_scan_interval_minutes",
             "search_page_size", "search_history_days",
             # Phase 3: Advanced settings
-            "jsonrpc_page_size", "jsonrpc_timeout_seconds", 
+            "jsonrpc_page_size", "jsonrpc_timeout_seconds",
             "db_batch_size", "db_busy_timeout_ms",
             # Remote service settings
             "auth_poll_seconds",
@@ -142,68 +142,68 @@ class ConfigManager:
         # Phase 2: Clamp to safe minimum (5 minutes) and maximum (720 minutes/12 hours)
         minutes = max(5, min(720, minutes))
         return minutes * 60
-    
+
     def get_default_list_id(self):
         """Get default list ID with fallback logic (Phase 2)"""
         stored_id = self.get("default_list_id", "")
-        
+
         if stored_id:
             # Verify the stored ID still points to a valid list
             try:
                 from ..data import QueryManager
                 query_manager = QueryManager()
-                
+
                 # Check if list exists
                 lists = query_manager.get_user_lists()
                 for user_list in lists:
                     if str(user_list.get('id')) == str(stored_id):
                         return stored_id
-                        
+
             except Exception:
                 # If verification fails, continue to fallback
                 pass
-        
+
         # Fallback: find alphabetically first list (don't write back silently)
         try:
             from ..data import QueryManager
             query_manager = QueryManager()
-            
+
             lists = query_manager.get_user_lists()
             if lists:
                 # Sort by name and return first
                 sorted_lists = sorted(lists, key=lambda x: x.get('name', '').lower())
                 return str(sorted_lists[0].get('id'))
-                
+
         except Exception:
             pass
-        
+
         # No lists available
         return None
-    
+
     def set_default_list_id(self, list_id):
         """Set default list ID (Phase 2)"""
         if list_id:
             return self.set("default_list_id", str(list_id))
         else:
             return self.set("default_list_id", "")
-    
+
     # Phase 3: Advanced settings with clamping
-    
+
     def get_jsonrpc_page_size(self):
         """Get JSON-RPC page size with safe clamping (50-500, default 200)"""
         size = self.get("jsonrpc_page_size", 200)
         return max(50, min(500, size))
-    
+
     def get_jsonrpc_timeout_seconds(self):
         """Get JSON-RPC timeout with safe clamping (5-30 seconds, default 10)"""
         timeout = self.get("jsonrpc_timeout_seconds", 10)
         return max(5, min(30, timeout))
-    
+
     def get_db_batch_size(self):
         """Get database batch size with safe clamping (50-500, default 200)"""
         size = self.get("db_batch_size", 200)
         return max(50, min(500, size))
-    
+
     def get_db_busy_timeout_ms(self):
         """Get database busy timeout with safe clamping (1000-10000ms, default 3000)"""
         timeout = self.get("db_busy_timeout_ms", 3000)

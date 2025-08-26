@@ -8,7 +8,7 @@ Safe HTTP client wrapper with timeouts, retries, and error handling
 
 import json
 import time
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional, List, Union
 from urllib.parse import urljoin, urlencode
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError

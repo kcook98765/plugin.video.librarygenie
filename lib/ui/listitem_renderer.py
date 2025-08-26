@@ -10,7 +10,7 @@ import xbmcgui
 import xbmcplugin
 
 import json
-from typing import Dict, Any, Optional, List, Callable
+from typing import Dict, Any, Optional, List, List, Callable
 from urllib.parse import urlencode
 
 from ..config import get_config

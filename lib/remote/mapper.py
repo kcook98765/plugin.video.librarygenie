@@ -6,7 +6,7 @@ LibraryGenie - Phase 12 Remote Mapper
 Maps remote search results to local library items
 """
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, List
 import re
 
 from ..utils.logger import get_logger
