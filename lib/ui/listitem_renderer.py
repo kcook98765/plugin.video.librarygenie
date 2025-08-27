@@ -299,28 +299,41 @@ class ListItemRenderer:
                     self.logger.debug(f"Error processing country: {e}")
                     pass
 
-            # Cast - add cast information to help Kodi display cast properly
+            # Cast - convert to Kodi-compatible format
             cast_list = movie_data.get('cast_list', [])
             cast_string = movie_data.get('cast', '')
             
             if cast_list and isinstance(cast_list, list):
-                # Use the full cast structure if available
+                # Convert to Kodi-compatible cast format: list of tuples (name, role)
                 try:
-                    info['cast'] = cast_list
-                    self.logger.debug(f"Set cast list with {len(cast_list)} members for '{title}'")
+                    kodi_cast = []
+                    for cast_member in cast_list[:15]:  # Limit to prevent issues
+                        if isinstance(cast_member, dict):
+                            name = cast_member.get('name', '')
+                            role = cast_member.get('role', '')
+                            if name:
+                                kodi_cast.append((str(name), str(role)))
+                        elif isinstance(cast_member, str):
+                            kodi_cast.append((str(cast_member), ''))
+                    
+                    if kodi_cast:
+                        info['cast'] = kodi_cast
+                        self.logger.debug(f"Set cast list with {len(kodi_cast)} members for '{title}'")
+                    elif cast_string:
+                        # Fallback to cast string if conversion fails
+                        self.logger.debug(f"Cast list conversion failed, using cast string for '{title}'")
+                        # Don't set cast as string in info labels - it causes the error
+                        pass
+                        
                 except Exception as e:
-                    self.logger.debug(f"Error setting cast list: {e}")
-                    # Fallback to cast string
-                    if cast_string:
-                        info['cast'] = cast_string
-            elif cast_string:
-                # Use cast string as fallback
-                try:
-                    info['cast'] = cast_string
-                    self.logger.debug(f"Set cast string for '{title}': {cast_string[:50]}...")
-                except Exception as e:
-                    self.logger.debug(f"Error setting cast string: {e}")
+                    self.logger.debug(f"Error converting cast list: {e}")
+                    # Don't set cast at all if conversion fails
                     pass
+            elif cast_string:
+                # Don't set cast string directly in info labels - it causes conversion errors
+                # Kodi will populate cast automatically via dbid if we set it
+                self.logger.debug(f"Skipping cast string for '{title}' - will use dbid instead")
+                pass
 
         # Playback info - ensure it's an integer
         playcount = movie_data.get('playcount', 0)
