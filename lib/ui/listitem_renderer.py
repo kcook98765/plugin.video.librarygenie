@@ -335,31 +335,12 @@ class ListItemRenderer:
                 self.logger.debug(f"Error processing IMDb ID: {e}")
                 pass
 
-        # UniqueID - CRITICAL for Kodi cast population
-        # For library items, we NEED to set uniqueid to help Kodi match to its internal database
-        # This is essential for the native video information dialog to show cast
-        if kodi_id and imdb_id:
-            try:
-                imdb_str = str(imdb_id).strip()
-                if imdb_str and imdb_str != 'None' and imdb_str.startswith('tt'):
-                    # Set uniqueid structure that Kodi expects for library matching
-                    uniqueid_dict = {'imdb': imdb_str}
-                    
-                    # Add TMDb ID if available
-                    tmdb_id = movie_data.get('tmdb_id')
-                    if tmdb_id:
-                        try:
-                            tmdb_str = str(tmdb_id).strip()
-                            if tmdb_str and tmdb_str != 'None':
-                                uniqueid_dict['tmdb'] = tmdb_str
-                        except Exception:
-                            pass
-                    
-                    info['uniqueid'] = uniqueid_dict
-                    self.logger.debug(f"Set uniqueid for library item '{title}': {uniqueid_dict}")
-            except Exception as e:
-                self.logger.debug(f"Error processing uniqueid: {e}")
-                pass
+        # For Kodi library items with dbid, we don't need to set uniqueid in InfoLabels
+        # The dbid property (set in _set_additional_properties) tells Kodi this is a library item
+        # and enables automatic population of cast and other detailed metadata.
+        # Setting imdbnumber is sufficient for identification purposes.
+        if kodi_id:
+            self.logger.debug(f"Library item '{title}' - dbid property will enable cast and detailed metadata")
 
         return info
 
