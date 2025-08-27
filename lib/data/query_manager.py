@@ -169,12 +169,15 @@ class QueryManager:
                 self.logger.info(f"Attempting to match {len(items_to_match)} items without kodi_id to Kodi library")
                 matched_kodi_ids = self._match_items_to_kodi_library(items_to_match)
 
-                # Add matched items to enrichment list
+                # Apply enrichment data to items with kodi_ids
                 for item_index, kodi_id in matched_kodi_ids.items():
-                    if kodi_id:
-                        result[item_index]['kodi_id'] = kodi_id
-                        kodi_ids_to_enrich.append(kodi_id)
-                        self.logger.info(f"Matched '{result[item_index]['title']}' to Kodi library (kodi_id: {kodi_id})")
+                    if kodi_id and kodi_id in enriched_data:
+                        enrichment = enriched_data[kodi_id]
+                        # Merge enrichment data, ensuring artwork is preserved
+                        result[item_index].update(enrichment)
+                        # Also set source to 'lib' to indicate this is a library item
+                        result[item_index]['source'] = 'lib'
+                        self.logger.info(f"Enriched '{result[item_index]['title']}' with Kodi library data, artwork: {bool(enrichment.get('poster') or enrichment.get('art'))}")
 
             # Enrich Kodi library items with fresh JSON-RPC data
             if kodi_ids_to_enrich:
@@ -182,21 +185,16 @@ class QueryManager:
                 enriched_data = self._get_kodi_enrichment_data(kodi_ids_to_enrich)
                 self.logger.info(f"Enrichment returned data for {len(enriched_data)} movies: {list(enriched_data.keys())}")
 
-                # Merge enriched data back into result
-                for item in result:
-                    kodi_id = item.get('kodi_id')
-                    if kodi_id and kodi_id in enriched_data:
-                        enriched = enriched_data[kodi_id]
-                        # Update with fresh JSON-RPC data, preserving database IDs and basic info
-                        preserved_id = item['id']
-                        preserved_created = item['created']
-                        self.logger.debug(f"Before enrichment - item keys: {list(item.keys())}")
-                        item.update(enriched)
-                        item['id'] = preserved_id  # Keep the list item ID
-                        item['created'] = preserved_created  # Keep the creation date
-                        self.logger.info(f"Successfully enriched '{item.get('title')}' with JSON-RPC data - new keys: {list(item.keys())}")
+                # Apply enrichment data to result items that have kodi_id
+                for i, item_data in enumerate(result):
+                    if item_data.get('kodi_id') and item_data['kodi_id'] in enriched_data:
+                        enrichment = enriched_data[item_data['kodi_id']]
+                        item_data.update(enrichment)
+                        # Mark as library item
+                        item_data['source'] = 'lib'
+                        self.logger.info(f"Enriched list item '{item_data['title']}' with Kodi library data, artwork: {bool(enrichment.get('poster') or enrichment.get('art'))}")
                     else:
-                        self.logger.warning(f"Failed to enrich Kodi item {kodi_id}: not found in JSON-RPC results. Available enriched IDs: {list(enriched_data.keys())}")
+                        self.logger.warning(f"Failed to enrich Kodi item {item_data.get('kodi_id')}: not found in JSON-RPC results. Available enriched IDs: {list(enriched_data.keys())}")
 
             self.logger.debug(f"Retrieved {len(result)} items for list {list_id}")
             return result
