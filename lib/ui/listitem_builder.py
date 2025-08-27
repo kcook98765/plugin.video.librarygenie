@@ -12,7 +12,7 @@ from typing import List, Dict, Any, Optional
 import xbmc
 import xbmcgui
 import xbmcplugin
-from ..utils.logger import Logger
+from ..utils.logger import get_logger
 
 
 class ListItemBuilder:
@@ -21,7 +21,7 @@ class ListItemBuilder:
     def __init__(self, addon_handle: int, addon_id: str):
         self.addon_handle = addon_handle
         self.addon_id = addon_id
-        self.logger = Logger()
+        self.logger = get_logger(__name__)
     
     def build_directory(self, items: List[Dict[str, Any]], content_type: str = "movies") -> bool:
         """

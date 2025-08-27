@@ -12,7 +12,7 @@ import xbmc
 import xbmcgui
 import xbmcplugin
 from .listitem_builder import ListItemBuilder
-from ..utils.logger import Logger
+from ..utils.logger import get_logger
 
 
 class ListItemRenderer:
@@ -21,7 +21,7 @@ class ListItemRenderer:
     def __init__(self, addon_handle: int, addon_id: str):
         self.addon_handle = addon_handle
         self.addon_id = addon_id
-        self.logger = Logger()
+        self.logger = get_logger(__name__)
         self.builder = ListItemBuilder(addon_handle, addon_id)
     
     def render_lists(self, lists: List[Dict[str, Any]], folder_id: Optional[int] = None) -> bool:
