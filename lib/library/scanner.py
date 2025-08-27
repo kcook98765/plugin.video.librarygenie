@@ -161,14 +161,12 @@ class LibraryScanner:
 
             # Movie counts
             total_result = self.conn_manager.execute_single(
-                "SELECT COUNT(*) as total FROM library_movie WHERE is_removed = 0"
+                "SELECT COUNT(*) as total FROM media_items WHERE media_type = 'movie'"
             )
             stats["total_movies"] = total_result["total"] if total_result else 0
 
-            removed_result = self.conn_manager.execute_single(
-                "SELECT COUNT(*) as removed FROM library_movie WHERE is_removed = 1"
-            )
-            stats["removed_movies"] = removed_result["removed"] if removed_result else 0
+            # Removed movies don't exist in new schema - set to 0
+            stats["removed_movies"] = 0
 
             # Last scan info
             last_scan = self.conn_manager.execute_single("""
@@ -221,7 +219,7 @@ class LibraryScanner:
         """Check if the library has been indexed"""
         try:
             result = self.conn_manager.execute_single(
-                "SELECT COUNT(*) as count FROM library_movie WHERE is_removed = 0"
+                "SELECT COUNT(*) as count FROM media_items WHERE media_type = 'movie'"
             )
             return (result["count"] if result else 0) > 0
         except:
@@ -231,7 +229,7 @@ class LibraryScanner:
         """Clear the existing library index"""
         try:
             with self.conn_manager.transaction() as conn:
-                conn.execute("DELETE FROM library_movie")
+                conn.execute("DELETE FROM media_items WHERE media_type = 'movie'")
             self.logger.debug("Library index cleared for full scan")
         except Exception as e:
             self.logger.error(f"Failed to clear library index: {e}")
@@ -249,36 +247,32 @@ class LibraryScanner:
                 for movie in movies:
                     try:
                         conn.execute("""
-                            INSERT INTO library_movie 
-                            (kodi_id, title, year, imdb_id, tmdb_id, file_path, date_added, last_seen,
-                             poster, fanart, thumb, plot, plotoutline, runtime, rating, genre, 
-                             mpaa, director, country, studio, playcount, resume_time)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'),
-                                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            INSERT INTO media_items 
+                            (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, 
+                             poster, fanart, plot, rating, duration, mpaa, genre, director, 
+                             studio, country, writer, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                         """, [
+                            'movie',
                             movie["kodi_id"],
                             movie["title"],
                             movie.get("year"),
                             movie.get("imdb_id"),
                             movie.get("tmdb_id"),
                             movie["file_path"],
-                            movie.get("date_added"),
-                            # Phase 11: Artwork fields
+                            # Artwork fields
                             movie.get("poster", ""),
                             movie.get("fanart", ""),
-                            movie.get("thumb", ""),
-                            # Phase 11: Metadata fields
+                            # Metadata fields
                             movie.get("plot", ""),
-                            movie.get("plotoutline", ""),
-                            movie.get("runtime", 0),
                             movie.get("rating", 0.0),
-                            movie.get("genre", ""),
+                            movie.get("runtime", 0),
                             movie.get("mpaa", ""),
+                            movie.get("genre", ""),
                             movie.get("director", ""),
-                            str(movie.get("country", [])) if isinstance(movie.get("country"), list) else movie.get("country", "[]"),
                             str(movie.get("studio", [])) if isinstance(movie.get("studio"), list) else movie.get("studio", "[]"),
-                            movie.get("playcount", 0),
-                            movie.get("resume_time", 0)
+                            str(movie.get("country", [])) if isinstance(movie.get("country"), list) else movie.get("country", "[]"),
+                            ""  # writer field
                         ])
                         inserted_count += 1
                     except Exception as e:
@@ -295,8 +289,9 @@ class LibraryScanner:
         """Get all indexed movies (internal use)"""
         try:
             movies = self.conn_manager.execute_query("""
-                SELECT kodi_id, title, year, file_path, is_removed
-                FROM library_movie
+                SELECT kodi_id, title, year, play as file_path
+                FROM media_items
+                WHERE media_type = 'movie'
             """)
             return movies or []
         except Exception as e:
