@@ -103,22 +103,42 @@ class LocalSearchEngine:
             if not movies:
                 self.logger.info("No movies found in library")
                 return []
+            
+            # Log a few sample movie titles for debugging
+            self.logger.debug("Sample movie titles from library:")
+            for i, movie in enumerate(movies[:10]):
+                title = movie.get('title', 'Unknown')
+                self.logger.debug(f"  {i+1}: '{title}'")
 
             results = []
             matches_found = 0
 
+            self.logger.info(f"Starting title matching for query: '{query_lower}'")
+            
             for i, movie in enumerate(movies):
                 title = movie.get('title', '').lower()
+                original_title = movie.get('title', 'Unknown')
+                
+                # Log first few movies for debugging
+                if i < 5:
+                    self.logger.debug(f"Checking movie {i+1}: '{original_title}' -> normalized: '{title}'")
+                
                 # Client-side fallback filter
                 if query_lower in title:
                     matches_found += 1
                     result = self._format_movie_result(movie)
                     results.append(result)
-                    self.logger.debug(f"Match {matches_found}: '{movie.get('title', 'Unknown')}'")
+                    self.logger.info(f"Match {matches_found}: '{original_title}' contains '{query_lower}'")
 
                     if len(results) >= limit:
                         self.logger.debug(f"Reached limit of {limit} results")
                         break
+                else:
+                    # Log first few non-matches for debugging
+                    if i < 10 and ('witch' in title or 'blair' in title):
+                        self.logger.debug(f"Non-match: '{original_title}' ('{title}') does not contain '{query_lower}'")
+
+            self.logger.info(f"Title matching completed: {matches_found} matches found out of {len(movies)} movies checked")
 
             self.logger.info(f"Movie search completed: {len(results)} matches out of {len(movies)} total movies")
             return results
