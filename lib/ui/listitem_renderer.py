@@ -151,18 +151,24 @@ class ListItemRenderer:
                 self.logger.debug(f"Invalid year value: {year}")
                 pass
 
-        # Handle plot information with better fallbacks
+        # Handle plot information - prioritize actual plot data
         plot = movie_data.get('plot', '').strip()
         plotoutline = movie_data.get('plotoutline', '').strip()
         
-        if plot:
-            # Use full plot if available
+        # Log what we're working with
+        self.logger.debug(f"Plot processing for '{title}': plot='{plot[:50]}...' ({len(plot)} chars), plotoutline='{plotoutline[:50]}...' ({len(plotoutline)} chars)")
+        
+        if plot and len(plot) > 0:
+            # Use full plot if available and non-empty
             info['plot'] = plot
-        elif plotoutline:
+            self.logger.debug(f"Using full plot for '{title}': {len(plot)} characters")
+        elif plotoutline and len(plotoutline) > 0:
             # Use plot outline as fallback
             info['plot'] = plotoutline
-        elif movie_data.get('kodi_id'):
-            # For Kodi items without plot, create a basic description
+            self.logger.debug(f"Using plotoutline for '{title}': {len(plotoutline)} characters")
+        else:
+            # Only create fallback description if NO plot data exists
+            self.logger.debug(f"No plot data found for '{title}', creating fallback description")
             description_parts = []
             if year:
                 description_parts.append(f"Released: {year}")
@@ -189,18 +195,14 @@ class ListItemRenderer:
                 info['plot'] = " • ".join(description_parts)
             else:
                 info['plot'] = f"Movie from {year}" if year else "No description available"
-        else:
-            # For non-Kodi items, create basic description
-            description_parts = []
-            if year:
-                description_parts.append(f"Released: {year}")
-            if movie_data.get('imdb_id'):
-                description_parts.append(f"IMDb: {movie_data['imdb_id']}")
-            if description_parts:
-                info['plot'] = " • ".join(description_parts)
 
-        # Add extended metadata based on UI density
-        if self.ui_density in ['detailed', 'art_heavy']:
+        # Add extended metadata based on UI density (always include for Kodi items with rich data)
+        include_extended_metadata = (
+            self.ui_density in ['detailed', 'art_heavy'] or 
+            movie_data.get('kodi_id')  # Always include for Kodi library items
+        )
+        
+        if include_extended_metadata:
             # Plot is already handled above, so we can focus on other metadata here
             
             # Additional plot outline for detailed view (if different from main plot)
