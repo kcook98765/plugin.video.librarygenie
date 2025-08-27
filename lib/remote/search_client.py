@@ -6,9 +6,9 @@ LibraryGenie - Remote Search Client
 Handles remote search requests with authentication and proper HTTP handling
 """
 
-import json
 from __future__ import annotations
 
+import json
 import urllib.request
 import urllib.parse
 import urllib.error
@@ -125,7 +125,7 @@ def search_remote(query, page=1, page_size=100):
         raise RemoteError(f"request failed: {e}")
 
 
-def _map_remote_item(remote_item: Dict[str, Any]) -> Dict[str, Any]:
+def _map_remote_item(remote_item):
     """Map remote item to uniform format with local file preference"""
     logger = get_logger(__name__)
 
@@ -133,7 +133,7 @@ def _map_remote_item(remote_item: Dict[str, Any]) -> Dict[str, Any]:
     local_path = _find_local_path(remote_item)
 
     # Create uniform item dict
-    mapped_item: Dict[str, Any] = {
+    mapped_item = {
         'label': remote_item.get('title', 'Unknown'),
         'path': local_path or remote_item.get('stream_url', ''),
         'art': remote_item.get('art', {}),
@@ -166,7 +166,7 @@ def _map_remote_item(remote_item: Dict[str, Any]) -> Dict[str, Any]:
     return mapped_item
 
 
-def _find_local_path(remote_item: Dict[str, Any]) -> Optional[str]:
+def _find_local_path(remote_item):
     """
     Try to find local file path by matching IMDB/TMDB IDs
     Returns local path if found, None otherwise
