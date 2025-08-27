@@ -252,12 +252,12 @@ class LibraryScanner:
             with self.conn_manager.transaction() as conn:
                 for movie in movies:
                     try:
-                        # For Kodi library items, only store core identification fields
+                        # For Kodi library items, store core identification fields plus plot
                         # Rich metadata will be fetched via JSON-RPC when needed
                         conn.execute("""
                             INSERT INTO media_items 
-                            (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, source, created_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                            (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, plot, source, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                         """, [
                             'movie',
                             movie["kodi_id"],
@@ -266,6 +266,7 @@ class LibraryScanner:
                             movie.get("imdb_id"),
                             movie.get("tmdb_id"),
                             movie["file_path"],
+                            movie.get("plot", ""),
                             'lib'  # Mark as Kodi library item
                         ])
                         inserted_count += 1
