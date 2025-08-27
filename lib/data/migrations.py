@@ -65,6 +65,22 @@ class MigrationManager:
                 )
             """)
 
+            # Folders table (must come before lists)
+            conn.execute("""
+                CREATE TABLE folders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    parent_id INTEGER,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    FOREIGN KEY (parent_id) REFERENCES folders(id) ON DELETE SET NULL
+                )
+            """)
+
+            conn.execute("""
+                CREATE UNIQUE INDEX idx_folders_name_parent 
+                ON folders (name, parent_id)
+            """)
+
             # Lists table
             conn.execute("""
                 CREATE TABLE lists (
@@ -79,22 +95,6 @@ class MigrationManager:
             conn.execute("""
                 CREATE UNIQUE INDEX idx_lists_name_folder 
                 ON lists (name, folder_id)
-            """)
-
-            # Folders table
-            conn.execute("""
-                CREATE TABLE folders (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    parent_id INTEGER,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    FOREIGN KEY (parent_id) REFERENCES folders(id) ON DELETE SET NULL
-                )
-            """)
-
-            conn.execute("""
-                CREATE UNIQUE INDEX idx_folders_name_parent 
-                ON folders (name, parent_id)
             """)
 
             # Media items table - core metadata

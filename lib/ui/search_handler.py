@@ -19,6 +19,7 @@ from ..remote.search_client import search_remote, RemoteError
 from ..auth.state import is_authorized
 from ..auth.auth_helper import get_auth_helper
 from ..ui.session_state import get_session_state
+from ..data.query_manager import get_query_manager
 from ..utils.logger import get_logger
 
 
@@ -30,6 +31,7 @@ class SearchHandler:
         self.logger = get_logger(__name__)
         self.local_engine = LocalSearchEngine()
         self._remote_fallback_notified = False
+        self.query_manager = get_query_manager()
 
     def prompt_and_show(self):
         """Prompt user for search query and show results"""
@@ -62,6 +64,10 @@ class SearchHandler:
             self.logger.debug("Starting search execution")
             results = self._perform_search_with_type(query, search_type)
             self.logger.info(f"Search completed, got {len(results.get('items', []))} results")
+
+            # Create search history list if we have results
+            if results.get('items'):
+                self._create_search_history_list(query, search_type, results)
 
             self.logger.debug("Displaying search results")
             self._display_results(results, query)
@@ -353,6 +359,45 @@ class SearchHandler:
         source = "remote" if used_remote else "local"
         self.logger.info(f"Displayed {len(items)} {source} search results for '{query}'")
 
+    def _create_search_history_list(self, query, search_type, results):
+        """Create a search history list with the results"""
+        try:
+            if not results.get('items'):
+                return
+
+            # Create the search history list
+            list_id = self.query_manager.create_search_history_list(
+                query=query,
+                search_type=search_type,
+                result_count=len(results['items'])
+            )
+
+            if not list_id:
+                self.logger.error("Failed to create search history list")
+                return
+
+            # Add search results to the list
+            added_count = self.query_manager.add_search_results_to_list(list_id, results)
+            
+            if added_count > 0:
+                self.logger.info(f"Created search history list with {added_count} items")
+                
+                # Show brief notification
+                addon = xbmcaddon.Addon()
+                xbmcgui.Dialog().notification(
+                    addon.getLocalizedString(35002),  # "LibraryGenie"
+                    f"Search saved: {added_count} items in Search History",
+                    xbmcgui.NOTIFICATION_INFO,
+                    3000
+                )
+            else:
+                self.logger.warning("No items were added to search history list")
+
+        except Exception as e:
+            import traceback
+            self.logger.error(f"Failed to create search history list: {e}")
+            self.logger.error(f"Search history error traceback: {traceback.format_exc()}")
+
     def search_with_fallback(self, query, page=1, page_size=100):
         """Search with remote first, fallback to local"""
         if not query or not query.strip():
@@ -366,6 +411,8 @@ class SearchHandler:
                 remote_results = search_remote(query, page, page_size)
                 if remote_results.get('items'):
                     self.logger.info(f"Remote search successful: {len(remote_results['items'])} results")
+                    # Create search history list
+                    self._create_search_history_list(query, "remote", remote_results)
                     return remote_results
 
             except RemoteError as e:
@@ -380,6 +427,11 @@ class SearchHandler:
         try:
             local_results = self.local_engine.search(query, limit=page_size, offset=(page-1)*page_size)
             self.logger.info(f"Local search: {len(local_results.get('items', []))} results")
+            
+            # Create search history list for non-empty results
+            if local_results.get('items'):
+                self._create_search_history_list(query, "local", local_results)
+            
             return local_results
 
         except Exception as e:

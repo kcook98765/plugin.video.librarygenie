@@ -6,10 +6,12 @@ LibraryGenie - Query Manager
 Real SQLite-based data layer for list and item management
 """
 
+import json
+from typing import List, Dict, Any, Optional, Union
+
 from .connection_manager import get_connection_manager
 from .migrations import get_migration_manager
 from ..utils.logger import get_logger
-from typing import Optional, Union, Any, List, Dict
 
 
 class QueryManager:
@@ -301,16 +303,194 @@ class QueryManager:
             return None
 
     def _ensure_default_list(self):
-        """Ensure at least one default list exists"""
+        """Ensure default list exists"""
         try:
-            lists = self.get_user_lists()
-            if not lists:
+            # Check if default list exists
+            default_list = self.conn_manager.execute_single("""
+                SELECT id FROM user_list WHERE name = ?
+            """, ["Default"])
+
+            if not default_list:
                 self.logger.info("Creating default list")
-                self.create_list("My Movies") # Corrected to use create_list
+                with self.conn_manager.transaction() as conn:
+                    conn.execute("""
+                        INSERT INTO user_list (name, description)
+                        VALUES (?, ?)
+                    """, [
+                        "Default",
+                        "Your default list for organizing movies"
+                    ])
 
         except Exception as e:
-            self.logger.warning(f"Could not ensure default list: {e}")
+            self.logger.error(f"Failed to create default list: {e}")
 
+    def get_or_create_search_history_folder(self):
+        """Get or create the Search History folder"""
+        try:
+            # Check if Search History folder exists
+            folder = self.conn_manager.execute_single("""
+                SELECT id FROM folders WHERE name = ? AND parent_id IS NULL
+            """, ["Search History"])
+
+            if folder:
+                return folder['id']
+
+            # Create Search History folder
+            self.logger.info("Creating Search History folder")
+            with self.conn_manager.transaction() as conn:
+                cursor = conn.execute("""
+                    INSERT INTO folders (name, parent_id)
+                    VALUES (?, NULL)
+                """, ["Search History"])
+                folder_id = cursor.lastrowid
+                self.logger.info(f"Created Search History folder with ID: {folder_id}")
+                return folder_id
+
+        except Exception as e:
+            self.logger.error(f"Failed to create Search History folder: {e}")
+            return None
+
+    def create_search_history_list(self, query, search_type, result_count):
+        """Create a new search history list"""
+        try:
+            folder_id = self.get_or_create_search_history_folder()
+            if not folder_id:
+                self.logger.error("Could not get/create Search History folder")
+                return None
+
+            # Generate list name with timestamp
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+            list_name = f"Search: '{query}' ({search_type}) - {timestamp}"
+
+            # Truncate if too long
+            if len(list_name) > 100:
+                list_name = list_name[:97] + "..."
+
+            # Create the list
+            with self.conn_manager.transaction() as conn:
+                cursor = conn.execute("""
+                    INSERT INTO lists (name, folder_id)
+                    VALUES (?, ?)
+                """, [list_name, folder_id])
+                list_id = cursor.lastrowid
+
+                self.logger.info(f"Created search history list '{list_name}' with ID: {list_id}")
+                return list_id
+
+        except Exception as e:
+            self.logger.error(f"Failed to create search history list: {e}")
+            return None
+
+    def add_search_results_to_list(self, list_id, search_results):
+        """Add search results to a list as media items"""
+        try:
+            if not search_results or not search_results.get('items'):
+                return 0
+
+            added_count = 0
+
+            with self.conn_manager.transaction() as conn:
+                for position, item in enumerate(search_results['items']):
+                    try:
+                        # Extract media item data
+                        media_data = self._extract_media_item_data(item)
+
+                        # Insert or get existing media item
+                        media_item_id = self._insert_or_get_media_item(conn, media_data)
+
+                        if media_item_id:
+                            # Add to list
+                            conn.execute("""
+                                INSERT OR IGNORE INTO list_items (list_id, media_item_id, position)
+                                VALUES (?, ?, ?)
+                            """, [list_id, media_item_id, position])
+                            added_count += 1
+
+                    except Exception as e:
+                        self.logger.error(f"Error adding search result item: {e}")
+                        continue
+
+            self.logger.info(f"Added {added_count} items to search history list {list_id}")
+            return added_count
+
+        except Exception as e:
+            self.logger.error(f"Failed to add search results to list: {e}")
+            return 0
+
+    def _extract_media_item_data(self, item):
+        """Extract media item data from search result item"""
+        return {
+            'media_type': item.get('type', 'movie'),
+            'title': item.get('title', item.get('label', 'Unknown')),
+            'year': item.get('year'),
+            'imdbnumber': item.get('imdbnumber'),
+            'tmdb_id': item.get('tmdb_id'),
+            'kodi_id': item.get('movieid') or item.get('id'),
+            'source': 'remote' if item.get('_source') == 'remote' else 'lib',
+            'play': item.get('path', ''),
+            'poster': item.get('art', {}).get('poster', ''),
+            'fanart': item.get('art', {}).get('fanart', ''),
+            'plot': item.get('plot', ''),
+            'rating': item.get('rating'),
+            'votes': item.get('votes'),
+            'duration': item.get('runtime'),
+            'mpaa': item.get('mpaa', ''),
+            'genre': ','.join(item.get('genre', [])) if isinstance(item.get('genre'), list) else item.get('genre', ''),
+            'director': ','.join(item.get('director', [])) if isinstance(item.get('director'), list) else item.get('director', ''),
+            'studio': ','.join(item.get('studio', [])) if isinstance(item.get('studio'), list) else item.get('studio', ''),
+            'country': ','.join(item.get('country', [])) if isinstance(item.get('country'), list) else item.get('country', ''),
+            'writer': ','.join(item.get('writer', [])) if isinstance(item.get('writer'), list) else item.get('writer', ''),
+            'cast': json.dumps(item.get('cast', [])) if item.get('cast') else None,
+            'art': json.dumps(item.get('art', {})) if item.get('art') else None
+        }
+
+    def _insert_or_get_media_item(self, conn, media_data):
+        """Insert or get existing media item"""
+        try:
+
+            # Try to find existing item by IMDb ID first
+            if media_data.get('imdbnumber'):
+                existing = conn.execute("""
+                    SELECT id FROM media_items WHERE imdbnumber = ?
+                """, [media_data['imdbnumber']]).fetchone()
+
+                if existing:
+                    return existing['id']
+
+            # Try to find by title and year
+            if media_data.get('title') and media_data.get('year'):
+                existing = conn.execute("""
+                    SELECT id FROM media_items 
+                    WHERE title = ? AND year = ? AND media_type = ?
+                """, [media_data['title'], media_data['year'], media_data['media_type']]).fetchone()
+
+                if existing:
+                    return existing['id']
+
+            # Insert new media item
+            cursor = conn.execute("""
+                INSERT INTO media_items 
+                (media_type, title, year, imdbnumber, tmdb_id, kodi_id, source, 
+                 play, poster, fanart, plot, rating, votes, duration, mpaa, 
+                 genre, director, studio, country, writer, cast, art)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, [
+                media_data['media_type'], media_data['title'], media_data['year'],
+                media_data['imdbnumber'], media_data['tmdb_id'], media_data['kodi_id'],
+                media_data['source'], media_data['play'], media_data['poster'],
+                media_data['fanart'], media_data['plot'], media_data['rating'],
+                media_data['votes'], media_data['duration'], media_data['mpaa'],
+                media_data['genre'], media_data['director'], media_data['studio'],
+                media_data['country'], media_data['writer'], media_data['cast'],
+                media_data['art']
+            ])
+
+            return cursor.lastrowid
+
+        except Exception as e:
+            self.logger.error(f"Error inserting/getting media item: {e}")
+            return None
 
 
     def close(self):
