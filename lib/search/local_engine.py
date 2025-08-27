@@ -96,7 +96,8 @@ class LocalSearchEngine:
                 self.logger.info("No valid words in query, returning empty results")
                 return []
 
-            # Build SQL conditions for each word - all words must match
+            # Build SQL conditions for cross-field matching
+            # Each word can match in title OR plot, and all words must be found somewhere
             where_conditions = []
             params = []
             title_conditions = []  # For prioritization
@@ -111,7 +112,7 @@ class LocalSearchEngine:
                 title_conditions.append(f"LOWER(title) LIKE ?")
                 params.append(word_pattern)
 
-            # All words must match (AND condition)
+            # All words must match somewhere across title/plot fields (AND condition)
             where_clause = " AND ".join(where_conditions)
             
             # Build prioritization - count how many words match in title
@@ -150,19 +151,25 @@ class LocalSearchEngine:
             # Debug: Test individual word searches to understand what's in the database
             for word in words:
                 test_sql = """
-                    SELECT COUNT(*) as count, title
+                    SELECT title, 
+                           SUBSTR(COALESCE(plot, ''), 1, 100) as plot_preview,
+                           CASE WHEN LOWER(title) LIKE ? THEN 'TITLE' ELSE '' END as title_match,
+                           CASE WHEN LOWER(COALESCE(plot, '')) LIKE ? THEN 'PLOT' ELSE '' END as plot_match
                     FROM media_items 
                     WHERE media_type = 'movie' 
                     AND (LOWER(title) LIKE ? OR LOWER(COALESCE(plot, '')) LIKE ?)
                     LIMIT 5
                 """
                 test_pattern = f"%{word.lower()}%"
-                test_results = conn_manager.execute_query(test_sql, [test_pattern, test_pattern])
+                test_results = conn_manager.execute_query(test_sql, [test_pattern, test_pattern, test_pattern, test_pattern])
                 if test_results:
                     self.logger.debug(f"Test search for '{word}': found {len(test_results)} matches")
                     for result in test_results[:3]:  # Show first 3 matches
                         title = result.get('title', 'Unknown')
-                        self.logger.debug(f"  - Match: '{title}'")
+                        plot_preview = result.get('plot_preview', '')
+                        title_match = result.get('title_match', '')
+                        plot_match = result.get('plot_match', '')
+                        self.logger.debug(f"  - '{title}' | {title_match}{plot_match} | Plot: '{plot_preview}'")
 
             self.logger.info(f"SQLite search returned {len(movies)} movies from database")
 
