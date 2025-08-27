@@ -47,7 +47,7 @@ Constraints:
 ---
 
 ### `media_items`
-Core identification entries for movies, episodes, music videos, or external items. Rich metadata is fetched from Kodi JSON-RPC when needed for display.
+Core metadata entries for movies, episodes, music videos, or external items. For Kodi library items (`source='lib'`), only core identification fields are populated; rich metadata is fetched from JSON-RPC when needed. For external items (`source='ext'`), all fields may be populated.
 
 | Column       | Type    | Notes |
 |--------------|---------|-------|
@@ -60,7 +60,20 @@ Core identification entries for movies, episodes, music videos, or external item
 | `kodi_id`    | INTEGER | Optional Kodi DBID |
 | `source`     | TEXT    | e.g. `lib`, `ext` |
 | `play`       | TEXT    | Playback URL or file |
-| `plot`       | TEXT    | Basic plot summary |
+| `poster`     | TEXT    | Poster artwork (external items only) |
+| `fanart`     | TEXT    | Fanart artwork (external items only) |
+| `plot`       | TEXT    | Plot summary |
+| `rating`     | REAL    | Rating (external items only) |
+| `votes`      | INTEGER | Vote count (external items only) |
+| `duration`   | INTEGER | Duration in seconds (external items only) |
+| `mpaa`       | TEXT    | MPAA rating (external items only) |
+| `genre`      | TEXT    | Comma-separated genres (external items only) |
+| `director`   | TEXT    | Director (external items only) |
+| `studio`     | TEXT    | Studio (external items only) |
+| `country`    | TEXT    | Country (external items only) |
+| `writer`     | TEXT    | Writer (external items only) |
+| `cast`       | TEXT    | JSON cast data (external items only) |
+| `art`        | TEXT    | JSON art data (external items only) |
 | `created_at` | TEXT    | |
 
 Indexes:
