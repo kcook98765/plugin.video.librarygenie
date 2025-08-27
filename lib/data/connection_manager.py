@@ -87,7 +87,7 @@ class ConnectionManager:
             conn.execute("PRAGMA mmap_size=268435456") # 256MB memory-mapped I/O
 
             # Set row factory for easier data access
-            conn.row_factory = sqlite3.Row
+            conn.row_factory = sqlite3.Row  # Enable dict-like access
 
             self.logger.info(f"Database connection established: {db_path} (busy_timeout: {busy_timeout_ms}ms)")
             return conn
