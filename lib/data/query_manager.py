@@ -489,6 +489,62 @@ class QueryManager:
             self.logger.error(f"Error inserting/getting media item: {e}")
             return None
 
+    def get_all_lists_with_folders(self):
+        """Get all lists including those in folders (like Search History)"""
+        try:
+            self.logger.debug("Getting all lists with folders from database")
+
+            # Get all lists including those in folders
+            lists = self.conn_manager.execute_query("""
+                SELECT 
+                    l.id,
+                    l.name,
+                    l.folder_id,
+                    l.created_at,
+                    datetime('now') as updated_at,
+                    (SELECT COUNT(*) FROM list_items WHERE list_id = l.id) as item_count,
+                    f.name as folder_name
+                FROM lists l
+                LEFT JOIN folders f ON l.folder_id = f.id
+                
+                UNION ALL
+                
+                SELECT 
+                    ul.id,
+                    ul.name,
+                    NULL as folder_id,
+                    ul.created_at,
+                    ul.updated_at,
+                    (SELECT COUNT(*) FROM list_item WHERE list_id = ul.id) as item_count,
+                    NULL as folder_name
+                FROM user_list ul
+                
+                ORDER BY created_at ASC
+            """)
+
+            # Convert to expected format
+            result: List[Dict[str, Any]] = []
+            for row in lists:
+                result.append({
+                    "id": str(row['id']),
+                    "name": row['name'],
+                    "description": f"{row['item_count']} items",
+                    "item_count": row['item_count'],
+                    "created": row['created_at'][:10] if row['created_at'] else '',
+                    "modified": row['updated_at'][:10] if row['updated_at'] else '',
+                    "folder_name": row.get('folder_name'),
+                    "is_folder": True
+                })
+
+            self.logger.debug(f"Retrieved {len(result)} lists with folders")
+            return result
+
+        except Exception as e:
+            self.logger.error(f"Failed to get all lists with folders: {e}")
+            import traceback
+            self.logger.error(f"Get all lists error traceback: {traceback.format_exc()}")
+            return []
+
 
 # Global query manager instance
 _query_manager_instance = None
