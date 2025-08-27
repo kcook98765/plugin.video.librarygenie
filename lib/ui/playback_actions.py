@@ -149,9 +149,6 @@ class PlaybackActionHandler:
     def check_player_status(self) -> Dict[str, Any]:
         """Check current player status"""
         
-        if not KODI_AVAILABLE:
-            return {"active": False, "type": "none"}
-        
         try:
             request = {
                 "jsonrpc": "2.0",

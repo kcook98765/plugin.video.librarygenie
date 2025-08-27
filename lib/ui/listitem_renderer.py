@@ -73,30 +73,19 @@ class ListItemRenderer:
         secondary_label = str(year) if year and self.show_secondary_label else ""
         
         # Create ListItem
-        if KODI_AVAILABLE:
-            list_item = xbmcgui.ListItem(label=primary_label, label2=secondary_label)
-        else:
-            # Stub mode
-            list_item = type('MockListItem', (), {
-                'setInfo': lambda *args: None,
-                'setArt': lambda *args: None,
-                'addContextMenuItems': lambda *args: None,
-                'setProperty': lambda *args: None
-            })()
+        list_item = xbmcgui.ListItem(label=primary_label, label2=secondary_label)
         
         # Set Video InfoLabels based on UI density
         info_labels = self._build_info_labels(movie_data)
-        if KODI_AVAILABLE:
-            list_item.setInfo('video', info_labels)
+        list_item.setInfo('video', info_labels)
         
         # Set artwork based on preferences
         art_dict = self._build_art_dict(movie_data)
-        if KODI_AVAILABLE:
-            list_item.setArt(art_dict)
+        list_item.setArt(art_dict)
         
         # Add playback context menu
         context_menu = self._build_playback_context_menu(movie_data, base_url)
-        if context_menu and KODI_AVAILABLE:
+        if context_menu:
             list_item.addContextMenuItems(context_menu)
         
         # Set additional properties for skin use
@@ -288,21 +277,12 @@ class ListItemRenderer:
     def create_simple_listitem(self, title: str, description: str = "", action: str = "", **kwargs) -> 'xbmcgui.ListItem':
         """Create a simple ListItem for non-movie items (menus, actions, etc.)"""
         
-        if KODI_AVAILABLE:
-            list_item = xbmcgui.ListItem(label=title)
-            list_item.setInfo('video', {'plot': description})
-        else:
-            # Stub mode
-            list_item = type('MockListItem', (), {
-                'setInfo': lambda *args: None,
-                'setArt': lambda *args: None,
-                'addContextMenuItems': lambda *args: None
-            })()
+        list_item = xbmcgui.ListItem(label=title)
+        list_item.setInfo('video', {'plot': description})
         
         # Set fallback artwork for consistency
-        if KODI_AVAILABLE:
-            icon = kwargs.get('icon', self.fallback_icon)
-            list_item.setArt({'thumb': icon})
+        icon = kwargs.get('icon', self.fallback_icon)
+        list_item.setArt({'thumb': icon})
         
         return list_item
     

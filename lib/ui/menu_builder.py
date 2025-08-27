@@ -105,12 +105,6 @@ class MenuBuilder:
         """Build a menu specifically for movie items with enhanced ListItems"""
         self.logger.debug(f"Building movie menu with {len(movies)} movies")
 
-        if not KODI_AVAILABLE:
-            self.logger.info("Movie menu items (stub mode):")
-            for movie in movies:
-                self.logger.info(f"  - {movie.get('title', 'Unknown')}")
-            return
-
         # Set content type for better skin support
         xbmcplugin.setContent(addon_handle, 'movies')
 
@@ -156,7 +150,7 @@ class MenuBuilder:
 
         # Add additional context menu items if specified
         extra_context = options.get('extra_context_menu', [])
-        if extra_context and KODI_AVAILABLE:
+        if extra_context:
             current_context = list_item.getProperty('ContextMenuItems') or []
             if isinstance(current_context, str):
                 current_context = [current_context]
