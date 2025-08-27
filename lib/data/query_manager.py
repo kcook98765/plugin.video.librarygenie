@@ -524,21 +524,31 @@ class QueryManager:
         """Extract media item data from search result item"""
         # Extract kodi_id from various possible fields
         kodi_id = None
+        
+        # Check for movieid field (from JSON-RPC responses)
         if item.get('movieid'):
             kodi_id = item.get('movieid')
+        # Check for explicit kodi_id field  
         elif item.get('kodi_id'):
             kodi_id = item.get('kodi_id')
+        # For local search results, the 'id' field should be the kodi_id
+        elif item.get('id') and not item.get('_source'):
+            # Local search results don't have _source field, so 'id' is kodi_id
+            kodi_id = item.get('id')
+        # Last resort - check if 'id' is present and not from remote source
         elif item.get('id') and item.get('_source') != 'remote':
-            # Only use 'id' as kodi_id if it's not from a remote source
             kodi_id = item.get('id')
 
         # Ensure kodi_id is properly typed as integer if present
         if kodi_id is not None:
             try:
                 kodi_id = int(kodi_id)
+                self.logger.info(f"Extracted kodi_id {kodi_id} for item '{item.get('title', 'Unknown')}'")
             except (ValueError, TypeError):
                 self.logger.warning(f"Invalid kodi_id value: {kodi_id}, setting to None")
                 kodi_id = None
+        else:
+            self.logger.warning(f"No kodi_id found for item '{item.get('title', 'Unknown')}' - available keys: {list(item.keys())}")
 
         return {
             'media_type': item.get('type', 'movie'),
@@ -758,17 +768,17 @@ class QueryManager:
             
             for item_index, item_data in items_to_match:
                 matched_kodi_id = None
-                item_title = item_data.get('title', '').lower().strip()
+                item_title = (item_data.get('title') or '').lower().strip()
                 item_year = item_data.get('year')
-                item_imdb = item_data.get('imdb_id', '').strip()
+                item_imdb = (item_data.get('imdb_id') or '').strip()
                 
                 self.logger.debug(f"Trying to match: {item_title} ({item_year}) IMDb: {item_imdb}")
                 
                 # Try to find a match in the library
                 for library_movie in library_data['movies']:
-                    library_title = library_movie.get('title', '').lower().strip()
+                    library_title = (library_movie.get('title') or '').lower().strip()
                     library_year = library_movie.get('year')
-                    library_imdb = library_movie.get('imdb_id', '').strip()
+                    library_imdb = (library_movie.get('imdb_id') or '').strip()
                     
                     # Match by IMDb ID (most reliable)
                     if item_imdb and library_imdb and item_imdb == library_imdb:

@@ -32,7 +32,7 @@ class LocalSearchEngine:
             dict: {'items': [...], 'total': int, 'used_remote': False}
         """
         self.logger.info(f"LocalSearchEngine.search() called with query='{query}', limit={limit}, offset={offset}")
-        
+
         if not query or not query.strip():
             self.logger.info("Empty query provided, returning empty results")
             return {'items': [], 'total': 0, 'used_remote': False}
@@ -80,18 +80,18 @@ class LocalSearchEngine:
     def _search_movies(self, query_lower: str, limit: int) -> List[Dict[str, Any]]:
         """Search movies in local SQLite database"""
         self.logger.debug(f"Searching movies in SQLite for query: '{query_lower}' with limit: {limit}")
-        
+
         try:
             # Import the connection manager to access the database
             from ..data.connection_manager import get_connection_manager
             conn_manager = get_connection_manager()
-            
+
             # Search in the library_movie table
             self.logger.debug("Searching library_movie table in SQLite database")
-            
+
             # Use SQL LIKE for case-insensitive search
             search_pattern = f"%{query_lower}%"
-            
+
             movies = conn_manager.execute_query("""
                 SELECT 
                     kodi_id, title, year, imdbnumber as imdb_id, tmdb_id, play as file_path,
@@ -109,7 +109,7 @@ class LocalSearchEngine:
             if not movies:
                 self.logger.info("No movies found in SQLite database")
                 return []
-            
+
             # Debug logging
             self.logger.info("=== DEBUGGING SQLITE MOVIE RESULTS ===")
             print("=== DEBUGGING SQLITE MOVIE RESULTS ===")
@@ -118,12 +118,12 @@ class LocalSearchEngine:
                 log_msg = f"SQLite Movie {i+1}: '{title}'"
                 self.logger.info(log_msg)
                 print(log_msg)
-            
+
             witch_count = len([m for m in movies if 'witch' in m['title'].lower()])
             debug_msg = f"FOUND {witch_count} movies with 'witch' in title from SQLite"
             self.logger.info(debug_msg)
             print(debug_msg)
-            
+
             self.logger.info("=== END DEBUGGING ===")
             print("=== END DEBUGGING ===")
 
@@ -139,7 +139,7 @@ class LocalSearchEngine:
             import traceback
             self.logger.error(f"Error searching movies in SQLite: {e}")
             self.logger.error(f"SQLite search traceback: {traceback.format_exc()}")
-            
+
             # Return empty results instead of fallback
             self.logger.error("SQLite search failed, returning empty results (no JSON-RPC fallback)")
             return []
@@ -181,7 +181,7 @@ class LocalSearchEngine:
         # Convert sqlite3.Row to dict if needed
         if hasattr(movie, 'keys'):
             movie = dict(movie)
-        
+
         title = movie.get('title') or 'Unknown Movie'
         year = movie.get('year')
 
@@ -291,12 +291,12 @@ class LocalSearchEngine:
             'firstaired': episode.get('firstaired', '')
         }
 
-    
+
 
     def _json_rpc(self, method: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Execute JSON-RPC call to Kodi"""
         self.logger.debug(f"Executing JSON-RPC call: {method}")
-        
+
         payload = {
             "jsonrpc": "2.0",
             "id": 1,
@@ -308,7 +308,7 @@ class LocalSearchEngine:
             self.logger.debug(f"JSON-RPC payload: {json.dumps(payload, indent=2)}")
             raw_response = xbmc.executeJSONRPC(json.dumps(payload))
             self.logger.debug(f"JSON-RPC raw response length: {len(raw_response)} chars")
-            
+
             response = json.loads(raw_response)
             self.logger.debug(f"JSON-RPC parsed response keys: {list(response.keys())}")
 
@@ -324,7 +324,7 @@ class LocalSearchEngine:
             elif result and method == "VideoLibrary.GetEpisodes":
                 episode_count = len(result.get('episodes', []))
                 self.logger.info(f"JSON-RPC {method} returned {episode_count} episodes")
-            
+
             return result
 
         except json.JSONDecodeError as e:
