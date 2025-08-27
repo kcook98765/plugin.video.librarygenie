@@ -86,20 +86,32 @@ class AddonController:
     def _handle_search(self):
         """Handle search functionality"""
         try:
-            self.logger.info("Handling search")
+            self.logger.info("Handling search - starting search flow")
+            self.logger.debug(f"Search params: {self.params}")
             
             # Import search UI handler (lazy import to avoid circular dependencies)
             from .ui.search_handler import SearchHandler
+            self.logger.debug("SearchHandler imported successfully")
+            
             search_handler = SearchHandler(self.handle)
+            self.logger.debug("SearchHandler instance created")
             
             # Show search dialog and handle results
+            self.logger.info("Calling search_handler.prompt_and_show()")
             search_handler.prompt_and_show()
+            self.logger.info("Search handler completed")
                 
         except Exception as e:
             import traceback
             self.logger.error(f"Error in search handling: {e}")
-            if self.cfg.get('debug_logging', False):
-                self.logger.debug(f"SearchHandler error traceback: {traceback.format_exc()}")
+            self.logger.error(f"SearchHandler error traceback: {traceback.format_exc()}")
+            
+            # Show error to user
+            xbmcgui.Dialog().notification(
+                self.addon.getAddonInfo('name'),
+                f"Search error: {str(e)}",
+                xbmcgui.NOTIFICATION_ERROR
+            )
             self._show_main_menu()
     
     def _handle_authorize(self):

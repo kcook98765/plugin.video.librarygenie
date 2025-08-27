@@ -33,23 +33,41 @@ class SearchHandler:
 
     def prompt_and_show(self):
         """Prompt user for search query and show results"""
-        # Get search query from user
-        addon = xbmcaddon.Addon()
-        query = xbmcgui.Dialog().input(
-            addon.getLocalizedString(35018),
-            type=xbmcgui.INPUT_ALPHANUM
-        )
-
-        if not query or not query.strip():
-            return
-
-        # Perform search with engine selection
+        self.logger.info("Starting search prompt flow")
+        
         try:
-            results = self._perform_search(query.strip())
+            # Get search query from user
+            addon = xbmcaddon.Addon()
+            self.logger.debug("Getting search input from user")
+            
+            query = xbmcgui.Dialog().input(
+                addon.getLocalizedString(35018),
+                type=xbmcgui.INPUT_ALPHANUM
+            )
+            
+            self.logger.info(f"User entered query: '{query}'")
+
+            if not query or not query.strip():
+                self.logger.info("Empty query - returning to menu")
+                return
+
+            query = query.strip()
+            self.logger.info(f"Processing search query: '{query}'")
+
+            # Perform search with engine selection
+            self.logger.debug("Starting search execution")
+            results = self._perform_search(query)
+            self.logger.info(f"Search completed, got {len(results.get('items', []))} results")
+            
+            self.logger.debug("Displaying search results")
             self._display_results(results, query)
+            self.logger.info("Search flow completed successfully")
 
         except Exception as e:
+            import traceback
             self.logger.error(f"Search failed: {e}")
+            self.logger.error(f"Search error traceback: {traceback.format_exc()}")
+            
             addon = xbmcaddon.Addon()
             xbmcgui.Dialog().notification(
                 addon.getLocalizedString(35021),
@@ -67,35 +85,71 @@ class SearchHandler:
         Returns:
             dict: Search results with metadata
         """
+        self.logger.info(f"Starting search execution for query: '{query}'")
+        
+        # Check authorization status
+        auth_status = is_authorized()
+        self.logger.info(f"Authorization status: {auth_status}")
+        
         # Engine switch: authorized users try remote first
-        if is_authorized():
+        if auth_status:
             try:
-                self.logger.debug("Using remote search (authorized)")
+                self.logger.info("Attempting remote search (user is authorized)")
+                
+                # Import here to avoid circular dependencies
+                from ..remote.search_client import search_remote
+                self.logger.debug("Remote search client imported")
+                
                 results = search_remote(query, page=1, page_size=100)
-                self.logger.info(f"Remote search returned {len(results.get('items', []))} results")
+                result_count = len(results.get('items', []))
+                self.logger.info(f"Remote search succeeded: {result_count} results")
+                results['used_remote'] = True
                 return results
 
             except RemoteError as e:
-                self.logger.warning(f"Remote search failed, falling back to local: {e}")
+                self.logger.warning(f"Remote search failed with RemoteError, falling back to local: {e}")
                 self._show_fallback_notification()
                 return self._search_local(query, limit=200)
 
             except Exception as e:
+                import traceback
                 self.logger.error(f"Remote search error, falling back to local: {e}")
+                self.logger.error(f"Remote search traceback: {traceback.format_exc()}")
                 self._show_fallback_notification()
                 return self._search_local(query, limit=200)
 
         else:
             # Non-authorized users use local search
-            self.logger.debug("Using local search (not authorized)")
+            self.logger.info("Using local search (user not authorized)")
             return self._search_local(query, limit=200)
 
     def _search_local(self, query, limit=200):
         """Perform local search using local engine"""
+        self.logger.info(f"Starting local search for query: '{query}' with limit: {limit}")
+        
         try:
-            return self.local_engine.search(query, limit=limit)
+            # Check if local engine is properly initialized
+            if not self.local_engine:
+                self.logger.error("Local search engine is None")
+                return {'items': [], 'total': 0, 'used_remote': False}
+            
+            self.logger.debug("Calling local_engine.search()")
+            results = self.local_engine.search(query, limit=limit)
+            
+            if results:
+                result_count = len(results.get('items', []))
+                total_count = results.get('total', 0)
+                self.logger.info(f"Local search completed: {result_count} items returned, {total_count} total matches")
+                results['used_remote'] = False
+                return results
+            else:
+                self.logger.warning("Local search returned None/empty results")
+                return {'items': [], 'total': 0, 'used_remote': False}
+                
         except Exception as e:
+            import traceback
             self.logger.error(f"Local search failed: {e}")
+            self.logger.error(f"Local search traceback: {traceback.format_exc()}")
             return {'items': [], 'total': 0, 'used_remote': False}
 
     def _show_fallback_notification(self):

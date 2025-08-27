@@ -68,8 +68,8 @@ def _update_logger_level(logger):
         else:
             logger.setLevel(logging.INFO)
     except Exception:
-        # Fallback to INFO level if config is not available or fails
-        logger.setLevel(logging.INFO)
+        # Fallback to DEBUG level for troubleshooting search issues
+        logger.setLevel(logging.DEBUG)
 
 
 def update_all_loggers():

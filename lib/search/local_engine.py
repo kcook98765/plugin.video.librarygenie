@@ -31,42 +31,59 @@ class LocalSearchEngine:
         Returns:
             dict: {'items': [...], 'total': int, 'used_remote': False}
         """
+        self.logger.info(f"LocalSearchEngine.search() called with query='{query}', limit={limit}, offset={offset}")
+        
         if not query or not query.strip():
+            self.logger.info("Empty query provided, returning empty results")
             return {'items': [], 'total': 0, 'used_remote': False}
 
         query_lower = query.strip().lower()
+        self.logger.debug(f"Normalized query: '{query_lower}'")
         results = []
 
         try:
             # Search movies first
+            self.logger.debug("Starting movie search")
             movie_results = self._search_movies(query_lower, limit)
+            self.logger.info(f"Movie search returned {len(movie_results)} results")
             results.extend(movie_results)
 
             # If we haven't hit the limit, search episodes
             remaining_limit = limit - len(results)
             if remaining_limit > 0:
+                self.logger.debug(f"Starting episode search with remaining limit: {remaining_limit}")
                 episode_results = self._search_episodes(query_lower, remaining_limit)
+                self.logger.info(f"Episode search returned {len(episode_results)} results")
                 results.extend(episode_results)
+            else:
+                self.logger.debug("Skipping episode search - movie results filled the limit")
 
             # Apply offset and limit
+            self.logger.debug(f"Applying pagination: offset={offset}, limit={limit}")
             paginated_results = results[offset:offset + limit] if offset > 0 else results[:limit]
 
-            self.logger.debug(f"Local search for '{query}' returned {len(paginated_results)} results")
-
-            return {
+            final_result = {
                 'items': paginated_results,
                 'total': len(results),
                 'used_remote': False
             }
 
+            self.logger.info(f"Local search for '{query}' completed: {len(paginated_results)} paginated results, {len(results)} total matches")
+            return final_result
+
         except Exception as e:
+            import traceback
             self.logger.error(f"Error in local search: {e}")
+            self.logger.error(f"Local search traceback: {traceback.format_exc()}")
             return {'items': [], 'total': 0, 'used_remote': False}
 
     def _search_movies(self, query_lower: str, limit: int) -> List[Dict[str, Any]]:
         """Search movies in local library using JSON-RPC"""
+        self.logger.debug(f"Searching movies for query: '{query_lower}' with limit: {limit}")
+        
         try:
             # Use JSON-RPC filter for basic search, fallback to client-side if needed
+            self.logger.debug("Making JSON-RPC call to VideoLibrary.GetMovies")
             movies_data = self._json_rpc("VideoLibrary.GetMovies", {
                 "properties": [
                     "title", "year", "file", "art", "plot", "rating",
@@ -76,23 +93,40 @@ class LocalSearchEngine:
                 "limits": {"start": 0, "end": limit * 2}  # Get more for client-side filtering
             })
 
-            results = []
-            movies = movies_data.get('movies', [])
+            if not movies_data:
+                self.logger.warning("JSON-RPC call returned empty/None data")
+                return []
 
-            for movie in movies:
+            movies = movies_data.get('movies', [])
+            self.logger.info(f"JSON-RPC returned {len(movies)} movies from library")
+
+            if not movies:
+                self.logger.info("No movies found in library")
+                return []
+
+            results = []
+            matches_found = 0
+
+            for i, movie in enumerate(movies):
                 title = movie.get('title', '').lower()
                 # Client-side fallback filter
                 if query_lower in title:
+                    matches_found += 1
                     result = self._format_movie_result(movie)
                     results.append(result)
+                    self.logger.debug(f"Match {matches_found}: '{movie.get('title', 'Unknown')}'")
 
                     if len(results) >= limit:
+                        self.logger.debug(f"Reached limit of {limit} results")
                         break
 
+            self.logger.info(f"Movie search completed: {len(results)} matches out of {len(movies)} total movies")
             return results
 
         except Exception as e:
+            import traceback
             self.logger.error(f"Error searching movies: {e}")
+            self.logger.error(f"Movie search traceback: {traceback.format_exc()}")
             return []
 
     def _search_episodes(self, query_lower: str, limit: int) -> List[Dict[str, Any]]:
@@ -198,6 +232,8 @@ class LocalSearchEngine:
 
     def _json_rpc(self, method: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Execute JSON-RPC call to Kodi"""
+        self.logger.debug(f"Executing JSON-RPC call: {method}")
+        
         payload = {
             "jsonrpc": "2.0",
             "id": 1,
@@ -206,21 +242,36 @@ class LocalSearchEngine:
         }
 
         try:
+            self.logger.debug(f"JSON-RPC payload: {json.dumps(payload, indent=2)}")
             raw_response = xbmc.executeJSONRPC(json.dumps(payload))
+            self.logger.debug(f"JSON-RPC raw response length: {len(raw_response)} chars")
+            
             response = json.loads(raw_response)
+            self.logger.debug(f"JSON-RPC parsed response keys: {list(response.keys())}")
 
             if 'error' in response:
                 error = response['error']
                 self.logger.error(f"JSON-RPC error in {method}: {error}")
                 return {}
 
-            return response.get('result', {})
+            result = response.get('result', {})
+            if result and method == "VideoLibrary.GetMovies":
+                movie_count = len(result.get('movies', []))
+                self.logger.info(f"JSON-RPC {method} returned {movie_count} movies")
+            elif result and method == "VideoLibrary.GetEpisodes":
+                episode_count = len(result.get('episodes', []))
+                self.logger.info(f"JSON-RPC {method} returned {episode_count} episodes")
+            
+            return result
 
         except json.JSONDecodeError as e:
             self.logger.error(f"Failed to parse JSON-RPC response for {method}: {e}")
+            self.logger.error(f"Raw response (first 500 chars): {raw_response[:500]}...")
             return {}
         except Exception as e:
+            import traceback
             self.logger.error(f"JSON-RPC call failed for {method}: {e}")
+            self.logger.error(f"JSON-RPC traceback: {traceback.format_exc()}")
             return {}
 
 
