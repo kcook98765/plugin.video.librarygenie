@@ -162,8 +162,9 @@ class QueryManager:
 
             # Enrich Kodi library items with fresh JSON-RPC data
             if kodi_ids_to_enrich:
-                self.logger.info(f"Enriching {len(kodi_ids_to_enrich)} Kodi library items with fresh JSON-RPC data")
+                self.logger.info(f"Enriching {len(kodi_ids_to_enrich)} Kodi library items with fresh JSON-RPC data: {kodi_ids_to_enrich}")
                 enriched_data = self._get_kodi_enrichment_data(kodi_ids_to_enrich)
+                self.logger.info(f"Enrichment returned data for {len(enriched_data)} movies: {list(enriched_data.keys())}")
                 
                 # Merge enriched data back into result
                 for item in result:
@@ -173,12 +174,13 @@ class QueryManager:
                         # Update with fresh JSON-RPC data, preserving database IDs and basic info
                         preserved_id = item['id']
                         preserved_created = item['created']
+                        self.logger.debug(f"Before enrichment - item keys: {list(item.keys())}")
                         item.update(enriched)
                         item['id'] = preserved_id  # Keep the list item ID
                         item['created'] = preserved_created  # Keep the creation date
-                        self.logger.info(f"Successfully enriched '{item.get('title')}' with JSON-RPC data")
+                        self.logger.info(f"Successfully enriched '{item.get('title')}' with JSON-RPC data - new keys: {list(item.keys())}")
                     else:
-                        self.logger.warning(f"Failed to enrich Kodi item {kodi_id}: not found in JSON-RPC results")
+                        self.logger.warning(f"Failed to enrich Kodi item {kodi_id}: not found in JSON-RPC results. Available enriched IDs: {list(enriched_data.keys())}")
 
             self.logger.debug(f"Retrieved {len(result)} items for list {list_id}")
             return result
@@ -635,38 +637,37 @@ class QueryManager:
     def _get_kodi_enrichment_data(self, kodi_ids: List[int]) -> Dict[int, Dict[str, Any]]:
         """Fetch rich metadata from Kodi JSON-RPC for the given kodi_ids"""
         try:
-            from ..kodi.json_rpc_client import get_kodi_client
             import json
             import xbmc
 
             if not kodi_ids:
                 return {}
 
-            self.logger.debug(f"Fetching JSON-RPC data for {len(kodi_ids)} movies")
+            self.logger.info(f"Fetching JSON-RPC data for {len(kodi_ids)} movies: {kodi_ids}")
             
             enrichment_data = {}
-            
-            # Build JSON-RPC request to get detailed movie info
-            request = {
-                "jsonrpc": "2.0",
-                "method": "VideoLibrary.GetMovieDetails",
-                "id": 1
-            }
             
             # Fetch data for each movie
             for kodi_id in kodi_ids:
                 try:
-                    request["params"] = {
-                        "movieid": int(kodi_id),
-                        "properties": [
-                            "title", "year", "imdbnumber", "uniqueid", "file",
-                            "art", "plot", "plotoutline", "runtime", "rating",
-                            "genre", "mpaa", "director", "country", "studio",
-                            "playcount", "resume", "cast", "writer", "votes"
-                        ]
+                    request = {
+                        "jsonrpc": "2.0",
+                        "method": "VideoLibrary.GetMovieDetails",
+                        "params": {
+                            "movieid": int(kodi_id),
+                            "properties": [
+                                "title", "year", "imdbnumber", "uniqueid", "file",
+                                "art", "plot", "plotoutline", "runtime", "rating",
+                                "genre", "mpaa", "director", "country", "studio",
+                                "playcount", "resume", "cast", "writer", "votes"
+                            ]
+                        },
+                        "id": 1
                     }
                     
+                    self.logger.debug(f"JSON-RPC request for movie {kodi_id}: {json.dumps(request)}")
                     response_str = xbmc.executeJSONRPC(json.dumps(request))
+                    self.logger.debug(f"JSON-RPC response for movie {kodi_id}: {response_str[:200]}...")
                     response = json.loads(response_str)
                     
                     if "error" in response:
@@ -675,21 +676,30 @@ class QueryManager:
                     
                     movie_details = response.get("result", {}).get("moviedetails")
                     if movie_details:
+                        self.logger.debug(f"Got movie details for {kodi_id}: {movie_details.get('title', 'Unknown')}")
                         # Normalize the movie data similar to how json_rpc_client does it
                         normalized = self._normalize_kodi_movie_details(movie_details)
                         if normalized:
                             enrichment_data[kodi_id] = normalized
-                            self.logger.debug(f"Fetched details for movie {kodi_id}: {normalized.get('title')}")
+                            self.logger.info(f"Successfully enriched movie {kodi_id}: {normalized.get('title')}")
+                        else:
+                            self.logger.warning(f"Failed to normalize movie details for {kodi_id}")
+                    else:
+                        self.logger.warning(f"No moviedetails found in response for {kodi_id}")
                     
                 except Exception as e:
-                    self.logger.warning(f"Failed to fetch details for movie {kodi_id}: {e}")
+                    self.logger.error(f"Failed to fetch details for movie {kodi_id}: {e}")
+                    import traceback
+                    self.logger.error(f"Enrichment error traceback: {traceback.format_exc()}")
                     continue
             
-            self.logger.debug(f"Successfully enriched {len(enrichment_data)} out of {len(kodi_ids)} movies")
+            self.logger.info(f"Successfully enriched {len(enrichment_data)} out of {len(kodi_ids)} movies")
             return enrichment_data
             
         except Exception as e:
             self.logger.error(f"Error fetching Kodi enrichment data: {e}")
+            import traceback
+            self.logger.error(f"Enrichment error traceback: {traceback.format_exc()}")
             return {}
 
     def _normalize_kodi_movie_details(self, movie: Dict[str, Any]) -> Optional[Dict[str, Any]]:

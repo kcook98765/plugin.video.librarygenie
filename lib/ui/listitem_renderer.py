@@ -64,11 +64,12 @@ class ListItemRenderer:
         """Create a rich ListItem for a movie with artwork and metadata"""
         
         try:
-            self.logger.debug(f"Creating ListItem for: {movie_data.get('title', 'Unknown')} - Data keys: {list(movie_data.keys())}")
-            self.logger.debug(f"Movie data sample: title='{movie_data.get('title')}', year={movie_data.get('year')}, kodi_id={movie_data.get('kodi_id')}")
-            self.logger.debug(f"Artwork data: poster={bool(movie_data.get('poster'))}, fanart={bool(movie_data.get('fanart'))}, thumb={bool(movie_data.get('thumb'))}")
-            self.logger.debug(f"Metadata: plot={bool(movie_data.get('plot'))}, genre='{movie_data.get('genre', 'None')}', director='{movie_data.get('director', 'None')}'")
-            self.logger.debug(f"Full movie_data keys available: {sorted(movie_data.keys())}")
+            self.logger.info(f"=== CREATING LISTITEM FOR: {movie_data.get('title', 'Unknown')} ===")
+            self.logger.info(f"Movie data keys available: {sorted(movie_data.keys())}")
+            self.logger.info(f"Basic data: title='{movie_data.get('title')}', year={movie_data.get('year')}, kodi_id={movie_data.get('kodi_id')}")
+            self.logger.info(f"Artwork data: poster='{movie_data.get('poster', 'MISSING')}', fanart='{movie_data.get('fanart', 'MISSING')}', thumb='{movie_data.get('thumb', 'MISSING')}'")
+            self.logger.info(f"Metadata: plot='{movie_data.get('plot', 'MISSING')}', genre='{movie_data.get('genre', 'MISSING')}', director='{movie_data.get('director', 'MISSING')}'")
+            self.logger.info(f"Additional: rating={movie_data.get('rating', 'MISSING')}, runtime={movie_data.get('runtime', 'MISSING')}")
             
             # Extract basic info
             title = movie_data.get('title', 'Unknown Movie')
