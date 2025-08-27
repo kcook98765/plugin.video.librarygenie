@@ -299,41 +299,18 @@ class ListItemRenderer:
                     self.logger.debug(f"Error processing country: {e}")
                     pass
 
-            # Cast - convert to Kodi-compatible format
-            cast_list = movie_data.get('cast_list', [])
-            cast_string = movie_data.get('cast', '')
-            
-            if cast_list and isinstance(cast_list, list):
-                # Convert to Kodi-compatible cast format: list of tuples (name, role)
-                try:
-                    kodi_cast = []
-                    for cast_member in cast_list[:15]:  # Limit to prevent issues
-                        if isinstance(cast_member, dict):
-                            name = cast_member.get('name', '')
-                            role = cast_member.get('role', '')
-                            if name:
-                                kodi_cast.append((str(name), str(role)))
-                        elif isinstance(cast_member, str):
-                            kodi_cast.append((str(cast_member), ''))
-                    
-                    if kodi_cast:
-                        info['cast'] = kodi_cast
-                        self.logger.debug(f"Set cast list with {len(kodi_cast)} members for '{title}'")
-                    elif cast_string:
-                        # Fallback to cast string if conversion fails
-                        self.logger.debug(f"Cast list conversion failed, using cast string for '{title}'")
-                        # Don't set cast as string in info labels - it causes the error
-                        pass
-                        
-                except Exception as e:
-                    self.logger.debug(f"Error converting cast list: {e}")
-                    # Don't set cast at all if conversion fails
-                    pass
-            elif cast_string:
-                # Don't set cast string directly in info labels - it causes conversion errors
-                # Kodi will populate cast automatically via dbid if we set it
-                self.logger.debug(f"Skipping cast string for '{title}' - will use dbid instead")
-                pass
+            # Cast - skip for Kodi library items since dbid property handles this automatically
+            # Only set cast data for external/non-Kodi items if needed in the future
+            kodi_id = movie_data.get('kodi_id')
+            if not kodi_id:
+                # For non-Kodi items, we could set basic cast info if available
+                cast_string = movie_data.get('cast', '')
+                if cast_string and isinstance(cast_string, str):
+                    # Only set as plotoutline supplement, not as cast field
+                    self.logger.debug(f"External item cast info available for '{title}'")
+            else:
+                # Kodi library items: cast will be auto-populated via dbid property
+                self.logger.debug(f"Kodi library item '{title}' - cast will be auto-populated via dbid")
 
         # Playback info - ensure it's an integer
         playcount = movie_data.get('playcount', 0)
