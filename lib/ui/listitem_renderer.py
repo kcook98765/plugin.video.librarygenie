@@ -99,11 +99,18 @@ class ListItemRenderer:
         info = {}
         
         # Core fields (always included) - ensure proper types
-        info['title'] = str(movie_data.get('title', 'Unknown Movie'))
+        title = movie_data.get('title', 'Unknown Movie')
+        if title and str(title).strip():
+            info['title'] = str(title).strip()
+        else:
+            info['title'] = 'Unknown Movie'
+            
         year = movie_data.get('year')
         if year:
             try:
-                info['year'] = int(year)
+                year_int = int(year)
+                if 1800 <= year_int <= 2100:  # Reasonable year range
+                    info['year'] = year_int
             except (ValueError, TypeError):
                 self.logger.debug(f"Invalid year value: {year}")
                 pass
@@ -139,67 +146,74 @@ class ListItemRenderer:
                     self.logger.debug(f"Invalid rating value: {rating}")
                     pass
             
-            # Genre - ensure it's a list of strings
+            # Genre - ensure it's a valid string or list
             genre = movie_data.get('genre', '')
-            if genre and isinstance(genre, str):
-                genre_list = genre.split(', ') if ', ' in genre else [genre]
-                # Filter out empty strings
-                genre_list = [g.strip() for g in genre_list if g.strip()]
-                if genre_list:
-                    info['genre'] = genre_list
+            if genre:
+                try:
+                    if isinstance(genre, str) and genre.strip():
+                        # Split comma-separated genres
+                        genre_list = [g.strip() for g in genre.split(',') if g.strip()]
+                        if genre_list:
+                            info['genre'] = genre_list
+                    elif isinstance(genre, list):
+                        # Validate list elements are strings
+                        genre_list = [str(g).strip() for g in genre if str(g).strip()]
+                        if genre_list:
+                            info['genre'] = genre_list
+                except Exception as e:
+                    self.logger.debug(f"Error processing genre: {e}")
+                    pass
             
-            # MPAA rating - ensure it's a string
+            # MPAA rating - ensure it's a valid string
             mpaa = movie_data.get('mpaa', '')
-            if mpaa and isinstance(mpaa, str):
-                info['mpaa'] = str(mpaa).strip()
+            if mpaa:
+                try:
+                    mpaa_str = str(mpaa).strip()
+                    if mpaa_str:
+                        info['mpaa'] = mpaa_str
+                except Exception as e:
+                    self.logger.debug(f"Error processing MPAA: {e}")
+                    pass
             
-            # Director - ensure it's a list of strings
+            # Director - ensure it's a valid string or list
             director = movie_data.get('director', '')
-            if director and isinstance(director, str):
-                director_list = director.split(', ') if ', ' in director else [director]
-                # Filter out empty strings
-                director_list = [d.strip() for d in director_list if d.strip()]
-                if director_list:
-                    info['director'] = director_list
+            if director:
+                try:
+                    if isinstance(director, str) and director.strip():
+                        # Split comma-separated directors
+                        director_list = [d.strip() for d in director.split(',') if d.strip()]
+                        if director_list:
+                            info['director'] = director_list
+                    elif isinstance(director, list):
+                        # Validate list elements are strings
+                        director_list = [str(d).strip() for d in director if str(d).strip()]
+                        if director_list:
+                            info['director'] = director_list
+                except Exception as e:
+                    self.logger.debug(f"Error processing director: {e}")
+                    pass
             
-            # Studio/country - ensure these are simple strings or string lists
-            try:
-                studio = movie_data.get('studio', '')
-                if isinstance(studio, str) and studio:
-                    if studio.startswith('['):
-                        # Try to parse JSON array
-                        studio_list = json.loads(studio)
-                        if isinstance(studio_list, list) and all(isinstance(s, str) for s in studio_list):
-                            info['studio'] = studio_list
-                        else:
-                            info['studio'] = [str(studio)]
-                    else:
-                        # Simple string, split on comma if needed
-                        info['studio'] = studio.split(', ') if ', ' in studio else [studio]
-                elif isinstance(studio, list) and all(isinstance(s, str) for s in studio):
-                    info['studio'] = studio
-            except Exception as e:
-                self.logger.debug(f"Error parsing studio: {e}")
-                pass
+            # Studio - keep it simple, just use string
+            studio = movie_data.get('studio', '')
+            if studio:
+                try:
+                    studio_str = str(studio).strip()
+                    if studio_str and not studio_str.startswith('['):
+                        info['studio'] = studio_str
+                except Exception as e:
+                    self.logger.debug(f"Error processing studio: {e}")
+                    pass
             
-            try:
-                country = movie_data.get('country', '')
-                if isinstance(country, str) and country:
-                    if country.startswith('['):
-                        # Try to parse JSON array
-                        country_list = json.loads(country)
-                        if isinstance(country_list, list) and all(isinstance(c, str) for c in country_list):
-                            info['country'] = country_list
-                        else:
-                            info['country'] = [str(country)]
-                    else:
-                        # Simple string, split on comma if needed
-                        info['country'] = country.split(', ') if ', ' in country else [country]
-                elif isinstance(country, list) and all(isinstance(c, str) for c in country):
-                    info['country'] = country
-            except Exception as e:
-                self.logger.debug(f"Error parsing country: {e}")
-                pass
+            # Country - keep it simple, just use string  
+            country = movie_data.get('country', '')
+            if country:
+                try:
+                    country_str = str(country).strip()
+                    if country_str and not country_str.startswith('['):
+                        info['country'] = country_str
+                except Exception as e:
+                    self.logger.debug(f"Error processing country: {e}")
+                    pass
         
         # Playback info - ensure it's an integer
         playcount = movie_data.get('playcount', 0)
@@ -210,22 +224,19 @@ class ListItemRenderer:
                 self.logger.debug(f"Invalid playcount value: {playcount}")
                 pass
         
-        # External IDs - ensure they're strings
+        # External IDs - ensure they're valid strings
         imdb_id = movie_data.get('imdb_id')
-        if imdb_id and isinstance(imdb_id, str):
-            info['imdbnumber'] = str(imdb_id).strip()
+        if imdb_id:
+            try:
+                imdb_str = str(imdb_id).strip()
+                if imdb_str and imdb_str != 'None':
+                    info['imdbnumber'] = imdb_str
+            except Exception as e:
+                self.logger.debug(f"Error processing IMDb ID: {e}")
+                pass
         
-        # Unique IDs for better matching - ensure they're strings
-        unique_ids = {}
-        if imdb_id and isinstance(imdb_id, str):
-            unique_ids['imdb'] = str(imdb_id).strip()
-        
-        tmdb_id = movie_data.get('tmdb_id')
-        if tmdb_id and str(tmdb_id).strip():
-            unique_ids['tmdb'] = str(tmdb_id).strip()
-            
-        if unique_ids:
-            info['uniqueid'] = unique_ids
+        # Skip uniqueid for now to avoid complex data structure issues
+        # This can be re-enabled once we confirm the basic info labels work
         
         return info
     
