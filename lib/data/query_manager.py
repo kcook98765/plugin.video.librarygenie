@@ -506,9 +506,9 @@ class QueryManager:
                     f.name as folder_name
                 FROM lists l
                 LEFT JOIN folders f ON l.folder_id = f.id
-                
+
                 UNION ALL
-                
+
                 SELECT 
                     ul.id,
                     ul.name,
@@ -518,7 +518,7 @@ class QueryManager:
                     (SELECT COUNT(*) FROM list_item WHERE list_id = ul.id) as item_count,
                     NULL as folder_name
                 FROM user_list ul
-                
+
                 ORDER BY created_at ASC
             """)
 
