@@ -54,9 +54,13 @@ class SearchHandler:
             query = query.strip()
             self.logger.info(f"Processing search query: '{query}'")
 
-            # Perform search with engine selection
+            # For authorized users, offer search type selection
+            search_type = self._get_search_type_preference()
+            self.logger.info(f"Selected search type: {search_type}")
+
+            # Perform search with selected engine
             self.logger.debug("Starting search execution")
-            results = self._perform_search(query)
+            results = self._perform_search_with_type(query, search_type)
             self.logger.info(f"Search completed, got {len(results.get('items', []))} results")
 
             self.logger.debug("Displaying search results")
@@ -74,6 +78,66 @@ class SearchHandler:
                 addon.getLocalizedString(35022),
                 xbmcgui.NOTIFICATION_ERROR
             )
+
+    def _get_search_type_preference(self):
+        """
+        Get user preference for search type (local vs remote)
+        Returns 'local', 'remote', or 'auto' for fallback behavior
+        """
+        # Non-authorized users always get local search
+        if not is_authorized():
+            return 'local'
+
+        # For authorized users, show selection dialog
+        dialog = xbmcgui.Dialog()
+        
+        options = [
+            "Local Library Search",
+            "Remote Search", 
+            "Remote with Local Fallback"
+        ]
+        
+        selection = dialog.select(
+            "Choose Search Type",
+            options
+        )
+        
+        if selection == -1:  # User cancelled
+            return 'local'  # Default to local
+        elif selection == 0:
+            return 'local'
+        elif selection == 1:
+            return 'remote'
+        else:  # selection == 2
+            return 'auto'  # Remote with fallback
+
+    def _perform_search_with_type(self, query, search_type):
+        """
+        Perform search with specified type
+        
+        Args:
+            query: Search query string
+            search_type: 'local', 'remote', or 'auto'
+            
+        Returns:
+            dict: Search results with metadata
+        """
+        self.logger.info(f"Starting search execution for query: '{query}' with type: {search_type}")
+
+        if search_type == 'local':
+            # Force local search only
+            self.logger.info("Using local search (user selected)")
+            return self._search_local(query, limit=200)
+            
+        elif search_type == 'remote':
+            # Force remote search only (no fallback)
+            self.logger.info("Using remote search only (user selected)")
+            return self._search_remote_only(query)
+            
+        else:  # search_type == 'auto'
+            # Original behavior: remote with local fallback
+            self.logger.info("Using remote search with local fallback (user selected)")
+            return self._perform_search(query)
 
     def _perform_search(self, query):
         """
@@ -122,6 +186,58 @@ class SearchHandler:
             # Non-authorized users use local search
             self.logger.info("Using local search (user not authorized)")
             return self._search_local(query, limit=200)
+
+    def _search_remote_only(self, query):
+        """Perform remote-only search without fallback"""
+        self.logger.info(f"Starting remote-only search for query: '{query}'")
+        
+        if not is_authorized():
+            self.logger.warning("Remote-only search requested but user not authorized")
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),  # "LibraryGenie"
+                "Remote search requires authorization",
+                xbmcgui.NOTIFICATION_ERROR,
+                4000
+            )
+            return {'items': [], 'total': 0, 'used_remote': False}
+
+        try:
+            self.logger.info("Attempting remote-only search")
+            
+            # Import here to avoid circular dependencies
+            from ..remote.search_client import search_remote
+            self.logger.debug("Remote search client imported")
+
+            results = search_remote(query, page=1, page_size=100)
+            result_count = len(results.get('items', []))
+            self.logger.info(f"Remote-only search succeeded: {result_count} results")
+            results['used_remote'] = True
+            return results
+
+        except RemoteError as e:
+            self.logger.error(f"Remote-only search failed with RemoteError: {e}")
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),  # "LibraryGenie"
+                f"Remote search failed: {str(e)[:50]}",
+                xbmcgui.NOTIFICATION_ERROR,
+                4000
+            )
+            return {'items': [], 'total': 0, 'used_remote': False}
+
+        except Exception as e:
+            import traceback
+            self.logger.error(f"Remote-only search error: {e}")
+            self.logger.error(f"Remote-only search traceback: {traceback.format_exc()}")
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),  # "LibraryGenie"
+                "Remote search failed",
+                xbmcgui.NOTIFICATION_ERROR,
+                4000
+            )
+            return {'items': [], 'total': 0, 'used_remote': False}
 
     def _search_local(self, query, limit=200):
         """Perform local search using local engine"""
