@@ -140,9 +140,9 @@ class LocalSearchEngine:
             self.logger.error(f"Error searching movies in SQLite: {e}")
             self.logger.error(f"SQLite search traceback: {traceback.format_exc()}")
             
-            # Fallback to JSON-RPC if SQLite fails
-            self.logger.warning("Falling back to JSON-RPC search")
-            return self._search_movies_jsonrpc_fallback(query_lower, limit)
+            # Return empty results instead of fallback
+            self.logger.error("SQLite search failed, returning empty results (no JSON-RPC fallback)")
+            return []
 
     def _search_episodes(self, query_lower: str, limit: int) -> List[Dict[str, Any]]:
         """Search episodes in local library using JSON-RPC"""
@@ -287,37 +287,7 @@ class LocalSearchEngine:
             'firstaired': episode.get('firstaired', '')
         }
 
-    def _search_movies_jsonrpc_fallback(self, query_lower: str, limit: int) -> List[Dict[str, Any]]:
-        """Fallback to JSON-RPC search if SQLite fails"""
-        self.logger.debug("Using JSON-RPC fallback for movie search")
-        
-        try:
-            movies_data = self._json_rpc("VideoLibrary.GetMovies", {
-                "properties": [
-                    "title", "year", "file", "art", "plot", "rating",
-                    "genre", "director", "runtime", "mpaa", "imdbnumber",
-                    "uniqueid", "dateadded"
-                ],
-                "limits": {"start": 0, "end": limit * 2}
-            })
-
-            movies = movies_data.get('movies', [])
-            results = []
-            
-            for movie in movies:
-                title = movie.get('title', '').lower()
-                if query_lower in title:
-                    result = self._format_movie_result(movie)
-                    results.append(result)
-                    if len(results) >= limit:
-                        break
-
-            self.logger.info(f"JSON-RPC fallback returned {len(results)} results")
-            return results
-
-        except Exception as e:
-            self.logger.error(f"JSON-RPC fallback also failed: {e}")
-            return []
+    
 
     def _json_rpc(self, method: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Execute JSON-RPC call to Kodi"""
