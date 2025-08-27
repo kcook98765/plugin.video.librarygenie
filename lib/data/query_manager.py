@@ -120,7 +120,7 @@ class QueryManager:
                     LIMIT ? OFFSET ?
                 """, [int(list_id), limit, offset])
 
-            # Convert to expected format and enrich with JSON-RPC data
+            # Convert to expected format and identify Kodi library items for enrichment
             result: List[Dict[str, Any]] = []
             kodi_ids_to_enrich = []
             
@@ -134,32 +134,35 @@ class QueryManager:
                     "created": row['created_at'][:10] if row['created_at'] else '',
                 }
 
-                # Add additional fields if available (from media_items table)
+                # Check if this is a Kodi library item that needs enrichment
                 if 'kodi_id' in row and row['kodi_id']:
                     item_data['kodi_id'] = row['kodi_id']
                     kodi_ids_to_enrich.append(row['kodi_id'])
-                if 'poster' in row and row['poster']:
-                    item_data['poster'] = row['poster']
-                if 'fanart' in row and row['fanart']:
-                    item_data['fanart'] = row['fanart']
-                if 'plot' in row and row['plot']:
-                    item_data['plot'] = row['plot']
-                if 'rating' in row and row['rating']:
-                    item_data['rating'] = row['rating']
-                if 'runtime' in row and row['runtime']:
-                    item_data['runtime'] = row['runtime']
-                if 'genre' in row and row['genre']:
-                    item_data['genre'] = row['genre']
-                if 'director' in row and row['director']:
-                    item_data['director'] = row['director']
-                if 'file_path' in row and row['file_path']:
-                    item_data['file_path'] = row['file_path']
+                    self.logger.debug(f"Found Kodi library item: {row['title']} (kodi_id: {row['kodi_id']})")
+                else:
+                    # For non-Kodi items, use stored database data
+                    if 'poster' in row and row['poster']:
+                        item_data['poster'] = row['poster']
+                    if 'fanart' in row and row['fanart']:
+                        item_data['fanart'] = row['fanart']
+                    if 'plot' in row and row['plot']:
+                        item_data['plot'] = row['plot']
+                    if 'rating' in row and row['rating']:
+                        item_data['rating'] = row['rating']
+                    if 'runtime' in row and row['runtime']:
+                        item_data['runtime'] = row['runtime']
+                    if 'genre' in row and row['genre']:
+                        item_data['genre'] = row['genre']
+                    if 'director' in row and row['director']:
+                        item_data['director'] = row['director']
+                    if 'file_path' in row and row['file_path']:
+                        item_data['file_path'] = row['file_path']
 
                 result.append(item_data)
 
             # Enrich Kodi library items with fresh JSON-RPC data
             if kodi_ids_to_enrich:
-                self.logger.debug(f"Enriching {len(kodi_ids_to_enrich)} Kodi library items with JSON-RPC data")
+                self.logger.info(f"Enriching {len(kodi_ids_to_enrich)} Kodi library items with fresh JSON-RPC data")
                 enriched_data = self._get_kodi_enrichment_data(kodi_ids_to_enrich)
                 
                 # Merge enriched data back into result
@@ -167,9 +170,15 @@ class QueryManager:
                     kodi_id = item.get('kodi_id')
                     if kodi_id and kodi_id in enriched_data:
                         enriched = enriched_data[kodi_id]
-                        # Update with fresh JSON-RPC data, preserving database IDs
+                        # Update with fresh JSON-RPC data, preserving database IDs and basic info
+                        preserved_id = item['id']
+                        preserved_created = item['created']
                         item.update(enriched)
-                        self.logger.debug(f"Enriched item '{item.get('title')}' with JSON-RPC data")
+                        item['id'] = preserved_id  # Keep the list item ID
+                        item['created'] = preserved_created  # Keep the creation date
+                        self.logger.info(f"Successfully enriched '{item.get('title')}' with JSON-RPC data")
+                    else:
+                        self.logger.warning(f"Failed to enrich Kodi item {kodi_id}: not found in JSON-RPC results")
 
             self.logger.debug(f"Retrieved {len(result)} items for list {list_id}")
             return result
