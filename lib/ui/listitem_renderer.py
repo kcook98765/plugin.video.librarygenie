@@ -118,6 +118,9 @@ class ListItemRenderer:
             # Set additional properties for skin use
             self._set_additional_properties(list_item, movie_data)
 
+            # COMPREHENSIVE FINAL LISTITEM DEBUG - Log everything we can access
+            self._debug_final_listitem(list_item, movie_data)
+
             return list_item
 
         except Exception as e:
@@ -517,6 +520,71 @@ class ListItemRenderer:
 
         except Exception as e:
             self.logger.error(f"Failed to save UI preferences: {e}")
+
+    def _debug_final_listitem(self, list_item: Any, movie_data: Dict[str, Any]):
+        """Comprehensive debugging of final ListItem state"""
+        try:
+            title = movie_data.get('title', 'Unknown')
+            self.logger.info(f"=== FINAL LISTITEM DEBUG FOR: {title} ===")
+            
+            # Check basic ListItem properties
+            try:
+                label = list_item.getLabel()
+                label2 = list_item.getLabel2()
+                self.logger.info(f"Labels: primary='{label}', secondary='{label2}'")
+            except Exception as e:
+                self.logger.warning(f"Could not get labels: {e}")
+
+            # Check critical properties for cast population
+            critical_props = ['dbid', 'dbtype', 'uniqueid.imdb', 'uniqueid.tmdb']
+            for prop in critical_props:
+                try:
+                    value = list_item.getProperty(prop)
+                    self.logger.info(f"Property '{prop}': '{value}'")
+                except Exception as e:
+                    self.logger.warning(f"Could not get property '{prop}': {e}")
+
+            # Check other important properties
+            other_props = ['IsPlayable', 'IMDbID', 'TMDbID', 'ResumeTime', 'TotalTime', 'PercentPlayed', 'ListItemDensity', 'ArtworkPreference']
+            for prop in other_props:
+                try:
+                    value = list_item.getProperty(prop)
+                    if value:  # Only log if not empty
+                        self.logger.info(f"Property '{prop}': '{value}'")
+                except Exception as e:
+                    self.logger.debug(f"Could not get property '{prop}': {e}")
+
+            # Try to check art dictionary
+            try:
+                # Note: getArt() might not be available in all Kodi versions
+                # This is just for debugging purposes
+                self.logger.info("Art dictionary check: Art was set via setArt() method")
+            except Exception as e:
+                self.logger.debug(f"Could not check art: {e}")
+
+            # Check if InfoLabels were set properly
+            try:
+                # We can't retrieve InfoLabels, but we can log what we tried to set
+                self.logger.info("InfoLabels: Set via setInfo('video', {...}) method")
+                info_keys = ['title', 'year', 'plot', 'duration', 'rating', 'genre', 'mpaa', 'director', 'studio', 'country', 'writer', 'playcount', 'imdbnumber']
+                self.logger.info(f"InfoLabel keys attempted: {info_keys}")
+            except Exception as e:
+                self.logger.debug(f"Could not log InfoLabels: {e}")
+
+            # Final verification of the most critical properties
+            dbid = list_item.getProperty('dbid')
+            dbtype = list_item.getProperty('dbtype') 
+            uniqueid_imdb = list_item.getProperty('uniqueid.imdb')
+            
+            if dbid and dbtype and uniqueid_imdb:
+                self.logger.info(f"✓ CAST-CRITICAL PROPERTIES CONFIRMED: dbid={dbid}, dbtype={dbtype}, uniqueid.imdb={uniqueid_imdb}")
+            else:
+                self.logger.warning(f"✗ MISSING CAST-CRITICAL PROPERTIES: dbid={dbid}, dbtype={dbtype}, uniqueid.imdb={uniqueid_imdb}")
+
+            self.logger.info(f"=== END FINAL LISTITEM DEBUG FOR: {title} ===")
+
+        except Exception as e:
+            self.logger.error(f"Error in final ListItem debugging: {e}")
 
     def _fallback_string_getter(self, string_id: int) -> str:
         """Fallback string getter for testing"""
