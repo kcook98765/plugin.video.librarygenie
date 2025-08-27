@@ -65,10 +65,6 @@ class PlaybackActionHandler:
     def queue_movie(self, kodi_id: int) -> bool:
         """Add movie to the current playlist"""
         
-        if not KODI_AVAILABLE:
-            self.logger.info(f"Queue movie {kodi_id} - stub mode")
-            return True
-        
         try:
             # Add to video playlist
             request = {
@@ -98,10 +94,6 @@ class PlaybackActionHandler:
     def show_movie_info(self, kodi_id: int) -> bool:
         """Show the movie information dialog"""
         
-        if not KODI_AVAILABLE:
-            self.logger.info(f"Show info for movie {kodi_id} - stub mode")
-            return True
-        
         try:
             # Use built-in function to show info dialog
             builtin_cmd = f"Action(Info,{kodi_id})"
@@ -122,9 +114,6 @@ class PlaybackActionHandler:
     
     def get_movie_resume_info(self, kodi_id: int) -> Optional[Dict[str, Any]]:
         """Get resume information for a movie"""
-        
-        if not KODI_AVAILABLE:
-            return {"position": 0, "total": 0}
         
         try:
             request = {
@@ -193,10 +182,6 @@ class PlaybackActionHandler:
     
     def stop_playback(self) -> bool:
         """Stop current playback"""
-        
-        if not KODI_AVAILABLE:
-            self.logger.info("Stop playback - stub mode")
-            return True
         
         try:
             player_status = self.check_player_status()

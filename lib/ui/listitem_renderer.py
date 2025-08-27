@@ -263,9 +263,6 @@ class ListItemRenderer:
     def _set_additional_properties(self, list_item: Any, movie_data: Dict[str, Any]):
         """Set additional properties for skin/plugin use"""
         
-        if not KODI_AVAILABLE:
-            return
-        
         # Set resume time as property for skins that support it
         resume_time = movie_data.get('resume_time', 0)
         if resume_time > 0:
