@@ -532,7 +532,7 @@ class QueryManager:
                     "item_count": row['item_count'],
                     "created": row['created_at'][:10] if row['created_at'] else '',
                     "modified": row['updated_at'][:10] if row['updated_at'] else '',
-                    "folder_name": row.get('folder_name'),
+                    "folder_name": row['folder_name'],
                     "is_folder": True
                 })
 
