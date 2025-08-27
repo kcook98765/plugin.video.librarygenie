@@ -299,6 +299,29 @@ class ListItemRenderer:
                     self.logger.debug(f"Error processing country: {e}")
                     pass
 
+            # Cast - add cast information to help Kodi display cast properly
+            cast_list = movie_data.get('cast_list', [])
+            cast_string = movie_data.get('cast', '')
+            
+            if cast_list and isinstance(cast_list, list):
+                # Use the full cast structure if available
+                try:
+                    info['cast'] = cast_list
+                    self.logger.debug(f"Set cast list with {len(cast_list)} members for '{title}'")
+                except Exception as e:
+                    self.logger.debug(f"Error setting cast list: {e}")
+                    # Fallback to cast string
+                    if cast_string:
+                        info['cast'] = cast_string
+            elif cast_string:
+                # Use cast string as fallback
+                try:
+                    info['cast'] = cast_string
+                    self.logger.debug(f"Set cast string for '{title}': {cast_string[:50]}...")
+                except Exception as e:
+                    self.logger.debug(f"Error setting cast string: {e}")
+                    pass
+
         # Playback info - ensure it's an integer
         playcount = movie_data.get('playcount', 0)
         if playcount:
@@ -319,8 +342,34 @@ class ListItemRenderer:
                 self.logger.debug(f"Error processing IMDb ID: {e}")
                 pass
 
-        # Skip uniqueid for now to avoid complex data structure issues
-        # This can be re-enabled once we confirm the basic info labels work
+        # UniqueID - helps Kodi link to its database
+        uniqueid_dict = {}
+        if imdb_id:
+            try:
+                imdb_str = str(imdb_id).strip()
+                if imdb_str and imdb_str != 'None':
+                    uniqueid_dict['imdb'] = imdb_str
+            except Exception as e:
+                self.logger.debug(f"Error processing IMDb ID for uniqueid: {e}")
+                pass
+        
+        tmdb_id = movie_data.get('tmdb_id')
+        if tmdb_id:
+            try:
+                tmdb_str = str(tmdb_id).strip()
+                if tmdb_str and tmdb_str != 'None':
+                    uniqueid_dict['tmdb'] = tmdb_str
+            except Exception as e:
+                self.logger.debug(f"Error processing TMDb ID for uniqueid: {e}")
+                pass
+        
+        if uniqueid_dict:
+            try:
+                info['uniqueid'] = uniqueid_dict
+                self.logger.debug(f"Set uniqueid for '{title}': {uniqueid_dict}")
+            except Exception as e:
+                self.logger.debug(f"Error setting uniqueid: {e}")
+                pass
 
         return info
 

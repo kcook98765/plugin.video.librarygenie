@@ -864,17 +864,28 @@ class QueryManager:
             directors = movie.get("director", [])
             director_str = ", ".join(directors) if isinstance(directors, list) else str(directors) if directors else ""
 
-            # Handle cast
-            cast = movie.get("cast", [])
+            # Handle cast - preserve the full cast structure for Kodi
+            cast_data = movie.get("cast", [])
             cast_names = []
-            if isinstance(cast, list):
-                for cast_member in cast[:10]:  # Limit to first 10 cast members
-                    if isinstance(cast_member, dict) and "name" in cast_member:
-                        cast_names.append(cast_member["name"])
+            cast_list = []
+            
+            if isinstance(cast_data, list):
+                for cast_member in cast_data[:15]:  # Limit to first 15 cast members
+                    if isinstance(cast_member, dict):
+                        if "name" in cast_member:
+                            cast_names.append(cast_member["name"])
+                            # Preserve full cast member structure for Kodi
+                            cast_list.append(cast_member)
 
             # Handle resume point
             resume_data = movie.get("resume", {})
             resume_time = resume_data.get("position", 0) if isinstance(resume_data, dict) else 0
+
+            # Log cast information for debugging
+            if cast_names:
+                self.logger.info(f"Movie {movie.get('movieid')} has {len(cast_names)} cast members: {', '.join(cast_names[:5])}{'...' if len(cast_names) > 5 else ''}")
+            else:
+                self.logger.warning(f"Movie {movie.get('movieid')} ({movie.get('title')}) has no cast data")
 
             return {
                 "kodi_id": movie.get("movieid"),
@@ -897,6 +908,7 @@ class QueryManager:
                 "studio": ", ".join(movie.get("studio", [])) if isinstance(movie.get("studio"), list) else movie.get("studio", ""),
                 "writer": ", ".join(movie.get("writer", [])) if isinstance(movie.get("writer"), list) else movie.get("writer", ""),
                 "cast": ", ".join(cast_names) if cast_names else "",
+                "cast_list": cast_list,  # Preserve full cast structure
                 "playcount": movie.get("playcount", 0),
                 "resume_time": resume_time,
                 "votes": movie.get("votes", 0)
