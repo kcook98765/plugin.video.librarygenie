@@ -371,3 +371,29 @@ class ListItemBuilder:
         except Exception as e:
             self.logger.error(f"Failed to create library listitem: {e}")
             return None
+
+    def _create_kodi_library_listitem(self, item: Dict[str, Any]) -> Optional[xbmcgui.ListItem]:
+        """Create ListItem for Kodi library items (compatibility method)"""
+        try:
+            # Use the existing _build_library_item method but return just the ListItem
+            result = self._build_library_item(item)
+            if result:
+                url, list_item, is_folder = result
+                return list_item
+            return None
+        except Exception as e:
+            self.logger.error(f"Failed to create Kodi library listitem: {e}")
+            return None
+
+    def _create_external_listitem(self, item: Dict[str, Any]) -> Optional[xbmcgui.ListItem]:
+        """Create ListItem for external items (compatibility method)"""
+        try:
+            # Use the existing _build_external_item method but return just the ListItem
+            result = self._build_external_item(item)
+            if result:
+                url, list_item, is_folder = result
+                return list_item
+            return None
+        except Exception as e:
+            self.logger.error(f"Failed to create external listitem: {e}")
+            return None

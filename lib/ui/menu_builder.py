@@ -21,7 +21,7 @@ class MenuBuilder:
 
     def __init__(self, string_getter: Optional[Callable[[int], str]] = None):
         self.logger = get_logger(__name__)
-        self.renderer = get_listitem_renderer(string_getter)
+        self.renderer = get_listitem_renderer()
 
     def build_menu(self, items, addon_handle, base_url):
         """Build a directory menu from items"""
