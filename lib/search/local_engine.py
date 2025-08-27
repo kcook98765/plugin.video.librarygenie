@@ -99,7 +99,7 @@ class LocalSearchEngine:
                     genre, mpaa, director, 0 as playcount
                 FROM media_items 
                 WHERE media_type = 'movie'
-                AND (LOWER(title) LIKE ? OR LOWER(title) LIKE ?)
+                AND (LOWER(title) LIKE ? OR LOWER(plot) LIKE ?)
                 ORDER BY title
                 LIMIT ?
             """, [search_pattern, search_pattern, limit])
