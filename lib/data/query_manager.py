@@ -314,12 +314,9 @@ class QueryManager:
                 self.logger.info("Creating default list")
                 with self.conn_manager.transaction() as conn:
                     conn.execute("""
-                        INSERT INTO user_list (name, description)
-                        VALUES (?, ?)
-                    """, [
-                        "Default",
-                        "Your default list for organizing movies"
-                    ])
+                        INSERT INTO user_list (name)
+                        VALUES (?)
+                    """, ["Default"])
 
         except Exception as e:
             self.logger.error(f"Failed to create default list: {e}")
@@ -491,6 +488,17 @@ class QueryManager:
         except Exception as e:
             self.logger.error(f"Error inserting/getting media item: {e}")
             return None
+
+
+# Global query manager instance
+_query_manager_instance = None
+
+def get_query_manager():
+    """Get or create the global query manager instance"""
+    global _query_manager_instance
+    if _query_manager_instance is None:
+        _query_manager_instance = QueryManager()
+    return _query_manager_instance
 
 
     def close(self):
