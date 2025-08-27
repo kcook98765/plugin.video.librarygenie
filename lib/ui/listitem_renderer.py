@@ -152,8 +152,19 @@ class ListItemRenderer:
                 pass
 
         # Handle plot information - prioritize actual plot data
-        plot = movie_data.get('plot', '').strip()
-        plotoutline = movie_data.get('plotoutline', '').strip()
+        plot = movie_data.get('plot', '')
+        plotoutline = movie_data.get('plotoutline', '')
+        
+        # Ensure we have string values
+        if plot is not None:
+            plot = str(plot).strip()
+        else:
+            plot = ''
+            
+        if plotoutline is not None:
+            plotoutline = str(plotoutline).strip()
+        else:
+            plotoutline = ''
         
         # Log what we're working with
         self.logger.debug(f"Plot processing for '{title}': plot='{plot[:50]}...' ({len(plot)} chars), plotoutline='{plotoutline[:50]}...' ({len(plotoutline)} chars)")
@@ -167,34 +178,41 @@ class ListItemRenderer:
             info['plot'] = plotoutline
             self.logger.debug(f"Using plotoutline for '{title}': {len(plotoutline)} characters")
         else:
-            # Only create fallback description if NO plot data exists
-            self.logger.debug(f"No plot data found for '{title}', creating fallback description")
-            description_parts = []
-            if year:
-                description_parts.append(f"Released: {year}")
-            
-            # Add genre information if available
-            genre = movie_data.get('genre', '').strip()
-            if genre:
-                # Take first few genres to keep it short
-                genres = genre.split(',')[:3] if ',' in genre else [genre]
-                description_parts.append(f"Genre: {', '.join([g.strip() for g in genres])}")
-            
-            # Add director if available
-            director = movie_data.get('director', '').strip()
-            if director:
-                directors = director.split(',')[:2] if ',' in director else [director]
-                description_parts.append(f"Director: {', '.join([d.strip() for d in directors])}")
-            
-            # Add rating if available
-            rating = movie_data.get('rating')
-            if rating and float(rating) > 0:
-                description_parts.append(f"Rating: {float(rating):.1f}/10")
-            
-            if description_parts:
-                info['plot'] = " • ".join(description_parts)
+            # For Kodi library items, don't create fallback plot - let Kodi handle it via dbid
+            kodi_id = movie_data.get('kodi_id')
+            if kodi_id:
+                # Set minimal plot for library items - Kodi will populate full plot via dbid
+                info['plot'] = ""
+                self.logger.debug(f"Kodi library item '{title}' - plot will be auto-populated via dbid={kodi_id}")
             else:
-                info['plot'] = f"Movie from {year}" if year else "No description available"
+                # Only create fallback description for non-Kodi items
+                self.logger.debug(f"No plot data found for non-library item '{title}', creating fallback description")
+                description_parts = []
+                if year:
+                    description_parts.append(f"Released: {year}")
+                
+                # Add genre information if available
+                genre = movie_data.get('genre', '').strip()
+                if genre:
+                    # Take first few genres to keep it short
+                    genres = genre.split(',')[:3] if ',' in genre else [genre]
+                    description_parts.append(f"Genre: {', '.join([g.strip() for g in genres])}")
+                
+                # Add director if available
+                director = movie_data.get('director', '').strip()
+                if director:
+                    directors = director.split(',')[:2] if ',' in director else [director]
+                    description_parts.append(f"Director: {', '.join([d.strip() for d in directors])}")
+                
+                # Add rating if available
+                rating = movie_data.get('rating')
+                if rating and float(rating) > 0:
+                    description_parts.append(f"Rating: {float(rating):.1f}/10")
+                
+                if description_parts:
+                    info['plot'] = " • ".join(description_parts)
+                else:
+                    info['plot'] = f"Movie from {year}" if year else "No description available"
 
         # Always include display metadata for rich list presentation (like native Kodi lists)
         # This provides similar data that native Kodi lists show, with heavy data left to dbid
@@ -231,11 +249,16 @@ class ListItemRenderer:
         genre = movie_data.get('genre', '')
         if genre:
             try:
-                if isinstance(genre, str) and genre.strip():
-                    info['genre'] = str(genre).strip()
-                elif isinstance(genre, list):
+                if isinstance(genre, str):
+                    genre_str = genre.strip()
+                    if genre_str and len(genre_str) > 0:
+                        info['genre'] = genre_str
+                elif isinstance(genre, list) and len(genre) > 0:
                     # Join list into comma-separated string for compatibility
-                    genre_list = [str(g).strip() for g in genre if str(g).strip()]
+                    genre_list = []
+                    for g in genre:
+                        if g and str(g).strip():
+                            genre_list.append(str(g).strip())
                     if genre_list:
                         info['genre'] = ', '.join(genre_list)
             except Exception as e:
@@ -258,11 +281,16 @@ class ListItemRenderer:
         director = movie_data.get('director', '')
         if director:
             try:
-                if isinstance(director, str) and director.strip():
-                    info['director'] = str(director).strip()
-                elif isinstance(director, list):
+                if isinstance(director, str):
+                    director_str = director.strip()
+                    if director_str and len(director_str) > 0:
+                        info['director'] = director_str
+                elif isinstance(director, list) and len(director) > 0:
                     # Join list into comma-separated string for compatibility
-                    director_list = [str(d).strip() for d in director if str(d).strip()]
+                    director_list = []
+                    for d in director:
+                        if d and str(d).strip():
+                            director_list.append(str(d).strip())
                     if director_list:
                         info['director'] = ', '.join(director_list)
             except Exception as e:
@@ -325,27 +353,28 @@ class ListItemRenderer:
                 pass
 
         # External IDs - ensure they're valid strings
-        imdb_id = movie_data.get('imdb_id')
+        imdb_id = movie_data.get('imdb_id') or movie_data.get('imdbnumber')
         if imdb_id:
             try:
                 imdb_str = str(imdb_id).strip()
-                if imdb_str and imdb_str != 'None':
+                if imdb_str and imdb_str != 'None' and len(imdb_str) > 0:
                     info['imdbnumber'] = imdb_str
             except Exception as e:
                 self.logger.debug(f"Error processing IMDb ID: {e}")
                 pass
 
-        # UniqueID - simplified for Python 3.8 compatibility
+        # UniqueID - simplified for Python 3.8 compatibility and Kodi requirements
         # Only set IMDb ID as it's most important for Kodi matching
-        if imdb_id:
+        # Skip uniqueid for library items as Kodi will handle this via dbid
+        if imdb_id and not kodi_id:
             try:
                 imdb_str = str(imdb_id).strip()
                 if imdb_str and imdb_str != 'None' and imdb_str.startswith('tt'):
-                    # Use simple dict creation for better compatibility
-                    info['uniqueid'] = {'imdb': imdb_str}
-                    self.logger.debug(f"Set uniqueid for '{title}': imdb={imdb_str}")
+                    # Use simple string assignment for better compatibility
+                    # Some versions of Kodi prefer the imdbnumber field over uniqueid
+                    self.logger.debug(f"Skipping uniqueid for library item '{title}' - Kodi will handle via dbid")
             except Exception as e:
-                self.logger.debug(f"Error setting uniqueid: {e}")
+                self.logger.debug(f"Error processing uniqueid: {e}")
                 pass
 
         return info
