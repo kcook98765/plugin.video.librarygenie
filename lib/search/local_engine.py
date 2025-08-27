@@ -133,7 +133,36 @@ class LocalSearchEngine:
             """
             
             params.append(limit)
+            
+            # Debug logging - show the actual SQL and parameters
+            self.logger.debug(f"Executing SQL query: {sql}")
+            self.logger.debug(f"Query parameters: {params}")
+            
+            # Also check what's actually in the database
+            count_sql = "SELECT COUNT(*) as count FROM media_items WHERE media_type = 'movie'"
+            total_movies = conn_manager.execute_single(count_sql, [])
+            if total_movies:
+                total_count = total_movies.get('count', 0) if hasattr(total_movies, 'get') else total_movies[0]
+                self.logger.debug(f"Total movies in database: {total_count}")
+            
             movies = conn_manager.execute_query(sql, params)
+
+            # Debug: Test individual word searches to understand what's in the database
+            for word in words:
+                test_sql = """
+                    SELECT COUNT(*) as count, title
+                    FROM media_items 
+                    WHERE media_type = 'movie' 
+                    AND (LOWER(title) LIKE ? OR LOWER(COALESCE(plot, '')) LIKE ?)
+                    LIMIT 5
+                """
+                test_pattern = f"%{word.lower()}%"
+                test_results = conn_manager.execute_query(test_sql, [test_pattern, test_pattern])
+                if test_results:
+                    self.logger.debug(f"Test search for '{word}': found {len(test_results)} matches")
+                    for result in test_results[:3]:  # Show first 3 matches
+                        title = result.get('title', 'Unknown')
+                        self.logger.debug(f"  - Match: '{title}'")
 
             self.logger.info(f"SQLite search returned {len(movies)} movies from database")
 
