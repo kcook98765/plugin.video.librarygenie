@@ -151,7 +151,7 @@ class ListItemRenderer:
                 self.logger.debug(f"Invalid year value: {year}")
                 pass
 
-        # Handle plot information - prioritize actual plot data
+        # Handle plot information - use JSON-RPC data directly
         plot = movie_data.get('plot', '')
         plotoutline = movie_data.get('plotoutline', '')
         
@@ -169,50 +169,20 @@ class ListItemRenderer:
         # Log what we're working with
         self.logger.debug(f"Plot processing for '{title}': plot='{plot[:50]}...' ({len(plot)} chars), plotoutline='{plotoutline[:50]}...' ({len(plotoutline)} chars)")
         
+        # Use plot data from JSON-RPC directly - no fallback generation
+        # This ensures plot comes from the JSON-RPC call as requested
         if plot and len(plot) > 0:
-            # Use full plot if available and non-empty
+            # Use full plot from JSON-RPC
             info['plot'] = plot
-            self.logger.debug(f"Using full plot for '{title}': {len(plot)} characters")
+            self.logger.debug(f"Using JSON-RPC plot for '{title}': {len(plot)} characters")
         elif plotoutline and len(plotoutline) > 0:
-            # Use plot outline as fallback
+            # Use plot outline from JSON-RPC as fallback
             info['plot'] = plotoutline
-            self.logger.debug(f"Using plotoutline for '{title}': {len(plotoutline)} characters")
+            self.logger.debug(f"Using JSON-RPC plotoutline for '{title}': {len(plotoutline)} characters")
         else:
-            # For Kodi library items, don't create fallback plot - let Kodi handle it via dbid
-            kodi_id = movie_data.get('kodi_id')
-            if kodi_id:
-                # Set minimal plot for library items - Kodi will populate full plot via dbid
-                info['plot'] = ""
-                self.logger.debug(f"Kodi library item '{title}' - plot will be auto-populated via dbid={kodi_id}")
-            else:
-                # Only create fallback description for non-Kodi items
-                self.logger.debug(f"No plot data found for non-library item '{title}', creating fallback description")
-                description_parts = []
-                if year:
-                    description_parts.append(f"Released: {year}")
-                
-                # Add genre information if available
-                genre = movie_data.get('genre', '').strip()
-                if genre:
-                    # Take first few genres to keep it short
-                    genres = genre.split(',')[:3] if ',' in genre else [genre]
-                    description_parts.append(f"Genre: {', '.join([g.strip() for g in genres])}")
-                
-                # Add director if available
-                director = movie_data.get('director', '').strip()
-                if director:
-                    directors = director.split(',')[:2] if ',' in director else [director]
-                    description_parts.append(f"Director: {', '.join([d.strip() for d in directors])}")
-                
-                # Add rating if available
-                rating = movie_data.get('rating')
-                if rating and float(rating) > 0:
-                    description_parts.append(f"Rating: {float(rating):.1f}/10")
-                
-                if description_parts:
-                    info['plot'] = " • ".join(description_parts)
-                else:
-                    info['plot'] = f"Movie from {year}" if year else "No description available"
+            # No plot data from JSON-RPC - don't create artificial descriptions
+            # Let Kodi handle missing plot data naturally
+            self.logger.debug(f"No plot data from JSON-RPC for '{title}' - leaving empty for Kodi to handle")
 
         # Always include display metadata for rich list presentation (like native Kodi lists)
         # This provides similar data that native Kodi lists show, with heavy data left to dbid
@@ -330,16 +300,27 @@ class ListItemRenderer:
                 self.logger.debug(f"Error processing writer: {e}")
                 pass
 
-        # SKIP HEAVY METADATA that will be provided by Kodi via dbid:
-        # - cast (complex nested data structure)
-        # - crew details (complex nested data)  
-        # - detailed ratings breakdown
-        # - stream details
-        # - file details
-        # These will be populated by Kodi when user accesses video info dialog
+        # Handle cast information from JSON-RPC data
+        cast_data = movie_data.get('cast', [])
+        if cast_data and isinstance(cast_data, list):
+            # Process cast list for Kodi InfoLabels
+            cast_list = []
+            for actor in cast_data:
+                if isinstance(actor, dict):
+                    actor_name = actor.get('name', '')
+                    if actor_name:
+                        cast_list.append(actor_name)
+                elif isinstance(actor, str):
+                    cast_list.append(actor)
+            
+            if cast_list:
+                info['cast'] = cast_list
+                self.logger.debug(f"Added cast info for '{title}': {len(cast_list)} actors")
+        
+        # Set dbid for Kodi library items to enable additional metadata population
         kodi_id = movie_data.get('kodi_id')
         if kodi_id:
-            self.logger.debug(f"Kodi library item '{title}' - heavy metadata (cast, crew details, etc.) will be auto-populated via dbid")
+            self.logger.debug(f"Kodi library item '{title}' - dbid will enable additional metadata features")
 
         # Playback info - ensure it's an integer
         playcount = movie_data.get('playcount', 0)

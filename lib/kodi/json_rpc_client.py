@@ -46,6 +46,7 @@ class KodiJsonRpcClient:
                     "director",
                     "country",
                     "studio",
+                    "cast",
                     "playcount",
                     "resume"
                 ],
@@ -181,6 +182,9 @@ class KodiJsonRpcClient:
             resume_data = movie.get("resume", {})
             resume_time = resume_data.get("position", 0) if isinstance(resume_data, dict) else 0
 
+            # Handle cast information
+            cast_data = movie.get("cast", [])
+            
             return {
                 "kodi_id": movie.get("movieid"),
                 "title": movie.get("title", "Unknown Title"),
@@ -203,6 +207,7 @@ class KodiJsonRpcClient:
                 "director": director_str,
                 "country": movie.get("country", []),
                 "studio": movie.get("studio", []),
+                "cast": cast_data,
                 "playcount": movie.get("playcount", 0),
                 "resume_time": resume_time
             }
