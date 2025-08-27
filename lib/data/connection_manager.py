@@ -6,6 +6,7 @@ LibraryGenie - Database Connection Manager
 Handles SQLite connections with proper safety and performance settings
 """
 
+import os
 import sqlite3
 import threading
 import atexit
