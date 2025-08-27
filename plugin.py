@@ -362,35 +362,41 @@ def handle_view_list(addon_handle, base_url):
             )
             return
 
-        # Build menu items for list contents
-        menu_items = []
-
-        for item in list_items:
-            title = item.get('title', 'Unknown')
-            year = item.get('year')
-            if year:
-                title = f"{title} ({year})"
-
-            menu_items.append({
-                "title": title,
-                "action": "play_item",
-                "item_id": item.get('id'),
-                "list_id": list_id,
-                "description": f"Added: {item.get('created', '')}",
-                "is_folder": False,
-                "icon": "DefaultVideo.png",
-                "context_menu": [
-                    (f"Remove from '{list_info['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={list_id}&item_id={item.get('id')})")
-                ]
-            })
+        # Use ListItemRenderer for rich display
+        from lib.ui.listitem_renderer import get_listitem_renderer
+        renderer = get_listitem_renderer()
 
         # Set category for better navigation
         xbmcplugin.setPluginCategory(addon_handle, f"List: {list_info['name']}")
 
-        # Use menu builder to display
-        from lib.ui.menu_builder import MenuBuilder
-        menu_builder = MenuBuilder()
-        menu_builder.build_menu(menu_items, addon_handle, base_url)
+        # Add each item using renderer
+        for item in list_items:
+            # Create rich ListItem using renderer
+            list_item = renderer.create_movie_listitem(item, base_url, "play_item")
+            
+            # Build URL for this item
+            url = f"{base_url}?action=play_item&item_id={item.get('id')}&list_id={list_id}"
+            
+            # Add context menu for removal
+            context_menu = [
+                (f"Remove from '{list_info['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={list_id}&item_id={item.get('id')})")
+            ]
+            list_item.addContextMenuItems(context_menu)
+            
+            # Set playable if we have a file path
+            is_playable = bool(item.get('file_path') or item.get('kodi_id'))
+            list_item.setProperty('IsPlayable', 'true' if is_playable else 'false')
+            
+            # Add to directory
+            xbmcplugin.addDirectoryItem(
+                addon_handle,
+                url,
+                list_item,
+                isFolder=False
+            )
+
+        # Finish the directory
+        xbmcplugin.endOfDirectory(addon_handle)
 
     except Exception as e:
         logger.error(f"Error viewing list: {e}")
