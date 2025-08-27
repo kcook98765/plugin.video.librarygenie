@@ -102,9 +102,9 @@ class LocalSearchEngine:
             title_conditions = []  # For prioritization
             
             for word in words:
-                word_pattern = f"%{word}%"
-                # Each word must exist in either title OR plot
-                where_conditions.append("(LOWER(title) LIKE ? OR LOWER(plot) LIKE ?)")
+                word_pattern = f"%{word.lower()}%"
+                # Each word must exist in either title OR plot (both fields converted to lowercase)
+                where_conditions.append("(LOWER(title) LIKE ? OR LOWER(COALESCE(plot, '')) LIKE ?)")
                 params.extend([word_pattern, word_pattern])
                 
                 # Track title matches for prioritization
