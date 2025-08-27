@@ -422,6 +422,13 @@ class ListItemRenderer:
         if movie_data.get('tmdb_id'):
             list_item.setProperty('TMDbID', movie_data['tmdb_id'])
 
+        # Set database ID for Kodi auto-population of cast and detailed metadata
+        kodi_id = movie_data.get('kodi_id')
+        if kodi_id:
+            list_item.setProperty('dbid', str(kodi_id))
+            # Also set the media type to help Kodi identify this as a movie
+            list_item.setProperty('dbtype', 'movie')
+
         # Set UI density for skin adaptation
         list_item.setProperty('ListItemDensity', self.ui_density)
         list_item.setProperty('ArtworkPreference', self.artwork_preference)
