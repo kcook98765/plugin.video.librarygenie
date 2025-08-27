@@ -64,12 +64,14 @@ class ConfigManager:
             # Return default value if setting read fails
             return self._defaults.get(key, default)
 
-    def get_bool(self, key, default=False):
-        """Get boolean setting with safe fallback"""
+    def get_bool(self, key: str, default: bool = False) -> bool:
+        """Get boolean configuration value"""
         try:
-            return self._addon.getSettingBool(key)
+            value = self._addon.getSettingBool(key)
+            return value
         except Exception:
-            return self._defaults.get(key, default)
+            self.logger.warning(f"Failed to get bool setting '{key}', using default: {default}")
+            return default
 
     def get_int(self, key, default=0):
         """Get integer setting with safe fallback"""
@@ -136,12 +138,9 @@ class ConfigManager:
         else:
             return "string"
 
-    def get_background_interval_seconds(self):
-        """Get background interval in seconds with safe clamping (Phase 2)"""
-        minutes = self.get("background_interval_minutes", 30)
-        # Phase 2: Clamp to safe minimum (5 minutes) and maximum (720 minutes/12 hours)
-        minutes = max(5, min(720, minutes))
-        return minutes * 60
+    def get_background_interval_seconds(self) -> int:
+        """Get background service interval in seconds"""
+        return self.get_int("background_interval_seconds", 1800)
 
     def get_default_list_id(self):
         """Get default list ID with fallback logic (Phase 2)"""
@@ -189,25 +188,22 @@ class ConfigManager:
 
     # Phase 3: Advanced settings with clamping
 
-    def get_jsonrpc_page_size(self):
-        """Get JSON-RPC page size with safe clamping (50-500, default 200)"""
-        size = self.get("jsonrpc_page_size", 200)
-        return max(50, min(500, size))
+    def get_jsonrpc_page_size(self) -> int:
+        """Get JSON-RPC page size"""
+        return self.get_int("jsonrpc_page_size", 200)
 
     def get_jsonrpc_timeout_seconds(self):
         """Get JSON-RPC timeout with safe clamping (5-30 seconds, default 10)"""
         timeout = self.get("jsonrpc_timeout_seconds", 10)
         return max(5, min(30, timeout))
 
-    def get_db_batch_size(self):
-        """Get database batch size with safe clamping (50-500, default 200)"""
-        size = self.get("db_batch_size", 200)
-        return max(50, min(500, size))
+    def get_db_batch_size(self) -> int:
+        """Get database batch size for operations"""
+        return self.get_int("db_batch_size", 200)
 
-    def get_db_busy_timeout_ms(self):
-        """Get database busy timeout with safe clamping (1000-10000ms, default 3000)"""
-        timeout = self.get("db_busy_timeout_ms", 3000)
-        return max(1000, min(10000, timeout))
+    def get_db_busy_timeout_ms(self) -> int:
+        """Get database busy timeout in milliseconds"""
+        return self.get_int("db_busy_timeout_ms", 3000)
 
 
 # Global config instance

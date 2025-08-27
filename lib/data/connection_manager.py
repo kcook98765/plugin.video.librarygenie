@@ -24,8 +24,7 @@ from contextlib import contextmanager
 
 from ..utils.logger import get_logger
 from ..config import get_config
-# Assuming get_storage_manager is defined elsewhere and imported
-# from ..storage import get_storage_manager
+from .storage_manager import get_storage_manager
 
 
 class ConnectionManager:
@@ -33,17 +32,7 @@ class ConnectionManager:
 
     def __init__(self):
         self.logger = get_logger(__name__)
-        # Assuming get_storage_manager() is available in the scope
-        # For demonstration, let's mock it if it's not provided
-        try:
-            from ..storage import get_storage_manager
-            self.storage_manager = get_storage_manager()
-        except ImportError:
-            self.logger.warning("Could not import get_storage_manager. Mocking for demonstration.")
-            class MockStorageManager:
-                def get_database_path(self):
-                    return "mock_database.db"
-            self.storage_manager = MockStorageManager()
+        self.storage_manager = get_storage_manager()
 
         self.config = get_config()
         self._connection = None

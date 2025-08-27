@@ -57,3 +57,101 @@ def get_storage_manager():
     if _storage_instance is None:
         _storage_instance = StorageManager()
     return _storage_instance
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+LibraryGenie - Storage Manager
+Handles file system paths and storage locations
+"""
+
+import os
+try:
+    import xbmcvfs
+    import xbmcaddon
+    KODI_AVAILABLE = True
+except ImportError:
+    KODI_AVAILABLE = False
+
+from ..utils.logger import get_logger
+
+
+class StorageManager:
+    """Manages file system paths and storage locations"""
+
+    def __init__(self):
+        self.logger = get_logger(__name__)
+        self._addon = None
+        
+        if KODI_AVAILABLE:
+            try:
+                self._addon = xbmcaddon.Addon()
+            except Exception as e:
+                self.logger.warning(f"Could not initialize Kodi addon: {e}")
+
+    def get_database_path(self):
+        """Get the database file path"""
+        if KODI_AVAILABLE and self._addon:
+            try:
+                # Use Kodi's addon profile directory
+                profile_dir = xbmcvfs.translatePath(self._addon.getAddonInfo('profile'))
+                # Ensure directory exists
+                if not xbmcvfs.exists(profile_dir):
+                    xbmcvfs.mkdirs(profile_dir)
+                
+                db_path = os.path.join(profile_dir, 'librarygenie.db')
+                self.logger.debug(f"Database path: {db_path}")
+                return db_path
+            except Exception as e:
+                self.logger.warning(f"Could not get Kodi profile path: {e}")
+        
+        # Fallback to current directory
+        fallback_path = os.path.join(os.getcwd(), 'librarygenie.db')
+        self.logger.debug(f"Using fallback database path: {fallback_path}")
+        return fallback_path
+
+    def get_cache_dir(self):
+        """Get cache directory path"""
+        if KODI_AVAILABLE and self._addon:
+            try:
+                profile_dir = xbmcvfs.translatePath(self._addon.getAddonInfo('profile'))
+                cache_dir = os.path.join(profile_dir, 'cache')
+                if not xbmcvfs.exists(cache_dir):
+                    xbmcvfs.mkdirs(cache_dir)
+                return cache_dir
+            except Exception as e:
+                self.logger.warning(f"Could not get Kodi cache path: {e}")
+        
+        # Fallback
+        cache_dir = os.path.join(os.getcwd(), 'cache')
+        os.makedirs(cache_dir, exist_ok=True)
+        return cache_dir
+
+    def get_temp_dir(self):
+        """Get temporary directory path"""
+        if KODI_AVAILABLE and self._addon:
+            try:
+                profile_dir = xbmcvfs.translatePath(self._addon.getAddonInfo('profile'))
+                temp_dir = os.path.join(profile_dir, 'temp')
+                if not xbmcvfs.exists(temp_dir):
+                    xbmcvfs.mkdirs(temp_dir)
+                return temp_dir
+            except Exception as e:
+                self.logger.warning(f"Could not get Kodi temp path: {e}")
+        
+        # Fallback
+        temp_dir = os.path.join(os.getcwd(), 'temp')
+        os.makedirs(temp_dir, exist_ok=True)
+        return temp_dir
+
+
+# Global storage manager instance
+_storage_instance = None
+
+
+def get_storage_manager():
+    """Get global storage manager instance"""
+    global _storage_instance
+    if _storage_instance is None:
+        _storage_instance = StorageManager()
+    return _storage_instance

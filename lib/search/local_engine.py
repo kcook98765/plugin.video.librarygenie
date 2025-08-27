@@ -178,6 +178,10 @@ class LocalSearchEngine:
 
     def _format_sqlite_movie_result(self, movie: Dict[str, Any]) -> Dict[str, Any]:
         """Format movie data from SQLite database to uniform item dict"""
+        # Convert sqlite3.Row to dict if needed
+        if hasattr(movie, 'keys'):
+            movie = dict(movie)
+        
         title = movie.get('title') or 'Unknown Movie'
         year = movie.get('year')
 
