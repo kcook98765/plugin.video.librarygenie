@@ -272,9 +272,6 @@ def handle_lists(addon_handle, base_url):
         )
 
 
-
-
-
 def handle_create_list():
     """Handle creating a new list"""
     try:

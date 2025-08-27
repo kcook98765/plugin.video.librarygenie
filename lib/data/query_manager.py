@@ -97,7 +97,22 @@ class QueryManager:
             # If no items found, try the new lists table (search history lists)
             if not items:
                 items = self.conn_manager.execute_query("""
-                    SELECT li.id, mi.title, mi.year, mi.imdbnumber as imdb_id, mi.tmdb_id, li.created_at
+                    SELECT 
+                        li.id, 
+                        mi.title, 
+                        mi.year, 
+                        mi.imdbnumber as imdb_id, 
+                        mi.tmdb_id,
+                        mi.kodi_id,
+                        mi.poster,
+                        mi.fanart,
+                        mi.plot,
+                        mi.rating,
+                        mi.duration as runtime,
+                        mi.genre,
+                        mi.director,
+                        mi.play as file_path,
+                        li.created_at
                     FROM list_items li
                     JOIN media_items mi ON li.media_item_id = mi.id
                     WHERE li.list_id = ?
@@ -108,14 +123,36 @@ class QueryManager:
             # Convert to expected format
             result: List[Dict[str, Any]] = []
             for row in items:
-                result.append({
+                item_data = {
                     "id": str(row['id']),
                     "title": row['title'],
                     "year": row['year'],
                     "imdb_id": row['imdb_id'],
                     "tmdb_id": row['tmdb_id'],
                     "created": row['created_at'][:10] if row['created_at'] else '',
-                })
+                }
+                
+                # Add additional fields if available (from media_items table)
+                if 'kodi_id' in row and row['kodi_id']:
+                    item_data['kodi_id'] = row['kodi_id']
+                if 'poster' in row and row['poster']:
+                    item_data['poster'] = row['poster']
+                if 'fanart' in row and row['fanart']:
+                    item_data['fanart'] = row['fanart']
+                if 'plot' in row and row['plot']:
+                    item_data['plot'] = row['plot']
+                if 'rating' in row and row['rating']:
+                    item_data['rating'] = row['rating']
+                if 'runtime' in row and row['runtime']:
+                    item_data['runtime'] = row['runtime']
+                if 'genre' in row and row['genre']:
+                    item_data['genre'] = row['genre']
+                if 'director' in row and row['director']:
+                    item_data['director'] = row['director']
+                if 'file_path' in row and row['file_path']:
+                    item_data['file_path'] = row['file_path']
+                
+                result.append(item_data)
 
             self.logger.debug(f"Retrieved {len(result)} items for list {list_id}")
             return result
