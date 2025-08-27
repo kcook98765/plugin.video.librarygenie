@@ -2,13 +2,14 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Query Manager
+LibraryGenie - Query Manager
 Real SQLite-based data layer for list and item management
 """
 
 from .connection_manager import get_connection_manager
 from .migrations import get_migration_manager
 from ..utils.logger import get_logger
+from typing import Optional, Union, Any, List, Dict
 
 
 class QueryManager:
@@ -59,7 +60,7 @@ class QueryManager:
             """)
 
             # Convert to expected format
-            result = []
+            result: List[Dict[str, Any]] = []
             for row in lists:
                 result.append({
                     "id": str(row['id']),
@@ -91,7 +92,7 @@ class QueryManager:
             """, [int(list_id), limit, offset])
 
             # Convert to expected format
-            result = []
+            result: List[Dict[str, Any]] = []
             for row in items:
                 result.append({
                     "id": str(row['id']),
@@ -310,7 +311,7 @@ class QueryManager:
         except Exception as e:
             self.logger.warning(f"Could not ensure default list: {e}")
 
-    
+
 
     def close(self):
         """Close database connections"""

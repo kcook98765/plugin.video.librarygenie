@@ -6,7 +6,7 @@ This document provides guidance for developers working on LibraryGenie. It outli
 
 ## Architecture Overview
 
-Movie List Manager consists of three main layers:
+LibraryGenie consists of three main layers:
 
 1. **UI Layer**
    - Handles routing of Kodi plugin actions.

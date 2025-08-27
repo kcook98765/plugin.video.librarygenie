@@ -1,14 +1,18 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Logging Utilities
+LibraryGenie - Logging Utilities
 Kodi-specific logging implementation
 """
 
 import logging
 import sys
+try:
+    from typing import Optional
+except ImportError:
+    # Python < 3.5 fallback
+    Optional = object
 
 import xbmc
 
@@ -28,7 +32,7 @@ class KodiLogHandler(logging.Handler):
             level = xbmc.LOGDEBUG
 
         message = self.format(record)
-        xbmc.log(f"[Movie List Manager] {message}", level)
+        xbmc.log(f"[LibraryGenie] {message}", level)
 
 
 def get_logger(name):
@@ -64,8 +68,8 @@ def _update_logger_level(logger):
         else:
             logger.setLevel(logging.INFO)
     except Exception:
-        # Fallback to INFO level if config is not available or fails
-        logger.setLevel(logging.INFO)
+        # Fallback to DEBUG level for troubleshooting search issues
+        logger.setLevel(logging.DEBUG)
 
 
 def update_all_loggers():

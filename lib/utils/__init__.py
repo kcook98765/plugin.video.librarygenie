@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Utils Package
+LibraryGenie - Utils Package
 """
 
 from .logger import get_logger

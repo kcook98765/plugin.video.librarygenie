@@ -1,16 +1,18 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
-LibraryGenie Background Service
-Handles background tasks like library scanning and sync operations
+LibraryGenie - Background Service
+Handles periodic tasks and library monitoring
 """
 
-# All imports should be at module level but avoid network calls at import time
 import time
-import threading
-from typing import Optional
+try:
+    from typing import Dict, Any
+except ImportError:
+    # Python < 3.5 fallback
+    Dict = dict
+    Any = object
 
 import xbmc
 import xbmcaddon
@@ -67,10 +69,10 @@ class BackgroundService:
         while not self.monitor.abortRequested():
             try:
                 cycle_start = time.time()
-                
+
                 # Determine current interval (with backoff if needed)
                 current_interval = self._get_current_interval()
-                
+
                 # Token refresh check (throttled)
                 if self.token_refresh_enabled:
                     self._check_and_refresh_token_throttled()
@@ -81,14 +83,14 @@ class BackgroundService:
 
                 # Reset failure count on successful cycle
                 self.consecutive_failures = 0
-                
+
                 cycle_duration = time.time() - cycle_start
                 self.logger.debug(f"Service cycle completed in {cycle_duration:.2f}s")
 
             except Exception as e:
                 self.consecutive_failures += 1
                 self.logger.error(f"Background service error (failure #{self.consecutive_failures}): {e}")
-                
+
                 if self.consecutive_failures >= self.max_consecutive_failures:
                     self.logger.warning(f"Too many consecutive failures ({self.consecutive_failures}), applying backoff")
 
@@ -102,14 +104,14 @@ class BackgroundService:
         """Get current interval with exponential backoff on failures"""
         if self.consecutive_failures == 0:
             return self.interval
-        
+
         # Apply exponential backoff
         backoff_multiplier = min(2 ** (self.consecutive_failures - 1), 8)  # Cap at 8x
         backoff_interval = min(
             self.base_backoff_seconds * backoff_multiplier,
             self.max_backoff_seconds
         )
-        
+
         return max(self.interval, backoff_interval)
 
     def _initial_setup(self):
@@ -132,13 +134,13 @@ class BackgroundService:
         """Check and refresh authentication token if needed (throttled)"""
         try:
             current_time = time.time()
-            
+
             # Only check tokens every few minutes, not every cycle
             if current_time - self._last_token_check < self._token_check_interval:
                 return
-            
+
             self._last_token_check = current_time
-            
+
             success = maybe_refresh()
             if success:
                 self.logger.debug("Token refresh check completed successfully")

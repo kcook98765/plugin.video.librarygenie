@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Menu Builder
+LibraryGenie - Menu Builder
 Builds Kodi directory listings and menus
 """
 
@@ -55,11 +55,11 @@ class MenuBuilder:
         else:
             # Use simple renderer for menu items
             list_item = self.renderer.create_simple_listitem(title, description, action, icon=item.get("icon"))
-        
+
         # Add context menu if provided
         if context_menu:
             list_item.addContextMenuItems(context_menu)
-        
+
         # Add context menu based on item type
         if item.get("context_menu_type") == "library_item" and item.get("library_movie_id"):
             try:
@@ -71,7 +71,7 @@ class MenuBuilder:
                         31001: "Quick Add to Default"
                     }
                     return strings.get(string_id, f"String {string_id}")
-                
+
                 context_manager = get_context_menu_manager(get_string)
                 list_item = context_manager.add_library_item_context_menu(
                     list_item, item["library_movie_id"]
@@ -88,7 +88,7 @@ class MenuBuilder:
                         31011: "Move to Another List..."
                     }
                     return strings.get(string_id, f"String {string_id}")
-                
+
                 context_manager = get_context_menu_manager(get_string)
                 list_item = context_manager.add_list_item_context_menu(
                     list_item, item["list_id"], item["list_item_id"]
@@ -100,20 +100,20 @@ class MenuBuilder:
         xbmcplugin.addDirectoryItem(
             handle=addon_handle, url=url, listitem=list_item, isFolder=is_folder
         )
-    
+
     def build_movie_menu(self, movies: List[Dict[str, Any]], addon_handle, base_url, **options):
         """Build a menu specifically for movie items with enhanced ListItems"""
         self.logger.debug(f"Building movie menu with {len(movies)} movies")
-        
+
         if not KODI_AVAILABLE:
             self.logger.info("Movie menu items (stub mode):")
             for movie in movies:
                 self.logger.info(f"  - {movie.get('title', 'Unknown')}")
             return
-        
+
         # Set content type for better skin support
         xbmcplugin.setContent(addon_handle, 'movies')
-        
+
         # Add sort methods for movie lists
         sort_methods = [
             xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE,
@@ -122,27 +122,27 @@ class MenuBuilder:
             xbmcplugin.SORT_METHOD_DATE_ADDED,
             xbmcplugin.SORT_METHOD_VIDEO_RUNTIME
         ]
-        
+
         for method in sort_methods:
             xbmcplugin.addSortMethod(addon_handle, method)
-        
+
         # Build movie items
         for movie in movies:
             self._add_movie_item(movie, addon_handle, base_url, **options)
-        
+
         # Set view mode if specified
         view_mode = options.get('view_mode')
         if view_mode:
             xbmcplugin.setPluginCategory(addon_handle, options.get('category', 'Movies'))
-        
+
         xbmcplugin.endOfDirectory(addon_handle, cacheToDisc=True)
-    
+
     def _add_movie_item(self, movie_data: Dict[str, Any], addon_handle, base_url, **options):
         """Add a movie item with Phase 11 enhanced ListItem"""
-        
+
         # Create enhanced ListItem using the renderer
         list_item = self.renderer.create_movie_listitem(movie_data, base_url, action="play_movie")
-        
+
         # Build playback URL
         kodi_id = movie_data.get('kodi_id')
         if kodi_id:
@@ -153,7 +153,7 @@ class MenuBuilder:
             url = f"{base_url}?{urlencode(params)}"
         else:
             url = ""
-        
+
         # Add additional context menu items if specified
         extra_context = options.get('extra_context_menu', [])
         if extra_context and KODI_AVAILABLE:
@@ -162,10 +162,10 @@ class MenuBuilder:
                 current_context = [current_context]
             current_context.extend(extra_context)
             list_item.addContextMenuItems(current_context)
-        
+
         # Set as playable item
         list_item.setProperty('IsPlayable', 'true')
-        
+
         # Add to directory
         xbmcplugin.addDirectoryItem(
             handle=addon_handle, url=url, listitem=list_item, isFolder=False

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Kodi Module
+LibraryGenie - Kodi Module
 Kodi-specific functionality and API clients
 """
 

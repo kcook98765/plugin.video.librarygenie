@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Integrations Package
+LibraryGenie - Integrations Package
 Future home for external service connectors
 """
 

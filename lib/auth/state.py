@@ -6,6 +6,9 @@ LibraryGenie - Authentication State Management
 Handles token storage and authorization status
 """
 
+from datetime import datetime, timezone
+from typing import Dict, Any, List, Optional
+
 import json
 import os
 import xbmcaddon
@@ -58,12 +61,12 @@ def get_access_token():
 
             data = json.loads(content)
             token = data.get('access_token')
-            
+
             if token:
                 logger.debug("Access token retrieved successfully")
             else:
                 logger.debug("No access token found in storage")
-                
+
             return token
 
     except Exception as e:
@@ -71,7 +74,7 @@ def get_access_token():
         return None
 
 
-def save_tokens(tokens: dict):
+def save_tokens(tokens: Dict[str, Any]):
     """Save authorization tokens to storage"""
     try:
         # Ensure profile directory exists
@@ -89,21 +92,21 @@ def save_tokens(tokens: dict):
         raise
 
 
-def get_tokens():
+def get_tokens() -> Optional[Dict[str, Any]]:
     """Get stored tokens"""
     try:
         if not xbmcvfs.exists(_FILE):
             return None
-            
+
         with xbmcvfs.File(_FILE, 'r') as f:
             content = f.read()
             if isinstance(content, bytes):
                 content = content.decode('utf-8')
-                
+
             data = json.loads(content)
             logger.debug("Token data retrieved (values not logged for security)")
             return data
-            
+
     except Exception as e:
         logger.error("Failed to get tokens (token values not logged for security)")
         return None
@@ -115,20 +118,20 @@ def clear_tokens():
         if not xbmcvfs.exists(_FILE):
             logger.debug("No token file exists to clear")
             return True
-            
+
         success = xbmcvfs.delete(_FILE)
         if success:
             logger.info("Authorization tokens cleared successfully")
         else:
             logger.warning("Failed to delete token file")
         return success
-        
+
     except Exception as e:
         logger.error(f"Error clearing tokens: {e}")
         return False
 
 
-def get_token_info():
+def get_token_info() -> Dict[str, Any]:
     """Get detailed token information for debugging"""
     try:
         if not xbmcvfs.exists(_FILE):

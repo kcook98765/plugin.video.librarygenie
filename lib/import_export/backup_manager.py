@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Backup Manager
+LibraryGenie - Backup Manager
 Handles automatic scheduled backups with retention policies
 """
 
@@ -17,73 +17,73 @@ from ..utils.logger import get_logger
 
 class BackupManager:
     """Manages automatic backups with scheduling and retention"""
-    
+
     def __init__(self):
         self.logger = get_logger(__name__)
         self.export_engine = get_export_engine()
         self.storage_manager = get_storage_manager()
         self.config = get_config()
-    
+
     def should_run_backup(self) -> bool:
         """Check if backup should run based on schedule"""
         try:
             # Check if backups are enabled
             if not self.config.get("backup_enabled", False):
                 return False
-            
+
             # Get backup interval
             interval = self.config.get("backup_interval", "weekly")  # daily, weekly
-            
+
             # Get last backup time
             last_backup = self._get_last_backup_time()
             if not last_backup:
                 # No previous backup, should run
                 return True
-            
+
             # Calculate next backup time
             now = datetime.now()
             if interval == "daily":
                 next_backup = last_backup + timedelta(days=1)
             else:  # weekly
                 next_backup = last_backup + timedelta(days=7)
-            
+
             return now >= next_backup
-            
+
         except Exception as e:
             self.logger.error(f"Error checking backup schedule: {e}")
             return False
-    
+
     def run_automatic_backup(self) -> Dict[str, Any]:
         """Run scheduled automatic backup"""
         try:
             self.logger.info("Starting automatic backup")
-            
+
             # Determine what to backup based on settings
             export_types = ["lists", "list_items"]
-            
+
             # Add favorites if available
             if self.config.get("backup_include_favorites", True):
                 export_types.append("favorites")
-            
+
             # Add library snapshot if requested
             if self.config.get("backup_include_library", False):
                 export_types.append("library_snapshot")
-            
+
             # Run export
             result = self.export_engine.export_data(
                 export_types=export_types,
                 file_format="json"
             )
-            
+
             if result["success"]:
                 # Update last backup time
                 self._update_last_backup_time()
-                
+
                 # Clean up old backups
                 self._cleanup_old_backups()
-                
+
                 self.logger.info(f"Automatic backup completed: {result['filename']}")
-                
+
                 return {
                     "success": True,
                     "filename": result["filename"],
@@ -94,30 +94,30 @@ class BackupManager:
             else:
                 self.logger.error(f"Automatic backup failed: {result.get('error')}")
                 return {"success": False, "error": result.get("error")}
-                
+
         except Exception as e:
             self.logger.error(f"Error in automatic backup: {e}")
             return {"success": False, "error": str(e)}
-    
+
     def list_backups(self) -> List[Dict[str, Any]]:
         """List available backup files"""
         try:
             # Look for backup files in profile directory
             files = self.storage_manager.list_export_files("plugin.video.librarygenie_*_*.json")
-            
+
             backups = []
             for file_path, filename, file_size in files:
                 # Parse filename to extract metadata
                 parts = filename.replace(".json", "").split("_")
-                
+
                 if len(parts) >= 4:
                     export_type = "_".join(parts[3:-1])  # Everything between addon name and timestamp
                     timestamp_str = parts[-1]
-                    
+
                     try:
                         # Parse timestamp
                         backup_time = datetime.strptime(timestamp_str, "%Y%m%d-%H%M%S")
-                        
+
                         backups.append({
                             "filename": filename,
                             "file_path": file_path,
@@ -129,32 +129,32 @@ class BackupManager:
                     except ValueError:
                         # Skip files with invalid timestamp format
                         continue
-            
+
             # Sort by backup time, newest first
             backups.sort(key=lambda x: x["backup_time"], reverse=True)
-            
+
             return backups
-            
+
         except Exception as e:
             self.logger.error(f"Error listing backups: {e}")
             return []
-    
+
     def delete_backup(self, filename: str) -> bool:
         """Delete specific backup file"""
         try:
             profile_path = self.storage_manager.get_profile_path()
             file_path = os.path.join(profile_path, filename)
-            
+
             if self.storage_manager.delete_file_safe(file_path):
                 self.logger.info(f"Deleted backup: {filename}")
                 return True
             else:
                 return False
-                
+
         except Exception as e:
             self.logger.error(f"Error deleting backup: {e}")
             return False
-    
+
     def get_backup_settings(self) -> Dict[str, Any]:
         """Get current backup settings"""
         return {
@@ -165,7 +165,7 @@ class BackupManager:
             "include_library": self.config.get("backup_include_library", False),
             "last_backup": self._get_last_backup_time()
         }
-    
+
     def _get_last_backup_time(self) -> Optional[datetime]:
         """Get timestamp of last backup"""
         try:
@@ -175,7 +175,7 @@ class BackupManager:
             return None
         except:
             return None
-    
+
     def _update_last_backup_time(self):
         """Update last backup timestamp"""
         try:
@@ -185,32 +185,32 @@ class BackupManager:
             self.logger.debug(f"Backup completed at {now}")
         except Exception as e:
             self.logger.error(f"Error updating backup time: {e}")
-    
+
     def _cleanup_old_backups(self):
         """Clean up old backup files based on retention policy"""
         try:
             retention_count = self.config.get("backup_retention_count", 5)
-            
+
             # Get all backup files
             backups = self.list_backups()
-            
+
             if len(backups) <= retention_count:
                 return  # Nothing to clean up
-            
+
             # Delete oldest backups
             backups_to_delete = backups[retention_count:]
             deleted_count = 0
-            
+
             for backup in backups_to_delete:
                 if self.delete_backup(backup["filename"]):
                     deleted_count += 1
-            
+
             if deleted_count > 0:
                 self.logger.info(f"Cleaned up {deleted_count} old backup files")
-                
+
         except Exception as e:
             self.logger.error(f"Error cleaning up backups: {e}")
-    
+
     def estimate_backup_size(self, export_types: List[str]) -> Dict[str, Any]:
         """Estimate size of backup with given export types"""
         try:

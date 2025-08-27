@@ -1,9 +1,8 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Complete Database Schema Setup
+LibraryGenie - Complete Database Schema Setup
 Creates the full database schema without incremental migrations
 """
 
@@ -250,7 +249,7 @@ class MigrationManager:
             """)
 
             # Legacy compatibility tables for existing functionality
-            
+
             # User list table (legacy compatibility)
             conn.execute("""
                 CREATE TABLE user_list (

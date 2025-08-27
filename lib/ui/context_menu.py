@@ -2,22 +2,23 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Context Menu System
+LibraryGenie - Context Menu System
 Handles context menus for library and list operations
 """
 
 import xbmcgui
+from typing import Dict, Any, Optional, Callable, List
 
 from ..utils.logger import get_logger
 
 
 class ContextMenuManager:
     """Manages context menus for addon operations"""
-    
+
     def __init__(self, string_getter):
         self.logger = get_logger(__name__)
         self._get_string = string_getter
-    
+
     def add_library_item_context_menu(self, list_item, library_movie_id):
         """Add context menu for library items"""
         try:
@@ -31,14 +32,14 @@ class ContextMenuManager:
                     f"RunPlugin(plugin://plugin.video.library.genie?action=quick_add&library_movie_id={library_movie_id})"
                 )
             ]
-            
+
             list_item.addContextMenuItems(context_menu)
             return list_item
-            
+
         except Exception as e:
             self.logger.warning(f"Failed to add library context menu: {e}")
             return list_item
-    
+
     def add_list_item_context_menu(self, list_item, list_id, list_item_id):
         """Add context menu for list items"""
         try:
@@ -52,10 +53,10 @@ class ContextMenuManager:
                     f"RunPlugin(plugin://plugin.video.library.genie?action=move_to_list&list_id={list_id}&list_item_id={list_item_id})"
                 )
             ]
-            
+
             list_item.addContextMenuItems(context_menu)
             return list_item
-            
+
         except Exception as e:
             self.logger.warning(f"Failed to add list item context menu: {e}")
             return list_item

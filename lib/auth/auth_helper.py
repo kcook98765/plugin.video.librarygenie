@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -7,35 +6,35 @@ LibraryGenie - Authorization Helper
 Handles authorization prompts and user guidance
 """
 
+from typing import Dict, Any, List, Optional
+
 import xbmcgui
-from .state import is_authorized
-from .device_code import run_authorize_flow
-from ..utils.logger import get_logger
+import xbmcaddon
 
 
 class AuthorizationHelper:
     """Helper for managing authorization UX"""
-    
+
     def __init__(self, string_getter=None):
         self.logger = get_logger(__name__)
         self._get_string = string_getter or (lambda x: f"String {x}")
-    
+
     def check_authorization_or_prompt(self, feature_name: str = "remote feature") -> bool:
         """
         Check if authorized, and if not, prompt user to authorize
-        
+
         Args:
             feature_name: Name of the feature requiring authorization
-            
+
         Returns:
             bool: True if authorized (or user completed auth), False otherwise
         """
         if is_authorized():
             return True
-        
+
         # Show authorization prompt
         dialog = xbmcgui.Dialog()
-        
+
         result = dialog.yesno(
             "Authorization Required",
             f"The {feature_name} requires authorization with the remote server.\n\n"
@@ -43,11 +42,11 @@ class AuthorizationHelper:
             nolabel="Cancel",
             yeslabel="Authorize"
         )
-        
+
         if not result:
             self.logger.debug(f"User declined authorization for {feature_name}")
             return False
-        
+
         # Start authorization flow
         try:
             success = run_authorize_flow()
@@ -57,7 +56,7 @@ class AuthorizationHelper:
             else:
                 self.logger.info(f"Authorization failed for {feature_name}")
                 return False
-                
+
         except Exception as e:
             self.logger.error(f"Authorization flow error: {e}")
             dialog.ok(
@@ -65,11 +64,11 @@ class AuthorizationHelper:
                 f"Failed to complete authorization:\n{str(e)[:100]}..."
             )
             return False
-    
+
     def show_authorization_status(self):
         """Show current authorization status to user"""
         dialog = xbmcgui.Dialog()
-        
+
         if is_authorized():
             dialog.ok(
                 "Authorization Status",
@@ -83,7 +82,7 @@ class AuthorizationHelper:
                 nolabel="Cancel",
                 yeslabel="Authorize"
             )
-            
+
             if result:
                 self.check_authorization_or_prompt("remote services")
 

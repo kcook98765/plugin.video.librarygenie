@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Enhanced Year Parser
+LibraryGenie - Enhanced Year Parser
 Robust year parsing with explicit rules and edge case handling
 """
 
 import re
 from typing import Optional, Tuple, Union
+
 from ..utils.logger import get_logger
 
 

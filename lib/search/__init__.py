@@ -3,7 +3,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Search Module
+LibraryGenie - Search Module
 Fast, offline search across local library and lists with filters and sorting
 """
 

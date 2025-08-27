@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Phase 11 ListItem Renderer
+LibraryGenie - Phase 11 ListItem Renderer
 Enhanced ListItem creation with artwork, metadata, and playback actions
 """
 
@@ -10,7 +10,7 @@ import xbmcgui
 import xbmcplugin
 
 import json
-from typing import Dict, Any, Optional, List, Callable
+from typing import Dict, Any, Optional, List, List, Callable
 from urllib.parse import urlencode
 
 from ..config import get_config

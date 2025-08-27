@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - Data Schemas
+LibraryGenie - Data Schemas
 Versioned schemas for import/export operations
 """
 

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Movie List Manager - UI Package
+LibraryGenie - UI Package
 """
 
 from .menu_builder import MenuBuilder
