@@ -7,10 +7,11 @@ Handles remote search requests with authentication and proper HTTP handling
 """
 
 import json
+from __future__ import annotations
+
 import urllib.request
 import urllib.parse
 import urllib.error
-from __future__ import annotations
 from typing import Dict, Any, List, Optional
 
 from ..auth.state import is_authorized, get_access_token

@@ -3,11 +3,12 @@
 
 """
 LibraryGenie - Local Search Engine
-JSON-RPC based search for local Kodi library content with uniform output format
+Database-backed search for the local library index
 """
 
-import json
 from __future__ import annotations
+
+import json
 from typing import Dict, Any, List, Optional
 
 import xbmc

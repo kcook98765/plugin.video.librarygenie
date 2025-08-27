@@ -1,13 +1,13 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
-LibraryGenie - Search Handler
+LibraryGenie - Search Handler UI
 Provides UI bridge for search functionality with remote/local engine selection
 """
 
 from __future__ import annotations
+
 from typing import Dict, Any, List
 
 import xbmcgui
@@ -101,7 +101,7 @@ class SearchHandler:
     def _show_fallback_notification(self):
         """Show one-shot notification about remote fallback (don't spam)"""
         session_state = get_session_state()
-        
+
         if session_state.should_show_notification("remote_search_fallback", 600):
             addon = xbmcaddon.Addon()
             xbmcgui.Dialog().notification(
@@ -114,7 +114,7 @@ class SearchHandler:
     def _display_results(self, results, query):
         """Display search results in Kodi"""
         items = results.get('items', [])
-        
+
         if not items:
             addon = xbmcaddon.Addon()
             xbmcgui.Dialog().notification(
@@ -185,7 +185,7 @@ class SearchHandler:
             return {'items': [], 'total': 0, 'used_remote': False}
 
         query = query.strip()
-        
+
         # Engine switch logic
         if is_authorized():
             try:

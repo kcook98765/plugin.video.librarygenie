@@ -6,8 +6,9 @@ LibraryGenie - Enhanced Search Engine
 Enhanced SQL building, paging UI, and performance optimizations
 """
 
-from datetime import datetime
 from __future__ import annotations
+
+from datetime import datetime
 from typing import Dict, Any, List, Optional, Union, Tuple
 
 from .enhanced_query_interpreter import SearchQuery

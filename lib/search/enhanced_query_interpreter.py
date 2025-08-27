@@ -6,8 +6,9 @@ LibraryGenie - Enhanced Query Interpreter
 Enhanced search query parsing with robust year parsing and improved normalization
 """
 
-import re
 from __future__ import annotations
+
+import re
 from typing import Dict, Any, List, Optional, Union, Tuple
 
 from .normalizer import get_text_normalizer
