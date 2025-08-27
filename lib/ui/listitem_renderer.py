@@ -448,6 +448,23 @@ class ListItemRenderer:
             list_item.setProperty('dbid', str(kodi_id))
             # Also set the media type to help Kodi identify this as a movie
             list_item.setProperty('dbtype', 'movie')
+            
+            # Set uniqueid property - this is critical for cast population in native dialog
+            imdb_id = movie_data.get('imdb_id') or movie_data.get('imdbnumber')
+            if imdb_id:
+                imdb_str = str(imdb_id).strip()
+                if imdb_str and imdb_str != 'None' and imdb_str.startswith('tt'):
+                    list_item.setProperty('uniqueid.imdb', imdb_str)
+                    self.logger.info(f"SET UNIQUEID: Set uniqueid.imdb={imdb_str} for '{movie_data.get('title', 'Unknown')}'")
+            
+            # Also set TMDb uniqueid if available
+            tmdb_id = movie_data.get('tmdb_id')
+            if tmdb_id:
+                tmdb_str = str(tmdb_id).strip()
+                if tmdb_str and tmdb_str != 'None':
+                    list_item.setProperty('uniqueid.tmdb', tmdb_str)
+                    self.logger.info(f"SET UNIQUEID: Set uniqueid.tmdb={tmdb_str} for '{movie_data.get('title', 'Unknown')}'")
+            
             self.logger.info(f"SET DBID PROPERTY: Set dbid={kodi_id} and dbtype='movie' for '{movie_data.get('title', 'Unknown')}'")
         else:
             self.logger.warning(f"NO DBID SET: No kodi_id found for '{movie_data.get('title', 'Unknown')}' - available data keys: {list(movie_data.keys())}")
