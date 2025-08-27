@@ -184,6 +184,7 @@ class LocalSearchEngine:
 
         title = movie.get('title') or 'Unknown Movie'
         year = movie.get('year')
+        kodi_id = movie.get('kodi_id')
 
         # Create display label
         if year:
@@ -200,7 +201,7 @@ class LocalSearchEngine:
         if movie.get('thumb'):
             art['thumb'] = movie['thumb']
 
-        return {
+        result = {
             'label': label,
             'path': movie.get('file_path') or '',
             'art': art,
@@ -208,7 +209,7 @@ class LocalSearchEngine:
             'ids': {
                 'imdb': movie.get('imdb_id'),
                 'tmdb': movie.get('tmdb_id'),
-                'kodi_id': movie.get('kodi_id')
+                'kodi_id': kodi_id
             },
             # Additional metadata
             'title': title,
@@ -221,6 +222,16 @@ class LocalSearchEngine:
             'mpaa': movie.get('mpaa') or '',
             'playcount': movie.get('playcount') or 0
         }
+
+        # CRITICAL: Include kodi_id at top level for search result storage
+        if kodi_id:
+            result['kodi_id'] = kodi_id
+            result['movieid'] = kodi_id  # Alternative field name used by JSON-RPC
+            self.logger.debug(f"SQLite result for '{title}' includes kodi_id: {kodi_id}")
+        else:
+            self.logger.warning(f"SQLite result for '{title}' missing kodi_id")
+
+        return result
 
     def _format_movie_result(self, movie: Dict[str, Any]) -> Dict[str, Any]:
         """Format movie data to uniform item dict"""
