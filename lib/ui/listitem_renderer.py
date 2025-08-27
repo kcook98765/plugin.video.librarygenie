@@ -300,22 +300,13 @@ class ListItemRenderer:
                 self.logger.debug(f"Error processing writer: {e}")
                 pass
 
-        # Handle cast information from JSON-RPC data
-        cast_data = movie_data.get('cast', [])
-        if cast_data and isinstance(cast_data, list):
-            # Process cast list for Kodi InfoLabels
-            cast_list = []
-            for actor in cast_data:
-                if isinstance(actor, dict):
-                    actor_name = actor.get('name', '')
-                    if actor_name:
-                        cast_list.append(actor_name)
-                elif isinstance(actor, str):
-                    cast_list.append(actor)
-            
-            if cast_list:
-                info['cast'] = cast_list
-                self.logger.debug(f"Added cast info for '{title}': {len(cast_list)} actors")
+        # IMPORTANT: Cast data is intentionally NOT processed here!
+        # Cast information should not be requested via JSON-RPC for ListItems as it:
+        # 1. Causes significant performance issues with large libraries
+        # 2. Is not needed for list display purposes
+        # 3. Will be automatically populated by Kodi when dbid property is set
+        # The dbid property (set below) tells Kodi this is a library item and
+        # enables automatic population of cast and other detailed metadata.
         
         # Set dbid for Kodi library items to enable additional metadata population
         kodi_id = movie_data.get('kodi_id')

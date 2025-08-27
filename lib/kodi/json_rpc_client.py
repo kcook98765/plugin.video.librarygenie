@@ -46,7 +46,10 @@ class KodiJsonRpcClient:
                     "director",
                     "country",
                     "studio",
-                    "cast",
+                    # NOTE: DO NOT REQUEST "cast" HERE - Cast data should not be requested
+                    # when building ListItems as it can cause performance issues and
+                    # is not needed for list display. Kodi will populate cast data
+                    # automatically when dbid is set on the ListItem.
                     "playcount",
                     "resume"
                 ],
@@ -182,8 +185,10 @@ class KodiJsonRpcClient:
             resume_data = movie.get("resume", {})
             resume_time = resume_data.get("position", 0) if isinstance(resume_data, dict) else 0
 
-            # Handle cast information
-            cast_data = movie.get("cast", [])
+            # NOTE: Cast data is intentionally not processed here.
+            # Cast information should not be requested in JSON-RPC calls for ListItems
+            # as it causes performance issues. Kodi will handle cast population automatically
+            # when the ListItem has a proper dbid set.
             
             return {
                 "kodi_id": movie.get("movieid"),
@@ -207,7 +212,7 @@ class KodiJsonRpcClient:
                 "director": director_str,
                 "country": movie.get("country", []),
                 "studio": movie.get("studio", []),
-                "cast": cast_data,
+                # Cast data intentionally omitted - see note above
                 "playcount": movie.get("playcount", 0),
                 "resume_time": resume_time
             }
