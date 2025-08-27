@@ -34,17 +34,17 @@ class SearchHandler:
     def prompt_and_show(self):
         """Prompt user for search query and show results"""
         self.logger.info("Starting search prompt flow")
-        
+
         try:
             # Get search query from user
             addon = xbmcaddon.Addon()
             self.logger.debug("Getting search input from user")
-            
+
             query = xbmcgui.Dialog().input(
                 addon.getLocalizedString(35018),
                 type=xbmcgui.INPUT_ALPHANUM
             )
-            
+
             self.logger.info(f"User entered query: '{query}'")
 
             if not query or not query.strip():
@@ -58,7 +58,7 @@ class SearchHandler:
             self.logger.debug("Starting search execution")
             results = self._perform_search(query)
             self.logger.info(f"Search completed, got {len(results.get('items', []))} results")
-            
+
             self.logger.debug("Displaying search results")
             self._display_results(results, query)
             self.logger.info("Search flow completed successfully")
@@ -67,7 +67,7 @@ class SearchHandler:
             import traceback
             self.logger.error(f"Search failed: {e}")
             self.logger.error(f"Search error traceback: {traceback.format_exc()}")
-            
+
             addon = xbmcaddon.Addon()
             xbmcgui.Dialog().notification(
                 addon.getLocalizedString(35021),
@@ -86,20 +86,20 @@ class SearchHandler:
             dict: Search results with metadata
         """
         self.logger.info(f"Starting search execution for query: '{query}'")
-        
+
         # Check authorization status
         auth_status = is_authorized()
         self.logger.info(f"Authorization status: {auth_status}")
-        
+
         # Engine switch: authorized users try remote first
         if auth_status:
             try:
                 self.logger.info("Attempting remote search (user is authorized)")
-                
+
                 # Import here to avoid circular dependencies
                 from ..remote.search_client import search_remote
                 self.logger.debug("Remote search client imported")
-                
+
                 results = search_remote(query, page=1, page_size=100)
                 result_count = len(results.get('items', []))
                 self.logger.info(f"Remote search succeeded: {result_count} results")
@@ -126,16 +126,16 @@ class SearchHandler:
     def _search_local(self, query, limit=200):
         """Perform local search using local engine"""
         self.logger.info(f"Starting local search for query: '{query}' with limit: {limit}")
-        
+
         try:
             # Check if local engine is properly initialized
             if not self.local_engine:
                 self.logger.error("Local search engine is None")
                 return {'items': [], 'total': 0, 'used_remote': False}
-            
+
             self.logger.debug("Calling local_engine.search()")
             results = self.local_engine.search(query, limit=limit)
-            
+
             if results:
                 result_count = len(results.get('items', []))
                 total_count = results.get('total', 0)
@@ -145,7 +145,7 @@ class SearchHandler:
             else:
                 self.logger.warning("Local search returned None/empty results")
                 return {'items': [], 'total': 0, 'used_remote': False}
-                
+
         except Exception as e:
             import traceback
             self.logger.error(f"Local search failed: {e}")
@@ -180,9 +180,13 @@ class SearchHandler:
 
         # Add directory items for each result
         for item in items:
+            # Ensure label2 is a string or None
+            year = item.get('year')
+            year_str = str(year) if year is not None else None
+
             list_item = xbmcgui.ListItem(
                 label=item.get('label', 'Unknown'),
-                label2=item.get('year', '')
+                label2=year_str
             )
 
             # Set artwork if available
