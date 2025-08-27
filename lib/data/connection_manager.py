@@ -53,7 +53,14 @@ class ConnectionManager:
     def _create_connection(self):
         """Create and configure database connection"""
         db_path = self.storage_manager.get_database_path()
-        self.logger.debug(f"Creating database connection to: {db_path}")
+        self.logger.info(f"Creating database connection to: {db_path}")
+        
+        # Log the absolute path for debugging
+        try:
+            abs_path = os.path.abspath(db_path)
+            self.logger.info(f"Absolute database path: {abs_path}")
+        except Exception as e:
+            self.logger.warning(f"Could not resolve absolute path: {e}")
 
         try:
             # Phase 3: Use configurable busy timeout

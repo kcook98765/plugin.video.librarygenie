@@ -100,14 +100,26 @@ class StorageManager:
                     xbmcvfs.mkdirs(profile_dir)
                 
                 db_path = os.path.join(profile_dir, 'librarygenie.db')
-                self.logger.debug(f"Database path: {db_path}")
+                self.logger.info(f"Using Kodi profile database path: {db_path}")
                 return db_path
             except Exception as e:
                 self.logger.warning(f"Could not get Kodi profile path: {e}")
         
-        # Fallback to current directory
+        # Fallback - try to get profile path directly without addon object
+        if KODI_AVAILABLE:
+            try:
+                profile_dir = xbmcvfs.translatePath('special://profile/addon_data/plugin.video.librarygenie/')
+                if not xbmcvfs.exists(profile_dir):
+                    xbmcvfs.mkdirs(profile_dir)
+                db_path = os.path.join(profile_dir, 'librarygenie.db')
+                self.logger.info(f"Using direct profile database path: {db_path}")
+                return db_path
+            except Exception as e:
+                self.logger.warning(f"Could not get direct profile path: {e}")
+        
+        # Final fallback to current directory
         fallback_path = os.path.join(os.getcwd(), 'librarygenie.db')
-        self.logger.debug(f"Using fallback database path: {fallback_path}")
+        self.logger.warning(f"Using fallback database path: {fallback_path}")
         return fallback_path
 
     def get_cache_dir(self):
