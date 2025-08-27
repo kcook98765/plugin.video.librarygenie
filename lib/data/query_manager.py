@@ -522,17 +522,35 @@ class QueryManager:
 
     def _extract_media_item_data(self, item):
         """Extract media item data from search result item"""
+        # Extract kodi_id from various possible fields
+        kodi_id = None
+        if item.get('movieid'):
+            kodi_id = item.get('movieid')
+        elif item.get('kodi_id'):
+            kodi_id = item.get('kodi_id')
+        elif item.get('id') and item.get('_source') != 'remote':
+            # Only use 'id' as kodi_id if it's not from a remote source
+            kodi_id = item.get('id')
+
+        # Ensure kodi_id is properly typed as integer if present
+        if kodi_id is not None:
+            try:
+                kodi_id = int(kodi_id)
+            except (ValueError, TypeError):
+                self.logger.warning(f"Invalid kodi_id value: {kodi_id}, setting to None")
+                kodi_id = None
+
         return {
             'media_type': item.get('type', 'movie'),
             'title': item.get('title', item.get('label', 'Unknown')),
             'year': item.get('year'),
-            'imdbnumber': item.get('imdbnumber'),
+            'imdbnumber': item.get('imdbnumber') or item.get('imdb_id'),
             'tmdb_id': item.get('tmdb_id'),
-            'kodi_id': item.get('movieid') or item.get('id'),
+            'kodi_id': kodi_id,
             'source': 'remote' if item.get('_source') == 'remote' else 'lib',
-            'play': item.get('path', ''),
-            'poster': item.get('art', {}).get('poster', ''),
-            'fanart': item.get('art', {}).get('fanart', ''),
+            'play': item.get('path') or item.get('file_path', ''),
+            'poster': item.get('art', {}).get('poster', '') if item.get('art') else item.get('poster', ''),
+            'fanart': item.get('art', {}).get('fanart', '') if item.get('art') else item.get('fanart', ''),
             'plot': item.get('plot', ''),
             'rating': item.get('rating'),
             'votes': item.get('votes'),
