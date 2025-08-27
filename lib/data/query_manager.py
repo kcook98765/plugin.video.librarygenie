@@ -903,6 +903,42 @@ class QueryManager:
             self.logger.warning(f"Failed to normalize movie details: {e}")
             return None
 
+    def detect_content_type(self, items: List[Dict[str, Any]]) -> str:
+        """
+        Detect the primary content type for a list of items
+
+        Args:
+            items: List of media items
+
+        Returns:
+            str: "movies", "tvshows", or "episodes"
+        """
+        if not items:
+            return "movies"
+
+        # Count media types
+        type_counts = {}
+        for item in items:
+            media_type = item.get('media_type', 'movie')
+            type_counts[media_type] = type_counts.get(media_type, 0) + 1
+
+        # Return the most common type, with fallback logic
+        if not type_counts:
+            return "movies"
+
+        most_common = max(type_counts.items(), key=lambda x: x[1])[0]
+
+        # Map to Kodi content types
+        type_mapping = {
+            'movie': 'movies',
+            'episode': 'episodes',
+            'tvshow': 'tvshows',
+            'musicvideo': 'musicvideos',
+            'external': 'movies'  # Default external items to movies
+        }
+
+        return type_mapping.get(most_common, 'movies')
+
 
 # Global query manager instance
 _query_manager_instance = None

@@ -1,618 +1,208 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
-LibraryGenie - Phase 11 ListItem Renderer
-Enhanced ListItem creation with artwork, metadata, and playback actions
+LibraryGenie - ListItem Renderer
+Renders list items with proper Kodi integration
 """
 
+from typing import List, Dict, Any, Optional
+import xbmc
 import xbmcgui
 import xbmcplugin
-
-import json
-from typing import Dict, Any, Optional, List, Callable
-from urllib.parse import urlencode
-
-from ..config import get_config
-from ..utils.logger import get_logger
+from .listitem_builder import ListItemBuilder
+from ..utils.logger import Logger
 
 
 class ListItemRenderer:
-    """Renders ListItems with Phase 11 artwork, metadata, and playback actions"""
-
-    def __init__(self, string_getter: Optional[Callable[[int], str]] = None):
-        self.logger = get_logger(__name__)
-        self.config = get_config()
-        self._get_string = string_getter or self._fallback_string_getter
-
-        # Load UI preferences
-        self._load_ui_preferences()
-
-    def _load_ui_preferences(self):
-        """Load UI preferences from database or config"""
+    """Renders lists and media items as Kodi ListItems"""
+    
+    def __init__(self, addon_handle: int, addon_id: str):
+        self.addon_handle = addon_handle
+        self.addon_id = addon_id
+        self.logger = Logger()
+        self.builder = ListItemBuilder(addon_handle, addon_id)
+    
+    def render_lists(self, lists: List[Dict[str, Any]], folder_id: Optional[int] = None) -> bool:
+        """
+        Render lists as directory items
+        
+        Args:
+            lists: List of list dictionaries
+            folder_id: Parent folder ID if any
+            
+        Returns:
+            bool: Success status
+        """
         try:
-            # Try to get from database first, fallback to config
-            from ..data import get_connection_manager
-            conn_manager = get_connection_manager()
-
-            prefs = conn_manager.execute_single(
-                "SELECT ui_density, artwork_preference, show_secondary_label, show_plot_in_detailed, fallback_icon FROM ui_preferences WHERE id = 1"
-            )
-
-            if prefs:
-                self.ui_density = prefs['ui_density']
-                self.artwork_preference = prefs['artwork_preference']
-                self.show_secondary_label = bool(prefs['show_secondary_label'])
-                self.show_plot_in_detailed = bool(prefs['show_plot_in_detailed'])
-                self.fallback_icon = prefs['fallback_icon'] or 'DefaultVideo.png'
-            else:
-                self._load_default_preferences()
-
+            # Set content type for lists
+            xbmcplugin.setContent(self.addon_handle, "files")
+            
+            for list_data in lists:
+                list_item = self._build_list_item(list_data)
+                if list_item:
+                    list_id = list_data['id']
+                    url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
+                    
+                    xbmcplugin.addDirectoryItem(
+                        handle=self.addon_handle,
+                        url=url,
+                        listitem=list_item,
+                        isFolder=True
+                    )
+            
+            xbmcplugin.endOfDirectory(self.addon_handle)
+            return True
+            
         except Exception as e:
-            self.logger.debug(f"Failed to load UI preferences from database: {e}")
-            self._load_default_preferences()
-
-    def _load_default_preferences(self):
-        """Load default UI preferences"""
-        self.ui_density = self.config.get('ui_density', 'compact')
-        self.artwork_preference = self.config.get('artwork_preference', 'poster')
-        self.show_secondary_label = self.config.get('show_secondary_label', True)
-        self.show_plot_in_detailed = self.config.get('show_plot_in_detailed', True)
-        self.fallback_icon = 'DefaultVideo.png'
-
-    def create_movie_listitem(self, movie_data: Dict[str, Any], base_url: str, action: str = "play_movie") -> 'xbmcgui.ListItem':
-        """Create a rich ListItem for a movie with artwork and metadata"""
-
+            self.logger.error(f"Failed to render lists: {e}")
+            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
+            return False
+    
+    def render_media_items(self, items: List[Dict[str, Any]], content_type: str = "movies") -> bool:
+        """
+        Render media items using the dual-mode builder
+        
+        Args:
+            items: List of media item dictionaries
+            content_type: "movies", "tvshows", or "episodes"
+            
+        Returns:
+            bool: Success status
+        """
+        return self.builder.build_directory(items, content_type)
+    
+    def render_folders(self, folders: List[Dict[str, Any]], parent_id: Optional[int] = None) -> bool:
+        """
+        Render folders as directory items
+        
+        Args:
+            folders: List of folder dictionaries
+            parent_id: Parent folder ID if any
+            
+        Returns:
+            bool: Success status
+        """
         try:
-            self.logger.info(f"=== CREATING LISTITEM FOR: {movie_data.get('title', 'Unknown')} ===")
-            self.logger.info(f"Movie data keys available: {sorted(movie_data.keys())}")
-            self.logger.info(f"Basic data: title='{movie_data.get('title')}', year={movie_data.get('year')}, kodi_id={movie_data.get('kodi_id')}")
-            self.logger.info(f"Artwork data: poster='{movie_data.get('poster', 'MISSING')}', fanart='{movie_data.get('fanart', 'MISSING')}', thumb='{movie_data.get('thumb', 'MISSING')}'")
+            # Set content type for folders
+            xbmcplugin.setContent(self.addon_handle, "files")
             
-            # Enhanced metadata logging
-            plot = movie_data.get('plot', '')
-            plotoutline = movie_data.get('plotoutline', '')
-            self.logger.info(f"Plot data: plot length={len(plot) if plot else 0}, plotoutline length={len(plotoutline) if plotoutline else 0}")
-            self.logger.info(f"Metadata: genre='{movie_data.get('genre', 'MISSING')}', director='{movie_data.get('director', 'MISSING')}'")
-            self.logger.info(f"Additional: rating={movie_data.get('rating', 'MISSING')}, runtime={movie_data.get('runtime', 'MISSING')}, mpaa='{movie_data.get('mpaa', 'MISSING')}'")
-            self.logger.info(f"Cast/Crew: writer='{movie_data.get('writer', 'MISSING')}', studio='{movie_data.get('studio', 'MISSING')}'")
+            for folder_data in folders:
+                list_item = self._build_folder_item(folder_data)
+                if list_item:
+                    folder_id = folder_data['id']
+                    url = f"plugin://{self.addon_id}/?action=show_folder&folder_id={folder_id}"
+                    
+                    xbmcplugin.addDirectoryItem(
+                        handle=self.addon_handle,
+                        url=url,
+                        listitem=list_item,
+                        isFolder=True
+                    )
             
-            # UI preferences logging
-            self.logger.info(f"UI Settings: density='{self.ui_density}', artwork_pref='{self.artwork_preference}', show_plot={self.show_plot_in_detailed}")
-
-            # Extract basic info
-            title = movie_data.get('title', 'Unknown Movie')
-            year = movie_data.get('year')
-            kodi_id = movie_data.get('kodi_id')
-
-            # Build primary and secondary labels
-            primary_label = str(title).strip() if title else 'Unknown Movie'
-            secondary_label = str(year) if year and self.show_secondary_label else ""
-
-            # Create ListItem
-            list_item = xbmcgui.ListItem(label=primary_label, label2=secondary_label)
-
-            # Set Video InfoLabels based on UI density
-            info_labels = self._build_info_labels(movie_data)
-            self.logger.info(f"Built info labels: {list(info_labels.keys())}")
+            xbmcplugin.endOfDirectory(self.addon_handle)
+            return True
             
-            # Log the actual plot data being set
-            if 'plot' in info_labels:
-                plot_preview = info_labels['plot'][:100] + "..." if len(info_labels['plot']) > 100 else info_labels['plot']
-                self.logger.info(f"Setting plot: '{plot_preview}'")
-            else:
-                self.logger.warning("No plot data in info labels!")
-                
-            list_item.setInfo('video', info_labels)
-
-            # Set artwork based on preferences
-            art_dict = self._build_art_dict(movie_data)
-            self.logger.debug(f"Setting artwork: {list(art_dict.keys())}")
-            list_item.setArt(art_dict)
-
-            # Add playback context menu
-            context_menu = self._build_playback_context_menu(movie_data, base_url)
-            if context_menu:
-                list_item.addContextMenuItems(context_menu)
-
-            # Set additional properties for skin use
-            self._set_additional_properties(list_item, movie_data)
-
-            # COMPREHENSIVE FINAL LISTITEM DEBUG - Log everything we can access
-            self._debug_final_listitem(list_item, movie_data)
-
+        except Exception as e:
+            self.logger.error(f"Failed to render folders: {e}")
+            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
+            return False
+    
+    def _build_list_item(self, list_data: Dict[str, Any]) -> Optional[xbmcgui.ListItem]:
+        """Build ListItem for a user list"""
+        try:
+            name = list_data.get('name', 'Unnamed List')
+            list_item = xbmcgui.ListItem(label=name)
+            
+            # Set basic info
+            list_item.setInfo('video', {
+                'title': name,
+                'plot': f"User list: {name}"
+            })
+            
+            # Set folder icon
+            list_item.setArt({
+                'icon': 'DefaultFolder.png',
+                'thumb': 'DefaultFolder.png'
+            })
+            
+            # Add context menu
+            self._set_list_context_menu(list_item, list_data)
+            
             return list_item
-
+            
         except Exception as e:
-            self.logger.error(f"Error creating ListItem for {movie_data.get('title', 'Unknown')}: {e}")
-            # Create a minimal fallback ListItem
-            fallback_title = movie_data.get('title', 'Unknown Movie')
-            fallback_item = xbmcgui.ListItem(label=str(fallback_title))
-            fallback_item.setInfo('video', {'title': str(fallback_title)})
-            fallback_item.setArt({'thumb': self.fallback_icon})
-            return fallback_item
-
-    def _build_info_labels(self, movie_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Build Video InfoLabels based on UI density and available metadata"""
-
-        info = {}
-
-        # Core fields (always included) - ensure proper types
-        title = movie_data.get('title', 'Unknown Movie')
-        if title and str(title).strip():
-            info['title'] = str(title).strip()
-        else:
-            info['title'] = 'Unknown Movie'
-
-        year = movie_data.get('year')
-        if year is not None:
-            try:
-                year_int = int(year)
-                if 1800 <= year_int <= 2100:  # Reasonable year range
-                    info['year'] = int(year_int)  # Explicit int conversion
-            except (ValueError, TypeError):
-                self.logger.debug(f"Invalid year value: {year}")
-                pass
-
-        # Handle plot information - use JSON-RPC data directly
-        plot = movie_data.get('plot', '')
-        plotoutline = movie_data.get('plotoutline', '')
-        
-        # Ensure we have string values
-        if plot is not None:
-            plot = str(plot).strip()
-        else:
-            plot = ''
-            
-        if plotoutline is not None:
-            plotoutline = str(plotoutline).strip()
-        else:
-            plotoutline = ''
-        
-        # Log what we're working with
-        self.logger.debug(f"Plot processing for '{title}': plot='{plot[:50]}...' ({len(plot)} chars), plotoutline='{plotoutline[:50]}...' ({len(plotoutline)} chars)")
-        
-        # Use plot data from JSON-RPC directly - no fallback generation
-        # This ensures plot comes from the JSON-RPC call as requested
-        if plot and len(plot) > 0:
-            # Use full plot from JSON-RPC
-            info['plot'] = plot
-            self.logger.debug(f"Using JSON-RPC plot for '{title}': {len(plot)} characters")
-        elif plotoutline and len(plotoutline) > 0:
-            # Use plot outline from JSON-RPC as fallback
-            info['plot'] = plotoutline
-            self.logger.debug(f"Using JSON-RPC plotoutline for '{title}': {len(plotoutline)} characters")
-        else:
-            # No plot data from JSON-RPC - don't create artificial descriptions
-            # Let Kodi handle missing plot data naturally
-            self.logger.debug(f"No plot data from JSON-RPC for '{title}' - leaving empty for Kodi to handle")
-
-        # Always include display metadata for rich list presentation (like native Kodi lists)
-        # This provides similar data that native Kodi lists show, with heavy data left to dbid
-        
-        # Additional plot outline for detailed view (if different from main plot)
-        plotoutline = movie_data.get('plotoutline', '').strip()
-        if plotoutline and plotoutline != info.get('plot', '') and len(plotoutline) < len(info.get('plot', '')):
-            info['plotoutline'] = plotoutline
-
-        # Runtime - always include for display (native Kodi lists show this)
-        runtime = movie_data.get('runtime', 0)
-        if runtime:
-            try:
-                runtime_val = int(float(runtime))
-                if runtime_val > 0:
-                    info['duration'] = runtime_val * 60  # Kodi expects seconds
-            except (ValueError, TypeError):
-                self.logger.debug(f"Invalid runtime value: {runtime}")
-                pass
-
-        # Rating - always include for display (native Kodi lists show this)
-        rating = movie_data.get('rating', 0.0)
-        if rating:
-            try:
-                rating_float = float(rating)
-                if 0.0 <= rating_float <= 10.0:  # Valid rating range
-                    info['rating'] = float(rating_float)  # Explicit float conversion
-            except (ValueError, TypeError):
-                self.logger.debug(f"Invalid rating value: {rating}")
-                pass
-
-        # Genre - always include for display (native Kodi lists show this)
-        # Use string format for Python 3.8 compatibility
-        genre = movie_data.get('genre', '')
-        if genre:
-            try:
-                if isinstance(genre, str):
-                    genre_str = genre.strip()
-                    if genre_str and len(genre_str) > 0:
-                        info['genre'] = genre_str
-                elif isinstance(genre, list) and len(genre) > 0:
-                    # Join list into comma-separated string for compatibility
-                    genre_list = []
-                    for g in genre:
-                        if g and str(g).strip():
-                            genre_list.append(str(g).strip())
-                    if genre_list:
-                        info['genre'] = ', '.join(genre_list)
-            except Exception as e:
-                self.logger.debug(f"Error processing genre: {e}")
-                pass
-
-        # MPAA rating - include for display (native Kodi lists show this)
-        mpaa = movie_data.get('mpaa', '')
-        if mpaa:
-            try:
-                mpaa_str = str(mpaa).strip()
-                if mpaa_str:
-                    info['mpaa'] = mpaa_str
-            except Exception as e:
-                self.logger.debug(f"Error processing MPAA: {e}")
-                pass
-
-        # Director - include for display (native Kodi lists show this)
-        # Use string format for Python 3.8 compatibility
-        director = movie_data.get('director', '')
-        if director:
-            try:
-                if isinstance(director, str):
-                    director_str = director.strip()
-                    if director_str and len(director_str) > 0:
-                        info['director'] = director_str
-                elif isinstance(director, list) and len(director) > 0:
-                    # Join list into comma-separated string for compatibility
-                    director_list = []
-                    for d in director:
-                        if d and str(d).strip():
-                            director_list.append(str(d).strip())
-                    if director_list:
-                        info['director'] = ', '.join(director_list)
-            except Exception as e:
-                self.logger.debug(f"Error processing director: {e}")
-                pass
-
-        # Studio - include for display
-        studio = movie_data.get('studio', '')
-        if studio:
-            try:
-                studio_str = str(studio).strip()
-                if studio_str and not studio_str.startswith('['):
-                    info['studio'] = studio_str
-            except Exception as e:
-                self.logger.debug(f"Error processing studio: {e}")
-                pass
-
-        # Country - include for display
-        country = movie_data.get('country', '')
-        if country:
-            try:
-                country_str = str(country).strip()
-                if country_str and not country_str.startswith('['):
-                    info['country'] = country_str
-            except Exception as e:
-                self.logger.debug(f"Error processing country: {e}")
-                pass
-
-        # Writer - include for display (but keep it simple)
-        writer = movie_data.get('writer', '')
-        if writer:
-            try:
-                writer_str = str(writer).strip()
-                if writer_str and not writer_str.startswith('['):
-                    info['writer'] = writer_str
-            except Exception as e:
-                self.logger.debug(f"Error processing writer: {e}")
-                pass
-
-        # IMPORTANT: Cast data is intentionally NOT processed here!
-        # Cast information should not be requested via JSON-RPC for ListItems as it:
-        # 1. Causes significant performance issues with large libraries
-        # 2. Is not needed for list display purposes
-        # 3. Will be automatically populated by Kodi when dbid property is set
-        # The dbid property (set below) tells Kodi this is a library item and
-        # enables automatic population of cast and other detailed metadata.
-        
-        # Set dbid for Kodi library items to enable additional metadata population
-        kodi_id = movie_data.get('kodi_id')
-        if kodi_id:
-            self.logger.debug(f"Kodi library item '{title}' - dbid will enable additional metadata features")
-
-        # Playback info - ensure it's an integer
-        playcount = movie_data.get('playcount', 0)
-        if playcount is not None:
-            try:
-                playcount_int = int(playcount)
-                if playcount_int >= 0:
-                    info['playcount'] = int(playcount_int)
-            except (ValueError, TypeError):
-                self.logger.debug(f"Invalid playcount value: {playcount}")
-                pass
-
-        # External IDs - ensure they're valid strings
-        imdb_id = movie_data.get('imdb_id') or movie_data.get('imdbnumber')
-        if imdb_id:
-            try:
-                imdb_str = str(imdb_id).strip()
-                if imdb_str and imdb_str != 'None' and len(imdb_str) > 0:
-                    info['imdbnumber'] = imdb_str
-            except Exception as e:
-                self.logger.debug(f"Error processing IMDb ID: {e}")
-                pass
-
-        # For Kodi library items with dbid, we don't need to set uniqueid in InfoLabels
-        # The dbid property (set in _set_additional_properties) tells Kodi this is a library item
-        # and enables automatic population of cast and other detailed metadata.
-        # Setting imdbnumber is sufficient for identification purposes.
-        if kodi_id:
-            self.logger.debug(f"Library item '{title}' - dbid property will enable cast and detailed metadata")
-
-        return info
-
-    def _build_art_dict(self, movie_data: Dict[str, Any]) -> Dict[str, str]:
-        """Build artwork dictionary based on preferences and available art"""
-
-        art = {}
-
-        # Get artwork URLs
-        poster = movie_data.get('poster', '')
-        fanart = movie_data.get('fanart', '')
-        thumb = movie_data.get('thumb', '')
-
-        # Set primary artwork based on preference
-        if self.artwork_preference == 'poster' and poster:
-            art['thumb'] = poster
-            art['poster'] = poster
-        elif self.artwork_preference == 'fanart' and fanart:
-            art['thumb'] = fanart
-            art['fanart'] = fanart
-
-        # Always try to set both if available
-        if poster:
-            art['poster'] = poster
-            if not art.get('thumb'):
-                art['thumb'] = poster
-
-        if fanart:
-            art['fanart'] = fanart
-            if not art.get('thumb'):
-                art['thumb'] = fanart
-
-        # Fallback to default icon if no artwork
-        if not art.get('thumb'):
-            art['thumb'] = self.fallback_icon
-            
-        # Ensure we have at least some artwork for better display
-        if not art.get('poster') and art.get('thumb'):
-            art['poster'] = art['thumb']
-        if not art.get('fanart') and art.get('poster'):
-            art['fanart'] = art['poster']
-
-        # Additional art types for high-density UI
-        if self.ui_density == 'art_heavy':
-            if poster:
-                art['clearlogo'] = poster  # Some skins use clearlogo
-            if fanart:
-                art['landscape'] = fanart
-
-        return art
-
-    def _build_playback_context_menu(self, movie_data: Dict[str, Any], base_url: str) -> List[tuple]:
-        """Build context menu with playback actions"""
-
-        kodi_id = movie_data.get('kodi_id')
-        if not kodi_id:
-            return []
-
-        context_menu = []
-
-        # Play action
-        play_url = f"{base_url}?{urlencode({'action': 'play_movie', 'kodi_id': kodi_id})}"
-        context_menu.append((self._get_string(35001), f"RunPlugin({play_url})"))  # "Play"
-
-        # Resume action (if resume point exists)
-        resume_time = movie_data.get('resume_time', 0)
-        if resume_time > 0:
-            resume_url = f"{base_url}?{urlencode({'action': 'resume_movie', 'kodi_id': kodi_id})}"
-            context_menu.append((self._get_string(35002), f"RunPlugin({resume_url})"))  # "Resume"
-
-        # Queue action
-        queue_url = f"{base_url}?{urlencode({'action': 'queue_movie', 'kodi_id': kodi_id})}"
-        context_menu.append((self._get_string(35003), f"RunPlugin({queue_url})"))  # "Add to Queue"
-
-        # Show Info action
-        info_url = f"{base_url}?{urlencode({'action': 'show_info', 'kodi_id': kodi_id})}"
-        context_menu.append((self._get_string(35004), f"RunPlugin({info_url})"))  # "Movie Information"
-
-        return context_menu
-
-    def _set_additional_properties(self, list_item: Any, movie_data: Dict[str, Any]):
-        """Set additional properties for skin/plugin use"""
-
-        # Set resume time as property for skins that support it
-        resume_time = movie_data.get('resume_time', 0)
-        if resume_time > 0:
-            list_item.setProperty('ResumeTime', str(resume_time))
-            list_item.setProperty('TotalTime', str(movie_data.get('runtime', 0) * 60))
-
-            # Calculate percentage for progress indicators
-            total_time = movie_data.get('runtime', 0) * 60
-            if total_time > 0:
-                progress = (resume_time / total_time) * 100
-                list_item.setProperty('PercentPlayed', str(int(progress)))
-
-        # Set movie IDs as properties
-        if movie_data.get('imdb_id'):
-            list_item.setProperty('IMDbID', movie_data['imdb_id'])
-        if movie_data.get('tmdb_id'):
-            list_item.setProperty('TMDbID', movie_data['tmdb_id'])
-
-        # Set database ID for Kodi auto-population of cast and detailed metadata
-        kodi_id = movie_data.get('kodi_id')
-        if kodi_id:
-            list_item.setProperty('dbid', str(kodi_id))
-            # Also set the media type to help Kodi identify this as a movie
-            list_item.setProperty('dbtype', 'movie')
-            
-            # Set uniqueid property - this is critical for cast population in native dialog
-            imdb_id = movie_data.get('imdb_id') or movie_data.get('imdbnumber')
-            if imdb_id:
-                imdb_str = str(imdb_id).strip()
-                if imdb_str and imdb_str != 'None' and imdb_str.startswith('tt'):
-                    list_item.setProperty('uniqueid.imdb', imdb_str)
-                    self.logger.info(f"SET UNIQUEID: Set uniqueid.imdb={imdb_str} for '{movie_data.get('title', 'Unknown')}'")
-            
-            # Also set TMDb uniqueid if available
-            tmdb_id = movie_data.get('tmdb_id')
-            if tmdb_id:
-                tmdb_str = str(tmdb_id).strip()
-                if tmdb_str and tmdb_str != 'None':
-                    list_item.setProperty('uniqueid.tmdb', tmdb_str)
-                    self.logger.info(f"SET UNIQUEID: Set uniqueid.tmdb={tmdb_str} for '{movie_data.get('title', 'Unknown')}'")
-            
-            self.logger.info(f"SET DBID PROPERTY: Set dbid={kodi_id} and dbtype='movie' for '{movie_data.get('title', 'Unknown')}'")
-        else:
-            self.logger.warning(f"NO DBID SET: No kodi_id found for '{movie_data.get('title', 'Unknown')}' - available data keys: {list(movie_data.keys())}")
-
-        # Set UI density for skin adaptation
-        list_item.setProperty('ListItemDensity', self.ui_density)
-        list_item.setProperty('ArtworkPreference', self.artwork_preference)
-
-    def create_simple_listitem(self, title: str, description: str = "", action: str = "", **kwargs) -> 'xbmcgui.ListItem':
-        """Create a simple ListItem for non-movie items (menus, actions, etc.)"""
-
-        list_item = xbmcgui.ListItem(label=title)
-        list_item.setInfo('video', {'plot': description})
-
-        # Set fallback artwork for consistency
-        icon = kwargs.get('icon', self.fallback_icon)
-        list_item.setArt({'thumb': icon})
-
-        return list_item
-
-    def update_preferences(self, **preferences):
-        """Update UI preferences and save to database"""
-
-        if 'ui_density' in preferences:
-            self.ui_density = preferences['ui_density']
-        if 'artwork_preference' in preferences:
-            self.artwork_preference = preferences['artwork_preference']
-        if 'show_secondary_label' in preferences:
-            self.show_secondary_label = preferences['show_secondary_label']
-        if 'show_plot_in_detailed' in preferences:
-            self.show_plot_in_detailed = preferences['show_plot_in_detailed']
-
-        # Save to database
+            self.logger.error(f"Failed to build list item: {e}")
+            return None
+    
+    def _build_folder_item(self, folder_data: Dict[str, Any]) -> Optional[xbmcgui.ListItem]:
+        """Build ListItem for a folder"""
         try:
-            from ..data import get_connection_manager
-            conn_manager = get_connection_manager()
-
-            with conn_manager.transaction() as conn:
-                conn.execute("""
-                    UPDATE ui_preferences
-                    SET ui_density = ?, artwork_preference = ?, show_secondary_label = ?,
-                        show_plot_in_detailed = ?, updated_at = datetime('now')
-                    WHERE id = 1
-                """, [
-                    self.ui_density, self.artwork_preference,
-                    int(self.show_secondary_label), int(self.show_plot_in_detailed)
-                ])
-
-            self.logger.info(f"Updated UI preferences: density={self.ui_density}, artwork={self.artwork_preference}")
-
-        except Exception as e:
-            self.logger.error(f"Failed to save UI preferences: {e}")
-
-    def _debug_final_listitem(self, list_item: Any, movie_data: Dict[str, Any]):
-        """Comprehensive debugging of final ListItem state"""
-        try:
-            title = movie_data.get('title', 'Unknown')
-            self.logger.info(f"=== FINAL LISTITEM DEBUG FOR: {title} ===")
+            name = folder_data.get('name', 'Unnamed Folder')
+            list_item = xbmcgui.ListItem(label=name)
             
-            # Check basic ListItem properties
-            try:
-                label = list_item.getLabel()
-                label2 = list_item.getLabel2()
-                self.logger.info(f"Labels: primary='{label}', secondary='{label2}'")
-            except Exception as e:
-                self.logger.warning(f"Could not get labels: {e}")
-
-            # Check critical properties for cast population
-            critical_props = ['dbid', 'dbtype', 'uniqueid.imdb', 'uniqueid.tmdb']
-            for prop in critical_props:
-                try:
-                    value = list_item.getProperty(prop)
-                    self.logger.info(f"Property '{prop}': '{value}'")
-                except Exception as e:
-                    self.logger.warning(f"Could not get property '{prop}': {e}")
-
-            # Check other important properties
-            other_props = ['IsPlayable', 'IMDbID', 'TMDbID', 'ResumeTime', 'TotalTime', 'PercentPlayed', 'ListItemDensity', 'ArtworkPreference']
-            for prop in other_props:
-                try:
-                    value = list_item.getProperty(prop)
-                    if value:  # Only log if not empty
-                        self.logger.info(f"Property '{prop}': '{value}'")
-                except Exception as e:
-                    self.logger.debug(f"Could not get property '{prop}': {e}")
-
-            # Try to check art dictionary
-            try:
-                # Note: getArt() might not be available in all Kodi versions
-                # This is just for debugging purposes
-                self.logger.info("Art dictionary check: Art was set via setArt() method")
-            except Exception as e:
-                self.logger.debug(f"Could not check art: {e}")
-
-            # Check if InfoLabels were set properly
-            try:
-                # We can't retrieve InfoLabels, but we can log what we tried to set
-                self.logger.info("InfoLabels: Set via setInfo('video', {...}) method")
-                info_keys = ['title', 'year', 'plot', 'duration', 'rating', 'genre', 'mpaa', 'director', 'studio', 'country', 'writer', 'playcount', 'imdbnumber']
-                self.logger.info(f"InfoLabel keys attempted: {info_keys}")
-            except Exception as e:
-                self.logger.debug(f"Could not log InfoLabels: {e}")
-
-            # Final verification of the most critical properties
-            dbid = list_item.getProperty('dbid')
-            dbtype = list_item.getProperty('dbtype') 
-            uniqueid_imdb = list_item.getProperty('uniqueid.imdb')
+            # Set basic info
+            list_item.setInfo('video', {
+                'title': name,
+                'plot': f"Folder: {name}"
+            })
             
-            if dbid and dbtype and uniqueid_imdb:
-                self.logger.info(f"✓ CAST-CRITICAL PROPERTIES CONFIRMED: dbid={dbid}, dbtype={dbtype}, uniqueid.imdb={uniqueid_imdb}")
-            else:
-                self.logger.warning(f"✗ MISSING CAST-CRITICAL PROPERTIES: dbid={dbid}, dbtype={dbtype}, uniqueid.imdb={uniqueid_imdb}")
-
-            self.logger.info(f"=== END FINAL LISTITEM DEBUG FOR: {title} ===")
-
+            # Set folder icon
+            list_item.setArt({
+                'icon': 'DefaultFolder.png',
+                'thumb': 'DefaultFolder.png'
+            })
+            
+            # Add context menu
+            self._set_folder_context_menu(list_item, folder_data)
+            
+            return list_item
+            
         except Exception as e:
-            self.logger.error(f"Error in final ListItem debugging: {e}")
-
-    def _fallback_string_getter(self, string_id: int) -> str:
-        """Fallback string getter for testing"""
-        fallback_strings = {
-            35001: "Play",
-            35002: "Resume",
-            35003: "Add to Queue",
-            35004: "Movie Information",
-            35005: "Play from Beginning",
-            35006: "Show Details"
-        }
-        return fallback_strings.get(string_id, f"String {string_id}")
-
-
-# Global renderer instance
-_renderer_instance = None
-
-
-def get_listitem_renderer(string_getter: Optional[Callable[[int], str]] = None):
-    """Get global ListItem renderer instance"""
-    global _renderer_instance
-    if _renderer_instance is None:
-        _renderer_instance = ListItemRenderer(string_getter)
-    return _renderer_instance
-
-
-def refresh_renderer_preferences():
-    """Refresh renderer preferences from database"""
-    global _renderer_instance
-    if _renderer_instance:
-        _renderer_instance._load_ui_preferences()
+            self.logger.error(f"Failed to build folder item: {e}")
+            return None
+    
+    def _set_list_context_menu(self, list_item: xbmcgui.ListItem, list_data: Dict[str, Any]):
+        """Set context menu for list items"""
+        context_items = []
+        list_id = list_data.get('id', '')
+        
+        # Rename list
+        context_items.append((
+            "Rename",
+            f"RunPlugin(plugin://{self.addon_id}/?action=rename_list&list_id={list_id})"
+        ))
+        
+        # Delete list
+        context_items.append((
+            "Delete",
+            f"RunPlugin(plugin://{self.addon_id}/?action=delete_list&list_id={list_id})"
+        ))
+        
+        # Export list
+        context_items.append((
+            "Export",
+            f"RunPlugin(plugin://{self.addon_id}/?action=export_list&list_id={list_id})"
+        ))
+        
+        list_item.addContextMenuItems(context_items)
+    
+    def _set_folder_context_menu(self, list_item: xbmcgui.ListItem, folder_data: Dict[str, Any]):
+        """Set context menu for folder items"""
+        context_items = []
+        folder_id = folder_data.get('id', '')
+        
+        # Rename folder
+        context_items.append((
+            "Rename",
+            f"RunPlugin(plugin://{self.addon_id}/?action=rename_folder&folder_id={folder_id})"
+        ))
+        
+        # Delete folder
+        context_items.append((
+            "Delete",
+            f"RunPlugin(plugin://{self.addon_id}/?action=delete_folder&folder_id={folder_id})"
+        ))
+        
+        list_item.addContextMenuItems(context_items)
