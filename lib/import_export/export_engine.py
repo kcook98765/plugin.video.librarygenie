@@ -11,7 +11,7 @@ import json
 import os
 from datetime import datetime
 from io import StringIO
-from typing import List, Dict, Any, Optional, Set
+from typing import List, Dict, Any, Optional, Set, Tuple
 from .data_schemas import ExportEnvelope, ExportedList, ExportedListItem, ExportedFavorite, ExportedLibraryItem
 from .storage_manager import get_storage_manager
 from ..data.connection_manager import get_connection_manager
@@ -89,7 +89,7 @@ class ExportEngine:
             self.logger.error(f"Export error: {e}")
             return {"success": False, "error": str(e)}
 
-    def _collect_export_data(self, export_type: str) -> tuple[List[Dict], int]:
+    def _collect_export_data(self, export_type: str) -> Tuple[List[Dict], int]:
         """Collect data for specific export type"""
         try:
             if export_type == "lists":
@@ -107,7 +107,7 @@ class ExportEngine:
             self.logger.error(f"Error collecting {export_type} data: {e}")
             return [], 0
 
-    def _collect_lists_data(self) -> tuple[List[Dict], int]:
+    def _collect_lists_data(self) -> Tuple[List[Dict], int]:
         """Collect lists data"""
         lists_data = []
 
@@ -140,7 +140,7 @@ class ExportEngine:
 
         return lists_data, len(lists_data)
 
-    def _collect_list_items_data(self) -> tuple[List[Dict], int]:
+    def _collect_list_items_data(self) -> Tuple[List[Dict], int]:
         """Collect list items (membership) data"""
         items_data = []
 
@@ -182,7 +182,7 @@ class ExportEngine:
 
         return items_data, len(items_data)
 
-    def _collect_favorites_data(self) -> tuple[List[Dict], int]:
+    def _collect_favorites_data(self) -> Tuple[List[Dict], int]:
         """Collect favorites mirror data (mapped items only)"""
         favorites_data = []
 
@@ -217,7 +217,7 @@ class ExportEngine:
 
         return favorites_data, len(favorites_data)
 
-    def _collect_library_snapshot_data(self) -> tuple[List[Dict], int]:
+    def _collect_library_snapshot_data(self) -> Tuple[List[Dict], int]:
         """Collect library snapshot data"""
         library_data = []
 

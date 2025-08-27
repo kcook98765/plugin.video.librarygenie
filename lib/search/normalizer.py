@@ -7,7 +7,7 @@ Consistent text normalization for both indexing and querying
 """
 
 import re
-from typing import Dict, Optional, Set
+from typing import Dict, Optional, Set, List
 import unicodedata
 
 from ..utils.logger import get_logger
@@ -61,7 +61,7 @@ class TextNormalizer:
             # Fallback to basic normalization
             return text.lower().strip() if text else ""
 
-    def normalize_tokens(self, text: str) -> list[str]:
+    def normalize_tokens(self, text: str) -> List[str]:
         """
         Normalize text and split into tokens
         """

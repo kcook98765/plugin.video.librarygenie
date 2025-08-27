@@ -96,7 +96,10 @@ class AddonController:
             search_handler.prompt_and_show()
                 
         except Exception as e:
+            import traceback
             self.logger.error(f"Error in search handling: {e}")
+            if self.cfg.get('debug_logging', False):
+                self.logger.debug(f"SearchHandler error traceback: {traceback.format_exc()}")
             self._show_main_menu()
     
     def _handle_authorize(self):

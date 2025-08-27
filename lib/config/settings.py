@@ -6,7 +6,7 @@ LibraryGenie - Phase 10 Import/Export Settings
 Settings for backup management and import/export functionality
 """
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from ..utils.logger import get_logger
 
 
@@ -148,7 +148,7 @@ def get_setting_descriptions() -> Dict[str, str]:
     }
 
 
-def validate_setting_value(setting_key: str, value: Any) -> tuple[bool, str]:
+def validate_setting_value(setting_key: str, value: Any) -> Tuple[bool, str]:
     """Validate a setting value, return (is_valid, error_message)"""
     try:
         if setting_key == "backup_interval":
@@ -247,7 +247,7 @@ class ImportExportSettings:
             "validate_paths": self.get("storage_validate_paths", True)
         }
 
-    def reset_to_defaults(self, keys: list[str] = None):
+    def reset_to_defaults(self, keys: List[str] = None):
         """Reset specified keys to default values"""
         if keys is None:
             keys = list(self.defaults.keys())
