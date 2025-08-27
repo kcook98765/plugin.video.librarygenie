@@ -142,11 +142,11 @@ class ListItemRenderer:
             info['title'] = 'Unknown Movie'
 
         year = movie_data.get('year')
-        if year:
+        if year is not None:
             try:
                 year_int = int(year)
                 if 1800 <= year_int <= 2100:  # Reasonable year range
-                    info['year'] = year_int
+                    info['year'] = int(year_int)  # Explicit int conversion
             except (ValueError, TypeError):
                 self.logger.debug(f"Invalid year value: {year}")
                 pass
@@ -208,7 +208,9 @@ class ListItemRenderer:
         runtime = movie_data.get('runtime', 0)
         if runtime:
             try:
-                info['duration'] = int(float(runtime)) * 60  # Kodi expects seconds
+                runtime_val = int(float(runtime))
+                if runtime_val > 0:
+                    info['duration'] = runtime_val * 60  # Kodi expects seconds
             except (ValueError, TypeError):
                 self.logger.debug(f"Invalid runtime value: {runtime}")
                 pass
@@ -219,25 +221,23 @@ class ListItemRenderer:
             try:
                 rating_float = float(rating)
                 if 0.0 <= rating_float <= 10.0:  # Valid rating range
-                    info['rating'] = rating_float
+                    info['rating'] = float(rating_float)  # Explicit float conversion
             except (ValueError, TypeError):
                 self.logger.debug(f"Invalid rating value: {rating}")
                 pass
 
         # Genre - always include for display (native Kodi lists show this)
+        # Use string format for Python 3.8 compatibility
         genre = movie_data.get('genre', '')
         if genre:
             try:
                 if isinstance(genre, str) and genre.strip():
-                    # Split comma-separated genres
-                    genre_list = [g.strip() for g in genre.split(',') if g.strip()]
-                    if genre_list:
-                        info['genre'] = genre_list
+                    info['genre'] = str(genre).strip()
                 elif isinstance(genre, list):
-                    # Validate list elements are strings
+                    # Join list into comma-separated string for compatibility
                     genre_list = [str(g).strip() for g in genre if str(g).strip()]
                     if genre_list:
-                        info['genre'] = genre_list
+                        info['genre'] = ', '.join(genre_list)
             except Exception as e:
                 self.logger.debug(f"Error processing genre: {e}")
                 pass
@@ -254,19 +254,17 @@ class ListItemRenderer:
                 pass
 
         # Director - include for display (native Kodi lists show this)
+        # Use string format for Python 3.8 compatibility
         director = movie_data.get('director', '')
         if director:
             try:
                 if isinstance(director, str) and director.strip():
-                    # Split comma-separated directors
-                    director_list = [d.strip() for d in director.split(',') if d.strip()]
-                    if director_list:
-                        info['director'] = director_list
+                    info['director'] = str(director).strip()
                 elif isinstance(director, list):
-                    # Validate list elements are strings
+                    # Join list into comma-separated string for compatibility
                     director_list = [str(d).strip() for d in director if str(d).strip()]
                     if director_list:
-                        info['director'] = director_list
+                        info['director'] = ', '.join(director_list)
             except Exception as e:
                 self.logger.debug(f"Error processing director: {e}")
                 pass
@@ -317,9 +315,11 @@ class ListItemRenderer:
 
         # Playback info - ensure it's an integer
         playcount = movie_data.get('playcount', 0)
-        if playcount:
+        if playcount is not None:
             try:
-                info['playcount'] = int(playcount)
+                playcount_int = int(playcount)
+                if playcount_int >= 0:
+                    info['playcount'] = int(playcount_int)
             except (ValueError, TypeError):
                 self.logger.debug(f"Invalid playcount value: {playcount}")
                 pass
@@ -335,31 +335,15 @@ class ListItemRenderer:
                 self.logger.debug(f"Error processing IMDb ID: {e}")
                 pass
 
-        # UniqueID - helps Kodi link to its database
-        uniqueid_dict = {}
+        # UniqueID - simplified for Python 3.8 compatibility
+        # Only set IMDb ID as it's most important for Kodi matching
         if imdb_id:
             try:
                 imdb_str = str(imdb_id).strip()
-                if imdb_str and imdb_str != 'None':
-                    uniqueid_dict['imdb'] = imdb_str
-            except Exception as e:
-                self.logger.debug(f"Error processing IMDb ID for uniqueid: {e}")
-                pass
-        
-        tmdb_id = movie_data.get('tmdb_id')
-        if tmdb_id:
-            try:
-                tmdb_str = str(tmdb_id).strip()
-                if tmdb_str and tmdb_str != 'None':
-                    uniqueid_dict['tmdb'] = tmdb_str
-            except Exception as e:
-                self.logger.debug(f"Error processing TMDb ID for uniqueid: {e}")
-                pass
-        
-        if uniqueid_dict:
-            try:
-                info['uniqueid'] = uniqueid_dict
-                self.logger.debug(f"Set uniqueid for '{title}': {uniqueid_dict}")
+                if imdb_str and imdb_str != 'None' and imdb_str.startswith('tt'):
+                    # Use simple dict creation for better compatibility
+                    info['uniqueid'] = {'imdb': imdb_str}
+                    self.logger.debug(f"Set uniqueid for '{title}': imdb={imdb_str}")
             except Exception as e:
                 self.logger.debug(f"Error setting uniqueid: {e}")
                 pass
