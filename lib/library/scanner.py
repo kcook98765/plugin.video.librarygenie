@@ -254,6 +254,12 @@ class LibraryScanner:
                     try:
                         # For Kodi library items, store core identification fields plus plot
                         # Rich metadata will be fetched via JSON-RPC when needed
+                        plot_data = movie.get("plot", "")
+                        
+                        # Debug log to verify plot data
+                        if plot_data:
+                            self.logger.debug(f"Storing plot for '{movie['title']}': {len(plot_data)} characters")
+                        
                         conn.execute("""
                             INSERT INTO media_items 
                             (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, plot, source, created_at)
@@ -266,7 +272,7 @@ class LibraryScanner:
                             movie.get("imdb_id"),
                             movie.get("tmdb_id"),
                             movie["file_path"],
-                            movie.get("plot", ""),
+                            plot_data,
                             'lib'  # Mark as Kodi library item
                         ])
                         inserted_count += 1
