@@ -89,25 +89,51 @@ class LocalSearchEngine:
             # Search in the library_movie table
             self.logger.debug("Searching library_movie table in SQLite database")
 
-            # Use SQL LIKE for case-insensitive search
-            search_pattern = f"%{query_lower}%"
+            # Split query into individual words
+            words = [word.strip() for word in query_lower.split() if word.strip()]
+            
+            if not words:
+                self.logger.info("No valid words in query, returning empty results")
+                return []
 
-            movies = conn_manager.execute_query("""
+            # Build SQL conditions for each word - all words must match
+            where_conditions = []
+            params = []
+            title_conditions = []  # For prioritization
+            
+            for word in words:
+                word_pattern = f"%{word}%"
+                # Each word must exist in either title OR plot
+                where_conditions.append("(LOWER(title) LIKE ? OR LOWER(plot) LIKE ?)")
+                params.extend([word_pattern, word_pattern])
+                
+                # Track title matches for prioritization
+                title_conditions.append(f"LOWER(title) LIKE ?")
+                params.append(word_pattern)
+
+            # All words must match (AND condition)
+            where_clause = " AND ".join(where_conditions)
+            
+            # Build prioritization - count how many words match in title
+            title_match_count = " + ".join([f"CASE WHEN {cond} THEN 1 ELSE 0 END" 
+                                          for cond in title_conditions])
+
+            sql = f"""
                 SELECT 
                     kodi_id, title, year, imdbnumber as imdb_id, tmdb_id, play as file_path,
                     poster, fanart, poster as thumb, plot, duration as runtime, rating, 
                     genre, mpaa, director, 0 as playcount
                 FROM media_items 
                 WHERE media_type = 'movie'
-                AND (LOWER(title) LIKE ? OR LOWER(plot) LIKE ?)
+                AND {where_clause}
                 ORDER BY 
-                    CASE 
-                        WHEN LOWER(title) LIKE ? THEN 1 
-                        ELSE 2 
-                    END,
+                    ({title_match_count}) DESC,
                     title
                 LIMIT ?
-            """, [search_pattern, search_pattern, search_pattern, limit])
+            """
+            
+            params.append(limit)
+            movies = conn_manager.execute_query(sql, params)
 
             self.logger.info(f"SQLite search returned {len(movies)} movies from database")
 
