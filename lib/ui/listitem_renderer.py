@@ -133,6 +133,17 @@ class ListItemRenderer:
             except (ValueError, TypeError):
                 self.logger.debug(f"Invalid year value: {year}")
                 pass
+
+        # Add basic plot info if no rich metadata available
+        if not movie_data.get('plot') and not movie_data.get('kodi_id'):
+            # Create a basic description from available data
+            description_parts = []
+            if year:
+                description_parts.append(f"Released: {year}")
+            if movie_data.get('imdb_id'):
+                description_parts.append(f"IMDb: {movie_data['imdb_id']}")
+            if description_parts:
+                info['plot'] = " • ".join(description_parts)
         
         # Add extended metadata based on UI density
         if self.ui_density in ['detailed', 'art_heavy']:

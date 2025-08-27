@@ -123,6 +123,7 @@ class QueryManager:
             # Convert to expected format and identify Kodi library items for enrichment
             result: List[Dict[str, Any]] = []
             kodi_ids_to_enrich = []
+            items_to_match = []
             
             for row in items:
                 item_data = {
@@ -140,7 +141,10 @@ class QueryManager:
                     kodi_ids_to_enrich.append(row['kodi_id'])
                     self.logger.debug(f"Found Kodi library item: {row['title']} (kodi_id: {row['kodi_id']})")
                 else:
-                    # For non-Kodi items, use stored database data
+                    # Try to match this item to Kodi library for enrichment
+                    items_to_match.append((len(result), item_data))
+                    
+                    # For now, use stored database data as fallback
                     if 'poster' in row and row['poster']:
                         item_data['poster'] = row['poster']
                     if 'fanart' in row and row['fanart']:
@@ -159,6 +163,18 @@ class QueryManager:
                         item_data['file_path'] = row['file_path']
 
                 result.append(item_data)
+
+            # Try to match items without kodi_id to the Kodi library
+            if items_to_match:
+                self.logger.info(f"Attempting to match {len(items_to_match)} items without kodi_id to Kodi library")
+                matched_kodi_ids = self._match_items_to_kodi_library(items_to_match)
+                
+                # Add matched items to enrichment list
+                for item_index, kodi_id in matched_kodi_ids.items():
+                    if kodi_id:
+                        result[item_index]['kodi_id'] = kodi_id
+                        kodi_ids_to_enrich.append(kodi_id)
+                        self.logger.info(f"Matched '{result[item_index]['title']}' to Kodi library (kodi_id: {kodi_id})")
 
             # Enrich Kodi library items with fresh JSON-RPC data
             if kodi_ids_to_enrich:
@@ -700,6 +716,65 @@ class QueryManager:
             self.logger.error(f"Error fetching Kodi enrichment data: {e}")
             import traceback
             self.logger.error(f"Enrichment error traceback: {traceback.format_exc()}")
+            return {}
+
+    def _match_items_to_kodi_library(self, items_to_match: List[tuple]) -> Dict[int, Optional[int]]:
+        """Try to match items without kodi_id to Kodi library movies"""
+        try:
+            from ..kodi.json_rpc_client import get_kodi_client
+            kodi_client = get_kodi_client()
+            
+            # Get a quick list of all movies in library
+            library_movies = kodi_client.get_movies_quick_check()
+            if not library_movies:
+                self.logger.debug("No movies found in Kodi library for matching")
+                return {}
+
+            # Get full movie details for matching
+            library_data = kodi_client.get_movies(limit=1000)  # Get a reasonable chunk
+            if not library_data or not library_data.get('movies'):
+                self.logger.debug("No detailed movie data available for matching")
+                return {}
+
+            matched_ids = {}
+            
+            for item_index, item_data in items_to_match:
+                matched_kodi_id = None
+                item_title = item_data.get('title', '').lower().strip()
+                item_year = item_data.get('year')
+                item_imdb = item_data.get('imdb_id', '').strip()
+                
+                self.logger.debug(f"Trying to match: {item_title} ({item_year}) IMDb: {item_imdb}")
+                
+                # Try to find a match in the library
+                for library_movie in library_data['movies']:
+                    library_title = library_movie.get('title', '').lower().strip()
+                    library_year = library_movie.get('year')
+                    library_imdb = library_movie.get('imdb_id', '').strip()
+                    
+                    # Match by IMDb ID (most reliable)
+                    if item_imdb and library_imdb and item_imdb == library_imdb:
+                        matched_kodi_id = library_movie.get('kodi_id')
+                        self.logger.debug(f"IMDb match: {item_title} -> kodi_id {matched_kodi_id}")
+                        break
+                    
+                    # Match by title and year
+                    elif (item_title and library_title and 
+                          item_title == library_title and 
+                          item_year and library_year and 
+                          int(item_year) == int(library_year)):
+                        matched_kodi_id = library_movie.get('kodi_id')
+                        self.logger.debug(f"Title/Year match: {item_title} ({item_year}) -> kodi_id {matched_kodi_id}")
+                        break
+                
+                matched_ids[item_index] = matched_kodi_id
+                if not matched_kodi_id:
+                    self.logger.debug(f"No match found for: {item_title} ({item_year})")
+            
+            return matched_ids
+            
+        except Exception as e:
+            self.logger.error(f"Error matching items to Kodi library: {e}")
             return {}
 
     def _normalize_kodi_movie_details(self, movie: Dict[str, Any]) -> Optional[Dict[str, Any]]:
