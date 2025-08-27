@@ -131,7 +131,7 @@ class QueryManager:
                     "tmdb_id": row['tmdb_id'],
                     "created": row['created_at'][:10] if row['created_at'] else '',
                 }
-                
+
                 # Add additional fields if available (from media_items table)
                 if 'kodi_id' in row and row['kodi_id']:
                     item_data['kodi_id'] = row['kodi_id']
@@ -151,7 +151,7 @@ class QueryManager:
                     item_data['director'] = row['director']
                 if 'file_path' in row and row['file_path']:
                     item_data['file_path'] = row['file_path']
-                
+
                 result.append(item_data)
 
             self.logger.debug(f"Retrieved {len(result)} items for list {list_id}")

@@ -63,35 +63,49 @@ class ListItemRenderer:
     def create_movie_listitem(self, movie_data: Dict[str, Any], base_url: str, action: str = "play_movie") -> 'xbmcgui.ListItem':
         """Create a rich ListItem for a movie with artwork and metadata"""
         
-        # Extract basic info
-        title = movie_data.get('title', 'Unknown Movie')
-        year = movie_data.get('year')
-        kodi_id = movie_data.get('kodi_id')
-        
-        # Build primary and secondary labels
-        primary_label = title
-        secondary_label = str(year) if year and self.show_secondary_label else ""
-        
-        # Create ListItem
-        list_item = xbmcgui.ListItem(label=primary_label, label2=secondary_label)
-        
-        # Set Video InfoLabels based on UI density
-        info_labels = self._build_info_labels(movie_data)
-        list_item.setInfo('video', info_labels)
-        
-        # Set artwork based on preferences
-        art_dict = self._build_art_dict(movie_data)
-        list_item.setArt(art_dict)
-        
-        # Add playback context menu
-        context_menu = self._build_playback_context_menu(movie_data, base_url)
-        if context_menu:
-            list_item.addContextMenuItems(context_menu)
-        
-        # Set additional properties for skin use
-        self._set_additional_properties(list_item, movie_data)
-        
-        return list_item
+        try:
+            self.logger.debug(f"Creating ListItem for: {movie_data.get('title', 'Unknown')} - Data keys: {list(movie_data.keys())}")
+            
+            # Extract basic info
+            title = movie_data.get('title', 'Unknown Movie')
+            year = movie_data.get('year')
+            kodi_id = movie_data.get('kodi_id')
+            
+            # Build primary and secondary labels
+            primary_label = str(title).strip() if title else 'Unknown Movie'
+            secondary_label = str(year) if year and self.show_secondary_label else ""
+            
+            # Create ListItem
+            list_item = xbmcgui.ListItem(label=primary_label, label2=secondary_label)
+            
+            # Set Video InfoLabels based on UI density
+            info_labels = self._build_info_labels(movie_data)
+            self.logger.debug(f"Setting info labels: {list(info_labels.keys())}")
+            list_item.setInfo('video', info_labels)
+            
+            # Set artwork based on preferences
+            art_dict = self._build_art_dict(movie_data)
+            self.logger.debug(f"Setting artwork: {list(art_dict.keys())}")
+            list_item.setArt(art_dict)
+            
+            # Add playback context menu
+            context_menu = self._build_playback_context_menu(movie_data, base_url)
+            if context_menu:
+                list_item.addContextMenuItems(context_menu)
+            
+            # Set additional properties for skin use
+            self._set_additional_properties(list_item, movie_data)
+            
+            return list_item
+            
+        except Exception as e:
+            self.logger.error(f"Error creating ListItem for {movie_data.get('title', 'Unknown')}: {e}")
+            # Create a minimal fallback ListItem
+            fallback_title = movie_data.get('title', 'Unknown Movie')
+            fallback_item = xbmcgui.ListItem(label=str(fallback_title))
+            fallback_item.setInfo('video', {'title': str(fallback_title)})
+            fallback_item.setArt({'thumb': self.fallback_icon})
+            return fallback_item
     
     def _build_info_labels(self, movie_data: Dict[str, Any]) -> Dict[str, Any]:
         """Build Video InfoLabels based on UI density and available metadata"""
