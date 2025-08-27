@@ -85,6 +85,7 @@ class QueryManager:
         try:
             self.logger.debug(f"Getting items for list {list_id}")
 
+            # First try to get items from user_list table (legacy lists)
             items = self.conn_manager.execute_query("""
                 SELECT id, title, year, imdb_id, tmdb_id, created_at
                 FROM list_item 
@@ -92,6 +93,17 @@ class QueryManager:
                 ORDER BY created_at DESC
                 LIMIT ? OFFSET ?
             """, [int(list_id), limit, offset])
+
+            # If no items found, try the new lists table (search history lists)
+            if not items:
+                items = self.conn_manager.execute_query("""
+                    SELECT li.id, mi.title, mi.year, mi.imdbnumber as imdb_id, mi.tmdb_id, li.created_at
+                    FROM list_items li
+                    JOIN media_items mi ON li.media_item_id = mi.id
+                    WHERE li.list_id = ?
+                    ORDER BY li.position ASC, li.created_at DESC
+                    LIMIT ? OFFSET ?
+                """, [int(list_id), limit, offset])
 
             # Convert to expected format
             result: List[Dict[str, Any]] = []
@@ -110,6 +122,8 @@ class QueryManager:
 
         except Exception as e:
             self.logger.error(f"Failed to get list items: {e}")
+            import traceback
+            self.logger.error(f"Get list items traceback: {traceback.format_exc()}")
             return []
 
     def create_list(self, name, description=""):
@@ -173,11 +187,21 @@ class QueryManager:
     def count_list_items(self, list_id):
         """Count items in a specific list"""
         try:
+            # First try user_list table
             result = self.conn_manager.execute_single("""
                 SELECT COUNT(*) as count FROM list_item WHERE list_id = ?
             """, [int(list_id)])
 
-            return result['count'] if result else 0
+            count = result['count'] if result else 0
+
+            # If no items found, try new lists table
+            if count == 0:
+                result = self.conn_manager.execute_single("""
+                    SELECT COUNT(*) as count FROM list_items WHERE list_id = ?
+                """, [int(list_id)])
+                count = result['count'] if result else 0
+
+            return count
 
         except Exception as e:
             self.logger.error(f"Failed to count items in list {list_id}: {e}")
