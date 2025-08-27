@@ -94,12 +94,12 @@ class LocalSearchEngine:
             
             movies = conn_manager.execute_query("""
                 SELECT 
-                    kodi_id, title, year, imdb_id, tmdb_id, file_path,
-                    poster, fanart, thumb, plot, runtime, rating, 
-                    genre, mpaa, director, playcount
-                FROM library_movie 
-                WHERE is_removed = 0 
-                AND (LOWER(title) LIKE ? OR LOWER(normalized_title) LIKE ?)
+                    kodi_id, title, year, imdbnumber as imdb_id, tmdb_id, play as file_path,
+                    poster, fanart, poster as thumb, plot, duration as runtime, rating, 
+                    genre, mpaa, director, 0 as playcount
+                FROM media_items 
+                WHERE media_type = 'movie'
+                AND (LOWER(title) LIKE ? OR LOWER(title) LIKE ?)
                 ORDER BY title
                 LIMIT ?
             """, [search_pattern, search_pattern, limit])
@@ -178,8 +178,8 @@ class LocalSearchEngine:
 
     def _format_sqlite_movie_result(self, movie: Dict[str, Any]) -> Dict[str, Any]:
         """Format movie data from SQLite database to uniform item dict"""
-        title = movie['title'] or 'Unknown Movie'
-        year = movie['year']
+        title = movie.get('title') or 'Unknown Movie'
+        year = movie.get('year')
 
         # Create display label
         if year:
@@ -189,33 +189,33 @@ class LocalSearchEngine:
 
         # Extract artwork from SQLite columns
         art = {}
-        if movie['poster']:
+        if movie.get('poster'):
             art['poster'] = movie['poster']
-        if movie['fanart']:
+        if movie.get('fanart'):
             art['fanart'] = movie['fanart']
-        if movie['thumb']:
+        if movie.get('thumb'):
             art['thumb'] = movie['thumb']
 
         return {
             'label': label,
-            'path': movie['file_path'] or '',
+            'path': movie.get('file_path') or '',
             'art': art,
             'type': 'movie',
             'ids': {
-                'imdb': movie['imdb_id'],
-                'tmdb': movie['tmdb_id'],
-                'kodi_id': movie['kodi_id']
+                'imdb': movie.get('imdb_id'),
+                'tmdb': movie.get('tmdb_id'),
+                'kodi_id': movie.get('kodi_id')
             },
             # Additional metadata
             'title': title,
             'year': year,
-            'plot': movie['plot'] or '',
-            'rating': movie['rating'] or 0.0,
-            'genre': movie['genre'] or '',
-            'director': movie['director'] or '',
-            'runtime': movie['runtime'] or 0,
-            'mpaa': movie['mpaa'] or '',
-            'playcount': movie['playcount'] or 0
+            'plot': movie.get('plot') or '',
+            'rating': movie.get('rating') or 0.0,
+            'genre': movie.get('genre') or '',
+            'director': movie.get('director') or '',
+            'runtime': movie.get('runtime') or 0,
+            'mpaa': movie.get('mpaa') or '',
+            'playcount': movie.get('playcount') or 0
         }
 
     def _format_movie_result(self, movie: Dict[str, Any]) -> Dict[str, Any]:
