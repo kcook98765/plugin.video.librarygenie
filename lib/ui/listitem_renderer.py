@@ -206,6 +206,47 @@ class ListItemRenderer:
 
         list_item.addContextMenuItems(context_items)
 
+    def create_simple_listitem(self, title: str, description: str = None, action: str = None, icon: str = None) -> xbmcgui.ListItem:
+        """Create a simple ListItem for menu items (compatibility method for MenuBuilder)"""
+        try:
+            list_item = xbmcgui.ListItem(label=title)
+
+            # Set basic info
+            info = {'title': title}
+            if description:
+                info['plot'] = description
+
+            list_item.setInfo('video', info)
+
+            # Set icon/artwork
+            art = {}
+            if icon:
+                art['icon'] = icon
+                art['thumb'] = icon
+            else:
+                art['icon'] = 'DefaultFolder.png'
+                art['thumb'] = 'DefaultFolder.png'
+
+            list_item.setArt(art)
+
+            return list_item
+
+        except Exception as e:
+            self.logger.error(f"Failed to create simple listitem: {e}")
+            # Return basic listitem on error
+            return xbmcgui.ListItem(label=title)
+
+    def create_movie_listitem(self, movie_data: Dict[str, Any], base_url: str, action: str) -> xbmcgui.ListItem:
+        """Create a movie ListItem (compatibility method for MenuBuilder)"""
+        try:
+            # Delegate to the builder for movie items
+            return self.builder._create_library_listitem(movie_data)
+        except Exception as e:
+            self.logger.error(f"Failed to create movie listitem: {e}")
+            # Fallback to simple listitem
+            title = movie_data.get('title', movie_data.get('label', 'Unknown'))
+            return self.create_simple_listitem(title)
+
 
 # Global renderer instance
 _listitem_renderer_instance = None

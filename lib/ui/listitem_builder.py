@@ -359,3 +359,15 @@ class ListItemBuilder:
         ))
         
         list_item.addContextMenuItems(context_items)
+
+    def _create_library_listitem(self, item: Dict[str, Any]) -> Optional[xbmcgui.ListItem]:
+        """Create ListItem for library items (compatibility method)"""
+        try:
+            # Determine if this is a library item or external item
+            if item.get('kodi_id') or item.get('movieid'):
+                return self._create_kodi_library_listitem(item)
+            else:
+                return self._create_external_listitem(item)
+        except Exception as e:
+            self.logger.error(f"Failed to create library listitem: {e}")
+            return None
