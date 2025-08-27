@@ -104,48 +104,62 @@ class LocalSearchEngine:
                 self.logger.info("No movies found in library")
                 return []
             
-            # FORCE LOG sample movie titles using INFO level to ensure visibility
-            self.logger.info("=== SAMPLE MOVIE TITLES FROM LIBRARY ===")
-            for i, movie in enumerate(movies[:20]):  # Show more samples
+            # FORCE LOG sample movie titles - use both logger and print to ensure visibility
+            self.logger.info("=== DEBUGGING MOVIE TITLES ===")
+            print("=== DEBUGGING MOVIE TITLES ===")  # Force output to console
+            for i, movie in enumerate(movies[:10]):  # Show first 10
                 title = movie.get('title', 'Unknown')
-                self.logger.info(f"Movie {i+1}: '{title}'")
-            self.logger.info("=== END SAMPLE MOVIE TITLES ===")
+                log_msg = f"Movie {i+1}: '{title}'"
+                self.logger.info(log_msg)
+                print(log_msg)  # Force print to console
+            
+            # CRITICAL DEBUG: Search for any movies containing the word "witch"
+            witch_movies = []
+            for movie in movies:
+                title = movie.get('title', '')
+                if 'witch' in title.lower():
+                    witch_movies.append(title)
+            
+            debug_msg = f"FOUND {len(witch_movies)} movies with 'witch' in title: {witch_movies[:5]}"
+            self.logger.info(debug_msg)
+            print(debug_msg)  # Force print
+            
+            self.logger.info("=== END DEBUGGING ===")
+            print("=== END DEBUGGING ===")
 
             results = []
             matches_found = 0
 
             self.logger.info(f"Starting title matching for query: '{query_lower}'")
-            
-            # First, let's see if ANY movies have "witch" in them
-            witch_count = 0
-            for movie in movies:
-                title = movie.get('title', '').lower()
-                if 'witch' in title:
-                    witch_count += 1
-                    self.logger.info(f"FOUND MOVIE WITH 'witch': '{movie.get('title', 'Unknown')}'")
-            
-            self.logger.info(f"Total movies containing 'witch': {witch_count}")
+            print(f"Starting title matching for query: '{query_lower}'")
             
             for i, movie in enumerate(movies):
                 title = movie.get('title', '').lower()
                 original_title = movie.get('title', 'Unknown')
                 
-                # Log first few movies for debugging using INFO level
-                if i < 10:
-                    self.logger.info(f"Checking movie {i+1}: '{original_title}' -> normalized: '{title}' | query: '{query_lower}' | contains: {query_lower in title}")
+                # Log first few movies for debugging
+                if i < 5:
+                    debug_msg = f"Check {i+1}: '{original_title}' -> '{title}' contains '{query_lower}'? {query_lower in title}"
+                    self.logger.info(debug_msg)
+                    print(debug_msg)
                 
                 # Client-side fallback filter
                 if query_lower in title:
                     matches_found += 1
                     result = self._format_movie_result(movie)
                     results.append(result)
-                    self.logger.info(f"*** MATCH {matches_found}: '{original_title}' contains '{query_lower}' ***")
+                    
+                    match_msg = f"*** MATCH {matches_found}: '{original_title}' ***"
+                    self.logger.info(match_msg)
+                    print(match_msg)
 
                     if len(results) >= limit:
                         self.logger.info(f"Reached limit of {limit} results")
                         break
 
-            self.logger.info(f"Title matching completed: {matches_found} matches found out of {len(movies)} movies checked")
+            final_msg = f"Search completed: {matches_found} matches found out of {len(movies)} movies"
+            self.logger.info(final_msg)
+            print(final_msg)
 
             self.logger.info(f"Movie search completed: {len(results)} matches out of {len(movies)} total movies")
             return results
