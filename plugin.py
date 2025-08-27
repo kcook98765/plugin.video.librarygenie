@@ -134,6 +134,45 @@ def handle_signout():
             )
 
 
+def _check_and_trigger_initial_scan():
+    """Check if library needs initial scan and trigger if needed"""
+    try:
+        from lib.library.scanner import get_library_scanner
+        from lib.data.migrations import get_migration_manager
+        
+        logger = get_logger(__name__)
+        
+        # Ensure database is initialized first
+        migration_manager = get_migration_manager()
+        migration_manager.ensure_initialized()
+        
+        # Check if library needs indexing
+        scanner = get_library_scanner()
+        if not scanner.is_library_indexed():
+            logger.info("Library not indexed - triggering initial scan")
+            
+            # Run scan in background thread to avoid blocking UI
+            import threading
+            
+            def run_initial_scan():
+                try:
+                    result = scanner.perform_full_scan()
+                    if result.get("success"):
+                        logger.info(f"Initial library scan completed: {result.get('items_added', 0)} movies indexed")
+                    else:
+                        logger.warning(f"Initial library scan failed: {result.get('error', 'Unknown error')}")
+                except Exception as e:
+                    logger.error(f"Initial library scan thread failed: {e}")
+            
+            scan_thread = threading.Thread(target=run_initial_scan)
+            scan_thread.daemon = True  # Don't block Kodi shutdown
+            scan_thread.start()
+            
+    except Exception as e:
+        logger = get_logger(__name__)
+        logger.error(f"Failed to check/trigger initial scan: {e}")
+
+
 def main():
     """Main plugin entry point"""
     logger = get_logger(__name__)
@@ -150,6 +189,9 @@ def main():
         logger.debug(
             f"Plugin called with handle={addon_handle}, url={base_url}, params={params}"
         )
+
+        # Check if this is first run and trigger library scan if needed
+        _check_and_trigger_initial_scan()
 
         # Route based on action parameter
         action = params.get('action', '')

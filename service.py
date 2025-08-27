@@ -44,15 +44,14 @@ class BackgroundService:
 
         self.logger.info(f"Background service starting (interval: {self.interval}s, library_tracking: {self.track_library_changes})")
 
-        # Initialize library scanner if needed
+        # Initialize library scanner (always needed for initial setup)
         self._library_scanner = None
-        if self.track_library_changes:
-            try:
-                from lib.library.scanner import get_library_scanner
-                self._library_scanner = get_library_scanner()
-                self.logger.debug("Library scanner initialized for background monitoring")
-            except Exception as e:
-                self.logger.warning(f"Failed to initialize library scanner: {e}")
+        try:
+            from lib.library.scanner import get_library_scanner
+            self._library_scanner = get_library_scanner()
+            self.logger.debug("Library scanner initialized")
+        except Exception as e:
+            self.logger.warning(f"Failed to initialize library scanner: {e}")
 
         # Token refresh tracking
         self._last_token_check = 0
@@ -117,8 +116,8 @@ class BackgroundService:
     def _initial_setup(self):
         """Perform initial setup tasks"""
         try:
-            # Check if library needs initial indexing (only if tracking enabled)
-            if self.track_library_changes and self._library_scanner and not self._library_scanner.is_library_indexed():
+            # Always check if library needs initial indexing on service start
+            if self._library_scanner and not self._library_scanner.is_library_indexed():
                 self.logger.info("Library not indexed, performing initial scan")
                 result = self._library_scanner.perform_full_scan()
 
@@ -126,6 +125,8 @@ class BackgroundService:
                     self.logger.info(f"Initial scan complete: {result.get('items_added', 0)} movies indexed")
                 else:
                     self.logger.warning(f"Initial scan failed: {result.get('error', 'Unknown error')}")
+            else:
+                self.logger.debug("Library already indexed or scanner unavailable")
 
         except Exception as e:
             self.logger.error(f"Initial setup failed: {e}")

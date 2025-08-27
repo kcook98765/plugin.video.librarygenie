@@ -218,11 +218,17 @@ class LibraryScanner:
     def is_library_indexed(self) -> bool:
         """Check if the library has been indexed"""
         try:
+            # Ensure database is initialized first
+            if not self.query_manager.initialize():
+                self.logger.warning("Database not initialized, library not indexed")
+                return False
+                
             result = self.conn_manager.execute_single(
                 "SELECT COUNT(*) as count FROM media_items WHERE media_type = 'movie'"
             )
             return (result["count"] if result else 0) > 0
-        except:
+        except Exception as e:
+            self.logger.debug(f"Error checking if library is indexed: {e}")
             return False
 
     def _clear_library_index(self):
