@@ -184,7 +184,7 @@ def _check_and_trigger_initial_scan():
         logger.error(f"Failed to check/trigger initial scan: {e}")
 
 
-def handle_lists():
+def handle_lists(addon_handle, base_url):
     """Handle lists menu - Phase 5 implementation"""
     try:
         logger.info("Displaying lists menu")
@@ -253,7 +253,7 @@ def handle_lists():
         # Use menu builder to display
         from lib.ui.menu_builder import MenuBuilder
         menu_builder = MenuBuilder()
-        menu_builder.build_menu(menu_items, handle, base_url) # Use passed handle
+        menu_builder.build_menu(menu_items, addon_handle, base_url)
 
     except Exception as e:
         logger.error(f"Error in handle_lists: {e}")
@@ -320,7 +320,7 @@ def handle_create_list():
         logger.error(f"Create list error traceback: {traceback.format_exc()}")
 
 
-def handle_view_list():
+def handle_view_list(addon_handle, base_url):
     """Handle viewing a specific list"""
     try:
         list_id = args.get('list_id')
@@ -381,12 +381,12 @@ def handle_view_list():
             })
 
         # Set category for better navigation
-        xbmcplugin.setPluginCategory(addon_handle, f"List: {list_info['name']}") # Use passed handle
+        xbmcplugin.setPluginCategory(addon_handle, f"List: {list_info['name']}")
 
         # Use menu builder to display
         from lib.ui.menu_builder import MenuBuilder
         menu_builder = MenuBuilder()
-        menu_builder.build_menu(menu_items, addon_handle, base_url) # Use passed handle
+        menu_builder.build_menu(menu_items, addon_handle, base_url)
 
     except Exception as e:
         logger.error(f"Error viewing list: {e}")
@@ -558,11 +558,11 @@ def main():
         if action == 'search':
             show_search_menu(addon_handle)
         elif action == 'lists':
-            handle_lists()
+            handle_lists(addon_handle, base_url)
         elif action == 'create_list':
             handle_create_list()
         elif action == 'view_list':
-            handle_view_list()
+            handle_view_list(addon_handle, base_url)
         elif action == 'rename_list':
             handle_rename_list()
         elif action == 'delete_list':
