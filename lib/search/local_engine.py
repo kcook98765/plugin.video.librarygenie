@@ -165,10 +165,17 @@ class LocalSearchEngine:
                 if test_results:
                     self.logger.debug(f"Test search for '{word}': found {len(test_results)} matches")
                     for result in test_results[:3]:  # Show first 3 matches
-                        title = result.get('title', 'Unknown')
-                        plot_preview = result.get('plot_preview', '')
-                        title_match = result.get('title_match', '')
-                        plot_match = result.get('plot_match', '')
+                        # IMPORTANT: Convert sqlite3.Row to dict for .get() method access
+                        # sqlite3.Row objects don't have .get() method, only dict objects do
+                        if hasattr(result, 'keys'):
+                            result_dict = dict(result)
+                        else:
+                            result_dict = result
+                        
+                        title = result_dict.get('title', 'Unknown')
+                        plot_preview = result_dict.get('plot_preview', '')
+                        title_match = result_dict.get('title_match', '')
+                        plot_match = result_dict.get('plot_match', '')
                         self.logger.debug(f"  - '{title}' | {title_match}{plot_match} | Plot: '{plot_preview}'")
 
             self.logger.info(f"SQLite search returned {len(movies)} movies from database")
@@ -245,7 +252,9 @@ class LocalSearchEngine:
 
     def _format_sqlite_movie_result(self, movie: Dict[str, Any]) -> Dict[str, Any]:
         """Format movie data from SQLite database to uniform item dict"""
-        # Convert sqlite3.Row to dict if needed
+        # CRITICAL: Convert sqlite3.Row to dict for proper attribute access
+        # sqlite3.Row objects can be converted to dict but don't have .get() method
+        # Always convert Row objects to dict before using .get() method
         if hasattr(movie, 'keys'):
             movie = dict(movie)
 
