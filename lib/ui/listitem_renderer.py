@@ -335,16 +335,28 @@ class ListItemRenderer:
                 self.logger.debug(f"Error processing IMDb ID: {e}")
                 pass
 
-        # UniqueID - simplified for Python 3.8 compatibility and Kodi requirements
-        # Only set IMDb ID as it's most important for Kodi matching
-        # Skip uniqueid for library items as Kodi will handle this via dbid
-        if imdb_id and not kodi_id:
+        # UniqueID - CRITICAL for Kodi cast population
+        # For library items, we NEED to set uniqueid to help Kodi match to its internal database
+        # This is essential for the native video information dialog to show cast
+        if kodi_id and imdb_id:
             try:
                 imdb_str = str(imdb_id).strip()
                 if imdb_str and imdb_str != 'None' and imdb_str.startswith('tt'):
-                    # Use simple string assignment for better compatibility
-                    # Some versions of Kodi prefer the imdbnumber field over uniqueid
-                    self.logger.debug(f"Skipping uniqueid for library item '{title}' - Kodi will handle via dbid")
+                    # Set uniqueid structure that Kodi expects for library matching
+                    uniqueid_dict = {'imdb': imdb_str}
+                    
+                    # Add TMDb ID if available
+                    tmdb_id = movie_data.get('tmdb_id')
+                    if tmdb_id:
+                        try:
+                            tmdb_str = str(tmdb_id).strip()
+                            if tmdb_str and tmdb_str != 'None':
+                                uniqueid_dict['tmdb'] = tmdb_str
+                        except Exception:
+                            pass
+                    
+                    info['uniqueid'] = uniqueid_dict
+                    self.logger.debug(f"Set uniqueid for library item '{title}': {uniqueid_dict}")
             except Exception as e:
                 self.logger.debug(f"Error processing uniqueid: {e}")
                 pass

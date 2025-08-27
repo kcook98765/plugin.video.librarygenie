@@ -124,7 +124,7 @@ class QueryManager:
             result: List[Dict[str, Any]] = []
             kodi_ids_to_enrich = []
             items_to_match = []
-            
+
             for row in items:
                 item_data = {
                     "id": str(row['id']),
@@ -143,7 +143,7 @@ class QueryManager:
                 else:
                     # Try to match this item to Kodi library for enrichment
                     items_to_match.append((len(result), item_data))
-                    
+
                     # For now, use stored database data as fallback
                     if 'poster' in row and row['poster']:
                         item_data['poster'] = row['poster']
@@ -168,7 +168,7 @@ class QueryManager:
             if items_to_match:
                 self.logger.info(f"Attempting to match {len(items_to_match)} items without kodi_id to Kodi library")
                 matched_kodi_ids = self._match_items_to_kodi_library(items_to_match)
-                
+
                 # Add matched items to enrichment list
                 for item_index, kodi_id in matched_kodi_ids.items():
                     if kodi_id:
@@ -181,7 +181,7 @@ class QueryManager:
                 self.logger.info(f"Enriching {len(kodi_ids_to_enrich)} Kodi library items with fresh JSON-RPC data: {kodi_ids_to_enrich}")
                 enriched_data = self._get_kodi_enrichment_data(kodi_ids_to_enrich)
                 self.logger.info(f"Enrichment returned data for {len(enriched_data)} movies: {list(enriched_data.keys())}")
-                
+
                 # Merge enriched data back into result
                 for item in result:
                     kodi_id = item.get('kodi_id')
@@ -524,7 +524,7 @@ class QueryManager:
         """Extract media item data from search result item"""
         # Extract kodi_id from various possible fields
         kodi_id = None
-        
+
         # Check for movieid field (from JSON-RPC responses)
         if item.get('movieid'):
             kodi_id = item.get('movieid')
@@ -575,31 +575,6 @@ class QueryManager:
             'cast': item.get('cast', ''),
             'art': item.get('art', ''),
             'created_at': 'datetime("now")'
-        }
-
-        return {
-            'media_type': item.get('type', 'movie'),
-            'title': item.get('title', item.get('label', 'Unknown')),
-            'year': item.get('year'),
-            'imdbnumber': item.get('imdbnumber') or item.get('imdb_id'),
-            'tmdb_id': item.get('tmdb_id'),
-            'kodi_id': kodi_id,
-            'source': 'remote' if item.get('_source') == 'remote' else 'lib',
-            'play': item.get('path') or item.get('file_path', ''),
-            'poster': item.get('art', {}).get('poster', '') if item.get('art') else item.get('poster', ''),
-            'fanart': item.get('art', {}).get('fanart', '') if item.get('art') else item.get('fanart', ''),
-            'plot': item.get('plot', ''),
-            'rating': item.get('rating'),
-            'votes': item.get('votes'),
-            'duration': item.get('runtime'),
-            'mpaa': item.get('mpaa', ''),
-            'genre': ','.join(item.get('genre', [])) if isinstance(item.get('genre'), list) else item.get('genre', ''),
-            'director': ','.join(item.get('director', [])) if isinstance(item.get('director'), list) else item.get('director', ''),
-            'studio': ','.join(item.get('studio', [])) if isinstance(item.get('studio'), list) else item.get('studio', ''),
-            'country': ','.join(item.get('country', [])) if isinstance(item.get('country'), list) else item.get('country', ''),
-            'writer': ','.join(item.get('writer', [])) if isinstance(item.get('writer'), list) else item.get('writer', ''),
-            'cast': json.dumps(item.get('cast', [])) if item.get('cast') else None,
-            'art': json.dumps(item.get('art', {})) if item.get('art') else None
         }
 
     def _insert_or_get_media_item(self, conn, media_data):
@@ -715,9 +690,9 @@ class QueryManager:
                 return {}
 
             self.logger.info(f"Fetching JSON-RPC data for {len(kodi_ids)} movies: {kodi_ids}")
-            
+
             enrichment_data = {}
-            
+
             # Fetch data for each movie
             for kodi_id in kodi_ids:
                 try:
@@ -735,16 +710,16 @@ class QueryManager:
                         },
                         "id": 1
                     }
-                    
+
                     self.logger.debug(f"JSON-RPC request for movie {kodi_id}: {json.dumps(request)}")
                     response_str = xbmc.executeJSONRPC(json.dumps(request))
                     self.logger.debug(f"JSON-RPC response for movie {kodi_id}: {response_str[:200]}...")
                     response = json.loads(response_str)
-                    
+
                     if "error" in response:
                         self.logger.warning(f"JSON-RPC error for movie {kodi_id}: {response['error']}")
                         continue
-                    
+
                     movie_details = response.get("result", {}).get("moviedetails")
                     if movie_details:
                         self.logger.debug(f"Got movie details for {kodi_id}: {movie_details.get('title', 'Unknown')}")
@@ -757,16 +732,16 @@ class QueryManager:
                             self.logger.warning(f"Failed to normalize movie details for {kodi_id}")
                     else:
                         self.logger.warning(f"No moviedetails found in response for {kodi_id}")
-                    
+
                 except Exception as e:
                     self.logger.error(f"Failed to fetch details for movie {kodi_id}: {e}")
                     import traceback
                     self.logger.error(f"Enrichment error traceback: {traceback.format_exc()}")
                     continue
-            
+
             self.logger.info(f"Successfully enriched {len(enrichment_data)} out of {len(kodi_ids)} movies")
             return enrichment_data
-            
+
         except Exception as e:
             self.logger.error(f"Error fetching Kodi enrichment data: {e}")
             import traceback
@@ -778,7 +753,7 @@ class QueryManager:
         try:
             from ..kodi.json_rpc_client import get_kodi_client
             kodi_client = get_kodi_client()
-            
+
             # Get a quick list of all movies in library
             library_movies = kodi_client.get_movies_quick_check()
             if not library_movies:
@@ -792,27 +767,27 @@ class QueryManager:
                 return {}
 
             matched_ids = {}
-            
+
             for item_index, item_data in items_to_match:
                 matched_kodi_id = None
                 item_title = (item_data.get('title') or '').lower().strip()
                 item_year = item_data.get('year')
                 item_imdb = (item_data.get('imdb_id') or '').strip()
-                
+
                 self.logger.debug(f"Trying to match: {item_title} ({item_year}) IMDb: {item_imdb}")
-                
+
                 # Try to find a match in the library
                 for library_movie in library_data['movies']:
                     library_title = (library_movie.get('title') or '').lower().strip()
                     library_year = library_movie.get('year')
                     library_imdb = (library_movie.get('imdb_id') or '').strip()
-                    
+
                     # Match by IMDb ID (most reliable)
                     if item_imdb and library_imdb and item_imdb == library_imdb:
                         matched_kodi_id = library_movie.get('kodi_id')
                         self.logger.debug(f"IMDb match: {item_title} -> kodi_id {matched_kodi_id}")
                         break
-                    
+
                     # Match by title and year
                     elif (item_title and library_title and 
                           item_title == library_title and 
@@ -821,13 +796,13 @@ class QueryManager:
                         matched_kodi_id = library_movie.get('kodi_id')
                         self.logger.debug(f"Title/Year match: {item_title} ({item_year}) -> kodi_id {matched_kodi_id}")
                         break
-                
+
                 matched_ids[item_index] = matched_kodi_id
                 if not matched_kodi_id:
                     self.logger.debug(f"No match found for: {item_title} ({item_year})")
-            
+
             return matched_ids
-            
+
         except Exception as e:
             self.logger.error(f"Error matching items to Kodi library: {e}")
             return {}
@@ -851,11 +826,16 @@ class QueryManager:
                 if "tmdb" in movie["uniqueid"]:
                     tmdb_id = str(movie["uniqueid"]["tmdb"])
 
-            # Extract artwork URLs
+            # Extract artwork URLs - this is the key fix
             art = movie.get("art", {})
             poster = art.get("poster", "")
             fanart = art.get("fanart", "")
             thumb = art.get("thumb", poster)  # Fallback to poster
+            clearlogo = art.get("clearlogo", "")
+            landscape = art.get("landscape", "")
+            clearart = art.get("clearart", "")
+            discart = art.get("discart", "")
+            banner = art.get("banner", "")
 
             # Extract and process metadata
             genres = movie.get("genre", [])
@@ -868,7 +848,7 @@ class QueryManager:
             cast_data = movie.get("cast", [])
             cast_names = []
             cast_list = []
-            
+
             if isinstance(cast_data, list):
                 for cast_member in cast_data[:15]:  # Limit to first 15 cast members
                     if isinstance(cast_member, dict):
@@ -897,6 +877,11 @@ class QueryManager:
                 "poster": poster,
                 "fanart": fanart,
                 "thumb": thumb,
+                "clearlogo": clearlogo,
+                "landscape": landscape,
+                "clearart": clearart,
+                "discart": discart,
+                "banner": banner,
                 "plot": movie.get("plot", ""),
                 "plotoutline": movie.get("plotoutline", ""),
                 "runtime": movie.get("runtime", 0),
