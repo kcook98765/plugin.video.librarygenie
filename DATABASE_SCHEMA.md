@@ -47,7 +47,7 @@ Constraints:
 ---
 
 ### `media_items`
-Core metadata entries for movies, episodes, music videos, or external items.
+Core identification entries for movies, episodes, music videos, or external items. Rich metadata is fetched from Kodi JSON-RPC when needed for display.
 
 | Column       | Type    | Notes |
 |--------------|---------|-------|
@@ -60,20 +60,7 @@ Core metadata entries for movies, episodes, music videos, or external items.
 | `kodi_id`    | INTEGER | Optional Kodi DBID |
 | `source`     | TEXT    | e.g. `lib`, `ext` |
 | `play`       | TEXT    | Playback URL or file |
-| `poster`     | TEXT    | Poster artwork |
-| `fanart`     | TEXT    | Fanart artwork |
-| `plot`       | TEXT    | |
-| `rating`     | REAL    | |
-| `votes`      | INTEGER | |
-| `duration`   | INTEGER | seconds |
-| `mpaa`       | TEXT    | |
-| `genre`      | TEXT    | comma-separated |
-| `director`   | TEXT    | |
-| `studio`     | TEXT    | |
-| `country`    | TEXT    | |
-| `writer`     | TEXT    | |
-| `cast`       | TEXT    | JSON |
-| `art`        | TEXT    | JSON |
+| `plot`       | TEXT    | Basic plot summary |
 | `created_at` | TEXT    | |
 
 Indexes:

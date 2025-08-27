@@ -97,7 +97,7 @@ class MigrationManager:
                 ON lists (name, folder_id)
             """)
 
-            # Media items table - core metadata
+            # Media items table - core identification fields only
             conn.execute("""
                 CREATE TABLE media_items (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -109,20 +109,7 @@ class MigrationManager:
                     kodi_id INTEGER,
                     source TEXT,
                     play TEXT,
-                    poster TEXT,
-                    fanart TEXT,
                     plot TEXT,
-                    rating REAL,
-                    votes INTEGER,
-                    duration INTEGER,
-                    mpaa TEXT,
-                    genre TEXT,
-                    director TEXT,
-                    studio TEXT,
-                    country TEXT,
-                    writer TEXT,
-                    cast TEXT,
-                    art TEXT,
                     created_at TEXT NOT NULL DEFAULT (datetime('now'))
                 )
             """)

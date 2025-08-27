@@ -254,10 +254,8 @@ class LibraryScanner:
                     try:
                         conn.execute("""
                             INSERT INTO media_items 
-                            (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, 
-                             poster, fanart, plot, rating, duration, mpaa, genre, director, 
-                             studio, country, writer, created_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                            (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, plot, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                         """, [
                             'movie',
                             movie["kodi_id"],
@@ -266,19 +264,7 @@ class LibraryScanner:
                             movie.get("imdb_id"),
                             movie.get("tmdb_id"),
                             movie["file_path"],
-                            # Artwork fields
-                            movie.get("poster", ""),
-                            movie.get("fanart", ""),
-                            # Metadata fields
-                            movie.get("plot", ""),
-                            movie.get("rating", 0.0),
-                            movie.get("runtime", 0),
-                            movie.get("mpaa", ""),
-                            movie.get("genre", ""),
-                            movie.get("director", ""),
-                            str(movie.get("studio", [])) if isinstance(movie.get("studio"), list) else movie.get("studio", "[]"),
-                            str(movie.get("country", [])) if isinstance(movie.get("country"), list) else movie.get("country", "[]"),
-                            ""  # writer field
+                            movie.get("plot", "")
                         ])
                         inserted_count += 1
                     except Exception as e:
