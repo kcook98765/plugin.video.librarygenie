@@ -188,72 +188,17 @@ def handle_lists(addon_handle, base_url):
     """Handle lists menu - Phase 5 implementation"""
     try:
         logger.info("Displaying lists menu")
-
-        # Initialize query manager
         query_manager = get_query_manager()
-        if not query_manager.initialize():
-            logger.error("Failed to initialize query manager")
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),
-                "Database error",
-                xbmcgui.NOTIFICATION_ERROR
-            )
-            return
+        user_lists = query_manager.get_all_lists_with_folders()
+        logger.info(f"Found {len(user_lists)} user lists")
 
-        # Get all user lists
-        lists = query_manager.get_user_lists()
-        logger.info(f"Found {len(lists)} user lists")
+        # Debug: Check for Search History folder specifically
+        search_history_items = [item for item in user_lists if 'Search History' in str(item.get('name', ''))]
+        logger.info(f"Found {len(search_history_items)} Search History items: {search_history_items}")
 
-        if not lists:
-            # No lists exist, offer to create one
-            addon = xbmcaddon.Addon()
-            if xbmcgui.Dialog().yesno(
-                addon.getLocalizedString(35002),
-                "No lists found. Create your first list?"
-            ):
-                handle_create_list()
-            return
-
-        # Build menu items for lists
-        menu_items = []
-
-        # Add "Create New List" option at the top
-        menu_items.append({
-            "title": "[COLOR yellow]+ Create New List[/COLOR]",
-            "action": "create_list",
-            "description": "Create a new list",
-            "is_folder": False,
-            "icon": "DefaultAddSource.png"
-        })
-
-        # Add separator
-        menu_items.append({
-            "title": "─" * 30,
-            "action": "",
-            "description": "",
-            "is_folder": False
-        })
-
-        # Add each list
-        for list_item in lists:
-            menu_items.append({
-                "title": f"{list_item['name']} ({list_item['item_count']} items)",
-                "action": "view_list",
-                "list_id": list_item['id'],
-                "description": f"Created: {list_item['created']}",
-                "is_folder": True,
-                "icon": "DefaultFolder.png",
-                "context_menu": [
-                    (f"Rename '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={list_item['id']})"),
-                    (f"Delete '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_item['id']})")
-                ]
-            })
-
-        # Use menu builder to display
-        from lib.ui.menu_builder import MenuBuilder
-        menu_builder = MenuBuilder()
-        menu_builder.build_menu(menu_items, addon_handle, base_url)
+        for list_item in user_lists:
+            logger.debug(f"Displaying list item: {list_item}")
+            display_list_item(list_item, addon_handle)
 
     except Exception as e:
         logger.error(f"Error in handle_lists: {e}")
@@ -266,6 +211,66 @@ def handle_lists(addon_handle, base_url):
             "Lists error",
             xbmcgui.NOTIFICATION_ERROR
         )
+
+
+def display_list_item(list_item, handle):
+    """Helper to display a single list item as a directory item"""
+    try:
+        addon = xbmcaddon.Addon()
+        item_id = list_item.get('id')
+        item_name = list_item.get('name', 'Unknown List')
+        item_count = list_item.get('item_count', 0)
+        is_folder = list_item.get('is_folder', True) # Assume folders by default if not specified
+
+        list_label = f"{item_name} ({item_count} items)"
+        list_url = ""
+        list_icon = ""
+        context_menu = []
+
+        if is_folder:
+            list_url = f"{sys.argv[0]}?action=view_list&list_id={item_id}"
+            list_icon = "DefaultFolder.png"
+            context_menu.append(
+                (addon.getLocalizedString(35018), f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={item_id})") # "Rename"
+            )
+            context_menu.append(
+                (addon.getLocalizedString(35118), f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={item_id})") # "Delete"
+            )
+        else:
+            # This part might be for non-folder items if the UI changes, currently not used for lists
+            pass
+
+        # For the "Create New List" item, it's not a folder and has a different action
+        if "+ Create New List" in item_name:
+            list_url = f"{sys.argv[0]}?action=create_list"
+            list_icon = "DefaultAddSource.png"
+            is_folder = False # Explicitly not a folder
+            list_label = "[COLOR yellow]+ Create New List[/COLOR]" # Apply color
+
+        # Add separator if needed (e.g., between Create New List and actual lists)
+        if "─" * 30 in item_name:
+            list_label = item_name # Use the separator directly
+            list_icon = "" # No icon for separator
+            is_folder = False # Not a folder
+            list_url = "" # No URL for separator
+
+
+        # Create the ListItem
+        listitem = xbmcgui.ListItem(label=list_label)
+        listitem.setArt({'icon': list_icon, 'thumb': list_icon})
+        listitem.setInfo('text', {'title': item_name, 'plot': list_item.get('description', '')})
+
+        # Add context menu if available
+        if context_menu:
+            listitem.addContextMenuItems(context_menu)
+
+        # Add directory item
+        xbmcplugin.addDirectoryItem(handle, list_url, listitem, is_folder)
+
+    except Exception as e:
+        logger.error(f"Error displaying list item '{list_item.get('name')}': {e}")
+        import traceback
+        logger.error(f"Display list item error traceback: {traceback.format_exc()}")
 
 
 def handle_create_list():
