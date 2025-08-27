@@ -81,7 +81,7 @@ class QueryManager:
             return []
 
     def get_list_items(self, list_id, limit=100, offset=0):
-        """Get items in a specific list from database"""
+        """Get items in a specific list from database, enriching Kodi library items with JSON-RPC data"""
         try:
             self.logger.debug(f"Getting items for list {list_id}")
 
@@ -120,8 +120,10 @@ class QueryManager:
                     LIMIT ? OFFSET ?
                 """, [int(list_id), limit, offset])
 
-            # Convert to expected format
+            # Convert to expected format and enrich with JSON-RPC data
             result: List[Dict[str, Any]] = []
+            kodi_ids_to_enrich = []
+            
             for row in items:
                 item_data = {
                     "id": str(row['id']),
@@ -135,6 +137,7 @@ class QueryManager:
                 # Add additional fields if available (from media_items table)
                 if 'kodi_id' in row and row['kodi_id']:
                     item_data['kodi_id'] = row['kodi_id']
+                    kodi_ids_to_enrich.append(row['kodi_id'])
                 if 'poster' in row and row['poster']:
                     item_data['poster'] = row['poster']
                 if 'fanart' in row and row['fanart']:
@@ -153,6 +156,20 @@ class QueryManager:
                     item_data['file_path'] = row['file_path']
 
                 result.append(item_data)
+
+            # Enrich Kodi library items with fresh JSON-RPC data
+            if kodi_ids_to_enrich:
+                self.logger.debug(f"Enriching {len(kodi_ids_to_enrich)} Kodi library items with JSON-RPC data")
+                enriched_data = self._get_kodi_enrichment_data(kodi_ids_to_enrich)
+                
+                # Merge enriched data back into result
+                for item in result:
+                    kodi_id = item.get('kodi_id')
+                    if kodi_id and kodi_id in enriched_data:
+                        enriched = enriched_data[kodi_id]
+                        # Update with fresh JSON-RPC data, preserving database IDs
+                        item.update(enriched)
+                        self.logger.debug(f"Enriched item '{item.get('title')}' with JSON-RPC data")
 
             self.logger.debug(f"Retrieved {len(result)} items for list {list_id}")
             return result
@@ -605,6 +622,140 @@ class QueryManager:
             import traceback
             self.logger.error(f"Get all lists error traceback: {traceback.format_exc()}")
             return []
+
+    def _get_kodi_enrichment_data(self, kodi_ids: List[int]) -> Dict[int, Dict[str, Any]]:
+        """Fetch rich metadata from Kodi JSON-RPC for the given kodi_ids"""
+        try:
+            from ..kodi.json_rpc_client import get_kodi_client
+            import json
+            import xbmc
+
+            if not kodi_ids:
+                return {}
+
+            self.logger.debug(f"Fetching JSON-RPC data for {len(kodi_ids)} movies")
+            
+            enrichment_data = {}
+            
+            # Build JSON-RPC request to get detailed movie info
+            request = {
+                "jsonrpc": "2.0",
+                "method": "VideoLibrary.GetMovieDetails",
+                "id": 1
+            }
+            
+            # Fetch data for each movie
+            for kodi_id in kodi_ids:
+                try:
+                    request["params"] = {
+                        "movieid": int(kodi_id),
+                        "properties": [
+                            "title", "year", "imdbnumber", "uniqueid", "file",
+                            "art", "plot", "plotoutline", "runtime", "rating",
+                            "genre", "mpaa", "director", "country", "studio",
+                            "playcount", "resume", "cast", "writer", "votes"
+                        ]
+                    }
+                    
+                    response_str = xbmc.executeJSONRPC(json.dumps(request))
+                    response = json.loads(response_str)
+                    
+                    if "error" in response:
+                        self.logger.warning(f"JSON-RPC error for movie {kodi_id}: {response['error']}")
+                        continue
+                    
+                    movie_details = response.get("result", {}).get("moviedetails")
+                    if movie_details:
+                        # Normalize the movie data similar to how json_rpc_client does it
+                        normalized = self._normalize_kodi_movie_details(movie_details)
+                        if normalized:
+                            enrichment_data[kodi_id] = normalized
+                            self.logger.debug(f"Fetched details for movie {kodi_id}: {normalized.get('title')}")
+                    
+                except Exception as e:
+                    self.logger.warning(f"Failed to fetch details for movie {kodi_id}: {e}")
+                    continue
+            
+            self.logger.debug(f"Successfully enriched {len(enrichment_data)} out of {len(kodi_ids)} movies")
+            return enrichment_data
+            
+        except Exception as e:
+            self.logger.error(f"Error fetching Kodi enrichment data: {e}")
+            return {}
+
+    def _normalize_kodi_movie_details(self, movie: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Normalize movie details from Kodi JSON-RPC response"""
+        try:
+            # Extract external IDs
+            imdb_id = None
+            tmdb_id = None
+
+            # Try the old imdbnumber field
+            if "imdbnumber" in movie and movie["imdbnumber"]:
+                if movie["imdbnumber"].startswith("tt"):
+                    imdb_id = movie["imdbnumber"]
+
+            # Try the newer uniqueid structure
+            if "uniqueid" in movie and isinstance(movie["uniqueid"], dict):
+                if "imdb" in movie["uniqueid"]:
+                    imdb_id = movie["uniqueid"]["imdb"]
+                if "tmdb" in movie["uniqueid"]:
+                    tmdb_id = str(movie["uniqueid"]["tmdb"])
+
+            # Extract artwork URLs
+            art = movie.get("art", {})
+            poster = art.get("poster", "")
+            fanart = art.get("fanart", "")
+            thumb = art.get("thumb", poster)  # Fallback to poster
+
+            # Extract and process metadata
+            genres = movie.get("genre", [])
+            genre_str = ", ".join(genres) if isinstance(genres, list) else str(genres) if genres else ""
+
+            directors = movie.get("director", [])
+            director_str = ", ".join(directors) if isinstance(directors, list) else str(directors) if directors else ""
+
+            # Handle cast
+            cast = movie.get("cast", [])
+            cast_names = []
+            if isinstance(cast, list):
+                for cast_member in cast[:10]:  # Limit to first 10 cast members
+                    if isinstance(cast_member, dict) and "name" in cast_member:
+                        cast_names.append(cast_member["name"])
+
+            # Handle resume point
+            resume_data = movie.get("resume", {})
+            resume_time = resume_data.get("position", 0) if isinstance(resume_data, dict) else 0
+
+            return {
+                "kodi_id": movie.get("movieid"),
+                "title": movie.get("title", "Unknown Title"),
+                "year": movie.get("year"),
+                "imdb_id": imdb_id,
+                "tmdb_id": tmdb_id,
+                "file_path": movie.get("file", ""),
+                "poster": poster,
+                "fanart": fanart,
+                "thumb": thumb,
+                "plot": movie.get("plot", ""),
+                "plotoutline": movie.get("plotoutline", ""),
+                "runtime": movie.get("runtime", 0),
+                "rating": movie.get("rating", 0.0),
+                "genre": genre_str,
+                "mpaa": movie.get("mpaa", ""),
+                "director": director_str,
+                "country": ", ".join(movie.get("country", [])) if isinstance(movie.get("country"), list) else movie.get("country", ""),
+                "studio": ", ".join(movie.get("studio", [])) if isinstance(movie.get("studio"), list) else movie.get("studio", ""),
+                "writer": ", ".join(movie.get("writer", [])) if isinstance(movie.get("writer"), list) else movie.get("writer", ""),
+                "cast": ", ".join(cast_names) if cast_names else "",
+                "playcount": movie.get("playcount", 0),
+                "resume_time": resume_time,
+                "votes": movie.get("votes", 0)
+            }
+
+        except Exception as e:
+            self.logger.warning(f"Failed to normalize movie details: {e}")
+            return None
 
 
 # Global query manager instance

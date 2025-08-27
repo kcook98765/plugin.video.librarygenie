@@ -65,6 +65,7 @@ class ListItemRenderer:
         
         try:
             self.logger.debug(f"Creating ListItem for: {movie_data.get('title', 'Unknown')} - Data keys: {list(movie_data.keys())}")
+            self.logger.debug(f"Movie data sample: title='{movie_data.get('title')}', year={movie_data.get('year')}, kodi_id={movie_data.get('kodi_id')}, has_poster={bool(movie_data.get('poster'))}, has_plot={bool(movie_data.get('plot'))}")
             
             # Extract basic info
             title = movie_data.get('title', 'Unknown Movie')
