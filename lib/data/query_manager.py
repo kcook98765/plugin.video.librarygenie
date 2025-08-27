@@ -550,6 +550,33 @@ class QueryManager:
         else:
             self.logger.warning(f"No kodi_id found for item '{item.get('title', 'Unknown')}' - available keys: {list(item.keys())}")
 
+        # Build the media item data structure
+        return {
+            'media_type': item.get('type', 'movie'),
+            'title': item.get('title', item.get('label', 'Unknown')),
+            'year': item.get('year'),
+            'imdbnumber': item.get('imdbnumber') or item.get('imdb_id'),
+            'tmdb_id': item.get('tmdb_id'),
+            'kodi_id': kodi_id,  # CRITICAL: Ensure kodi_id is preserved
+            'source': 'remote' if item.get('_source') == 'remote' else 'lib',
+            'play': item.get('path') or item.get('file_path', ''),
+            'poster': item.get('art', {}).get('poster', '') if item.get('art') else item.get('poster', ''),
+            'fanart': item.get('art', {}).get('fanart', '') if item.get('art') else item.get('fanart', ''),
+            'plot': item.get('plot', ''),
+            'rating': item.get('rating'),
+            'votes': item.get('votes'),
+            'duration': item.get('runtime'),
+            'mpaa': item.get('mpaa', ''),
+            'genre': ','.join(item.get('genre', [])) if isinstance(item.get('genre'), list) else item.get('genre', ''),
+            'director': ','.join(item.get('director', [])) if isinstance(item.get('director'), list) else item.get('director', ''),
+            'studio': ','.join(item.get('studio', [])) if isinstance(item.get('studio'), list) else item.get('studio', ''),
+            'country': ','.join(item.get('country', [])) if isinstance(item.get('country'), list) else item.get('country', ''),
+            'writer': ','.join(item.get('writer', [])) if isinstance(item.get('writer'), list) else item.get('writer', ''),
+            'cast': item.get('cast', ''),
+            'art': item.get('art', ''),
+            'created_at': 'datetime("now")'
+        }
+
         return {
             'media_type': item.get('type', 'movie'),
             'title': item.get('title', item.get('label', 'Unknown')),

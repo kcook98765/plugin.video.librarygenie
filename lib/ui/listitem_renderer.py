@@ -428,6 +428,9 @@ class ListItemRenderer:
             list_item.setProperty('dbid', str(kodi_id))
             # Also set the media type to help Kodi identify this as a movie
             list_item.setProperty('dbtype', 'movie')
+            self.logger.info(f"SET DBID PROPERTY: Set dbid={kodi_id} and dbtype='movie' for '{movie_data.get('title', 'Unknown')}'")
+        else:
+            self.logger.warning(f"NO DBID SET: No kodi_id found for '{movie_data.get('title', 'Unknown')}' - available data keys: {list(movie_data.keys())}")
 
         # Set UI density for skin adaptation
         list_item.setProperty('ListItemDensity', self.ui_density)

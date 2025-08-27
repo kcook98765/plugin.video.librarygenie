@@ -227,9 +227,9 @@ class LocalSearchEngine:
         if kodi_id:
             result['kodi_id'] = kodi_id
             result['movieid'] = kodi_id  # Alternative field name used by JSON-RPC
-            self.logger.debug(f"SQLite result for '{title}' includes kodi_id: {kodi_id}")
+            self.logger.info(f"LOCAL SEARCH: SQLite result for '{title}' includes kodi_id: {kodi_id}")
         else:
-            self.logger.warning(f"SQLite result for '{title}' missing kodi_id")
+            self.logger.warning(f"LOCAL SEARCH: SQLite result for '{title}' missing kodi_id - movie data: {list(movie.keys())}")
 
         return result
 
