@@ -68,8 +68,17 @@ class ListItemRenderer:
             self.logger.info(f"Movie data keys available: {sorted(movie_data.keys())}")
             self.logger.info(f"Basic data: title='{movie_data.get('title')}', year={movie_data.get('year')}, kodi_id={movie_data.get('kodi_id')}")
             self.logger.info(f"Artwork data: poster='{movie_data.get('poster', 'MISSING')}', fanart='{movie_data.get('fanart', 'MISSING')}', thumb='{movie_data.get('thumb', 'MISSING')}'")
-            self.logger.info(f"Metadata: plot='{movie_data.get('plot', 'MISSING')}', genre='{movie_data.get('genre', 'MISSING')}', director='{movie_data.get('director', 'MISSING')}'")
-            self.logger.info(f"Additional: rating={movie_data.get('rating', 'MISSING')}, runtime={movie_data.get('runtime', 'MISSING')}")
+            
+            # Enhanced metadata logging
+            plot = movie_data.get('plot', '')
+            plotoutline = movie_data.get('plotoutline', '')
+            self.logger.info(f"Plot data: plot length={len(plot) if plot else 0}, plotoutline length={len(plotoutline) if plotoutline else 0}")
+            self.logger.info(f"Metadata: genre='{movie_data.get('genre', 'MISSING')}', director='{movie_data.get('director', 'MISSING')}'")
+            self.logger.info(f"Additional: rating={movie_data.get('rating', 'MISSING')}, runtime={movie_data.get('runtime', 'MISSING')}, mpaa='{movie_data.get('mpaa', 'MISSING')}'")
+            self.logger.info(f"Cast/Crew: writer='{movie_data.get('writer', 'MISSING')}', studio='{movie_data.get('studio', 'MISSING')}'")
+            
+            # UI preferences logging
+            self.logger.info(f"UI Settings: density='{self.ui_density}', artwork_pref='{self.artwork_preference}', show_plot={self.show_plot_in_detailed}")
 
             # Extract basic info
             title = movie_data.get('title', 'Unknown Movie')
@@ -85,7 +94,15 @@ class ListItemRenderer:
 
             # Set Video InfoLabels based on UI density
             info_labels = self._build_info_labels(movie_data)
-            self.logger.debug(f"Setting info labels: {list(info_labels.keys())}")
+            self.logger.info(f"Built info labels: {list(info_labels.keys())}")
+            
+            # Log the actual plot data being set
+            if 'plot' in info_labels:
+                plot_preview = info_labels['plot'][:100] + "..." if len(info_labels['plot']) > 100 else info_labels['plot']
+                self.logger.info(f"Setting plot: '{plot_preview}'")
+            else:
+                self.logger.warning("No plot data in info labels!")
+                
             list_item.setInfo('video', info_labels)
 
             # Set artwork based on preferences
@@ -134,9 +151,46 @@ class ListItemRenderer:
                 self.logger.debug(f"Invalid year value: {year}")
                 pass
 
-        # Add basic plot info if no rich metadata available
-        if not movie_data.get('plot') and not movie_data.get('kodi_id'):
-            # Create a basic description from available data
+        # Handle plot information with better fallbacks
+        plot = movie_data.get('plot', '').strip()
+        plotoutline = movie_data.get('plotoutline', '').strip()
+        
+        if plot:
+            # Use full plot if available
+            info['plot'] = plot
+        elif plotoutline:
+            # Use plot outline as fallback
+            info['plot'] = plotoutline
+        elif movie_data.get('kodi_id'):
+            # For Kodi items without plot, create a basic description
+            description_parts = []
+            if year:
+                description_parts.append(f"Released: {year}")
+            
+            # Add genre information if available
+            genre = movie_data.get('genre', '').strip()
+            if genre:
+                # Take first few genres to keep it short
+                genres = genre.split(',')[:3] if ',' in genre else [genre]
+                description_parts.append(f"Genre: {', '.join([g.strip() for g in genres])}")
+            
+            # Add director if available
+            director = movie_data.get('director', '').strip()
+            if director:
+                directors = director.split(',')[:2] if ',' in director else [director]
+                description_parts.append(f"Director: {', '.join([d.strip() for d in directors])}")
+            
+            # Add rating if available
+            rating = movie_data.get('rating')
+            if rating and float(rating) > 0:
+                description_parts.append(f"Rating: {float(rating):.1f}/10")
+            
+            if description_parts:
+                info['plot'] = " • ".join(description_parts)
+            else:
+                info['plot'] = f"Movie from {year}" if year else "No description available"
+        else:
+            # For non-Kodi items, create basic description
             description_parts = []
             if year:
                 description_parts.append(f"Released: {year}")
@@ -147,14 +201,12 @@ class ListItemRenderer:
 
         # Add extended metadata based on UI density
         if self.ui_density in ['detailed', 'art_heavy']:
-            # Plot/description - ensure they're strings
-            plot = movie_data.get('plot', '')
-            plotoutline = movie_data.get('plotoutline', '')
-
-            if self.show_plot_in_detailed and plot and isinstance(plot, str):
-                info['plot'] = str(plot).strip()
-            elif plotoutline and isinstance(plotoutline, str):
-                info['plotoutline'] = str(plotoutline).strip()
+            # Plot is already handled above, so we can focus on other metadata here
+            
+            # Additional plot outline for detailed view (if different from main plot)
+            plotoutline = movie_data.get('plotoutline', '').strip()
+            if plotoutline and plotoutline != info.get('plot', '') and len(plotoutline) < len(info.get('plot', '')):
+                info['plotoutline'] = plotoutline
 
             # Runtime - ensure it's an integer
             runtime = movie_data.get('runtime', 0)
@@ -302,6 +354,12 @@ class ListItemRenderer:
         # Fallback to default icon if no artwork
         if not art.get('thumb'):
             art['thumb'] = self.fallback_icon
+            
+        # Ensure we have at least some artwork for better display
+        if not art.get('poster') and art.get('thumb'):
+            art['poster'] = art['thumb']
+        if not art.get('fanart') and art.get('poster'):
+            art['fanart'] = art['poster']
 
         # Additional art types for high-density UI
         if self.ui_density == 'art_heavy':
