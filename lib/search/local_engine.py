@@ -100,9 +100,14 @@ class LocalSearchEngine:
                 FROM media_items 
                 WHERE media_type = 'movie'
                 AND (LOWER(title) LIKE ? OR LOWER(plot) LIKE ?)
-                ORDER BY title
+                ORDER BY 
+                    CASE 
+                        WHEN LOWER(title) LIKE ? THEN 1 
+                        ELSE 2 
+                    END,
+                    title
                 LIMIT ?
-            """, [search_pattern, search_pattern, limit])
+            """, [search_pattern, search_pattern, search_pattern, limit])
 
             self.logger.info(f"SQLite search returned {len(movies)} movies from database")
 
