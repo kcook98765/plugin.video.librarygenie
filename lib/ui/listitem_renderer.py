@@ -98,81 +98,132 @@ class ListItemRenderer:
         
         info = {}
         
-        # Core fields (always included)
-        info['title'] = movie_data.get('title', 'Unknown Movie')
-        if movie_data.get('year'):
-            info['year'] = movie_data['year']
+        # Core fields (always included) - ensure proper types
+        info['title'] = str(movie_data.get('title', 'Unknown Movie'))
+        year = movie_data.get('year')
+        if year:
+            try:
+                info['year'] = int(year)
+            except (ValueError, TypeError):
+                self.logger.debug(f"Invalid year value: {year}")
+                pass
         
         # Add extended metadata based on UI density
         if self.ui_density in ['detailed', 'art_heavy']:
-            # Plot/description
+            # Plot/description - ensure they're strings
             plot = movie_data.get('plot', '')
             plotoutline = movie_data.get('plotoutline', '')
             
-            if self.show_plot_in_detailed and plot:
-                info['plot'] = plot
-            elif plotoutline:
-                info['plotoutline'] = plotoutline
+            if self.show_plot_in_detailed and plot and isinstance(plot, str):
+                info['plot'] = str(plot).strip()
+            elif plotoutline and isinstance(plotoutline, str):
+                info['plotoutline'] = str(plotoutline).strip()
             
-            # Runtime
+            # Runtime - ensure it's an integer
             runtime = movie_data.get('runtime', 0)
             if runtime:
-                info['duration'] = runtime * 60  # Kodi expects seconds
+                try:
+                    info['duration'] = int(float(runtime)) * 60  # Kodi expects seconds
+                except (ValueError, TypeError):
+                    self.logger.debug(f"Invalid runtime value: {runtime}")
+                    pass
             
-            # Rating
+            # Rating - ensure it's a float
             rating = movie_data.get('rating', 0.0)
             if rating:
-                info['rating'] = float(rating)
+                try:
+                    rating_float = float(rating)
+                    if 0.0 <= rating_float <= 10.0:  # Valid rating range
+                        info['rating'] = rating_float
+                except (ValueError, TypeError):
+                    self.logger.debug(f"Invalid rating value: {rating}")
+                    pass
             
-            # Genre
+            # Genre - ensure it's a list of strings
             genre = movie_data.get('genre', '')
-            if genre:
-                info['genre'] = genre.split(', ') if ',' in genre else [genre]
+            if genre and isinstance(genre, str):
+                genre_list = genre.split(', ') if ', ' in genre else [genre]
+                # Filter out empty strings
+                genre_list = [g.strip() for g in genre_list if g.strip()]
+                if genre_list:
+                    info['genre'] = genre_list
             
-            # MPAA rating
+            # MPAA rating - ensure it's a string
             mpaa = movie_data.get('mpaa', '')
-            if mpaa:
-                info['mpaa'] = mpaa
+            if mpaa and isinstance(mpaa, str):
+                info['mpaa'] = str(mpaa).strip()
             
-            # Director
+            # Director - ensure it's a list of strings
             director = movie_data.get('director', '')
-            if director:
-                info['director'] = director.split(', ') if ',' in director else [director]
+            if director and isinstance(director, str):
+                director_list = director.split(', ') if ', ' in director else [director]
+                # Filter out empty strings
+                director_list = [d.strip() for d in director_list if d.strip()]
+                if director_list:
+                    info['director'] = director_list
             
-            # Studio/country
+            # Studio/country - ensure these are simple strings or string lists
             try:
-                studio = movie_data.get('studio', [])
-                if isinstance(studio, str):
-                    studio = json.loads(studio) if studio.startswith('[') else [studio]
-                if studio:
+                studio = movie_data.get('studio', '')
+                if isinstance(studio, str) and studio:
+                    if studio.startswith('['):
+                        # Try to parse JSON array
+                        studio_list = json.loads(studio)
+                        if isinstance(studio_list, list) and all(isinstance(s, str) for s in studio_list):
+                            info['studio'] = studio_list
+                        else:
+                            info['studio'] = [str(studio)]
+                    else:
+                        # Simple string, split on comma if needed
+                        info['studio'] = studio.split(', ') if ', ' in studio else [studio]
+                elif isinstance(studio, list) and all(isinstance(s, str) for s in studio):
                     info['studio'] = studio
-            except:
+            except Exception as e:
+                self.logger.debug(f"Error parsing studio: {e}")
                 pass
             
             try:
-                country = movie_data.get('country', [])
-                if isinstance(country, str):
-                    country = json.loads(country) if country.startswith('[') else [country]
-                if country:
+                country = movie_data.get('country', '')
+                if isinstance(country, str) and country:
+                    if country.startswith('['):
+                        # Try to parse JSON array
+                        country_list = json.loads(country)
+                        if isinstance(country_list, list) and all(isinstance(c, str) for c in country_list):
+                            info['country'] = country_list
+                        else:
+                            info['country'] = [str(country)]
+                    else:
+                        # Simple string, split on comma if needed
+                        info['country'] = country.split(', ') if ', ' in country else [country]
+                elif isinstance(country, list) and all(isinstance(c, str) for c in country):
                     info['country'] = country
-            except:
+            except Exception as e:
+                self.logger.debug(f"Error parsing country: {e}")
                 pass
         
-        # Playback info
+        # Playback info - ensure it's an integer
         playcount = movie_data.get('playcount', 0)
         if playcount:
-            info['playcount'] = playcount
+            try:
+                info['playcount'] = int(playcount)
+            except (ValueError, TypeError):
+                self.logger.debug(f"Invalid playcount value: {playcount}")
+                pass
         
-        # External IDs
-        if movie_data.get('imdb_id'):
-            info['imdbnumber'] = movie_data['imdb_id']
+        # External IDs - ensure they're strings
+        imdb_id = movie_data.get('imdb_id')
+        if imdb_id and isinstance(imdb_id, str):
+            info['imdbnumber'] = str(imdb_id).strip()
         
-        # Unique IDs for better matching
+        # Unique IDs for better matching - ensure they're strings
         unique_ids = {}
-        if movie_data.get('imdb_id'):
-            unique_ids['imdb'] = movie_data['imdb_id']
-        if movie_data.get('tmdb_id'):
-            unique_ids['tmdb'] = movie_data['tmdb_id']
+        if imdb_id and isinstance(imdb_id, str):
+            unique_ids['imdb'] = str(imdb_id).strip()
+        
+        tmdb_id = movie_data.get('tmdb_id')
+        if tmdb_id and str(tmdb_id).strip():
+            unique_ids['tmdb'] = str(tmdb_id).strip()
+            
         if unique_ids:
             info['uniqueid'] = unique_ids
         
