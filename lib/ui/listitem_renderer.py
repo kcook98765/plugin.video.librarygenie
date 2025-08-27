@@ -196,121 +196,124 @@ class ListItemRenderer:
             else:
                 info['plot'] = f"Movie from {year}" if year else "No description available"
 
-        # Add extended metadata based on UI density (always include for Kodi items with rich data)
-        include_extended_metadata = (
-            self.ui_density in ['detailed', 'art_heavy'] or 
-            movie_data.get('kodi_id')  # Always include for Kodi library items
-        )
+        # Always include display metadata for rich list presentation (like native Kodi lists)
+        # This provides similar data that native Kodi lists show, with heavy data left to dbid
         
-        if include_extended_metadata:
-            # Plot is already handled above, so we can focus on other metadata here
-            
-            # Additional plot outline for detailed view (if different from main plot)
-            plotoutline = movie_data.get('plotoutline', '').strip()
-            if plotoutline and plotoutline != info.get('plot', '') and len(plotoutline) < len(info.get('plot', '')):
-                info['plotoutline'] = plotoutline
+        # Additional plot outline for detailed view (if different from main plot)
+        plotoutline = movie_data.get('plotoutline', '').strip()
+        if plotoutline and plotoutline != info.get('plot', '') and len(plotoutline) < len(info.get('plot', '')):
+            info['plotoutline'] = plotoutline
 
-            # Runtime - ensure it's an integer
-            runtime = movie_data.get('runtime', 0)
-            if runtime:
-                try:
-                    info['duration'] = int(float(runtime)) * 60  # Kodi expects seconds
-                except (ValueError, TypeError):
-                    self.logger.debug(f"Invalid runtime value: {runtime}")
-                    pass
+        # Runtime - always include for display (native Kodi lists show this)
+        runtime = movie_data.get('runtime', 0)
+        if runtime:
+            try:
+                info['duration'] = int(float(runtime)) * 60  # Kodi expects seconds
+            except (ValueError, TypeError):
+                self.logger.debug(f"Invalid runtime value: {runtime}")
+                pass
 
-            # Rating - ensure it's a float
-            rating = movie_data.get('rating', 0.0)
-            if rating:
-                try:
-                    rating_float = float(rating)
-                    if 0.0 <= rating_float <= 10.0:  # Valid rating range
-                        info['rating'] = rating_float
-                except (ValueError, TypeError):
-                    self.logger.debug(f"Invalid rating value: {rating}")
-                    pass
+        # Rating - always include for display (native Kodi lists show this)
+        rating = movie_data.get('rating', 0.0)
+        if rating:
+            try:
+                rating_float = float(rating)
+                if 0.0 <= rating_float <= 10.0:  # Valid rating range
+                    info['rating'] = rating_float
+            except (ValueError, TypeError):
+                self.logger.debug(f"Invalid rating value: {rating}")
+                pass
 
-            # Genre - ensure it's a valid string or list
-            genre = movie_data.get('genre', '')
-            if genre:
-                try:
-                    if isinstance(genre, str) and genre.strip():
-                        # Split comma-separated genres
-                        genre_list = [g.strip() for g in genre.split(',') if g.strip()]
-                        if genre_list:
-                            info['genre'] = genre_list
-                    elif isinstance(genre, list):
-                        # Validate list elements are strings
-                        genre_list = [str(g).strip() for g in genre if str(g).strip()]
-                        if genre_list:
-                            info['genre'] = genre_list
-                except Exception as e:
-                    self.logger.debug(f"Error processing genre: {e}")
-                    pass
+        # Genre - always include for display (native Kodi lists show this)
+        genre = movie_data.get('genre', '')
+        if genre:
+            try:
+                if isinstance(genre, str) and genre.strip():
+                    # Split comma-separated genres
+                    genre_list = [g.strip() for g in genre.split(',') if g.strip()]
+                    if genre_list:
+                        info['genre'] = genre_list
+                elif isinstance(genre, list):
+                    # Validate list elements are strings
+                    genre_list = [str(g).strip() for g in genre if str(g).strip()]
+                    if genre_list:
+                        info['genre'] = genre_list
+            except Exception as e:
+                self.logger.debug(f"Error processing genre: {e}")
+                pass
 
-            # MPAA rating - ensure it's a valid string
-            mpaa = movie_data.get('mpaa', '')
-            if mpaa:
-                try:
-                    mpaa_str = str(mpaa).strip()
-                    if mpaa_str:
-                        info['mpaa'] = mpaa_str
-                except Exception as e:
-                    self.logger.debug(f"Error processing MPAA: {e}")
-                    pass
+        # MPAA rating - include for display (native Kodi lists show this)
+        mpaa = movie_data.get('mpaa', '')
+        if mpaa:
+            try:
+                mpaa_str = str(mpaa).strip()
+                if mpaa_str:
+                    info['mpaa'] = mpaa_str
+            except Exception as e:
+                self.logger.debug(f"Error processing MPAA: {e}")
+                pass
 
-            # Director - ensure it's a valid string or list
-            director = movie_data.get('director', '')
-            if director:
-                try:
-                    if isinstance(director, str) and director.strip():
-                        # Split comma-separated directors
-                        director_list = [d.strip() for d in director.split(',') if d.strip()]
-                        if director_list:
-                            info['director'] = director_list
-                    elif isinstance(director, list):
-                        # Validate list elements are strings
-                        director_list = [str(d).strip() for d in director if str(d).strip()]
-                        if director_list:
-                            info['director'] = director_list
-                except Exception as e:
-                    self.logger.debug(f"Error processing director: {e}")
-                    pass
+        # Director - include for display (native Kodi lists show this)
+        director = movie_data.get('director', '')
+        if director:
+            try:
+                if isinstance(director, str) and director.strip():
+                    # Split comma-separated directors
+                    director_list = [d.strip() for d in director.split(',') if d.strip()]
+                    if director_list:
+                        info['director'] = director_list
+                elif isinstance(director, list):
+                    # Validate list elements are strings
+                    director_list = [str(d).strip() for d in director if str(d).strip()]
+                    if director_list:
+                        info['director'] = director_list
+            except Exception as e:
+                self.logger.debug(f"Error processing director: {e}")
+                pass
 
-            # Studio - keep it simple, just use string
-            studio = movie_data.get('studio', '')
-            if studio:
-                try:
-                    studio_str = str(studio).strip()
-                    if studio_str and not studio_str.startswith('['):
-                        info['studio'] = studio_str
-                except Exception as e:
-                    self.logger.debug(f"Error processing studio: {e}")
-                    pass
+        # Studio - include for display
+        studio = movie_data.get('studio', '')
+        if studio:
+            try:
+                studio_str = str(studio).strip()
+                if studio_str and not studio_str.startswith('['):
+                    info['studio'] = studio_str
+            except Exception as e:
+                self.logger.debug(f"Error processing studio: {e}")
+                pass
 
-            # Country - keep it simple, just use string
-            country = movie_data.get('country', '')
-            if country:
-                try:
-                    country_str = str(country).strip()
-                    if country_str and not country_str.startswith('['):
-                        info['country'] = country_str
-                except Exception as e:
-                    self.logger.debug(f"Error processing country: {e}")
-                    pass
+        # Country - include for display
+        country = movie_data.get('country', '')
+        if country:
+            try:
+                country_str = str(country).strip()
+                if country_str and not country_str.startswith('['):
+                    info['country'] = country_str
+            except Exception as e:
+                self.logger.debug(f"Error processing country: {e}")
+                pass
 
-            # Cast - skip for Kodi library items since dbid property handles this automatically
-            # Only set cast data for external/non-Kodi items if needed in the future
-            kodi_id = movie_data.get('kodi_id')
-            if not kodi_id:
-                # For non-Kodi items, we could set basic cast info if available
-                cast_string = movie_data.get('cast', '')
-                if cast_string and isinstance(cast_string, str):
-                    # Only set as plotoutline supplement, not as cast field
-                    self.logger.debug(f"External item cast info available for '{title}'")
-            else:
-                # Kodi library items: cast will be auto-populated via dbid property
-                self.logger.debug(f"Kodi library item '{title}' - cast will be auto-populated via dbid")
+        # Writer - include for display (but keep it simple)
+        writer = movie_data.get('writer', '')
+        if writer:
+            try:
+                writer_str = str(writer).strip()
+                if writer_str and not writer_str.startswith('['):
+                    info['writer'] = writer_str
+            except Exception as e:
+                self.logger.debug(f"Error processing writer: {e}")
+                pass
+
+        # SKIP HEAVY METADATA that will be provided by Kodi via dbid:
+        # - cast (complex nested data structure)
+        # - crew details (complex nested data)  
+        # - detailed ratings breakdown
+        # - stream details
+        # - file details
+        # These will be populated by Kodi when user accesses video info dialog
+        kodi_id = movie_data.get('kodi_id')
+        if kodi_id:
+            self.logger.debug(f"Kodi library item '{title}' - heavy metadata (cast, crew details, etc.) will be auto-populated via dbid")
 
         # Playback info - ensure it's an integer
         playcount = movie_data.get('playcount', 0)
