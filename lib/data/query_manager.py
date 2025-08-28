@@ -43,13 +43,16 @@ class QueryManager:
         canonical["country"] = str(item.get("country", ""))
         canonical["premiered"] = str(item.get("premiered", item.get("dateadded", "")))
 
-        # Duration - normalize to minutes
+        # Duration - normalize to minutes (runtime from JSON-RPC is in minutes)
         runtime = item.get("runtime", item.get("duration", 0))
         if runtime:
-            # Handle seconds to minutes conversion if needed
-            canonical["duration"] = int(runtime / 60) if runtime > 1000 else int(runtime)
+            # Runtime from JSON-RPC is already in minutes, duration might be seconds
+            if runtime > 1000:  # Assume seconds, convert to minutes
+                canonical["duration_minutes"] = int(runtime / 60)
+            else:  # Already in minutes
+                canonical["duration_minutes"] = int(runtime)
         else:
-            canonical["duration"] = 0
+            canonical["duration_minutes"] = 0
 
         # Art normalization - flatten art dict or use direct keys
         art = item.get("art", {})
@@ -639,6 +642,58 @@ class QueryManager:
             self.logger.error(f"Get all lists error traceback: {traceback.format_exc()}")
             return []
 
+    def _get_kodi_episode_enrichment_data(self, kodi_ids: List[int]) -> Dict[int, Dict[str, Any]]:
+        """Fetch lightweight episode metadata from Kodi JSON-RPC"""
+        try:
+            import json
+            import xbmc
+
+            if not kodi_ids:
+                return {}
+
+            self.logger.info(f"Fetching episode JSON-RPC data for {len(kodi_ids)} episodes: {kodi_ids}")
+
+            enrichment_data = {}
+
+            for kodi_id in kodi_ids:
+                try:
+                    request = {
+                        "jsonrpc": "2.0",
+                        "method": "VideoLibrary.GetEpisodeDetails",
+                        "params": {
+                            "episodeid": int(kodi_id),
+                            "properties": [
+                                "title", "plotoutline", "season", "episode", "showtitle", 
+                                "aired", "runtime", "rating", "playcount", "lastplayed", 
+                                "art", "resume"
+                            ]
+                        },
+                        "id": 1
+                    }
+
+                    response_str = xbmc.executeJSONRPC(json.dumps(request))
+                    response = json.loads(response_str)
+
+                    if "error" in response:
+                        self.logger.warning(f"JSON-RPC error for episode {kodi_id}: {response['error']}")
+                        continue
+
+                    episode_details = response.get("result", {}).get("episodedetails")
+                    if episode_details:
+                        normalized = self._normalize_kodi_episode_details(episode_details)
+                        if normalized:
+                            enrichment_data[kodi_id] = normalized
+
+                except Exception as e:
+                    self.logger.error(f"Failed to fetch details for episode {kodi_id}: {e}")
+                    continue
+
+            return enrichment_data
+
+        except Exception as e:
+            self.logger.error(f"Error fetching episode enrichment data: {e}")
+            return {}
+
     def _get_kodi_enrichment_data(self, kodi_ids: List[int]) -> Dict[int, Dict[str, Any]]:
         """Fetch rich metadata from Kodi JSON-RPC for the given kodi_ids"""
         try:
@@ -661,10 +716,9 @@ class QueryManager:
                         "params": {
                             "movieid": int(kodi_id),
                             "properties": [
-                                "title", "year", "imdbnumber", "uniqueid", "file",
-                                "art", "plot", "plotoutline", "runtime", "rating",
-                                "genre", "mpaa", "director", "country", "studio",
-                                "playcount", "resume", "writer", "votes"
+                                "title", "originaltitle", "sorttitle", "year", "genre", 
+                                "plotoutline", "rating", "votes", "mpaa", "runtime", 
+                                "studio", "country", "premiered", "art", "resume"
                             ]
                         },
                         "id": 1
@@ -712,11 +766,21 @@ class QueryManager:
         if not items:
             return []
 
-        kodi_ids_to_enrich = [item['kodi_id'] for item in items if item.get('kodi_id') and item.get('media_type') in ['movie', 'episode']]
-        if not kodi_ids_to_enrich:
-            return items
+        # Separate movie and episode IDs
+        movie_ids = [item['kodi_id'] for item in items if item.get('kodi_id') and item.get('media_type') == 'movie']
+        episode_ids = [item['kodi_id'] for item in items if item.get('kodi_id') and item.get('media_type') == 'episode']
 
-        enriched_data = self._get_kodi_enrichment_data(kodi_ids_to_enrich)
+        enriched_data = {}
+
+        # Fetch movie data
+        if movie_ids:
+            movie_data = self._get_kodi_enrichment_data(movie_ids)
+            enriched_data.update(movie_data)
+
+        # Fetch episode data
+        if episode_ids:
+            episode_data = self._get_kodi_episode_enrichment_data(episode_ids)
+            enriched_data.update(episode_data)
 
         enriched_items = []
         for item in items:
@@ -804,6 +868,35 @@ class QueryManager:
         columns = [description[0] for description in cursor.description]
         return dict(zip(columns, row))
 
+    def _normalize_kodi_episode_details(self, episode_details: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize Kodi JSON-RPC episode details to canonical format"""
+        # Extract resume data properly
+        resume_data = episode_details.get("resume", {})
+        resume = {
+            "position_seconds": int(resume_data.get("position", 0)),
+            "total_seconds": int(resume_data.get("total", 0))
+        }
+
+        # Build item dict for normalization
+        item = {
+            "kodi_id": episode_details.get("episodeid"),
+            "media_type": "episode",
+            "title": episode_details.get("title", ""),
+            "tvshowtitle": episode_details.get("showtitle", ""),
+            "season": episode_details.get("season", 0),
+            "episode": episode_details.get("episode", 0),
+            "aired": episode_details.get("aired", ""),
+            "plot": episode_details.get("plotoutline", ""),
+            "rating": episode_details.get("rating", 0.0),
+            "playcount": episode_details.get("playcount", 0),
+            "lastplayed": episode_details.get("lastplayed", ""),
+            "runtime": episode_details.get("runtime", 0),  # Will be converted to minutes
+            "art": episode_details.get("art", {}),
+            "resume": resume
+        }
+
+        return self._normalize_to_canonical(item)
+
     def _normalize_kodi_movie_details(self, movie_details: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize Kodi JSON-RPC movie details to canonical format"""
         # Extract resume data properly
@@ -826,7 +919,7 @@ class QueryManager:
             "rating": movie_details.get("rating", 0.0),
             "votes": movie_details.get("votes", 0),
             "mpaa": movie_details.get("mpaa", ""),
-            "runtime": movie_details.get("runtime", 0),  # Will be converted to minutes
+            "runtime": movie_details.get("runtime", 0),  # Runtime from JSON-RPC is in minutes
             "studio": ", ".join(movie_details.get("studio", [])) if isinstance(movie_details.get("studio"), list) else str(movie_details.get("studio", "")),
             "country": ", ".join(movie_details.get("country", [])) if isinstance(movie_details.get("country"), list) else str(movie_details.get("country", "")),
             "premiered": movie_details.get("premiered", movie_details.get("dateadded", "")),
