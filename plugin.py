@@ -585,7 +585,7 @@ def main():
             handle_signout()
         else:
             # Show main menu by default
-            handle_main_menu()
+            show_main_menu(addon_handle)
 
     except Exception as e:
         logger.error(f"Fatal error in plugin main: {e}")
