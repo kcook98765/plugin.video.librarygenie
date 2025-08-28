@@ -8,231 +8,402 @@ Builds ListItems with proper metadata and resume information
 
 import json
 from typing import List, Dict, Any, Optional
+
 import xbmc
 import xbmcgui
 import xbmcplugin
+
 from ..utils.logger import get_logger
 
 
-def is_kodi_v20_plus():
+def is_kodi_v20_plus() -> bool:
     """
     Check if running Kodi version 20 or higher
-
     Returns:
         bool: True if Kodi major version >= 20, False otherwise
     """
     try:
         build_version = xbmc.getInfoLabel("System.BuildVersion")
-        # Extract major version number from build string like "20.2 (20.2.0) Git:20231119-8b12c1c20e"
-        major_version = int(build_version.split('.')[0])
-        return major_version >= 20
-    except (ValueError, IndexError, AttributeError):
-        # If parsing fails, assume older version for safety
+        # "20.2 (20.2.0) Git:..." -> "20"
+        major = int(build_version.split('.')[0].split('-')[0])
+        return major >= 20
+    except Exception:
+        # Safe fallback (Matrix behavior)
         return False
 
 
 class ListItemBuilder:
     """Builds ListItems with proper separation between Kodi library and external items"""
 
+    # -------- lifecycle --------
     def __init__(self, addon_handle: int, addon_id: str):
         self.addon_handle = addon_handle
         self.addon_id = addon_id
         self.logger = get_logger(__name__)
-        # Assuming base_url is needed for constructing plugin URLs,
-        # it should be initialized or passed if used in methods.
-        # For now, it's hardcoded in the plugin URL construction.
-        # self.base_url = "" # If needed, initialize here or pass to relevant methods.
 
-    def _is_kodi_v20_or_higher(self) -> bool:
-        """Check if Kodi version is 20 (Nexus) or higher"""
-        try:
-            version_str = xbmc.getInfoLabel("System.BuildVersion")
-            # Extract major version number (e.g., "20.0" -> 20)
-            major_version = int(version_str.split('.')[0].split('-')[0])
-            return major_version >= 20
-        except (ValueError, IndexError):
-            # Default to v19 behavior on parse error
-            return False
-
+    # -------- public API --------
     def build_directory(self, items: List[Dict[str, Any]], content_type: str = "movies") -> bool:
         """
-        Build a directory with proper content type and ListItems
+        Build a directory with proper content type and ListItems.
 
         Args:
-            items: List of media items with metadata
+            items: list of (possibly mixed) media item dicts
             content_type: "movies", "tvshows", or "episodes"
 
         Returns:
-            bool: Success status
+            bool: success
         """
         try:
-            self.logger.info(f"DIRECTORY BUILD: Starting build_directory with {len(items)} items, content_type='{content_type}'")
-            self.logger.debug(f"DIRECTORY BUILD: addon_handle={self.addon_handle}, addon_id='{self.addon_id}'")
-
-            # Set container content once for the entire listing
+            count = len(items)
+            self.logger.info(f"DIRECTORY BUILD: {count} items (content_type='{content_type}')")
             xbmcplugin.setContent(self.addon_handle, content_type)
-            self.logger.debug(f"DIRECTORY BUILD: Set content type to '{content_type}'")
 
-            # Add sort methods for better UX
-            sort_methods = [
-                ('SORT_METHOD_TITLE_IGNORE_THE', xbmcplugin.SORT_METHOD_TITLE_IGNORE_THE),
-                ('SORT_METHOD_DATE', xbmcplugin.SORT_METHOD_DATE),
-                ('SORT_METHOD_VIDEO_YEAR', xbmcplugin.SORT_METHOD_VIDEO_YEAR)
-            ]
+            # Add a few sane sort methods once
+            for const in (
+                xbmcplugin.SORT_METHOD_TITLE_IGNORE_THE,
+                xbmcplugin.SORT_METHOD_DATE,
+                xbmcplugin.SORT_METHOD_VIDEO_YEAR,
+            ):
+                xbmcplugin.addSortMethod(self.addon_handle, const)
 
-            for method_name, method_const in sort_methods:
-                xbmcplugin.addSortMethod(self.addon_handle, method_const)
-                self.logger.debug(f"DIRECTORY BUILD: Added sort method {method_name}")
+            tuples: List[tuple] = []
+            ok = 0
+            fail = 0
+            for idx, raw in enumerate(items, start=1):
+                try:
+                    item = self._normalize_item(raw)  # canonical shape
+                    built = self._build_single_item(item)
+                    if built:
+                        tuples.append(built)  # (url, listitem, is_folder)
+                        ok += 1
+                    else:
+                        fail += 1
+                        self.logger.warning(f"DIRECTORY BUILD: failed to build #{idx}: '{raw.get('title','Unknown')}'")
+                except Exception as ie:
+                    fail += 1
+                    self.logger.error(f"DIRECTORY BUILD: exception for #{idx}: {ie}")
 
-            list_items = []
-            successful_items = 0
-            failed_items = 0
+            self.logger.info(f"DIRECTORY BUILD: {ok} OK, {fail} failed")
 
-            for idx, item in enumerate(items):
-                self.logger.debug(f"DIRECTORY BUILD: Processing item {idx+1}/{len(items)}: '{item.get('title', 'Unknown')}'")
-                list_item = self._build_single_item(item)
-                if list_item:
-                    list_items.append(list_item)
-                    successful_items += 1
-                else:
-                    failed_items += 1
-                    self.logger.warning(f"DIRECTORY BUILD: Failed to build item {idx+1}: '{item.get('title', 'Unknown')}'")
-
-            self.logger.info(f"DIRECTORY BUILD: Built {successful_items} items successfully, {failed_items} failed")
-
-            # Add all items to directory
-            for idx, (url, list_item, is_folder) in enumerate(list_items):
-                self.logger.debug(f"DIRECTORY BUILD: Adding item {idx+1} to directory - URL: '{url}', isFolder: {is_folder}")
+            for url, li, is_folder in tuples:
                 xbmcplugin.addDirectoryItem(
-                    handle=self.addon_handle,
-                    url=url,
-                    listitem=list_item,
-                    isFolder=is_folder
+                    handle=self.addon_handle, url=url, listitem=li, isFolder=is_folder
                 )
 
-            xbmcplugin.endOfDirectory(self.addon_handle)
-            self.logger.info(f"DIRECTORY BUILD: Successfully completed directory with {len(list_items)} items")
+            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True)
             return True
-
         except Exception as e:
-            self.logger.error(f"DIRECTORY BUILD: Failed to build directory: {e}")
+            self.logger.error(f"DIRECTORY BUILD: fatal error: {e}")
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
             return False
 
+    # -------- internals --------
     def _build_single_item(self, item: Dict[str, Any]) -> Optional[tuple]:
         """
-        Build a single ListItem based on whether it's in Kodi's library or not
+        Decide whether to build a library-backed or external item.
+        Returns (url, listitem, is_folder) or None on failure.
+        """
+        title = item.get('title', 'Unknown')
+        media_type = item.get('media_type', 'movie')
+        kodi_id = item.get('kodi_id')  # already normalized to int/None
+        self.logger.debug(f"ITEM BUILD: '{title}' type={media_type} kodi_id={kodi_id}")
 
-        Args:
-            item: Media item dictionary with metadata
+        try:
+            # Treat as library-backed ONLY if we truly have a library DB id for movies/episodes
+            if media_type in ('movie', 'episode') and isinstance(kodi_id, int):
+                return self._create_library_listitem(item)
+            else:
+                return self._create_external_item(item)
+        except Exception as e:
+            self.logger.error(f"ITEM BUILD: failed for '{title}': {e}")
+            return None
 
-        Returns:
-            tuple: (url, listitem, is_folder) or None if failed
+    # ----- normalization -----
+    def _normalize_item(self, src: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Canonicalize a raw item dict to the lightweight, version-safe shape
+        consumed by this builder.
+        """
+        out: Dict[str, Any] = {}
+
+        # media type
+        media_type = (src.get('media_type') or src.get('type') or 'movie').lower()
+        if media_type not in ('movie', 'episode', 'tvshow', 'musicvideo'):
+            media_type = 'movie'
+        out['media_type'] = media_type
+
+        # kodi id (only for movie/episode)
+        kodi_id = None
+        if media_type == 'movie':
+            kodi_id = src.get('kodi_id') or src.get('movieid')
+        elif media_type == 'episode':
+            kodi_id = src.get('kodi_id') or src.get('episodeid')
+        # Do NOT infer from generic 'id' to avoid misclassification
+        out['kodi_id'] = int(kodi_id) if isinstance(kodi_id, (int, float)) else (kodi_id if isinstance(kodi_id, int) else None)
+
+        # identity / titles
+        out['title'] = src.get('title') or src.get('label') or 'Unknown'
+        if src.get('originaltitle') and src.get('originaltitle') != out['title']:
+            out['originaltitle'] = src.get('originaltitle')
+        if src.get('sorttitle'):
+            out['sorttitle'] = src.get('sorttitle')
+
+        # year
+        try:
+            out['year'] = int(src.get('year')) if src.get('year') is not None else None
+        except Exception:
+            out['year'] = None
+
+        # genre -> comma string
+        genre = src.get('genre')
+        if isinstance(genre, list):
+            out['genre'] = ", ".join([g for g in genre if g])
+        elif isinstance(genre, str):
+            out['genre'] = genre
+        # else omit
+
+        # plot/outline
+        plot = src.get('plot') or src.get('plotoutline') or src.get('description')
+        if plot:
+            out['plot'] = plot
+
+        # rating/votes/mpaa
+        try:
+            if src.get('rating') is not None:
+                out['rating'] = float(src['rating'])
+        except Exception:
+            pass
+        try:
+            if src.get('votes') is not None:
+                out['votes'] = int(src['votes'])
+        except Exception:
+            pass
+        if src.get('mpaa'):
+            out['mpaa'] = src['mpaa']
+
+        # duration -> minutes (Matrix-safe)
+        minutes = None
+        if src.get('duration_minutes') is not None:
+            # caller already provided minutes
+            try:
+                minutes = int(src['duration_minutes'])
+            except Exception:
+                minutes = None
+        elif src.get('runtime') is not None:
+            # runtime commonly minutes
+            try:
+                minutes = int(src['runtime'])
+            except Exception:
+                minutes = None
+        elif src.get('duration') is not None:
+            # 'duration' may be minutes or seconds; best effort:
+            try:
+                d = int(src['duration'])
+                minutes = d // 60 if d > 300 else d
+            except Exception:
+                minutes = None
+        if minutes and minutes > 0:
+            out['duration_minutes'] = minutes
+
+        # studio / country
+        if src.get('studio'):
+            out['studio'] = src['studio'] if isinstance(src['studio'], str) else (src['studio'][0] if isinstance(src['studio'], list) and src['studio'] else None)
+        if src.get('country'):
+            out['country'] = src['country'] if isinstance(src['country'], str) else (src['country'][0] if isinstance(src['country'], list) and src['country'] else None)
+
+        # dates
+        out['premiered'] = src.get('premiered') or src.get('dateadded')
+
+        # episode extras
+        if media_type == 'episode':
+            if src.get('tvshowtitle') or src.get('showtitle'):
+                out['tvshowtitle'] = src.get('tvshowtitle') or src.get('showtitle')
+            for key in ('season', 'episode'):
+                if src.get(key) is not None:
+                    try:
+                        out[key] = int(src[key])
+                    except Exception:
+                        pass
+            if src.get('aired'):
+                out['aired'] = src['aired']
+            if src.get('playcount') is not None:
+                try:
+                    out['playcount'] = int(src['playcount'])
+                except Exception:
+                    pass
+            if src.get('lastplayed'):
+                out['lastplayed'] = src['lastplayed']
+            # Helpful if present for videodb path construction
+            if src.get('tvshowid') is not None:
+                try:
+                    out['tvshowid'] = int(src['tvshowid'])
+                except Exception:
+                    pass
+
+        # artwork (flatten)
+        poster = src.get('poster') or src.get('thumbnail')
+        fanart = src.get('fanart')
+        if poster:
+            out['poster'] = poster
+        if fanart:
+            out['fanart'] = fanart
+
+        art_blob = src.get('art')
+        if art_blob:
+            try:
+                art_dict = json.loads(art_blob) if isinstance(art_blob, str) else art_blob
+                if isinstance(art_dict, dict):
+                    for k in ('thumb', 'banner', 'landscape', 'clearlogo'):
+                        v = art_dict.get(k)
+                        if v:
+                            out[k] = v
+            except Exception:
+                # non-fatal
+                pass
+
+        # resume (seconds)
+        resume = src.get('resume') or {}
+        pos = resume.get('position_seconds') or resume.get('position') or 0
+        tot = resume.get('total_seconds') or resume.get('total') or 0
+        try:
+            pos = int(pos)
+        except Exception:
+            pos = 0
+        try:
+            tot = int(tot)
+        except Exception:
+            tot = 0
+        out['resume'] = {'position_seconds': pos, 'total_seconds': tot}
+
+        # preserve source if provided, can be useful for logging/routes
+        if src.get('source'):
+            out['source'] = src['source']
+
+        return out
+
+    # ----- library & external builders -----
+    def _create_library_listitem(self, item: Dict[str, Any]) -> Optional[tuple]:
+        """
+        Build library-backed movie/episode row as (url, listitem, is_folder=False)
+        with lightweight info and versioned resume.
         """
         try:
             title = item.get('title', 'Unknown')
-            self.logger.debug(f"ITEM BUILD: Starting build for '{title}'")
-
-            # Log all available item fields for debugging
-            item_fields = list(item.keys())
-            self.logger.debug(f"ITEM BUILD: Available fields for '{title}': {item_fields}")
-
-            # Determine if this is a Kodi library item
-            # Check for kodi_id from multiple possible fields
-            kodi_id = item.get('kodi_id') or item.get('movieid') or item.get('id')
-            has_kodi_id = kodi_id is not None
             media_type = item.get('media_type', 'movie')
-            source = item.get('source', 'ext')
-
-            self.logger.debug(f"ITEM BUILD: Item analysis for '{title}' - kodi_id: {kodi_id}, has_kodi_id: {has_kodi_id}, media_type: {media_type}, source: {source}")
-
-            # For search results, if we have a kodi_id and no explicit external source, treat as library
-            if has_kodi_id and (source == 'lib' or source != 'remote'):
-                self.logger.info(f"BUILDING LIBRARY ITEM: '{title}' with kodi_id: {kodi_id}, source: {source}")
-                return self._create_library_listitem(item)
-            else:
-                self.logger.info(f"BUILDING EXTERNAL ITEM: '{title}' (no kodi_id or external source), has_kodi_id: {has_kodi_id}, source: {source}")
-                return self._create_external_item(item)
-
-        except Exception as e:
-            self.logger.error(f"ITEM BUILD: Failed to build ListItem for {item.get('title', 'unknown')}: {e}")
-            return None
-
-    def _create_library_listitem(self, item: Dict[str, Any]) -> tuple:
-        """Create ListItem for library-backed items with lightweight metadata and version-branched resume"""
-        try:
-            title = item.get('title', 'Unknown')
             kodi_id = item.get('kodi_id')
-            media_type = item.get('media_type', 'movie')
 
-            self.logger.debug(f"Creating library ListItem for '{title}' (kodi_id: {kodi_id}, type: {media_type})")
+            # Label: include year if present
+            display = f"{title} ({item['year']})" if item.get('year') else title
+            li = xbmcgui.ListItem(label=display)
 
-            # Create ListItem with title
-            list_item = xbmcgui.ListItem(label=title)
-
-            # Set URL for library items using videodb://
-            if kodi_id and media_type == 'movie':
-                url = f"videodb://movies/titles/{kodi_id}"
-                list_item.setPath(url)
-                list_item.setProperty('IsPlayable', 'true')
-                self.logger.debug(f"Set videodb URL: {url}")
-            elif kodi_id and media_type == 'episode':
-                url = f"videodb://tvshows/titles/{item.get('tvshowid', 0)}/{item.get('season', 1)}/{kodi_id}"
-                list_item.setPath(url)
-                list_item.setProperty('IsPlayable', 'true')
-                self.logger.logger.debug(f"Set episode videodb URL: {url}")
-            else:
-                # Fallback to plugin URL
-                # Assuming self.base_url is defined or passed appropriately
-                base_url = f"plugin://{self.addon_id}" # Example base_url
-                url = f"{base_url}?action=play&kodi_id={kodi_id}&type={media_type}"
-                list_item.setPath(url)
-                list_item.setProperty('IsPlayable', 'true')
-
-            # Set lightweight metadata only (no heavy fields like cast)
+            # Lightweight info (minutes; no heavy arrays)
             info = self._build_lightweight_info(item)
-            list_item.setInfo('video', info)
+            li.setInfo('video', info)
 
-            # Set art (poster and fanart minimum, others only if valid)
+            # Art (poster/fanart minimum)
             art = self._build_art_dict(item)
             if art:
-                list_item.setArt(art)
+                li.setArt(art)
 
-            # Set resume information with version branching (always for library items)
-            self._set_resume_info_versioned(list_item, item)
+            # URL (videodb preferred)
+            url = None
+            is_folder = False
+            if media_type == 'movie' and isinstance(kodi_id, int):
+                url = f"videodb://movies/titles/{kodi_id}"
+                li.setPath(url)
+                li.setProperty('IsPlayable', 'true')
+            elif media_type == 'episode' and isinstance(kodi_id, int):
+                tvshowid = item.get('tvshowid')
+                season = item.get('season')
+                if isinstance(tvshowid, int) and isinstance(season, int):
+                    url = f"videodb://tvshows/titles/{tvshowid}/{season}/{kodi_id}"
+                    li.setPath(url)
+                    li.setProperty('IsPlayable', 'true')
+                else:
+                    # missing parts for videodb path -> fallback plugin play URL
+                    url = self._build_playback_url(item)
+                    li.setPath(url)
+                    li.setProperty('IsPlayable', 'true')
+            else:
+                # Shouldn't reach here for library method, but guard anyway
+                url = self._build_playback_url(item)
+                li.setPath(url)
+                li.setProperty('IsPlayable', 'true')
 
-            self.logger.debug(f"Successfully created library ListItem for '{title}'")
-            return url, list_item, False # isFolder is False for playable items
+            # Resume (always for library movies/episodes)
+            self._set_resume_info_versioned(li, item)
 
+            self.logger.debug(f"LIB ITEM: '{title}' -> {url}")
+            return url, li, is_folder
         except Exception as e:
-            self.logger.error(f"Failed to create library ListItem: {e}")
-            # Return a basic list item on failure, as per original structure
+            self.logger.error(f"LIB ITEM: failed for '{item.get('title','Unknown')}': {e}")
             return None
 
-    def _build_lightweight_info(self, item: Dict[str, Any]) -> Dict[str, Any]:
-        """Build lightweight info dictionary for list items (no heavy arrays)"""
-        info = {}
+    def _create_external_item(self, item: Dict[str, Any]) -> Optional[tuple]:
+        """
+        Build plugin/external row as (url, listitem, is_folder)
+        Using lightweight info; no heavy fields (cast/streamdetails) in list view.
+        """
+        try:
+            title = item.get('title', 'Unknown')
+            media_type = item.get('media_type', 'movie')
 
-        # Basic metadata (lightweight strings/numbers only)
+            display = f"{title} ({item['year']})" if item.get('year') else title
+            li = xbmcgui.ListItem(label=display)
+
+            # Lightweight info
+            info = self._build_lightweight_info(item)
+            li.setInfo('video', info)
+
+            # Art
+            art = self._build_art_dict(item)
+            if art:
+                li.setArt(art)
+
+            # Playback URL & folder flag
+            url = self._build_playback_url(item)
+            li.setPath(url)
+            is_playable = bool(item.get('play'))
+            if is_playable:
+                li.setProperty('IsPlayable', 'true')
+            # Do NOT set IsPlayable='false' for folders/non-playable
+
+            # External context menu
+            self._set_external_context_menu(li, item)
+
+            self.logger.debug(f"EXT ITEM: '{title}' type={media_type} -> {url} (playable={is_playable})")
+            return url, li, not is_playable
+        except Exception as e:
+            self.logger.error(f"EXT ITEM: failed for '{item.get('title','Unknown')}': {e}")
+            return None
+
+    # ----- info/art/resume helpers -----
+    def _build_lightweight_info(self, item: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Build lightweight info dictionary for list items (no heavy arrays).
+        Duration is in minutes; mediatype set for overlays.
+        """
+        info: Dict[str, Any] = {}
+        # Common
         if item.get('title'):
             info['title'] = item['title']
         if item.get('originaltitle') and item['originaltitle'] != item.get('title'):
             info['originaltitle'] = item['originaltitle']
         if item.get('sorttitle'):
             info['sorttitle'] = item['sorttitle']
-        if item.get('year'):
+        if item.get('year') is not None:
             info['year'] = int(item['year'])
         if item.get('genre'):
             info['genre'] = item['genre']
         if item.get('plot'):
             info['plot'] = item['plot']
-        if item.get('rating'):
+        if item.get('rating') is not None:
             info['rating'] = float(item['rating'])
-        if item.get('votes'):
+        if item.get('votes') is not None:
             info['votes'] = int(item['votes'])
         if item.get('mpaa'):
             info['mpaa'] = item['mpaa']
-        if item.get('duration_minutes'):
+        if item.get('duration_minutes') is not None:
             info['duration'] = int(item['duration_minutes'])
         if item.get('studio'):
             info['studio'] = item['studio']
@@ -241,13 +412,13 @@ class ListItemBuilder:
         if item.get('premiered'):
             info['premiered'] = item['premiered']
 
-        # Episode-specific fields
+        # Episode extras
         if item.get('media_type') == 'episode':
             if item.get('tvshowtitle'):
                 info['tvshowtitle'] = item['tvshowtitle']
-            if item.get('season'):
+            if item.get('season') is not None:
                 info['season'] = int(item['season'])
-            if item.get('episode'):
+            if item.get('episode') is not None:
                 info['episode'] = int(item['episode'])
             if item.get('aired'):
                 info['aired'] = item['aired']
@@ -256,599 +427,78 @@ class ListItemBuilder:
             if item.get('lastplayed'):
                 info['lastplayed'] = item['lastplayed']
 
-        # Set media type
         info['mediatype'] = item.get('media_type', 'movie')
-
-        # NOTE: Do not set heavy fields like cast, streamdetails arrays here
-        # This keeps list scrolling snappy and matches Kodi's native approach
-
         return info
 
     def _build_art_dict(self, item: Dict[str, Any]) -> Dict[str, str]:
-        """Build art dictionary with poster/fanart minimum, others only if valid"""
-        art = {}
-
-        # Poster and fanart (minimum required)
+        """
+        Poster/fanart minimum; add others only if valid.
+        """
+        art: Dict[str, str] = {}
         if item.get('poster'):
             art['poster'] = item['poster']
-        elif item.get('thumbnail'):
-            # Fallback to thumbnail if no poster
-            art['poster'] = item['thumbnail']
-
+            # sensible thumb fallback
+            art['thumb'] = item['poster']
+        elif item.get('thumb'):
+            art['thumb'] = item['thumb']
         if item.get('fanart'):
             art['fanart'] = item['fanart']
-
-        # Additional art only if valid (non-empty)
-        if item.get('thumb'):
-            art['thumb'] = item['thumb']
-        if item.get('banner'):
-            art['banner'] = item['banner']
-        if item.get('landscape'):
-            art['landscape'] = item['landscape']
-        if item.get('clearlogo'):
-            art['clearlogo'] = item['clearlogo']
-
+        for k in ('banner', 'landscape', 'clearlogo'):
+            v = item.get(k)
+            if v:
+                art[k] = v
         return art
 
     def _set_resume_info_versioned(self, list_item: xbmcgui.ListItem, item: Dict[str, Any]):
-        """Set resume information with version branching (always for library items)"""
+        """
+        Set resume info for list rows (seconds) in a version-safe way.
+        Always applied for library movies/episodes when position/total are > 0.
+        """
         try:
-            resume_data = item.get('resume', {})
-            position = resume_data.get('position_seconds', 0)
-            total = resume_data.get('total_seconds', 0)
-
-            if position > 0 and total > 0:
-                if self._is_kodi_v20_or_higher():
-                    # v20+ path: set resume point on video tag (seconds)
+            res = item.get('resume') or {}
+            pos = int(res.get('position_seconds') or 0)
+            tot = int(res.get('total_seconds') or 0)
+            if pos > 0 and tot > 0:
+                if is_kodi_v20_plus():
                     try:
-                        video_tag = list_item.getVideoInfoTag()
-                        video_tag.setResumePoint(position, total)
-                        self.logger.debug(f"Set v20+ resume: {position}s / {total}s")
+                        tag = list_item.getVideoInfoTag()
+                        tag.setResumePoint(pos, tot)
+                        self.logger.debug(f"RESUME v20+: {pos}/{tot} sec")
                     except Exception as e:
-                        self.logger.warning(f"Failed to set v20+ resume, falling back to properties: {e}")
-                        # Fallback to v19 method
-                        list_item.setProperty('ResumeTime', str(position))
-                        list_item.setProperty('TotalTime', str(total))
+                        # Fallback to v19 properties
+                        list_item.setProperty('ResumeTime', str(pos))
+                        list_item.setProperty('TotalTime', str(tot))
+                        self.logger.warning(f"RESUME v20+ failed, fallback to props: {e}")
                 else:
-                    # v19 path (Matrix): set ListItem properties ResumeTime and TotalTime (seconds)
-                    list_item.setProperty('ResumeTime', str(position))
-                    list_item.setProperty('TotalTime', str(total))
-                    self.logger.debug(f"Set v19 resume: {position}s / {total}s")
-
+                    list_item.setProperty('ResumeTime', str(pos))
+                    list_item.setProperty('TotalTime', str(tot))
+                    self.logger.debug(f"RESUME v19: {pos}/{tot} sec")
         except Exception as e:
-            self.logger.error(f"Failed to set resume info: {e}")
+            self.logger.error(f"RESUME: failed to set resume info: {e}")
 
-    def _create_external_item(self, item: Dict[str, Any]) -> tuple:
-        """
-        Build ListItem for external/non-library item (full metadata control)
-
-        Args:
-            item: Media item without kodi_id
-
-        Returns:
-            tuple: (url, listitem, is_folder)
-        """
-        media_type = item.get('media_type', 'movie')
-        title = item.get('title', 'Unknown Title')
-
-        # Create ListItem
-        list_item = xbmcgui.ListItem(label=title)
-
-        # Build comprehensive info labels
-        info_labels = {
-            'mediatype': media_type,
-            'title': title
-        }
-        self.logger.debug(f"EXTERNAL ITEM: Base info_labels for '{title}': mediatype={media_type}")
-
-        # Add all available metadata
-        metadata_fields = []
-        if item.get('year'):
-            info_labels['year'] = item['year']
-            metadata_fields.append(f"year={item['year']}")
-        if item.get('plot'):
-            info_labels['plot'] = item['plot']
-            metadata_fields.append(f"plot={len(item['plot'])} chars")
-        if item.get('genre'):
-            info_labels['genre'] = item['genre']
-            metadata_fields.append(f"genre='{item['genre']}'")
-        if item.get('director'):
-            info_labels['director'] = item['director']
-            metadata_fields.append(f"director='{item['director']}'")
-        if item.get('writer'):
-            info_labels['writer'] = item['writer']
-            metadata_fields.append(f"writer='{item['writer']}'")
-        if item.get('studio'):
-            info_labels['studio'] = item['studio']
-            metadata_fields.append(f"studio='{item['studio']}'")
-        if item.get('country'):
-            info_labels['country'] = item['country']
-            metadata_fields.append(f"country='{item['country']}'")
-        if item.get('duration'):
-            info_labels['duration'] = int(item['duration'])
-            metadata_fields.append(f"duration={item['duration']}s")
-        if item.get('rating'):
-            info_labels['rating'] = float(item['rating'])
-            metadata_fields.append(f"rating={item['rating']}")
-        if item.get('votes'):
-            info_labels['votes'] = int(item['votes'])
-            metadata_fields.append(f"votes={item['votes']}")
-        if item.get('mpaa'):
-            info_labels['mpaa'] = item['mpaa']
-            metadata_fields.append(f"mpaa='{item['mpaa']}'")
-
-        # Handle TV show specific fields
-        if media_type == 'episode':
-            if item.get('season'):
-                info_labels['season'] = int(item['season'])
-                metadata_fields.append(f"season={item['season']}")
-            if item.get('episode'):
-                info_labels['episode'] = int(item['episode'])
-                metadata_fields.append(f"episode={item['episode']}")
-            if item.get('showtitle'):
-                info_labels['tvshowtitle'] = item['showtitle']
-                metadata_fields.append(f"showtitle='{item['showtitle']}'")
-
-        self.logger.debug(f"EXTERNAL ITEM: Set metadata fields for '{title}': {', '.join(metadata_fields)}")
-        list_item.setInfo('video', info_labels)
-
-        # Set cast if available (external items need manual cast)
-        self._set_cast(list_item, item)
-
-        # Set unique IDs for external items (for our own use)
-        if item.get('imdbnumber'):
-            list_item.setProperty('uniqueid.imdb', item['imdbnumber'])
-        if item.get('tmdb_id'):
-            list_item.setProperty('uniqueid.tmdb', str(item['tmdb_id']))
-
-        # Set artwork
-        self._set_artwork(list_item, item)
-
-        # Build playback URL
-        url = self._build_playback_url(item)
-
-        # Set playable if we have a direct play URL and should play immediately
-        is_playable = bool(item.get('play'))
-        if is_playable:
-            list_item.setProperty('IsPlayable', 'true')
-        # Don't set IsPlayable='false' - let Kodi handle default behavior
-
-        # Set context menu for external items
-        self._set_external_context_menu(list_item, item)
-
-        self.logger.debug(f"Built external item: {title} (type: {media_type}, playable: {is_playable})")
-
-        return url, list_item, not is_playable
-
-    def _set_cast(self, list_item: xbmcgui.ListItem, item: Dict[str, Any]):
-        """Set cast information for external items"""
-        try:
-            cast_data = item.get('cast')
-            title = item.get('title', 'Unknown')
-
-            if not cast_data:
-                self.logger.debug(f"EXTERNAL CAST: No cast data available for '{title}'")
-                return
-
-            self.logger.debug(f"EXTERNAL CAST: Processing cast data for '{title}', type: {type(cast_data)}")
-
-            # Handle both JSON string and dict
-            if isinstance(cast_data, str):
-                cast_list = json.loads(cast_data)
-                self.logger.debug(f"EXTERNAL CAST: Parsed JSON cast data for '{title}', count: {len(cast_list) if isinstance(cast_list, list) else 'not a list'}")
-            elif isinstance(cast_data, list):
-                cast_list = cast_data
-                self.logger.debug(f"EXTERNAL CAST: Using list cast data for '{title}', count: {len(cast_list)}")
-            else:
-                self.logger.warning(f"EXTERNAL CAST: Unsupported cast data type for '{title}': {type(cast_data)}")
-                return
-
-            # Convert to Kodi cast format
-            kodi_cast = []
-            for idx, cast_member in enumerate(cast_list):
-                if isinstance(cast_member, dict):
-                    cast_info = {
-                        'name': cast_member.get('name', ''),
-                        'role': cast_member.get('role', ''),
-                        'thumbnail': cast_member.get('thumbnail', '')
-                    }
-                    kodi_cast.append(cast_info)
-                    self.logger.debug(f"EXTERNAL CAST: Added cast member {idx+1} for '{title}': {cast_member.get('name', 'Unknown')} as {cast_member.get('role', 'Unknown role')}")
-                else:
-                    self.logger.warning(f"EXTERNAL CAST: Invalid cast member {idx+1} for '{title}': {type(cast_member)}")
-
-            if kodi_cast:
-                list_item.setCast(kodi_cast)
-                self.logger.info(f"EXTERNAL CAST: Set {len(kodi_cast)} cast members for '{title}'")
-            else:
-                self.logger.warning(f"EXTERNAL CAST: No valid cast members found for '{title}'")
-
-        except Exception as e:
-            self.logger.warning(f"EXTERNAL CAST: Failed to set cast for '{item.get('title', 'Unknown')}': {e}")
-
-    def _set_artwork(self, list_item: xbmcgui.ListItem, item: Dict[str, Any]):
-        """Set artwork for ListItem"""
-        art_dict = {}
-        title = item.get('title', 'Unknown')
-
-        self.logger.debug(f"EXTERNAL ART: Processing artwork for '{title}'")
-
-        if item.get('poster'):
-            art_dict['poster'] = item['poster']
-            art_dict['thumb'] = item['poster']  # Fallback
-            self.logger.debug(f"EXTERNAL ART: Set poster/thumb for '{title}': {item['poster']}")
-
-        if item.get('fanart'):
-            art_dict['fanart'] = item['fanart']
-            self.logger.debug(f"EXTERNAL ART: Set fanart for '{title}': {item['fanart']}")
-
-        # Handle JSON art data for external items
-        if item.get('art'):
-            try:
-                if isinstance(item['art'], str):
-                    art_data = json.loads(item['art'])
-                    self.logger.debug(f"EXTERNAL ART: Parsed JSON art data for '{title}', keys: {list(art_data.keys()) if isinstance(art_data, dict) else 'not a dict'}")
-                else:
-                    art_data = item['art']
-                    self.logger.debug(f"EXTERNAL ART: Using dict art data for '{title}', keys: {list(art_data.keys()) if isinstance(art_data, dict) else 'not a dict'}")
-
-                if isinstance(art_data, dict):
-                    art_dict.update(art_data)
-                    self.logger.debug(f"EXTERNAL ART: Updated art dict for '{title}' with keys: {list(art_data.keys())}")
-
-            except Exception as e:
-                self.logger.warning(f"EXTERNAL ART: Failed to parse art data for '{title}': {e}")
-
-        if art_dict:
-            list_item.setArt(art_dict)
-            self.logger.info(f"EXTERNAL ART: Set artwork for '{title}' with keys: {list(art_dict.keys())}")
-        else:
-            self.logger.debug(f"EXTERNAL ART: No artwork available for '{title}'")
-
-    def _set_library_artwork(self, list_item: xbmcgui.ListItem, item: Dict[str, Any]):
-        """Set all available artwork for Kodi library ListItem"""
-        art_dict = {}
-
-        # Set all available artwork - whatever we have available
-        if item.get('poster'):
-            art_dict['poster'] = item['poster']
-            art_dict['thumb'] = item['poster']  # Use poster as thumb
-        elif item.get('thumb'):
-            art_dict['thumb'] = item['thumb']
-
-        if item.get('fanart'):
-            art_dict['fanart'] = item['fanart']
-        if item.get('clearlogo'):
-            art_dict['clearlogo'] = item['clearlogo']
-        if item.get('discart'):
-            art_dict['discart'] = item['discart']
-        if item.get('clearart'):
-            art_dict['clearart'] = item['clearart']
-        if item.get('landscape'):
-            art_dict['landscape'] = item['landscape']
-        if item.get('banner'):
-            art_dict['banner'] = item['banner']
-
-        # Handle JSON art data if available
-        if item.get('art'):
-            try:
-                if isinstance(item['art'], str):
-                    art_data = json.loads(item['art'])
-                else:
-                    art_data = item['art']
-
-                if isinstance(art_data, dict):
-                    art_dict.update(art_data)
-
-            except Exception as e:
-                self.logger.warning(f"Failed to parse art data: {e}")
-
-        if art_dict:
-            list_item.setArt(art_dict)
-            self.logger.debug(f"Set artwork for library item {item.get('title', 'Unknown')}: {list(art_dict.keys())}")
-        else:
-            self.logger.debug(f"No artwork for library item: {item.get('title', 'Unknown')} - Kodi will use defaults")
-
+    # ----- misc helpers -----
     def _build_playback_url(self, item: Dict[str, Any]) -> str:
-        """Build playback URL for external items"""
-        # If we have a direct play URL, use it
-        play_url = item.get('play')
-        if play_url:
-            return play_url
-
-        # Otherwise, build a plugin URL for info/search
-        item_id = item.get('id', '')
-        # Assuming self.base_url is defined or passed appropriately
-        base_url = f"plugin://{self.addon_id}" # Example base_url
-        return f"{base_url}?action=info&item_id={item_id}"
-
-    def _set_library_context_menu(self, list_item: xbmcgui.ListItem, item: Dict[str, Any]):
-        """Set context menu for library items"""
-        context_items = []
-
-        # Add to list options
-        context_items.append((
-            "Add to List",
-            f"RunPlugin(plugin://{self.addon_id}/?action=add_to_list&item_id={item.get('id', '')})"
-        ))
-
-        # Remove from list (if in a list context)
-        if item.get('list_id'):
-            context_items.append((
-                "Remove from List",
-                f"RunPlugin(plugin://{self.addon_id}/?action=remove_from_list&list_id={item['list_id']}&item_id={item.get('id', '')})"
-            ))
-
-        list_item.addContextMenuItems(context_items)
+        """
+        Return direct play URL if provided; otherwise build a plugin URL
+        that routes to info/play handling.
+        """
+        play = item.get('play')
+        if play:
+            return play
+        item_id = item.get('id') or item.get('imdb_id') or ''
+        return f"plugin://{self.addon_id}?action=info&item_id={item_id}"
 
     def _set_external_context_menu(self, list_item: xbmcgui.ListItem, item: Dict[str, Any]):
-        """Set context menu for external items"""
-        context_items = []
-
-        # Search for item in library
-        context_items.append((
+        """Context menu for external items"""
+        cm = []
+        # Search the library for this title
+        cm.append((
             "Search in Library",
-            f"RunPlugin(plugin://{self.addon_id}/?action=search_library&title={item.get('title', '')})"
+            f"RunPlugin(plugin://{self.addon_id}/?action=search_library&title={item.get('title','')})"
         ))
-
-        # Add to list options
-        context_items.append((
+        # Add to list
+        cm.append((
             "Add to List",
-            f"RunPlugin(plugin://{self.addon_id}/?action=add_to_list&item_id={item.get('id', '')})"
+            f"RunPlugin(plugin://{self.addon_id}/?action=add_to_list&item_id={item.get('id','')})"
         ))
-
-        list_item.addContextMenuItems(context_items)
-
-    def _create_library_listitem(self, item: Dict[str, Any]) -> Optional[xbmcgui.ListItem]:
-        """Create ListItem for library items (compatibility method)"""
-        try:
-            # Determine if this is a library item or external item
-            if item.get('kodi_id') or item.get('movieid'):
-                return self._create_kodi_library_listitem(item)
-            else:
-                return self._create_external_listitem(item)
-        except Exception as e:
-            self.logger.error(f"Failed to create library listitem: {e}")
-            return None
-
-    def _create_kodi_library_listitem(self, item: Dict[str, Any]) -> Optional[xbmcgui.ListItem]:
-        """Create ListItem for Kodi library items (compatibility method)"""
-        try:
-            # Use the existing _build_library_item method but return just the ListItem
-            result = self._build_library_item(item, f"plugin://{self.addon_id}", "play") # Pass necessary args
-            if result:
-                url, list_item, is_folder = result
-                return list_item
-            return None
-        except Exception as e:
-            self.logger.error(f"Failed to create Kodi library listitem: {e}")
-            return None
-
-    def _create_external_listitem(self, item: Dict[str, Any]) -> Optional[xbmcgui.ListItem]:
-        """Create ListItem for external items (compatibility method)"""
-        try:
-            # Use the existing _build_external_item method but return just the ListItem
-            result = self._build_external_item(item, f"plugin://{self.addon_id}", "play") # Pass necessary args
-            if result:
-                url, list_item, is_folder = result
-                return list_item
-            return None
-        except Exception as e:
-            self.logger.error(f"Failed to create external listitem: {e}")
-            return None
-
-    def _create_plugin_listitem(self, item: Dict[str, Any]) -> xbmcgui.ListItem:
-        """Create ListItem for plugin/external items with lightweight metadata"""
-        try:
-            title = item.get('title', 'Unknown')
-            self.logger.debug(f"Creating plugin ListItem for '{title}'")
-
-            # Create ListItem
-            list_item = xbmcgui.ListItem(label=title)
-
-            # Set plugin URL (or route to play/details action)
-            action = item.get('action', 'play')
-            item_id = item.get('id', item.get('imdb_id', ''))
-            # Assuming self.base_url is defined or passed appropriately
-            base_url = f"plugin://{self.addon_id}" # Example base_url
-            url = f"{base_url}?action={action}&id={item_id}"
-            list_item.setPath(url)
-            list_item.setProperty('IsPlayable', 'true')
-
-            # Set lightweight metadata (same profile as library items)
-            info = self._build_lightweight_info(item)
-            list_item.setInfo('video', info)
-
-            # Set art (poster/fanart minimum, others only if valid)
-            art = self._build_art_dict(item)
-            if art:
-                list_item.setArt(art)
-
-            # Resume for plugin-only: only set if we maintain our own resume store
-            # (Your "always show resume" rule applies to library items; plugin-only at discretion)
-            # For now, skip resume for external items unless explicitly provided
-
-            self.logger.debug(f"Successfully created plugin ListItem for '{title}'")
-            return list_item
-
-        except Exception as e:
-            self.logger.error(f"Failed to create plugin ListItem: {e}")
-            return xbmcgui.ListItem(label=item.get('title', 'Unknown'))
-
-    def _build_library_item(self, item: Dict[str, Any], base_url: str, action: str) -> Optional[tuple]:
-        """Build ListItem for Kodi library items (movies/episodes)"""
-        try:
-            title = item.get("title", "Unknown Title")
-            year = item.get("year")
-            media_type = item.get("media_type", "movie")
-
-            # Create basic ListItem
-            if year:
-                display_title = f"{title} ({year})"
-            else:
-                display_title = title
-
-            list_item = xbmcgui.ListItem(label=display_title)
-
-            # Set basic info
-            info = {
-                'title': title,
-                'mediatype': media_type
-            }
-            if year:
-                info['year'] = year
-
-            # Add plot if available
-            plot = item.get("plot") or item.get("description")
-            if plot:
-                info['plot'] = plot
-
-            # Add rating if available
-            rating = item.get("rating")
-            if rating:
-                try:
-                    info['rating'] = float(rating)
-                except (ValueError, TypeError):
-                    pass
-
-            # Add runtime if available
-            runtime = item.get("runtime")
-            if runtime:
-                try:
-                    info['duration'] = int(runtime) * 60  # Convert minutes to seconds
-                except (ValueError, TypeError):
-                    pass
-
-            # Add genre if available
-            genre = item.get("genre")
-            if genre:
-                if isinstance(genre, list):
-                    info['genre'] = genre
-                else:
-                    info['genre'] = [genre] if genre else []
-
-            # Add director if available
-            director = item.get("director")
-            if director:
-                if isinstance(director, list):
-                    info['director'] = director
-                else:
-                    info['director'] = [director] if director else []
-
-            list_item.setInfo('video', info)
-
-            # Set artwork
-            art = {}
-            poster = item.get("poster") or item.get("thumbnail")
-            if poster:
-                art["poster"] = poster
-                art["thumb"] = poster
-
-            fanart = item.get("fanart")
-            if fanart:
-                art["fanart"] = fanart
-
-            if art:
-                list_item.setArt(art)
-
-            # Set as playable - library items should always be playable
-            list_item.setProperty('IsPlayable', 'true')
-
-            # Set appropriate URL
-            kodi_id = item.get('kodi_id')
-            if kodi_id and media_type == 'movie':
-                url = f"videodb://movies/titles/{kodi_id}"
-                list_item.setPath(url)
-                self.logger.debug(f"Set videodb URL: {url}")
-            elif kodi_id and media_type == 'episode':
-                url = f"videodb://tvshows/titles/{item.get('tvshowid', 0)}/{item.get('season', 1)}/{kodi_id}"
-                list_item.setPath(url)
-                self.logger.debug(f"Set episode videodb URL: {url}")
-            else:
-                # Fallback to plugin URL
-                url = f"{base_url}?action={action}&item_id={item.get('id', '')}"
-                list_item.setPath(url)
-                self.logger.debug(f"Set fallback plugin URL: {url}")
-
-            # Set resume information with version branching
-            self._set_resume_info_versioned(list_item, item)
-
-            self.logger.debug(f"Successfully created library ListItem for '{title}'")
-            return url, list_item, False # isFolder is False for playable items
-
-        except Exception as e:
-            self.logger.error(f"Failed to build library item: {e}")
-            return None
-
-    def _build_external_item(self, item: Dict[str, Any], base_url: str, action: str) -> Optional[tuple]:
-        """Build ListItem for external/plugin items"""
-        try:
-            title = item.get("title", "Unknown Title")
-            year = item.get("year")
-            media_type = item.get('media_type', 'movie')
-
-            # Create basic ListItem
-            if year:
-                display_title = f"{title} ({year})"
-            else:
-                display_title = title
-
-            list_item = xbmcgui.ListItem(label=display_title)
-
-            # Set basic info
-            info = {
-                'title': title,
-                'mediatype': media_type
-            }
-            if year:
-                info['year'] = year
-
-            # Add plot if available
-            plot = item.get("plot") or item.get("description")
-            if plot:
-                info['plot'] = plot
-
-            list_item.setInfo('video', info)
-
-            # Set artwork if available
-            art = {}
-            poster = item.get("poster") or item.get("thumbnail")
-            if poster:
-                art["poster"] = poster
-                art["thumb"] = poster
-
-            fanart = item.get("fanart")
-            if fanart:
-                art["fanart"] = fanart
-
-            if art:
-                list_item.setArt(art)
-
-            # Set as playable if we have a play URL
-            play_url = item.get("play")
-            is_playable = bool(play_url)
-            if is_playable:
-                list_item.setProperty('IsPlayable', 'true')
-            else:
-                list_item.setProperty('IsPlayable', 'false')
-
-            # Set context menu for external items
-            self._set_external_context_menu(list_item, item)
-
-            # Build playback URL
-            url = self._build_playback_url(item)
-
-            self.logger.debug(f"Built external item: {title} (type: {media_type}, playable: {is_playable})")
-
-            return url, list_item, not is_playable
-
-        except Exception as e:
-            self.logger.error(f"Failed to build external item: {e}")
-            return None
-
-    def build_library_item(self, item: Dict[str, Any], base_url: str, action: str) -> Optional[xbmcgui.ListItem]:
-        """Public method to build library item - delegates to private method"""
-        result = self._build_library_item(item, base_url, action)
-        if result:
-            return result[1] # Return only the ListItem
-        return None
+        list_item.addContextMenuItems(cm)
