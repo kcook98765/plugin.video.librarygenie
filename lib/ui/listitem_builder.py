@@ -425,12 +425,19 @@ class ListItemBuilder:
                     else:
                         # Directory item (fallback)
                         title = item.get('title', item.get('label', 'Unknown'))
-                        url, listitem, is_folder = self.build_directory_item(
-                            label=title,
-                            action='show_item_details',
-                            params={'item_id': item.get('id')},
-                            info=self._extract_info(item, content_type)
-                        )
+                        # Only create directory item if we have a valid ID
+                        item_id = item.get('id')
+                        if item_id is not None:
+                            url, listitem, is_folder = self.build_directory_item(
+                                label=title,
+                                action='show_item_details',
+                                params={'item_id': item_id},
+                                info=self._extract_info(item, content_type)
+                            )
+                        else:
+                            # Skip items without valid IDs
+                            self.logger.warning(f"Skipping item '{title}' - no valid ID")
+                            continue
                         xbmcplugin.addDirectoryItem(handle, url, listitem, is_folder)
 
                 except Exception as item_error:

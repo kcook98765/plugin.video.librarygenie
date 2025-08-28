@@ -46,7 +46,7 @@ class MenuBuilder:
                 processed_items.append(processed_item)
 
             # Use the renderer's comprehensive media items rendering
-            success = self.renderer.render_media_items(addon_handle, processed_items, "files")
+            success = self.renderer.render_media_items(addon_handle, processed_items, "videos")
 
             if not success:
                 self.logger.warning("Menu building failed, using fallback")
@@ -83,7 +83,7 @@ class MenuBuilder:
     def _build_fallback_menu(self, items: List[Dict[str, Any]], addon_handle: int):
         """Fallback menu building using basic directory items"""
         try:
-            xbmcplugin.setContent(addon_handle, "files")
+            xbmcplugin.setContent(addon_handle, "videos")
 
             for item in items:
                 title = item.get("title", "Unknown")
