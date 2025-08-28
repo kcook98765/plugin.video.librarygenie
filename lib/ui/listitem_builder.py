@@ -139,7 +139,7 @@ class ListItemBuilder:
             db_type = "movie"
             
         self.logger.info(f"VIDEODB PATH: Built videodb path for '{title}' (kodi_id: {kodi_id}, type: {media_type}): {videodb_path}")
-        self.logger.info(f"VIDEODB PATH: Setting dbtype='{db_type}', dbid='{kodi_id}' for native Kodi cast population")
+        self.logger.info(f"LIBRARY ITEM: Setting dbtype='{db_type}', dbid='{kodi_id}' for native Kodi integration")
 
         # Set complete lightweight metadata for display
         info_labels = {
@@ -193,12 +193,6 @@ class ListItemBuilder:
         # Also set the mediatype property to help Kodi identify the content
         list_item.setProperty('mediatype', media_type)
         
-        # For library items, do NOT set IsPlayable=true - this should be handled by Kodi's native behavior
-        # Setting IsPlayable=false tells Kodi this is a library reference, not a direct playable item
-        list_item.setProperty('IsPlayable', 'false')
-        
-        self.logger.info(f"LIBRARY ITEM PROPERTIES: Set for '{title}' - dbtype={db_type}, dbid={kodi_id}, mediatype={media_type}, IsPlayable=false")
-
         # Set unique IDs if available (helps with cross-linking)
         if item.get('imdbnumber'):
             list_item.setProperty('uniqueid.imdb', item['imdbnumber'])
@@ -208,7 +202,12 @@ class ListItemBuilder:
         # Set basic artwork only
         self._set_library_artwork(list_item, item)
 
-        # Use videodb path for native behavior - this is CRITICAL for Kodi to populate cast/crew
+        # Set the videodb path on the ListItem for Kodi/skins to associate with library entity
+        list_item.setPath(videodb_path)
+        
+        self.logger.info(f"LIBRARY ITEM PROPERTIES: Set for '{title}' - dbtype={db_type}, dbid={kodi_id}, mediatype={media_type}, path={videodb_path}")
+
+        # Use videodb path for directory item URL as well
         url = videodb_path
 
         # Set context menu for library items
@@ -290,10 +289,11 @@ class ListItemBuilder:
         # Build playback URL
         url = self._build_playback_url(item)
 
-        # Set playable if we have a direct play URL
+        # Set playable if we have a direct play URL and should play immediately
         is_playable = bool(item.get('play'))
         if is_playable:
             list_item.setProperty('IsPlayable', 'true')
+        # Don't set IsPlayable='false' - let Kodi handle default behavior
 
         # Set context menu for external items
         self._set_external_context_menu(list_item, item)
