@@ -712,7 +712,7 @@ class QueryManager:
                                 "title", "year", "imdbnumber", "uniqueid", "file",
                                 "art", "plot", "plotoutline", "runtime", "rating",
                                 "genre", "mpaa", "director", "country", "studio",
-                                "playcount", "resume", "cast", "writer", "votes"
+                                "playcount", "resume", "writer", "votes"
                             ]
                         },
                         "id": 1
@@ -851,28 +851,14 @@ class QueryManager:
             directors = movie.get("director", [])
             director_str = ", ".join(directors) if isinstance(directors, list) else str(directors) if directors else ""
 
-            # Handle cast - preserve the full cast structure for Kodi
-            cast_data = movie.get("cast", [])
-            cast_names = []
-            cast_list = []
-
-            if isinstance(cast_data, list):
-                for cast_member in cast_data[:15]:  # Limit to first 15 cast members
-                    if isinstance(cast_member, dict):
-                        if "name" in cast_member:
-                            cast_names.append(cast_member["name"])
-                            # Preserve full cast member structure for Kodi
-                            cast_list.append(cast_member)
-
             # Handle resume point
             resume_data = movie.get("resume", {})
             resume_time = resume_data.get("position", 0) if isinstance(resume_data, dict) else 0
 
             # Log cast information for debugging
-            if cast_names:
-                self.logger.info(f"Movie {movie.get('movieid')} has {len(cast_names)} cast members: {', '.join(cast_names[:5])}{'...' if len(cast_names) > 5 else ''}")
-            else:
-                self.logger.warning(f"Movie {movie.get('movieid')} ({movie.get('title')}) has no cast data")
+            # NOTE: Cast data is intentionally not processed for library items.
+            # Cast will be handled automatically by Kodi when dbid is set on ListItems.
+            # This improves performance and follows Kodi best practices.
 
             return {
                 "kodi_id": movie.get("movieid"),
@@ -899,8 +885,6 @@ class QueryManager:
                 "country": ", ".join(movie.get("country", [])) if isinstance(movie.get("country"), list) else movie.get("country", ""),
                 "studio": ", ".join(movie.get("studio", [])) if isinstance(movie.get("studio"), list) else movie.get("studio", ""),
                 "writer": ", ".join(movie.get("writer", [])) if isinstance(movie.get("writer"), list) else movie.get("writer", ""),
-                "cast": ", ".join(cast_names) if cast_names else "",
-                "cast_list": cast_list,  # Preserve full cast structure
                 "playcount": movie.get("playcount", 0),
                 "resume_time": resume_time,
                 "votes": movie.get("votes", 0),
@@ -961,9 +945,9 @@ def get_query_manager():
     return _query_manager_instance
 
 
-    def close(self):
-        """Close database connections"""
-        if self._initialized:
-            self.logger.info("Closing data layer connections")
-            self.conn_manager.close()
-            self._initialized = False
+def close():
+    """Close database connections"""
+    global _query_manager_instance
+    if _query_manager_instance:
+        _query_manager_instance.close()
+        _query_manager_instance = None
