@@ -20,6 +20,7 @@ from ..auth.state import is_authorized
 from ..auth.auth_helper import get_auth_helper
 from ..ui.session_state import get_session_state
 from ..data.query_manager import get_query_manager
+from ..ui.listitem_builder import ListItemBuilder
 from ..utils.logger import get_logger
 
 
@@ -32,6 +33,7 @@ class SearchHandler:
         self.local_engine = LocalSearchEngine()
         self._remote_fallback_notified = False
         self.query_manager = get_query_manager()
+        self.addon_id = xbmcaddon.Addon().getAddonInfo('id')
 
     def prompt_and_show(self):
         """Prompt user for search query and show results"""
@@ -96,18 +98,18 @@ class SearchHandler:
 
         # For authorized users, show selection dialog
         dialog = xbmcgui.Dialog()
-        
+
         options = [
             "Local Library Search",
-            "Remote Search", 
+            "Remote Search",
             "Remote with Local Fallback"
         ]
-        
+
         selection = dialog.select(
             "Choose Search Type",
             options
         )
-        
+
         if selection == -1:  # User cancelled
             return 'local'  # Default to local
         elif selection == 0:
@@ -120,11 +122,11 @@ class SearchHandler:
     def _perform_search_with_type(self, query, search_type):
         """
         Perform search with specified type
-        
+
         Args:
             query: Search query string
             search_type: 'local', 'remote', or 'auto'
-            
+
         Returns:
             dict: Search results with metadata
         """
@@ -134,12 +136,12 @@ class SearchHandler:
             # Force local search only
             self.logger.info("Using local search (user selected)")
             return self._search_local(query, limit=200)
-            
+
         elif search_type == 'remote':
             # Force remote search only (no fallback)
             self.logger.info("Using remote search only (user selected)")
             return self._search_remote_only(query)
-            
+
         else:  # search_type == 'auto'
             # Original behavior: remote with local fallback
             self.logger.info("Using remote search with local fallback (user selected)")
@@ -196,7 +198,7 @@ class SearchHandler:
     def _search_remote_only(self, query):
         """Perform remote-only search without fallback"""
         self.logger.info(f"Starting remote-only search for query: '{query}'")
-        
+
         if not is_authorized():
             self.logger.warning("Remote-only search requested but user not authorized")
             addon = xbmcaddon.Addon()
@@ -210,7 +212,7 @@ class SearchHandler:
 
         try:
             self.logger.info("Attempting remote-only search")
-            
+
             # Import here to avoid circular dependencies
             from ..remote.search_client import search_remote
             self.logger.debug("Remote search client imported")
@@ -300,59 +302,21 @@ class SearchHandler:
             )
             return
 
-        # Add directory items for each result
+        # Ensure search results are properly marked as library items if they have kodi_id
         for item in items:
-            # Ensure label2 is a string or None
-            year = item.get('year')
-            year_str = str(year) if year is not None else None
+            if item.get('kodi_id') or item.get('movieid') or item.get('id'):
+                item['source'] = 'lib'  # Mark as library item
+                item['media_type'] = 'movie'  # Ensure media_type is set
+                # Ensure kodi_id is in the expected field
+                if not item.get('kodi_id') and item.get('id'):
+                    item['kodi_id'] = item['id']
+                self.logger.info(f"SEARCH RESULTS: Marked '{item.get('title')}' as library item with kodi_id: {item.get('kodi_id')}, source: {item.get('source')}")
 
-            list_item = xbmcgui.ListItem(
-                label=item.get('label', 'Unknown'),
-                label2=year_str
-            )
+        # Display search results using proper ListItemBuilder
+        content_type = self.query_manager.detect_content_type(results['items'])
 
-            # Set artwork if available
-            art = item.get('art', {})
-            if art:
-                list_item.setArt(art)
-
-            # Set info
-            info = {
-                'title': item.get('title', item.get('label', 'Unknown')),
-                'mediatype': item.get('type', 'movie')
-            }
-
-            if item.get('year'):
-                info['year'] = item['year']
-            if item.get('plot'):
-                info['plot'] = item['plot']
-            if item.get('rating'):
-                info['rating'] = item['rating']
-
-            list_item.setInfo('video', info)
-
-            # Set playable if we have a path
-            is_playable = bool(item.get('path'))
-            list_item.setProperty('IsPlayable', 'true' if is_playable else 'false')
-
-            # Add source indicator for remote items
-            if item.get('_source') == 'remote':
-                if item.get('_local_mapped'):
-                    list_item.setProperty('IsLocal', 'true')
-                else:
-                    list_item.setProperty('IsRemote', 'true')
-
-            # Add to directory
-            url = item.get('path', '')
-            xbmcplugin.addDirectoryItem(
-                self.addon_handle,
-                url,
-                list_item,
-                isFolder=False
-            )
-
-        # Finish directory
-        xbmcplugin.endOfDirectory(self.addon_handle)
+        list_builder = ListItemBuilder(self.addon_handle, self.addon_id)
+        success = list_builder.build_directory(results['items'], content_type)
 
         # Log result summary
         used_remote = results.get('used_remote', False)
@@ -378,10 +342,10 @@ class SearchHandler:
 
             # Add search results to the list
             added_count = self.query_manager.add_search_results_to_list(list_id, results)
-            
+
             if added_count > 0:
                 self.logger.info(f"Created search history list with {added_count} items")
-                
+
                 # Show brief notification
                 addon = xbmcaddon.Addon()
                 xbmcgui.Dialog().notification(
@@ -427,11 +391,11 @@ class SearchHandler:
         try:
             local_results = self.local_engine.search(query, limit=page_size, offset=(page-1)*page_size)
             self.logger.info(f"Local search: {len(local_results.get('items', []))} results")
-            
+
             # Create search history list for non-empty results
             if local_results.get('items'):
                 self._create_search_history_list(query, "local", local_results)
-            
+
             return local_results
 
         except Exception as e:
@@ -488,3 +452,4 @@ class SearchHandler:
                 4000
             )
             return []
+
