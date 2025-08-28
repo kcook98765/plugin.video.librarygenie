@@ -155,18 +155,18 @@ class QueryManager:
             # Get list items with media data
             cursor.execute("""
                 SELECT 
-                    li.item_id,
-                    li.order_score,
+                    li.media_item_id as item_id,
+                    li.position as order_score,
                     mi.kodi_id,
                     mi.media_type,
                     mi.title,
                     mi.year,
-                    mi.imdb_id,
-                    mi.data_json
+                    mi.imdbnumber as imdb_id,
+                    mi.art as data_json
                 FROM list_items li
-                JOIN media_items mi ON li.item_id = mi.item_id
+                JOIN media_items mi ON li.media_item_id = mi.id
                 WHERE li.list_id = ?
-                ORDER BY li.order_score DESC, mi.title ASC
+                ORDER BY li.position ASC, mi.title ASC
                 LIMIT ? OFFSET ?
             """, (list_id, limit, offset))
 
@@ -795,6 +795,14 @@ class QueryManager:
         except Exception as e:
             self.logger.error(f"Error matching items to Kodi library: {e}")
             return {}
+
+    def _row_to_dict(self, cursor, row):
+        """Convert SQLite row to dictionary using cursor description"""
+        if not row:
+            return {}
+        
+        columns = [description[0] for description in cursor.description]
+        return dict(zip(columns, row))
 
     def _normalize_kodi_movie_details(self, movie_details: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize Kodi JSON-RPC movie details to canonical format"""
