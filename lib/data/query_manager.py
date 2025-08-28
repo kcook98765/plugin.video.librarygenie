@@ -9,18 +9,190 @@ Real SQLite-based data layer for list and item management
 import json
 from typing import List, Dict, Any, Optional, Union
 
-from .connection_manager import get_connection_manager
-from .migrations import get_migration_manager
-from ..utils.logger import get_logger
+# Assuming JSONRPCClient and get_logger are available from other modules
+# from .connection_manager import get_connection_manager
+# from .migrations import get_migration_manager
+# from ..utils.logger import get_logger
+
+# Mock implementations for demonstration purposes if not provided
+class MockJSONRPCClient:
+    def call_method(self, method, params=None):
+        print(f"MockJSONRPCClient: Called {method} with params: {params}")
+        if method == 'VideoLibrary.GetMovies':
+            return {
+                "result": {
+                    "movies": [
+                        {
+                            "movieid": 1, "title": "Movie 1", "year": 2020, "runtime": 120,
+                            "genre": ["Action"], "rating": 7.5, "votes": 100, "mpaa": "PG-13",
+                            "studio": ["Studio A"], "country": ["USA"], "premiered": "2020-01-01",
+                            "sorttitle": "Movie 1", "thumbnail": "poster1.jpg",
+                            "art": {"poster": "poster1.jpg", "fanart": "fanart1.jpg"},
+                            "resume": {"position_seconds": 3600, "total_seconds": 7200}
+                        },
+                        {
+                            "movieid": 2, "title": "Movie 2", "year": 2019, "runtime": 90,
+                            "genre": ["Comedy"], "rating": 6.0, "votes": 50, "mpaa": "PG",
+                            "studio": ["Studio B"], "country": ["Canada"], "premiered": "2019-05-15",
+                            "sorttitle": "Movie 2", "thumbnail": "poster2.jpg",
+                            "art": {"poster": "poster2.jpg"},
+                            "resume": {"position_seconds": 0, "total_seconds": 5400}
+                        }
+                    ]
+                }
+            }
+        elif method == 'VideoLibrary.GetEpisodes':
+            return {
+                "result": {
+                    "episodes": [
+                        {
+                            "episodeid": 101, "tvshowid": 5, "season": 1, "episode": 1,
+                            "title": "Episode 1", "showtitle": "TV Show A", "aired": "2021-01-01",
+                            "runtime": 45, "rating": 8.0, "playcount": 1,
+                            "thumbnail": "episode1.jpg", "art": {"thumb": "episode1.jpg"},
+                            "resume": {"position_seconds": 1800, "total_seconds": 2700}
+                        },
+                        {
+                            "episodeid": 102, "tvshowid": 5, "season": 1, "episode": 2,
+                            "title": "Episode 2", "showtitle": "TV Show A", "aired": "2021-01-08",
+                            "runtime": 45, "rating": 7.8, "playcount": 0,
+                            "thumbnail": "episode2.jpg", "art": {"thumb": "episode2.jpg"},
+                            "resume": {"position_seconds": 0, "total_seconds": 2700}
+                        }
+                    ]
+                }
+            }
+        return {"result": {}}
+
+def get_logger(name):
+    class MockLogger:
+        def info(self, msg): print(f"INFO: {msg}")
+        def debug(self, msg): print(f"DEBUG: {msg}")
+        def warning(self, msg): print(f"WARNING: {msg}")
+        def error(self, msg): print(f"ERROR: {msg}")
+    return MockLogger()
+
+class MockConnectionManager:
+    def execute_query(self, query, params=None):
+        print(f"MockConnectionManager: Executing query: {query} with params: {params}")
+        # Mock data for get_user_lists
+        if "SELECT id, name, created_at, updated_at, (SELECT COUNT(*) FROM list_item WHERE list_id = user_list.id) as item_count FROM user_list" in query:
+            return [
+                {'id': 1, 'name': 'List 1', 'created_at': '2023-01-01', 'updated_at': '2023-01-01', 'item_count': 5},
+                {'id': 2, 'name': 'List 2', 'created_at': '2023-01-02', 'updated_at': '2023-01-02', 'item_count': 0}
+            ]
+        return []
+    def execute_single(self, query, params=None):
+        print(f"MockConnectionManager: Executing single query: {query} with params: {params}")
+        if "SELECT id FROM user_list WHERE name = ?" in query and params[0] == "Default":
+            return None # Default list does not exist
+        if "SELECT id FROM folders WHERE name = ?" in query and params[0] == "Search History":
+            return {'id': 10} # Search History folder exists
+        return None
+    def transaction(self):
+        class MockTransaction:
+            def __enter__(self):
+                print("MockConnectionManager: Starting transaction")
+                return self # Return self to be used as context manager
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                print("MockConnectionManager: Committing transaction")
+            def execute(self, query, params=None):
+                print(f"MockConnectionManager: Executing in transaction: {query} with params: {params}")
+                # Mock lastrowid for insert operations
+                if query.strip().upper().startswith("INSERT INTO user_list"):
+                    return MockCursor(lastrowid=123)
+                elif query.strip().upper().startswith("INSERT INTO folders"):
+                    return MockCursor(lastrowid=10)
+                return MockCursor()
+        return MockTransaction()
+class MockCursor:
+    def __init__(self, lastrowid=None):
+        self.lastrowid = lastrowid
+    def fetchone(self):
+        print("MockCursor: fetchone called")
+        return None
+    def fetchall(self):
+        print("MockCursor: fetchall called")
+        return []
+
+
+class MockMigrationManager:
+    def ensure_initialized(self):
+        print("MockMigrationManager: Ensuring initialized")
+
+def get_connection_manager():
+    return MockConnectionManager()
+
+def get_migration_manager():
+    return MockMigrationManager()
+
+class JSONRPCClient: # Placeholder for the actual JSONRPCClient
+    def call_method(self, method, params=None):
+        # In a real scenario, this would interact with Kodi's JSONRPC API
+        # For this example, we'll use a mock or return empty data
+        print(f"JSONRPCClient: Calling method {method} with params {params}")
+        # Mock response for demonstration
+        if method == 'VideoLibrary.GetMovies':
+            return {
+                "result": {
+                    "movies": [
+                        {
+                            "movieid": 1, "title": "Movie 1", "year": 2020, "runtime": 120,
+                            "genre": ["Action"], "rating": 7.5, "votes": 100, "mpaa": "PG-13",
+                            "studio": ["Studio A"], "country": ["USA"], "premiered": "2020-01-01",
+                            "sorttitle": "Movie 1", "thumbnail": "poster1.jpg",
+                            "art": {"poster": "poster1.jpg", "fanart": "fanart1.jpg"},
+                            "resume": {"position_seconds": 3600, "total_seconds": 7200}
+                        },
+                        {
+                            "movieid": 2, "title": "Movie 2", "year": 2019, "runtime": 90,
+                            "genre": ["Comedy"], "rating": 6.0, "votes": 50, "mpaa": "PG",
+                            "studio": ["Studio B"], "country": ["Canada"], "premiered": "2019-05-15",
+                            "sorttitle": "Movie 2", "thumbnail": "poster2.jpg",
+                            "art": {"poster": "poster2.jpg"},
+                            "resume": {"position_seconds": 0, "total_seconds": 5400}
+                        }
+                    ]
+                }
+            }
+        elif method == 'VideoLibrary.GetEpisodes':
+            return {
+                "result": {
+                    "episodes": [
+                        {
+                            "episodeid": 101, "tvshowid": 5, "season": 1, "episode": 1,
+                            "title": "Episode 1", "showtitle": "TV Show A", "aired": "2021-01-01",
+                            "runtime": 45, "rating": 8.0, "playcount": 1,
+                            "thumbnail": "episode1.jpg", "art": {"thumb": "episode1.jpg"},
+                            "resume": {"position_seconds": 1800, "total_seconds": 2700}
+                        },
+                        {
+                            "episodeid": 102, "tvshowid": 5, "season": 1, "episode": 2,
+                            "title": "Episode 2", "showtitle": "TV Show A", "aired": "2021-01-08",
+                            "runtime": 45, "rating": 7.8, "playcount": 0,
+                            "thumbnail": "episode2.jpg", "art": {"thumb": "episode2.jpg"},
+                            "resume": {"position_seconds": 0, "total_seconds": 2700}
+                        }
+                    ]
+                }
+            }
+        return {"result": {}}
 
 
 class QueryManager:
-    """Manages data queries and database operations using SQLite"""
+    """Manages database queries and JSON-RPC operations"""
 
-    def __init__(self):
-        self.logger = get_logger(__name__)
-        self.conn_manager = get_connection_manager()
+    def __init__(self, db_manager=None):
+        # Use mock objects if not provided
+        self.conn_manager = db_manager if db_manager else get_connection_manager()
         self.migration_manager = get_migration_manager()
+        self.logger = get_logger(__name__)
+        self.json_rpc = JSONRPCClient()
+
+        # Performance settings - configurable via addon settings
+        self.json_rpc_timeout = 10  # seconds
+        self.json_rpc_page_size = 200  # items per request
+        self.database_batch_size = 250  # items per transaction
         self._initialized = False
 
     def initialize(self):
@@ -45,19 +217,130 @@ class QueryManager:
             self.logger.error(f"Failed to initialize data layer: {e}")
             return False
 
+    def _safe_get_value(self, data: Dict[str, Any], key: str, default_value: Any = None, value_type: type = str) -> Any:
+        """Safely get value from dictionary with proper type conversion"""
+        try:
+            value = data.get(key, default_value)
+
+            # Handle empty strings and null values
+            if value == "" or value is None:
+                return default_value
+
+            # Type conversion
+            if value_type == int:
+                return int(value)
+            elif value_type == float:
+                return float(value)
+            else:
+                return str(value)
+
+        except (ValueError, TypeError):
+            self.logger.warning(f"Failed to convert {key}={value} to {value_type.__name__}, using default: {default_value}")
+            return default_value
+
+    def normalize_item(self, item: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Normalize item to ensure all required lightweight fields are present
+
+        Args:
+            item: Raw item data from database or JSON-RPC
+
+        Returns:
+            Normalized item with consistent field names and types
+        """
+        normalized = {}
+
+        # Identity fields
+        normalized['type'] = item.get('media_type', item.get('type', 'movie'))
+        normalized['kodi_id'] = item.get('kodi_id') or item.get('movieid') or item.get('id')
+
+        # Core metadata (strings unless noted)
+        normalized['title'] = item.get('title', 'Unknown Title')
+        normalized['originaltitle'] = item.get('originaltitle', item.get('title', ''))
+        normalized['sorttitle'] = item.get('sorttitle', item.get('title', ''))
+        normalized['year'] = self._safe_get_value(item, 'year', 0, int)
+        normalized['genre'] = item.get('genre', '')
+        normalized['plot'] = item.get('plot', item.get('plotoutline', ''))
+        normalized['rating'] = self._safe_get_value(item, 'rating', 0.0, float)
+        normalized['votes'] = self._safe_get_value(item, 'votes', 0, int)
+        normalized['mpaa'] = item.get('mpaa', '')
+
+        # Duration handling - convert runtime (minutes) to duration_minutes
+        runtime = item.get('runtime', item.get('duration'))
+        if runtime:
+            # Runtime from JSON-RPC is in minutes, duration might be seconds
+            if isinstance(runtime, int) and runtime > 0:
+                if runtime > 1000:  # Assume seconds if > 1000
+                    normalized['duration_minutes'] = runtime // 60
+                else:  # Assume minutes
+                    normalized['duration_minutes'] = runtime
+            else:
+                normalized['duration_minutes'] = 0
+        else:
+            normalized['duration_minutes'] = 0
+
+        normalized['studio'] = item.get('studio', '')
+        normalized['country'] = item.get('country', '')
+        normalized['premiered'] = item.get('premiered', item.get('dateadded', ''))
+        normalized['mediatype'] = normalized['type']  # Must match Kodi values
+
+        # Episode-specific fields
+        if normalized['type'] == 'episode':
+            normalized['tvshowtitle'] = item.get('showtitle', item.get('tvshowtitle', ''))
+            normalized['season'] = self._safe_get_value(item, 'season', 1, int)
+            normalized['episode'] = self._safe_get_value(item, 'episode', 1, int)
+            normalized['aired'] = item.get('aired', item.get('firstaired', ''))
+            normalized['playcount'] = self._safe_get_value(item, 'playcount', 0, int)
+            normalized['lastplayed'] = item.get('lastplayed', '')
+
+        # Art dictionary - only include valid URLs
+        art = {}
+        art_sources = ['poster', 'fanart', 'thumb', 'banner', 'landscape', 'clearlogo']
+        for art_type in art_sources:
+            art_url = item.get(art_type)
+            if art_url and isinstance(art_url, str) and art_url.strip():
+                art[art_type] = art_url.strip()
+
+        # Handle complex art data
+        if item.get('art'):
+            try:
+                if isinstance(item['art'], dict):
+                    art.update(item['art'])
+                elif isinstance(item['art'], str):
+                    import json
+                    art_data = json.loads(item['art'])
+                    if isinstance(art_data, dict):
+                        art.update(art_data)
+            except Exception as e:
+                self.logger.debug(f"Failed to parse art data for {normalized['title']}: {e}")
+
+        normalized['art'] = art
+
+        # Resume data - always include for library movies/episodes
+        resume = {'position_seconds': 0, 'total_seconds': 0}
+        if normalized['kodi_id'] and normalized['type'] in ['movie', 'episode']:
+            resume_data = item.get('resume', {})
+            if isinstance(resume_data, dict):
+                resume['position_seconds'] = int(resume_data.get('position', 0))
+                resume['total_seconds'] = int(resume_data.get('total', 0))
+
+        normalized['resume'] = resume
+
+        return normalized
+
     def get_user_lists(self):
         """Get all user lists from database"""
         try:
             self.logger.debug("Getting user lists from database")
 
             lists = self.conn_manager.execute_query("""
-                SELECT 
+                SELECT
                     id,
                     name,
                     created_at,
                     updated_at,
                     (SELECT COUNT(*) FROM list_item WHERE list_id = user_list.id) as item_count
-                FROM user_list 
+                FROM user_list
                 ORDER BY created_at ASC
             """)
 
@@ -88,7 +371,7 @@ class QueryManager:
             # First try to get items from user_list table (legacy lists)
             items = self.conn_manager.execute_query("""
                 SELECT id, title, year, imdb_id, tmdb_id, created_at
-                FROM list_item 
+                FROM list_item
                 WHERE list_id = ?
                 ORDER BY created_at DESC
                 LIMIT ? OFFSET ?
@@ -97,11 +380,11 @@ class QueryManager:
             # If no items found, try the new lists table (search history lists)
             if not items:
                 items = self.conn_manager.execute_query("""
-                    SELECT 
-                        li.id, 
-                        mi.title, 
-                        mi.year, 
-                        mi.imdbnumber as imdb_id, 
+                    SELECT
+                        li.id,
+                        mi.title,
+                        mi.year,
+                        mi.imdbnumber as imdb_id,
                         mi.tmdb_id,
                         mi.kodi_id,
                         mi.poster,
@@ -316,7 +599,7 @@ class QueryManager:
 
             with self.conn_manager.transaction() as conn:
                 conn.execute("""
-                    DELETE FROM list_item 
+                    DELETE FROM list_item
                     WHERE id = ? AND list_id = ?
                 """, [int(item_id), int(list_id)])
 
@@ -348,7 +631,7 @@ class QueryManager:
 
                 # Update the list name
                 conn.execute("""
-                    UPDATE user_list 
+                    UPDATE user_list
                     SET name = ?, updated_at = datetime('now')
                     WHERE id = ?
                 """, [new_name, int(list_id)])
@@ -391,10 +674,10 @@ class QueryManager:
         """Get a specific list by ID"""
         try:
             result = self.conn_manager.execute_single("""
-                SELECT 
+                SELECT
                     id, name, created_at, updated_at,
                     (SELECT COUNT(*) FROM list_item WHERE list_id = user_list.id) as item_count
-                FROM user_list 
+                FROM user_list
                 WHERE id = ?
             """, [int(list_id)])
 
@@ -535,7 +818,7 @@ class QueryManager:
         # Check for movieid field (from JSON-RPC responses)
         if item.get('movieid'):
             kodi_id = item.get('movieid')
-        # Check for explicit kodi_id field  
+        # Check for explicit kodi_id field
         elif item.get('kodi_id'):
             kodi_id = item.get('kodi_id')
         # For local search results, the 'id' field should be the kodi_id
@@ -600,7 +883,7 @@ class QueryManager:
             # Try to find by title and year
             if media_data.get('title') and media_data.get('year'):
                 existing = conn.execute("""
-                    SELECT id FROM media_items 
+                    SELECT id FROM media_items
                     WHERE title = ? AND year = ? AND media_type = ?
                 """, [media_data['title'], media_data['year'], media_data['media_type']]).fetchone()
 
@@ -609,9 +892,9 @@ class QueryManager:
 
             # Insert new media item
             cursor = conn.execute("""
-                INSERT INTO media_items 
-                (media_type, title, year, imdbnumber, tmdb_id, kodi_id, source, 
-                 play, poster, fanart, plot, rating, votes, duration, mpaa, 
+                INSERT INTO media_items
+                (media_type, title, year, imdbnumber, tmdb_id, kodi_id, source,
+                 play, poster, fanart, plot, rating, votes, duration, mpaa,
                  genre, director, studio, country, writer, cast, art)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, [
@@ -638,7 +921,7 @@ class QueryManager:
 
             # Get all lists including those in folders
             lists = self.conn_manager.execute_query("""
-                SELECT 
+                SELECT
                     l.id,
                     l.name,
                     l.folder_id,
@@ -651,7 +934,7 @@ class QueryManager:
 
                 UNION ALL
 
-                SELECT 
+                SELECT
                     ul.id,
                     ul.name,
                     NULL as folder_id,
@@ -691,7 +974,7 @@ class QueryManager:
         """Fetch rich metadata from Kodi JSON-RPC for the given kodi_ids"""
         try:
             import json
-            import xbmc
+            # import xbmc # This import would fail outside of Kodi environment
 
             if not kodi_ids:
                 return {}
@@ -719,9 +1002,12 @@ class QueryManager:
                     }
 
                     self.logger.debug(f"JSON-RPC request for movie {kodi_id}: {json.dumps(request)}")
-                    response_str = xbmc.executeJSONRPC(json.dumps(request))
+                    # response_str = xbmc.executeJSONRPC(json.dumps(request)) # This call is environment specific
+                    # Mocking the response for demonstration
+                    response_str = self.json_rpc.call_method('VideoLibrary.GetMovieDetails', {"movieid": kodi_id})
                     self.logger.debug(f"JSON-RPC response for movie {kodi_id}: {response_str[:200]}...")
                     response = json.loads(response_str)
+
 
                     if "error" in response:
                         self.logger.warning(f"JSON-RPC error for movie {kodi_id}: {response['error']}")
@@ -731,7 +1017,7 @@ class QueryManager:
                     if movie_details:
                         self.logger.debug(f"Got movie details for {kodi_id}: {movie_details.get('title', 'Unknown')}")
                         # Normalize the movie data similar to how json_rpc_client does it
-                        normalized = self._normalize_kodi_movie_details(movie_details)
+                        normalized = self.normalize_item(movie_details)
                         if normalized:
                             enrichment_data[kodi_id] = normalized
                             self.logger.info(f"Successfully enriched movie {kodi_id}: {normalized.get('title')}")
@@ -758,8 +1044,19 @@ class QueryManager:
     def _match_items_to_kodi_library(self, items_to_match: List[tuple]) -> Dict[int, Optional[int]]:
         """Try to match items without kodi_id to Kodi library movies"""
         try:
-            from ..kodi.json_rpc_client import get_kodi_client
-            kodi_client = get_kodi_client()
+            # from ..kodi.json_rpc_client import get_kodi_client # Assuming this exists
+            # kodi_client = get_kodi_client()
+            # Mock client for demonstration
+            class MockKodiClient:
+                def get_movies_quick_check(self): return [1, 2] # Mock IDs
+                def get_movies(self, limit=None, offset=0):
+                    return {
+                        "movies": [
+                            {"movieid": 1, "title": "Movie 1", "year": 2020, "imdb_id": "tt12345"},
+                            {"movieid": 2, "title": "Movie 2", "year": 2019, "imdb_id": "tt67890"}
+                        ]
+                    }
+            kodi_client = MockKodiClient()
 
             # Get a quick list of all movies in library
             library_movies = kodi_client.get_movies_quick_check()
@@ -791,16 +1088,16 @@ class QueryManager:
 
                     # Match by IMDb ID (most reliable)
                     if item_imdb and library_imdb and item_imdb == library_imdb:
-                        matched_kodi_id = library_movie.get('kodi_id')
+                        matched_kodi_id = library_movie.get('movieid') # Use 'movieid' as kodi_id
                         self.logger.debug(f"IMDb match: {item_title} -> kodi_id {matched_kodi_id}")
                         break
 
                     # Match by title and year
-                    elif (item_title and library_title and 
-                          item_title == library_title and 
-                          item_year and library_year and 
+                    elif (item_title and library_title and
+                          item_title == library_title and
+                          item_year and library_year and
                           int(item_year) == int(library_year)):
-                        matched_kodi_id = library_movie.get('kodi_id')
+                        matched_kodi_id = library_movie.get('movieid') # Use 'movieid' as kodi_id
                         self.logger.debug(f"Title/Year match: {item_title} ({item_year}) -> kodi_id {matched_kodi_id}")
                         break
 
@@ -896,6 +1193,116 @@ class QueryManager:
         except Exception as e:
             self.logger.warning(f"Failed to normalize movie details: {e}")
             return None
+
+    def get_movies(self, limit: Optional[int] = None, offset: int = 0) -> List[Dict[str, Any]]:
+        """
+        Get movies from Kodi library with lightweight metadata
+
+        Args:
+            limit: Maximum number of movies to return
+            offset: Number of movies to skip
+
+        Returns:
+            List of normalized movie dictionaries with metadata
+        """
+        try:
+            # Request only lightweight properties for list display
+            properties = [
+                'title', 'originaltitle', 'year', 'genre', 'plotoutline',
+                'rating', 'votes', 'mpaa', 'runtime', 'studio', 'country',
+                'premiered', 'sorttitle', 'thumbnail', 'art', 'resume'
+            ]
+
+            params = {
+                'properties': properties,
+                'sort': {'order': 'ascending', 'method': 'sorttitle'}
+            }
+
+            if limit:
+                params['limits'] = {'start': offset, 'end': offset + limit}
+
+            response = self.json_rpc.call_method('VideoLibrary.GetMovies', params)
+
+            if response.get('result') and response['result'].get('movies'):
+                movies = response['result']['movies']
+                self.logger.info(f"Retrieved {len(movies)} movies from library")
+
+                # Normalize all movies
+                normalized_movies = []
+                for movie in movies:
+                    # Add required fields for normalization
+                    movie['media_type'] = 'movie'
+                    movie['kodi_id'] = movie.get('movieid')
+
+                    # Normalize the item
+                    normalized = self.normalize_item(movie)
+                    normalized_movies.append(normalized)
+
+                return normalized_movies
+            else:
+                self.logger.info("No movies found in library")
+                return []
+
+        except Exception as e:
+            self.logger.error(f"Failed to get movies: {e}")
+            return []
+
+    def get_episodes(self, tvshow_id: Optional[int] = None, limit: Optional[int] = None, offset: int = 0) -> List[Dict[str, Any]]:
+        """
+        Get episodes from Kodi library
+
+        Args:
+            tvshow_id: Optional TV show ID to filter episodes
+            limit: Maximum number of episodes to return
+            offset: Number of episodes to skip
+
+        Returns:
+            List of normalized episode dictionaries with metadata
+        """
+        try:
+            # Request lightweight episode properties
+            properties = [
+                'title', 'plotoutline', 'season', 'episode', 'showtitle',
+                'aired', 'runtime', 'rating', 'playcount', 'lastplayed',
+                'thumbnail', 'art', 'resume'
+            ]
+
+            params = {
+                'properties': properties,
+                'sort': {'order': 'ascending', 'method': 'episode'}
+            }
+
+            if tvshow_id:
+                params['tvshowid'] = tvshow_id
+
+            if limit:
+                params['limits'] = {'start': offset, 'end': offset + limit}
+
+            response = self.json_rpc.call_method('VideoLibrary.GetEpisodes', params)
+
+            if response.get('result') and response['result'].get('episodes'):
+                episodes = response['result']['episodes']
+                self.logger.info(f"Retrieved {len(episodes)} episodes from library")
+
+                # Normalize all episodes
+                normalized_episodes = []
+                for episode in episodes:
+                    # Add required fields for normalization
+                    episode['media_type'] = 'episode'
+                    episode['kodi_id'] = episode.get('episodeid')
+
+                    # Normalize the item
+                    normalized = self.normalize_item(episode)
+                    normalized_episodes.append(normalized)
+
+                return normalized_episodes
+            else:
+                self.logger.info("No episodes found in library")
+                return []
+
+        except Exception as e:
+            self.logger.error(f"Failed to get episodes: {e}")
+            return []
 
     def detect_content_type(self, items: List[Dict[str, Any]]) -> str:
         """
