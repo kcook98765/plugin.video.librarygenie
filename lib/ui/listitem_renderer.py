@@ -15,7 +15,7 @@ from ..utils.logger import get_logger
 
 
 class ListItemRenderer:
-    """Renders lists and media items as Kodi ListItems"""
+    """Renders ListItems with proper Kodi integration"""
 
     def __init__(self, addon_handle: int, addon_id: str):
         self.addon_handle = addon_handle
@@ -251,13 +251,13 @@ class ListItemRenderer:
             # Use the new builder methods that return (url, listitem, is_folder)
             kodi_id = item.get('kodi_id')
             media_type = item.get('media_type', 'movie')
-            
+
             # Determine if this is a library item
             if media_type in ('movie', 'episode') and isinstance(kodi_id, int):
                 result = self.builder._create_library_listitem(item)
             else:
                 result = self.builder._create_external_item(item)
-            
+
             if result:
                 url, list_item, is_folder = result
                 return list_item
@@ -285,6 +285,64 @@ class ListItemRenderer:
             # Fallback to simple listitem
             title = episode_data.get('title', episode_data.get('label', 'Unknown'))
             return self.create_simple_listitem(title)
+
+    def render_directory(self, items: List[Dict[str, Any]], content_type: str = "movies") -> bool:
+        """
+        Render a complete directory with proper container hygiene (Step 7).
+        Sets content type and sort methods once per build, ensures non-empty URLs.
+
+        Args:
+            items: List of media item dictionaries
+            content_type: "movies", "tvshows", or "episodes"
+
+        Returns:
+            bool: Success status
+        """
+        try:
+            # Container hygiene - set content type appropriately for skin layouts/overlays
+            self.logger.info(f"DIRECTORY: Building {len(items)} items with content_type='{content_type}'")
+            xbmcplugin.setContent(self.addon_handle, content_type)
+
+            # Add sort methods once per build (not per item)
+            sort_methods = [
+                xbmcplugin.SORT_METHOD_TITLE_IGNORE_THE,
+                xbmcplugin.SORT_METHOD_VIDEO_YEAR,
+                xbmcplugin.SORT_METHOD_DATE
+            ]
+            for method in sort_methods:
+                xbmcplugin.addSortMethod(self.addon_handle, method)
+
+            # Build all items, ensuring non-empty URLs
+            success_count = 0
+            for item in items:
+                try:
+                    result = self.builder._build_single_item(item)
+                    if result:
+                        url, listitem, is_folder = result
+                        # Ensure non-empty URL to avoid directory errors
+                        if url and url.strip():
+                            xbmcplugin.addDirectoryItem(
+                                handle=self.addon_handle,
+                                url=url,
+                                listitem=listitem,
+                                isFolder=is_folder
+                            )
+                            success_count += 1
+                        else:
+                            self.logger.warning(f"DIRECTORY: Skipping item with empty URL: {item.get('title', 'Unknown')}")
+                    else:
+                        self.logger.warning(f"DIRECTORY: Failed to build item: {item.get('title', 'Unknown')}")
+                except Exception as e:
+                    self.logger.error(f"DIRECTORY: Error building item {item.get('title', 'Unknown')}: {e}")
+
+            self.logger.info(f"DIRECTORY: Added {success_count}/{len(items)} items successfully")
+            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True)
+            return True
+
+        except Exception as e:
+            self.logger.error(f"DIRECTORY: Fatal error in render_directory: {e}")
+            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
+            return False
 
 
 # Global renderer instance
