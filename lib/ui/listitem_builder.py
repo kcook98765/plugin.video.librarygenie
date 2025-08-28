@@ -217,15 +217,12 @@ class ListItemBuilder:
         # Set context menu for library items
         self._set_library_context_menu(list_item, item)
 
-        # For library items, determine if clicking should play immediately or show info
-        # Movies and episodes are typically playable, TV shows are folders
-        is_playable = media_type in ['movie', 'episode', 'musicvideo']
-        is_folder = not is_playable
+        # For library items using videodb URLs, ALWAYS set as folder to enable proper navigation
+        # This allows users to access Kodi's native info screen and functionality
+        is_folder = True
         
-        if is_playable:
-            list_item.setProperty('IsPlayable', 'true')
-
-        self.logger.debug(f"Built library item: {title} (kodi_id: {kodi_id}, type: {media_type}, playable: {is_playable}) - Kodi will handle heavy metadata")
+        # Do NOT set IsPlayable for videodb URLs - let Kodi handle the navigation behavior
+        self.logger.debug(f"Built library item: {title} (kodi_id: {kodi_id}, type: {media_type}, folder: {is_folder}) - videodb URL will navigate to native Kodi screens")
 
         return (url, list_item, is_folder)
 
