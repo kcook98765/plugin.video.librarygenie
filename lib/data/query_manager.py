@@ -164,22 +164,8 @@ class QueryManager:
 
                 result.append(item_data)
 
-            # Try to match items without kodi_id to the Kodi library
-            if items_to_match:
-                self.logger.info(f"Attempting to match {len(items_to_match)} items without kodi_id to Kodi library")
-                matched_kodi_ids = self._match_items_to_kodi_library(items_to_match)
-
-                # Apply enrichment data to items with kodi_ids
-                for item_index, kodi_id in matched_kodi_ids.items():
-                    if kodi_id and kodi_id in enriched_data:
-                        enrichment = enriched_data[kodi_id]
-                        # Merge enrichment data, ensuring artwork is preserved
-                        result[item_index].update(enrichment)
-                        # Also set source to 'lib' to indicate this is a library item
-                        result[item_index]['source'] = 'lib'
-                        self.logger.info(f"Enriched '{result[item_index]['title']}' with Kodi library data, artwork: {bool(enrichment.get('poster') or enrichment.get('art'))}")
-
-            # Enrich Kodi library items with fresh JSON-RPC data
+            # Enrich Kodi library items with fresh JSON-RPC data first
+            enriched_data = {}
             if kodi_ids_to_enrich:
                 self.logger.info(f"Enriching {len(kodi_ids_to_enrich)} Kodi library items with fresh JSON-RPC data: {kodi_ids_to_enrich}")
                 enriched_data = self._get_kodi_enrichment_data(kodi_ids_to_enrich)
@@ -195,6 +181,29 @@ class QueryManager:
                         self.logger.info(f"Enriched list item '{item_data['title']}' with Kodi library data, artwork: {bool(enrichment.get('poster') or enrichment.get('art'))}")
                     else:
                         self.logger.warning(f"Failed to enrich Kodi item {item_data.get('kodi_id')}: not found in JSON-RPC results. Available enriched IDs: {list(enriched_data.keys())}")
+
+            # Try to match items without kodi_id to the Kodi library
+            if items_to_match:
+                self.logger.info(f"Attempting to match {len(items_to_match)} items without kodi_id to Kodi library")
+                matched_kodi_ids = self._match_items_to_kodi_library(items_to_match)
+
+                # Get enrichment data for matched items if we don't have it already
+                new_kodi_ids = [kodi_id for kodi_id in matched_kodi_ids.values() if kodi_id and kodi_id not in enriched_data]
+                if new_kodi_ids:
+                    self.logger.info(f"Getting enrichment data for {len(new_kodi_ids)} newly matched items: {new_kodi_ids}")
+                    new_enriched_data = self._get_kodi_enrichment_data(new_kodi_ids)
+                    enriched_data.update(new_enriched_data)
+
+                # Apply enrichment data to matched items
+                for item_index, kodi_id in matched_kodi_ids.items():
+                    if kodi_id and kodi_id in enriched_data:
+                        enrichment = enriched_data[kodi_id]
+                        # Merge enrichment data, ensuring artwork is preserved
+                        result[item_index].update(enrichment)
+                        # Also set source to 'lib' to indicate this is a library item
+                        result[item_index]['source'] = 'lib'
+                        result[item_index]['kodi_id'] = kodi_id  # Make sure kodi_id is set
+                        self.logger.info(f"Enriched '{result[item_index]['title']}' with Kodi library data, artwork: {bool(enrichment.get('poster') or enrichment.get('art'))}")
 
             self.logger.debug(f"Retrieved {len(result)} items for list {list_id}")
             return result
@@ -894,7 +903,10 @@ class QueryManager:
                 "cast_list": cast_list,  # Preserve full cast structure
                 "playcount": movie.get("playcount", 0),
                 "resume_time": resume_time,
-                "votes": movie.get("votes", 0)
+                "votes": movie.get("votes", 0),
+                "art": art,  # Include the full art dictionary for compatibility
+                "media_type": "movie",  # Ensure media_type is set
+                "source": "lib"  # Mark as library source
             }
 
         except Exception as e:

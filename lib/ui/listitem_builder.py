@@ -312,18 +312,43 @@ class ListItemBuilder:
             list_item.setArt(art_dict)
 
     def _set_library_artwork(self, list_item: xbmcgui.ListItem, item: Dict[str, Any]):
-        """Set artwork for Kodi library ListItem (relies on Kodi's videodb://)"""
-        # For library items, Kodi itself will fetch artwork based on the videodb:// URL
-        # We only need to ensure that basic art like fanart is passed if available,
-        # as Kodi might not always pick it up from the videodb alone if it's not embedded.
+        """Set artwork for Kodi library ListItem (enhanced with full art data)"""
         art_dict = {}
+        
+        # Set basic artwork
+        if item.get('poster'):
+            art_dict['poster'] = item['poster']
+            art_dict['thumb'] = item['poster']  # Use poster as thumb fallback
+        
         if item.get('fanart'):
             art_dict['fanart'] = item['fanart']
-        if item.get('poster'):
-            art_dict['poster'] = item['poster'] # Can also provide poster if needed
+            
+        # Add additional artwork types from enrichment data
+        if item.get('thumb') and not art_dict.get('thumb'):
+            art_dict['thumb'] = item['thumb']
+        if item.get('clearlogo'):
+            art_dict['clearlogo'] = item['clearlogo']
+        if item.get('landscape'):
+            art_dict['landscape'] = item['landscape']
+        if item.get('clearart'):
+            art_dict['clearart'] = item['clearart']
+        if item.get('discart'):
+            art_dict['discart'] = item['discart']
+        if item.get('banner'):
+            art_dict['banner'] = item['banner']
+
+        # Handle any additional art data from JSON-RPC
+        if item.get('art') and isinstance(item['art'], dict):
+            # Merge additional art data
+            for art_type, art_url in item['art'].items():
+                if art_url and not art_dict.get(art_type):
+                    art_dict[art_type] = art_url
 
         if art_dict:
             list_item.setArt(art_dict)
+            self.logger.debug(f"Set library artwork for {item.get('title', 'Unknown')}: {list(art_dict.keys())}")
+        else:
+            self.logger.warning(f"No artwork available for library item: {item.get('title', 'Unknown')}")
 
     def _build_playback_url(self, item: Dict[str, Any]) -> str:
         """Build playback URL for external items"""
