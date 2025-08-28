@@ -32,4 +32,30 @@ Since this is a Kodi addon, it cannot be run directly in Replit. Use this enviro
 - Testing import statements and basic functionality
 - Preparing addon packages for deployment to Kodi
 
+
+## Kodi ListItem Philosophy
+
+When building ListItems for Kodi library content, **never fetch heavy metadata via JSON-RPC**. Instead:
+
+### For Library Items (items with kodi_id):
+- Set only **lightweight display data** (title, year, basic genre, short plot outline)
+- Set **critical properties**: `dbtype`, `dbid`, `mediatype` 
+- Set **basic artwork**: poster/thumb, fanart only
+- **DO NOT** fetch or set: cast, crew, full plot, ratings, votes, detailed artwork, streamdetails
+
+### Why This Approach:
+- Kodi automatically populates heavy metadata when user navigates to video info page
+- The `dbtype` and `dbid` properties tell Kodi this is a library item
+- Reduces JSON-RPC calls and improves performance
+- Maintains native Kodi behavior and theming
+- Cast/crew information will be properly formatted by Kodi's native handlers
+
+### For External Items (no kodi_id):
+- Set **full metadata** since Kodi can't fetch it from the library
+- Include cast, plot, ratings, etc. as these won't be auto-populated
+
+This separation ensures optimal performance while maintaining proper Kodi integration.
+
+
+
 To test the actual addon functionality, package and install it in a Kodi environment.

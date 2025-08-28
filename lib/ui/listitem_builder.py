@@ -93,7 +93,7 @@ class ListItemBuilder:
 
     def _build_library_item(self, item: Dict[str, Any]) -> tuple:
         """
-        Build ListItem for Kodi library item (native cast/metadata)
+        Build ListItem for Kodi library item (minimal metadata, let Kodi handle heavy data)
 
         Args:
             item: Media item with kodi_id
@@ -136,54 +136,31 @@ class ListItemBuilder:
             
         self.logger.debug(f"Built videodb path for {title}: {videodb_path}")
 
-        # Set video info labels - include enriched data from JSON-RPC
+        # Set minimal video info labels - only lightweight display data
         info_labels = {
             'mediatype': media_type,
             'title': title
         }
 
-        # Add year for movies
+        # Add basic lightweight metadata only
         if media_type == 'movie' and item.get('year'):
             info_labels['year'] = item['year']
 
-        # Add enriched metadata from JSON-RPC if available
-        if item.get('plot'):
-            info_labels['plot'] = item['plot']
-        if item.get('plotoutline'):
-            info_labels['plotoutline'] = item['plotoutline']
+        # Only set lightweight metadata that's needed for list display
+        if item.get('plot') and len(item['plot']) < 500:  # Short plot only
+            info_labels['plotoutline'] = item['plot'][:200]  # Brief outline
         if item.get('rating'):
             info_labels['rating'] = float(item['rating'])
-        if item.get('votes'):
-            info_labels['votes'] = int(item['votes'])
-        if item.get('runtime'):
-            info_labels['duration'] = int(item['runtime'])
         if item.get('genre'):
             info_labels['genre'] = item['genre']
-        if item.get('director'):
-            info_labels['director'] = item['director']
-        if item.get('writer'):
-            info_labels['writer'] = item['writer']
-        if item.get('studio'):
-            info_labels['studio'] = item['studio']
-        if item.get('country'):
-            info_labels['country'] = item['country']
-        if item.get('mpaa'):
-            info_labels['mpaa'] = item['mpaa']
-        if item.get('playcount'):
-            info_labels['playcount'] = int(item['playcount'])
 
         list_item.setInfo('video', info_labels)
 
-        # Set cast information for library items from enriched data
-        if item.get('cast_list'):
-            try:
-                # Use the full cast structure from enrichment
-                list_item.setCast(item['cast_list'])
-                self.logger.debug(f"Set cast for library item {title}: {len(item['cast_list'])} members")
-            except Exception as e:
-                self.logger.warning(f"Failed to set cast for library item {title}: {e}")
+        # DO NOT set cast, crew, or other heavy metadata here!
+        # Kodi will automatically populate this when the user navigates to video info
+        # based on the dbtype/dbid properties we set below.
 
-        # Set properties for native Kodi behavior - CRITICAL for cast/crew data
+        # Set properties for native Kodi behavior - CRITICAL for cast/crew/heavy data
         list_item.setProperty('dbtype', db_type)
         list_item.setProperty('dbid', str(kodi_id))
         
@@ -196,7 +173,7 @@ class ListItemBuilder:
         if item.get('tmdb_id'):
             list_item.setProperty('uniqueid.tmdb', str(item['tmdb_id']))
 
-        # Set artwork for library items
+        # Set basic artwork only
         self._set_library_artwork(list_item, item)
 
         # Use videodb path for native behavior
@@ -205,7 +182,7 @@ class ListItemBuilder:
         # Set context menu for library items
         self._set_library_context_menu(list_item, item)
 
-        self.logger.debug(f"Built library item: {title} (kodi_id: {kodi_id}, type: {media_type})")
+        self.logger.debug(f"Built library item: {title} (kodi_id: {kodi_id}, type: {media_type}) - Kodi will handle heavy metadata")
 
         return (url, list_item, False)
 
@@ -354,43 +331,25 @@ class ListItemBuilder:
             list_item.setArt(art_dict)
 
     def _set_library_artwork(self, list_item: xbmcgui.ListItem, item: Dict[str, Any]):
-        """Set artwork for Kodi library ListItem (enhanced with full art data)"""
+        """Set basic artwork for Kodi library ListItem (minimal for list display)"""
         art_dict = {}
         
-        # Set basic artwork
+        # Set only basic artwork needed for list display
         if item.get('poster'):
             art_dict['poster'] = item['poster']
-            art_dict['thumb'] = item['poster']  # Use poster as thumb fallback
+            art_dict['thumb'] = item['poster']  # Use poster as thumb
+        elif item.get('thumb'):
+            art_dict['thumb'] = item['thumb']
         
         if item.get('fanart'):
             art_dict['fanart'] = item['fanart']
-            
-        # Add additional artwork types from enrichment data
-        if item.get('thumb') and not art_dict.get('thumb'):
-            art_dict['thumb'] = item['thumb']
-        if item.get('clearlogo'):
-            art_dict['clearlogo'] = item['clearlogo']
-        if item.get('landscape'):
-            art_dict['landscape'] = item['landscape']
-        if item.get('clearart'):
-            art_dict['clearart'] = item['clearart']
-        if item.get('discart'):
-            art_dict['discart'] = item['discart']
-        if item.get('banner'):
-            art_dict['banner'] = item['banner']
 
-        # Handle any additional art data from JSON-RPC
-        if item.get('art') and isinstance(item['art'], dict):
-            # Merge additional art data
-            for art_type, art_url in item['art'].items():
-                if art_url and not art_dict.get(art_type):
-                    art_dict[art_type] = art_url
-
+        # Don't fetch heavy artwork - Kodi will handle this when user views details
         if art_dict:
             list_item.setArt(art_dict)
-            self.logger.debug(f"Set library artwork for {item.get('title', 'Unknown')}: {list(art_dict.keys())}")
+            self.logger.debug(f"Set basic artwork for library item {item.get('title', 'Unknown')}: {list(art_dict.keys())}")
         else:
-            self.logger.warning(f"No artwork available for library item: {item.get('title', 'Unknown')}")
+            self.logger.debug(f"No basic artwork for library item: {item.get('title', 'Unknown')} - Kodi will use defaults")
 
     def _build_playback_url(self, item: Dict[str, Any]) -> str:
         """Build playback URL for external items"""
