@@ -129,12 +129,17 @@ class ListItemBuilder:
             episode = item.get('episode', 1)
             videodb_path = f"videodb://tvshows/titles/{tvshow_id}/{season}/{episode}"
             db_type = "episode"
+        elif media_type == 'musicvideo':
+            # videodb://musicvideos/titles/{musicvideoid}
+            videodb_path = f"videodb://musicvideos/titles/{kodi_id}"
+            db_type = "musicvideo"
         else:
-            # Fallback to movie
+            # Fallback to movie for unknown types
             videodb_path = f"videodb://movies/titles/{kodi_id}"
             db_type = "movie"
             
-        self.logger.debug(f"Built videodb path for {title}: {videodb_path}")
+        self.logger.info(f"VIDEODB PATH: Built videodb path for '{title}' (kodi_id: {kodi_id}, type: {media_type}): {videodb_path}")
+        self.logger.info(f"VIDEODB PATH: Setting dbtype='{db_type}', dbid='{kodi_id}' for native Kodi cast population")
 
         # Set complete lightweight metadata for display
         info_labels = {
@@ -187,6 +192,12 @@ class ListItemBuilder:
         
         # Also set the mediatype property to help Kodi identify the content
         list_item.setProperty('mediatype', media_type)
+        
+        # Additional properties that may help with native Kodi integration
+        if media_type == 'movie':
+            list_item.setProperty('IsPlayable', 'true')
+        
+        self.logger.debug(f"Set properties for library item '{title}': dbtype={db_type}, dbid={kodi_id}, mediatype={media_type}")
 
         # Set unique IDs if available (helps with cross-linking)
         if item.get('imdbnumber'):
@@ -197,7 +208,7 @@ class ListItemBuilder:
         # Set basic artwork only
         self._set_library_artwork(list_item, item)
 
-        # Use videodb path for native behavior
+        # Use videodb path for native behavior - this is CRITICAL for Kodi to populate cast/crew
         url = videodb_path
 
         # Set context menu for library items
