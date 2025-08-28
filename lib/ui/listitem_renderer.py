@@ -270,16 +270,21 @@ class ListItemRenderer:
             # Return basic listitem on error
             return xbmcgui.ListItem(label=title)
 
-    def create_movie_listitem(self, movie_data: Dict[str, Any], base_url: str, action: str) -> xbmcgui.ListItem:
-        """Create a movie ListItem (compatibility method for MenuBuilder)"""
+    def create_movie_listitem(self, item: Dict[str, Any], base_url: str, action: str) -> Optional[xbmcgui.ListItem]:
+        """Create a rich ListItem for a movie with proper metadata and artwork"""
         try:
-            # Delegate to the builder for movie items
-            return self.builder._create_library_listitem(movie_data)
+            # Determine item source and delegate to appropriate builder
+            source = item.get("source", "lib")  # Default to library item
+
+            if source == "ext":
+                return self.builder.build_external_item(item, base_url, action)
+            else:
+                # Use _build_library_item method (with underscore)
+                return self.builder._build_library_item(item, base_url, action)
+
         except Exception as e:
             self.logger.error(f"Failed to create movie listitem: {e}")
-            # Fallback to simple listitem
-            title = movie_data.get('title', movie_data.get('label', 'Unknown'))
-            return self.create_simple_listitem(title)
+            return None
 
     def _create_episode_listitem(self, episode_data: Dict[str, Any]) -> xbmcgui.ListItem:
         """Create an episode ListItem"""

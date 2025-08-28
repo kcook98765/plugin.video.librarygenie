@@ -408,6 +408,11 @@ def handle_view_list(addon_handle, base_url):
             # Create rich ListItem using renderer
             list_item = renderer.create_movie_listitem(item, base_url, "play_item")
 
+            # Skip if renderer failed to create ListItem
+            if not list_item:
+                logger.warning(f"Skipping item '{item.get('title', 'Unknown')}' - failed to create ListItem")
+                continue
+
             # Build URL for this item
             url = f"{base_url}?action=play_item&item_id={item.get('id')}&list_id={list_id}"
 
