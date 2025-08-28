@@ -717,7 +717,7 @@ class QueryManager:
                             "movieid": int(kodi_id),
                             "properties": [
                                 "title", "originaltitle", "sorttitle", "year", "genre", 
-                                "plotoutline", "rating", "votes", "mpaa", "runtime", 
+                                "plot", "plotoutline", "rating", "votes", "mpaa", "runtime", 
                                 "studio", "country", "premiered", "art", "resume"
                             ]
                         },
