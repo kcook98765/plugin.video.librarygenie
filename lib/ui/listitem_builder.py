@@ -36,6 +36,11 @@ class ListItemBuilder:
         try:
             # Set container content once for the entire listing
             xbmcplugin.setContent(self.addon_handle, content_type)
+            
+            # Add sort methods for better UX
+            xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_TITLE_IGNORE_THE)
+            xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_DATE)
+            xbmcplugin.addSortMethod(self.addon_handle, xbmcplugin.SORT_METHOD_VIDEO_YEAR)
 
             list_items = []
 
@@ -113,29 +118,29 @@ class ListItemBuilder:
         # Create ListItem
         list_item = xbmcgui.ListItem(label=title)
 
-        # Build videodb:// path for native Kodi behavior
+        # Build videodb:// path for native Kodi behavior - CRITICAL: include trailing slash
         if media_type == 'movie':
-            # videodb://movies/titles/{movieid}
-            videodb_path = f"videodb://movies/titles/{kodi_id}"
+            # videodb://movies/titles/{movieid}/
+            videodb_path = f"videodb://movies/titles/{kodi_id}/"
             db_type = "movie"
         elif media_type == 'tvshow':
-            # videodb://tvshows/titles/{tvshowid}
-            videodb_path = f"videodb://tvshows/titles/{kodi_id}"
+            # videodb://tvshows/titles/{tvshowid}/
+            videodb_path = f"videodb://tvshows/titles/{kodi_id}/"
             db_type = "tvshow"
         elif media_type == 'episode':
             # For episodes, we need tvshowid, season, episode
             tvshow_id = item.get('tvshow_id', kodi_id)
             season = item.get('season', 1)
             episode = item.get('episode', 1)
-            videodb_path = f"videodb://tvshows/titles/{tvshow_id}/{season}/{episode}"
+            videodb_path = f"videodb://tvshows/titles/{tvshow_id}/{season}/{episode}/"
             db_type = "episode"
         elif media_type == 'musicvideo':
-            # videodb://musicvideos/titles/{musicvideoid}
-            videodb_path = f"videodb://musicvideos/titles/{kodi_id}"
+            # videodb://musicvideos/titles/{musicvideoid}/
+            videodb_path = f"videodb://musicvideos/titles/{kodi_id}/"
             db_type = "musicvideo"
         else:
             # Fallback to movie for unknown types
-            videodb_path = f"videodb://movies/titles/{kodi_id}"
+            videodb_path = f"videodb://movies/titles/{kodi_id}/"
             db_type = "movie"
             
         self.logger.info(f"VIDEODB PATH: Built videodb path for '{title}' (kodi_id: {kodi_id}, type: {media_type}): {videodb_path}")
@@ -202,20 +207,27 @@ class ListItemBuilder:
         # Set basic artwork only
         self._set_library_artwork(list_item, item)
 
-        # Set the videodb path on the ListItem for Kodi/skins to associate with library entity
-        list_item.setPath(videodb_path)
-        
-        self.logger.info(f"LIBRARY ITEM PROPERTIES: Set for '{title}' - dbtype={db_type}, dbid={kodi_id}, mediatype={media_type}, path={videodb_path}")
-
-        # Use videodb path for directory item URL as well
+        # CRITICAL: Use videodb path as the URL for addDirectoryItem - this is what Kodi uses for the item's path
+        # setPath() would be overridden by the URL passed to addDirectoryItem, so we don't call it
         url = videodb_path
+        
+        self.logger.info(f"LIBRARY ITEM: Built for '{title}' - dbtype={db_type}, dbid={kodi_id}, mediatype={media_type}")
+        self.logger.info(f"VIDEODB URL: Using '{url}' as addDirectoryItem URL for native Kodi integration")
 
         # Set context menu for library items
         self._set_library_context_menu(list_item, item)
 
-        self.logger.debug(f"Built library item: {title} (kodi_id: {kodi_id}, type: {media_type}) - Kodi will handle heavy metadata")
+        # For library items, determine if clicking should play immediately or show info
+        # Movies and episodes are typically playable, TV shows are folders
+        is_playable = media_type in ['movie', 'episode', 'musicvideo']
+        is_folder = not is_playable
+        
+        if is_playable:
+            list_item.setProperty('IsPlayable', 'true')
 
-        return (url, list_item, False)
+        self.logger.debug(f"Built library item: {title} (kodi_id: {kodi_id}, type: {media_type}, playable: {is_playable}) - Kodi will handle heavy metadata")
+
+        return (url, list_item, is_folder)
 
     def _build_external_item(self, item: Dict[str, Any]) -> tuple:
         """
