@@ -323,11 +323,11 @@ class ListItemBuilder:
                            media_type: str = "movie") -> Tuple[str, xbmcgui.ListItem, bool]:
         """
         Build library item with proper videodb URL for cast display
-        
+
         Args:
             item_data: Media item data with kodi_id
             media_type: 'movie', 'episode', 'musicvideo'
-            
+
         Returns:
             Tuple of (url, listitem, is_folder)
         """
@@ -335,12 +335,12 @@ class ListItemBuilder:
         if not kodi_id:
             # Fall back to regular playable item
             return self.build_search_result_item(item_data, True)
-            
+
         title = item_data.get('title', 'Unknown')
         year = item_data.get('year')
         if year:
             title = f"{title} ({year})"
-            
+
         # Build proper videodb URL for cast display - NO trailing slash
         if media_type == 'movie':
             videodb_url = f"videodb://movies/titles/{kodi_id}"
@@ -350,33 +350,33 @@ class ListItemBuilder:
             videodb_url = f"videodb://musicvideos/titles/{kodi_id}"
         else:
             videodb_url = f"videodb://movies/titles/{kodi_id}"  # fallback
-            
+
         # Create ListItem
         listitem = xbmcgui.ListItem(label=title)
-        
+
         # CRITICAL: Mark as playable file, NOT folder
         listitem.setProperty('IsPlayable', 'true')
-        
+
         # Set identity properties for proper Kodi integration
         listitem.setProperty('dbtype', media_type)
         listitem.setProperty('dbid', str(kodi_id))
         listitem.setProperty('mediatype', media_type)
-        
+
         # Set InfoTagVideo for cast display
         video_info_tag = listitem.getVideoInfoTag()
         video_info_tag.setMediaType(media_type)
         video_info_tag.setDbId(kodi_id)
-        
+
         # Set lightweight metadata (Kodi will handle cast automatically)
         info = self._extract_info(item_data, media_type)
         if info:
             listitem.setInfo('video', info)
-            
+
         # Set artwork
         art = self._extract_art(item_data)
         if art:
             listitem.setArt(art)
-            
+
         # Add context menu
         context_menu = self._build_item_context_menu(item_data, True)
         if context_menu:
@@ -388,7 +388,7 @@ class ListItemBuilder:
                     valid_menu.append((menu_label, command))
             if valid_menu:
                 listitem.addContextMenuItems(valid_menu)
-        
+
         return videodb_url, listitem, False  # NOT a folder
 
     def build_directory(self, items, content_type='movies', handle=None):
@@ -440,10 +440,10 @@ class ListItemBuilder:
             # Finish the directory with appropriate sort methods
             sort_methods = [
                 xbmcplugin.SORT_METHOD_UNSORTED,
-                xbmcplugin.SORT_METHOD_TITLE,
-                xbmcplugin.SORT_METHOD_YEAR
+                xbmcplugin.SORT_METHOD_LABEL,
+                xbmcplugin.SORT_METHOD_TITLE
             ]
-            
+
             if content_type in ['movies', 'tvshows']:
                 sort_methods.append(xbmcplugin.SORT_METHOD_VIDEO_RATING)
 

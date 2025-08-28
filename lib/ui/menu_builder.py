@@ -25,15 +25,22 @@ class MenuBuilder:
         self.base_url = base_url or f'plugin://{self.addon_id}'
         self.renderer = get_listitem_renderer()
 
-    def build_menu(self, items: List[Dict[str, Any]], addon_handle: int):
-        """Build a directory menu from items using the comprehensive renderer"""
-        self.logger.debug(f"Building menu with {len(items)} items")
+    def build_menu(self, menu_items: List[Dict[str, Any]], addon_handle: int, base_url: str = None):
+        """
+        Build and display a Kodi directory menu from menu items
+
+        Args:
+            menu_items: List of menu item dictionaries
+            addon_handle: Kodi addon handle for directory operations
+            base_url: Base URL for building action URLs (optional)
+        """
+        self.logger.debug(f"Building menu with {len(menu_items)} items")
 
         try:
             # Use renderer's directory building capability
             processed_items = []
 
-            for item in items:
+            for item in menu_items:
                 # Transform menu item format to renderer format if needed
                 processed_item = self._transform_menu_item(item)
                 processed_items.append(processed_item)
@@ -43,11 +50,11 @@ class MenuBuilder:
 
             if not success:
                 self.logger.warning("Menu building failed, using fallback")
-                self._build_fallback_menu(items, addon_handle)
+                self._build_fallback_menu(menu_items, addon_handle)
 
         except Exception as e:
             self.logger.error(f"Error building menu: {e}")
-            self._build_fallback_menu(items, addon_handle)
+            self._build_fallback_menu(menu_items, addon_handle)
 
     def _transform_menu_item(self, item: Dict[str, Any]) -> Dict[str, Any]:
         """Transform a menu item to renderer format"""
@@ -84,13 +91,22 @@ class MenuBuilder:
                 description = item.get("description", "")
                 is_folder = item.get("is_folder", True)
 
-                # Build URL with parameters
-                params = {"action": action}
-                for key, value in item.items():
-                    if key not in ["title", "description", "action", "is_folder", "context_menu"]:
-                        params[key] = value
+                # Build URL for this menu item
+                if item.get("action"):
+                    url_params = f"action={item['action']}"
 
-                url = f"{self.base_url}?{urlencode(params)}" if action else ""
+                    # Add additional parameters
+                    for key, value in item.items():
+                        if key not in ["title", "action", "description", "is_folder", "icon", "context_menu"]:
+                            url_params += f"&{key}={value}"
+
+                    # Use base_url if provided, otherwise use default
+                    if base_url:
+                        url = f"{base_url}?{url_params}"
+                    else:
+                        url = f"plugin://plugin.video.librarygenie/?{url_params}"
+                else:
+                    url = ""
 
                 # Create basic listitem
                 list_item = xbmcgui.ListItem(label=title)
