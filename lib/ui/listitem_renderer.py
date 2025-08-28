@@ -258,19 +258,19 @@ class ListItemRenderer:
         # Rename list
         context_items.append((
             "Rename",
-            f"RunPlugin(plugin://{self.addon_id}/?action=rename_list&list_id={list_id})"
+            f"RunPlugin(plugin://{self.builder.addon_id}/?action=rename_list&list_id={list_id})"
         ))
 
         # Delete list
         context_items.append((
             "Delete",
-            f"RunPlugin(plugin://{self.addon_id}/?action=delete_list&list_id={list_id})"
+            f"RunPlugin(plugin://{self.builder.addon_id}/?action=delete_list&list_id={list_id})"
         ))
 
         # Export list
         context_items.append((
             "Export",
-            f"RunPlugin(plugin://{self.addon_id}/?action=export_list&list_id={list_id})"
+            f"RunPlugin(plugin://{self.builder.addon_id}/?action=export_list&list_id={list_id})"
         ))
 
         list_item.addContextMenuItems(context_items)
@@ -283,71 +283,18 @@ class ListItemRenderer:
         # Rename folder
         context_items.append((
             "Rename",
-            f"RunPlugin(plugin://{self.addon_id}/?action=rename_folder&folder_id={folder_id})"
+            f"RunPlugin(plugin://{self.builder.addon_id}/?action=rename_folder&folder_id={folder_id})"
         ))
 
         # Delete folder
         context_items.append((
             "Delete",
-            f"RunPlugin(plugin://{self.addon_id}/?action=delete_folder&folder_id={folder_id})"
+            f"RunPlugin(plugin://{self.builder.addon_id}/?action=delete_folder&folder_id={folder_id})"
         ))
 
         list_item.addContextMenuItems(context_items)
 
-    def create_simple_listitem(self, title: str, description: str = None, action: str = None, icon: str = None) -> xbmcgui.ListItem:
-        """Create a simple ListItem for menu items (compatibility method for MenuBuilder)"""
-        try:
-            list_item = xbmcgui.ListItem(label=title)
-
-            # Set basic info
-            info = {'title': title}
-            if description:
-                info['plot'] = description
-
-            list_item.setInfo('video', info)
-
-            # Set icon/artwork
-            art = {}
-            if icon:
-                art['icon'] = icon
-                art['thumb'] = icon
-            else:
-                art['icon'] = 'DefaultFolder.png'
-                art['thumb'] = 'DefaultFolder.png'
-
-            list_item.setArt(art)
-
-            return list_item
-
-        except Exception as e:
-            self.logger.error(f"Failed to create simple listitem: {e}")
-            # Return basic listitem on error
-            return xbmcgui.ListItem(label=title)
-
-    def create_movie_listitem(self, movie_data: Dict[str, Any], base_url: str, action: str) -> xbmcgui.ListItem:
-        """Create a movie ListItem (compatibility method for MenuBuilder)"""
-        try:
-            # Extract relevant info and create playable item
-            title = movie_data.get('title', movie_data.get('label', 'Unknown'))
-            year = movie_data.get('year')
-            if year:
-                title = f"{title} ({year})"
-            
-            # Build using the builder's methods
-            url, listitem, is_folder = self.builder.build_playable_item(
-                title=title,
-                play_url=f"{base_url}?action={action}&item_id={movie_data.get('id', movie_data.get('kodi_id', ''))}",
-                media_type='movie',
-                info=self.builder._extract_info(movie_data, 'movie'),
-                art=self.builder._extract_art(movie_data)
-            )
-            return listitem
-            
-        except Exception as e:
-            self.logger.error(f"Failed to create movie listitem: {e}")
-            # Fallback to simple listitem
-            title = movie_data.get('title', movie_data.get('label', 'Unknown'))
-            return self.create_simple_listitem(title)
+    
 
 
 # Global renderer instance

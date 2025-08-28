@@ -318,6 +318,79 @@ class ListItemBuilder:
         # End directory
         xbmcplugin.endOfDirectory(handle, succeeded=True, updateListing=False, cacheToDisc=True)
 
+    def build_library_item(self, 
+                           item_data: Dict[str, Any], 
+                           media_type: str = "movie") -> Tuple[str, xbmcgui.ListItem, bool]:
+        """
+        Build library item with proper videodb URL for cast display
+        
+        Args:
+            item_data: Media item data with kodi_id
+            media_type: 'movie', 'episode', 'musicvideo'
+            
+        Returns:
+            Tuple of (url, listitem, is_folder)
+        """
+        kodi_id = item_data.get('kodi_id')
+        if not kodi_id:
+            # Fall back to regular playable item
+            return self.build_search_result_item(item_data, True)
+            
+        title = item_data.get('title', 'Unknown')
+        year = item_data.get('year')
+        if year:
+            title = f"{title} ({year})"
+            
+        # Build proper videodb URL for cast display - NO trailing slash
+        if media_type == 'movie':
+            videodb_url = f"videodb://movies/titles/{kodi_id}"
+        elif media_type == 'episode':
+            videodb_url = f"videodb://tvshows/titles/{kodi_id}"
+        elif media_type == 'musicvideo':
+            videodb_url = f"videodb://musicvideos/titles/{kodi_id}"
+        else:
+            videodb_url = f"videodb://movies/titles/{kodi_id}"  # fallback
+            
+        # Create ListItem
+        listitem = xbmcgui.ListItem(label=title)
+        
+        # CRITICAL: Mark as playable file, NOT folder
+        listitem.setProperty('IsPlayable', 'true')
+        
+        # Set identity properties for proper Kodi integration
+        listitem.setProperty('dbtype', media_type)
+        listitem.setProperty('dbid', str(kodi_id))
+        listitem.setProperty('mediatype', media_type)
+        
+        # Set InfoTagVideo for cast display
+        video_info_tag = listitem.getVideoInfoTag()
+        video_info_tag.setMediaType(media_type)
+        video_info_tag.setDbId(kodi_id)
+        
+        # Set lightweight metadata (Kodi will handle cast automatically)
+        info = self._extract_info(item_data, media_type)
+        if info:
+            listitem.setInfo('video', info)
+            
+        # Set artwork
+        art = self._extract_art(item_data)
+        if art:
+            listitem.setArt(art)
+            
+        # Add context menu
+        context_menu = self._build_item_context_menu(item_data, True)
+        if context_menu:
+            valid_menu = []
+            for menu_label, command in context_menu:
+                if command and (command.startswith('RunPlugin(') or 
+                              command.startswith('Container.') or
+                              command.startswith('plugin://')):
+                    valid_menu.append((menu_label, command))
+            if valid_menu:
+                listitem.addContextMenuItems(valid_menu)
+        
+        return videodb_url, listitem, False  # NOT a folder
+
     def build_directory(self, items, content_type='movies', handle=None):
         """Build directory entries for search results and add them to Kodi"""
         try:
@@ -339,9 +412,14 @@ class ListItemBuilder:
             # Add each item to the directory
             for item in items:
                 try:
-                    # Determine if this is a playable item or directory
-                    if item.get('kodi_id') or item.get('file') or item.get('play'):
-                        # Playable item
+                    # Determine the best way to handle this item
+                    if item.get('kodi_id'):
+                        # Library item - use comprehensive library builder for proper cast display
+                        media_type = item.get('media_type', content_type.rstrip('s'))  # movies -> movie
+                        url, listitem, is_folder = self.build_library_item(item, media_type)
+                        xbmcplugin.addDirectoryItem(handle, url, listitem, is_folder)
+                    elif item.get('file') or item.get('play'):
+                        # External playable item
                         url, listitem, is_folder = self.build_search_result_item(item, True)
                         xbmcplugin.addDirectoryItem(handle, url, listitem, is_folder)
                     else:

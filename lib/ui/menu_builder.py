@@ -3,7 +3,7 @@
 
 """
 LibraryGenie - Menu Builder
-Builds Kodi directory listings and menus
+Builds Kodi directory listings and menus using the comprehensive ListItemRenderer
 """
 
 from urllib.parse import urlencode
@@ -17,150 +17,91 @@ from .listitem_renderer import get_listitem_renderer
 
 
 class MenuBuilder:
-    """Builds menus and directory listings for Kodi with Phase 11 enhancements"""
+    """Builds menus and directory listings for Kodi using the comprehensive renderer"""
 
-    def __init__(self, string_getter: Optional[Callable[[int], str]] = None):
+    def __init__(self, addon_id: str = None, base_url: str = None):
         self.logger = get_logger(__name__)
+        self.addon_id = addon_id or 'plugin.video.librarygenie'
+        self.base_url = base_url or f'plugin://{self.addon_id}'
         self.renderer = get_listitem_renderer()
 
-    def build_menu(self, items, addon_handle, base_url):
-        """Build a directory menu from items"""
+    def build_menu(self, items: List[Dict[str, Any]], addon_handle: int):
+        """Build a directory menu from items using the comprehensive renderer"""
         self.logger.debug(f"Building menu with {len(items)} items")
 
-        for item in items:
-            self._add_directory_item(item, addon_handle, base_url)
+        try:
+            # Use renderer's directory building capability
+            processed_items = []
 
-        xbmcplugin.endOfDirectory(addon_handle)
+            for item in items:
+                # Transform menu item format to renderer format if needed
+                processed_item = self._transform_menu_item(item)
+                processed_items.append(processed_item)
 
-    def _add_directory_item(self, item, addon_handle, base_url):
-        """Add a single directory item with context menu support"""
-        title = item.get("title", "Unknown")
-        action = item.get("action", "")
-        description = item.get("description", "")
-        is_folder = item.get("is_folder", True)
-        context_menu = item.get("context_menu", [])
+            # Use the renderer's comprehensive media items rendering
+            success = self.renderer.render_media_items(addon_handle, processed_items, "files")
 
-        # Build URL with parameters
-        params = {"action": action}
-        for key, value in item.items():
-            if key not in ["title", "description", "action", "is_folder", "context_menu"]:
-                params[key] = value
+            if not success:
+                self.logger.warning("Menu building failed, using fallback")
+                self._build_fallback_menu(items, addon_handle)
 
-        url = f"{base_url}?{urlencode(params)}" if action else ""
+        except Exception as e:
+            self.logger.error(f"Error building menu: {e}")
+            self._build_fallback_menu(items, addon_handle)
 
-        # Create list item - check if this is a movie item for enhanced rendering
-        if item.get("movie_data"):
-            # Use Phase 11 renderer for movie items
-            list_item = self.renderer.create_movie_listitem(item["movie_data"], base_url, action)
-        else:
-            # Use simple renderer for menu items
-            list_item = self.renderer.create_simple_listitem(title, description, action, icon=item.get("icon"))
+    def _transform_menu_item(self, item: Dict[str, Any]) -> Dict[str, Any]:
+        """Transform a menu item to renderer format"""
+        # If already in proper format, return as-is
+        if 'title' in item and ('kodi_id' in item or 'file' in item or 'play' in item):
+            return item
 
-        # Add context menu if provided
-        if context_menu:
-            list_item.addContextMenuItems(context_menu)
+        # Transform from menu format to media item format
+        transformed = {
+            'title': item.get('title', 'Unknown'),
+            'plot': item.get('description', ''),
+            'id': item.get('id'),
+        }
 
-        # Add context menu based on item type
-        if item.get("context_menu_type") == "library_item" and item.get("library_movie_id"):
-            try:
-                from .context_menu import get_context_menu_manager
-                # Dummy string getter for menu builder
-                def get_string(string_id):
-                    strings = {
-                        31000: "Add to List...",
-                        31001: "Quick Add to Default"
-                    }
-                    return strings.get(string_id, f"String {string_id}")
+        # If it has an action but no playback info, it's a directory
+        if item.get('action') and not any(k in item for k in ['kodi_id', 'file', 'play']):
+            # Make it browsable by adding a plugin URL
+            action = item.get('action', '')
+            params = {k: v for k, v in item.items() if k not in ['title', 'description', 'action', 'is_folder', 'context_menu']}
+            params['action'] = action
+            transformed['play'] = f"{self.base_url}?{urlencode(params)}"
+            transformed['is_folder'] = item.get('is_folder', True)
 
-                context_manager = get_context_menu_manager(get_string)
-                list_item = context_manager.add_library_item_context_menu(
-                    list_item, item["library_movie_id"]
-                )
-            except ImportError:
-                pass
-        elif item.get("context_menu_type") == "list_item" and item.get("list_id") and item.get("list_item_id"):
-            try:
-                from .context_menu import get_context_menu_manager
-                # Dummy string getter for menu builder
-                def get_string(string_id):
-                    strings = {
-                        31010: "Remove from List",
-                        31011: "Move to Another List..."
-                    }
-                    return strings.get(string_id, f"String {string_id}")
+        return transformed
 
-                context_manager = get_context_menu_manager(get_string)
-                list_item = context_manager.add_list_item_context_menu(
-                    list_item, item["list_id"], item["list_item_id"]
-                )
-            except ImportError:
-                pass
+    def _build_fallback_menu(self, items: List[Dict[str, Any]], addon_handle: int):
+        """Fallback menu building using basic directory items"""
+        try:
+            xbmcplugin.setContent(addon_handle, "files")
 
-        # Add to directory
-        xbmcplugin.addDirectoryItem(
-            handle=addon_handle, url=url, listitem=list_item, isFolder=is_folder
-        )
+            for item in items:
+                title = item.get("title", "Unknown")
+                action = item.get("action", "")
+                description = item.get("description", "")
+                is_folder = item.get("is_folder", True)
 
-    def build_movie_menu(self, movies: List[Dict[str, Any]], addon_handle, base_url, **options):
-        """Build a menu specifically for movie items with enhanced ListItems"""
-        self.logger.debug(f"Building movie menu with {len(movies)} movies")
+                # Build URL with parameters
+                params = {"action": action}
+                for key, value in item.items():
+                    if key not in ["title", "description", "action", "is_folder", "context_menu"]:
+                        params[key] = value
 
-        # Set content type for better skin support
-        xbmcplugin.setContent(addon_handle, 'movies')
+                url = f"{self.base_url}?{urlencode(params)}" if action else ""
 
-        # Add sort methods for movie lists
-        sort_methods = [
-            xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE,
-            xbmcplugin.SORT_METHOD_YEAR,
-            xbmcplugin.SORT_METHOD_VIDEO_RATING,
-            xbmcplugin.SORT_METHOD_DATE_ADDED,
-            xbmcplugin.SORT_METHOD_VIDEO_RUNTIME
-        ]
+                # Create basic listitem
+                list_item = xbmcgui.ListItem(label=title)
+                list_item.setInfo('video', {'title': title, 'plot': description})
+                list_item.setArt({'icon': 'DefaultFolder.png'})
+                list_item.setProperty('IsPlayable', 'false' if is_folder else 'true')
 
-        for method in sort_methods:
-            xbmcplugin.addSortMethod(addon_handle, method)
+                xbmcplugin.addDirectoryItem(addon_handle, url, list_item, is_folder)
 
-        # Build movie items
-        for movie in movies:
-            self._add_movie_item(movie, addon_handle, base_url, **options)
+            xbmcplugin.endOfDirectory(addon_handle)
 
-        # Set view mode if specified
-        view_mode = options.get('view_mode')
-        if view_mode:
-            xbmcplugin.setPluginCategory(addon_handle, options.get('category', 'Movies'))
-
-        xbmcplugin.endOfDirectory(addon_handle, cacheToDisc=True)
-
-    def _add_movie_item(self, movie_data: Dict[str, Any], addon_handle, base_url, **options):
-        """Add a movie item with Phase 11 enhanced ListItem"""
-
-        # Create enhanced ListItem using the renderer
-        list_item = self.renderer.create_movie_listitem(movie_data, base_url, action="play_movie")
-
-        # Build playback URL
-        kodi_id = movie_data.get('kodi_id')
-        if kodi_id:
-            params = {
-                "action": options.get('default_action', 'play_movie'),
-                "kodi_id": kodi_id
-            }
-            url = f"{base_url}?{urlencode(params)}"
-        else:
-            url = ""
-
-        # Add additional context menu items if specified
-        extra_context = options.get('extra_context_menu', [])
-        if extra_context:
-            current_context = list_item.getProperty('ContextMenuItems') or []
-            if isinstance(current_context, str):
-                current_context = [current_context]
-            current_context.extend(extra_context)
-            list_item.addContextMenuItems(current_context)
-
-        # Set as playable item
-        list_item.setProperty('IsPlayable', 'true')
-
-        # Add to directory
-        xbmcplugin.addDirectoryItem(
-            handle=addon_handle, url=url, listitem=list_item, isFolder=False
-        )
+        except Exception as e:
+            self.logger.error(f"Fallback menu building failed: {e}")
+            xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
