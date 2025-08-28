@@ -291,37 +291,66 @@ class SearchHandler:
 
     def _display_results(self, results, query):
         """Display search results in Kodi"""
-        items = results.get('items', [])
+        try:
+            items = results.get('items', [])
+            total = results.get('total_count', len(items))
 
-        if not items:
+            if not items:
+                self._show_no_results_message(query)
+                return
+
+            # Normalize items for rendering using QueryManager
+            from ..data.query_manager import get_query_manager
+            query_manager = get_query_manager()
+
+            normalized_items = []
+            for item in items:
+                # Set source for context menus
+                item['source'] = 'search'
+
+                # Ensure basic fields exist
+                if 'media_type' not in item:
+                    item['media_type'] = item.get('type', 'movie')
+
+                if 'kodi_id' not in item and item.get('movieid'):
+                    item['kodi_id'] = item['movieid']
+
+                # Normalize to canonical format
+                canonical_item = query_manager._normalize_to_canonical(item)
+                normalized_items.append(canonical_item)
+
+            # Display search results using proper ListItemBuilder
+            content_type = self.query_manager.detect_content_type(normalized_items)
+
+            list_builder = ListItemBuilder(self.addon_handle, self.addon_id)
+            success = list_builder.build_directory(normalized_items, content_type)
+
+            # Log result summary
+            used_remote = results.get('used_remote', False)
+            source = "remote" if used_remote else "local"
+            self.logger.info(f"Displayed {len(normalized_items)} {source} search results for '{query}'")
+
+        except Exception as e:
+            import traceback
+            self.logger.error(f"Failed to display search results: {e}")
+            self.logger.error(f"Display results traceback: {traceback.format_exc()}")
             addon = xbmcaddon.Addon()
             xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35019),
-                addon.getLocalizedString(35020) % query,
-                xbmcgui.NOTIFICATION_INFO
+                addon.getLocalizedString(35002),
+                addon.getLocalizedString(35027),  # "Error displaying results"
+                xbmcgui.NOTIFICATION_ERROR,
+                4000
             )
-            return
 
-        # Ensure search results are properly marked as library items if they have kodi_id
-        for item in items:
-            if item.get('kodi_id') or item.get('movieid') or item.get('id'):
-                item['source'] = 'lib'  # Mark as library item
-                item['media_type'] = 'movie'  # Ensure media_type is set
-                # Ensure kodi_id is in the expected field
-                if not item.get('kodi_id') and item.get('id'):
-                    item['kodi_id'] = item['id']
-                self.logger.info(f"SEARCH RESULTS: Marked '{item.get('title')}' as library item with kodi_id: {item.get('kodi_id')}, source: {item.get('source')}")
+    def _show_no_results_message(self, query):
+        """Show notification when no results are found"""
+        addon = xbmcaddon.Addon()
+        xbmcgui.Dialog().notification(
+            addon.getLocalizedString(35019),
+            addon.getLocalizedString(35020) % query,
+            xbmcgui.NOTIFICATION_INFO
+        )
 
-        # Display search results using proper ListItemBuilder
-        content_type = self.query_manager.detect_content_type(results['items'])
-
-        list_builder = ListItemBuilder(self.addon_handle, self.addon_id)
-        success = list_builder.build_directory(results['items'], content_type)
-
-        # Log result summary
-        used_remote = results.get('used_remote', False)
-        source = "remote" if used_remote else "local"
-        self.logger.info(f"Displayed {len(items)} {source} search results for '{query}'")
 
     def _create_search_history_list(self, query, search_type, results):
         """Create a search history list with the results"""
@@ -452,4 +481,3 @@ class SearchHandler:
                 4000
             )
             return []
-

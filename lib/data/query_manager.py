@@ -19,9 +19,75 @@ class QueryManager:
 
     def __init__(self):
         self.logger = get_logger(__name__)
-        self.conn_manager = get_connection_manager()
+        self.connection_manager = get_connection_manager()
         self.migration_manager = get_migration_manager()
         self._initialized = False
+
+    def _normalize_to_canonical(self, item: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize any media item to canonical format"""
+        canonical = {}
+
+        # Common fields
+        canonical["media_type"] = item.get("media_type", item.get("type", "movie"))
+        canonical["kodi_id"] = int(item["kodi_id"]) if item.get("kodi_id") else None
+        canonical["title"] = str(item.get("title", ""))
+        canonical["originaltitle"] = str(item.get("originaltitle", "")) if item.get("originaltitle") != canonical["title"] else ""
+        canonical["sorttitle"] = str(item.get("sorttitle", ""))
+        canonical["year"] = int(item.get("year", 0)) if item.get("year") else 0
+        canonical["genre"] = str(item.get("genre", ""))
+        canonical["plot"] = str(item.get("plot", item.get("plotoutline", "")))
+        canonical["rating"] = float(item.get("rating", 0.0))
+        canonical["votes"] = int(item.get("votes", 0))
+        canonical["mpaa"] = str(item.get("mpaa", ""))
+        canonical["studio"] = str(item.get("studio", ""))
+        canonical["country"] = str(item.get("country", ""))
+        canonical["premiered"] = str(item.get("premiered", item.get("dateadded", "")))
+
+        # Duration - normalize to minutes
+        runtime = item.get("runtime", item.get("duration", 0))
+        if runtime:
+            # Handle seconds to minutes conversion if needed
+            canonical["duration"] = int(runtime / 60) if runtime > 1000 else int(runtime)
+        else:
+            canonical["duration"] = 0
+
+        # Art normalization - flatten art dict or use direct keys
+        art = item.get("art", {})
+        if isinstance(art, dict):
+            canonical["poster"] = art.get("poster", "")
+            canonical["fanart"] = art.get("fanart", "")
+            canonical["thumb"] = art.get("thumb", "") if art.get("thumb") else ""
+            canonical["banner"] = art.get("banner", "") if art.get("banner") else ""
+            canonical["landscape"] = art.get("landscape", "") if art.get("landscape") else ""
+            canonical["clearlogo"] = art.get("clearlogo", "") if art.get("clearlogo") else ""
+        else:
+            canonical["poster"] = str(item.get("poster", item.get("thumbnail", "")))
+            canonical["fanart"] = str(item.get("fanart", ""))
+            canonical["thumb"] = ""
+            canonical["banner"] = ""
+            canonical["landscape"] = ""
+            canonical["clearlogo"] = ""
+
+        # Resume - always present for library items, in seconds
+        resume_data = item.get("resume", {})
+        if isinstance(resume_data, dict):
+            canonical["resume"] = {
+                "position_seconds": int(resume_data.get("position", resume_data.get("position_seconds", 0))),
+                "total_seconds": int(resume_data.get("total", resume_data.get("total_seconds", 0)))
+            }
+        else:
+            canonical["resume"] = {"position_seconds": 0, "total_seconds": 0}
+
+        # Episode-specific fields
+        if canonical["media_type"] == "episode":
+            canonical["tvshowtitle"] = str(item.get("tvshowtitle", item.get("showtitle", "")))
+            canonical["season"] = int(item.get("season", 0))
+            canonical["episode"] = int(item.get("episode", 0))
+            canonical["aired"] = str(item.get("aired", ""))
+            canonical["playcount"] = int(item.get("playcount", 0))
+            canonical["lastplayed"] = str(item.get("lastplayed", ""))
+
+        return canonical
 
     def initialize(self):
         """Initialize the data layer with real SQLite database"""
@@ -81,137 +147,57 @@ class QueryManager:
             return []
 
     def get_list_items(self, list_id, limit=100, offset=0):
-        """Get items in a specific list from database, enriching Kodi library items with JSON-RPC data"""
+        """Get items from a specific list with paging, normalized to canonical format"""
         try:
-            self.logger.debug(f"Getting items for list {list_id}")
+            connection = self.connection_manager.get_connection()
+            cursor = connection.cursor()
 
-            # First try to get items from user_list table (legacy lists)
-            items = self.conn_manager.execute_query("""
-                SELECT id, title, year, imdb_id, tmdb_id, created_at
-                FROM list_item 
-                WHERE list_id = ?
-                ORDER BY created_at DESC
+            # Get list items with media data
+            cursor.execute("""
+                SELECT 
+                    li.item_id,
+                    li.order_score,
+                    mi.kodi_id,
+                    mi.media_type,
+                    mi.title,
+                    mi.year,
+                    mi.imdb_id,
+                    mi.data_json
+                FROM list_items li
+                JOIN media_items mi ON li.item_id = mi.item_id
+                WHERE li.list_id = ?
+                ORDER BY li.order_score DESC, mi.title ASC
                 LIMIT ? OFFSET ?
-            """, [int(list_id), limit, offset])
+            """, (list_id, limit, offset))
 
-            # If no items found, try the new lists table (search history lists)
-            if not items:
-                items = self.conn_manager.execute_query("""
-                    SELECT 
-                        li.id, 
-                        mi.title, 
-                        mi.year, 
-                        mi.imdbnumber as imdb_id, 
-                        mi.tmdb_id,
-                        mi.kodi_id,
-                        mi.poster,
-                        mi.fanart,
-                        mi.plot,
-                        mi.rating,
-                        mi.duration as runtime,
-                        mi.genre,
-                        mi.director,
-                        mi.play as file_path,
-                        li.created_at
-                    FROM list_items li
-                    JOIN media_items mi ON li.media_item_id = mi.id
-                    WHERE li.list_id = ?
-                    ORDER BY li.position ASC, li.created_at DESC
-                    LIMIT ? OFFSET ?
-                """, [int(list_id), limit, offset])
+            rows = cursor.fetchall()
+            items = []
 
-            # Convert to expected format and identify Kodi library items for enrichment
-            result: List[Dict[str, Any]] = []
-            kodi_ids_to_enrich = []
-            items_to_match = []
+            for row in rows:
+                item = self._row_to_dict(cursor, row)
 
-            for row in items:
-                item_data = {
-                    "id": str(row['id']),
-                    "title": row['title'],
-                    "year": row['year'],
-                    "imdb_id": row['imdb_id'],
-                    "tmdb_id": row['tmdb_id'],
-                    "created": row['created_at'][:10] if row['created_at'] else '',
-                }
+                # Parse JSON data if present
+                if item.get('data_json'):
+                    try:
+                        json_data = json.loads(item['data_json'])
+                        item.update(json_data)
+                    except json.JSONDecodeError:
+                        pass
 
-                # Check if this is a Kodi library item that needs enrichment
-                if 'kodi_id' in row and row['kodi_id']:
-                    item_data['kodi_id'] = row['kodi_id']
-                    kodi_ids_to_enrich.append(row['kodi_id'])
-                    self.logger.debug(f"Found Kodi library item: {row['title']} (kodi_id: {row['kodi_id']})")
-                else:
-                    # Try to match this item to Kodi library for enrichment
-                    items_to_match.append((len(result), item_data))
+                # Enrich with Kodi data if available
+                if item.get('kodi_id') and item.get('media_type') in ['movie', 'episode']:
+                    enriched = self._enrich_with_kodi_data([item])
+                    if enriched:
+                        item = enriched[0]
 
-                    # For now, use stored database data as fallback
-                    if 'poster' in row and row['poster']:
-                        item_data['poster'] = row['poster']
-                    if 'fanart' in row and row['fanart']:
-                        item_data['fanart'] = row['fanart']
-                    if 'plot' in row and row['plot']:
-                        item_data['plot'] = row['plot']
-                    if 'rating' in row and row['rating']:
-                        item_data['rating'] = row['rating']
-                    if 'runtime' in row and row['runtime']:
-                        item_data['runtime'] = row['runtime']
-                    if 'genre' in row and row['genre']:
-                        item_data['genre'] = row['genre']
-                    if 'director' in row and row['director']:
-                        item_data['director'] = row['director']
-                    if 'file_path' in row and row['file_path']:
-                        item_data['file_path'] = row['file_path']
+                # Normalize to canonical format
+                canonical_item = self._normalize_to_canonical(item)
+                items.append(canonical_item)
 
-                result.append(item_data)
-
-            # Enrich Kodi library items with fresh JSON-RPC data first
-            enriched_data = {}
-            if kodi_ids_to_enrich:
-                self.logger.info(f"Enriching {len(kodi_ids_to_enrich)} Kodi library items with fresh JSON-RPC data: {kodi_ids_to_enrich}")
-                enriched_data = self._get_kodi_enrichment_data(kodi_ids_to_enrich)
-                self.logger.info(f"Enrichment returned data for {len(enriched_data)} movies: {list(enriched_data.keys())}")
-
-                # Apply enrichment data to result items that have kodi_id
-                for i, item_data in enumerate(result):
-                    if item_data.get('kodi_id') and item_data['kodi_id'] in enriched_data:
-                        enrichment = enriched_data[item_data['kodi_id']]
-                        item_data.update(enrichment)
-                        # Mark as library item
-                        item_data['source'] = 'lib'
-                        self.logger.info(f"Enriched list item '{item_data['title']}' with Kodi library data, artwork: {bool(enrichment.get('poster') or enrichment.get('art'))}")
-                    else:
-                        self.logger.warning(f"Failed to enrich Kodi item {item_data.get('kodi_id')}: not found in JSON-RPC results. Available enriched IDs: {list(enriched_data.keys())}")
-
-            # Try to match items without kodi_id to the Kodi library
-            if items_to_match:
-                self.logger.info(f"Attempting to match {len(items_to_match)} items without kodi_id to Kodi library")
-                matched_kodi_ids = self._match_items_to_kodi_library(items_to_match)
-
-                # Get enrichment data for matched items if we don't have it already
-                new_kodi_ids = [kodi_id for kodi_id in matched_kodi_ids.values() if kodi_id and kodi_id not in enriched_data]
-                if new_kodi_ids:
-                    self.logger.info(f"Getting enrichment data for {len(new_kodi_ids)} newly matched items: {new_kodi_ids}")
-                    new_enriched_data = self._get_kodi_enrichment_data(new_kodi_ids)
-                    enriched_data.update(new_enriched_data)
-
-                # Apply enrichment data to matched items
-                for item_index, kodi_id in matched_kodi_ids.items():
-                    if kodi_id and kodi_id in enriched_data:
-                        enrichment = enriched_data[kodi_id]
-                        # Merge enrichment data, ensuring artwork is preserved
-                        result[item_index].update(enrichment)
-                        # Also set source to 'lib' to indicate this is a library item
-                        result[item_index]['source'] = 'lib'
-                        result[item_index]['kodi_id'] = kodi_id  # Make sure kodi_id is set
-                        self.logger.info(f"Enriched '{result[item_index]['title']}' with Kodi library data, artwork: {bool(enrichment.get('poster') or enrichment.get('art'))}")
-
-            self.logger.debug(f"Retrieved {len(result)} items for list {list_id}")
-            return result
+            return items
 
         except Exception as e:
-            self.logger.error(f"Failed to get list items: {e}")
-            import traceback
-            self.logger.error(f"Get list items traceback: {traceback.format_exc()}")
+            self.logger.error(f"Error getting list items: {e}")
             return []
 
     def create_list(self, name, description=""):
@@ -528,61 +514,27 @@ class QueryManager:
             return 0
 
     def _extract_media_item_data(self, item):
-        """Extract media item data from search result item"""
-        # Extract kodi_id from various possible fields
-        kodi_id = None
-
-        # Check for movieid field (from JSON-RPC responses)
-        if item.get('movieid'):
-            kodi_id = item.get('movieid')
-        # Check for explicit kodi_id field  
-        elif item.get('kodi_id'):
-            kodi_id = item.get('kodi_id')
-        # For local search results, the 'id' field should be the kodi_id
-        elif item.get('id') and not item.get('_source'):
-            # Local search results don't have _source field, so 'id' is kodi_id
-            kodi_id = item.get('id')
-        # Last resort - check if 'id' is present and not from remote source
-        elif item.get('id') and item.get('_source') != 'remote':
-            kodi_id = item.get('id')
-
-        # Ensure kodi_id is properly typed as integer if present
-        if kodi_id is not None:
-            try:
-                kodi_id = int(kodi_id)
-                self.logger.info(f"Extracted kodi_id {kodi_id} for item '{item.get('title', 'Unknown')}'")
-            except (ValueError, TypeError):
-                self.logger.warning(f"Invalid kodi_id value: {kodi_id}, setting to None")
-                kodi_id = None
-        else:
-            self.logger.warning(f"No kodi_id found for item '{item.get('title', 'Unknown')}' - available keys: {list(item.keys())}")
-
-        # Build the media item data structure
-        return {
-            'media_type': item.get('type', 'movie'),
-            'title': item.get('title', item.get('label', 'Unknown')),
-            'year': item.get('year'),
-            'imdbnumber': item.get('imdbnumber') or item.get('imdb_id'),
-            'tmdb_id': item.get('tmdb_id'),
-            'kodi_id': kodi_id,  # CRITICAL: Ensure kodi_id is preserved
-            'source': 'remote' if item.get('_source') == 'remote' else 'lib',
-            'play': item.get('path') or item.get('file_path', ''),
-            'poster': item.get('art', {}).get('poster', '') if item.get('art') else item.get('poster', ''),
-            'fanart': item.get('art', {}).get('fanart', '') if item.get('art') else item.get('fanart', ''),
-            'plot': item.get('plot', ''),
-            'rating': item.get('rating'),
-            'votes': item.get('votes'),
-            'duration': item.get('runtime'),
-            'mpaa': item.get('mpaa', ''),
-            'genre': ','.join(item.get('genre', [])) if isinstance(item.get('genre'), list) else item.get('genre', ''),
-            'director': ','.join(item.get('director', [])) if isinstance(item.get('director'), list) else item.get('director', ''),
-            'studio': ','.join(item.get('studio', [])) if isinstance(item.get('studio'), list) else item.get('studio', ''),
-            'country': ','.join(item.get('country', [])) if isinstance(item.get('country'), list) else item.get('country', ''),
-            'writer': ','.join(item.get('writer', [])) if isinstance(item.get('writer'), list) else item.get('writer', ''),
-            'cast': item.get('cast', ''),
-            'art': item.get('art', ''),
-            'created_at': 'datetime("now")'
+        """Extract standardized media item data from various sources, normalized to canonical format"""
+        # First create a basic item dict
+        basic_item = {
+            'kodi_id': int(item['kodi_id']) if item.get('kodi_id') else None,
+            'media_type': item.get('media_type', item.get('type', 'movie')),
+            'title': item.get('title', ''),
+            'year': int(item.get('year', 0)) if item.get('year') else 0,
+            'imdb_id': item.get('imdb_id', ''),
+            'source': item.get('source', 'search'),
+            'runtime': item.get('runtime', item.get('duration', 0)),
+            'art': item.get('art', {}),
+            'resume': item.get('resume', {})
         }
+
+        # Add any additional fields from the original item
+        for key, value in item.items():
+            if key not in basic_item:
+                basic_item[key] = value
+
+        # Normalize to canonical format
+        return self._normalize_to_canonical(basic_item)
 
     def _insert_or_get_media_item(self, conn, media_data):
         """Insert or get existing media item"""
@@ -755,6 +707,36 @@ class QueryManager:
             self.logger.error(f"Enrichment error traceback: {traceback.format_exc()}")
             return {}
 
+    def _enrich_with_kodi_data(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Enrich items with data from Kodi JSON-RPC if kodi_id is available"""
+        if not items:
+            return []
+
+        kodi_ids_to_enrich = [item['kodi_id'] for item in items if item.get('kodi_id') and item.get('media_type') in ['movie', 'episode']]
+        if not kodi_ids_to_enrich:
+            return items
+
+        enriched_data = self._get_kodi_enrichment_data(kodi_ids_to_enrich)
+
+        enriched_items = []
+        for item in items:
+            kodi_id = item.get('kodi_id')
+            if kodi_id in enriched_data:
+                # Merge enriched data, prioritizing enriched fields
+                enriched_item = enriched_data[kodi_id].copy()
+                # Ensure we don't overwrite existing non-Kodi data unnecessarily
+                # Update item with enriched data, but keep original if not in enriched or if enriched is empty/default
+                for key, value in enriched_item.items():
+                    if value is not None and value != "" and value != 0 and value != 0.0:
+                         item[key] = value
+                item['source'] = 'lib'  # Mark as library item
+                enriched_items.append(item)
+            else:
+                enriched_items.append(item) # Keep original item if no enrichment found
+
+        return enriched_items
+
+
     def _match_items_to_kodi_library(self, items_to_match: List[tuple]) -> Dict[int, Optional[int]]:
         """Try to match items without kodi_id to Kodi library movies"""
         try:
@@ -814,88 +796,37 @@ class QueryManager:
             self.logger.error(f"Error matching items to Kodi library: {e}")
             return {}
 
-    def _normalize_kodi_movie_details(self, movie: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Normalize movie details from Kodi JSON-RPC response"""
-        try:
-            # Extract external IDs
-            imdb_id = None
-            tmdb_id = None
+    def _normalize_kodi_movie_details(self, movie_details: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize Kodi JSON-RPC movie details to canonical format"""
+        # Extract resume data properly
+        resume_data = movie_details.get("resume", {})
+        resume = {
+            "position_seconds": int(resume_data.get("position", 0)),
+            "total_seconds": int(resume_data.get("total", 0))
+        }
 
-            # Try the old imdbnumber field
-            if "imdbnumber" in movie and movie["imdbnumber"]:
-                if movie["imdbnumber"].startswith("tt"):
-                    imdb_id = movie["imdbnumber"]
+        # Build item dict for normalization
+        item = {
+            "kodi_id": movie_details.get("movieid"),
+            "media_type": "movie",
+            "title": movie_details.get("title", ""),
+            "originaltitle": movie_details.get("originaltitle", ""),
+            "sorttitle": movie_details.get("sorttitle", ""),
+            "year": movie_details.get("year", 0),
+            "genre": ", ".join(movie_details.get("genre", [])) if isinstance(movie_details.get("genre"), list) else str(movie_details.get("genre", "")),
+            "plot": movie_details.get("plot", movie_details.get("plotoutline", "")),
+            "rating": movie_details.get("rating", 0.0),
+            "votes": movie_details.get("votes", 0),
+            "mpaa": movie_details.get("mpaa", ""),
+            "runtime": movie_details.get("runtime", 0),  # Will be converted to minutes
+            "studio": ", ".join(movie_details.get("studio", [])) if isinstance(movie_details.get("studio"), list) else str(movie_details.get("studio", "")),
+            "country": ", ".join(movie_details.get("country", [])) if isinstance(movie_details.get("country"), list) else str(movie_details.get("country", "")),
+            "premiered": movie_details.get("premiered", movie_details.get("dateadded", "")),
+            "art": movie_details.get("art", {}),
+            "resume": resume
+        }
 
-            # Try the newer uniqueid structure
-            if "uniqueid" in movie and isinstance(movie["uniqueid"], dict):
-                if "imdb" in movie["uniqueid"]:
-                    imdb_id = movie["uniqueid"]["imdb"]
-                if "tmdb" in movie["uniqueid"]:
-                    tmdb_id = str(movie["uniqueid"]["tmdb"])
-
-            # Extract artwork URLs - this is the key fix
-            art = movie.get("art", {})
-            poster = art.get("poster", "")
-            fanart = art.get("fanart", "")
-            thumb = art.get("thumb", poster)  # Fallback to poster
-            clearlogo = art.get("clearlogo", "")
-            landscape = art.get("landscape", "")
-            clearart = art.get("clearart", "")
-            discart = art.get("discart", "")
-            banner = art.get("banner", "")
-
-            # Extract and process metadata
-            genres = movie.get("genre", [])
-            genre_str = ", ".join(genres) if isinstance(genres, list) else str(genres) if genres else ""
-
-            directors = movie.get("director", [])
-            director_str = ", ".join(directors) if isinstance(directors, list) else str(directors) if directors else ""
-
-            # Handle resume point
-            resume_data = movie.get("resume", {})
-            resume_time = resume_data.get("position", 0) if isinstance(resume_data, dict) else 0
-
-            # Log cast information for debugging
-            # NOTE: Cast data is intentionally not processed for library items.
-            # Cast will be handled automatically by Kodi when dbid is set on ListItems.
-            # This improves performance and follows Kodi best practices.
-
-            return {
-                "kodi_id": movie.get("movieid"),
-                "title": movie.get("title", "Unknown Title"),
-                "year": movie.get("year"),
-                "imdb_id": imdb_id,
-                "tmdb_id": tmdb_id,
-                "file_path": movie.get("file", ""),
-                "poster": poster,
-                "fanart": fanart,
-                "thumb": thumb,
-                "clearlogo": clearlogo,
-                "landscape": landscape,
-                "clearart": clearart,
-                "discart": discart,
-                "banner": banner,
-                "plot": movie.get("plot", ""),
-                "plotoutline": movie.get("plotoutline", ""),
-                "runtime": movie.get("runtime", 0),
-                "rating": movie.get("rating", 0.0),
-                "genre": genre_str,
-                "mpaa": movie.get("mpaa", ""),
-                "director": director_str,
-                "country": ", ".join(movie.get("country", [])) if isinstance(movie.get("country"), list) else movie.get("country", ""),
-                "studio": ", ".join(movie.get("studio", [])) if isinstance(movie.get("studio"), list) else movie.get("studio", ""),
-                "writer": ", ".join(movie.get("writer", [])) if isinstance(movie.get("writer"), list) else movie.get("writer", ""),
-                "playcount": movie.get("playcount", 0),
-                "resume_time": resume_time,
-                "votes": movie.get("votes", 0),
-                "art": art,  # Include the full art dictionary for compatibility
-                "media_type": "movie",  # Ensure media_type is set
-                "source": "lib"  # Mark as library source
-            }
-
-        except Exception as e:
-            self.logger.warning(f"Failed to normalize movie details: {e}")
-            return None
+        return self._normalize_to_canonical(item)
 
     def detect_content_type(self, items: List[Dict[str, Any]]) -> str:
         """

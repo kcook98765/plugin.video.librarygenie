@@ -327,9 +327,32 @@ def handle_create_list():
 def handle_view_list(addon_handle, base_url):
     """Handle viewing a specific list"""
     try:
-        list_id = args.get('list_id')
+        # Parse plugin arguments from sys.argv
+        # sys.argv[0] is the plugin path
+        # sys.argv[1] is the addon handle (integer)
+        # sys.argv[2] is the query string, starting with '?'
+        if len(sys.argv) < 3 or not sys.argv[2].startswith('?'):
+            logger.error("Invalid arguments received for handle_view_list")
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),
+                "Invalid arguments",
+                xbmcgui.NOTIFICATION_ERROR
+            )
+            return
+
+        query_string = sys.argv[2][1:]  # Remove leading '?'
+        params = dict(parse_qsl(query_string)) # Use parse_qsl for parsing
+
+        list_id = params.get('list_id')
         if not list_id:
             logger.error("No list_id provided for view_list")
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),
+                "Invalid list ID",
+                xbmcgui.NOTIFICATION_ERROR
+            )
             return
 
         logger.info(f"Viewing list {list_id}")
@@ -338,6 +361,12 @@ def handle_view_list(addon_handle, base_url):
         query_manager = get_query_manager()
         if not query_manager.initialize():
             logger.error("Failed to initialize query manager")
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),
+                "Database error",
+                xbmcgui.NOTIFICATION_ERROR
+            )
             return
 
         # Get list info
@@ -350,7 +379,7 @@ def handle_view_list(addon_handle, base_url):
             )
             return
 
-        # Get list items
+        # Get list items (already normalized by get_list_items)
         list_items = query_manager.get_list_items(list_id)
         logger.info(f"Found {len(list_items)} items in list")
 
@@ -360,7 +389,12 @@ def handle_view_list(addon_handle, base_url):
                 addon.getLocalizedString(35002),
                 f"List '{list_info['name']}' is empty"
             )
+            # Ensure directory is ended if list is empty
+            xbmcplugin.endOfDirectory(addon_handle)
             return
+
+        # Items are already canonical from get_list_items normalization
+        # No additional normalization needed here
 
         # Use ListItemRenderer for rich display
         from lib.ui.listitem_renderer import get_listitem_renderer
@@ -373,20 +407,20 @@ def handle_view_list(addon_handle, base_url):
         for item in list_items:
             # Create rich ListItem using renderer
             list_item = renderer.create_movie_listitem(item, base_url, "play_item")
-            
+
             # Build URL for this item
             url = f"{base_url}?action=play_item&item_id={item.get('id')}&list_id={list_id}"
-            
+
             # Add context menu for removal
             context_menu = [
                 (f"Remove from '{list_info['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={list_id}&item_id={item.get('id')})")
             ]
             list_item.addContextMenuItems(context_menu)
-            
+
             # Set playable if we have a file path
             is_playable = bool(item.get('file_path') or item.get('kodi_id'))
             list_item.setProperty('IsPlayable', 'true' if is_playable else 'false')
-            
+
             # Add to directory
             xbmcplugin.addDirectoryItem(
                 addon_handle,
@@ -402,6 +436,13 @@ def handle_view_list(addon_handle, base_url):
         logger.error(f"Error viewing list: {e}")
         import traceback
         logger.error(f"View list error traceback: {traceback.format_exc()}")
+
+        addon = xbmcaddon.Addon()
+        xbmcgui.Dialog().notification(
+            addon.getLocalizedString(35002),
+            "Lists error",
+            xbmcgui.NOTIFICATION_ERROR
+        )
 
 
 def handle_rename_list():

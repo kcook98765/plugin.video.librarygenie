@@ -60,17 +60,45 @@ class ListItemRenderer:
             return False
 
     def render_media_items(self, items: List[Dict[str, Any]], content_type: str = "movies") -> bool:
-        """
-        Render media items using the dual-mode builder
+        """Render a list of media items as Kodi ListItems"""
+        try:
+            if not items:
+                return []
 
-        Args:
-            items: List of media item dictionaries
-            content_type: "movies", "tvshows", or "episodes"
+            # Safety normalization pass - ensure all items are canonical
+            from ..data.query_manager import get_query_manager
+            query_manager = get_query_manager()
 
-        Returns:
-            bool: Success status
-        """
-        return self.builder.build_directory(items, content_type)
+            normalized_items = []
+            for item in items:
+                # Check if item needs normalization (belt-and-suspenders)
+                if 'duration' not in item or 'resume' not in item:
+                    item = query_manager._normalize_to_canonical(item)
+                normalized_items.append(item)
+
+            rendered_items = []
+
+            for item in normalized_items:
+                try:
+                    # Create listitem based on media type
+                    if item.get('media_type') == 'episode':
+                        listitem = self._create_episode_listitem(item)
+                    else:
+                        listitem = self._create_movie_listitem(item)
+
+                    if listitem:
+                        rendered_items.append(listitem)
+
+                except Exception as e:
+                    self.logger.error(f"Error rendering item {item.get('title', 'Unknown')}: {e}")
+                    continue
+
+            return rendered_items
+        except Exception as e:
+            self.logger.error(f"Failed to render media items: {e}")
+            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
+            return False
+
 
     def render_folders(self, folders: List[Dict[str, Any]], parent_id: Optional[int] = None) -> bool:
         """
@@ -251,6 +279,17 @@ class ListItemRenderer:
             self.logger.error(f"Failed to create movie listitem: {e}")
             # Fallback to simple listitem
             title = movie_data.get('title', movie_data.get('label', 'Unknown'))
+            return self.create_simple_listitem(title)
+
+    def _create_episode_listitem(self, episode_data: Dict[str, Any]) -> xbmcgui.ListItem:
+        """Create an episode ListItem"""
+        try:
+            # Delegate to the builder for episode items
+            return self.builder._create_library_listitem(episode_data)
+        except Exception as e:
+            self.logger.error(f"Failed to create episode listitem: {e}")
+            # Fallback to simple listitem
+            title = episode_data.get('title', episode_data.get('label', 'Unknown'))
             return self.create_simple_listitem(title)
 
 
