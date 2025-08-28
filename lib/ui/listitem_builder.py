@@ -73,13 +73,18 @@ class ListItemBuilder:
         """
         try:
             # Determine if this is a Kodi library item
-            has_kodi_id = item.get('kodi_id') is not None
+            # Check for kodi_id from multiple possible fields
+            kodi_id = item.get('kodi_id') or item.get('movieid') or item.get('id')
+            has_kodi_id = kodi_id is not None
             media_type = item.get('media_type', 'movie')
             source = item.get('source', 'ext')
-
-            if has_kodi_id and source == 'lib':
+            
+            # For search results, if we have a kodi_id and no explicit external source, treat as library
+            if has_kodi_id and (source == 'lib' or source != 'remote'):
+                self.logger.debug(f"Building library item for '{item.get('title')}' with kodi_id: {kodi_id}")
                 return self._build_library_item(item)
             else:
+                self.logger.debug(f"Building external item for '{item.get('title')}' (no kodi_id or external source)")
                 return self._build_external_item(item)
 
         except Exception as e:
@@ -97,32 +102,39 @@ class ListItemBuilder:
             tuple: (url, listitem, is_folder)
         """
         media_type = item.get('media_type', 'movie')
-        kodi_id = item['kodi_id']
+        # Get kodi_id from multiple possible fields
+        kodi_id = item.get('kodi_id') or item.get('movieid') or item.get('id')
         title = item.get('title', 'Unknown Title')
+        
+        if not kodi_id:
+            self.logger.error(f"No kodi_id found for library item: {title}")
+            return self._build_external_item(item)
 
         # Create ListItem
         list_item = xbmcgui.ListItem(label=title)
 
         # Build videodb:// path for native Kodi behavior
         if media_type == 'movie':
-            # videodb://movies/titles/{movieid}/
-            videodb_path = f"videodb://movies/titles/{kodi_id}/"
+            # videodb://movies/titles/{movieid}
+            videodb_path = f"videodb://movies/titles/{kodi_id}"
             db_type = "movie"
         elif media_type == 'tvshow':
-            # videodb://tvshows/titles/{tvshowid}/
-            videodb_path = f"videodb://tvshows/titles/{kodi_id}/"
+            # videodb://tvshows/titles/{tvshowid}
+            videodb_path = f"videodb://tvshows/titles/{kodi_id}"
             db_type = "tvshow"
         elif media_type == 'episode':
             # For episodes, we need tvshowid, season, episode
             tvshow_id = item.get('tvshow_id', kodi_id)
             season = item.get('season', 1)
             episode = item.get('episode', 1)
-            videodb_path = f"videodb://tvshows/titles/{tvshow_id}/{season}/{episode}/"
+            videodb_path = f"videodb://tvshows/titles/{tvshow_id}/{season}/{episode}"
             db_type = "episode"
         else:
             # Fallback to movie
-            videodb_path = f"videodb://movies/titles/{kodi_id}/"
+            videodb_path = f"videodb://movies/titles/{kodi_id}"
             db_type = "movie"
+            
+        self.logger.debug(f"Built videodb path for {title}: {videodb_path}")
 
         # Set video info labels (minimal - let Kodi handle the rest)
         info_labels = {
@@ -144,9 +156,12 @@ class ListItemBuilder:
 
         list_item.setInfo('video', info_labels)
 
-        # Set properties for native Kodi behavior
+        # Set properties for native Kodi behavior - CRITICAL for cast/crew data
         list_item.setProperty('dbtype', db_type)
         list_item.setProperty('dbid', str(kodi_id))
+        
+        # Also set the mediatype property to help Kodi identify the content
+        list_item.setProperty('mediatype', media_type)
 
         # Set unique IDs if available (helps with cross-linking)
         if item.get('imdbnumber'):

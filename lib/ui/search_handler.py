@@ -32,6 +32,7 @@ class SearchHandler:
         self.local_engine = LocalSearchEngine()
         self._remote_fallback_notified = False
         self.query_manager = get_query_manager()
+        self.addon_id = xbmcaddon.Addon().getAddonInfo('id')
 
     def prompt_and_show(self):
         """Prompt user for search query and show results"""
@@ -96,18 +97,18 @@ class SearchHandler:
 
         # For authorized users, show selection dialog
         dialog = xbmcgui.Dialog()
-        
+
         options = [
             "Local Library Search",
-            "Remote Search", 
+            "Remote Search",
             "Remote with Local Fallback"
         ]
-        
+
         selection = dialog.select(
             "Choose Search Type",
             options
         )
-        
+
         if selection == -1:  # User cancelled
             return 'local'  # Default to local
         elif selection == 0:
@@ -120,11 +121,11 @@ class SearchHandler:
     def _perform_search_with_type(self, query, search_type):
         """
         Perform search with specified type
-        
+
         Args:
             query: Search query string
             search_type: 'local', 'remote', or 'auto'
-            
+
         Returns:
             dict: Search results with metadata
         """
@@ -134,12 +135,12 @@ class SearchHandler:
             # Force local search only
             self.logger.info("Using local search (user selected)")
             return self._search_local(query, limit=200)
-            
+
         elif search_type == 'remote':
             # Force remote search only (no fallback)
             self.logger.info("Using remote search only (user selected)")
             return self._search_remote_only(query)
-            
+
         else:  # search_type == 'auto'
             # Original behavior: remote with local fallback
             self.logger.info("Using remote search with local fallback (user selected)")
@@ -196,7 +197,7 @@ class SearchHandler:
     def _search_remote_only(self, query):
         """Perform remote-only search without fallback"""
         self.logger.info(f"Starting remote-only search for query: '{query}'")
-        
+
         if not is_authorized():
             self.logger.warning("Remote-only search requested but user not authorized")
             addon = xbmcaddon.Addon()
@@ -210,7 +211,7 @@ class SearchHandler:
 
         try:
             self.logger.info("Attempting remote-only search")
-            
+
             # Import here to avoid circular dependencies
             from ..remote.search_client import search_remote
             self.logger.debug("Remote search client imported")
@@ -300,6 +301,19 @@ class SearchHandler:
             )
             return
 
+        # Ensure search results are properly marked as library items if they have kodi_id
+        for item in items:
+            if item.get('kodi_id') or item.get('movieid'):
+                item['source'] = 'lib'  # Mark as library item
+                self.logger.debug(f"Marked search result '{item.get('title')}' as library item with kodi_id: {item.get('kodi_id') or item.get('movieid')}")
+
+        # Display search results
+        content_type = self.query_manager.detect_content_type(results['items'])
+
+        list_builder = ListItemBuilder(self.addon_handle, self.addon_id)
+        success = list_builder.build_directory(results['items'], content_type)
+
+
         # Add directory items for each result
         for item in items:
             # Ensure label2 is a string or None
@@ -378,10 +392,10 @@ class SearchHandler:
 
             # Add search results to the list
             added_count = self.query_manager.add_search_results_to_list(list_id, results)
-            
+
             if added_count > 0:
                 self.logger.info(f"Created search history list with {added_count} items")
-                
+
                 # Show brief notification
                 addon = xbmcaddon.Addon()
                 xbmcgui.Dialog().notification(
@@ -427,11 +441,11 @@ class SearchHandler:
         try:
             local_results = self.local_engine.search(query, limit=page_size, offset=(page-1)*page_size)
             self.logger.info(f"Local search: {len(local_results.get('items', []))} results")
-            
+
             # Create search history list for non-empty results
             if local_results.get('items'):
                 self._create_search_history_list(query, "local", local_results)
-            
+
             return local_results
 
         except Exception as e:
@@ -488,3 +502,112 @@ class SearchHandler:
                 4000
             )
             return []
+
+# Placeholder for ListItemBuilder, assuming it's defined elsewhere or will be provided
+class ListItemBuilder:
+    def __init__(self, addon_handle, addon_id):
+        self.addon_handle = addon_handle
+        self.addon_id = addon_id
+        self.logger = get_logger(__name__)
+
+    def build_directory(self, items, content_type):
+        """Builds the Kodi directory with the provided items."""
+        self.logger.info(f"Building directory with {len(items)} items, content type: {content_type}")
+
+        for item in items:
+            # Determine the appropriate Kodi item type and properties
+            list_item = xbmcgui.ListItem()
+
+            # Set label and label2 (year)
+            year = item.get('year')
+            list_item.setLabel(item.get('label', 'Unknown Title'))
+            if year:
+                list_item.setLabel2(str(year))
+
+            # Set artwork
+            art = item.get('art', {})
+            if art:
+                list_item.setArt(art)
+
+            # Set info tags for video content
+            info = {
+                'title': item.get('title', item.get('label', 'Unknown Title')),
+                'mediatype': item.get('type', 'movie') # Default to movie if not specified
+            }
+            if item.get('plot'):
+                info['plot'] = item.get('plot')
+            if item.get('rating') is not None: # Handle rating being 0
+                info['rating'] = item.get('rating')
+            if item.get('genre'):
+                info['genre'] = item.get('genre')
+            if item.get('director'):
+                info['director'] = item.get('director')
+            if item.get('cast'):
+                info['cast'] = item.get('cast')
+            if item.get('studio'):
+                info['studio'] = item.get('studio')
+            if item.get('mpaa'):
+                info['mpaa'] = item.get('mpaa')
+            if item.get('runtime'):
+                info['runtime'] = item.get('runtime')
+            if item.get('tagline'):
+                info['tagline'] = item.get('tagline')
+            if item.get('writer'):
+                info['writer'] = item.get('writer')
+            if item.get('originaltitle'):
+                info['originaltitle'] = item.get('originaltitle')
+            if item.get('sorttitle'):
+                info['sorttitle'] = item.get('sorttitle')
+            if item.get('showlink'):
+                info['showlink'] = item.get('showlink')
+            if item.get('playcount') is not None:
+                info['playcount'] = item.get('playcount')
+            if item.get('lastplayed'):
+                info['lastplayed'] = item.get('lastplayed')
+            if item.get('votes'):
+                info['votes'] = item.get('votes')
+            if item.get('premiered'):
+                info['premiered'] = item.get('premiered')
+            if item.get('watched'):
+                info['watched'] = item.get('watched')
+            if item.get('dateadded'):
+                info['dateadded'] = item.get('dateadded')
+
+            list_item.setInfo('video', info)
+
+            # Set properties
+            is_playable = bool(item.get('path'))
+            list_item.setProperty('IsPlayable', 'true' if is_playable else 'false')
+
+            # Handle library items specifically
+            if item.get('source') == 'lib':
+                # For library items, use videodb:// URLs and set appropriate properties
+                item_id = item.get('kodi_id') or item.get('movieid')
+                if item_id:
+                    if info['mediatype'] == 'movie':
+                        url = f"videodb://movies/id/{item_id}/"
+                    elif info['mediatype'] == 'tvshow':
+                        url = f"videodb://tvshows/id/{item_id}/"
+                    elif info['mediatype'] == 'season':
+                        url = f"videodb://tvshows/id/{item.get('tvshowid')}/season/{item.get('seasonnumber')}/"
+                    elif info['mediatype'] == 'episode':
+                        url = f"videodb://tvshows/id/{item.get('tvshowid')}/season/{item.get('seasonnumber')}/episode/{item.get('episode')}/"
+                    else:
+                        url = item.get('path', '') # Fallback to path if mediatype not recognized
+                        self.logger.warning(f"Unknown mediatype '{info['mediatype']}' for library item, using path: {url}")
+                    list_item.setProperty('IsLocal', 'true')
+                else:
+                    self.logger.error(f"Library item missing kodi_id or movieid: {item.get('label')}")
+                    url = item.get('path', '') # Fallback to path if no ID found
+                    list_item.setProperty('IsRemote', 'true') # Assume remote if no local ID
+            else:
+                # For remote items, use the provided path and indicate it's remote
+                url = item.get('path', '')
+                list_item.setProperty('IsRemote', 'true')
+
+            # Add the item to the Kodi directory
+            xbmcplugin.addDirectoryItem(self.addon_handle, url, list_item, isFolder=False)
+
+        # Finish the directory listing
+        xbmcplugin.endOfDirectory(self.addon_handle)
+        return True
