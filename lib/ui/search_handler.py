@@ -304,9 +304,13 @@ class SearchHandler:
 
         # Ensure search results are properly marked as library items if they have kodi_id
         for item in items:
-            if item.get('kodi_id') or item.get('movieid'):
+            if item.get('kodi_id') or item.get('movieid') or item.get('id'):
                 item['source'] = 'lib'  # Mark as library item
-                self.logger.debug(f"Marked search result '{item.get('title')}' as library item with kodi_id: {item.get('kodi_id') or item.get('movieid')}")
+                item['media_type'] = 'movie'  # Ensure media_type is set
+                # Ensure kodi_id is in the expected field
+                if not item.get('kodi_id') and item.get('id'):
+                    item['kodi_id'] = item['id']
+                self.logger.info(f"SEARCH RESULTS: Marked '{item.get('title')}' as library item with kodi_id: {item.get('kodi_id')}, source: {item.get('source')}")
 
         # Display search results using proper ListItemBuilder
         content_type = self.query_manager.detect_content_type(results['items'])

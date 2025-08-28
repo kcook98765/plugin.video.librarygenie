@@ -81,10 +81,10 @@ class ListItemBuilder:
             
             # For search results, if we have a kodi_id and no explicit external source, treat as library
             if has_kodi_id and (source == 'lib' or source != 'remote'):
-                self.logger.debug(f"Building library item for '{item.get('title')}' with kodi_id: {kodi_id}")
+                self.logger.info(f"BUILDING LIBRARY ITEM: '{item.get('title')}' with kodi_id: {kodi_id}, source: {source}")
                 return self._build_library_item(item)
             else:
-                self.logger.debug(f"Building external item for '{item.get('title')}' (no kodi_id or external source)")
+                self.logger.info(f"BUILDING EXTERNAL ITEM: '{item.get('title')}' (no kodi_id or external source), has_kodi_id: {has_kodi_id}, source: {source}")
                 return self._build_external_item(item)
 
         except Exception as e:
@@ -193,11 +193,11 @@ class ListItemBuilder:
         # Also set the mediatype property to help Kodi identify the content
         list_item.setProperty('mediatype', media_type)
         
-        # Additional properties that may help with native Kodi integration
-        if media_type == 'movie':
-            list_item.setProperty('IsPlayable', 'true')
+        # For library items, do NOT set IsPlayable=true - this should be handled by Kodi's native behavior
+        # Setting IsPlayable=false tells Kodi this is a library reference, not a direct playable item
+        list_item.setProperty('IsPlayable', 'false')
         
-        self.logger.debug(f"Set properties for library item '{title}': dbtype={db_type}, dbid={kodi_id}, mediatype={media_type}")
+        self.logger.info(f"LIBRARY ITEM PROPERTIES: Set for '{title}' - dbtype={db_type}, dbid={kodi_id}, mediatype={media_type}, IsPlayable=false")
 
         # Set unique IDs if available (helps with cross-linking)
         if item.get('imdbnumber'):
