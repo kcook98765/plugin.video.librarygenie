@@ -655,6 +655,25 @@ class QueryManager:
 
             enrichment_data = {}
 
+            # Define which properties to fetch for each media type
+            # Keep property sets "light" but include resume for movies/episodes
+            properties = {
+                'movies': [
+                    'title', 'year', 'genre', 'plot', 'runtime', 'rating', 'votes', 
+                    'mpaa', 'studio', 'country', 'premiered', 'art', 'playcount', 
+                    'lastplayed', 'originaltitle', 'sorttitle', 'resume'
+                ],
+                'episodes': [
+                    'title', 'season', 'episode', 'showtitle', 'plot', 'runtime',
+                    'rating', 'votes', 'aired', 'art', 'playcount', 'lastplayed',
+                    'tvshowid', 'resume'
+                ],
+                'tvshows': [
+                    'title', 'year', 'genre', 'plot', 'rating', 'votes', 'mpaa',
+                    'studio', 'premiered', 'art', 'playcount', 'lastplayed'
+                ]
+            }
+
             for kodi_id in kodi_ids:
                 try:
                     request = {
@@ -662,11 +681,7 @@ class QueryManager:
                         "method": "VideoLibrary.GetEpisodeDetails",
                         "params": {
                             "episodeid": int(kodi_id),
-                            "properties": [
-                                "title", "plotoutline", "season", "episode", "showtitle", 
-                                "aired", "runtime", "rating", "playcount", "lastplayed", 
-                                "art", "resume"
-                            ]
+                            "properties": properties.get('episodes', [])
                         },
                         "id": 1
                     }
@@ -707,6 +722,25 @@ class QueryManager:
 
             enrichment_data = {}
 
+            # Define which properties to fetch for each media type
+            # Keep property sets "light" but include resume for movies/episodes
+            properties = {
+                'movies': [
+                    'title', 'year', 'genre', 'plot', 'runtime', 'rating', 'votes', 
+                    'mpaa', 'studio', 'country', 'premiered', 'art', 'playcount', 
+                    'lastplayed', 'originaltitle', 'sorttitle', 'resume'
+                ],
+                'episodes': [
+                    'title', 'season', 'episode', 'showtitle', 'plot', 'runtime',
+                    'rating', 'votes', 'aired', 'art', 'playcount', 'lastplayed',
+                    'tvshowid', 'resume'
+                ],
+                'tvshows': [
+                    'title', 'year', 'genre', 'plot', 'rating', 'votes', 'mpaa',
+                    'studio', 'premiered', 'art', 'playcount', 'lastplayed'
+                ]
+            }
+
             # Fetch data for each movie
             for kodi_id in kodi_ids:
                 try:
@@ -715,11 +749,7 @@ class QueryManager:
                         "method": "VideoLibrary.GetMovieDetails",
                         "params": {
                             "movieid": int(kodi_id),
-                            "properties": [
-                                "title", "originaltitle", "sorttitle", "year", "genre", 
-                                "plot", "plotoutline", "rating", "votes", "mpaa", "runtime", 
-                                "studio", "country", "premiered", "art", "resume"
-                            ]
+                            "properties": properties.get('movies', [])
                         },
                         "id": 1
                     }
@@ -864,7 +894,7 @@ class QueryManager:
         """Convert SQLite row to dictionary using cursor description"""
         if not row:
             return {}
-        
+
         columns = [description[0] for description in cursor.description]
         return dict(zip(columns, row))
 
@@ -886,7 +916,7 @@ class QueryManager:
             "season": episode_details.get("season", 0),
             "episode": episode_details.get("episode", 0),
             "aired": episode_details.get("aired", ""),
-            "plot": episode_details.get("plotoutline", ""),
+            "plot": episode_details.get("plot", episode_details.get("plotoutline", "")),
             "rating": episode_details.get("rating", 0.0),
             "playcount": episode_details.get("playcount", 0),
             "lastplayed": episode_details.get("lastplayed", ""),

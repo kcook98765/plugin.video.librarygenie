@@ -33,57 +33,101 @@ Since this is a Kodi addon, it cannot be run directly in Replit. Use this enviro
 - Preparing addon packages for deployment to Kodi
 
 
-## Kodi ListItem Philosophy
+## Kodi ListItem Implementation
 
-When building ListItems for Kodi library content, proper setup is critical for cast display and native integration:
+The addon uses a robust ListItem builder pattern that handles both library-backed and external items with proper version compatibility and performance optimization.
 
-### For Library Items (items with kodi_id):
+### Current Implementation Overview
 
-#### CRITICAL Requirements for Cast Display in Video Information Dialog:
-1. **videodb URL format**: Use `videodb://movies/titles/{movieid}` with NO trailing slash
-2. **Mark as playable file**: Set `isFolder=False` and `IsPlayable='true'`
-3. **Set InfoTagVideo properties**: Call `setMediaType()` and `setDbId()` on the video info tag
-4. **Set identity properties**: `dbtype`, `dbid`, `mediatype` properties on the ListItem
+The `ListItemBuilder` class in `lib/ui/listitem_builder.py` provides:
 
-#### Complete Setup Pattern:
+1. **Version-safe handling** for Kodi v19 (Matrix) and v20+ (Nexus+)
+2. **Lightweight list rendering** that avoids heavy metadata in list views
+3. **Proper library integration** for items with Kodi database IDs
+4. **External item support** for plugin-only content
+
+### Key Design Principles
+
+#### Library Items (with kodi_id):
+- Use `videodb://` URLs for direct library integration
+- Set lightweight metadata only (no cast/crew arrays in list views)
+- Apply version-guarded InfoTagVideo calls for v20+
+- Always show resume information for library movies/episodes
+- Mark as playable files (`IsPlayable='true'`, `isFolder=False`)
+
+#### External Items (no kodi_id):
+- Use plugin URLs for custom handling
+- Apply same lightweight metadata profile as library items
+- Skip resume information (library-only feature)
+- Proper folder/playable flag handling
+
+### Version Compatibility Handling
+
+The implementation includes a `is_kodi_v20_plus()` helper that detects the Kodi version and applies appropriate API calls:
+
 ```python
-# Build videodb URL - NO trailing slash for cast to work
-videodb_path = f"videodb://movies/titles/{kodi_id}"  # NO trailing slash!
+# v19 (Matrix) - Uses classic properties
+list_item.setProperty('ResumeTime', str(position_seconds))
+list_item.setProperty('TotalTime', str(total_seconds))
 
-# Set ListItem properties
-list_item.setProperty('dbtype', 'movie')
-list_item.setProperty('dbid', str(kodi_id))
-list_item.setProperty('mediatype', 'movie')
-
-# CRITICAL: Set InfoTagVideo for cast display
-video_info_tag = list_item.getVideoInfoTag()
-video_info_tag.setMediaType('movie')
-video_info_tag.setDbId(kodi_id)
-
-# Mark as playable file (NOT folder) for cast to show
-list_item.setProperty('IsPlayable', 'true')
-xbmcplugin.addDirectoryItem(handle, videodb_path, list_item, isFolder=False)
+# v20+ (Nexus+) - Uses InfoTagVideo with fallback
+try:
+    video_info_tag = list_item.getVideoInfoTag()
+    video_info_tag.setMediaType(media_type)
+    video_info_tag.setDbId(kodi_id)
+    video_info_tag.setResumePoint(position_seconds, total_seconds)
+except Exception:
+    # Fallback to v19 properties if v20+ calls fail
+    list_item.setProperty('ResumeTime', str(position_seconds))
+    list_item.setProperty('TotalTime', str(total_seconds))
 ```
 
-#### Metadata to Include:
-- Set **all usual metadata fields** that are lightweight and useful for display:
-  - `title`, `year`, `genre`, `plot` (full plot is fine), `mpaa`, `rating`, `votes`, `runtime`, `director`, `writer`, `studio`, `country`, etc.
-- Set **artwork as normal** (poster, fanart, thumb, clearlogo, discart, etc.) — whatever you have available
-- **DO NOT** set heavyweight data that Kodi handles natively:
-  - `cast` / `crew` (Kodi will populate this automatically when cast display works)
-  - `streamdetails` (audio/video/codec info)
+### Performance Optimizations
 
-### For External Items (no kodi_id):
-- Set **full metadata** including cast since Kodi can't fetch it from the library
-- Include all available metadata as these won't be auto-populated
-- Can be marked as folders or playable items as needed
+#### Lightweight List Rendering:
+- **Avoids heavy fields** like cast/crew arrays, deep streamdetails
+- **Duration in minutes** for Matrix compatibility
+- **Basic metadata only**: title, year, genre, plot, rating, studio, country
+- **Minimal artwork**: poster/fanart with sensible thumb fallbacks
+
+#### Container Hygiene:
+- Sets content type once per directory (`setContent()`)
+- Adds sort methods once per build
+- Ensures every item has a non-empty URL
+- Proper `IsPlayable` flag handling
+
+### URL Construction Patterns
+
+#### Library Movies:
+```python
+url = f"videodb://movies/titles/{kodi_id}"  # NO trailing slash
+```
+
+#### Library Episodes:
+```python
+url = f"videodb://tvshows/titles/{tvshowid}/{season}/{episodeid}"
+```
+
+#### External Items:
+```python
+url = f"plugin://{addon_id}?action=info&item_id={item_id}"
+```
+
+### Metadata Normalization
+
+The builder includes a comprehensive `_normalize_item()` method that:
+- Handles various input formats from different sources
+- Converts duration to minutes for Matrix compatibility
+- Flattens artwork from JSON blobs
+- Preserves resume information in seconds
+- Maps common field variations to canonical names
 
 ### Why This Approach Works:
-- The specific videodb URL format (no trailing slash) allows Kodi to properly identify the library item
-- Marking as playable file instead of folder triggers Kodi's native cast population
-- InfoTagVideo properties provide the direct database link Kodi needs
-- Cast information appears automatically in the Video Information dialog
-- Maintains optimal performance while ensuring proper Kodi integration
+- **Version safety**: No warnings on v19, full feature support on v20+
+- **Performance**: Fast list scrolling with lightweight metadata
+- **Library integration**: Proper videodb URLs enable native Kodi features
+- **Flexibility**: Handles mixed library/external content seamlessly
+- **Maintainability**: Clear separation between library and external item handling
 
 
 

@@ -305,6 +305,11 @@ class ListItemBuilder:
             if art:
                 li.setArt(art)
 
+            # Set library identity properties (v19 compatible)
+            li.setProperty('dbtype', media_type)
+            li.setProperty('dbid', str(kodi_id))
+            li.setProperty('mediatype', media_type)
+
             # URL (videodb preferred)
             url = None
             is_folder = False
@@ -330,6 +335,16 @@ class ListItemBuilder:
                 li.setPath(url)
                 li.setProperty('IsPlayable', 'true')
 
+            # Set v20+ InfoTagVideo properties only if available (Step 8)
+            if is_kodi_v20_plus():
+                try:
+                    video_info_tag = li.getVideoInfoTag()
+                    video_info_tag.setMediaType(media_type)
+                    video_info_tag.setDbId(kodi_id)
+                    self.logger.debug(f"LIB ITEM v20+: Set InfoTagVideo for '{title}'")
+                except Exception as e:
+                    self.logger.warning(f"LIB ITEM v20+: InfoTagVideo failed for '{title}': {e}")
+
             # Resume (always for library movies/episodes)
             self._set_resume_info_versioned(li, item)
 
@@ -343,6 +358,7 @@ class ListItemBuilder:
         """
         Build plugin/external row as (url, listitem, is_folder)
         Using lightweight info; no heavy fields (cast/streamdetails) in list view.
+        When there's no kodi_id, use plugin:// URL with same lightweight profile as library items.
         """
         try:
             title = item.get('title', 'Unknown')
@@ -351,28 +367,35 @@ class ListItemBuilder:
             display = f"{title} ({item['year']})" if item.get('year') else title
             li = xbmcgui.ListItem(label=display)
 
-            # Lightweight info
+            # Apply exact same lightweight info profile as library items (Step 4)
             info = self._build_lightweight_info(item)
             li.setInfo('video', info)
 
-            # Art
+            # Apply exact same art keys as library items (Step 4)
             art = self._build_art_dict(item)
             if art:
                 li.setArt(art)
 
-            # Playback URL & folder flag
+            # Plugin URL for external/plugin-only items (no kodi_id)
             url = self._build_playback_url(item)
             li.setPath(url)
+            
+            # Keep folder/playable flags correct - IsPlayable="true" only for playable rows
             is_playable = bool(item.get('play'))
+            is_folder = not is_playable
             if is_playable:
                 li.setProperty('IsPlayable', 'true')
             # Do NOT set IsPlayable='false' for folders/non-playable
 
+            # Resume for plugin-only: only if you maintain your own resume store
+            # (Skip resume for external items - at your discretion)
+            # The "always show resume" rule applies to library items only
+
             # External context menu
             self._set_external_context_menu(li, item)
 
-            self.logger.debug(f"EXT ITEM: '{title}' type={media_type} -> {url} (playable={is_playable})")
-            return url, li, not is_playable
+            self.logger.debug(f"EXT ITEM: '{title}' type={media_type} -> {url} (playable={is_playable}, folder={is_folder})")
+            return url, li, is_folder
         except Exception as e:
             self.logger.error(f"EXT ITEM: failed for '{item.get('title','Unknown')}': {e}")
             return None
@@ -382,6 +405,12 @@ class ListItemBuilder:
         """
         Build lightweight info dictionary for list items (no heavy arrays).
         Duration is in minutes; mediatype set for overlays.
+        
+        IMPORTANT: This method intentionally avoids heavy fields like:
+        - cast/crew arrays
+        - deep streamdetails 
+        - detailed metadata that would slow down list scrolling
+        This keeps list views snappy per Kodi's own approach.
         """
         info: Dict[str, Any] = {}
         # Common
