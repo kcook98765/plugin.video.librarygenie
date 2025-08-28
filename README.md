@@ -276,6 +276,7 @@ If you experience slow scans or timeouts with large movie libraries (1000+ movie
 - Enable debug logging and check logs for details
 - Backup userdata and reinstall addon if issues persist
 
+
 ### Debug Information
 
 Enable debug logging in addon settings → General → Debug & Logging to get detailed information for troubleshooting. Debug logs will show:
