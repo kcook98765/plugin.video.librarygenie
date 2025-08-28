@@ -20,6 +20,7 @@ from ..auth.state import is_authorized
 from ..auth.auth_helper import get_auth_helper
 from ..ui.session_state import get_session_state
 from ..data.query_manager import get_query_manager
+from ..ui.listitem_builder import ListItemBuilder
 from ..utils.logger import get_logger
 
 
@@ -307,66 +308,11 @@ class SearchHandler:
                 item['source'] = 'lib'  # Mark as library item
                 self.logger.debug(f"Marked search result '{item.get('title')}' as library item with kodi_id: {item.get('kodi_id') or item.get('movieid')}")
 
-        # Display search results
+        # Display search results using proper ListItemBuilder
         content_type = self.query_manager.detect_content_type(results['items'])
 
         list_builder = ListItemBuilder(self.addon_handle, self.addon_id)
         success = list_builder.build_directory(results['items'], content_type)
-
-
-        # Add directory items for each result
-        for item in items:
-            # Ensure label2 is a string or None
-            year = item.get('year')
-            year_str = str(year) if year is not None else None
-
-            list_item = xbmcgui.ListItem(
-                label=item.get('label', 'Unknown'),
-                label2=year_str
-            )
-
-            # Set artwork if available
-            art = item.get('art', {})
-            if art:
-                list_item.setArt(art)
-
-            # Set info
-            info = {
-                'title': item.get('title', item.get('label', 'Unknown')),
-                'mediatype': item.get('type', 'movie')
-            }
-
-            if item.get('year'):
-                info['year'] = item['year']
-            if item.get('plot'):
-                info['plot'] = item['plot']
-            if item.get('rating'):
-                info['rating'] = item['rating']
-
-            list_item.setInfo('video', info)
-
-            # Set playable if we have a path
-            is_playable = bool(item.get('path'))
-            list_item.setProperty('IsPlayable', 'true' if is_playable else 'false')
-
-            # Add source indicator for remote items
-            if item.get('_source') == 'remote':
-                if item.get('_local_mapped'):
-                    list_item.setProperty('IsLocal', 'true')
-                else:
-                    list_item.setProperty('IsRemote', 'true')
-
-            # Add to directory
-            url = item.get('path', '')
-            xbmcplugin.addDirectoryItem(
-                self.addon_handle,
-                url,
-                list_item,
-                isFolder=False
-            )
-
-        # Finish directory
-        xbmcplugin.endOfDirectory(self.addon_handle)
 
         # Log result summary
         used_remote = results.get('used_remote', False)
@@ -503,111 +449,3 @@ class SearchHandler:
             )
             return []
 
-# Placeholder for ListItemBuilder, assuming it's defined elsewhere or will be provided
-class ListItemBuilder:
-    def __init__(self, addon_handle, addon_id):
-        self.addon_handle = addon_handle
-        self.addon_id = addon_id
-        self.logger = get_logger(__name__)
-
-    def build_directory(self, items, content_type):
-        """Builds the Kodi directory with the provided items."""
-        self.logger.info(f"Building directory with {len(items)} items, content type: {content_type}")
-
-        for item in items:
-            # Determine the appropriate Kodi item type and properties
-            list_item = xbmcgui.ListItem()
-
-            # Set label and label2 (year)
-            year = item.get('year')
-            list_item.setLabel(item.get('label', 'Unknown Title'))
-            if year:
-                list_item.setLabel2(str(year))
-
-            # Set artwork
-            art = item.get('art', {})
-            if art:
-                list_item.setArt(art)
-
-            # Set info tags for video content
-            info = {
-                'title': item.get('title', item.get('label', 'Unknown Title')),
-                'mediatype': item.get('type', 'movie') # Default to movie if not specified
-            }
-            if item.get('plot'):
-                info['plot'] = item.get('plot')
-            if item.get('rating') is not None: # Handle rating being 0
-                info['rating'] = item.get('rating')
-            if item.get('genre'):
-                info['genre'] = item.get('genre')
-            if item.get('director'):
-                info['director'] = item.get('director')
-            if item.get('cast'):
-                info['cast'] = item.get('cast')
-            if item.get('studio'):
-                info['studio'] = item.get('studio')
-            if item.get('mpaa'):
-                info['mpaa'] = item.get('mpaa')
-            if item.get('runtime'):
-                info['runtime'] = item.get('runtime')
-            if item.get('tagline'):
-                info['tagline'] = item.get('tagline')
-            if item.get('writer'):
-                info['writer'] = item.get('writer')
-            if item.get('originaltitle'):
-                info['originaltitle'] = item.get('originaltitle')
-            if item.get('sorttitle'):
-                info['sorttitle'] = item.get('sorttitle')
-            if item.get('showlink'):
-                info['showlink'] = item.get('showlink')
-            if item.get('playcount') is not None:
-                info['playcount'] = item.get('playcount')
-            if item.get('lastplayed'):
-                info['lastplayed'] = item.get('lastplayed')
-            if item.get('votes'):
-                info['votes'] = item.get('votes')
-            if item.get('premiered'):
-                info['premiered'] = item.get('premiered')
-            if item.get('watched'):
-                info['watched'] = item.get('watched')
-            if item.get('dateadded'):
-                info['dateadded'] = item.get('dateadded')
-
-            list_item.setInfo('video', info)
-
-            # Set properties
-            is_playable = bool(item.get('path'))
-            list_item.setProperty('IsPlayable', 'true' if is_playable else 'false')
-
-            # Handle library items specifically
-            if item.get('source') == 'lib':
-                # For library items, use videodb:// URLs and set appropriate properties
-                item_id = item.get('kodi_id') or item.get('movieid')
-                if item_id:
-                    if info['mediatype'] == 'movie':
-                        url = f"videodb://movies/id/{item_id}/"
-                    elif info['mediatype'] == 'tvshow':
-                        url = f"videodb://tvshows/id/{item_id}/"
-                    elif info['mediatype'] == 'season':
-                        url = f"videodb://tvshows/id/{item.get('tvshowid')}/season/{item.get('seasonnumber')}/"
-                    elif info['mediatype'] == 'episode':
-                        url = f"videodb://tvshows/id/{item.get('tvshowid')}/season/{item.get('seasonnumber')}/episode/{item.get('episode')}/"
-                    else:
-                        url = item.get('path', '') # Fallback to path if mediatype not recognized
-                        self.logger.warning(f"Unknown mediatype '{info['mediatype']}' for library item, using path: {url}")
-                    list_item.setProperty('IsLocal', 'true')
-                else:
-                    self.logger.error(f"Library item missing kodi_id or movieid: {item.get('label')}")
-                    url = item.get('path', '') # Fallback to path if no ID found
-                    list_item.setProperty('IsRemote', 'true') # Assume remote if no local ID
-            else:
-                # For remote items, use the provided path and indicate it's remote
-                url = item.get('path', '')
-                list_item.setProperty('IsRemote', 'true')
-
-            # Add the item to the Kodi directory
-            xbmcplugin.addDirectoryItem(self.addon_handle, url, list_item, isFolder=False)
-
-        # Finish the directory listing
-        xbmcplugin.endOfDirectory(self.addon_handle)
-        return True

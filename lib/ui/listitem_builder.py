@@ -136,7 +136,7 @@ class ListItemBuilder:
             
         self.logger.debug(f"Built videodb path for {title}: {videodb_path}")
 
-        # Set video info labels (minimal - let Kodi handle the rest)
+        # Set video info labels - include enriched data from JSON-RPC
         info_labels = {
             'mediatype': media_type,
             'title': title
@@ -146,15 +146,42 @@ class ListItemBuilder:
         if media_type == 'movie' and item.get('year'):
             info_labels['year'] = item['year']
 
-        # Add basic plot if available (won't conflict with Kodi's data)
+        # Add enriched metadata from JSON-RPC if available
         if item.get('plot'):
             info_labels['plot'] = item['plot']
-
-        # Add basic rating if available
+        if item.get('plotoutline'):
+            info_labels['plotoutline'] = item['plotoutline']
         if item.get('rating'):
             info_labels['rating'] = float(item['rating'])
+        if item.get('votes'):
+            info_labels['votes'] = int(item['votes'])
+        if item.get('runtime'):
+            info_labels['duration'] = int(item['runtime'])
+        if item.get('genre'):
+            info_labels['genre'] = item['genre']
+        if item.get('director'):
+            info_labels['director'] = item['director']
+        if item.get('writer'):
+            info_labels['writer'] = item['writer']
+        if item.get('studio'):
+            info_labels['studio'] = item['studio']
+        if item.get('country'):
+            info_labels['country'] = item['country']
+        if item.get('mpaa'):
+            info_labels['mpaa'] = item['mpaa']
+        if item.get('playcount'):
+            info_labels['playcount'] = int(item['playcount'])
 
         list_item.setInfo('video', info_labels)
+
+        # Set cast information for library items from enriched data
+        if item.get('cast_list'):
+            try:
+                # Use the full cast structure from enrichment
+                list_item.setCast(item['cast_list'])
+                self.logger.debug(f"Set cast for library item {title}: {len(item['cast_list'])} members")
+            except Exception as e:
+                self.logger.warning(f"Failed to set cast for library item {title}: {e}")
 
         # Set properties for native Kodi behavior - CRITICAL for cast/crew data
         list_item.setProperty('dbtype', db_type)
