@@ -108,11 +108,12 @@ class ListItemRenderer:
 
         self.builder.finish_directory(handle, "movies", sort_methods)
 
-    def render_lists(self, lists: List[Dict[str, Any]], folder_id: Optional[int] = None) -> bool:
+    def render_lists(self, handle: int, lists: List[Dict[str, Any]], folder_id: Optional[int] = None) -> bool:
         """
         Render lists as directory items
 
         Args:
+            handle: Plugin handle
             lists: List of list dictionaries
             folder_id: Parent folder ID if any
 
@@ -121,47 +122,49 @@ class ListItemRenderer:
         """
         try:
             # Set content type for lists
-            xbmcplugin.setContent(self.addon_handle, "files")
+            xbmcplugin.setContent(handle, "files")
 
             for list_data in lists:
                 list_item = self._build_list_item(list_data)
                 if list_item:
                     list_id = list_data['id']
-                    url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
+                    url = f"plugin://{self.builder.addon_id}/?action=show_list&list_id={list_id}"
 
                     xbmcplugin.addDirectoryItem(
-                        handle=self.addon_handle,
+                        handle=handle,
                         url=url,
                         listitem=list_item,
                         isFolder=True
                     )
 
-            xbmcplugin.endOfDirectory(self.addon_handle)
+            xbmcplugin.endOfDirectory(handle)
             return True
 
         except Exception as e:
             self.logger.error(f"Failed to render lists: {e}")
-            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
+            xbmcplugin.endOfDirectory(handle, succeeded=False)
             return False
 
-    def render_media_items(self, items: List[Dict[str, Any]], content_type: str = "movies") -> bool:
+    def render_media_items(self, handle: int, items: List[Dict[str, Any]], content_type: str = "movies") -> bool:
         """
         Render media items using the dual-mode builder
 
         Args:
+            handle: Plugin handle
             items: List of media item dictionaries
             content_type: "movies", "tvshows", or "episodes"
 
         Returns:
             bool: Success status
         """
-        return self.builder.build_directory(items, content_type)
+        return self.builder.build_directory(items, content_type, handle)
 
-    def render_folders(self, folders: List[Dict[str, Any]], parent_id: Optional[int] = None) -> bool:
+    def render_folders(self, handle: int, folders: List[Dict[str, Any]], parent_id: Optional[int] = None) -> bool:
         """
         Render folders as directory items
 
         Args:
+            handle: Plugin handle
             folders: List of folder dictionaries
             parent_id: Parent folder ID if any
 
@@ -170,27 +173,27 @@ class ListItemRenderer:
         """
         try:
             # Set content type for folders
-            xbmcplugin.setContent(self.addon_handle, "files")
+            xbmcplugin.setContent(handle, "files")
 
             for folder_data in folders:
                 list_item = self._build_folder_item(folder_data)
                 if list_item:
                     folder_id = folder_data['id']
-                    url = f"plugin://{self.addon_id}/?action=show_folder&folder_id={folder_id}"
+                    url = f"plugin://{self.builder.addon_id}/?action=show_folder&folder_id={folder_id}"
 
                     xbmcplugin.addDirectoryItem(
-                        handle=self.addon_handle,
+                        handle=handle,
                         url=url,
                         listitem=list_item,
                         isFolder=True
                     )
 
-            xbmcplugin.endOfDirectory(self.addon_handle)
+            xbmcplugin.endOfDirectory(handle)
             return True
 
         except Exception as e:
             self.logger.error(f"Failed to render folders: {e}")
-            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
+            xbmcplugin.endOfDirectory(handle, succeeded=False)
             return False
 
     def _build_list_item(self, list_data: Dict[str, Any]) -> Optional[xbmcgui.ListItem]:
@@ -324,8 +327,22 @@ class ListItemRenderer:
     def create_movie_listitem(self, movie_data: Dict[str, Any], base_url: str, action: str) -> xbmcgui.ListItem:
         """Create a movie ListItem (compatibility method for MenuBuilder)"""
         try:
-            # Delegate to the builder for movie items
-            return self.builder._create_library_listitem(movie_data)
+            # Extract relevant info and create playable item
+            title = movie_data.get('title', movie_data.get('label', 'Unknown'))
+            year = movie_data.get('year')
+            if year:
+                title = f"{title} ({year})"
+            
+            # Build using the builder's methods
+            url, listitem, is_folder = self.builder.build_playable_item(
+                title=title,
+                play_url=f"{base_url}?action={action}&item_id={movie_data.get('id', movie_data.get('kodi_id', ''))}",
+                media_type='movie',
+                info=self.builder._extract_info(movie_data, 'movie'),
+                art=self.builder._extract_art(movie_data)
+            )
+            return listitem
+            
         except Exception as e:
             self.logger.error(f"Failed to create movie listitem: {e}")
             # Fallback to simple listitem

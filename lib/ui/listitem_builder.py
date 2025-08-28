@@ -318,53 +318,58 @@ class ListItemBuilder:
         # End directory
         xbmcplugin.endOfDirectory(handle, succeeded=True, updateListing=False, cacheToDisc=True)
 
-    def build_directory(self, items, content_type='movies'):
+    def build_directory(self, items, content_type='movies', handle=None):
         """Build directory entries for search results and add them to Kodi"""
         try:
-            import sys
-            addon_handle = int(sys.argv[1]) if len(sys.argv) > 1 else -1
-            base_url = sys.argv[0] if len(sys.argv) > 0 else ""
+            # Get handle from parameter or try to extract from sys.argv
+            if handle is None:
+                import sys
+                handle = int(sys.argv[1]) if len(sys.argv) > 1 else -1
 
             if not items:
                 self.logger.info("No items to build directory from")
+                xbmcplugin.endOfDirectory(handle, succeeded=True)
                 return True
 
+            self.logger.info(f"Building directory with {len(items)} items, content_type: {content_type}")
+
             # Set content type for better skin integration
-            import xbmcplugin
-            xbmcplugin.setContent(addon_handle, content_type)
+            xbmcplugin.setContent(handle, content_type)
 
             # Add each item to the directory
             for item in items:
                 try:
-                    # Use the renderer to create rich ListItem
-                    from lib.ui.listitem_renderer import get_listitem_renderer
-                    renderer = get_listitem_renderer()
-
-                    if item.get('kodi_id') and item.get('source') == 'lib':
-                        # Library item - use renderer for rich display
-                        list_item = renderer.create_movie_listitem(item, base_url, "play_item")
+                    # Determine if this is a playable item or directory
+                    if item.get('kodi_id') or item.get('file') or item.get('play'):
+                        # Playable item
+                        url, listitem, is_folder = self.build_search_result_item(item, True)
+                        xbmcplugin.addDirectoryItem(handle, url, listitem, is_folder)
                     else:
-                        # External item - use basic builder
-                        list_item, url = self.build_playable_item(item, base_url)
-
-                    # Build URL for this item
-                    item_id = item.get('id') or item.get('kodi_id', '')
-                    url = f"{base_url}?action=play_item&item_id={item_id}"
-
-                    # Add to directory
-                    xbmcplugin.addDirectoryItem(
-                        addon_handle,
-                        url,
-                        list_item,
-                        isFolder=False
-                    )
+                        # Directory item (fallback)
+                        title = item.get('title', item.get('label', 'Unknown'))
+                        url, listitem, is_folder = self.build_directory_item(
+                            label=title,
+                            action='show_item_details',
+                            params={'item_id': item.get('id')},
+                            info=self._extract_info(item, content_type)
+                        )
+                        xbmcplugin.addDirectoryItem(handle, url, listitem, is_folder)
 
                 except Exception as item_error:
                     self.logger.error(f"Error building directory item for '{item.get('title', 'Unknown')}': {item_error}")
                     continue
 
-            # Finish the directory
-            xbmcplugin.endOfDirectory(addon_handle)
+            # Finish the directory with appropriate sort methods
+            sort_methods = [
+                xbmcplugin.SORT_METHOD_UNSORTED,
+                xbmcplugin.SORT_METHOD_TITLE,
+                xbmcplugin.SORT_METHOD_YEAR
+            ]
+            
+            if content_type in ['movies', 'tvshows']:
+                sort_methods.append(xbmcplugin.SORT_METHOD_VIDEO_RATING)
+
+            self.finish_directory(handle, content_type, sort_methods)
 
             self.logger.info(f"Successfully built directory with {len(items)} items")
             return True
@@ -373,4 +378,6 @@ class ListItemBuilder:
             self.logger.error(f"Error building directory: {e}")
             import traceback
             self.logger.error(f"Directory build traceback: {traceback.format_exc()}")
+            if handle is not None:
+                xbmcplugin.endOfDirectory(handle, succeeded=False)
             return False
