@@ -390,6 +390,12 @@ class ListItemBuilder:
         """
         Build lightweight info dictionary for list items (no heavy arrays).
         Duration is in minutes; mediatype set for overlays.
+        
+        IMPORTANT: This method intentionally avoids heavy fields like:
+        - cast/crew arrays
+        - deep streamdetails 
+        - detailed metadata that would slow down list scrolling
+        This keeps list views snappy per Kodi's own approach.
         """
         info: Dict[str, Any] = {}
         # Common
