@@ -209,30 +209,36 @@ class ListItemRenderer:
     def create_simple_listitem(self, title: str, description: str = None, action: str = None, icon: str = None) -> xbmcgui.ListItem:
         """Create a simple ListItem for menu items (compatibility method for MenuBuilder)"""
         try:
+            self.logger.debug(f"SIMPLE LISTITEM: Creating for '{title}'")
             list_item = xbmcgui.ListItem(label=title)
 
             # Set basic info
             info = {'title': title}
             if description:
                 info['plot'] = description
+                self.logger.debug(f"SIMPLE LISTITEM: Set description for '{title}': {len(description)} chars")
 
             list_item.setInfo('video', info)
+            self.logger.debug(f"SIMPLE LISTITEM: Set video info for '{title}': {list(info.keys())}")
 
             # Set icon/artwork
             art = {}
             if icon:
                 art['icon'] = icon
                 art['thumb'] = icon
+                self.logger.debug(f"SIMPLE LISTITEM: Set custom icon for '{title}': {icon}")
             else:
                 art['icon'] = 'DefaultFolder.png'
                 art['thumb'] = 'DefaultFolder.png'
+                self.logger.debug(f"SIMPLE LISTITEM: Set default icon for '{title}'")
 
             list_item.setArt(art)
 
+            self.logger.debug(f"SIMPLE LISTITEM: Successfully created for '{title}' with action '{action}'")
             return list_item
 
         except Exception as e:
-            self.logger.error(f"Failed to create simple listitem: {e}")
+            self.logger.error(f"SIMPLE LISTITEM: Failed to create simple listitem for '{title}': {e}")
             # Return basic listitem on error
             return xbmcgui.ListItem(label=title)
 
