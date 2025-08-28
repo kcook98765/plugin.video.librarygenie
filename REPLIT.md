@@ -35,30 +35,55 @@ Since this is a Kodi addon, it cannot be run directly in Replit. Use this enviro
 
 ## Kodi ListItem Philosophy
 
-When building ListItems for Kodi library content, set complete lightweight metadata while avoiding heavyweight data that Kodi handles natively:
+When building ListItems for Kodi library content, proper setup is critical for cast display and native integration:
 
 ### For Library Items (items with kodi_id):
-- Set **all usual metadata fields** that are lightweight and useful for display in list views or dialogs:
-  - `title`, `year`, `genre`, `plot` (full plot is fine), `mpaa`, `rating`, `votes`, `runtime`, `director`, `writer`, `studio`, `country`, etc.
-- Set **critical identity properties** so Kodi can link the item to its own library record:
-  - `dbtype`, `dbid`, `mediatype`
-- Set **artwork as normal** (poster, fanart, thumb, clearlogo, discart, etc.) — whatever you have available
-- **DO NOT** set or fetch heavyweight data that Kodi's info dialog already handles natively:
-  - `cast` / `crew`
-  - `streamdetails` (audio/video/codec info)
 
-### Why This Approach:
-- Provides complete display information for list views and dialogs
-- The `dbtype` and `dbid` properties tell Kodi this is a library item for native integration
-- Avoids heavyweight operations (cast/crew/streamdetails) that Kodi populates automatically
-- Maintains optimal performance while ensuring rich display metadata
-- Kodi's native info dialog will handle cast/crew with proper formatting and behavior
+#### CRITICAL Requirements for Cast Display in Video Information Dialog:
+1. **videodb URL format**: Use `videodb://movies/titles/{movieid}` with NO trailing slash
+2. **Mark as playable file**: Set `isFolder=False` and `IsPlayable='true'`
+3. **Set InfoTagVideo properties**: Call `setMediaType()` and `setDbId()` on the video info tag
+4. **Set identity properties**: `dbtype`, `dbid`, `mediatype` properties on the ListItem
+
+#### Complete Setup Pattern:
+```python
+# Build videodb URL - NO trailing slash for cast to work
+videodb_path = f"videodb://movies/titles/{kodi_id}"  # NO trailing slash!
+
+# Set ListItem properties
+list_item.setProperty('dbtype', 'movie')
+list_item.setProperty('dbid', str(kodi_id))
+list_item.setProperty('mediatype', 'movie')
+
+# CRITICAL: Set InfoTagVideo for cast display
+video_info_tag = list_item.getVideoInfoTag()
+video_info_tag.setMediaType('movie')
+video_info_tag.setDbId(kodi_id)
+
+# Mark as playable file (NOT folder) for cast to show
+list_item.setProperty('IsPlayable', 'true')
+xbmcplugin.addDirectoryItem(handle, videodb_path, list_item, isFolder=False)
+```
+
+#### Metadata to Include:
+- Set **all usual metadata fields** that are lightweight and useful for display:
+  - `title`, `year`, `genre`, `plot` (full plot is fine), `mpaa`, `rating`, `votes`, `runtime`, `director`, `writer`, `studio`, `country`, etc.
+- Set **artwork as normal** (poster, fanart, thumb, clearlogo, discart, etc.) — whatever you have available
+- **DO NOT** set heavyweight data that Kodi handles natively:
+  - `cast` / `crew` (Kodi will populate this automatically when cast display works)
+  - `streamdetails` (audio/video/codec info)
 
 ### For External Items (no kodi_id):
 - Set **full metadata** including cast since Kodi can't fetch it from the library
 - Include all available metadata as these won't be auto-populated
+- Can be marked as folders or playable items as needed
 
-This approach ensures rich display information while maintaining optimal performance and proper Kodi integration.
+### Why This Approach Works:
+- The specific videodb URL format (no trailing slash) allows Kodi to properly identify the library item
+- Marking as playable file instead of folder triggers Kodi's native cast population
+- InfoTagVideo properties provide the direct database link Kodi needs
+- Cast information appears automatically in the Video Information dialog
+- Maintains optimal performance while ensuring proper Kodi integration
 
 
 

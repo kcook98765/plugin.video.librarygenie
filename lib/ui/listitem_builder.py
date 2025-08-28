@@ -118,29 +118,29 @@ class ListItemBuilder:
         # Create ListItem
         list_item = xbmcgui.ListItem(label=title)
 
-        # Build videodb:// path for native Kodi behavior - CRITICAL: include trailing slash
+        # Build videodb:// path for native Kodi behavior - NO trailing slash for proper cast display
         if media_type == 'movie':
-            # videodb://movies/titles/{movieid}/
-            videodb_path = f"videodb://movies/titles/{kodi_id}/"
+            # videodb://movies/titles/{movieid} - NO trailing slash for cast to work
+            videodb_path = f"videodb://movies/titles/{kodi_id}"
             db_type = "movie"
         elif media_type == 'tvshow':
-            # videodb://tvshows/titles/{tvshowid}/
-            videodb_path = f"videodb://tvshows/titles/{kodi_id}/"
+            # videodb://tvshows/titles/{tvshowid} - NO trailing slash
+            videodb_path = f"videodb://tvshows/titles/{kodi_id}"
             db_type = "tvshow"
         elif media_type == 'episode':
-            # For episodes, we need tvshowid, season, episode
+            # For episodes, we need tvshowid, season, episode - NO trailing slash
             tvshow_id = item.get('tvshow_id', kodi_id)
             season = item.get('season', 1)
             episode = item.get('episode', 1)
-            videodb_path = f"videodb://tvshows/titles/{tvshow_id}/{season}/{episode}/"
+            videodb_path = f"videodb://tvshows/titles/{tvshow_id}/{season}/{episode}"
             db_type = "episode"
         elif media_type == 'musicvideo':
-            # videodb://musicvideos/titles/{musicvideoid}/
-            videodb_path = f"videodb://musicvideos/titles/{kodi_id}/"
+            # videodb://musicvideos/titles/{musicvideoid} - NO trailing slash
+            videodb_path = f"videodb://musicvideos/titles/{kodi_id}"
             db_type = "musicvideo"
         else:
-            # Fallback to movie for unknown types
-            videodb_path = f"videodb://movies/titles/{kodi_id}/"
+            # Fallback to movie for unknown types - NO trailing slash
+            videodb_path = f"videodb://movies/titles/{kodi_id}"
             db_type = "movie"
             
         self.logger.info(f"VIDEODB PATH: Built videodb path for '{title}' (kodi_id: {kodi_id}, type: {media_type}): {videodb_path}")
@@ -198,6 +198,15 @@ class ListItemBuilder:
         # Also set the mediatype property to help Kodi identify the content
         list_item.setProperty('mediatype', media_type)
         
+        # CRITICAL: Set DB ID on the InfoTagVideo for proper cast display
+        try:
+            video_info_tag = list_item.getVideoInfoTag()
+            if video_info_tag:
+                video_info_tag.setMediaType(media_type)
+                video_info_tag.setDbId(kodi_id)
+        except Exception as e:
+            self.logger.warning(f"Failed to set InfoTagVideo properties: {e}")
+        
         # Set unique IDs if available (helps with cross-linking)
         if item.get('imdbnumber'):
             list_item.setProperty('uniqueid.imdb', item['imdbnumber'])
@@ -217,12 +226,12 @@ class ListItemBuilder:
         # Set context menu for library items
         self._set_library_context_menu(list_item, item)
 
-        # For library items using videodb URLs, ALWAYS set as folder to enable proper navigation
-        # This allows users to access Kodi's native info screen and functionality
-        is_folder = True
+        # For library items using videodb URLs, mark as playable files (NOT folders) for proper cast display
+        # This is CRITICAL for Kodi to show cast information in the Video Information dialog
+        is_folder = False
+        list_item.setProperty('IsPlayable', 'true')
         
-        # Do NOT set IsPlayable for videodb URLs - let Kodi handle the navigation behavior
-        self.logger.debug(f"Built library item: {title} (kodi_id: {kodi_id}, type: {media_type}, folder: {is_folder}) - videodb URL will navigate to native Kodi screens")
+        self.logger.debug(f"Built library item: {title} (kodi_id: {kodi_id}, type: {media_type}, playable: True) - videodb URL will show proper cast in Video Information")
 
         return (url, list_item, is_folder)
 
