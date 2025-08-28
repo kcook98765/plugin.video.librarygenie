@@ -11,8 +11,11 @@ from __future__ import annotations
 import sys
 import logging
 import xbmcgui
+import xbmcaddon
+import xbmcplugin
+from typing import Dict, Any
 from .utils.logger import get_logger
-from .ui.router import Router
+from .config import get_config
 
 
 class AddonController:
@@ -20,7 +23,7 @@ class AddonController:
 
     def __init__(self, addon_handle: int, addon_url: str, addon_params: Dict[str, Any]):
         self.addon = xbmcaddon.Addon()
-        self.handle = handle
+        self.handle = addon_handle
         self.base_url = addon_url
         self.params = addon_params
         self.logger = get_logger(__name__)
@@ -200,13 +203,34 @@ def main():
 
         logger.info("LibraryGenie addon starting...")
 
-        # Initialize routing
-        router = Router()
+        # Parse addon parameters
+        if len(sys.argv) >= 3:
+            addon_handle = int(sys.argv[1])
+            addon_url = sys.argv[0]
+            params_string = sys.argv[2][1:]  # Remove leading '?'
+            
+            # Parse parameters
+            params = {}
+            if params_string:
+                for param in params_string.split('&'):
+                    if '=' in param:
+                        key, value = param.split('=', 1)
+                        params[key] = value
+                    else:
+                        params[param] = ''
+        else:
+            addon_handle = 0
+            addon_url = ""
+            params = {}
 
-        # Handle the request
-        router.route()
+        logger.debug(f"Addon parameters: handle={addon_handle}, url={addon_url}, params={params}")
+
+        # Initialize controller and route
+        controller = AddonController(addon_handle, addon_url, params)
+        controller.route()
 
     except Exception as e:
+        logger = get_logger(__name__)
         logger.error(f"Fatal error in addon main: {e}", exc_info=True)
         # Show user-friendly error
         xbmcgui.Dialog().notification("LibraryGenie", "Addon startup failed", xbmcgui.NOTIFICATION_ERROR)
@@ -215,7 +239,6 @@ def main():
 def _diagnose_logging(logger):
     """Diagnose logging configuration to help with troubleshooting"""
     try:
-        from ..config import get_config
         config = get_config()
         debug_enabled = config.get_bool("debug_logging", False)
 
