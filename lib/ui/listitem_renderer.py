@@ -63,37 +63,12 @@ class ListItemRenderer:
         """Render a list of media items as Kodi ListItems"""
         try:
             if not items:
-                return []
+                xbmcplugin.endOfDirectory(self.addon_handle)
+                return True
 
-            # Safety normalization pass - ensure all items are canonical
-            from ..data.query_manager import get_query_manager
-            query_manager = get_query_manager()
+            # Use the builder's directory method for better handling
+            return self.builder.build_directory(items, content_type)
 
-            normalized_items = []
-            for item in items:
-                # Check if item needs normalization (belt-and-suspenders)
-                if 'duration' not in item or 'resume' not in item:
-                    item = query_manager._normalize_to_canonical(item)
-                normalized_items.append(item)
-
-            rendered_items = []
-
-            for item in normalized_items:
-                try:
-                    # Create listitem based on media type
-                    if item.get('media_type') == 'episode':
-                        listitem = self._create_episode_listitem(item)
-                    else:
-                        listitem = self._create_movie_listitem(item)
-
-                    if listitem:
-                        rendered_items.append(listitem)
-
-                except Exception as e:
-                    self.logger.error(f"Error rendering item {item.get('title', 'Unknown')}: {e}")
-                    continue
-
-            return rendered_items
         except Exception as e:
             self.logger.error(f"Failed to render media items: {e}")
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
@@ -273,14 +248,21 @@ class ListItemRenderer:
     def create_movie_listitem(self, item: Dict[str, Any], base_url: str, action: str) -> Optional[xbmcgui.ListItem]:
         """Create a rich ListItem for a movie with proper metadata and artwork"""
         try:
-            # Determine item source and delegate to appropriate builder
-            source = item.get("source", "lib")  # Default to library item
-
-            if source == "ext":
-                return self.builder.build_external_item(item, base_url, action)
+            # Use the new builder methods that return (url, listitem, is_folder)
+            kodi_id = item.get('kodi_id')
+            media_type = item.get('media_type', 'movie')
+            
+            # Determine if this is a library item
+            if media_type in ('movie', 'episode') and isinstance(kodi_id, int):
+                result = self.builder._create_library_listitem(item)
             else:
-                # Use _build_library_item method (with underscore)
-                return self.builder._build_library_item(item, base_url, action)
+                result = self.builder._create_external_item(item)
+            
+            if result:
+                url, list_item, is_folder = result
+                return list_item
+            else:
+                return None
 
         except Exception as e:
             self.logger.error(f"Failed to create movie listitem: {e}")
@@ -289,8 +271,15 @@ class ListItemRenderer:
     def _create_episode_listitem(self, episode_data: Dict[str, Any]) -> xbmcgui.ListItem:
         """Create an episode ListItem"""
         try:
-            # Delegate to the builder for episode items
-            return self.builder._create_library_listitem(episode_data)
+            # Use the new builder method that returns (url, listitem, is_folder)
+            result = self.builder._create_library_listitem(episode_data)
+            if result:
+                url, list_item, is_folder = result
+                return list_item
+            else:
+                # Fallback to simple listitem
+                title = episode_data.get('title', episode_data.get('label', 'Unknown'))
+                return self.create_simple_listitem(title)
         except Exception as e:
             self.logger.error(f"Failed to create episode listitem: {e}")
             # Fallback to simple listitem
