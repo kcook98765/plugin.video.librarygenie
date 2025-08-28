@@ -126,57 +126,38 @@ def get_connection_manager():
 def get_migration_manager():
     return MockMigrationManager()
 
-class JSONRPCClient: # Placeholder for the actual JSONRPCClient
+class JSONRPCClient:
+    """Real JSON-RPC client for Kodi API communication"""
+    
+    def __init__(self):
+        self.logger = get_logger(__name__)
+
     def call_method(self, method, params=None):
-        # In a real scenario, this would interact with Kodi's JSONRPC API
-        # For this example, we'll use a mock or return empty data
-        print(f"JSONRPCClient: Calling method {method} with params {params}")
-        # Mock response for demonstration
-        if method == 'VideoLibrary.GetMovies':
-            return {
-                "result": {
-                    "movies": [
-                        {
-                            "movieid": 1, "title": "Movie 1", "year": 2020, "runtime": 120,
-                            "genre": ["Action"], "rating": 7.5, "votes": 100, "mpaa": "PG-13",
-                            "studio": ["Studio A"], "country": ["USA"], "premiered": "2020-01-01",
-                            "sorttitle": "Movie 1", "thumbnail": "poster1.jpg",
-                            "art": {"poster": "poster1.jpg", "fanart": "fanart1.jpg"},
-                            "resume": {"position_seconds": 3600, "total_seconds": 7200}
-                        },
-                        {
-                            "movieid": 2, "title": "Movie 2", "year": 2019, "runtime": 90,
-                            "genre": ["Comedy"], "rating": 6.0, "votes": 50, "mpaa": "PG",
-                            "studio": ["Studio B"], "country": ["Canada"], "premiered": "2019-05-15",
-                            "sorttitle": "Movie 2", "thumbnail": "poster2.jpg",
-                            "art": {"poster": "poster2.jpg"},
-                            "resume": {"position_seconds": 0, "total_seconds": 5400}
-                        }
-                    ]
-                }
-            }
-        elif method == 'VideoLibrary.GetEpisodes':
-            return {
-                "result": {
-                    "episodes": [
-                        {
-                            "episodeid": 101, "tvshowid": 5, "season": 1, "episode": 1,
-                            "title": "Episode 1", "showtitle": "TV Show A", "aired": "2021-01-01",
-                            "runtime": 45, "rating": 8.0, "playcount": 1,
-                            "thumbnail": "episode1.jpg", "art": {"thumb": "episode1.jpg"},
-                            "resume": {"position_seconds": 1800, "total_seconds": 2700}
-                        },
-                        {
-                            "episodeid": 102, "tvshowid": 5, "season": 1, "episode": 2,
-                            "title": "Episode 2", "showtitle": "TV Show A", "aired": "2021-01-08",
-                            "runtime": 45, "rating": 7.8, "playcount": 0,
-                            "thumbnail": "episode2.jpg", "art": {"thumb": "episode2.jpg"},
-                            "resume": {"position_seconds": 0, "total_seconds": 2700}
-                        }
-                    ]
-                }
-            }
-        return {"result": {}}
+        """Execute JSON-RPC method with real Kodi API"""
+        import json
+        import xbmc
+        
+        request = {
+            "jsonrpc": "2.0",
+            "method": method,
+            "params": params or {},
+            "id": 1
+        }
+        
+        try:
+            self.logger.debug(f"JSON-RPC request: {method}")
+            response_str = xbmc.executeJSONRPC(json.dumps(request))
+            response = json.loads(response_str)
+            
+            if "error" in response:
+                self.logger.error(f"JSON-RPC error for {method}: {response['error']}")
+                return {"result": {}}
+            
+            return response
+            
+        except Exception as e:
+            self.logger.error(f"JSON-RPC request failed for {method}: {e}")
+            return {"result": {}}
 
 
 class QueryManager:
@@ -973,9 +954,6 @@ class QueryManager:
     def _get_kodi_enrichment_data(self, kodi_ids: List[int]) -> Dict[int, Dict[str, Any]]:
         """Fetch rich metadata from Kodi JSON-RPC for the given kodi_ids"""
         try:
-            import json
-            # import xbmc # This import would fail outside of Kodi environment
-
             if not kodi_ids:
                 return {}
 
@@ -983,40 +961,47 @@ class QueryManager:
 
             enrichment_data = {}
 
-            # Fetch data for each movie
+            # Fetch data for each movie using real JSON-RPC
             for kodi_id in kodi_ids:
                 try:
-                    request = {
-                        "jsonrpc": "2.0",
-                        "method": "VideoLibrary.GetMovieDetails",
-                        "params": {
-                            "movieid": int(kodi_id),
-                            "properties": [
-                                "title", "year", "imdbnumber", "uniqueid", "file",
-                                "art", "plot", "plotoutline", "runtime", "rating",
-                                "genre", "mpaa", "director", "country", "studio",
-                                "playcount", "resume", "writer", "votes"
-                            ]
-                        },
-                        "id": 1
+                    # Request lightweight properties (no heavy arrays like cast)
+                    params = {
+                        "movieid": int(kodi_id),
+                        "properties": [
+                            "title", "originaltitle", "year", "imdbnumber", "uniqueid", "file",
+                            "art", "plot", "plotoutline", "runtime", "rating", "votes",
+                            "genre", "mpaa", "director", "country", "studio", "sorttitle",
+                            "playcount", "resume", "writer", "premiered"
+                        ]
                     }
 
-                    self.logger.debug(f"JSON-RPC request for movie {kodi_id}: {json.dumps(request)}")
-                    # response_str = xbmc.executeJSONRPC(json.dumps(request)) # This call is environment specific
-                    # Mocking the response for demonstration
-                    response_str = self.json_rpc.call_method('VideoLibrary.GetMovieDetails', {"movieid": kodi_id})
-                    self.logger.debug(f"JSON-RPC response for movie {kodi_id}: {response_str[:200]}...")
-                    response = json.loads(response_str)
+                    response = self.json_rpc.call_method("VideoLibrary.GetMovieDetails", params)
 
-
-                    if "error" in response:
+                    if response.get("error"):
                         self.logger.warning(f"JSON-RPC error for movie {kodi_id}: {response['error']}")
                         continue
 
                     movie_details = response.get("result", {}).get("moviedetails")
                     if movie_details:
                         self.logger.debug(f"Got movie details for {kodi_id}: {movie_details.get('title', 'Unknown')}")
-                        # Normalize the movie data similar to how json_rpc_client does it
+                        
+                        # Add required fields for normalization
+                        movie_details["media_type"] = "movie"
+                        movie_details["kodi_id"] = kodi_id
+
+                        # Map runtime to duration_minutes
+                        if movie_details.get("runtime"):
+                            movie_details["duration_minutes"] = movie_details["runtime"]
+
+                        # Map resume.position/total (seconds) to resume dict
+                        resume_data = movie_details.get("resume", {})
+                        if isinstance(resume_data, dict):
+                            movie_details["resume"] = {
+                                "position_seconds": resume_data.get("position", 0),
+                                "total_seconds": resume_data.get("total", 0)
+                            }
+
+                        # Normalize the movie data
                         normalized = self.normalize_item(movie_details)
                         if normalized:
                             enrichment_data[kodi_id] = normalized
@@ -1028,8 +1013,6 @@ class QueryManager:
 
                 except Exception as e:
                     self.logger.error(f"Failed to fetch details for movie {kodi_id}: {e}")
-                    import traceback
-                    self.logger.error(f"Enrichment error traceback: {traceback.format_exc()}")
                     continue
 
             self.logger.info(f"Successfully enriched {len(enrichment_data)} out of {len(kodi_ids)} movies")
@@ -1037,8 +1020,6 @@ class QueryManager:
 
         except Exception as e:
             self.logger.error(f"Error fetching Kodi enrichment data: {e}")
-            import traceback
-            self.logger.error(f"Enrichment error traceback: {traceback.format_exc()}")
             return {}
 
     def _match_items_to_kodi_library(self, items_to_match: List[tuple]) -> Dict[int, Optional[int]]:
@@ -1206,33 +1187,45 @@ class QueryManager:
             List of normalized movie dictionaries with metadata
         """
         try:
-            # Request only lightweight properties for list display
+            # Request only lightweight properties for list display (no heavy arrays)
             properties = [
-                'title', 'originaltitle', 'year', 'genre', 'plotoutline',
-                'rating', 'votes', 'mpaa', 'runtime', 'studio', 'country',
-                'premiered', 'sorttitle', 'thumbnail', 'art', 'resume'
+                "title", "originaltitle", "year", "genre", "plotoutline", 
+                "rating", "votes", "mpaa", "runtime", "studio", "country",
+                "premiered", "sorttitle", "thumbnail", "art", "resume"
             ]
 
             params = {
-                'properties': properties,
-                'sort': {'order': 'ascending', 'method': 'sorttitle'}
+                "properties": properties,
+                "sort": {"order": "ascending", "method": "sorttitle"}
             }
 
             if limit:
-                params['limits'] = {'start': offset, 'end': offset + limit}
+                params["limits"] = {"start": offset, "end": offset + limit}
 
-            response = self.json_rpc.call_method('VideoLibrary.GetMovies', params)
+            response = self.json_rpc.call_method("VideoLibrary.GetMovies", params)
 
-            if response.get('result') and response['result'].get('movies'):
-                movies = response['result']['movies']
+            if response.get("result") and response["result"].get("movies"):
+                movies = response["result"]["movies"]
                 self.logger.info(f"Retrieved {len(movies)} movies from library")
 
                 # Normalize all movies
                 normalized_movies = []
                 for movie in movies:
                     # Add required fields for normalization
-                    movie['media_type'] = 'movie'
-                    movie['kodi_id'] = movie.get('movieid')
+                    movie["media_type"] = "movie"
+                    movie["kodi_id"] = movie.get("movieid")
+
+                    # Map runtime to duration_minutes
+                    if movie.get("runtime"):
+                        movie["duration_minutes"] = movie["runtime"]
+
+                    # Map resume.position/total (seconds) to resume dict
+                    resume_data = movie.get("resume", {})
+                    if isinstance(resume_data, dict):
+                        movie["resume"] = {
+                            "position_seconds": resume_data.get("position", 0),
+                            "total_seconds": resume_data.get("total", 0)
+                        }
 
                     # Normalize the item
                     normalized = self.normalize_item(movie)
@@ -1260,36 +1253,48 @@ class QueryManager:
             List of normalized episode dictionaries with metadata
         """
         try:
-            # Request lightweight episode properties
+            # Request lightweight episode properties (no heavy arrays)
             properties = [
-                'title', 'plotoutline', 'season', 'episode', 'showtitle',
-                'aired', 'runtime', 'rating', 'playcount', 'lastplayed',
-                'thumbnail', 'art', 'resume'
+                "title", "plotoutline", "season", "episode", "showtitle",
+                "aired", "runtime", "rating", "playcount", "lastplayed", 
+                "thumbnail", "art", "resume"
             ]
 
             params = {
-                'properties': properties,
-                'sort': {'order': 'ascending', 'method': 'episode'}
+                "properties": properties,
+                "sort": {"order": "ascending", "method": "episode"}
             }
 
             if tvshow_id:
-                params['tvshowid'] = tvshow_id
+                params["tvshowid"] = tvshow_id
 
             if limit:
-                params['limits'] = {'start': offset, 'end': offset + limit}
+                params["limits"] = {"start": offset, "end": offset + limit}
 
-            response = self.json_rpc.call_method('VideoLibrary.GetEpisodes', params)
+            response = self.json_rpc.call_method("VideoLibrary.GetEpisodes", params)
 
-            if response.get('result') and response['result'].get('episodes'):
-                episodes = response['result']['episodes']
+            if response.get("result") and response["result"].get("episodes"):
+                episodes = response["result"]["episodes"]
                 self.logger.info(f"Retrieved {len(episodes)} episodes from library")
 
                 # Normalize all episodes
                 normalized_episodes = []
                 for episode in episodes:
                     # Add required fields for normalization
-                    episode['media_type'] = 'episode'
-                    episode['kodi_id'] = episode.get('episodeid')
+                    episode["media_type"] = "episode"
+                    episode["kodi_id"] = episode.get("episodeid")
+
+                    # Map runtime to duration_minutes
+                    if episode.get("runtime"):
+                        episode["duration_minutes"] = episode["runtime"]
+
+                    # Map resume.position/total (seconds) to resume dict
+                    resume_data = episode.get("resume", {})
+                    if isinstance(resume_data, dict):
+                        episode["resume"] = {
+                            "position_seconds": resume_data.get("position", 0),
+                            "total_seconds": resume_data.get("total", 0)
+                        }
 
                     # Normalize the item
                     normalized = self.normalize_item(episode)
