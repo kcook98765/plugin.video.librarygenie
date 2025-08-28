@@ -305,6 +305,11 @@ class ListItemBuilder:
             if art:
                 li.setArt(art)
 
+            # Set library identity properties (v19 compatible)
+            li.setProperty('dbtype', media_type)
+            li.setProperty('dbid', str(kodi_id))
+            li.setProperty('mediatype', media_type)
+
             # URL (videodb preferred)
             url = None
             is_folder = False
@@ -329,6 +334,16 @@ class ListItemBuilder:
                 url = self._build_playback_url(item)
                 li.setPath(url)
                 li.setProperty('IsPlayable', 'true')
+
+            # Set v20+ InfoTagVideo properties only if available (Step 8)
+            if is_kodi_v20_plus():
+                try:
+                    video_info_tag = li.getVideoInfoTag()
+                    video_info_tag.setMediaType(media_type)
+                    video_info_tag.setDbId(kodi_id)
+                    self.logger.debug(f"LIB ITEM v20+: Set InfoTagVideo for '{title}'")
+                except Exception as e:
+                    self.logger.warning(f"LIB ITEM v20+: InfoTagVideo failed for '{title}': {e}")
 
             # Resume (always for library movies/episodes)
             self._set_resume_info_versioned(li, item)
