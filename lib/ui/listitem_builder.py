@@ -136,28 +136,49 @@ class ListItemBuilder:
             
         self.logger.debug(f"Built videodb path for {title}: {videodb_path}")
 
-        # Set minimal video info labels - only lightweight display data
+        # Set complete lightweight metadata for display
         info_labels = {
             'mediatype': media_type,
             'title': title
         }
 
-        # Add basic lightweight metadata only
-        if media_type == 'movie' and item.get('year'):
+        # Add all lightweight metadata that's useful for display
+        if item.get('year'):
             info_labels['year'] = item['year']
-
-        # Only set lightweight metadata that's needed for list display
-        if item.get('plot') and len(item['plot']) < 500:  # Short plot only
-            info_labels['plotoutline'] = item['plot'][:200]  # Brief outline
-        if item.get('rating'):
-            info_labels['rating'] = float(item['rating'])
+        if item.get('plot'):
+            info_labels['plot'] = item['plot']  # Full plot is fine
         if item.get('genre'):
             info_labels['genre'] = item['genre']
+        if item.get('rating'):
+            info_labels['rating'] = float(item['rating'])
+        if item.get('votes'):
+            info_labels['votes'] = int(item['votes'])
+        if item.get('mpaa'):
+            info_labels['mpaa'] = item['mpaa']
+        if item.get('duration'):
+            info_labels['duration'] = int(item['duration'])
+        if item.get('director'):
+            info_labels['director'] = item['director']
+        if item.get('writer'):
+            info_labels['writer'] = item['writer']
+        if item.get('studio'):
+            info_labels['studio'] = item['studio']
+        if item.get('country'):
+            info_labels['country'] = item['country']
+
+        # Handle TV show specific fields
+        if media_type == 'episode':
+            if item.get('season'):
+                info_labels['season'] = int(item['season'])
+            if item.get('episode'):
+                info_labels['episode'] = int(item['episode'])
+            if item.get('showtitle'):
+                info_labels['tvshowtitle'] = item['showtitle']
 
         list_item.setInfo('video', info_labels)
 
-        # DO NOT set cast, crew, or other heavy metadata here!
-        # Kodi will automatically populate this when the user navigates to video info
+        # DO NOT set cast, crew, or streamdetails here!
+        # Kodi will automatically populate heavyweight data when the user navigates to video info
         # based on the dbtype/dbid properties we set below.
 
         # Set properties for native Kodi behavior - CRITICAL for cast/crew/heavy data
@@ -331,10 +352,10 @@ class ListItemBuilder:
             list_item.setArt(art_dict)
 
     def _set_library_artwork(self, list_item: xbmcgui.ListItem, item: Dict[str, Any]):
-        """Set basic artwork for Kodi library ListItem (minimal for list display)"""
+        """Set all available artwork for Kodi library ListItem"""
         art_dict = {}
         
-        # Set only basic artwork needed for list display
+        # Set all available artwork - whatever we have available
         if item.get('poster'):
             art_dict['poster'] = item['poster']
             art_dict['thumb'] = item['poster']  # Use poster as thumb
@@ -343,13 +364,36 @@ class ListItemBuilder:
         
         if item.get('fanart'):
             art_dict['fanart'] = item['fanart']
+        if item.get('clearlogo'):
+            art_dict['clearlogo'] = item['clearlogo']
+        if item.get('discart'):
+            art_dict['discart'] = item['discart']
+        if item.get('clearart'):
+            art_dict['clearart'] = item['clearart']
+        if item.get('landscape'):
+            art_dict['landscape'] = item['landscape']
+        if item.get('banner'):
+            art_dict['banner'] = item['banner']
 
-        # Don't fetch heavy artwork - Kodi will handle this when user views details
+        # Handle JSON art data if available
+        if item.get('art'):
+            try:
+                if isinstance(item['art'], str):
+                    art_data = json.loads(item['art'])
+                else:
+                    art_data = item['art']
+
+                if isinstance(art_data, dict):
+                    art_dict.update(art_data)
+
+            except Exception as e:
+                self.logger.warning(f"Failed to parse art data: {e}")
+
         if art_dict:
             list_item.setArt(art_dict)
-            self.logger.debug(f"Set basic artwork for library item {item.get('title', 'Unknown')}: {list(art_dict.keys())}")
+            self.logger.debug(f"Set artwork for library item {item.get('title', 'Unknown')}: {list(art_dict.keys())}")
         else:
-            self.logger.debug(f"No basic artwork for library item: {item.get('title', 'Unknown')} - Kodi will use defaults")
+            self.logger.debug(f"No artwork for library item: {item.get('title', 'Unknown')} - Kodi will use defaults")
 
     def _build_playback_url(self, item: Dict[str, Any]) -> str:
         """Build playback URL for external items"""

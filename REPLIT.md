@@ -35,26 +35,30 @@ Since this is a Kodi addon, it cannot be run directly in Replit. Use this enviro
 
 ## Kodi ListItem Philosophy
 
-When building ListItems for Kodi library content, **never fetch heavy metadata via JSON-RPC**. Instead:
+When building ListItems for Kodi library content, set complete lightweight metadata while avoiding heavyweight data that Kodi handles natively:
 
 ### For Library Items (items with kodi_id):
-- Set only **lightweight display data** (title, year, basic genre, short plot outline)
-- Set **critical properties**: `dbtype`, `dbid`, `mediatype` 
-- Set **basic artwork**: poster/thumb, fanart only
-- **DO NOT** fetch or set: cast, crew, full plot, ratings, votes, detailed artwork, streamdetails
+- Set **all usual metadata fields** that are lightweight and useful for display in list views or dialogs:
+  - `title`, `year`, `genre`, `plot` (full plot is fine), `mpaa`, `rating`, `votes`, `runtime`, `director`, `writer`, `studio`, `country`, etc.
+- Set **critical identity properties** so Kodi can link the item to its own library record:
+  - `dbtype`, `dbid`, `mediatype`
+- Set **artwork as normal** (poster, fanart, thumb, clearlogo, discart, etc.) — whatever you have available
+- **DO NOT** set or fetch heavyweight data that Kodi's info dialog already handles natively:
+  - `cast` / `crew`
+  - `streamdetails` (audio/video/codec info)
 
 ### Why This Approach:
-- Kodi automatically populates heavy metadata when user navigates to video info page
-- The `dbtype` and `dbid` properties tell Kodi this is a library item
-- Reduces JSON-RPC calls and improves performance
-- Maintains native Kodi behavior and theming
-- Cast/crew information will be properly formatted by Kodi's native handlers
+- Provides complete display information for list views and dialogs
+- The `dbtype` and `dbid` properties tell Kodi this is a library item for native integration
+- Avoids heavyweight operations (cast/crew/streamdetails) that Kodi populates automatically
+- Maintains optimal performance while ensuring rich display metadata
+- Kodi's native info dialog will handle cast/crew with proper formatting and behavior
 
 ### For External Items (no kodi_id):
-- Set **full metadata** since Kodi can't fetch it from the library
-- Include cast, plot, ratings, etc. as these won't be auto-populated
+- Set **full metadata** including cast since Kodi can't fetch it from the library
+- Include all available metadata as these won't be auto-populated
 
-This separation ensures optimal performance while maintaining proper Kodi integration.
+This approach ensures rich display information while maintaining optimal performance and proper Kodi integration.
 
 
 
