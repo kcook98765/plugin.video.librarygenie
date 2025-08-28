@@ -1,142 +1,123 @@
-Here’s a tight, version-aware recipe to make your plugin directory list look like Kodi’s native lists—including resume in the list view for all library items—while keeping things light (no heavy fields like cast).
+ere’s a single, end-to-end checklist to bring your current code in line with the desired ListItem behavior (Matrix v19 + v20+), with resume always shown for library items, light metadata only, and clean version branching. I’m referencing the files currently in your zip (notably lib/ui/listitem_builder.py, lib/ui/listitem_renderer.py, lib/ui/menu_builder.py, lib/ui/search_handler.py, and lib/data/query_manager.py). No code snippets—just the exact steps to apply.
 
-1) Row types you’ll output
+Step-by-step changes (apply in order)
+1) Centralize version detection (used by the builder)
 
-Library-backed rows (you matched the item to Kodi’s DB and know the id):
-Use a videodb://… URL for the row. You will still set lightweight info yourself (below), and you will always set resume for these rows.
+Add a tiny helper in your ListItem builder module (since lib/utils/versioning.py isn’t present):
 
-Plugin-only rows (no DB id):
-Use your plugin://… URL and set the same lightweight info. Resume is up to you (only if you store it yourself), but the “always use resume” requirement here applies to library-backed items.
+Provide a function that returns True if Kodi major version ≥ 20, otherwise False. Use xbmc.getInfoLabel("System.BuildVersion") parsing or a similar, already-available helper if you have one elsewhere.
 
-2) Lightweight fields to set on every video row
+You’ll use this in the builder to decide how to set resume and whether to call any InfoTag setters.
 
-Set what you have; skip what you don’t. These mirror what native lists show without heavy metadata.
+2) Normalize the item model that the builder consumes
 
-Common (movies / episodes / shows)
+Make sure every item handed to the builder (library or plugin) has:
 
-title
+Identity: type ("movie" / "episode" / "tvshow"), and for library items, the Kodi DB id (kodi_id).
 
-originaltitle (if different)
+Lightweight fields (strings unless noted): title, originaltitle (if different), sorttitle, year (int), genre (comma-separated string), plot or plotoutline, rating (float 0–10), votes (int), mpaa, duration_minutes (int), studio, country, premiered or dateadded (YYYY-MM-DD), and mediatype (must match Kodi: movie/episode/tvshow).
 
-sorttitle (helpful for consistent sorting)
+Episode extras (when type == "episode"): tvshowtitle, season (int), episode (int), aired (YYYY-MM-DD), playcount (int), lastplayed (string) if you have it.
 
-year
+Art: dictionary with keys you actually have: poster, fanart (minimum); plus thumb, banner, landscape, clearlogo only if valid.
 
-genre (comma-separated string, e.g., “Horror, Drama”)
+Resume: a resume dict with position_seconds and total_seconds for all library movies/episodes. (You will always set these in the list view for library items.)
 
-plot or plotoutline (pick one; outline is shorter)
+If you already have a normalizer, verify these keys exist and have the expected types; otherwise adapt your normalizer to produce them.
 
-rating (0–10 float)
+3) Ensure the data layer fetches the right fields (no heavy arrays)
 
-votes (int)
+Edit your query/enrichment functions in lib/data/query_manager.py so JSON-RPC calls request only what you need for list rows:
 
-mpaa (e.g., R, PG-13)
+Movies: request properties including: title, originaltitle, year, genre, plotoutline, rating, votes, mpaa, runtime, studio, country, premiered, sorttitle, thumbnail, art, resume.
 
-duration (minutes, not seconds)
+Episodes: title, plotoutline, season, episode, showtitle, aired, runtime, rating, playcount, lastplayed, thumbnail, art, resume.
 
-studio (primary only)
+TV shows (for show rows): the same light set as movies (omit resume—resume is per episode/movie).
 
-country (primary only)
+Map runtime to your duration_minutes variable; map resume.position/resume.total (seconds) into your resume dict.
 
-premiered or dateadded (YYYY-MM-DD)
+4) Fix the library path in the ListItem builder (lib/ui/listitem_builder.py)
 
-mediatype (movie, episode, tvshow, musicvideo)
+When kodi_id is present and type is movie or episode (i.e., it’s a library-backed item):
 
-Episodes
+URL: keep using your existing videodb:// builder for the addDirectoryItem URL (your logs show this is already working for movies).
 
-tvshowtitle
+Folder/Playable: mark rows properly (most movie/episode rows are not folders; set IsPlayable="true" if they’re playable).
 
-season, episode
+Light metadata: set only the lightweight fields listed in Step 2. Do not inject heavy fields (cast, big arrays).
 
-aired (YYYY-MM-DD)
+Art: set poster and fanart at minimum; add others only if valid.
 
-playcount (int), lastplayed (if you have it)
+Resume (always for library movies/episodes):
 
-TV shows (show rows)
+v19 path (Matrix): set ListItem properties ResumeTime and TotalTime with seconds from your resume dict.
 
-Same basics; don’t pull/show heavy counts unless you already have them cached.
+v20+ path: set the resume point on the item’s video tag (seconds).
 
-Artwork (light & skin-friendly)
+Use your version helper to branch. Do not call v20-only APIs on v19.
 
-Set: poster, fanart
+Remove/disable any v20-only InfoTag setters you currently call on library items (e.g., the setMediaType call your logs warned about). Those should be guarded by version, and skipped entirely on v19.
 
-Nice to have: thumb (use poster if nothing else), banner, landscape, clearlogo
+Rationale: For library items, Kodi’s background loader will hydrate art and some basics for visible rows; you are supplying just enough to make the list feel native immediately, plus resume, without heavy fields.
 
-Never pass None/broken URLs—omit missing keys.
+5) Fix the external/plugin-only path in the builder
 
-Skip in list view (heavy)
+When there’s no kodi_id, use your plugin://… URL (or route to your play/details action).
 
-Cast / roles
+Apply the exact same lightweight info profile and art keys as in Step 4.
 
-Deep streamdetails (codec/bitrate/channels), unless you already have them locally
+Resume for plugin-only: only set if you maintain your own resume store for those items (your “always show resume” rule applies to library items; plugin-only items are at your discretion).
 
-3) Resume in the list view (always for library items)
+Keep folder/playable flags correct (IsPlayable="true" only for playable rows).
 
-Library-backed movies & episodes:
-Always show resume progress in your list rows. That means you must set the per-row resume fields for every library match you list.
+6) Don’t set heavy fields in list rows
 
-Kodi v19 (Matrix): set the classic ListItem properties ResumeTime and TotalTime (in seconds) on the row.
+Remove or disable any code that tries to set cast (your listitem_builder.py has a _set_cast routine—leave it unused for list views).
 
-Kodi v20+: set the row’s resume point on the video info tag (time and totalTime in seconds).
-(You’ll detect the running Kodi version at runtime and choose the appropriate method.)
+Do not populate deep streamdetails in list rows unless you already have them trivially; this keeps scrolling snappy and matches Kodi’s own approach in plugin containers.
 
-TV show rows: resume is per movie/episode; don’t attempt resume on the show node itself.
+7) Container hygiene—do it once per directory build
 
-Playback-time persistence is handled by Kodi. Your job here is simply to show resume in the list for library items by setting the per-row fields every time you build the directory.
+In the part of your pipeline that finalizes a directory page (likely lib/ui/listitem_renderer.py or menu_builder.py):
 
-4) Minimal JSON-RPC to pull (only what you need)
+Before adding items, set content type appropriately (movies, episodes, or tvshows) so skins choose correct layouts/overlays.
 
-To prefill those lightweight fields (and resume) without heavy arrays, batch one of these per page:
+Add a few sort methods (Title-Ignore-The, Year, Date) like you’re already attempting; make sure this runs only once per build (not per item).
 
-Movies — use VideoLibrary.GetMovies with:
+Ensure every item added has a non-empty URL to avoid directory errors.
 
-["title","originaltitle","year","genre","plotoutline","rating","votes","mpaa","runtime","studio","country","premiered","sorttitle","thumbnail","art","resume"]
+8) Remove v20-only calls in v19 code paths (eliminate warnings)
 
-Episodes — use VideoLibrary.GetEpisodes with:
+Your logs showed:
+'xbmc.InfoTagVideo' object has no attribute 'setMediaType'
 
-["title","plotoutline","season","episode","showtitle","aired","runtime","rating","playcount","lastplayed","thumbnail","art","resume"]
+Search your codebase for InfoTag setters you’re calling unconditionally in the library path (setMediaType, setDbId, setCast, etc.).
 
-TV shows — use VideoLibrary.GetTVShows with:
+Guard all such calls behind your version helper; skip them on v19.
 
-["title","originaltitle","year","genre","plotoutline","rating","studio","premiered","sorttitle","thumbnail","art"]
-(No per-show resume here.)
+In v19, rely on the classic info labels and ListItem properties described above.
 
-Notes:
+9) Verify the resume mapping end-to-end
 
-runtime is minutes (matches your list item’s duration).
+Confirm JSON-RPC resume values (seconds) are present for library movies/episodes in your enrichment step.
 
-resume gives you position & total (seconds) for movies/episodes.
+Ensure the builder sets:
 
-Batch by page and cache for snappy scrolling.
+v19: ResumeTime and TotalTime ListItem properties (seconds).
 
-5) Versioning rules you must follow (detect and branch)
+v20+: the resume point on the video tag (seconds).
 
-You will detect the running Kodi version (or feature-detect the tag API) and branch your ListItem population.
+Confirm you’re not accidentally converting to minutes here—resume stays in seconds for both versions.
 
-Kodi v19 (Matrix, Python 3.8):
 
-Use the classic info labels & setArt approach for the lightweight fields.
+Where to make the edits (recap by file)
 
-Resume in list view: set ListItem properties ResumeTime and TotalTime (seconds).
+lib/data/query_manager.py
+Add resume to JSON-RPC properties for movies/episodes; keep the property sets “light” as above; map runtime → minutes; map resume seconds.
 
-Do not call v20-only InfoTagVideo setters (those cause attribute errors on v19).
+lib/ui/listitem_builder.py
+Add version helper; apply version-branched resume setting; remove v20-only tag setters from v19 path; ensure URL/isFolder/IsPlayable and the lightweight info/art profile; stop calling _set_cast in list rows.
 
-Kodi v20+:
-
-You may set the same fields via the InfoTagVideo setters (or continue with the classic labels; keep the field set identical for a consistent look).
-
-Resume in list view: set the InfoTagVideo resume point (time & totalTime, seconds).
-
-Keep your v19 path in place for backward compatibility.
-
-6) URL & container hygiene (for native feel)
-
-Every item must have a non-empty URL.
-
-Folders: plugin://…?action=…, isFolder = true, no IsPlayable.
-
-Playable rows: final media URL or your plugin://play handler, isFolder = false, IsPlayable = "true".
-
-Library-backed rows should use the videodb://… URL for that movie/episode (you’re still setting the lightweight fields and resume per above).
-
-Before endOfDirectory, set the container content (movies, episodes, tvshows) so skins render the expected layouts and overlays.
+lib/ui/listitem_renderer.py (or your directory finalizer)
+Set container content and sort methods once per page; add items with non-empty URLs.
