@@ -6,6 +6,7 @@ LibraryGenie - Database Connection Manager
 Handles SQLite connections with proper safety and performance settings
 """
 
+import os
 import sqlite3
 import threading
 import atexit
@@ -24,8 +25,7 @@ from contextlib import contextmanager
 
 from ..utils.logger import get_logger
 from ..config import get_config
-# Assuming get_storage_manager is defined elsewhere and imported
-# from ..storage import get_storage_manager
+from .storage_manager import get_storage_manager
 
 
 class ConnectionManager:
@@ -33,17 +33,7 @@ class ConnectionManager:
 
     def __init__(self):
         self.logger = get_logger(__name__)
-        # Assuming get_storage_manager() is available in the scope
-        # For demonstration, let's mock it if it's not provided
-        try:
-            from ..storage import get_storage_manager
-            self.storage_manager = get_storage_manager()
-        except ImportError:
-            self.logger.warning("Could not import get_storage_manager. Mocking for demonstration.")
-            class MockStorageManager:
-                def get_database_path(self):
-                    return "mock_database.db"
-            self.storage_manager = MockStorageManager()
+        self.storage_manager = get_storage_manager()
 
         self.config = get_config()
         self._connection = None
@@ -64,7 +54,14 @@ class ConnectionManager:
     def _create_connection(self):
         """Create and configure database connection"""
         db_path = self.storage_manager.get_database_path()
-        self.logger.debug(f"Creating database connection to: {db_path}")
+        self.logger.info(f"Creating database connection to: {db_path}")
+        
+        # Log the absolute path for debugging
+        try:
+            abs_path = os.path.abspath(db_path)
+            self.logger.info(f"Absolute database path: {abs_path}")
+        except Exception as e:
+            self.logger.warning(f"Could not resolve absolute path: {e}")
 
         try:
             # Phase 3: Use configurable busy timeout
@@ -98,7 +95,7 @@ class ConnectionManager:
             conn.execute("PRAGMA mmap_size=268435456") # 256MB memory-mapped I/O
 
             # Set row factory for easier data access
-            conn.row_factory = sqlite3.Row
+            conn.row_factory = sqlite3.Row  # Enable dict-like access
 
             self.logger.info(f"Database connection established: {db_path} (busy_timeout: {busy_timeout_ms}ms)")
             return conn

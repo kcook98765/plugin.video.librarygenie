@@ -32,7 +32,7 @@ class LocalSearchEngine:
             dict: {'items': [...], 'total': int, 'used_remote': False}
         """
         self.logger.info(f"LocalSearchEngine.search() called with query='{query}', limit={limit}, offset={offset}")
-        
+
         if not query or not query.strip():
             self.logger.info("Empty query provided, returning empty results")
             return {'items': [], 'total': 0, 'used_remote': False}
@@ -78,82 +78,144 @@ class LocalSearchEngine:
             return {'items': [], 'total': 0, 'used_remote': False}
 
     def _search_movies(self, query_lower: str, limit: int) -> List[Dict[str, Any]]:
-        """Search movies in local library using JSON-RPC"""
-        self.logger.debug(f"Searching movies for query: '{query_lower}' with limit: {limit}")
-        
-        try:
-            # Use JSON-RPC filter for basic search, fallback to client-side if needed
-            self.logger.debug("Making JSON-RPC call to VideoLibrary.GetMovies")
-            movies_data = self._json_rpc("VideoLibrary.GetMovies", {
-                "properties": [
-                    "title", "year", "file", "art", "plot", "rating",
-                    "genre", "director", "runtime", "mpaa", "imdbnumber",
-                    "uniqueid", "dateadded"
-                ],
-                "limits": {"start": 0, "end": limit * 2}  # Get more for client-side filtering
-            })
+        """Search movies in local SQLite database"""
+        self.logger.debug(f"Searching movies in SQLite for query: '{query_lower}' with limit: {limit}")
 
-            if not movies_data:
-                self.logger.warning("JSON-RPC call returned empty/None data")
+        try:
+            # Import the connection manager to access the database
+            from ..data.connection_manager import get_connection_manager
+            conn_manager = get_connection_manager()
+
+            # Search in the library_movie table
+            self.logger.debug("Searching library_movie table in SQLite database")
+
+            # Split query into individual words
+            words = [word.strip() for word in query_lower.split() if word.strip()]
+            
+            if not words:
+                self.logger.info("No valid words in query, returning empty results")
                 return []
 
-            movies = movies_data.get('movies', [])
-            self.logger.info(f"JSON-RPC returned {len(movies)} movies from library")
+            # Build SQL conditions for cross-field matching
+            # Each word can match in title OR plot, and all words must be found somewhere
+            where_conditions = []
+            params = []
+            title_conditions = []  # For prioritization
+            
+            for word in words:
+                word_pattern = f"%{word.lower()}%"
+                # Each word must exist in either title OR plot (both fields converted to lowercase)
+                where_conditions.append("(LOWER(title) LIKE ? OR LOWER(COALESCE(plot, '')) LIKE ?)")
+                params.extend([word_pattern, word_pattern])
+                
+                # Track title matches for prioritization
+                title_conditions.append(f"LOWER(title) LIKE ?")
+                params.append(word_pattern)
+
+            # All words must match somewhere across title/plot fields (AND condition)
+            where_clause = " AND ".join(where_conditions)
+            
+            # Build prioritization - count how many words match in title
+            title_match_count = " + ".join([f"CASE WHEN {cond} THEN 1 ELSE 0 END" 
+                                          for cond in title_conditions])
+
+            sql = f"""
+                SELECT 
+                    kodi_id, title, year, imdbnumber as imdb_id, tmdb_id, play as file_path,
+                    poster, fanart, poster as thumb, plot, duration as runtime, rating, 
+                    genre, mpaa, director, 0 as playcount
+                FROM media_items 
+                WHERE media_type = 'movie'
+                AND {where_clause}
+                ORDER BY 
+                    ({title_match_count}) DESC,
+                    title
+                LIMIT ?
+            """
+            
+            params.append(limit)
+            
+            # Debug logging - show the actual SQL and parameters
+            self.logger.debug(f"Executing SQL query: {sql}")
+            self.logger.debug(f"Query parameters: {params}")
+            
+            # Also check what's actually in the database
+            count_sql = "SELECT COUNT(*) as count FROM media_items WHERE media_type = 'movie'"
+            total_movies = conn_manager.execute_single(count_sql, [])
+            if total_movies:
+                total_count = total_movies.get('count', 0) if hasattr(total_movies, 'get') else total_movies[0]
+                self.logger.debug(f"Total movies in database: {total_count}")
+            
+            movies = conn_manager.execute_query(sql, params)
+
+            # Debug: Test individual word searches to understand what's in the database
+            for word in words:
+                test_sql = """
+                    SELECT title, 
+                           SUBSTR(COALESCE(plot, ''), 1, 100) as plot_preview,
+                           CASE WHEN LOWER(title) LIKE ? THEN 'TITLE' ELSE '' END as title_match,
+                           CASE WHEN LOWER(COALESCE(plot, '')) LIKE ? THEN 'PLOT' ELSE '' END as plot_match
+                    FROM media_items 
+                    WHERE media_type = 'movie' 
+                    AND (LOWER(title) LIKE ? OR LOWER(COALESCE(plot, '')) LIKE ?)
+                    LIMIT 5
+                """
+                test_pattern = f"%{word.lower()}%"
+                test_results = conn_manager.execute_query(test_sql, [test_pattern, test_pattern, test_pattern, test_pattern])
+                if test_results:
+                    self.logger.debug(f"Test search for '{word}': found {len(test_results)} matches")
+                    for result in test_results[:3]:  # Show first 3 matches
+                        # IMPORTANT: Convert sqlite3.Row to dict for .get() method access
+                        # sqlite3.Row objects don't have .get() method, only dict objects do
+                        if hasattr(result, 'keys'):
+                            result_dict = dict(result)
+                        else:
+                            result_dict = result
+                        
+                        title = result_dict.get('title', 'Unknown')
+                        plot_preview = result_dict.get('plot_preview', '')
+                        title_match = result_dict.get('title_match', '')
+                        plot_match = result_dict.get('plot_match', '')
+                        self.logger.debug(f"  - '{title}' | {title_match}{plot_match} | Plot: '{plot_preview}'")
+
+            self.logger.info(f"SQLite search returned {len(movies)} movies from database")
 
             if not movies:
-                self.logger.info("No movies found in library")
+                self.logger.info("No movies found in SQLite database")
                 return []
-            
-            # FORCE LOG sample movie titles using INFO level to ensure visibility
-            self.logger.info("=== SAMPLE MOVIE TITLES FROM LIBRARY ===")
-            for i, movie in enumerate(movies[:20]):  # Show more samples
-                title = movie.get('title', 'Unknown')
-                self.logger.info(f"Movie {i+1}: '{title}'")
-            self.logger.info("=== END SAMPLE MOVIE TITLES ===")
+
+            # Debug logging
+            self.logger.info("=== DEBUGGING SQLITE MOVIE RESULTS ===")
+            print("=== DEBUGGING SQLITE MOVIE RESULTS ===")
+            for i, movie in enumerate(movies[:10]):
+                title = movie['title']
+                log_msg = f"SQLite Movie {i+1}: '{title}'"
+                self.logger.info(log_msg)
+                print(log_msg)
+
+            witch_count = len([m for m in movies if 'witch' in m['title'].lower()])
+            debug_msg = f"FOUND {witch_count} movies with 'witch' in title from SQLite"
+            self.logger.info(debug_msg)
+            print(debug_msg)
+
+            self.logger.info("=== END DEBUGGING ===")
+            print("=== END DEBUGGING ===")
 
             results = []
-            matches_found = 0
-
-            self.logger.info(f"Starting title matching for query: '{query_lower}'")
-            
-            # First, let's see if ANY movies have "witch" in them
-            witch_count = 0
             for movie in movies:
-                title = movie.get('title', '').lower()
-                if 'witch' in title:
-                    witch_count += 1
-                    self.logger.info(f"FOUND MOVIE WITH 'witch': '{movie.get('title', 'Unknown')}'")
-            
-            self.logger.info(f"Total movies containing 'witch': {witch_count}")
-            
-            for i, movie in enumerate(movies):
-                title = movie.get('title', '').lower()
-                original_title = movie.get('title', 'Unknown')
-                
-                # Log first few movies for debugging using INFO level
-                if i < 10:
-                    self.logger.info(f"Checking movie {i+1}: '{original_title}' -> normalized: '{title}' | query: '{query_lower}' | contains: {query_lower in title}")
-                
-                # Client-side fallback filter
-                if query_lower in title:
-                    matches_found += 1
-                    result = self._format_movie_result(movie)
-                    results.append(result)
-                    self.logger.info(f"*** MATCH {matches_found}: '{original_title}' contains '{query_lower}' ***")
+                result = self._format_sqlite_movie_result(movie)
+                results.append(result)
 
-                    if len(results) >= limit:
-                        self.logger.info(f"Reached limit of {limit} results")
-                        break
-
-            self.logger.info(f"Title matching completed: {matches_found} matches found out of {len(movies)} movies checked")
-
-            self.logger.info(f"Movie search completed: {len(results)} matches out of {len(movies)} total movies")
+            self.logger.info(f"SQLite movie search completed: {len(results)} results")
             return results
 
         except Exception as e:
             import traceback
-            self.logger.error(f"Error searching movies: {e}")
-            self.logger.error(f"Movie search traceback: {traceback.format_exc()}")
+            self.logger.error(f"Error searching movies in SQLite: {e}")
+            self.logger.error(f"SQLite search traceback: {traceback.format_exc()}")
+
+            # Return empty results instead of fallback
+            self.logger.error("SQLite search failed, returning empty results (no JSON-RPC fallback)")
             return []
 
     def _search_episodes(self, query_lower: str, limit: int) -> List[Dict[str, Any]]:
@@ -187,6 +249,65 @@ class LocalSearchEngine:
         except Exception as e:
             self.logger.error(f"Error searching episodes: {e}")
             return []
+
+    def _format_sqlite_movie_result(self, movie: Dict[str, Any]) -> Dict[str, Any]:
+        """Format movie data from SQLite database to uniform item dict"""
+        # CRITICAL: Convert sqlite3.Row to dict for proper attribute access
+        # sqlite3.Row objects can be converted to dict but don't have .get() method
+        # Always convert Row objects to dict before using .get() method
+        if hasattr(movie, 'keys'):
+            movie = dict(movie)
+
+        title = movie.get('title') or 'Unknown Movie'
+        year = movie.get('year')
+        kodi_id = movie.get('kodi_id')
+
+        # Create display label
+        if year:
+            label = f"{title} ({year})"
+        else:
+            label = title
+
+        # Extract artwork from SQLite columns
+        art = {}
+        if movie.get('poster'):
+            art['poster'] = movie['poster']
+        if movie.get('fanart'):
+            art['fanart'] = movie['fanart']
+        if movie.get('thumb'):
+            art['thumb'] = movie['thumb']
+
+        result = {
+            'label': label,
+            'path': movie.get('file_path') or '',
+            'art': art,
+            'type': 'movie',
+            'ids': {
+                'imdb': movie.get('imdb_id'),
+                'tmdb': movie.get('tmdb_id'),
+                'kodi_id': kodi_id
+            },
+            # Additional metadata
+            'title': title,
+            'year': year,
+            'plot': movie.get('plot') or '',
+            'rating': movie.get('rating') or 0.0,
+            'genre': movie.get('genre') or '',
+            'director': movie.get('director') or '',
+            'runtime': movie.get('runtime') or 0,
+            'mpaa': movie.get('mpaa') or '',
+            'playcount': movie.get('playcount') or 0
+        }
+
+        # CRITICAL: Include kodi_id at top level for search result storage
+        if kodi_id:
+            result['kodi_id'] = kodi_id
+            result['movieid'] = kodi_id  # Alternative field name used by JSON-RPC
+            self.logger.info(f"LOCAL SEARCH: SQLite result for '{title}' includes kodi_id: {kodi_id}")
+        else:
+            self.logger.warning(f"LOCAL SEARCH: SQLite result for '{title}' missing kodi_id - movie data: {list(movie.keys())}")
+
+        return result
 
     def _format_movie_result(self, movie: Dict[str, Any]) -> Dict[str, Any]:
         """Format movie data to uniform item dict"""
@@ -257,10 +378,12 @@ class LocalSearchEngine:
             'firstaired': episode.get('firstaired', '')
         }
 
+
+
     def _json_rpc(self, method: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Execute JSON-RPC call to Kodi"""
         self.logger.debug(f"Executing JSON-RPC call: {method}")
-        
+
         payload = {
             "jsonrpc": "2.0",
             "id": 1,
@@ -272,7 +395,7 @@ class LocalSearchEngine:
             self.logger.debug(f"JSON-RPC payload: {json.dumps(payload, indent=2)}")
             raw_response = xbmc.executeJSONRPC(json.dumps(payload))
             self.logger.debug(f"JSON-RPC raw response length: {len(raw_response)} chars")
-            
+
             response = json.loads(raw_response)
             self.logger.debug(f"JSON-RPC parsed response keys: {list(response.keys())}")
 
@@ -288,7 +411,7 @@ class LocalSearchEngine:
             elif result and method == "VideoLibrary.GetEpisodes":
                 episode_count = len(result.get('episodes', []))
                 self.logger.info(f"JSON-RPC {method} returned {episode_count} episodes")
-            
+
             return result
 
         except json.JSONDecodeError as e:

@@ -2,49 +2,77 @@
 # -*- coding: utf-8 -*-
 
 """
-LibraryGenie - Storage Location Manager
-Manages database file location using Kodi's profile directory
+LibraryGenie - Storage Manager
+Handles file system paths and storage locations using proper Kodi addon methods
 """
 
 import os
-from pathlib import Path
 import xbmcvfs
 import xbmcaddon
-from typing import Optional, Dict, Any, List
 
 from ..utils.logger import get_logger
 
 
 class StorageManager:
-    """Manages database storage location using Kodi's profile directory"""
+    """Manages file system paths and storage locations using Kodi addon methods"""
 
     def __init__(self):
         self.logger = get_logger(__name__)
-        self._db_path = None
+        self._addon = xbmcaddon.Addon()
 
     def get_database_path(self):
-        """Get the appropriate database file path for current environment"""
-        if self._db_path is None:
-            self._db_path = self._determine_db_path()
+        """Get the database file path using proper Kodi addon profile directory"""
+        try:
+            # Use Kodi's addon profile directory - this is the correct method
+            profile_dir = xbmcvfs.translatePath(self._addon.getAddonInfo('profile'))
 
-        return self._db_path
+            # Ensure directory exists
+            if not xbmcvfs.exists(profile_dir):
+                success = xbmcvfs.mkdirs(profile_dir)
+                if not success:
+                    raise RuntimeError(f"Failed to create addon profile directory: {profile_dir}")
 
-    def _determine_db_path(self):
-        """Determine database path using Kodi's profile directory"""
-        addon = xbmcaddon.Addon()
-        profile_path = addon.getAddonInfo('profile')
+            db_path = os.path.join(profile_dir, 'librarygenie.db')
+            self.logger.info(f"Using Kodi addon profile database path: {db_path}")
+            return db_path
 
-        # Convert to filesystem path and ensure directory exists
-        profile_dir = Path(xbmcvfs.translatePath(profile_path))
-        profile_dir.mkdir(parents=True, exist_ok=True)
-        db_path = profile_dir / "lists.db"
-        self.logger.debug(f"Using Kodi profile database: {db_path}")
-        return str(db_path)
+        except Exception as e:
+            self.logger.error(f"Failed to get Kodi addon profile path: {e}")
+            raise RuntimeError(f"Cannot initialize database - Kodi addon profile path unavailable: {e}")
 
-    def get_data_directory(self):
-        """Get the directory containing the database file"""
-        db_path = Path(self.get_database_path())
-        return str(db_path.parent)
+    def get_cache_dir(self):
+        """Get cache directory path using proper Kodi addon profile"""
+        try:
+            profile_dir = xbmcvfs.translatePath(self._addon.getAddonInfo('profile'))
+            cache_dir = os.path.join(profile_dir, 'cache')
+
+            if not xbmcvfs.exists(cache_dir):
+                success = xbmcvfs.mkdirs(cache_dir)
+                if not success:
+                    raise RuntimeError(f"Failed to create cache directory: {cache_dir}")
+
+            return cache_dir
+
+        except Exception as e:
+            self.logger.error(f"Failed to get cache directory: {e}")
+            raise RuntimeError(f"Cannot initialize cache directory: {e}")
+
+    def get_temp_dir(self):
+        """Get temporary directory path using proper Kodi addon profile"""
+        try:
+            profile_dir = xbmcvfs.translatePath(self._addon.getAddonInfo('profile'))
+            temp_dir = os.path.join(profile_dir, 'temp')
+
+            if not xbmcvfs.exists(temp_dir):
+                success = xbmcvfs.mkdirs(temp_dir)
+                if not success:
+                    raise RuntimeError(f"Failed to create temp directory: {temp_dir}")
+
+            return temp_dir
+
+        except Exception as e:
+            self.logger.error(f"Failed to get temp directory: {e}")
+            raise RuntimeError(f"Cannot initialize temp directory: {e}")
 
 
 # Global storage manager instance

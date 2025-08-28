@@ -109,7 +109,8 @@ class EnhancedSearchEngine:
                 SELECT DISTINCT mi.id, mi.kodi_id, mi.title, mi.year, mi.play as file_path, 
                        mi.imdbnumber as imdb_id, mi.tmdb_id, mi.created_at, 
                        mi.poster, mi.fanart, mi.plot, mi.rating, mi.duration as runtime,
-                       mi.genre, mi.director, 0 as playcount
+                       mi.genre, mi.director, 0 as playcount,
+                       mi.kodi_id as movieid
                 FROM media_items mi
                 INNER JOIN list_items li ON li.media_item_id = mi.id
             """
@@ -120,7 +121,8 @@ class EnhancedSearchEngine:
                 SELECT mi.id, mi.kodi_id, mi.title, mi.year, mi.play as file_path, 
                        mi.imdbnumber as imdb_id, mi.tmdb_id, mi.created_at, 
                        mi.poster, mi.fanart, mi.plot, mi.rating, mi.duration as runtime,
-                       mi.genre, mi.director, 0 as playcount
+                       mi.genre, mi.director, 0 as playcount,
+                       mi.kodi_id as movieid
                 FROM media_items mi
             """
 
