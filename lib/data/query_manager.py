@@ -116,7 +116,7 @@ class QueryManager:
         try:
             self.logger.debug("Getting user lists from database")
 
-            lists = self.conn_manager.execute_query("""
+            lists = self.connection_manager.execute_query("""
                 SELECT 
                     id,
                     name,
@@ -211,7 +211,7 @@ class QueryManager:
         try:
             self.logger.info(f"Creating list '{name}'")
 
-            with self.conn_manager.transaction() as conn:
+            with self.connection_manager.transaction() as conn:
                 cursor = conn.execute("""
                     INSERT INTO user_list (name) VALUES (?)
                 """, [name])
@@ -238,7 +238,7 @@ class QueryManager:
         try:
             self.logger.info(f"Adding '{title}' to list {list_id}")
 
-            with self.conn_manager.transaction() as conn:
+            with self.connection_manager.transaction() as conn:
                 cursor = conn.execute("""
                     INSERT INTO list_item (list_id, title, year, imdb_id, tmdb_id)
                     VALUES (?, ?, ?, ?, ?)
@@ -262,7 +262,7 @@ class QueryManager:
         """Count items in a specific list"""
         try:
             # First try user_list table
-            result = self.conn_manager.execute_single("""
+            result = self.connection_manager.execute_single("""
                 SELECT COUNT(*) as count FROM list_item WHERE list_id = ?
             """, [int(list_id)])
 
@@ -270,7 +270,7 @@ class QueryManager:
 
             # If no items found, try new lists table
             if count == 0:
-                result = self.conn_manager.execute_single("""
+                result = self.connection_manager.execute_single("""
                     SELECT COUNT(*) as count FROM list_items WHERE list_id = ?
                 """, [int(list_id)])
                 count = result['count'] if result else 0
@@ -286,7 +286,7 @@ class QueryManager:
         try:
             self.logger.info(f"Deleting list {list_id}")
 
-            with self.conn_manager.transaction() as conn:
+            with self.connection_manager.transaction() as conn:
                 conn.execute("DELETE FROM user_list WHERE id = ?", [int(list_id)])
 
             return True
@@ -300,7 +300,7 @@ class QueryManager:
         try:
             self.logger.info(f"Deleting item {item_id} from list {list_id}")
 
-            with self.conn_manager.transaction() as conn:
+            with self.connection_manager.transaction() as conn:
                 conn.execute("""
                     DELETE FROM list_item 
                     WHERE id = ? AND list_id = ?
@@ -323,7 +323,7 @@ class QueryManager:
         try:
             self.logger.info(f"Renaming list {list_id} to '{new_name}'")
 
-            with self.conn_manager.transaction() as conn:
+            with self.connection_manager.transaction() as conn:
                 # Check if list exists
                 existing = conn.execute(
                     "SELECT name FROM user_list WHERE id = ?", [int(list_id)]
@@ -355,7 +355,7 @@ class QueryManager:
         try:
             self.logger.info(f"Deleting list {list_id}")
 
-            with self.conn_manager.transaction() as conn:
+            with self.connection_manager.transaction() as conn:
                 # Check if list exists
                 existing = conn.execute(
                     "SELECT name FROM user_list WHERE id = ?", [int(list_id)]
@@ -376,7 +376,7 @@ class QueryManager:
     def get_list_by_id(self, list_id):
         """Get a specific list by ID"""
         try:
-            result = self.conn_manager.execute_single("""
+            result = self.connection_manager.execute_single("""
                 SELECT 
                     id, name, created_at, updated_at,
                     (SELECT COUNT(*) FROM list_item WHERE list_id = user_list.id) as item_count
@@ -404,13 +404,13 @@ class QueryManager:
         """Ensure default list exists"""
         try:
             # Check if default list exists
-            default_list = self.conn_manager.execute_single("""
+            default_list = self.connection_manager.execute_single("""
                 SELECT id FROM user_list WHERE name = ?
             """, ["Default"])
 
             if not default_list:
                 self.logger.info("Creating default list")
-                with self.conn_manager.transaction() as conn:
+                with self.connection_manager.transaction() as conn:
                     conn.execute("""
                         INSERT INTO user_list (name)
                         VALUES (?)
@@ -423,7 +423,7 @@ class QueryManager:
         """Get or create the Search History folder"""
         try:
             # Check if Search History folder exists
-            folder = self.conn_manager.execute_single("""
+            folder = self.connection_manager.execute_single("""
                 SELECT id FROM folders WHERE name = ? AND parent_id IS NULL
             """, ["Search History"])
 
@@ -432,7 +432,7 @@ class QueryManager:
 
             # Create Search History folder
             self.logger.info("Creating Search History folder")
-            with self.conn_manager.transaction() as conn:
+            with self.connection_manager.transaction() as conn:
                 cursor = conn.execute("""
                     INSERT INTO folders (name, parent_id)
                     VALUES (?, NULL)
@@ -463,7 +463,7 @@ class QueryManager:
                 list_name = list_name[:97] + "..."
 
             # Create the list
-            with self.conn_manager.transaction() as conn:
+            with self.connection_manager.transaction() as conn:
                 cursor = conn.execute("""
                     INSERT INTO lists (name, folder_id)
                     VALUES (?, ?)
@@ -485,7 +485,7 @@ class QueryManager:
 
             added_count = 0
 
-            with self.conn_manager.transaction() as conn:
+            with self.connection_manager.transaction() as conn:
                 for position, item in enumerate(search_results['items']):
                     try:
                         # Extract media item data
@@ -589,7 +589,7 @@ class QueryManager:
             self.logger.debug("Getting all lists with folders from database")
 
             # Get all lists including those in folders
-            lists = self.conn_manager.execute_query("""
+            lists = self.connection_manager.execute_query("""
                 SELECT 
                     l.id,
                     l.name,
