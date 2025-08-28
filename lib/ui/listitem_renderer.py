@@ -3,117 +3,31 @@
 
 """
 LibraryGenie - ListItem Renderer
-Renders search results and list items as Kodi ListItems using v19+ compatible patterns
+Renders list items with proper Kodi integration
 """
 
+from typing import List, Dict, Any, Optional
+import xbmc
 import xbmcgui
 import xbmcplugin
-from typing import Dict, Any, List, Optional, Tuple
-from ..utils.logger import get_logger
 from .listitem_builder import ListItemBuilder
-from ..auth.state import get_access_token
+from ..utils.logger import get_logger
 
 
 class ListItemRenderer:
-    """Renders various data types as Kodi ListItems using v19+ patterns"""
+    """Renders lists and media items as Kodi ListItems"""
 
-    def __init__(self, addon_id: str, base_url: str):
+    def __init__(self, addon_handle: int, addon_id: str):
+        self.addon_handle = addon_handle
+        self.addon_id = addon_id
         self.logger = get_logger(__name__)
-        self.builder = ListItemBuilder(addon_id, base_url)
+        self.builder = ListItemBuilder(addon_handle, addon_id)
 
-    def is_user_authorized(self) -> bool:
-        """Check if user is authorized for remote features"""
-        return get_access_token() is not None
-
-    def render_main_menu(self, handle: int):
-        """Render main menu directories"""
-        items = []
-
-        # Search
-        url, listitem, is_folder = self.builder.build_directory_item(
-            label="Search",
-            action="search",
-            art={'icon': 'DefaultAddonsSearch.png'},
-            info={'plot': 'Search your library and online sources'}
-        )
-        items.append((url, listitem, is_folder))
-
-        # My Lists
-        url, listitem, is_folder = self.builder.build_directory_item(
-            label="My Lists",
-            action="show_lists",
-            art={'icon': 'DefaultPlaylist.png'},
-            info={'plot': 'View and manage your custom lists'}
-        )
-        items.append((url, listitem, is_folder))
-
-        # Library Browser
-        url, listitem, is_folder = self.builder.build_directory_item(
-            label="Browse Library",
-            action="browse_library",
-            art={'icon': 'DefaultMovies.png'},
-            info={'plot': 'Browse your local Kodi library'}
-        )
-        items.append((url, listitem, is_folder))
-
-        # Settings (always show, even if some features require auth)
-        url, listitem, is_folder = self.builder.build_directory_item(
-            label="Settings",
-            action="settings",
-            art={'icon': 'DefaultAddonProgram.png'},
-            info={'plot': 'Configure LibraryGenie settings'}
-        )
-        items.append((url, listitem, is_folder))
-
-        # Add items to directory
-        for url, listitem, is_folder in items:
-            xbmcplugin.addDirectoryItem(handle, url, listitem, is_folder)
-
-        self.builder.finish_directory(handle, "files")
-
-    def render_search_results(self, handle: int, results: List[Dict[str, Any]], query: str = ""):
-        """Render search results with proper v19+ compatibility"""
-        is_authorized = self.is_user_authorized()
-
-        if not results:
-            # Show "no results" message
-            url, listitem, is_folder = self.builder.build_directory_item(
-                label="No results found",
-                action="noop",
-                art={'icon': 'DefaultAddonNone.png'},
-                info={'plot': f'No results found for "{query}"'}
-            )
-            xbmcplugin.addDirectoryItem(handle, url, listitem, is_folder)
-            self.builder.finish_directory(handle, "videos")
-            return
-
-        # Render each result
-        for result in results:
-            try:
-                url, listitem, is_folder = self.builder.build_search_result_item(
-                    result, is_authorized
-                )
-                xbmcplugin.addDirectoryItem(handle, url, listitem, is_folder)
-            except Exception as e:
-                self.logger.error(f"Failed to render search result: {e}")
-                continue
-
-        # Set appropriate sort methods for search results
-        sort_methods = [
-            xbmcplugin.SORT_METHOD_UNSORTED,
-            xbmcplugin.SORT_METHOD_TITLE,
-            xbmcplugin.SORT_METHOD_YEAR,
-            xbmcplugin.SORT_METHOD_VIDEO_RATING
-        ]
-
-        self.builder.finish_directory(handle, "movies", sort_methods)
-
-    def render_lists(self, handle: int, lists: List[Dict[str, Any]], folder_id: Optional[int] = None) -> bool:
+    def render_lists(self, lists: List[Dict[str, Any]], folder_id: Optional[int] = None) -> bool:
         """
         Render lists as directory items
 
         Args:
-            handle: Plugin handle
             lists: List of list dictionaries
             folder_id: Parent folder ID if any
 
@@ -122,49 +36,47 @@ class ListItemRenderer:
         """
         try:
             # Set content type for lists
-            xbmcplugin.setContent(handle, "files")
+            xbmcplugin.setContent(self.addon_handle, "files")
 
             for list_data in lists:
                 list_item = self._build_list_item(list_data)
                 if list_item:
                     list_id = list_data['id']
-                    url = f"plugin://{self.builder.addon_id}/?action=show_list&list_id={list_id}"
+                    url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
 
                     xbmcplugin.addDirectoryItem(
-                        handle=handle,
+                        handle=self.addon_handle,
                         url=url,
                         listitem=list_item,
                         isFolder=True
                     )
 
-            xbmcplugin.endOfDirectory(handle)
+            xbmcplugin.endOfDirectory(self.addon_handle)
             return True
 
         except Exception as e:
             self.logger.error(f"Failed to render lists: {e}")
-            xbmcplugin.endOfDirectory(handle, succeeded=False)
+            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
             return False
 
-    def render_media_items(self, handle: int, items: List[Dict[str, Any]], content_type: str = "movies") -> bool:
+    def render_media_items(self, items: List[Dict[str, Any]], content_type: str = "movies") -> bool:
         """
         Render media items using the dual-mode builder
 
         Args:
-            handle: Plugin handle
             items: List of media item dictionaries
             content_type: "movies", "tvshows", or "episodes"
 
         Returns:
             bool: Success status
         """
-        return self.builder.build_directory(items, content_type, handle)
+        return self.builder.build_directory(items, content_type)
 
-    def render_folders(self, handle: int, folders: List[Dict[str, Any]], parent_id: Optional[int] = None) -> bool:
+    def render_folders(self, folders: List[Dict[str, Any]], parent_id: Optional[int] = None) -> bool:
         """
         Render folders as directory items
 
         Args:
-            handle: Plugin handle
             folders: List of folder dictionaries
             parent_id: Parent folder ID if any
 
@@ -173,27 +85,27 @@ class ListItemRenderer:
         """
         try:
             # Set content type for folders
-            xbmcplugin.setContent(handle, "files")
+            xbmcplugin.setContent(self.addon_handle, "files")
 
             for folder_data in folders:
                 list_item = self._build_folder_item(folder_data)
                 if list_item:
                     folder_id = folder_data['id']
-                    url = f"plugin://{self.builder.addon_id}/?action=show_folder&folder_id={folder_id}"
+                    url = f"plugin://{self.addon_id}/?action=show_folder&folder_id={folder_id}"
 
                     xbmcplugin.addDirectoryItem(
-                        handle=handle,
+                        handle=self.addon_handle,
                         url=url,
                         listitem=list_item,
                         isFolder=True
                     )
 
-            xbmcplugin.endOfDirectory(handle)
+            xbmcplugin.endOfDirectory(self.addon_handle)
             return True
 
         except Exception as e:
             self.logger.error(f"Failed to render folders: {e}")
-            xbmcplugin.endOfDirectory(handle, succeeded=False)
+            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
             return False
 
     def _build_list_item(self, list_data: Dict[str, Any]) -> Optional[xbmcgui.ListItem]:
@@ -258,19 +170,19 @@ class ListItemRenderer:
         # Rename list
         context_items.append((
             "Rename",
-            f"RunPlugin(plugin://{self.builder.addon_id}/?action=rename_list&list_id={list_id})"
+            f"RunPlugin(plugin://{self.addon_id}/?action=rename_list&list_id={list_id})"
         ))
 
         # Delete list
         context_items.append((
             "Delete",
-            f"RunPlugin(plugin://{self.builder.addon_id}/?action=delete_list&list_id={list_id})"
+            f"RunPlugin(plugin://{self.addon_id}/?action=delete_list&list_id={list_id})"
         ))
 
         # Export list
         context_items.append((
             "Export",
-            f"RunPlugin(plugin://{self.builder.addon_id}/?action=export_list&list_id={list_id})"
+            f"RunPlugin(plugin://{self.addon_id}/?action=export_list&list_id={list_id})"
         ))
 
         list_item.addContextMenuItems(context_items)
@@ -283,18 +195,57 @@ class ListItemRenderer:
         # Rename folder
         context_items.append((
             "Rename",
-            f"RunPlugin(plugin://{self.builder.addon_id}/?action=rename_folder&folder_id={folder_id})"
+            f"RunPlugin(plugin://{self.addon_id}/?action=rename_folder&folder_id={folder_id})"
         ))
 
         # Delete folder
         context_items.append((
             "Delete",
-            f"RunPlugin(plugin://{self.builder.addon_id}/?action=delete_folder&folder_id={folder_id})"
+            f"RunPlugin(plugin://{self.addon_id}/?action=delete_folder&folder_id={folder_id})"
         ))
 
         list_item.addContextMenuItems(context_items)
 
-    
+    def create_simple_listitem(self, title: str, description: str = None, action: str = None, icon: str = None) -> xbmcgui.ListItem:
+        """Create a simple ListItem for menu items (compatibility method for MenuBuilder)"""
+        try:
+            list_item = xbmcgui.ListItem(label=title)
+
+            # Set basic info
+            info = {'title': title}
+            if description:
+                info['plot'] = description
+
+            list_item.setInfo('video', info)
+
+            # Set icon/artwork
+            art = {}
+            if icon:
+                art['icon'] = icon
+                art['thumb'] = icon
+            else:
+                art['icon'] = 'DefaultFolder.png'
+                art['thumb'] = 'DefaultFolder.png'
+
+            list_item.setArt(art)
+
+            return list_item
+
+        except Exception as e:
+            self.logger.error(f"Failed to create simple listitem: {e}")
+            # Return basic listitem on error
+            return xbmcgui.ListItem(label=title)
+
+    def create_movie_listitem(self, movie_data: Dict[str, Any], base_url: str, action: str) -> xbmcgui.ListItem:
+        """Create a movie ListItem (compatibility method for MenuBuilder)"""
+        try:
+            # Delegate to the builder for movie items
+            return self.builder._create_library_listitem(movie_data)
+        except Exception as e:
+            self.logger.error(f"Failed to create movie listitem: {e}")
+            # Fallback to simple listitem
+            title = movie_data.get('title', movie_data.get('label', 'Unknown'))
+            return self.create_simple_listitem(title)
 
 
 # Global renderer instance

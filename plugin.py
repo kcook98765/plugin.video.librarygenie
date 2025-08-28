@@ -373,20 +373,20 @@ def handle_view_list(addon_handle, base_url):
         for item in list_items:
             # Create rich ListItem using renderer
             list_item = renderer.create_movie_listitem(item, base_url, "play_item")
-
+            
             # Build URL for this item
             url = f"{base_url}?action=play_item&item_id={item.get('id')}&list_id={list_id}"
-
+            
             # Add context menu for removal
             context_menu = [
                 (f"Remove from '{list_info['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={list_id}&item_id={item.get('id')})")
             ]
             list_item.addContextMenuItems(context_menu)
-
+            
             # Set playable if we have a file path
             is_playable = bool(item.get('file_path') or item.get('kodi_id'))
             list_item.setProperty('IsPlayable', 'true' if is_playable else 'false')
-
+            
             # Add to directory
             xbmcplugin.addDirectoryItem(
                 addon_handle,
