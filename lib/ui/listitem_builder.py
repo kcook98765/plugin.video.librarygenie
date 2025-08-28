@@ -343,6 +343,7 @@ class ListItemBuilder:
         """
         Build plugin/external row as (url, listitem, is_folder)
         Using lightweight info; no heavy fields (cast/streamdetails) in list view.
+        When there's no kodi_id, use plugin:// URL with same lightweight profile as library items.
         """
         try:
             title = item.get('title', 'Unknown')
@@ -351,28 +352,35 @@ class ListItemBuilder:
             display = f"{title} ({item['year']})" if item.get('year') else title
             li = xbmcgui.ListItem(label=display)
 
-            # Lightweight info
+            # Apply exact same lightweight info profile as library items (Step 4)
             info = self._build_lightweight_info(item)
             li.setInfo('video', info)
 
-            # Art
+            # Apply exact same art keys as library items (Step 4)
             art = self._build_art_dict(item)
             if art:
                 li.setArt(art)
 
-            # Playback URL & folder flag
+            # Plugin URL for external/plugin-only items (no kodi_id)
             url = self._build_playback_url(item)
             li.setPath(url)
+            
+            # Keep folder/playable flags correct - IsPlayable="true" only for playable rows
             is_playable = bool(item.get('play'))
+            is_folder = not is_playable
             if is_playable:
                 li.setProperty('IsPlayable', 'true')
             # Do NOT set IsPlayable='false' for folders/non-playable
 
+            # Resume for plugin-only: only if you maintain your own resume store
+            # (Skip resume for external items - at your discretion)
+            # The "always show resume" rule applies to library items only
+
             # External context menu
             self._set_external_context_menu(li, item)
 
-            self.logger.debug(f"EXT ITEM: '{title}' type={media_type} -> {url} (playable={is_playable})")
-            return url, li, not is_playable
+            self.logger.debug(f"EXT ITEM: '{title}' type={media_type} -> {url} (playable={is_playable}, folder={is_folder})")
+            return url, li, is_folder
         except Exception as e:
             self.logger.error(f"EXT ITEM: failed for '{item.get('title','Unknown')}': {e}")
             return None
