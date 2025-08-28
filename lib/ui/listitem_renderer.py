@@ -3,25 +3,110 @@
 
 """
 LibraryGenie - ListItem Renderer
-Renders list items with proper Kodi integration
+Renders search results and list items as Kodi ListItems using v19+ compatible patterns
 """
 
-from typing import List, Dict, Any, Optional
-import xbmc
 import xbmcgui
 import xbmcplugin
-from .listitem_builder import ListItemBuilder
+from typing import Dict, Any, List, Optional, Tuple
 from ..utils.logger import get_logger
+from .listitem_builder import ListItemBuilder
+from ..auth.state import get_access_token
 
 
 class ListItemRenderer:
-    """Renders lists and media items as Kodi ListItems"""
+    """Renders various data types as Kodi ListItems using v19+ patterns"""
 
-    def __init__(self, addon_handle: int, addon_id: str):
-        self.addon_handle = addon_handle
-        self.addon_id = addon_id
+    def __init__(self, addon_id: str, base_url: str):
         self.logger = get_logger(__name__)
-        self.builder = ListItemBuilder(addon_handle, addon_id)
+        self.builder = ListItemBuilder(addon_id, base_url)
+
+    def is_user_authorized(self) -> bool:
+        """Check if user is authorized for remote features"""
+        return get_access_token() is not None
+
+    def render_main_menu(self, handle: int):
+        """Render main menu directories"""
+        items = []
+
+        # Search
+        url, listitem, is_folder = self.builder.build_directory_item(
+            label="Search",
+            action="search",
+            art={'icon': 'DefaultAddonsSearch.png'},
+            info={'plot': 'Search your library and online sources'}
+        )
+        items.append((url, listitem, is_folder))
+
+        # My Lists
+        url, listitem, is_folder = self.builder.build_directory_item(
+            label="My Lists",
+            action="show_lists",
+            art={'icon': 'DefaultPlaylist.png'},
+            info={'plot': 'View and manage your custom lists'}
+        )
+        items.append((url, listitem, is_folder))
+
+        # Library Browser
+        url, listitem, is_folder = self.builder.build_directory_item(
+            label="Browse Library",
+            action="browse_library",
+            art={'icon': 'DefaultMovies.png'},
+            info={'plot': 'Browse your local Kodi library'}
+        )
+        items.append((url, listitem, is_folder))
+
+        # Settings (always show, even if some features require auth)
+        url, listitem, is_folder = self.builder.build_directory_item(
+            label="Settings",
+            action="settings",
+            art={'icon': 'DefaultAddonProgram.png'},
+            info={'plot': 'Configure LibraryGenie settings'}
+        )
+        items.append((url, listitem, is_folder))
+
+        # Add items to directory
+        for url, listitem, is_folder in items:
+            xbmcplugin.addDirectoryItem(handle, url, listitem, is_folder)
+
+        self.builder.finish_directory(handle, "files")
+
+    def render_search_results(self, handle: int, results: List[Dict[str, Any]], query: str = ""):
+        """Render search results with proper v19+ compatibility"""
+        is_authorized = self.is_user_authorized()
+
+        if not results:
+            # Show "no results" message
+            url, listitem, is_folder = self.builder.build_directory_item(
+                label="No results found",
+                action="noop",
+                art={'icon': 'DefaultAddonNone.png'},
+                info={'plot': f'No results found for "{query}"'}
+            )
+            xbmcplugin.addDirectoryItem(handle, url, listitem, is_folder)
+            self.builder.finish_directory(handle, "videos")
+            return
+
+        # Render each result
+        for result in results:
+            try:
+                url, listitem, is_folder = self.builder.build_search_result_item(
+                    result, is_authorized
+                )
+                xbmcplugin.addDirectoryItem(handle, url, listitem, is_folder)
+            except Exception as e:
+                self.logger.error(f"Failed to render search result: {e}")
+                continue
+
+        # Set appropriate sort methods for search results
+        sort_methods = [
+            xbmcplugin.SORT_METHOD_UNSORTED,
+            xbmcplugin.SORT_METHOD_TITLE,
+            xbmcplugin.SORT_METHOD_YEAR,
+            xbmcplugin.SORT_METHOD_VIDEO_RATING
+        ]
+
+        self.builder.finish_directory(handle, "movies", sort_methods)
 
     def render_lists(self, lists: List[Dict[str, Any]], folder_id: Optional[int] = None) -> bool:
         """
