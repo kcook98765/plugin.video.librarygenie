@@ -50,6 +50,7 @@ def show_main_menu(handle):
     # Test Info Variants (debug/development tool)
     test_item = xbmcgui.ListItem(label="[COLOR gray]Test Info Variants[/COLOR]")
     test_url = f"{sys.argv[0]}?action=test_info_variants&dbtype=movie&dbid=883"
+    logger.info(f"[TEST-HARNESS] Adding test menu item with URL: {test_url}")
     xbmcplugin.addDirectoryItem(handle, test_url, test_item, True)
 
     # Lists (always visible)
@@ -667,19 +668,28 @@ def handle_settings():
 def run_test_info_variants(addon_handle, params):
     """Runs the test for different info variants."""
     try:
+        logger.info(f"[TEST-HARNESS] ========== STARTING TEST INFO VARIANTS ==========")
+        logger.info(f"[TEST-HARNESS] Addon handle: {addon_handle}")
+        logger.info(f"[TEST-HARNESS] Received params: {params}")
+        logger.info(f"[TEST-HARNESS] DB type: {params.get('dbtype', 'movie')}")
+        logger.info(f"[TEST-HARNESS] DB ID: {params.get('dbid', '883')}")
+        logger.info(f"[TEST-HARNESS] Importing test runner from test_info_variants module")
+        
         # Import the test function from the separate module
         from test_info_variants import run_test_info_variants as test_runner
         
-        logger.info("Starting test_info_variants")
-        logger.info(f"Received params: {params}")
+        logger.info(f"[TEST-HARNESS] Successfully imported test runner, calling implementation")
         
         # Call the actual test implementation
         test_runner(addon_handle, params)
         
+        logger.info(f"[TEST-HARNESS] Test info variants completed successfully")
+        
     except Exception as e:
-        logger.error(f"Error in run_test_info_variants: {e}")
+        logger.error(f"[TEST-HARNESS] ERROR in run_test_info_variants: {e}")
         import traceback
-        logger.error(f"test_info_variants error traceback: {traceback.format_exc()}")
+        logger.error(f"[TEST-HARNESS] test_info_variants error traceback: {traceback.format_exc()}")
+        logger.error(f"[TEST-HARNESS] Test harness failed - this indicates a problem with the test setup")
         addon = xbmcaddon.Addon()
         xbmcgui.Dialog().notification(
             addon.getLocalizedString(35002),
@@ -716,6 +726,11 @@ def main():
 
         # Route based action parameter
         action = params.get('action', '')
+        
+        # Log all routing for test harness tracking
+        if action.startswith('test_') or action == 'noop':
+            logger.info(f"[TEST-HARNESS] NAVIGATION: User triggered action '{action}'")
+            logger.info(f"[TEST-HARNESS] NAVIGATION: Full routing context - handle={addon_handle}, base_url={base_url}")
 
         if action == 'search':
             show_search_menu(addon_handle)
@@ -739,13 +754,24 @@ def main():
             logger.info(f"ROUTING: on_select action detected with params: {params}")
             handle_on_select(params, addon_handle)
         elif action == 'test_info_variants':
-            logger.info(f"ROUTING: test_info_variants action detected with params: {params}")
+            logger.info(f"[TEST-HARNESS] ROUTING: test_info_variants action detected")
+            logger.info(f"[TEST-HARNESS] Full params: {params}")
+            logger.info(f"[TEST-HARNESS] Query string: {query_string}")
+            logger.info(f"[TEST-HARNESS] Addon handle: {addon_handle}")
+            logger.info(f"[TEST-HARNESS] Base URL: {base_url}")
             run_test_info_variants(addon_handle, params)
         elif action == 'test_info_click':
-            logger.info(f"ROUTING: test_info_click action detected with params: {params}")
+            logger.info(f"[TEST-HARNESS] ROUTING: test_info_click action detected")
+            logger.info(f"[TEST-HARNESS] Click params: {params}")
+            logger.info(f"[TEST-HARNESS] Mode: {params.get('mode', 'unknown')}")
+            logger.info(f"[TEST-HARNESS] VDB path: {params.get('vdb', 'none')}")
+            logger.info(f"[TEST-HARNESS] User navigated to test click handler")
             from test_info_variants import handle_test_info_click
             handle_test_info_click(params, addon_handle)
         elif action == 'noop':
+            logger.info(f"[TEST-HARNESS] ROUTING: noop action (test baseline)")
+            logger.info(f"[TEST-HARNESS] Noop params: {params}")
+            logger.info(f"[TEST-HARNESS] This is a no-op test variant - ending directory")
             # No-op action for test variants - just end directory
             xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
         else:
