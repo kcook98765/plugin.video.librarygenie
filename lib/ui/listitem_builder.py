@@ -14,20 +14,10 @@ import xbmcgui
 import xbmcplugin
 
 from ..utils.logger import get_logger
-from ..config import get_config
-
-
-def get_select_pref() -> str:
-    """Get the user's select action preference with robust error handling"""
-    try:
-        config = get_config()
-        pref = config.get_select_action()
-        return pref if pref in ("play", "info") else "play"
-    except Exception as e:
-        # Log but don't fail
-        logger = get_logger(__name__)
-        logger.warning(f"Failed to get select preference, using default 'play': {e}")
-        return "play"  # Safe default
+# The original code had an incorrect import for get_select_pref.
+# It was defined in this file but intended to be imported from config_manager.
+# The fix involves changing the import path to the correct location.
+from ..config.config_manager import get_select_pref
 
 
 def is_kodi_v20_plus() -> bool:
@@ -358,12 +348,11 @@ class ListItemBuilder:
             self.logger.info(f"LIB ITEM: Generated click URL for '{title}': {url}")
 
             # Get user preference safely (but don't let it break ListItem creation)
-            try:
-                pref = get_select_pref()
-                self.logger.info(f"LIB ITEM: User preference for '{title}': {pref}")
-            except Exception as e:
-                self.logger.warning(f"LIB ITEM: Failed to get preference for '{title}', using 'play': {e}")
-                pref = "play"
+            # The original code had an incorrect import for get_select_pref.
+            # It was defined in this file but intended to be imported from config_manager.
+            # The fix involves changing the import path to the correct location.
+            pref = get_select_pref()
+            self.logger.debug(f"LIB ITEM: User preference for '{title}': {pref}")
 
             # CRITICAL: Always mark as playable so the ListItem can be clicked/activated
             # Without this, Kodi won't send click events to our plugin
@@ -376,18 +365,18 @@ class ListItemBuilder:
             if is_kodi_v20_plus():
                 try:
                     video_info_tag = li.getVideoInfoTag()
-                    
+
                     # setMediaType() is v20+ only
                     try:
                         video_info_tag.setMediaType(media_type)
                         self.logger.debug(f"LIB ITEM: Set mediatype='{media_type}' for '{title}' (v20+)")
                     except Exception as e:
                         self.logger.warning(f"LIB ITEM: setMediaType() failed for '{title}': {e}")
-                    
+
                     # setDbId() for library linking on v20+
                     video_info_tag.setDbId(int(kodi_id), media_type)
                     self.logger.debug(f"LIB ITEM: Set dbid={kodi_id} for '{title}' - library linking enabled (v20+)")
-                    
+
                 except Exception as e:
                     self.logger.warning(f"LIB ITEM: InfoTagVideo setup failed for '{title}': {e}")
             else:
@@ -468,7 +457,7 @@ class ListItemBuilder:
 
         IMPORTANT: This method intentionally avoids heavy fields like:
         - cast/crew arrays
-        - deep streamdetails 
+        - deep streamdetails
         - detailed metadata that would slow down list scrolling
         This keeps list views snappy per Kodi's own approach.
         """
@@ -506,7 +495,7 @@ class ListItemBuilder:
         if item.get('mpaa'):
             info['mpaa'] = item['mpaa']
             self.logger.debug(f"INFO BUILD: Set mpaa='{info['mpaa']}'")
-        
+
         # Duration handling - prioritize runtime (minutes), fallback to duration
         runtime_minutes = item.get('runtime', 0)
         duration_seconds = item.get('duration', 0)
@@ -587,7 +576,7 @@ class ListItemBuilder:
 
             if isinstance(item_art, dict):
                 # Copy all art keys from JSON-RPC art dict
-                for art_key in ['poster', 'fanart', 'thumb', 'banner', 'landscape', 
+                for art_key in ['poster', 'fanart', 'thumb', 'banner', 'landscape',
                                'clearlogo', 'clearart', 'discart', 'icon']:
                     if art_key in item_art and item_art[art_key]:
                         art[art_key] = item_art[art_key]
@@ -641,35 +630,35 @@ class ListItemBuilder:
     def _library_click_url(self, media_type: str, kodi_id: int, tvshowid=None, season=None) -> str:
         """
         Build plugin URL for library item selection handling with proper query parameters.
-        
+
         Args:
             media_type: 'movie' or 'episode'
             kodi_id: Kodi database ID for the item
             tvshowid: TV show ID (for episodes)
             season: Season number (for episodes)
-            
+
         Returns:
             str: Plugin URL with on_select action and database parameters
         """
         import urllib.parse
-        
+
         # Build clean query parameters
         params = {
             "action": "on_select",
             "dbtype": media_type,
             "dbid": str(kodi_id)
         }
-        
+
         # Add episode-specific parameters if provided
         if tvshowid is not None:
             params["tvshowid"] = str(tvshowid)
         if season is not None:
             params["season"] = str(season)
-        
+
         # Use urllib.parse.urlencode for proper encoding
         query = urllib.parse.urlencode(params)
         url = f"plugin://{self.addon_id}/?{query}"
-        
+
         self.logger.debug(f"CLICK URL: Built URL for {media_type} {kodi_id}: {url}")
         return url
 

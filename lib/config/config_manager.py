@@ -217,38 +217,20 @@ class ConfigManager:
     def get_select_action(self) -> str:
         """Get the select action preference: 'play' or 'info'"""
         try:
-            # For select settings, Kodi stores the index as a string
-            # Try multiple approaches to get the setting value
-            raw_value = None
-            
-            # Method 1: Try getSettingString (most compatible)
-            try:
-                raw_value = self._addon.getSettingString("select_action")
-                if raw_value is not None and raw_value != "":
+            # For select type settings, Kodi stores the index as a string
+            # Use getSettingString which is most compatible
+            raw_value = self._addon.getSettingString("select_action")
+            if raw_value and raw_value.strip():
+                try:
                     # Convert string index to preference
-                    index = int(raw_value)
+                    index = int(raw_value.strip())
                     return "info" if index == 1 else "play"
-            except Exception:
-                pass
+                except (ValueError, TypeError):
+                    # If not a number, check string value directly
+                    if raw_value.strip().lower() in ["info", "1"]:
+                        return "info"
             
-            # Method 2: Try getSettingInt as fallback
-            try:
-                raw_value = self._addon.getSettingInt("select_action")
-                if raw_value is not None:
-                    return "info" if raw_value == 1 else "play"
-            except Exception:
-                pass
-            
-            # Method 3: Try generic get method
-            try:
-                raw_value = self.get("select_action", "0")
-                if raw_value:
-                    index = int(str(raw_value))
-                    return "info" if index == 1 else "play"
-            except Exception:
-                pass
-            
-            # Safe default
+            # Safe default if setting not found or invalid
             return "play"
             
         except Exception:
@@ -266,3 +248,9 @@ def get_config() -> ConfigManager:
     if _CFG is None:
         _CFG = ConfigManager()
     return _CFG
+
+
+def get_select_pref() -> str:
+    """Get the select action preference: 'play' or 'info' - convenience function"""
+    config = get_config()
+    return config.get_select_action()
