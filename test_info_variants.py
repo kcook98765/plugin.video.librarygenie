@@ -149,7 +149,7 @@ def _get_movie_file(movieid: int) -> str | None:
     return md.get("file")
 
 def _create_movie_xsp_by_path(movieid: int) -> str | None:
-    # Get movie details for better filtering
+    # Get movie details for precise targeting
     data = jsonrpc("VideoLibrary.GetMovieDetails", {
         "movieid": int(movieid),
         "properties": ["file", "title", "year", "imdbnumber"]
@@ -167,37 +167,17 @@ def _create_movie_xsp_by_path(movieid: int) -> str | None:
 
     _log(f"Got movie details - Title: {title}, Year: {year}, File: {file_path}")
     
-    # Try multiple filtering approaches for better compatibility
-    # Use movieid-based filter as primary, with fallbacks
+    # Create XSP that targets ONLY this specific movie using file path
+    # This ensures exactly one result
     xsp = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <smartplaylist type="movies">
     <name>LibraryGenie Test - Movie {movieid}</name>
-    <match>any</match>"""
-    
-    # Add movieid rule if available (most reliable)
-    if movieid:
-        xsp += f"""
-    <rule field="playcount" operator="greaterthan">
-        <value>-1</value>
-    </rule>"""
-    
-    # Add title + year rule as fallback
-    if title and year:
-        xsp += f"""
-    <rule field="title" operator="is">
-        <value>{html.escape(title)}</value>
-    </rule>"""
-    
-    # Add IMDb rule if available
-    if imdb:
-        xsp += f"""
-    <rule field="imdbnumber" operator="is">
-        <value>{html.escape(imdb)}</value>
-    </rule>"""
-    
-    xsp += """
+    <match>all</match>
+    <rule field="path" operator="is">
+        <value>{html.escape(file_path)}</value>
+    </rule>
     <order direction="ascending">title</order>
-    <limit>50</limit>
+    <limit>1</limit>
 </smartplaylist>"""
 
     # Use temp directory directly
