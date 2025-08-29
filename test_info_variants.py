@@ -45,6 +45,27 @@ def jsonrpc(method: str, params: dict | None = None) -> dict:
 def notify(heading: str, message: str, time_ms: int = 3500):
     xbmcgui.Dialog().notification(heading, message, xbmcgui.NOTIFICATION_INFO, time_ms)
 
+def discover_controls() -> dict:
+    """Discover available controls in current window"""
+    controls = {}
+    
+    # Test common list control IDs
+    test_ids = [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60]
+    
+    for control_id in test_ids:
+        exists = xbmc.getCondVisibility(f'Control.IsEnabled({control_id})')
+        visible = xbmc.getCondVisibility(f'Control.IsVisible({control_id})')
+        focusable = xbmc.getCondVisibility(f'ControlGroup({control_id}).HasFocus(0)') or exists
+        
+        if exists or visible:
+            controls[control_id] = {
+                'exists': exists,
+                'visible': visible,
+                'focusable': focusable
+            }
+    
+    return controls
+
 def focus_list(control_id: int = LIST_ID, tries: int = 10, sleep_ms: int = 50) -> bool:
     _log(f"FOCUS_LIST: Attempting to focus control {control_id} (max {tries} tries, {sleep_ms}ms sleep)")
     
@@ -197,7 +218,7 @@ def show_info_matrix(movieid: int):
     container_items = xbmc.getInfoLabel('Container.NumItems')
     _log(f"STEP 3: SUCCESS - Container loaded with {container_items} items")
     
-    # Step 4: Window state analysis
+    # Step 4: Window state analysis and control discovery
     _log("STEP 4: Analyzing window state...")
     xbmc.sleep(500)
     current_window = xbmc.getInfoLabel('System.CurrentWindow')
@@ -208,69 +229,98 @@ def show_info_matrix(movieid: int):
     _log(f"STEP 4: Window={current_window}, Control={current_control}, FocusedId={focused_control}")
     _log(f"STEP 4: Container.FolderPath={container_path}")
     
+    # Discover available controls
+    _log("STEP 4: Discovering available controls...")
+    controls = discover_controls()
+    for cid, info in controls.items():
+        _log(f"STEP 4: Control {cid}: exists={info['exists']}, visible={info['visible']}, focusable={info['focusable']}")
+    
+    # Find best list control candidate
+    list_candidates = [cid for cid, info in controls.items() if info['visible'] and info['exists']]
+    _log(f"STEP 4: List control candidates: {list_candidates}")
+    
     # Step 5: Info dialog attempts with detailed tracking
     _log("STEP 5: Attempting to open info dialog...")
     success = False
     method_results = []
     
-    # Method 1: Focus list control
-    _log("METHOD 1: Focusing list control...")
-    method1_start = int(time.time() * 1000)
-    if focus_list(LIST_ID, tries=10, sleep_ms=50):
-        method1_duration = int(time.time() * 1000) - method1_start
-        _log(f"METHOD 1: SUCCESS - List focused in {method1_duration}ms")
-        _log("METHOD 1: Sending Action(Info)")
-        xbmc.sleep(100)
-        xbmc.executebuiltin('Action(Info)')
-        xbmc.sleep(300)  # Give time for dialog to appear
+    # Method 1: Try discovered list controls
+    method1_success = False
+    for candidate in list_candidates[:3]:  # Try top 3 candidates
+        _log(f"METHOD 1: Trying to focus control {candidate}...")
+        method1_start = int(time.time() * 1000)
+        if focus_list(candidate, tries=5, sleep_ms=50):
+            method1_duration = int(time.time() * 1000) - method1_start
+            _log(f"METHOD 1: SUCCESS - Control {candidate} focused in {method1_duration}ms")
+            _log("METHOD 1: Sending Action(Info)")
+            xbmc.sleep(100)
+            xbmc.executebuiltin('Action(Info)')
+            xbmc.sleep(300)  # Give time for dialog to appear
+            
+            # Check if info dialog opened
+            info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+            _log(f"METHOD 1: Info dialog open: {info_open}")
+            method_results.append(f"Method1: control_{candidate}_focused={method1_duration}ms, info_open={info_open}")
+            method1_success = True
+            if info_open:
+                success = True
+                break
+        else:
+            method1_duration = int(time.time() * 1000) - method1_start
+            _log(f"METHOD 1: FAILED - Could not focus control {candidate} in {method1_duration}ms")
+    
+    if not method1_success:
+        method_results.append("Method1: all_controls_failed")
         
-        # Check if info dialog opened
-        info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
-        _log(f"METHOD 1: Info dialog open: {info_open}")
-        method_results.append(f"Method1: focus_success={method1_duration}ms, info_open={info_open}")
-        success = True
-    else:
-        method1_duration = int(time.time() * 1000) - method1_start
-        _log(f"METHOD 1: FAILED - Could not focus list in {method1_duration}ms")
-        method_results.append(f"Method1: focus_failed={method1_duration}ms")
-        
-        # Method 2: Focus container then info
-        _log("METHOD 2: Focus container approach...")
-        xbmc.executebuiltin('SetFocus(50)')
-        xbmc.sleep(100)
-        focused_after = xbmc.getInfoLabel('System.CurrentControlId')
-        _log(f"METHOD 2: Focused control after SetFocus(50): {focused_after}")
+        # Method 2: Stay on current control and try Info
+        _log("METHOD 2: Current control approach...")
+        current_focused = xbmc.getInfoLabel('System.CurrentControlId')
+        _log(f"METHOD 2: Current focused control: {current_focused}")
         xbmc.executebuiltin('Action(Info)')
-        xbmc.sleep(200)
+        xbmc.sleep(300)
         info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
         _log(f"METHOD 2: Info dialog open: {info_open}")
-        method_results.append(f"Method2: focused_control={focused_after}, info_open={info_open}")
+        method_results.append(f"Method2: current_control={current_focused}, info_open={info_open}")
+        if info_open:
+            success = True
         
         # Method 3: Context menu approach
-        _log("METHOD 3: Context menu approach...")
-        xbmc.executebuiltin('Action(ContextMenu)')
-        xbmc.sleep(100)
-        context_open = xbmc.getCondVisibility('Window.IsActive(DialogContextMenu.xml)')
-        _log(f"METHOD 3: Context menu open: {context_open}")
-        xbmc.executebuiltin('Action(Info)')
-        xbmc.sleep(200)
-        info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
-        _log(f"METHOD 3: Info dialog open: {info_open}")
-        method_results.append(f"Method3: context_open={context_open}, info_open={info_open}")
+        if not success:
+            _log("METHOD 3: Context menu approach...")
+            xbmc.executebuiltin('Action(ContextMenu)')
+            xbmc.sleep(200)
+            context_open = xbmc.getCondVisibility('Window.IsActive(DialogContextMenu.xml)')
+            _log(f"METHOD 3: Context menu open: {context_open}")
+            if context_open:
+                # Try to find and select "Information" item
+                xbmc.executebuiltin('Action(Info)')
+                xbmc.sleep(200)
+            else:
+                xbmc.executebuiltin('Action(Info)')
+                xbmc.sleep(200)
+            info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+            _log(f"METHOD 3: Info dialog open: {info_open}")
+            method_results.append(f"Method3: context_open={context_open}, info_open={info_open}")
+            if info_open:
+                success = True
         
-        # Method 4: First item approach
-        _log("METHOD 4: Select first item approach...")
-        xbmc.executebuiltin('Action(FirstItem)')
-        xbmc.sleep(100)
-        current_pos = xbmc.getInfoLabel('Container.CurrentItem')
-        _log(f"METHOD 4: Current position: {current_pos}")
-        xbmc.executebuiltin('Action(Info)')
-        xbmc.sleep(200)
-        info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
-        _log(f"METHOD 4: Info dialog open: {info_open}")
-        method_results.append(f"Method4: position={current_pos}, info_open={info_open}")
-        
-        success = True
+        # Method 4: Move and select approach (using correct actions)
+        if not success:
+            _log("METHOD 4: Navigation approach...")
+            # Use correct navigation actions
+            xbmc.executebuiltin('Action(MoveUp)')  # Go to first item
+            xbmc.sleep(100)
+            xbmc.executebuiltin('Action(Select)')  # Select current item
+            xbmc.sleep(100)
+            current_pos = xbmc.getInfoLabel('Container.CurrentItem')
+            _log(f"METHOD 4: Current position after navigation: {current_pos}")
+            xbmc.executebuiltin('Action(Info)')
+            xbmc.sleep(300)
+            info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+            _log(f"METHOD 4: Info dialog open: {info_open}")
+            method_results.append(f"Method4: position={current_pos}, info_open={info_open}")
+            if info_open:
+                success = True
     
     # Final state check
     _log("STEP 6: Final state verification...")
