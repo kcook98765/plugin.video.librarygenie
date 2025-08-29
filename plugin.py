@@ -673,6 +673,7 @@ def run_test_info_variants(addon_handle, params):
         logger.info(f"[TEST-HARNESS] Received params: {params}")
         logger.info(f"[TEST-HARNESS] DB type: {params.get('dbtype', 'movie')}")
         logger.info(f"[TEST-HARNESS] DB ID: {params.get('dbid', '883')}")
+        logger.info(f"[TEST-HARNESS] This test uses ROBUST navigation helpers with container waiting")
         logger.info(f"[TEST-HARNESS] Importing test runner from test_info_variants module")
         
         # Import the test function from the separate module
@@ -765,6 +766,7 @@ def main():
             logger.info(f"[TEST-HARNESS] Click params: {params}")
             logger.info(f"[TEST-HARNESS] Mode: {params.get('mode', 'unknown')}")
             logger.info(f"[TEST-HARNESS] VDB path: {params.get('vdb', 'none')}")
+            logger.info(f"[TEST-HARNESS] Using ROBUST navigation (container waiting + focus)")
             logger.info(f"[TEST-HARNESS] User navigated to test click handler")
             from test_info_variants import handle_test_info_click
             handle_test_info_click(params, addon_handle)

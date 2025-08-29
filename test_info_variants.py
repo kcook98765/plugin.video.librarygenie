@@ -30,6 +30,7 @@ Launch example:
 """
 
 import sys
+import time
 from urllib.parse import parse_qs
 
 import xbmc
@@ -37,6 +38,58 @@ import xbmcgui
 import xbmcplugin
 
 ADDON_HANDLE = int(sys.argv[1]) if len(sys.argv) > 1 else -1
+
+
+# ------------------------------
+# Robust Container Navigation Helpers
+# ------------------------------
+
+def _wait_for_container(target_path, timeout_ms=5000):
+    """Wait until Videos window loads the target_path and has items."""
+    t0 = time.time()
+    # Normalize both ends (slash/no-slash shouldn't matter)
+    target = target_path.rstrip('/') + '/'
+    while (time.time() - t0) * 1000 < timeout_ms and not xbmc.Monitor().abortRequested():
+        cur = xbmc.getInfoLabel('Container.FolderPath') or ''
+        num = xbmc.getInfoLabel('Container.NumItems') or '0'
+        busy = xbmc.getCondVisibility('Window.IsActive(DialogBusy.xml)')
+        if cur:
+            curn = cur.rstrip('/') + '/'
+        else:
+            curn = ''
+        if (curn == target or target.startswith(curn)) and not busy:
+            try:
+                if int(num) > 0:
+                    return True
+            except Exception:
+                pass
+        xbmc.sleep(120)
+    xbmc.log(f"[InfoHarness] _wait_for_container timed out. cur='{cur}' num={num}", xbmc.LOGWARNING)
+    return False
+
+def _open_info_on_library_path(vdb):
+    # Open the Videos window at the videodb path, wait, focus, then Info
+    xbmc.executebuiltin(f'ActivateWindow(Videos,"{vdb}",return)')
+    if _wait_for_container(vdb, timeout_ms=6000):
+        # Try to focus the main container and ensure we're on the first item
+        xbmc.executebuiltin('Control.SetFocus(50)')      # common list control id
+        xbmc.sleep(80)
+        xbmc.executebuiltin('Action(FirstItem)')
+        xbmc.sleep(80)
+        xbmc.executebuiltin('Action(Info)')
+    else:
+        xbmc.log(f"[InfoHarness] LIBHOP: container never ready for {vdb}", xbmc.LOGWARNING)
+
+def _container_update_then_info(vdb):
+    xbmc.executebuiltin(f'Container.Update("{vdb}",replace)')
+    if _wait_for_container(vdb, timeout_ms=6000):
+        xbmc.executebuiltin('Control.SetFocus(50)')
+        xbmc.sleep(80)
+        xbmc.executebuiltin('Action(FirstItem)')
+        xbmc.sleep(80)
+        xbmc.executebuiltin('Action(Info)')
+    else:
+        xbmc.log(f"[InfoHarness] UPDATE: container never ready for {vdb}", xbmc.LOGWARNING)
 
 
 # ------------------------------
@@ -305,17 +358,11 @@ def handle_test_info_click(params, addon_handle):
         elif mode == "info_direct_q":
             xbmc.executebuiltin(f'ActivateWindow(VideoInformation,"{vdb}",return)')
         elif mode == "libhop_uq":
-            xbmc.executebuiltin(f'ActivateWindow(Videos,{vdb},return)')
-            xbmc.sleep(350)
-            xbmc.executebuiltin('Action(Info)')
+            _open_info_on_library_path(vdb)
         elif mode == "libhop_q":
-            xbmc.executebuiltin(f'ActivateWindow(Videos,"{vdb}",return)')
-            xbmc.sleep(350)
-            xbmc.executebuiltin('Action(Info)')
+            _open_info_on_library_path(vdb)
         elif mode == "container_update":
-            xbmc.executebuiltin(f'Container.Update({vdb},replace)')
-            xbmc.sleep(350)
-            xbmc.executebuiltin('Action(Info)')
+            _container_update_then_info(vdb)
         elif mode == "play":
             xbmc.executebuiltin(f'PlayMedia({vdb})')
         else:
