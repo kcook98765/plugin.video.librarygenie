@@ -77,10 +77,10 @@ class ListItemBuilder:
                 try:
                     self.logger.debug(f"DIRECTORY BUILD: Processing item #{idx}/{count}: '{raw.get('title','Unknown')}'")
                     self.logger.debug(f"DIRECTORY BUILD: Raw item #{idx} data: {raw}")
-                    
+
                     item = self._normalize_item(raw)  # canonical shape
                     self.logger.debug(f"DIRECTORY BUILD: Normalized item #{idx}: {item}")
-                    
+
                     built = self._build_single_item(item)
                     if built:
                         url, listitem, is_folder = built
@@ -423,12 +423,12 @@ class ListItemBuilder:
             url = self._build_playback_url(item)
             self.logger.debug(f"EXT ITEM: Built playback URL for '{title}': {url}")
             li.setPath(url)
-            
+
             # Keep folder/playable flags correct - IsPlayable="true" only for playable rows
             is_playable = bool(item.get('play'))
             is_folder = not is_playable
             self.logger.debug(f"EXT ITEM: Playable flags for '{title}': is_playable={is_playable}, is_folder={is_folder}, play_value={item.get('play')}")
-            
+
             if is_playable:
                 li.setProperty('IsPlayable', 'true')
                 self.logger.debug(f"EXT ITEM: Set IsPlayable=true for '{title}'")
@@ -453,7 +453,7 @@ class ListItemBuilder:
         """
         Build lightweight info dictionary for list items (no heavy arrays).
         Duration is in minutes; mediatype set for overlays.
-        
+
         IMPORTANT: This method intentionally avoids heavy fields like:
         - cast/crew arrays
         - deep streamdetails 
@@ -462,9 +462,9 @@ class ListItemBuilder:
         """
         info: Dict[str, Any] = {}
         title = item.get('title', 'Unknown')
-        
+
         self.logger.debug(f"INFO BUILD: Building lightweight info for '{title}'")
-        
+
         # Common
         if item.get('title'):
             info['title'] = item['title']
@@ -494,9 +494,25 @@ class ListItemBuilder:
         if item.get('mpaa'):
             info['mpaa'] = item['mpaa']
             self.logger.debug(f"INFO BUILD: Set mpaa='{info['mpaa']}'")
-        if item.get('duration_minutes') is not None:
-            info['duration'] = int(item['duration_minutes'])
-            self.logger.debug(f"INFO BUILD: Set duration={info['duration']} minutes")
+        
+        # Duration handling - prioritize runtime (minutes), fallback to duration
+        runtime_minutes = item.get('runtime', 0)
+        duration_seconds = item.get('duration', 0)
+
+        if runtime_minutes and isinstance(runtime_minutes, (int, float)) and runtime_minutes > 0:
+            # Runtime is in minutes, convert to seconds
+            info['duration'] = int(runtime_minutes * 60)
+        elif duration_seconds and isinstance(duration_seconds, (int, float)) and duration_seconds > 0:
+            # Duration might be in seconds already, but check if it's suspiciously small (likely minutes)
+            if duration_seconds < 3600:  # Less than 1 hour, probably minutes
+                info['duration'] = int(duration_seconds * 60)
+            else:
+                info['duration'] = int(duration_seconds)
+
+        # Keep duration_minutes for backward compatibility
+        if runtime_minutes:
+            info['duration_minutes'] = int(runtime_minutes)
+
         if item.get('studio'):
             info['studio'] = item['studio']
             self.logger.debug(f"INFO BUILD: Set studio='{info['studio']}'")
@@ -531,43 +547,47 @@ class ListItemBuilder:
 
         info['mediatype'] = item.get('media_type', 'movie')
         self.logger.debug(f"INFO BUILD: Set mediatype='{info['mediatype']}'")
-        
+
         self.logger.debug(f"INFO BUILD: Completed info dict for '{title}' with {len(info)} fields: {list(info.keys())}")
         return info
 
     def _build_art_dict(self, item: Dict[str, Any]) -> Dict[str, str]:
-        """
-        Poster/fanart minimum; add others only if valid.
-        """
-        art: Dict[str, str] = {}
-        title = item.get('title', 'Unknown')
-        
-        self.logger.debug(f"ART BUILD: Building art dict for '{title}'")
-        
-        if item.get('poster'):
-            art['poster'] = item['poster']
-            # sensible thumb fallback
-            art['thumb'] = item['poster']
-            self.logger.debug(f"ART BUILD: Set poster='{art['poster']}' and thumb='{art['thumb']}'")
-        elif item.get('thumb'):
-            art['thumb'] = item['thumb']
-            self.logger.debug(f"ART BUILD: Set thumb='{art['thumb']}' (no poster available)")
-        
-        if item.get('fanart'):
-            art['fanart'] = item['fanart']
-            self.logger.debug(f"ART BUILD: Set fanart='{art['fanart']}'")
-        
-        additional_art = []
-        for k in ('banner', 'landscape', 'clearlogo'):
-            v = item.get(k)
-            if v:
-                art[k] = v
-                additional_art.append(f"{k}='{v}'")
-        
-        if additional_art:
-            self.logger.debug(f"ART BUILD: Set additional art for '{title}': {', '.join(additional_art)}")
-        
-        self.logger.debug(f"ART BUILD: Completed art dict for '{title}' with {len(art)} items: {list(art.keys())}")
+        """Build artwork dictionary from item data"""
+        art = {}
+
+        # First check if we have a JSON-RPC art dict
+        item_art = item.get('art')
+        if item_art:
+            # Handle both dict and JSON string formats
+            if isinstance(item_art, str):
+                try:
+                    import json
+                    item_art = json.loads(item_art)
+                except (json.JSONDecodeError, ValueError):
+                    item_art = {}
+
+            if isinstance(item_art, dict):
+                # Copy all art keys from JSON-RPC art dict
+                for art_key in ['poster', 'fanart', 'thumb', 'banner', 'landscape', 
+                               'clearlogo', 'clearart', 'discart', 'icon']:
+                    if art_key in item_art and item_art[art_key]:
+                        art[art_key] = item_art[art_key]
+
+        # Fallback to top-level fields if art dict wasn't available
+        if not art:
+            if item.get('poster'):
+                art['poster'] = item['poster']
+            if item.get('fanart'):
+                art['fanart'] = item['fanart']
+            if item.get('thumb'):
+                art['thumb'] = item['thumb']
+
+        # If we have poster but no thumb/icon, set them for list view compatibility
+        if art.get('poster') and not art.get('thumb'):
+            art['thumb'] = art['poster']
+        if art.get('poster') and not art.get('icon'):
+            art['icon'] = art['poster']
+
         return art
 
     def _set_resume_info_versioned(self, list_item: xbmcgui.ListItem, item: Dict[str, Any]):

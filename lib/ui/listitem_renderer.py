@@ -36,7 +36,7 @@ class ListItemRenderer:
         """
         try:
             self.logger.info(f"RENDER LISTS: Starting render of {len(lists)} lists (folder_id={folder_id})")
-            
+
             # Set content type for lists
             self.logger.debug(f"RENDER LISTS: Setting content type 'files' for handle {self.addon_handle}")
             xbmcplugin.setContent(self.addon_handle, "files")
@@ -46,9 +46,9 @@ class ListItemRenderer:
                 try:
                     list_name = list_data.get('name', 'Unknown List')
                     list_id = list_data.get('id')
-                    
+
                     self.logger.debug(f"RENDER LISTS: Processing list #{idx}/{len(lists)}: '{list_name}' (id={list_id})")
-                    
+
                     list_item = self._build_list_item(list_data)
                     if list_item:
                         url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
@@ -340,7 +340,7 @@ class ListItemRenderer:
                 try:
                     title = item.get('title', 'Unknown')
                     self.logger.debug(f"RENDERER DIRECTORY: Processing item #{idx}/{len(items)}: '{title}'")
-                    
+
                     result = self.builder._build_single_item(item)
                     if result:
                         url, listitem, is_folder = result
