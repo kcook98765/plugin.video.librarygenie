@@ -107,33 +107,37 @@ def _create_movie_xsp_by_path(movieid: int) -> str | None:
         _log("No file path from JSON-RPC for movieid={}".format(movieid), xbmc.LOGWARNING)
         return None
 
-    dirname, fname = os.path.split(file_path.rstrip('/'))
-    # Smart playlist that matches exactly this folder and filename
+    _log(f"Got file path for movie {movieid}: {file_path}")
+    
+    # Use file path directly for matching instead of splitting
     xsp = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <smartplaylist type="movies">
-  <name>LG one-movie {movieid}</name>
-  <match>all</match>
-  <rule field="path" operator="is"><value>{html.escape(dirname)}</value></rule>
-  <rule field="filename" operator="is"><value>{html.escape(fname)}</value></rule>
-  <order direction="ascending">title</order>
+    <name>LibraryGenie Test - Movie {movieid}</name>
+    <match>all</match>
+    <rule field="path" operator="contains">
+        <value>{html.escape(file_path)}</value>
+    </rule>
+    <order direction="ascending">title</order>
 </smartplaylist>"""
 
-    sp_dir = "special://profile/playlists/video/"
-    _ensure_dir("special://profile/")
-    _ensure_dir("special://profile/playlists/")
-    _ensure_dir(sp_dir)
-    xsp_path = sp_dir + f"libgenie_{movieid}.xsp"
-
-    if _write_text(xsp_path, xsp):
-        _log(f"Wrote XSP to {xsp_path}")
-        return xsp_path
-    return None
-
-def _cleanup_xsp(path_special: str):
+    import tempfile
     try:
-        if xbmcvfs.exists(path_special):
-            xbmcvfs.delete(path_special)
-            _log(f"Removed XSP {path_special}")
+        # Create temp file for XSP
+        temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.xsp', delete=False, encoding='utf-8')
+        temp_file.write(xsp)
+        temp_file.close()
+        
+        _log(f"Created XSP file: {temp_file.name}")
+        return temp_file.name
+    except Exception as e:
+        _log(f"Failed to create temp XSP file: {e}", xbmc.LOGWARNING)
+        return None
+
+def _cleanup_xsp(file_path: str):
+    try:
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
+            _log(f"Removed XSP {file_path}")
     except Exception as e:
         _log(f"Cleanup failed: {e}", xbmc.LOGDEBUG)
 
@@ -141,14 +145,16 @@ def show_info_matrix(movieid: int):
     if kodi_major() != 19:
         _log(f"Matrix path requested on Kodi {kodi_major()} — designed for v19.", xbmc.LOGWARNING)
 
-    _log(f"Matrix v19: creating one-movie XSP using path/filename for movie {movieid}")
+    _log(f"Matrix test start: movie {movieid} → creating XSP filter …")
     xsp_path = _create_movie_xsp_by_path(movieid)
     if not xsp_path:
         notify("Matrix test", "Failed to create smart playlist")
         return
 
+    _log(f"Opening XSP: {xsp_path}")
     xbmc.executebuiltin(f'ActivateWindow(Videos,"{xsp_path}",return)')
     if not wait_for_videos_container(xsp_path, timeout_ms=5000):
+        _log("Timeout waiting for XSP container", xbmc.LOGWARNING)
         notify("Matrix test", "Timed out waiting for playlist")
         _cleanup_xsp(xsp_path)
         return
@@ -158,7 +164,7 @@ def show_info_matrix(movieid: int):
     xbmc.sleep(150)
     xbmc.executebuiltin('Action(Info)')
 
-    # Optional tidy after a small delay (playlist remains usable until reboot even if we delete it)
+    # Optional tidy after a small delay
     xbmc.sleep(500)
     _cleanup_xsp(xsp_path)
 
