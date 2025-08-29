@@ -351,11 +351,16 @@ class ListItemBuilder:
             # Build a plugin URL so we can decide Play vs Info on click
             url = self._library_click_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
             li.setPath(url)
+            self.logger.debug(f"LIB ITEM: Generated click URL for '{title}': {url}")
 
-            # Only mark playable if user's setting is Play
-            if get_select_pref() == "play":
-                li.setProperty('IsPlayable', 'true')
-            # else: do not set IsPlayable; we'll open info instead
+            # Get user preference safely
+            pref = get_select_pref()
+            self.logger.debug(f"LIB ITEM: User preference for '{title}': {pref}")
+
+            # Always mark as playable for library items so they can be clicked
+            # The URL handler will decide whether to play or show info
+            li.setProperty('IsPlayable', 'true')
+            self.logger.debug(f"LIB ITEM: Set IsPlayable=true for '{title}' (will be handled by on_select)")
 
             is_folder = False
 

@@ -597,7 +597,9 @@ def handle_on_select(params: dict, addon_handle: int):
         from lib.config.config_manager import get_select_pref
         import re, xbmc, xbmcplugin
 
+        logger.info(f"=== ON_SELECT HANDLER CALLED ===")
         logger.info(f"Handling on_select with params: {params}")
+        logger.info(f"Addon handle: {addon_handle}")
 
         dbtype = params.get("dbtype", "movie")
         dbid = int(params.get("dbid", "0"))

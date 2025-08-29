@@ -216,12 +216,26 @@ class ConfigManager:
 
     def get_select_action(self) -> str:
         """Get the select action preference: 'play' or 'info'"""
-        raw = self.get("select_action", "0")  # enum index as string
         try:
-            return "info" if int(raw) == 1 else "play"
-        except ValueError:
-            s = raw.strip().lower()
-            return "info" if s.startswith("info") else "play"
+            # Try to get as string first (select type returns string index)
+            raw = self._addon.getSettingString("select_action")
+            if raw:
+                # Convert string index to preference
+                try:
+                    return "info" if int(raw) == 1 else "play"
+                except ValueError:
+                    s = raw.strip().lower()
+                    return "info" if s.startswith("info") else "play"
+            else:
+                # Fallback to default
+                return "play"
+        except Exception:
+            # If string fails, try as int (fallback)
+            try:
+                raw = self._addon.getSettingInt("select_action")
+                return "info" if raw == 1 else "play"
+            except Exception:
+                return "play"  # Safe default
 
 
 # Global config instance
