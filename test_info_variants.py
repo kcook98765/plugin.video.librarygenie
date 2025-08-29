@@ -74,14 +74,28 @@ def wait_for_videos_container(target_path: str, timeout_ms: int = 6000) -> bool:
 # Matrix (v19): XSP via path + filename (no fallback)
 # ------------------------------
 def _ensure_dir(special_dir: str):
-    # create special://profile/playlists/video/ if needed
-    parts = special_dir.rstrip('/').split('/')
-    cur = parts[0] + '/'
-    for p in parts[1:]:
-        cur = (cur.rstrip('/') + '/' + p + '/').replace('//', '/')
-        # normalize leading 'special:' which keeps slashes intact
-        if not xbmcvfs.exists(cur):
-            xbmcvfs.mkdir(cur)
+    """Ensure directory exists using xbmcvfs, handling special:// paths properly"""
+    try:
+        if not special_dir or special_dir == "special://":
+            return
+        
+        # Clean up the path
+        path = special_dir.rstrip('/')
+        
+        # Don't try to create the root special:// directory
+        if path == "special:":
+            return
+            
+        # Check if directory already exists
+        if xbmcvfs.exists(path + '/'):
+            return
+            
+        # Create directory
+        if not xbmcvfs.mkdir(path):
+            _log(f"Failed to create directory: {path}", xbmc.LOGDEBUG)
+            
+    except Exception as e:
+        _log(f"Directory creation error for {special_dir}: {e}", xbmc.LOGDEBUG)
 
 def _write_text(path_special: str, text: str) -> bool:
     try:
@@ -120,11 +134,8 @@ def _create_movie_xsp_by_path(movieid: int) -> str | None:
     <order direction="ascending">title</order>
 </smartplaylist>"""
 
-    sp_dir = "special://profile/playlists/video/"
-    _ensure_dir("special://profile/")
-    _ensure_dir("special://profile/playlists/")
-    _ensure_dir(sp_dir)
-    xsp_path = sp_dir + f"libgenie_{movieid}.xsp"
+    # Use temp directory directly - Kodi's playlists directory might have permissions issues
+    xsp_path = f"special://temp/libgenie_{movieid}.xsp"
 
     if _write_text(xsp_path, xsp):
         _log(f"Wrote XSP to {xsp_path}")
