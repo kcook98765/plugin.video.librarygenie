@@ -173,9 +173,18 @@ def show_info_matrix(movieid: int):
         return
 
     _log(f"Container items: {xbmc.getInfoLabel('Container.NumItems')}")
-    focus_list(LIST_ID)
-    xbmc.sleep(150)
-    xbmc.executebuiltin('Action(Info)')
+    
+    # Wait a bit longer and ensure focus is properly set
+    xbmc.sleep(300)
+    _log("Attempting to focus list control")
+    if focus_list(LIST_ID, tries=50, sleep_ms=100):
+        _log("Successfully focused list - triggering info dialog")
+        xbmc.sleep(200)  # Give focus time to settle
+        xbmc.executebuiltin('Action(Info)')
+        _log("Info action sent")
+    else:
+        _log("Failed to focus list control", xbmc.LOGWARNING)
+        notify("Matrix test", "Failed to focus list")
 
     # Optional tidy after a small delay
     xbmc.sleep(500)
