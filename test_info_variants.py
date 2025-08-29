@@ -120,10 +120,26 @@ def show_info_matrix(movieid: int):
         notify("Matrix test", "Timed out waiting for movie titles list")
         return
 
+    # Debug: log current window and available controls
+    _log(f"Current window: {xbmc.getInfoLabel('System.CurrentWindow')}")
+    _log(f"Current control: {xbmc.getInfoLabel('System.CurrentControl')}")
+
     if not focus_list(LIST_ID):
-        _log("Could not focus list control 55", xbmc.LOGWARNING)
-        notify("Matrix test", "Couldn’t focus list (55)")
-        return
+        _log(f"Could not focus any list control (tried {LIST_ID} + fallbacks)", xbmc.LOGWARNING)
+
+        # Try generic navigation as last resort
+        _log("Attempting generic navigation fallback")
+        xbmc.executebuiltin('Action(FirstItem)')
+        xbmc.sleep(200)
+
+        # Check if we're at least positioned on something
+        current_item = xbmc.getInfoLabel('ListItem.Label')
+        if current_item:
+            _log(f"Generic navigation positioned on: '{current_item}'")
+        else:
+            notify("Matrix test", "Couldn't focus any list control")
+            return
+
 
     # Optional nudge to top; FirstItem is not valid on Matrix — use FirstPage
     xbmc.executebuiltin('Action(FirstPage)')
