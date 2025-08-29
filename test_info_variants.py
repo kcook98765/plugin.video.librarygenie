@@ -188,10 +188,28 @@ def _cleanup_xsp(path_special: str):
         _log(f"Cleanup failed: {e}", xbmc.LOGDEBUG)
 
 def show_info_matrix(movieid: int):
-    if kodi_major() != 19:
-        _log(f"Matrix path requested on Kodi {kodi_major()} — designed for v19.", xbmc.LOGWARNING)
+    kodi_ver = kodi_major()
+    _log(f"=== MATRIX TEST START: movie {movieid} on Kodi v{kodi_ver} ===")
+    
+    if kodi_ver != 19:
+        _log(f"WARNING: Matrix path requested on Kodi {kodi_ver} — designed for v19.", xbmc.LOGWARNING)
 
-    _log(f"=== MATRIX TEST START: movie {movieid} ===")
+    # Step 0: Verify movie exists in library
+    _log("STEP 0: Verifying movie exists in library...")
+    movie_data = jsonrpc("VideoLibrary.GetMovieDetails", {
+        "movieid": int(movieid),
+        "properties": ["title", "file", "imdbnumber"]
+    })
+    movie_details = (movie_data.get("result") or {}).get("moviedetails")
+    if not movie_details:
+        _log(f"STEP 0: FAILED - Movie {movieid} not found in library", xbmc.LOGERROR)
+        notify("Matrix test", f"Movie {movieid} not found")
+        return
+    
+    movie_title = movie_details.get("title", "Unknown")
+    movie_file = movie_details.get("file", "")
+    movie_imdb = movie_details.get("imdbnumber", "")
+    _log(f"STEP 0: SUCCESS - Found movie: {movie_title} (file: {movie_file}, imdb: {movie_imdb})")
     
     # Step 1: Create XSP
     _log("STEP 1: Creating XSP filter...")
@@ -209,7 +227,7 @@ def show_info_matrix(movieid: int):
     
     # Step 3: Wait for container
     _log("STEP 3: Waiting for container to load...")
-    if not wait_for_videos_container(xsp_path, timeout_ms=5000):
+    if not wait_for_videos_container(xsp_path, timeout_ms=8000):  # Increased timeout
         _log("STEP 3: FAILED - Timeout waiting for XSP container", xbmc.LOGERROR)
         notify("Matrix test", "Timed out waiting for playlist")
         _cleanup_xsp(xsp_path)
@@ -218,16 +236,27 @@ def show_info_matrix(movieid: int):
     container_items = xbmc.getInfoLabel('Container.NumItems')
     _log(f"STEP 3: SUCCESS - Container loaded with {container_items} items")
     
-    # Step 4: Window state analysis and control discovery
+    # Step 4: Enhanced window state analysis
     _log("STEP 4: Analyzing window state...")
-    xbmc.sleep(500)
+    xbmc.sleep(750)  # Give more time for UI to settle
+    
+    # Get comprehensive window state
     current_window = xbmc.getInfoLabel('System.CurrentWindow')
     current_control = xbmc.getInfoLabel('System.CurrentControl')
     focused_control = xbmc.getInfoLabel('System.CurrentControlId')
     container_path = xbmc.getInfoLabel('Container.FolderPath')
+    container_content = xbmc.getInfoLabel('Container.Content')
     
     _log(f"STEP 4: Window={current_window}, Control={current_control}, FocusedId={focused_control}")
     _log(f"STEP 4: Container.FolderPath={container_path}")
+    _log(f"STEP 4: Container.Content={container_content}")
+    
+    # Get current item info
+    if container_items and int(container_items) > 0:
+        current_title = xbmc.getInfoLabel('ListItem.Title')
+        current_dbid = xbmc.getInfoLabel('ListItem.DBID')
+        current_path = xbmc.getInfoLabel('ListItem.Path')
+        _log(f"STEP 4: Current item - Title: {current_title}, DBID: {current_dbid}, Path: {current_path}")
     
     # Discover available controls
     _log("STEP 4: Discovering available controls...")
@@ -239,102 +268,135 @@ def show_info_matrix(movieid: int):
     list_candidates = [cid for cid, info in controls.items() if info['visible'] and info['exists']]
     _log(f"STEP 4: List control candidates: {list_candidates}")
     
-    # Step 5: Info dialog attempts with detailed tracking
+    # Step 5: Enhanced info dialog attempts
     _log("STEP 5: Attempting to open info dialog...")
     success = False
     method_results = []
     
     # Method 1: Direct videodb URL approach (most reliable for Matrix)
     _log("METHOD 1: Direct videodb URL approach...")
-    videodb_path = f"videodb://movies/titles/{movieid}"
-    _log(f"METHOD 1: Trying direct DialogVideoInfo with {videodb_path}")
-    xbmc.executebuiltin(f'ActivateWindow(DialogVideoInfo,"{videodb_path}",return)')
-    xbmc.sleep(500)  # Give more time for dialog to appear
-    info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
-    _log(f"METHOD 1: Info dialog open via videodb: {info_open}")
-    method_results.append(f"Method1: videodb_direct, info_open={info_open}")
-    if info_open:
-        success = True
+    videodb_paths = [
+        f"videodb://movies/titles/{movieid}",
+        f"videodb://movies/titles/{movieid}?movieid={movieid}",
+        f"videodb://1/2/{movieid}",
+        f"videodb://movies/titles/{movieid}/"
+    ]
     
-    # Method 2: Try Action(Info) on focused control
+    for vdb_path in videodb_paths:
+        _log(f"METHOD 1: Trying direct DialogVideoInfo with {vdb_path}")
+        xbmc.executebuiltin(f'ActivateWindow(DialogVideoInfo,"{vdb_path}",return)')
+        xbmc.sleep(800)  # More time for dialog
+        info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+        _log(f"METHOD 1: Info dialog open via {vdb_path}: {info_open}")
+        method_results.append(f"Method1: {vdb_path}, info_open={info_open}")
+        if info_open:
+            success = True
+            break
+    
+    # Method 2: RunScript approach (alternative for Matrix)
     if not success:
-        _log("METHOD 2: Action(Info) on focused control...")
-        for candidate in list_candidates[:2]:  # Try top 2 candidates
-            _log(f"METHOD 2: Trying to focus control {candidate}...")
-            if focus_list(candidate, tries=3, sleep_ms=50):
-                _log(f"METHOD 2: Control {candidate} focused, sending Action(Info)")
-                xbmc.sleep(100)
-                xbmc.executebuiltin('Action(Info)')
-                xbmc.sleep(400)  # Give time for dialog to appear
+        _log("METHOD 2: RunScript approach...")
+        script_cmd = f'RunScript(script.module.kodi65,info=movie,dbid={movieid})'
+        _log(f"METHOD 2: Trying {script_cmd}")
+        xbmc.executebuiltin(script_cmd)
+        xbmc.sleep(600)
+        info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+        _log(f"METHOD 2: Info dialog open via RunScript: {info_open}")
+        method_results.append(f"Method2: RunScript, info_open={info_open}")
+        if info_open:
+            success = True
+    
+    # Method 3: Focus control and Action(Info)
+    if not success:
+        _log("METHOD 3: Focus and Action(Info)...")
+        for candidate in list_candidates[:3]:  # Try top 3 candidates
+            _log(f"METHOD 3: Attempting control {candidate}...")
+            if focus_list(candidate, tries=5, sleep_ms=100):
+                _log(f"METHOD 3: Control {candidate} focused successfully")
+                xbmc.sleep(200)
                 
-                # Check if info dialog opened
+                # Verify we have an item selected
+                list_item_title = xbmc.getInfoLabel('ListItem.Title')
+                list_item_dbid = xbmc.getInfoLabel('ListItem.DBID')
+                _log(f"METHOD 3: Selected item - Title: {list_item_title}, DBID: {list_item_dbid}")
+                
+                # Send Action(Info)
+                _log("METHOD 3: Sending Action(Info)")
+                xbmc.executebuiltin('Action(Info)')
+                xbmc.sleep(600)
+                
+                # Check result
                 info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
-                _log(f"METHOD 2: Info dialog open: {info_open}")
-                method_results.append(f"Method2: control_{candidate}_action_info, info_open={info_open}")
+                _log(f"METHOD 3: Info dialog open after Action(Info): {info_open}")
+                method_results.append(f"Method3: control_{candidate}_action_info, info_open={info_open}")
                 if info_open:
                     success = True
                     break
             else:
-                _log(f"METHOD 2: Could not focus control {candidate}")
+                _log(f"METHOD 3: Could not focus control {candidate}")
     
-    # Method 3: Context menu approach
+    # Method 4: JSON-RPC GUI.ActivateWindow
     if not success:
-        _log("METHOD 3: Context menu approach...")
-        # Make sure we're focused on the list first
-        if list_candidates:
-            focus_list(list_candidates[0], tries=2, sleep_ms=50)
-        
-        xbmc.executebuiltin('Action(ContextMenu)')
-        xbmc.sleep(300)
-        context_open = xbmc.getCondVisibility('Window.IsActive(DialogContextMenu.xml)')
-        _log(f"METHOD 3: Context menu open: {context_open}")
-        if context_open:
-            # Try to select "Information" from context menu
-            xbmc.executebuiltin('Action(Down)')  # Navigate to info option
-            xbmc.sleep(100)
-            xbmc.executebuiltin('Action(Select)')
-            xbmc.sleep(300)
-        else:
-            # Fallback to direct Action(Info)
-            xbmc.executebuiltin('Action(Info)')
-            xbmc.sleep(300)
-        
+        _log("METHOD 4: JSON-RPC GUI.ActivateWindow...")
+        json_result = jsonrpc("GUI.ActivateWindow", {
+            "window": "DialogVideoInfo.xml",
+            "parameters": [f"videodb://movies/titles/{movieid}"]
+        })
+        _log(f"METHOD 4: JSON-RPC result: {json_result}")
+        xbmc.sleep(600)
         info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
-        _log(f"METHOD 3: Info dialog open: {info_open}")
-        method_results.append(f"Method3: context_menu, info_open={info_open}")
+        _log(f"METHOD 4: Info dialog open via JSON-RPC: {info_open}")
+        method_results.append(f"Method4: jsonrpc_activate, info_open={info_open}")
         if info_open:
             success = True
     
-    # Method 4: Force library context by creating specific videodb path
+    # Method 5: Context menu approach
     if not success:
-        _log("METHOD 4: Force library context approach...")
-        # Try alternative videodb paths
-        alt_paths = [
-            f"videodb://movies/titles/{movieid}?movieid={movieid}",
-            f"videodb://movies/titles/{movieid}/",
-            f"videodb://1/2/{movieid}"
-        ]
+        _log("METHOD 5: Context menu approach...")
+        if list_candidates:
+            focus_list(list_candidates[0], tries=3, sleep_ms=100)
         
-        for alt_path in alt_paths:
-            _log(f"METHOD 4: Trying alternative path: {alt_path}")
-            xbmc.executebuiltin(f'ActivateWindow(DialogVideoInfo,"{alt_path}",return)')
-            xbmc.sleep(400)
-            info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
-            _log(f"METHOD 4: Info dialog open with {alt_path}: {info_open}")
-            if info_open:
-                method_results.append(f"Method4: alt_videodb_path, info_open={info_open}")
-                success = True
-                break
+        _log("METHOD 5: Opening context menu...")
+        xbmc.executebuiltin('Action(ContextMenu)')
+        xbmc.sleep(400)
+        context_open = xbmc.getCondVisibility('Window.IsActive(DialogContextMenu.xml)')
+        _log(f"METHOD 5: Context menu open: {context_open}")
         
-        if not success:
-            method_results.append("Method4: all_alt_paths_failed")
+        if context_open:
+            # Navigate and select info option
+            _log("METHOD 5: Navigating to Information option")
+            xbmc.executebuiltin('Action(Down)')
+            xbmc.sleep(150)
+            xbmc.executebuiltin('Action(Select)')
+            xbmc.sleep(500)
+        
+        info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+        _log(f"METHOD 5: Info dialog open via context menu: {info_open}")
+        method_results.append(f"Method5: context_menu, info_open={info_open}")
+        if info_open:
+            success = True
     
-    # Final state check
+    # Final comprehensive state check
     _log("STEP 6: Final state verification...")
+    xbmc.sleep(300)  # Let everything settle
     final_info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
     final_window = xbmc.getInfoLabel('System.CurrentWindow')
+    active_dialogs = []
+    
+    # Check for various dialog states
+    dialog_checks = [
+        'DialogVideoInfo.xml',
+        'DialogBusy.xml', 
+        'DialogProgress.xml',
+        'DialogContextMenu.xml'
+    ]
+    for dialog in dialog_checks:
+        if xbmc.getCondVisibility(f'Window.IsActive({dialog})'):
+            active_dialogs.append(dialog)
+    
     _log(f"STEP 6: Final info dialog state: {final_info_open}")
     _log(f"STEP 6: Final window: {final_window}")
+    _log(f"STEP 6: Active dialogs: {active_dialogs}")
     
     # Summary logging
     _log("=== TEST RESULTS SUMMARY ===")
@@ -342,20 +404,21 @@ def show_info_matrix(movieid: int):
         _log(f"RESULT: {result}")
     _log(f"FINAL: Info dialog successfully opened: {final_info_open}")
     
-    if success:
-        if final_info_open:
-            _log("SUCCESS: Info dialog is open - test completed successfully")
-            notify("Matrix test", "Info dialog opened successfully!")
-        else:
-            _log("PARTIAL: Methods executed but dialog state unclear")
-            notify("Matrix test", "Info methods executed - check manually")
+    # Results and cleanup
+    if final_info_open:
+        _log("SUCCESS: Info dialog is open - test completed successfully")
+        notify("Matrix test", f"Info dialog opened for {movie_title}!")
         _log("XSP remains available for manual cleanup")
     else:
-        _log("FAILED: All focus methods failed", xbmc.LOGERROR)
-        notify("Matrix test", "Failed to open info dialog")
+        if success:
+            _log("PARTIAL: A method reported success but final state unclear")
+            notify("Matrix test", "Info methods executed - check manually")
+        else:
+            _log("FAILED: All methods failed to open info dialog", xbmc.LOGERROR)
+            notify("Matrix test", "Failed to open info dialog")
         _cleanup_xsp(xsp_path)
     
-    _log(f"=== MATRIX TEST END: movie {movieid} ===")
+    _log(f"=== MATRIX TEST END: movie {movieid} ===", xbmc.LOGINFO)
 
 # ------------------------------
 # Nexus+ (v20/v21): setDbId + Action(Info)
