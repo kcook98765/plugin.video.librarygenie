@@ -49,6 +49,8 @@ class ConfigManager:
             "remote_base_url": "",  # Blank by default for repo safety
             "device_name": "Kodi",
             "auth_poll_seconds": 3,
+            # UI behavior settings
+            "select_action": "0",  # Default to play action
         }
 
     def get(self, key, default=None):
@@ -135,6 +137,13 @@ class ConfigManager:
             return "int"
         elif key in float_settings:
             return "number"
+        # String settings (including enum stored as string)
+        string_settings = [
+            "default_list_id", "remote_base_url", "device_name", "select_action"
+        ]
+        
+        if key in string_settings:
+            return "string"
         else:
             return "string"
 
@@ -204,6 +213,15 @@ class ConfigManager:
     def get_db_busy_timeout_ms(self) -> int:
         """Get database busy timeout in milliseconds"""
         return self.get_int("db_busy_timeout_ms", 3000)
+
+    def get_select_action(self) -> str:
+        """Get the select action preference: 'play' or 'info'"""
+        raw = self.get("select_action", "0")  # enum index as string
+        try:
+            return "info" if int(raw) == 1 else "play"
+        except ValueError:
+            s = raw.strip().lower()
+            return "info" if s.startswith("info") else "play"
 
 
 # Global config instance
