@@ -841,6 +841,19 @@ msgctxt "#35013"
 msgid "Plugin failed to start. Check logs."
 msgstr ""
 
+# Enum Setting Options
+msgctxt "#35100"
+msgid "Select Action"
+msgstr ""
+
+msgctxt "#35101"
+msgid "Play"
+msgstr ""
+
+msgctxt "#35102"
+msgid "Information"
+msgstr ""
+
 msgctxt "#35014"
 msgid "Search"
 msgstr ""

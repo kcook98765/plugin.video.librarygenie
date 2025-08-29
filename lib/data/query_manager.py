@@ -54,7 +54,7 @@ class QueryManager:
         else:
             canonical["duration_minutes"] = 0
 
-        # Art normalization - flatten art dict or use direct keys
+        # Art normalization - flatten art dict or use direct keys AND preserve original art dict
         art = item.get("art", {})
         if isinstance(art, dict):
             canonical["poster"] = art.get("poster", "")
@@ -63,6 +63,8 @@ class QueryManager:
             canonical["banner"] = art.get("banner", "") if art.get("banner") else ""
             canonical["landscape"] = art.get("landscape", "") if art.get("landscape") else ""
             canonical["clearlogo"] = art.get("clearlogo", "") if art.get("clearlogo") else ""
+            # Preserve the original art dict for the builder
+            canonical["art"] = art
         else:
             canonical["poster"] = str(item.get("poster", item.get("thumbnail", "")))
             canonical["fanart"] = str(item.get("fanart", ""))
@@ -70,6 +72,11 @@ class QueryManager:
             canonical["banner"] = ""
             canonical["landscape"] = ""
             canonical["clearlogo"] = ""
+            # Create art dict from individual fields
+            canonical["art"] = {
+                "poster": canonical["poster"],
+                "fanart": canonical["fanart"]
+            }
 
         # Resume - always present for library items, in seconds
         resume_data = item.get("resume", {})

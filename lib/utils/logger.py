@@ -63,13 +63,22 @@ def _update_logger_level(logger):
         config = get_config()
         debug_enabled = config.get_bool("debug_logging", False)
 
+        old_level = logger.level
         if debug_enabled:
             logger.setLevel(logging.DEBUG)
+            new_level = "DEBUG"
         else:
             logger.setLevel(logging.INFO)
-    except Exception:
+            new_level = "INFO"
+            
+        # Always log level changes at INFO so they're visible
+        if old_level != logger.level:
+            logger.info(f"LOGGING: Logger level changed from {logging.getLevelName(old_level)} to {new_level} (debug_enabled: {debug_enabled})")
+            
+    except Exception as e:
         # Fallback to DEBUG level for troubleshooting search issues
         logger.setLevel(logging.DEBUG)
+        logger.info(f"LOGGING: Fallback to DEBUG level due to error: {e}")
 
 
 def update_all_loggers():
@@ -77,3 +86,12 @@ def update_all_loggers():
     for name, logger in logging.Logger.manager.loggerDict.items():
         if isinstance(logger, logging.Logger) and logger.handlers:
             _update_logger_level(logger)
+
+
+def force_debug_mode():
+    """Force all LibraryGenie loggers to DEBUG level for troubleshooting"""
+    for name, logger in logging.Logger.manager.loggerDict.items():
+        if isinstance(logger, logging.Logger) and 'librarygenie' in name.lower():
+            logger.setLevel(logging.DEBUG)
+            # Log confirmation at INFO level so it's always visible
+            logger.info(f"LOGGING: Forced DEBUG mode for logger: {name}")

@@ -33,14 +33,19 @@ class MenuBuilder:
 
         for idx, item in enumerate(items):
             try:
-                self.logger.debug(f"MENU BUILD: Processing menu item {idx+1}/{len(items)}: '{item.get('title', 'Unknown')}'")
+                item_title = item.get('title', 'Unknown')
+                self.logger.debug(f"MENU BUILD: Processing menu item {idx+1}/{len(items)}: '{item_title}'")
+                self.logger.debug(f"MENU BUILD: Item {idx+1} data: {item}")
+                
                 self._add_directory_item(item, addon_handle, base_url)
                 successful_items += 1
+                self.logger.debug(f"MENU BUILD: Successfully added menu item {idx+1}: '{item_title}'")
             except Exception as e:
                 failed_items += 1
                 self.logger.error(f"MENU BUILD: Failed to add menu item {idx+1}: {e}")
 
         self.logger.info(f"MENU BUILD: Added {successful_items} menu items successfully, {failed_items} failed")
+        self.logger.debug(f"MENU BUILD: Calling endOfDirectory(handle={addon_handle})")
         xbmcplugin.endOfDirectory(addon_handle)
         self.logger.debug(f"MENU BUILD: Completed endOfDirectory for menu")
 
@@ -145,8 +150,9 @@ class MenuBuilder:
         self.logger.debug(f"MOVIE MENU: addon_handle={addon_handle}, base_url='{base_url}', options={list(options.keys())}")
 
         # Set content type for better skin support
+        self.logger.debug(f"MOVIE MENU: Setting content type 'movies' for handle {addon_handle}")
         xbmcplugin.setContent(addon_handle, 'movies')
-        self.logger.debug("MOVIE MENU: Set content type to 'movies'")
+        self.logger.debug("MOVIE MENU: Successfully set content type to 'movies'")
 
         # Add sort methods for movie lists
         sort_methods = [

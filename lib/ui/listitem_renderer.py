@@ -35,27 +35,46 @@ class ListItemRenderer:
             bool: Success status
         """
         try:
+            self.logger.info(f"RENDER LISTS: Starting render of {len(lists)} lists (folder_id={folder_id})")
+
             # Set content type for lists
+            self.logger.debug(f"RENDER LISTS: Setting content type 'files' for handle {self.addon_handle}")
             xbmcplugin.setContent(self.addon_handle, "files")
 
-            for list_data in lists:
-                list_item = self._build_list_item(list_data)
-                if list_item:
-                    list_id = list_data['id']
-                    url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
+            success_count = 0
+            for idx, list_data in enumerate(lists, start=1):
+                try:
+                    list_name = list_data.get('name', 'Unknown List')
+                    list_id = list_data.get('id')
 
-                    xbmcplugin.addDirectoryItem(
-                        handle=self.addon_handle,
-                        url=url,
-                        listitem=list_item,
-                        isFolder=True
-                    )
+                    self.logger.debug(f"RENDER LISTS: Processing list #{idx}/{len(lists)}: '{list_name}' (id={list_id})")
 
+                    list_item = self._build_list_item(list_data)
+                    if list_item:
+                        url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
+                        self.logger.debug(f"RENDER LISTS: Built list item for '{list_name}' - URL: '{url}'")
+
+                        xbmcplugin.addDirectoryItem(
+                            handle=self.addon_handle,
+                            url=url,
+                            listitem=list_item,
+                            isFolder=True
+                        )
+                        success_count += 1
+                        self.logger.debug(f"RENDER LISTS: Successfully added list #{idx} '{list_name}' to directory")
+                    else:
+                        self.logger.warning(f"RENDER LISTS: Failed to build list item for '{list_name}'")
+                except Exception as e:
+                    self.logger.error(f"RENDER LISTS: Error processing list #{idx}: {e}")
+
+            self.logger.info(f"RENDER LISTS: Successfully added {success_count}/{len(lists)} lists to directory")
+            self.logger.debug(f"RENDER LISTS: Calling endOfDirectory(handle={self.addon_handle})")
             xbmcplugin.endOfDirectory(self.addon_handle)
             return True
 
         except Exception as e:
-            self.logger.error(f"Failed to render lists: {e}")
+            self.logger.error(f"RENDER LISTS: Failed to render lists: {e}")
+            self.logger.debug(f"RENDER LISTS: Calling endOfDirectory(handle={self.addon_handle}, succeeded=False)")
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
             return False
 
@@ -300,27 +319,34 @@ class ListItemRenderer:
         """
         try:
             # Container hygiene - set content type appropriately for skin layouts/overlays
-            self.logger.info(f"DIRECTORY: Building {len(items)} items with content_type='{content_type}'")
+            self.logger.info(f"RENDERER DIRECTORY: Starting render of {len(items)} items with content_type='{content_type}'")
+            self.logger.debug(f"RENDERER DIRECTORY: Setting content type '{content_type}' for handle {self.addon_handle}")
             xbmcplugin.setContent(self.addon_handle, content_type)
 
             # Add sort methods once per build (not per item)
             sort_methods = [
-                xbmcplugin.SORT_METHOD_TITLE_IGNORE_THE,
-                xbmcplugin.SORT_METHOD_VIDEO_YEAR,
-                xbmcplugin.SORT_METHOD_DATE
+                ("SORT_METHOD_TITLE_IGNORE_THE", xbmcplugin.SORT_METHOD_TITLE_IGNORE_THE),
+                ("SORT_METHOD_VIDEO_YEAR", xbmcplugin.SORT_METHOD_VIDEO_YEAR),
+                ("SORT_METHOD_DATE", xbmcplugin.SORT_METHOD_DATE)
             ]
-            for method in sort_methods:
+            self.logger.debug(f"RENDERER DIRECTORY: Adding {len(sort_methods)} sort methods")
+            for method_name, method in sort_methods:
                 xbmcplugin.addSortMethod(self.addon_handle, method)
+                self.logger.debug(f"RENDERER DIRECTORY: Added sort method {method_name}")
 
             # Build all items, ensuring non-empty URLs
             success_count = 0
-            for item in items:
+            for idx, item in enumerate(items, start=1):
                 try:
+                    title = item.get('title', 'Unknown')
+                    self.logger.debug(f"RENDERER DIRECTORY: Processing item #{idx}/{len(items)}: '{title}'")
+
                     result = self.builder._build_single_item(item)
                     if result:
                         url, listitem, is_folder = result
                         # Ensure non-empty URL to avoid directory errors
                         if url and url.strip():
+                            self.logger.debug(f"RENDERER DIRECTORY: Adding item #{idx} '{title}' - URL: '{url}', isFolder: {is_folder}")
                             xbmcplugin.addDirectoryItem(
                                 handle=self.addon_handle,
                                 url=url,
@@ -329,18 +355,20 @@ class ListItemRenderer:
                             )
                             success_count += 1
                         else:
-                            self.logger.warning(f"DIRECTORY: Skipping item with empty URL: {item.get('title', 'Unknown')}")
+                            self.logger.warning(f"RENDERER DIRECTORY: Skipping item #{idx} with empty URL: '{title}'")
                     else:
-                        self.logger.warning(f"DIRECTORY: Failed to build item: {item.get('title', 'Unknown')}")
+                        self.logger.warning(f"RENDERER DIRECTORY: Failed to build item #{idx}: '{title}'")
                 except Exception as e:
-                    self.logger.error(f"DIRECTORY: Error building item {item.get('title', 'Unknown')}: {e}")
+                    self.logger.error(f"RENDERER DIRECTORY: Error building item #{idx} '{item.get('title', 'Unknown')}': {e}")
 
-            self.logger.info(f"DIRECTORY: Added {success_count}/{len(items)} items successfully")
+            self.logger.info(f"RENDERER DIRECTORY: Successfully added {success_count}/{len(items)} items to directory")
+            self.logger.debug(f"RENDERER DIRECTORY: Calling endOfDirectory(handle={self.addon_handle}, succeeded=True)")
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True)
             return True
 
         except Exception as e:
-            self.logger.error(f"DIRECTORY: Fatal error in render_directory: {e}")
+            self.logger.error(f"RENDERER DIRECTORY: Fatal error in render_directory: {e}")
+            self.logger.debug(f"RENDERER DIRECTORY: Calling endOfDirectory(handle={self.addon_handle}, succeeded=False)")
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
             return False
 
