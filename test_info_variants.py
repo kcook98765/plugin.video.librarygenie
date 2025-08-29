@@ -120,24 +120,22 @@ def _create_movie_xsp_by_path(movieid: int) -> str | None:
     <order direction="ascending">title</order>
 </smartplaylist>"""
 
-    import tempfile
-    try:
-        # Create temp file for XSP
-        temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.xsp', delete=False, encoding='utf-8')
-        temp_file.write(xsp)
-        temp_file.close()
-        
-        _log(f"Created XSP file: {temp_file.name}")
-        return temp_file.name
-    except Exception as e:
-        _log(f"Failed to create temp XSP file: {e}", xbmc.LOGWARNING)
-        return None
+    sp_dir = "special://profile/playlists/video/"
+    _ensure_dir("special://profile/")
+    _ensure_dir("special://profile/playlists/")
+    _ensure_dir(sp_dir)
+    xsp_path = sp_dir + f"libgenie_{movieid}.xsp"
 
-def _cleanup_xsp(file_path: str):
+    if _write_text(xsp_path, xsp):
+        _log(f"Wrote XSP to {xsp_path}")
+        return xsp_path
+    return None
+
+def _cleanup_xsp(path_special: str):
     try:
-        if file_path and os.path.exists(file_path):
-            os.remove(file_path)
-            _log(f"Removed XSP {file_path}")
+        if path_special and xbmcvfs.exists(path_special):
+            xbmcvfs.delete(path_special)
+            _log(f"Removed XSP {path_special}")
     except Exception as e:
         _log(f"Cleanup failed: {e}", xbmc.LOGDEBUG)
 
