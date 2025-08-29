@@ -45,7 +45,7 @@ def jsonrpc(method: str, params: dict | None = None) -> dict:
 def notify(heading: str, message: str, time_ms: int = 3500):
     xbmcgui.Dialog().notification(heading, message, xbmcgui.NOTIFICATION_INFO, time_ms)
 
-def focus_list(control_id: int = LIST_ID, tries: int = 30, sleep_ms: int = 80) -> bool:
+def focus_list(control_id: int = LIST_ID, tries: int = 10, sleep_ms: int = 50) -> bool:
     for _ in range(tries):
         xbmc.executebuiltin(f'SetFocus({control_id})')
         if xbmc.getCondVisibility(f'Control.HasFocus({control_id})'):
@@ -181,29 +181,45 @@ def show_info_matrix(movieid: int):
     current_window = xbmc.getInfoLabel('System.CurrentWindow')
     _log(f"Current window: {current_window}")
     
-    # Try different approaches to focus and open info
+    # Try multiple approaches rapidly to focus and open info
     success = False
     
-    # Method 1: Try to focus using the list control
+    # Method 1: Try to focus using the list control (fast timeout)
     _log("Method 1: Attempting to focus list control")
-    if focus_list(LIST_ID, tries=30, sleep_ms=100):
+    if focus_list(LIST_ID, tries=10, sleep_ms=50):
         _log("List focused - triggering info dialog")
-        xbmc.sleep(300)
+        xbmc.sleep(100)
         xbmc.executebuiltin('Action(Info)')
         success = True
     else:
-        # Method 2: Single info action approach
-        _log("Method 2: Single info action approach")
-        # Wait longer for container to fully stabilize
-        xbmc.sleep(500)
-        # Send a single info action
+        _log("Method 1 failed - trying alternative approaches")
+        
+        # Method 2: Try focusing container first, then info
+        _log("Method 2: Focus container then info")
+        xbmc.executebuiltin('SetFocus(50)')  # Try main container
+        xbmc.sleep(100)
         xbmc.executebuiltin('Action(Info)')
+        xbmc.sleep(200)
+        
+        # Method 3: Try direct context menu approach
+        _log("Method 3: Context menu approach")
+        xbmc.executebuiltin('Action(ContextMenu)')
+        xbmc.sleep(100)
+        xbmc.executebuiltin('Action(Info)')
+        xbmc.sleep(200)
+        
+        # Method 4: Try selecting first item then info
+        _log("Method 4: Select first item approach")
+        xbmc.executebuiltin('Action(FirstItem)')
+        xbmc.sleep(100)
+        xbmc.executebuiltin('Action(Info)')
+        
         success = True
     
     if success:
-        _log("Info action sent successfully - info dialog should now be open")
+        _log("Info methods executed - info dialog should be opening")
         _log("XSP will remain available to keep dialog open - manual cleanup required")
-        notify("Matrix test", "Info dialog opened! Close manually when done.")
+        notify("Matrix test", "Info dialog methods executed! Check screen.")
     else:
         _log("All focus methods failed", xbmc.LOGWARNING)
         notify("Matrix test", "Failed to open info dialog")
