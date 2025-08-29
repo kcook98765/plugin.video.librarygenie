@@ -174,17 +174,38 @@ def show_info_matrix(movieid: int):
 
     _log(f"Container items: {xbmc.getInfoLabel('Container.NumItems')}")
     
-    # Wait a bit longer and ensure focus is properly set
-    xbmc.sleep(300)
-    _log("Attempting to focus list control")
-    if focus_list(LIST_ID, tries=50, sleep_ms=100):
-        _log("Successfully focused list - triggering info dialog")
-        xbmc.sleep(200)  # Give focus time to settle
+    # Wait for window to be fully ready
+    xbmc.sleep(500)
+    
+    # Check current window and control state
+    current_window = xbmc.getInfoLabel('System.CurrentWindow')
+    _log(f"Current window: {current_window}")
+    
+    # Try different approaches to focus and open info
+    success = False
+    
+    # Method 1: Try to focus using the list control
+    _log("Method 1: Attempting to focus list control")
+    if focus_list(LIST_ID, tries=30, sleep_ms=100):
+        _log("List focused - triggering info dialog")
+        xbmc.sleep(300)
         xbmc.executebuiltin('Action(Info)')
-        _log("Info action sent")
+        success = True
     else:
-        _log("Failed to focus list control", xbmc.LOGWARNING)
-        notify("Matrix test", "Failed to focus list")
+        # Method 2: Try using the container position directly
+        _log("Method 2: Using container position approach")
+        xbmc.executebuiltin('SetFocus(50)')  # Try main container first
+        xbmc.sleep(200)
+        xbmc.executebuiltin('Action(Select)')  # Select first item
+        xbmc.sleep(200)
+        xbmc.executebuiltin('Action(Info)')
+        success = True
+    
+    if success:
+        _log("Info action sent successfully")
+    else:
+        _log("All focus methods failed", xbmc.LOGWARNING)
+        notify("Matrix test", "Failed to open info dialog")
 
     # Optional tidy after a small delay
     xbmc.sleep(500)
