@@ -30,6 +30,9 @@ from lib.auth.state import is_authorized
 # Import query manager for list operations
 from lib.data.query_manager import get_query_manager # Assuming this path is correct
 
+# Import test info variants module
+import test_info_variants as tiv
+
 # Get logger instance
 logger = get_logger(__name__)
 
@@ -47,7 +50,7 @@ def show_main_menu(handle):
     search_url = f"{sys.argv[0]}?action=search"
     xbmcplugin.addDirectoryItem(handle, search_url, search_item, True)
 
-    # Test Info Variants (debug/development tool)
+    # Test Info Variants (debug/development tool) - now uses test_info_variants module
     test_item = xbmcgui.ListItem(label="[COLOR gray]Test Info Variants[/COLOR]")
     test_url = f"{sys.argv[0]}?action=test_info_variants&dbtype=movie&dbid=883"
     logger.info(f"[TEST-HARNESS] Adding test menu item with URL: {test_url}")
@@ -665,42 +668,7 @@ def handle_settings():
     xbmcaddon.Addon().openSettings()
 
 
-def run_test_info_variants(addon_handle, params):
-    """Runs the test for different info variants."""
-    try:
-        logger.info(f"[TEST-HARNESS] ========== STARTING TEST INFO VARIANTS ==========")
-        logger.info(f"[TEST-HARNESS] Addon handle: {addon_handle}")
-        logger.info(f"[TEST-HARNESS] Received params: {params}")
-        logger.info(f"[TEST-HARNESS] DB type: {params.get('dbtype', 'movie')}")
-        logger.info(f"[TEST-HARNESS] DB ID: {params.get('dbid', '883')}")
-        logger.info(f"[TEST-HARNESS] This test uses ROBUST navigation helpers with container waiting")
-        logger.info(f"[TEST-HARNESS] Importing test runner from test_info_variants module")
-        
-        # Import the test function from the separate module
-        from test_info_variants import run_test_info_variants as test_runner
-        
-        logger.info(f"[TEST-HARNESS] Successfully imported test runner, calling implementation")
-        
-        # Call the actual test implementation
-        test_runner(addon_handle, params)
-        
-        logger.info(f"[TEST-HARNESS] Test info variants completed successfully")
-        
-    except Exception as e:
-        logger.error(f"[TEST-HARNESS] ERROR in run_test_info_variants: {e}")
-        import traceback
-        logger.error(f"[TEST-HARNESS] test_info_variants error traceback: {traceback.format_exc()}")
-        logger.error(f"[TEST-HARNESS] Test harness failed - this indicates a problem with the test setup")
-        addon = xbmcaddon.Addon()
-        xbmcgui.Dialog().notification(
-            addon.getLocalizedString(35002),
-            "Test Info Variants failed",
-            xbmcgui.NOTIFICATION_ERROR
-        )
-        try:
-            xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
-        except Exception:
-            pass
+
 
 
 def main():
@@ -755,21 +723,13 @@ def main():
             logger.info(f"ROUTING: on_select action detected with params: {params}")
             handle_on_select(params, addon_handle)
         elif action == 'test_info_variants':
-            logger.info(f"[TEST-HARNESS] ROUTING: test_info_variants action detected")
-            logger.info(f"[TEST-HARNESS] Full params: {params}")
-            logger.info(f"[TEST-HARNESS] Query string: {query_string}")
-            logger.info(f"[TEST-HARNESS] Addon handle: {addon_handle}")
-            logger.info(f"[TEST-HARNESS] Base URL: {base_url}")
-            run_test_info_variants(addon_handle, params)
-        elif action == 'test_info_click':
-            logger.info(f"[TEST-HARNESS] ROUTING: test_info_click action detected")
-            logger.info(f"[TEST-HARNESS] Click params: {params}")
-            logger.info(f"[TEST-HARNESS] Mode: {params.get('mode', 'unknown')}")
-            logger.info(f"[TEST-HARNESS] VDB path: {params.get('vdb', 'none')}")
-            logger.info(f"[TEST-HARNESS] Using ROBUST navigation (container waiting + focus)")
-            logger.info(f"[TEST-HARNESS] User navigated to test click handler")
-            from test_info_variants import handle_test_info_click
-            handle_test_info_click(params, addon_handle)
+            logger.info(f"[TEST-HARNESS] ROUTING: test_info_variants action detected - using new module")
+            tiv.add_menu(addon_handle, base_url, dbtype='movie', dbid=883)
+        elif action in ('test_matrix', 'test_nexus', 'nexus_info_click'):
+            logger.info(f"[TEST-HARNESS] ROUTING: {action} action detected - using new module")
+            logger.info(f"[TEST-HARNESS] Params: {params}")
+            # pass handle & base_url for test_nexus so it can build the one-item list
+            tiv.handle_click(params, handle=addon_handle, base_url=base_url)
         elif action == 'noop':
             logger.info(f"[TEST-HARNESS] ROUTING: noop action (test baseline)")
             logger.info(f"[TEST-HARNESS] Noop params: {params}")
