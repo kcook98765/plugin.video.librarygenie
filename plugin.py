@@ -580,6 +580,60 @@ def handle_delete_list():
         logger.error(f"Delete list error traceback: {traceback.format_exc()}")
 
 
+def _videodb_path(dbtype: str, dbid: int, tvshowid=None, season=None) -> str:
+    """Build videodb:// path for Kodi library items"""
+    if dbtype == "movie":
+        return f'videodb://movies/titles/{dbid}'
+    if dbtype == "episode":
+        if isinstance(tvshowid, int) and isinstance(season, int):
+            return f'videodb://tvshows/titles/{tvshowid}/{season}/{dbid}'
+        return f'videodb://episodes/{dbid}'
+    return ""
+
+
+def handle_on_select(params: dict, addon_handle: int):
+    """Handle library item selection - play or show info based on user preference"""
+    try:
+        from lib.config.config_manager import get_select_pref
+        
+        logger.info(f"Handling on_select with params: {params}")
+        
+        dbtype = params.get("dbtype", "movie")
+        dbid = int(params.get("dbid", "0"))
+        tvshowid = params.get("tvshowid")
+        season = params.get("season")
+        tvshowid = int(tvshowid) if tvshowid and tvshowid.isdigit() else None
+        season = int(season) if season and season.isdigit() else None
+
+        vdb = _videodb_path(dbtype, dbid, tvshowid, season)
+        pref = get_select_pref()  # 'play' or 'info'
+        
+        logger.info(f"on_select: dbtype={dbtype}, dbid={dbid}, videodb_path={vdb}, preference={pref}")
+
+        if pref == "play":
+            logger.info(f"Playing media: {vdb}")
+            xbmc.executebuiltin(f'PlayMedia("{vdb}")')
+        else:
+            logger.info(f"Opening info dialog: {vdb}")
+            # Matrix-safe way to open native info (shows cast/crew)
+            xbmc.executebuiltin(f'ActivateWindow(VideoInformation,"{vdb}",return)')
+
+        # Do not render a directory for this call; we're done.
+        try:
+            xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
+        except Exception:
+            pass
+            
+    except Exception as e:
+        logger.error(f"Error in handle_on_select: {e}")
+        import traceback
+        logger.error(f"on_select error traceback: {traceback.format_exc()}")
+        try:
+            xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
+        except Exception:
+            pass
+
+
 def handle_settings():
     """Handle settings menu"""
     logger.info("Opening addon settings")
@@ -608,7 +662,7 @@ def main():
         # Check if this is first run and trigger library scan if needed
         _check_and_trigger_initial_scan()
 
-        # Route based on action parameter
+        # Route based action parameter
         action = params.get('action', '')
 
         if action == 'search':
@@ -629,6 +683,8 @@ def main():
             handle_authorize()
         elif action == 'signout':
             handle_signout()
+        elif action == 'on_select':
+            handle_on_select(params, addon_handle)
         else:
             # Show main menu by default
             show_main_menu(addon_handle)
