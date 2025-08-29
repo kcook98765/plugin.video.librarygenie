@@ -741,6 +741,10 @@ def main():
         elif action == 'test_info_variants':
             logger.info(f"ROUTING: test_info_variants action detected with params: {params}")
             run_test_info_variants(addon_handle, params)
+        elif action == 'test_info_click':
+            logger.info(f"ROUTING: test_info_click action detected with params: {params}")
+            from test_info_variants import handle_test_info_click
+            handle_test_info_click(params, addon_handle)
         elif action == 'noop':
             # No-op action for test variants - just end directory
             xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
