@@ -202,14 +202,14 @@ def show_info_matrix(movieid: int):
         success = True
     
     if success:
-        _log("Info action sent successfully")
+        _log("Info action sent successfully - info dialog should now be open")
+        _log("XSP will remain available to keep dialog open - manual cleanup required")
+        notify("Matrix test", "Info dialog opened! Close manually when done.")
     else:
         _log("All focus methods failed", xbmc.LOGWARNING)
         notify("Matrix test", "Failed to open info dialog")
-
-    # Optional tidy after a small delay
-    xbmc.sleep(500)
-    _cleanup_xsp(xsp_path)
+        # Only cleanup on failure
+        _cleanup_xsp(xsp_path)
 
 # ------------------------------
 # Nexus+ (v20/v21): setDbId + Action(Info)
