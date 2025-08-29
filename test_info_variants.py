@@ -275,23 +275,45 @@ def show_info_matrix(movieid: int):
     
     # Method 1: Direct videodb URL approach (most reliable for Matrix)
     _log("METHOD 1: Direct videodb URL approach...")
-    videodb_paths = [
-        f"videodb://movies/titles/{movieid}",
-        f"videodb://movies/titles/{movieid}?movieid={movieid}",
-        f"videodb://1/2/{movieid}",
-        f"videodb://movies/titles/{movieid}/"
-    ]
     
-    for vdb_path in videodb_paths:
-        _log(f"METHOD 1: Trying direct DialogVideoInfo with {vdb_path}")
-        xbmc.executebuiltin(f'ActivateWindow(DialogVideoInfo,"{vdb_path}",return)')
-        xbmc.sleep(800)  # More time for dialog
-        info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
-        _log(f"METHOD 1: Info dialog open via {vdb_path}: {info_open}")
-        method_results.append(f"Method1: {vdb_path}, info_open={info_open}")
-        if info_open:
-            success = True
-            break
+    # First try going directly to the videodb URL to select the item
+    videodb_url = f"videodb://movies/titles/{movieid}"
+    _log(f"METHOD 1: Navigating to videodb URL: {videodb_url}")
+    xbmc.executebuiltin(f'ActivateWindow(Videos,"{videodb_url}",return)')
+    xbmc.sleep(1000)  # Give time for navigation
+    
+    # Wait for the videodb container to load
+    if wait_for_videos_container(videodb_url, timeout_ms=5000):
+        _log("METHOD 1: Videodb container loaded, trying info dialog")
+        # Try the correct window names for Matrix
+        dialog_names = ["movieinformation", "VideoInfo"]
+        
+        for dialog_name in dialog_names:
+            _log(f"METHOD 1: Trying ActivateWindow({dialog_name})")
+            xbmc.executebuiltin(f'ActivateWindow({dialog_name})')
+            xbmc.sleep(800)
+            info_open = xbmc.getCondVisibility(f'Window.IsActive({dialog_name}.xml)') or \
+                       xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+            _log(f"METHOD 1: Info dialog open via {dialog_name}: {info_open}")
+            method_results.append(f"Method1: {dialog_name}, info_open={info_open}")
+            if info_open:
+                success = True
+                break
+        
+        if not success:
+            # Try Action(Info) from videodb view
+            _log("METHOD 1: Trying Action(Info) from videodb view")
+            xbmc.executebuiltin('Action(Info)')
+            xbmc.sleep(800)
+            info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)') or \
+                       xbmc.getCondVisibility('Window.IsActive(movieinformation.xml)')
+            _log(f"METHOD 1: Info dialog open via Action(Info): {info_open}")
+            method_results.append(f"Method1: videodb_action_info, info_open={info_open}")
+            if info_open:
+                success = True
+    else:
+        _log("METHOD 1: Failed to load videodb container")
+        method_results.append("Method1: videodb_container_failed, info_open=False")
     
     # Method 2: RunScript approach (alternative for Matrix)
     if not success:
@@ -335,20 +357,25 @@ def show_info_matrix(movieid: int):
             else:
                 _log(f"METHOD 3: Could not focus control {candidate}")
     
-    # Method 4: JSON-RPC GUI.ActivateWindow
+    # Method 4: JSON-RPC GUI.ActivateWindow with correct window names
     if not success:
         _log("METHOD 4: JSON-RPC GUI.ActivateWindow...")
-        json_result = jsonrpc("GUI.ActivateWindow", {
-            "window": "DialogVideoInfo.xml",
-            "parameters": [f"videodb://movies/titles/{movieid}"]
-        })
-        _log(f"METHOD 4: JSON-RPC result: {json_result}")
-        xbmc.sleep(600)
-        info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
-        _log(f"METHOD 4: Info dialog open via JSON-RPC: {info_open}")
-        method_results.append(f"Method4: jsonrpc_activate, info_open={info_open}")
-        if info_open:
-            success = True
+        window_names = ["movieinformation", "VideoInfo", "videos"]
+        
+        for window_name in window_names:
+            json_result = jsonrpc("GUI.ActivateWindow", {
+                "window": window_name,
+                "parameters": [f"videodb://movies/titles/{movieid}"]
+            })
+            _log(f"METHOD 4: JSON-RPC {window_name} result: {json_result}")
+            xbmc.sleep(600)
+            info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)') or \
+                       xbmc.getCondVisibility('Window.IsActive(movieinformation.xml)')
+            _log(f"METHOD 4: Info dialog open via JSON-RPC {window_name}: {info_open}")
+            method_results.append(f"Method4: jsonrpc_{window_name}, info_open={info_open}")
+            if info_open:
+                success = True
+                break
     
     # Method 5: Context menu approach
     if not success:
@@ -379,13 +406,26 @@ def show_info_matrix(movieid: int):
     # Final comprehensive state check
     _log("STEP 6: Final state verification...")
     xbmc.sleep(300)  # Let everything settle
-    final_info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+    # Check multiple possible dialog names for Matrix
+    dialog_names = [
+        'DialogVideoInfo.xml',
+        'movieinformation.xml', 
+        'VideoInfo.xml'
+    ]
+    final_info_open = False
+    for dialog_name in dialog_names:
+        if xbmc.getCondVisibility(f'Window.IsActive({dialog_name})'):
+            final_info_open = True
+            break
+    
     final_window = xbmc.getInfoLabel('System.CurrentWindow')
     active_dialogs = []
     
     # Check for various dialog states
     dialog_checks = [
         'DialogVideoInfo.xml',
+        'movieinformation.xml',
+        'VideoInfo.xml',
         'DialogBusy.xml', 
         'DialogProgress.xml',
         'DialogContextMenu.xml'
