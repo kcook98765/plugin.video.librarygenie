@@ -847,11 +847,11 @@ msgid "Select Action"
 msgstr ""
 
 msgctxt "#35101"
-msgid "First Option"
+msgid "Play"
 msgstr ""
 
 msgctxt "#35102"
-msgid "Second Option"
+msgid "Information"
 msgstr ""
 
 msgctxt "#35014"
