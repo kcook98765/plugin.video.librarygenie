@@ -47,6 +47,11 @@ def show_main_menu(handle):
     search_url = f"{sys.argv[0]}?action=search"
     xbmcplugin.addDirectoryItem(handle, search_url, search_item, True)
 
+    # Test Info Variants (debug/development tool)
+    test_item = xbmcgui.ListItem(label="[COLOR gray]Test Info Variants[/COLOR]")
+    test_url = f"{sys.argv[0]}?action=test_info_variants&dbtype=movie&dbid=883"
+    xbmcplugin.addDirectoryItem(handle, test_url, test_item, True)
+
     # Lists (always visible)
     lists_item = xbmcgui.ListItem(label=addon.getLocalizedString(35016))  # "Lists"
     lists_url = f"{sys.argv[0]}?action=lists"
@@ -653,11 +658,164 @@ def handle_on_select(params: dict, addon_handle: int):
             pass
 
 
-
 def handle_settings():
     """Handle settings menu"""
     logger.info("Opening addon settings")
     xbmcaddon.Addon().openSettings()
+
+
+def run_test_info_variants(addon_handle, params):
+    """Runs the test for different info variants."""
+    try:
+        from kodi_six import KodiLog
+
+        logger.info("Starting test_info_variants")
+        logger.info(f"Received params: {params}")
+
+        dbtype = params.get("dbtype", "movie")
+        dbid = int(params.get("dbid", "0"))
+        kodi_log = KodiLog()
+
+        # Construct different URLs/properties to test
+        # These are examples; you'll want to expand this with more variations
+        variants = [
+            {
+                "label": "Basic Movie Info",
+                "dbtype": dbtype,
+                "dbid": dbid,
+                "properties": {}
+            },
+            {
+                "label": "Movie with Title Only",
+                "dbtype": dbtype,
+                "dbid": dbid,
+                "properties": {"title": "Test Movie Title"}
+            },
+            {
+                "label": "Movie with Year",
+                "dbtype": dbtype,
+                "dbid": dbid,
+                "properties": {"year": 2023}
+            },
+            {
+                "label": "Movie with Plot",
+                "dbtype": dbtype,
+                "dbid": dbid,
+                "properties": {"plot": "A test movie plot."}
+            },
+            {
+                "label": "Movie with Director",
+                "dbtype": dbtype,
+                "dbid": dbid,
+                "properties": {"director": "Test Director"}
+            },
+            {
+                "label": "Movie with Cast (Single Actor)",
+                "dbtype": dbtype,
+                "dbid": dbid,
+                "properties": {"cast": [{"name": "Actor One", "role": "Lead"}]}
+            },
+            {
+                "label": "Movie with Cast (Multiple Actors)",
+                "dbtype": dbtype,
+                "dbid": dbid,
+                "properties": {
+                    "cast": [
+                        {"name": "Actor One", "role": "Lead"},
+                        {"name": "Actor Two", "role": "Supporting"}
+                    ]
+                }
+            },
+            {
+                "label": "Movie with Fanart",
+                "dbtype": dbtype,
+                "dbid": dbid,
+                "properties": {"fanart": "special://profile/Thumbnails/fanart.jpg"} # Placeholder, replace with actual path
+            },
+            {
+                "label": "Movie with Thumbnail",
+                "dbtype": dbtype,
+                "dbid": dbid,
+                "properties": {"thumbnail": "special://profile/Thumbnails/poster.jpg"} # Placeholder, replace with actual path
+            },
+             {
+                "label": "Movie with Kodi ID (if applicable)",
+                "dbtype": dbtype,
+                "dbid": dbid,
+                "properties": {"kodi_id": dbid} # Assuming dbid is the Kodi ID
+            },
+            # Add more variants here, focusing on cast properties and other relevant fields
+        ]
+
+        results = []
+        for variant in variants:
+            label = variant["label"]
+            properties = variant["properties"]
+            logger.info(f"Testing variant: '{label}'")
+
+            # Create a ListItem for this variant
+            list_item = xbmcgui.ListItem(label=label)
+
+            # Apply properties
+            for key, value in properties.items():
+                try:
+                    if key == "cast":
+                        # Cast needs special handling for Kodi ListItem
+                        list_item.setCast(value)
+                    elif key == "fanart" or key == "thumbnail":
+                        list_item.setProperty(key, value)
+                    else:
+                        list_item.setProperty(key, str(value))
+                except Exception as e:
+                    logger.error(f"Failed to set property '{key}' for '{label}': {e}")
+                    results.append(f"FAIL: '{label}' - Error setting '{key}': {e}")
+                    continue
+
+            # Construct the videodb:// path
+            # For testing, we might not need a full path if we're just
+            # focusing on the ListItem properties themselves.
+            # However, if we want to simulate opening the Video Info dialog,
+            # we need a valid path. Let's use the _videodb_path helper.
+            videodb_path = _videodb_path(variant["dbtype"], variant["dbid"])
+            if not videodb_path:
+                logger.warning(f"Could not construct videodb path for variant '{label}'. Skipping dialog test.")
+                results.append(f"INFO: '{label}' - No videodb path, skipping dialog test.")
+                continue
+
+            # Add the directory item. We'll use the "on_select" action
+            # to trigger the Video Info dialog for the item.
+            # We need a unique identifier or a way to know which item was selected.
+            # Let's pass the variant label as a parameter.
+            test_action_url = f"{base_url}?action=on_select&dbtype={variant['dbtype']}&dbid={variant['dbid']}&variant_label={urllib.parse.quote_plus(label)}"
+
+            # The ListItem itself is what we are testing here.
+            # We add it to the directory. When this item is selected,
+            # it should trigger the 'on_select' handler.
+            xbmcplugin.addDirectoryItem(addon_handle, test_action_url, list_item, isFolder=False)
+
+            logger.info(f"Added directory item for variant: '{label}'")
+
+        xbmcplugin.endOfDirectory(addon_handle)
+
+        # After the directory is built, we can optionally do something
+        # to help the user, but the primary goal is to have these items
+        # appear and be testable via selection.
+        logger.info("Finished building test directory.")
+
+    except Exception as e:
+        logger.error(f"Error in run_test_info_variants: {e}")
+        import traceback
+        logger.error(f"test_info_variants error traceback: {traceback.format_exc()}")
+        addon = xbmcaddon.Addon()
+        xbmcgui.Dialog().notification(
+            addon.getLocalizedString(35002),
+            "Test Info Variants failed",
+            xbmcgui.NOTIFICATION_ERROR
+        )
+        try:
+            xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
+        except Exception:
+            pass
 
 
 def main():
@@ -706,6 +864,9 @@ def main():
         elif action == 'on_select':
             logger.info(f"ROUTING: on_select action detected with params: {params}")
             handle_on_select(params, addon_handle)
+        elif action == 'test_info_variants':
+            logger.info(f"ROUTING: test_info_variants action detected with params: {params}")
+            run_test_info_variants(addon_handle, params)
         else:
             # Show main menu by default
             show_main_menu(addon_handle)
