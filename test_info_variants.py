@@ -273,72 +273,37 @@ def show_info_matrix(movieid: int):
     success = False
     method_results = []
     
-    # Method 1: Stay in XSP context and navigate to movie item
-    _log("METHOD 1: XSP context with proper item navigation...")
+    # Method 1: Force focus to movie item by container index
+    _log("METHOD 1: XSP context with forced container index selection...")
     
-    # Make sure we're still in the XSP view with the movie selected
+    # Make sure we're still in the XSP view 
     container_path = xbmc.getInfoLabel('Container.FolderPath').rstrip('/')
     xsp_path_norm = xsp_path.rstrip('/')
     
     if container_path == xsp_path_norm:
-        _log("METHOD 1: Still in XSP context, focusing and navigating to movie")
+        _log("METHOD 1: Still in XSP context, forcing selection of movie item")
         
-        # Focus the correct list control (50 based on logs)
+        # Focus the list control first
         if focus_list(50, tries=3, sleep_ms=150):
-            _log("METHOD 1: List control 50 focused, checking initial selection")
+            _log("METHOD 1: List control 50 focused successfully")
+            
+            # Since XSP should have: [0] = ".." parent, [1] = our movie
+            # Force select index 1 (the movie item)
+            _log("METHOD 1: Forcing selection of container index 1 (movie item)")
+            xbmc.executebuiltin('Action(SelectItem,1)')
+            xbmc.sleep(400)  # Give time for selection to take effect
+            
+            # Verify we selected the movie
             current_title = xbmc.getInfoLabel('ListItem.Title')
             current_dbid = xbmc.getInfoLabel('ListItem.DBID')
             current_path = xbmc.getInfoLabel('ListItem.Path')
-            _log(f"METHOD 1: Initial item - Title: '{current_title}', DBID: '{current_dbid}', Path: '{current_path}'")
+            _log(f"METHOD 1: After forced selection - Title: '{current_title}', DBID: '{current_dbid}', Path: '{current_path}'")
             
-            # Navigate down to find the movie (skip ".." parent entry)
-            _log("METHOD 1: Navigating to find movie item...")
-            max_nav_attempts = 5
-            for nav_attempt in range(max_nav_attempts):
-                current_title = xbmc.getInfoLabel('ListItem.Title')
-                current_dbid = xbmc.getInfoLabel('ListItem.DBID')
-                current_path = xbmc.getInfoLabel('ListItem.Path')
-                current_filename = xbmc.getInfoLabel('ListItem.FileNameAndPath')
-                
-                _log(f"METHOD 1: Nav attempt {nav_attempt + 1} - Title: '{current_title}', DBID: '{current_dbid}', Path: '{current_path}'")
-                
-                # Check if this is a valid movie item (has title and dbid, not parent)
-                if current_title and current_dbid and current_title != ".." and not current_path.endswith("plugin.video.librarygenie/"):
-                    _log(f"METHOD 1: Found movie item: {current_title} (DBID: {current_dbid})")
-                    break
-                
-                # Try moving down to next item
-                _log("METHOD 1: Moving to next item...")
-                xbmc.executebuiltin('Action(Down)')
-                xbmc.sleep(300)  # Give more time for navigation
-            else:
-                _log("METHOD 1: Could not find movie item after navigation attempts")
-                
-                # Try an alternative approach - move to end and back
-                _log("METHOD 1: Trying alternative navigation - move to end first")
-                xbmc.executebuiltin('Action(End)')
-                xbmc.sleep(300)
-                current_title = xbmc.getInfoLabel('ListItem.Title')
-                current_dbid = xbmc.getInfoLabel('ListItem.DBID')
-                _log(f"METHOD 1: After End - Title: '{current_title}', DBID: '{current_dbid}'")
-                
-                if not current_title or current_title == "..":
-                    # Move up one item
-                    xbmc.executebuiltin('Action(Up)')
-                    xbmc.sleep(300)
-                    current_title = xbmc.getInfoLabel('ListItem.Title')
-                    current_dbid = xbmc.getInfoLabel('ListItem.DBID')
-                    _log(f"METHOD 1: After Up from End - Title: '{current_title}', DBID: '{current_dbid}'")
-            
-            # Final check for valid movie item
-            current_title = xbmc.getInfoLabel('ListItem.Title')
-            current_dbid = xbmc.getInfoLabel('ListItem.DBID')
-            current_path = xbmc.getInfoLabel('ListItem.Path')
-            
+            # Validate we have a proper movie item selected
             if current_title and current_dbid and current_title != ".." and not current_path.endswith("plugin.video.librarygenie/"):
-                _log(f"METHOD 1: Attempting info for movie: {current_title} (DBID: {current_dbid})")
+                _log(f"METHOD 1: Successfully selected movie: {current_title} (DBID: {current_dbid})")
                 
-                # Try Action(Info) first since we're now on the movie item
+                # Try Action(Info) now that we have the movie selected
                 _log("METHOD 1: Sending Action(Info)")
                 xbmc.executebuiltin('Action(Info)')
                 xbmc.sleep(1000)  # Give more time for dialog to open
@@ -346,7 +311,7 @@ def show_info_matrix(movieid: int):
                 info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)') or \
                            xbmc.getCondVisibility('Window.IsActive(movieinformation.xml)')
                 _log(f"METHOD 1: Info dialog open via Action(Info): {info_open}")
-                method_results.append(f"Method1: action_info_on_movie, info_open={info_open}")
+                method_results.append(f"Method1: forced_index_action_info, info_open={info_open}")
                 
                 if not info_open:
                     # Fallback to JSON-RPC with videodb path
@@ -368,8 +333,28 @@ def show_info_matrix(movieid: int):
                 if info_open:
                     success = True
             else:
-                _log(f"METHOD 1: Still no valid movie item selected - Title: '{current_title}', DBID: '{current_dbid}', Path: '{current_path}'")
-                method_results.append("Method1: no_valid_movie_item, info_open=False")
+                _log(f"METHOD 1: Forced selection failed - Title: '{current_title}', DBID: '{current_dbid}', Path: '{current_path}'")
+                
+                # Try alternative: select by relative position instead of absolute index
+                _log("METHOD 1: Trying alternative - move down from current position")
+                xbmc.executebuiltin('Action(Down)')
+                xbmc.sleep(300)
+                
+                current_title = xbmc.getInfoLabel('ListItem.Title')
+                current_dbid = xbmc.getInfoLabel('ListItem.DBID')
+                _log(f"METHOD 1: After Action(Down) - Title: '{current_title}', DBID: '{current_dbid}'")
+                
+                if current_title and current_dbid and current_title != "..":
+                    _log("METHOD 1: Alternative navigation successful, trying Action(Info)")
+                    xbmc.executebuiltin('Action(Info)')
+                    xbmc.sleep(1000)
+                    info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)') or \
+                               xbmc.getCondVisibility('Window.IsActive(movieinformation.xml)')
+                    method_results.append(f"Method1: alternative_down_action_info, info_open={info_open}")
+                    if info_open:
+                        success = True
+                else:
+                    method_results.append("Method1: forced_selection_failed, info_open=False")
         else:
             _log("METHOD 1: Could not focus list control 50")
             method_results.append("Method1: focus_failed, info_open=False")
