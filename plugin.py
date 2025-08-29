@@ -704,6 +704,7 @@ def main():
         elif action == 'signout':
             handle_signout()
         elif action == 'on_select':
+            logger.info(f"ROUTING: on_select action detected with params: {params}")
             handle_on_select(params, addon_handle)
         else:
             # Show main menu by default

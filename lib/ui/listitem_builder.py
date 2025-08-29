@@ -18,11 +18,15 @@ from ..config import get_config
 
 
 def get_select_pref() -> str:
-    """Get the user's select action preference"""
+    """Get the user's select action preference with robust error handling"""
     try:
         config = get_config()
-        return config.get_select_action()
-    except Exception:
+        pref = config.get_select_action()
+        return pref if pref in ("play", "info") else "play"
+    except Exception as e:
+        # Log but don't fail
+        logger = get_logger(__name__)
+        logger.warning(f"Failed to get select preference, using default 'play': {e}")
         return "play"  # Safe default
 
 
@@ -351,16 +355,20 @@ class ListItemBuilder:
             # Build a plugin URL so we can decide Play vs Info on click
             url = self._library_click_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
             li.setPath(url)
-            self.logger.debug(f"LIB ITEM: Generated click URL for '{title}': {url}")
+            self.logger.info(f"LIB ITEM: Generated click URL for '{title}': {url}")
 
-            # Get user preference safely
-            pref = get_select_pref()
-            self.logger.debug(f"LIB ITEM: User preference for '{title}': {pref}")
+            # Get user preference safely (but don't let it break ListItem creation)
+            try:
+                pref = get_select_pref()
+                self.logger.info(f"LIB ITEM: User preference for '{title}': {pref}")
+            except Exception as e:
+                self.logger.warning(f"LIB ITEM: Failed to get preference for '{title}', using 'play': {e}")
+                pref = "play"
 
-            # Always mark as playable for library items so they can be clicked
-            # The URL handler will decide whether to play or show info
+            # CRITICAL: Always mark as playable so the ListItem can be clicked/activated
+            # Without this, Kodi won't send click events to our plugin
             li.setProperty('IsPlayable', 'true')
-            self.logger.debug(f"LIB ITEM: Set IsPlayable=true for '{title}' (will be handled by on_select)")
+            self.logger.info(f"LIB ITEM: Set IsPlayable=true for '{title}' - enables click handling")
 
             is_folder = False
 
@@ -643,13 +651,27 @@ class ListItemBuilder:
         Returns:
             str: Plugin URL with on_select action and database parameters
         """
-        qs = [("action", "on_select"), ("dbtype", media_type), ("dbid", str(kodi_id))]
+        import urllib.parse
+        
+        # Build clean query parameters
+        params = {
+            "action": "on_select",
+            "dbtype": media_type,
+            "dbid": str(kodi_id)
+        }
+        
+        # Add episode-specific parameters if provided
         if tvshowid is not None:
-            qs.append(("tvshowid", str(tvshowid)))
+            params["tvshowid"] = str(tvshowid)
         if season is not None:
-            qs.append(("season", str(season)))
-        query = "&".join(f"{k}={v}" for k, v in qs)
-        return f"plugin://{self.addon_id}/?{query}"
+            params["season"] = str(season)
+        
+        # Use urllib.parse.urlencode for proper encoding
+        query = urllib.parse.urlencode(params)
+        url = f"plugin://{self.addon_id}/?{query}"
+        
+        self.logger.debug(f"CLICK URL: Built URL for {media_type} {kodi_id}: {url}")
+        return url
 
     def _build_playback_url(self, item: Dict[str, Any]) -> str:
         """

@@ -217,25 +217,43 @@ class ConfigManager:
     def get_select_action(self) -> str:
         """Get the select action preference: 'play' or 'info'"""
         try:
-            # Try to get as string first (select type returns string index)
-            raw = self._addon.getSettingString("select_action")
-            if raw:
-                # Convert string index to preference
-                try:
-                    return "info" if int(raw) == 1 else "play"
-                except ValueError:
-                    s = raw.strip().lower()
-                    return "info" if s.startswith("info") else "play"
-            else:
-                # Fallback to default
-                return "play"
-        except Exception:
-            # If string fails, try as int (fallback)
+            # For select settings, Kodi stores the index as a string
+            # Try multiple approaches to get the setting value
+            raw_value = None
+            
+            # Method 1: Try getSettingString (most compatible)
             try:
-                raw = self._addon.getSettingInt("select_action")
-                return "info" if raw == 1 else "play"
+                raw_value = self._addon.getSettingString("select_action")
+                if raw_value is not None and raw_value != "":
+                    # Convert string index to preference
+                    index = int(raw_value)
+                    return "info" if index == 1 else "play"
             except Exception:
-                return "play"  # Safe default
+                pass
+            
+            # Method 2: Try getSettingInt as fallback
+            try:
+                raw_value = self._addon.getSettingInt("select_action")
+                if raw_value is not None:
+                    return "info" if raw_value == 1 else "play"
+            except Exception:
+                pass
+            
+            # Method 3: Try generic get method
+            try:
+                raw_value = self.get("select_action", "0")
+                if raw_value:
+                    index = int(str(raw_value))
+                    return "info" if index == 1 else "play"
+            except Exception:
+                pass
+            
+            # Safe default
+            return "play"
+            
+        except Exception:
+            # Ultimate fallback
+            return "play"
 
 
 # Global config instance
