@@ -315,13 +315,10 @@ class ListItemBuilder:
             self.logger.debug(f"LIB ITEM: Display label set to: '{display}'")
             li = xbmcgui.ListItem(label=display)
 
-            # For v20+, set lightweight info; skip for v19 to rely purely on library data
-            if is_kodi_v20_plus():
-                info = self._build_lightweight_info(item)
-                self.logger.debug(f"LIB ITEM: Video info dict for '{title}' (v20+): {info}")
-                li.setInfo('video', info)
-            else:
-                self.logger.debug(f"LIB ITEM: Skipping setInfo for '{title}' on v19 - relying on library data")
+            # Set lightweight info for all versions (plot, rating, etc. are needed)
+            info = self._build_lightweight_info(item)
+            self.logger.debug(f"LIB ITEM: Video info dict for '{title}': {info}")
+            li.setInfo('video', info)
 
             # Art (poster/fanart minimum)
             art = self._build_art_dict(item)
