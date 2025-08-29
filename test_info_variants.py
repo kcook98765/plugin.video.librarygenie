@@ -103,53 +103,74 @@ def run_test_info_variants(addon_handle, params=None):
     # 01) Plugin URL only (no props, no setPath)
     _add_variant(1, addon_handle,
                  url=f"{sys.argv[0]}?action=noop&dbtype={dbtype}&dbid={dbid}",
-                 vdb=vdb, set_path=False, props={}, set_info=True)
+                 vdb=vdb)
 
-    # 02) Plugin URL + dbid/dbtype props (common plugin pattern)
+    # 02) Plugin URL with dbid property
     _add_variant(2, addon_handle,
                  url=f"{sys.argv[0]}?action=noop&dbtype={dbtype}&dbid={dbid}",
-                 vdb=vdb, set_path=False, props={'dbid': dbid, 'dbtype': dbtype, 'mediatype': 'movie'}, set_info=True)
+                 vdb=vdb,
+                 props={'dbid': dbid})
 
-    # 03) Plugin URL + setPath(vdb) only (key Matrix test)
+    # 03) Plugin URL with dbtype property
     _add_variant(3, addon_handle,
-                 url=f"{sys.argv[0]}?action=noop",
-                 vdb=vdb, set_path=True, props={}, set_info=True)
+                 url=f"{sys.argv[0]}?action=noop&dbtype={dbtype}&dbid={dbid}",
+                 vdb=vdb,
+                 props={'dbtype': dbtype})
 
-    # 04) Plugin URL + setPath(vdb) + dbid/dbtype props (often the safest on v19)
+    # 04) Plugin URL with both dbid and dbtype properties
     _add_variant(4, addon_handle,
-                 url=f"{sys.argv[0]}?action=noop",
-                 vdb=vdb, set_path=True, props={'dbid': dbid, 'dbtype': dbtype, 'mediatype': 'movie'}, set_info=True)
+                 url=f"{sys.argv[0]}?action=noop&dbtype={dbtype}&dbid={dbid}",
+                 vdb=vdb,
+                 props={'dbid': dbid, 'dbtype': dbtype})
 
-    # 05) URL IS the videodb path (no setPath, no props)
+    # 05) Plugin URL with mediatype property
     _add_variant(5, addon_handle,
-                 url=vdb, vdb=vdb, set_path=False, props={}, set_info=True)
+                 url=f"{sys.argv[0]}?action=noop&dbtype={dbtype}&dbid={dbid}",
+                 vdb=vdb,
+                 props={'mediatype': 'movie'})
 
-    # 06) URL IS the videodb path + dbid/dbtype props (belt + suspenders)
+    # 06) Plugin URL with all three properties
     _add_variant(6, addon_handle,
-                 url=vdb, vdb=vdb, set_path=False, props={'dbid': dbid, 'dbtype': dbtype, 'mediatype': 'movie'}, set_info=True)
+                 url=f"{sys.argv[0]}?action=noop&dbtype={dbtype}&dbid={dbid}",
+                 vdb=vdb,
+                 props={'dbid': dbid, 'dbtype': dbtype, 'mediatype': 'movie'})
 
-    # 07) Plugin URL + 'path' property pointing at vdb (no setPath)
+    # 07) Plugin URL with setPath to videodb
     _add_variant(7, addon_handle,
-                 url=f"{sys.argv[0]}?action=noop",
-                 vdb=vdb, set_path=False, props={'path': vdb, 'dbid': dbid, 'dbtype': dbtype}, set_info=True)
+                 url=f"{sys.argv[0]}?action=noop&dbtype={dbtype}&dbid={dbid}",
+                 vdb=vdb,
+                 set_path=True)
 
-    # 08) Plugin URL + setPath(vdb) but NO setInfo at all (bare minimum)
+    # 08) Plugin URL with setPath + dbid property
     _add_variant(8, addon_handle,
-                 url=f"{sys.argv[0]}?action=noop",
-                 vdb=vdb, set_path=True, props={'dbid': dbid, 'dbtype': dbtype}, set_info=False)
+                 url=f"{sys.argv[0]}?action=noop&dbtype={dbtype}&dbid={dbid}",
+                 vdb=vdb,
+                 set_path=True,
+                 props={'dbid': dbid})
 
-    # 09) Plugin URL + ONLY mediatype in info (no props, no setPath)
+    # 09) Plugin URL with setPath + all properties
     _add_variant(9, addon_handle,
-                 url=f"{sys.argv[0]}?action=noop",
-                 vdb=vdb, set_path=False, props={}, set_info=True)
+                 url=f"{sys.argv[0]}?action=noop&dbtype={dbtype}&dbid={dbid}",
+                 vdb=vdb,
+                 set_path=True,
+                 props={'dbid': dbid, 'dbtype': dbtype, 'mediatype': 'movie'})
 
-    # 10) URL IS videodb + setPath(vdb) as well (overkill) + props
+    # 10) Direct videodb URL (no plugin)
     _add_variant(10, addon_handle,
-                 url=vdb, vdb=vdb, set_path=True, props={'dbid': dbid, 'dbtype': dbtype, 'mediatype': 'movie'}, set_info=True)
+                 url=vdb,
+                 vdb=vdb)
 
-    xbmcplugin.endOfDirectory(addon_handle, succeeded=True)
+    # 11) Direct videodb URL with properties
+    _add_variant(11, addon_handle,
+                 url=vdb,
+                 vdb=vdb,
+                 props={'dbid': dbid, 'dbtype': dbtype})
 
-# Allow running directly (optional convenience)
-if __name__ == '__main__' and ADDON_HANDLE != -1:
-    _p = _params_to_dict(sys.argv)
-    run_test_info_variants(ADDON_HANDLE, _p)
+    # 12) No setInfo call at all
+    _add_variant(12, addon_handle,
+                 url=f"{sys.argv[0]}?action=noop&dbtype={dbtype}&dbid={dbid}",
+                 vdb=vdb,
+                 set_info=False,
+                 props={'dbid': dbid, 'dbtype': dbtype, 'mediatype': 'movie'})
+
+    xbmcplugin.endOfDirectory(addon_handle)
