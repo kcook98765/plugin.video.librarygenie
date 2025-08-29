@@ -1,41 +1,28 @@
-# test_info_variants.py — slim harness for Matrix (v19) and Nexus+ (v20+)
-# Drop this next to your plugin.py (or under resources/lib and import accordingly).
-# It exposes two entry points:
-#   add_menu(handle, base_url, dbtype, dbid)
-#   handle_click(params, handle=None, base_url=None)
-#
-# Matrix (v19):
-#   - Jumps to videodb://movies/titles/
-#   - Waits for the container, finds the row index of movieid via JSON-RPC
-#   - Focuses container 55 + index, then Action(Info)
-#
-# Nexus+ (v20/v21):
-#   - Builds a one-item listing where the ListItem has setDbId(movieid, 'movie')
-#   - Clicking the item (or its context menu) runs action=nexus_info_click, which sends Action(Info)
-
+# test_info_variants.py — focused harness for Matrix (v19) and Nexus+ (v20+)
 from __future__ import annotations
 import json
-import sys
 import time
+import os
+import html
 from urllib.parse import urlencode, parse_qs
 
 import xbmc
 import xbmcgui
 import xbmcplugin
+import xbmcvfs
 
 # ------------------------------
-# Helpers
+# Config / constants
 # ------------------------------
-
 LOG_PREFIX = "[InfoHarness]"
-LIST_ID = 55                # Estuary main list id in MyVideoNav.xml
+LIST_ID = 55                 # Estuary main list control in MyVideoNav.xml
 VIDEOS_WINDOW = "MyVideoNav.xml"
-VDB_TITLES_DIR = "videodb://movies/titles/"
 
-
+# ------------------------------
+# Logging / utils
+# ------------------------------
 def _log(msg: str, level=xbmc.LOGINFO):
     xbmc.log(f"{LOG_PREFIX} {msg}", level)
-
 
 def kodi_major() -> int:
     ver = xbmc.getInfoLabel('System.BuildVersion') or ''
@@ -43,7 +30,6 @@ def kodi_major() -> int:
         return int(ver.split('.')[0])
     except Exception:
         return 0
-
 
 def jsonrpc(method: str, params: dict | None = None) -> dict:
     payload = {"jsonrpc": "2.0", "id": 1, "method": method}
@@ -56,24 +42,8 @@ def jsonrpc(method: str, params: dict | None = None) -> dict:
         _log(f"JSON parse error for {method}: {raw}", xbmc.LOGWARNING)
         return {}
 
-
-def wait_for_videos_container(target_dir: str, timeout_ms: int = 6000) -> bool:
-    """Wait until the Videos window is active, the folder path matches, items are present, and busy dialog is closed."""
-    mon = xbmc.Monitor()
-    target = target_dir.rstrip('/') + '/'
-    start = time.time() * 1000  # Convert to milliseconds
-    while (time.time() * 1000) - start < timeout_ms and not mon.abortRequested():
-        if not xbmc.getCondVisibility(f'Window.IsActive({VIDEOS_WINDOW})'):
-            xbmc.sleep(120)
-            continue
-        cur = (xbmc.getInfoLabel('Container.FolderPath') or '').rstrip('/') + '/'
-        num = int(xbmc.getInfoLabel('Container.NumItems') or '0')
-        busy = xbmc.getCondVisibility('Window.IsActive(DialogBusy.xml)')
-        if cur == target and num > 0 and not busy:
-            return True
-        xbmc.sleep(120)
-    return False
-
+def notify(heading: str, message: str, time_ms: int = 3500):
+    xbmcgui.Dialog().notification(heading, message, xbmcgui.NOTIFICATION_INFO, time_ms)
 
 def focus_list(control_id: int = LIST_ID, tries: int = 30, sleep_ms: int = 80) -> bool:
     for _ in range(tries):
@@ -83,154 +53,143 @@ def focus_list(control_id: int = LIST_ID, tries: int = 30, sleep_ms: int = 80) -
         xbmc.sleep(sleep_ms)
     return False
 
+def wait_for_videos_container(target_path: str, timeout_ms: int = 6000) -> bool:
+    """Wait until Videos window shows target_path as Container.FolderPath, has items, and no busy dialog."""
+    mon = xbmc.Monitor()
+    t_norm = (target_path or '').rstrip('/')
+    start = int(time.time() * 1000)
+    while (int(time.time() * 1000) - start) < timeout_ms and not mon.abortRequested():
+        if not xbmc.getCondVisibility(f'Window.IsActive({VIDEOS_WINDOW})'):
+            xbmc.sleep(120)
+            continue
+        cur = (xbmc.getInfoLabel('Container.FolderPath') or '').rstrip('/')
+        num = int(xbmc.getInfoLabel('Container.NumItems') or '0')
+        busy = xbmc.getCondVisibility('Window.IsActive(DialogBusy.xml)')
+        if cur == t_norm and num > 0 and not busy:
+            return True
+        xbmc.sleep(120)
+    return False
 
-def find_movie_index_in_titles(movieid: int) -> int | None:
-    """Return the 0-based index of the movie row inside videodb://movies/titles/ using label-ascending sort."""
-    req = {
-        "directory": VDB_TITLES_DIR,
-        "media": "video",
-        "properties": ["title", "year", "thumbnail"],
-        "sort": {"method": "label", "order": "ascending"},
-    }
-    data = jsonrpc("Files.GetDirectory", req)
-    files = data.get("result", {}).get("files", [])
-    for idx, item in enumerate(files):
-        mid = item.get("movieid", item.get("id"))
-        if mid == movieid:
-            return idx
-    return None
+# ------------------------------
+# Matrix (v19): XSP via path + filename (no fallback)
+# ------------------------------
+def _ensure_dir(special_dir: str):
+    # create special://profile/playlists/video/ if needed
+    parts = special_dir.rstrip('/').split('/')
+    cur = parts[0] + '/'
+    for p in parts[1:]:
+        cur = (cur.rstrip('/') + '/' + p + '/').replace('//', '/')
+        # normalize leading 'special:' which keeps slashes intact
+        if not xbmcvfs.exists(cur):
+            xbmcvfs.mkdir(cur)
 
-
-def notify(heading: str, message: str, time_ms: int = 3500):
-    xbmcgui.Dialog().notification(heading, message, xbmcgui.NOTIFICATION_INFO, time_ms)
-
-
-def create_movie_xsp(movieid: int) -> str | None:
-    """Create a temporary XSP file that filters to a specific movie"""
+def _write_text(path_special: str, text: str) -> bool:
     try:
-        import os
-        import tempfile
-        
-        # Create XSP content that filters for our specific movie ID
-        xsp_content = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
-<smartplaylist type="movies">
-    <name>LibraryGenie Test - Movie {movieid}</name>
-    <match>all</match>
-    <rule field="movieid" operator="is">
-        <value>{movieid}</value>
-    </rule>
-    <order direction="ascending">title</order>
-</smartplaylist>'''
-        
-        # Create temp file with .xsp extension
-        temp_dir = tempfile.gettempdir()
-        xsp_filename = f"libgenie_test_{movieid}.xsp"
-        xsp_path = os.path.join(temp_dir, xsp_filename)
-        
-        # Write XSP file
-        with open(xsp_path, 'w', encoding='utf-8') as f:
-            f.write(xsp_content)
-        
-        _log(f"Created XSP file: {xsp_path}")
-        return xsp_path
-        
+        f = xbmcvfs.File(path_special, 'w')
+        f.write(text.encode('utf-8'))
+        f.close()
+        return True
     except Exception as e:
-        _log(f"Failed to create XSP file: {e}", xbmc.LOGWARNING)
+        _log(f"xbmcvfs write failed: {e}", xbmc.LOGWARNING)
+        return False
+
+def _get_movie_file(movieid: int) -> str | None:
+    data = jsonrpc("VideoLibrary.GetMovieDetails", {
+        "movieid": int(movieid),
+        "properties": ["file"]
+    })
+    md = (data.get("result") or {}).get("moviedetails") or {}
+    return md.get("file")
+
+def _create_movie_xsp_by_path(movieid: int) -> str | None:
+    file_path = _get_movie_file(movieid)
+    if not file_path:
+        _log("No file path from JSON-RPC for movieid={}".format(movieid), xbmc.LOGWARNING)
         return None
 
+    dirname, fname = os.path.split(file_path.rstrip('/'))
+    # Smart playlist that matches exactly this folder and filename
+    xsp = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<smartplaylist type="movies">
+  <name>LG one-movie {movieid}</name>
+  <match>all</match>
+  <rule field="path" operator="is"><value>{html.escape(dirname)}</value></rule>
+  <rule field="filename" operator="is"><value>{html.escape(fname)}</value></rule>
+  <order direction="ascending">title</order>
+</smartplaylist>"""
 
-def cleanup_temp_xsp(xsp_path: str):
-    """Clean up temporary XSP file"""
+    sp_dir = "special://profile/playlists/video/"
+    _ensure_dir("special://profile/")
+    _ensure_dir("special://profile/playlists/")
+    _ensure_dir(sp_dir)
+    xsp_path = sp_dir + f"libgenie_{movieid}.xsp"
+
+    if _write_text(xsp_path, xsp):
+        _log(f"Wrote XSP to {xsp_path}")
+        return xsp_path
+    return None
+
+def _cleanup_xsp(path_special: str):
     try:
-        import os
-        if os.path.exists(xsp_path):
-            os.remove(xsp_path)
-            _log(f"Cleaned up XSP file: {xsp_path}")
+        if xbmcvfs.exists(path_special):
+            xbmcvfs.delete(path_special)
+            _log(f"Removed XSP {path_special}")
     except Exception as e:
-        _log(f"Failed to cleanup XSP file: {e}", xbmc.LOGDEBUG)
-
-# ------------------------------
-# Matrix (v19) test
-# ------------------------------
-
+        _log(f"Cleanup failed: {e}", xbmc.LOGDEBUG)
 
 def show_info_matrix(movieid: int):
     if kodi_major() != 19:
-        _log(f"Matrix path requested on Kodi {kodi_major()}, proceeding anyway but this is designed for v19.")
-    
-    _log(f"Matrix test start: movie {movieid} → creating XSP filter …")
-    
-    # Create temporary XSP file for this movie
-    xsp_path = create_movie_xsp(movieid)
+        _log(f"Matrix path requested on Kodi {kodi_major()} — designed for v19.", xbmc.LOGWARNING)
+
+    _log(f"Matrix v19: creating one-movie XSP using path/filename for movie {movieid}")
+    xsp_path = _create_movie_xsp_by_path(movieid)
     if not xsp_path:
-        notify("Matrix test", "Failed to create movie filter")
+        notify("Matrix test", "Failed to create smart playlist")
         return
-    
-    # Open the XSP file - this should show just our target movie
-    _log(f"Opening XSP: {xsp_path}")
+
     xbmc.executebuiltin(f'ActivateWindow(Videos,"{xsp_path}",return)')
-    
-    # Wait for container to load with our filtered movie
-    if not wait_for_videos_container(xsp_path, timeout_ms=3000):
-        _log("Timeout waiting for XSP container", xbmc.LOGWARNING)
-        notify("Matrix test", "Timed out waiting for filtered movie list")
-        cleanup_temp_xsp(xsp_path)
+    if not wait_for_videos_container(xsp_path, timeout_ms=5000):
+        notify("Matrix test", "Timed out waiting for playlist")
+        _cleanup_xsp(xsp_path)
         return
-    
-    # Debug info
-    _log(f"Current window: {xbmc.getInfoLabel('System.CurrentWindow')}")
+
     _log(f"Container items: {xbmc.getInfoLabel('Container.NumItems')}")
-    
-    # Focus list and trigger Info
-    if not focus_list(LIST_ID):
-        _log("Could not focus list control, trying Action(Info) anyway", xbmc.LOGWARNING)
-    
-    # Since XSP should contain only our target movie, we can go directly to Info
-    _log(f"Opening Info for movie {movieid}")
-    xbmc.sleep(200)  # Brief pause for container to settle
+    focus_list(LIST_ID)
+    xbmc.sleep(150)
     xbmc.executebuiltin('Action(Info)')
-    
-    # Clean up temp file after a delay
+
+    # Optional tidy after a small delay (playlist remains usable until reboot even if we delete it)
     xbmc.sleep(500)
-    cleanup_temp_xsp(xsp_path)
+    _cleanup_xsp(xsp_path)
 
 # ------------------------------
-# Nexus+ (v20/v21) test
+# Nexus+ (v20/v21): setDbId + Action(Info)
 # ------------------------------
-
-
 def build_nexus_item(handle: int, base_url: str, movieid: int):
     if kodi_major() < 20:
-        _log(f"Nexus+ item requested on Kodi {kodi_major()} — this path requires v20+.", xbmc.LOGWARNING)
-    label = f"Nexus+ test item with setDbId(movieid={movieid})"
+        _log(f"Nexus+ item requested on Kodi {kodi_major()} — requires v20+.", xbmc.LOGWARNING)
+
+    label = f"Nexus+ setDbId(movieid={movieid})"
     li = xbmcgui.ListItem(label=label)
     try:
         vit = li.getVideoInfoTag()
-        vit.setDbId(int(movieid), 'movie')
-        # Optionally: vit.setTitle("(Test)")
+        vit.setDbId(int(movieid), 'movie')   # <-- key bit for v20+
     except Exception as e:
         _log(f"setDbId failed: {e}", xbmc.LOGWARNING)
 
-    # Clicking the row will route to nexus_info_click which simply issues Action(Info)
+    # Click -> send Action(Info). Also expose via context menu.
     q = urlencode({"action": "nexus_info_click"})
     url = f"{base_url}?{q}"
 
-    # Mark item as non-playable and not a folder; the view will keep focus on it
     li.setProperty('IsPlayable', 'false')
     li.setInfo('video', {})
-    li.addContextMenuItems([
-        ("Open Info (Nexus+)", f'RunPlugin({url})')
-    ])
+    li.addContextMenuItems([("Open Info (Nexus+)", f'RunPlugin({url})')])
 
     xbmcplugin.addDirectoryItem(handle, url, li, isFolder=False)
     xbmcplugin.endOfDirectory(handle, cacheToDisc=False)
-    _log("Nexus+ list built with one item; click it or use context menu to open Info")
-
+    _log("Nexus+ list built; activate Info by clicking or via context menu.")
 
 def nexus_info_click():
-    # When invoked, the focused row should be our setDbId item. Just fire Info.
-    if not xbmc.getCondVisibility(f'Window.IsActive({VIDEOS_WINDOW})'):
-        _log("Videos window not active; trying to focus list anyway", xbmc.LOGDEBUG)
     focus_list(LIST_ID)
     xbmc.sleep(120)
     xbmc.executebuiltin('Action(Info)')
@@ -238,25 +197,22 @@ def nexus_info_click():
 # ------------------------------
 # Public API for your plugin router
 # ------------------------------
-
-
 def add_menu(handle: int, base_url: str, dbtype: str = 'movie', dbid: int = 883):
     _log(f"Building test menu (Kodi {kodi_major()}), {dbtype} {dbid}")
 
-    # Matrix test entry — triggers immediate hop+info
+    # Matrix test entry — immediate XSP hop + Info
     m_q = urlencode({"action": "test_matrix", "dbtype": dbtype, "dbid": int(dbid)})
     m_url = f"{base_url}?{m_q}"
-    m_li = xbmcgui.ListItem(label=f"Matrix v19: Show Info for {dbtype} {dbid} (library hop + focus)")
+    m_li = xbmcgui.ListItem(label=f"Matrix v19: Show Info for {dbtype} {dbid} (XSP by path)")
     xbmcplugin.addDirectoryItem(handle, m_url, m_li, isFolder=False)
 
-    # Nexus+ test entry — builds an item with setDbId when clicked
+    # Nexus+ test entry — build setDbId item
     n_q = urlencode({"action": "test_nexus", "dbtype": dbtype, "dbid": int(dbid)})
     n_url = f"{base_url}?{n_q}"
     n_li = xbmcgui.ListItem(label=f"Nexus+ v20+: Build item with setDbId for {dbtype} {dbid}")
     xbmcplugin.addDirectoryItem(handle, n_url, n_li, isFolder=False)
 
     xbmcplugin.endOfDirectory(handle, cacheToDisc=False)
-
 
 def handle_click(params: dict, handle: int | None = None, base_url: str | None = None):
     action = params.get('action')
@@ -284,30 +240,3 @@ def handle_click(params: dict, handle: int | None = None, base_url: str | None =
 
     else:
         _log(f"Unknown action: {action}", xbmc.LOGWARNING)
-
-# ------------------------------
-# Optional: allow quick standalone testing via RunScript
-# ------------------------------
-
-def _parse_argv(argv):
-    # argv[0] = plugin://… (base url), argv[1] = handle, argv[2] = ?query
-    base_url = argv[0]
-    try:
-        handle = int(argv[1])
-    except Exception:
-        handle = -1
-    q = parse_qs(argv[2][1:]) if len(argv) > 2 and argv[2].startswith('?') else {}
-    params = {k: v[0] for k, v in q.items()}
-    return base_url, handle, params
-
-if __name__ == '__main__':
-    base_url, handle, params = _parse_argv(sys.argv)
-    if not params:
-        # Default: build menu with movie 883
-        add_menu(handle, base_url, 'movie', 883)
-    else:
-        # For test_nexus we need handle & base_url
-        if params.get('action') == 'test_nexus':
-            handle_click(params, handle=handle, base_url=base_url)
-        else:
-            handle_click(params)
