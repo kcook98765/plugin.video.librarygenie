@@ -123,13 +123,17 @@ def _create_movie_xsp_by_path(movieid: int) -> str | None:
 
     _log(f"Got file path for movie {movieid}: {file_path}")
     
-    # Use file path directly for matching instead of splitting
+    # Extract directory path from file path for XSP matching
+    import os
+    directory_path = os.path.dirname(file_path)
+    _log(f"Using directory path for XSP: {directory_path}")
+    
     xsp = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <smartplaylist type="movies">
     <name>LibraryGenie Test - Movie {movieid}</name>
     <match>all</match>
     <rule field="path" operator="contains">
-        <value>{html.escape(file_path)}</value>
+        <value>{html.escape(directory_path)}</value>
     </rule>
     <order direction="ascending">title</order>
 </smartplaylist>"""
