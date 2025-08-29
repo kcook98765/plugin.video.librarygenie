@@ -14,6 +14,16 @@ import xbmcgui
 import xbmcplugin
 
 from ..utils.logger import get_logger
+from ..config import get_config
+
+
+def get_select_pref() -> str:
+    """Get the user's select action preference"""
+    try:
+        config = get_config()
+        return config.get_select_action()
+    except Exception:
+        return "play"  # Safe default
 
 
 def is_kodi_v20_plus() -> bool:
@@ -338,36 +348,16 @@ class ListItemBuilder:
             for prop_name, prop_value in properties.items():
                 li.setProperty(prop_name, prop_value)
 
-            # URL (videodb preferred)
-            url = None
+            # Build a plugin URL so we can decide Play vs Info on click
+            url = self._library_click_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
+            li.setPath(url)
+
+            # Only mark playable if user's setting is Play
+            if get_select_pref() == "play":
+                li.setProperty('IsPlayable', 'true')
+            # else: do not set IsPlayable; we'll open info instead
+
             is_folder = False
-            if media_type == 'movie' and isinstance(kodi_id, int):
-                url = f"videodb://movies/titles/{kodi_id}"
-                self.logger.debug(f"LIB ITEM: Using videodb URL for movie '{title}': {url}")
-                li.setPath(url)
-                li.setProperty('IsPlayable', 'true')
-                self.logger.debug(f"LIB ITEM: Set IsPlayable=true for movie '{title}'")
-            elif media_type == 'episode' and isinstance(kodi_id, int):
-                tvshowid = item.get('tvshowid')
-                season = item.get('season')
-                if isinstance(tvshowid, int) and isinstance(season, int):
-                    url = f"videodb://tvshows/titles/{tvshowid}/{season}/{kodi_id}"
-                    self.logger.debug(f"LIB ITEM: Using videodb URL for episode '{title}': {url}")
-                    li.setPath(url)
-                    li.setProperty('IsPlayable', 'true')
-                    self.logger.debug(f"LIB ITEM: Set IsPlayable=true for episode '{title}'")
-                else:
-                    # missing parts for videodb path -> fallback plugin play URL
-                    url = self._build_playback_url(item)
-                    self.logger.debug(f"LIB ITEM: Using fallback plugin URL for episode '{title}': {url} (missing tvshowid={tvshowid}, season={season})")
-                    li.setPath(url)
-                    li.setProperty('IsPlayable', 'true')
-            else:
-                # Shouldn't reach here for library method, but guard anyway
-                url = self._build_playback_url(item)
-                self.logger.debug(f"LIB ITEM: Using fallback plugin URL for '{title}': {url}")
-                li.setPath(url)
-                li.setProperty('IsPlayable', 'true')
 
             # Set InfoTagVideo properties only for v20+ (skip entirely on v19)
             if is_kodi_v20_plus():
