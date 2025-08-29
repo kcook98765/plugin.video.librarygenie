@@ -315,10 +315,13 @@ class ListItemBuilder:
             self.logger.debug(f"LIB ITEM: Display label set to: '{display}'")
             li = xbmcgui.ListItem(label=display)
 
-            # Lightweight info (minutes; no heavy arrays)
-            info = self._build_lightweight_info(item)
-            self.logger.debug(f"LIB ITEM: Video info dict for '{title}': {info}")
-            li.setInfo('video', info)
+            # For v20+, set lightweight info; skip for v19 to rely purely on library data
+            if is_kodi_v20_plus():
+                info = self._build_lightweight_info(item)
+                self.logger.debug(f"LIB ITEM: Video info dict for '{title}' (v20+): {info}")
+                li.setInfo('video', info)
+            else:
+                self.logger.debug(f"LIB ITEM: Skipping setInfo for '{title}' on v19 - relying on library data")
 
             # Art (poster/fanart minimum)
             art = self._build_art_dict(item)
@@ -369,25 +372,26 @@ class ListItemBuilder:
                 li.setPath(url)
                 li.setProperty('IsPlayable', 'true')
 
-            # Set InfoTagVideo properties for v19+ (Matrix supports setDbId, but not setMediaType)
-            try:
-                video_info_tag = li.getVideoInfoTag()
-                
-                # setMediaType() is v20+ only, make it optional
+            # Set InfoTagVideo properties only for v20+ (skip entirely on v19)
+            if is_kodi_v20_plus():
                 try:
-                    video_info_tag.setMediaType(media_type)
-                    self.logger.debug(f"LIB ITEM: Set mediatype='{media_type}' for '{title}' (v20+)")
-                except AttributeError:
-                    self.logger.debug(f"LIB ITEM: setMediaType() not available on this Kodi version for '{title}' (v19 Matrix)")
+                    video_info_tag = li.getVideoInfoTag()
+                    
+                    # setMediaType() is v20+ only
+                    try:
+                        video_info_tag.setMediaType(media_type)
+                        self.logger.debug(f"LIB ITEM: Set mediatype='{media_type}' for '{title}' (v20+)")
+                    except Exception as e:
+                        self.logger.warning(f"LIB ITEM: setMediaType() failed for '{title}': {e}")
+                    
+                    # setDbId() for library linking on v20+
+                    video_info_tag.setDbId(int(kodi_id), media_type)
+                    self.logger.debug(f"LIB ITEM: Set dbid={kodi_id} for '{title}' - library linking enabled (v20+)")
+                    
                 except Exception as e:
-                    self.logger.warning(f"LIB ITEM: setMediaType() failed for '{title}': {e}")
-                
-                # setDbId() is the critical call for library linking - this works on Matrix
-                video_info_tag.setDbId(int(kodi_id), media_type)  # explicit type parameter for better DB merging
-                self.logger.debug(f"LIB ITEM: Set dbid={kodi_id} for '{title}' - library linking enabled")
-                
-            except Exception as e:
-                self.logger.warning(f"LIB ITEM: InfoTagVideo setup failed for '{title}': {e}")
+                    self.logger.warning(f"LIB ITEM: InfoTagVideo setup failed for '{title}': {e}")
+            else:
+                self.logger.debug(f"LIB ITEM: Skipping InfoTagVideo setters for '{title}' on v19")
 
             # Resume (always for library movies/episodes)
             self._set_resume_info_versioned(li, item)
