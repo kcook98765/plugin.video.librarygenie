@@ -369,14 +369,25 @@ class ListItemBuilder:
                 li.setPath(url)
                 li.setProperty('IsPlayable', 'true')
 
-            # Set InfoTagVideo properties for v19+ (Matrix supports this)
+            # Set InfoTagVideo properties for v19+ (Matrix supports setDbId, but not setMediaType)
             try:
                 video_info_tag = li.getVideoInfoTag()
-                video_info_tag.setMediaType(media_type)
+                
+                # setMediaType() is v20+ only, make it optional
+                try:
+                    video_info_tag.setMediaType(media_type)
+                    self.logger.debug(f"LIB ITEM: Set mediatype='{media_type}' for '{title}' (v20+)")
+                except AttributeError:
+                    self.logger.debug(f"LIB ITEM: setMediaType() not available on this Kodi version for '{title}' (v19 Matrix)")
+                except Exception as e:
+                    self.logger.warning(f"LIB ITEM: setMediaType() failed for '{title}': {e}")
+                
+                # setDbId() is the critical call for library linking - this works on Matrix
                 video_info_tag.setDbId(int(kodi_id), media_type)  # explicit type parameter for better DB merging
-                self.logger.debug(f"LIB ITEM: Set InfoTagVideo for '{title}' (mediatype={media_type}, dbid={kodi_id})")
+                self.logger.debug(f"LIB ITEM: Set dbid={kodi_id} for '{title}' - library linking enabled")
+                
             except Exception as e:
-                self.logger.warning(f"LIB ITEM: InfoTagVideo failed for '{title}': {e}")
+                self.logger.warning(f"LIB ITEM: InfoTagVideo setup failed for '{title}': {e}")
 
             # Resume (always for library movies/episodes)
             self._set_resume_info_versioned(li, item)
