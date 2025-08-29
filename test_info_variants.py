@@ -137,7 +137,7 @@ def show_info_matrix(movieid: int):
     kodi_ver = kodi_major()
     _log(f"=== MATRIX TEST START: movie {movieid} on Kodi v{kodi_ver} ===")
 
-    # Step 1: Verify movie exists and get videodb path
+    # Step 1: Verify movie exists
     _log("STEP 1: Verifying movie exists in library...")
     movie_data = jsonrpc("VideoLibrary.GetMovieDetails", {
         "movieid": int(movieid),
@@ -152,27 +152,78 @@ def show_info_matrix(movieid: int):
     movie_title = movie_details.get("title", "Unknown")
     _log(f"STEP 1: SUCCESS - Found movie: {movie_title}")
 
-    # Step 2: Direct approach - use videodb path to open info dialog
-    _log("STEP 2: Opening info dialog directly...")
-    videodb_path = f'videodb://movies/titles/{movieid}'
-    
-    # Use ActivateWindow with DialogVideoInfo to open info directly
-    # This maintains the proper navigation stack
-    xbmc.executebuiltin(f'ActivateWindow(DialogVideoInfo,"{videodb_path}",return)')
-    
-    # Step 3: Wait and verify the dialog opened
-    _log("STEP 3: Waiting for info dialog to open...")
-    xbmc.sleep(1500)  # Give time for dialog to load
-    
+    # Step 2: Create XSP
+    _log("STEP 2: Creating XSP filter...")
+    xsp_path = _create_movie_xsp_by_path(movieid)
+    if not xsp_path:
+        _log("STEP 2: FAILED - Could not create XSP", xbmc.LOGERROR)
+        notify("Matrix test", "Failed to create smart playlist")
+        return
+    _log("STEP 2: SUCCESS - XSP created")
+
+    # Step 3: Navigate to XSP with return context
+    _log("STEP 3: Navigating to XSP with return context...")
+    # Use return parameter to preserve navigation stack
+    xbmc.executebuiltin(f'ActivateWindow(Videos,"{xsp_path}",return)')
+
+    # Step 4: Wait for container
+    _log("STEP 4: Waiting for container to load...")
+    if not wait_for_videos_container(xsp_path, timeout_ms=8000):
+        _log("STEP 4: FAILED - Timeout waiting for XSP container", xbmc.LOGERROR)
+        notify("Matrix test", "Timed out waiting for playlist")
+        _cleanup_xsp(xsp_path)
+        return
+
+    container_items = xbmc.getInfoLabel('Container.NumItems')
+    _log(f"STEP 4: SUCCESS - Container loaded with {container_items} items")
+
+    # Step 5: Focus list and navigate to movie
+    _log("STEP 5: Opening info dialog...")
+    xbmc.sleep(750)  # Let UI settle
+
+    # Focus the list control
+    if not focus_list(LIST_ID, tries=3, sleep_ms=150):
+        _log("STEP 5: FAILED - Could not focus list control", xbmc.LOGERROR)
+        notify("Matrix test", "Failed to focus list")
+        _cleanup_xsp(xsp_path)
+        return
+
+    # Navigate down from ".." to the movie item
+    _log("STEP 5: Moving to movie item...")
+    xbmc.executebuiltin('Action(Down)')
+    xbmc.sleep(400)  # Give time for selection to update
+
+    # Verify we selected the movie
+    current_title = xbmc.getInfoLabel('ListItem.Title')
+    current_dbid = xbmc.getInfoLabel('ListItem.DBID')
+    _log(f"STEP 5: Selected item - Title: '{current_title}', DBID: '{current_dbid}'")
+
+    if not (current_title and current_dbid and current_title != ".."):
+        _log("STEP 5: FAILED - Did not select movie item properly", xbmc.LOGERROR)
+        notify("Matrix test", "Failed to select movie")
+        _cleanup_xsp(xsp_path)
+        return
+
+    # Open info dialog
+    _log("STEP 5: Opening info dialog with Action(Info)...")
+    xbmc.executebuiltin('Action(Info)')
+    xbmc.sleep(1000)  # Give time for dialog to open
+
+    # Step 6: Verify success
+    _log("STEP 6: Verifying info dialog opened...")
+    xbmc.sleep(300)
+
     dialog_names = ['DialogVideoInfo.xml', 'movieinformation.xml', 'VideoInfo.xml']
     info_open = any(xbmc.getCondVisibility(f'Window.IsActive({dialog})') for dialog in dialog_names)
 
     if info_open:
-        _log("SUCCESS: Info dialog is open - navigation stack preserved")
-        notify("Matrix test", f"Info opened for {movie_title}! (Direct method)")
+        _log("SUCCESS: Info dialog is open")
+        notify("Matrix test", f"Info dialog opened for {movie_title}!")
+        # Keep XSP for manual cleanup if needed
     else:
         _log("FAILED: Info dialog did not open", xbmc.LOGERROR)
         notify("Matrix test", "Failed to open info dialog")
+        _cleanup_xsp(xsp_path)
 
     _log(f"=== MATRIX TEST END: movie {movieid} ===")
 
