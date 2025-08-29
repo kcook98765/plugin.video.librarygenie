@@ -192,16 +192,11 @@ def show_info_matrix(movieid: int):
         xbmc.executebuiltin('Action(Info)')
         success = True
     else:
-        # Method 2: Direct info approach without focus changes
-        _log("Method 2: Direct info approach")
-        # Wait a bit longer for container to stabilize
-        xbmc.sleep(300)
-        # Try to directly open info for the current item
-        xbmc.executebuiltin('Action(Info)')
-        xbmc.sleep(200)
-        # If that didn't work, try with context info
-        xbmc.executebuiltin('Action(ContextMenu)')
-        xbmc.sleep(100)
+        # Method 2: Single info action approach
+        _log("Method 2: Single info action approach")
+        # Wait longer for container to fully stabilize
+        xbmc.sleep(500)
+        # Send a single info action
         xbmc.executebuiltin('Action(Info)')
         success = True
     
