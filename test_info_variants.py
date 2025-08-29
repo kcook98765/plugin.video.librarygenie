@@ -161,69 +161,62 @@ def show_info_matrix(movieid: int):
         return
     _log("STEP 2: SUCCESS - XSP created")
 
-    # Step 3: Navigate to XSP with return context
-    _log("STEP 3: Navigating to XSP with return context...")
-    # Use return parameter to preserve navigation stack
-    xbmc.executebuiltin(f'ActivateWindow(Videos,"{xsp_path}",return)')
-
-    # Step 4: Wait for container
-    _log("STEP 4: Waiting for container to load...")
-    if not wait_for_videos_container(xsp_path, timeout_ms=8000):
-        _log("STEP 4: FAILED - Timeout waiting for XSP container", xbmc.LOGERROR)
-        notify("Matrix test", "Timed out waiting for playlist")
-        _cleanup_xsp(xsp_path)
-        return
-
-    container_items = xbmc.getInfoLabel('Container.NumItems')
-    _log(f"STEP 4: SUCCESS - Container loaded with {container_items} items")
-
-    # Step 5: Focus list and navigate to movie
-    _log("STEP 5: Opening info dialog...")
-    xbmc.sleep(750)  # Let UI settle
-
-    # Focus the list control
-    if not focus_list(LIST_ID, tries=3, sleep_ms=150):
-        _log("STEP 5: FAILED - Could not focus list control", xbmc.LOGERROR)
-        notify("Matrix test", "Failed to focus list")
-        _cleanup_xsp(xsp_path)
-        return
-
-    # Navigate down from ".." to the movie item
-    _log("STEP 5: Moving to movie item...")
-    xbmc.executebuiltin('Action(Down)')
-    xbmc.sleep(400)  # Give time for selection to update
-
-    # Verify we selected the movie
-    current_title = xbmc.getInfoLabel('ListItem.Title')
-    current_dbid = xbmc.getInfoLabel('ListItem.DBID')
-    _log(f"STEP 5: Selected item - Title: '{current_title}', DBID: '{current_dbid}'")
-
-    if not (current_title and current_dbid and current_title != ".."):
-        _log("STEP 5: FAILED - Did not select movie item properly", xbmc.LOGERROR)
-        notify("Matrix test", "Failed to select movie")
-        _cleanup_xsp(xsp_path)
-        return
-
-    # Open info dialog
-    _log("STEP 5: Opening info dialog with Action(Info)...")
-    xbmc.executebuiltin('Action(Info)')
-    xbmc.sleep(1000)  # Give time for dialog to open
-
-    # Step 6: Verify success
-    _log("STEP 6: Verifying info dialog opened...")
-    xbmc.sleep(300)
-
-    dialog_names = ['DialogVideoInfo.xml', 'movieinformation.xml', 'VideoInfo.xml']
+    # Step 3: Direct info dialog approach - use videodb path
+    _log("STEP 3: Opening info dialog directly via videodb path...")
+    videodb_path = f'videodb://movies/titles/{movieid}'
+    
+    # Try Matrix-specific direct dialog opening first
+    _log(f"STEP 3: Attempting ActivateWindow(VideoInformation) for {videodb_path}")
+    xbmc.executebuiltin(f'ActivateWindow(VideoInformation,"{videodb_path}",return)')
+    
+    # Step 4: Wait and verify the dialog opened
+    _log("STEP 4: Waiting for info dialog to open...")
+    xbmc.sleep(1500)  # Give time for dialog to load
+    
+    dialog_names = ['DialogVideoInfo.xml', 'movieinformation.xml', 'VideoInfo.xml', 'VideoInformation.xml']
     info_open = any(xbmc.getCondVisibility(f'Window.IsActive({dialog})') for dialog in dialog_names)
 
     if info_open:
-        _log("SUCCESS: Info dialog is open")
-        notify("Matrix test", f"Info dialog opened for {movie_title}!")
-        # Keep XSP for manual cleanup if needed
+        _log("SUCCESS: Info dialog opened directly - no XSP navigation needed")
+        notify("Matrix test", f"Info opened for {movie_title}! (Direct method)")
+        _cleanup_xsp(xsp_path)  # Clean up unused XSP
     else:
-        _log("FAILED: Info dialog did not open", xbmc.LOGERROR)
-        notify("Matrix test", "Failed to open info dialog")
-        _cleanup_xsp(xsp_path)
+        _log("STEP 4: Direct method failed, falling back to XSP navigation...", xbmc.LOGWARNING)
+        
+        # Fallback to XSP method if direct doesn't work
+        _log("FALLBACK: Navigating to XSP...")
+        xbmc.executebuiltin(f'ActivateWindow(Videos,"{xsp_path}",return)')
+
+        # Wait for container
+        if not wait_for_videos_container(xsp_path, timeout_ms=8000):
+            _log("FALLBACK: FAILED - Timeout waiting for XSP container", xbmc.LOGERROR)
+            notify("Matrix test", "Timed out waiting for playlist")
+            _cleanup_xsp(xsp_path)
+            return
+
+        # Focus and navigate
+        xbmc.sleep(750)
+        if not focus_list(LIST_ID, tries=3, sleep_ms=150):
+            _log("FALLBACK: FAILED - Could not focus list control", xbmc.LOGERROR)
+            notify("Matrix test", "Failed to focus list")
+            _cleanup_xsp(xsp_path)
+            return
+
+        # Move to movie item and open info
+        xbmc.executebuiltin('Action(Down)')
+        xbmc.sleep(400)
+        xbmc.executebuiltin('Action(Info)')
+        xbmc.sleep(1000)
+
+        # Verify fallback success
+        info_open = any(xbmc.getCondVisibility(f'Window.IsActive({dialog})') for dialog in dialog_names)
+        if info_open:
+            _log("SUCCESS: Info dialog opened via XSP fallback")
+            notify("Matrix test", f"Info opened for {movie_title}! (XSP fallback)")
+        else:
+            _log("FAILED: Both direct and XSP methods failed", xbmc.LOGERROR)
+            notify("Matrix test", "Failed to open info dialog")
+            _cleanup_xsp(xsp_path)
 
     _log(f"=== MATRIX TEST END: movie {movieid} ===")
 
