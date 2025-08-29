@@ -273,41 +273,80 @@ def show_info_matrix(movieid: int):
     success = False
     method_results = []
     
-    # Method 1: Stay in XSP context and use JSON-RPC with library path
-    _log("METHOD 1: XSP context with JSON-RPC library navigation...")
+    # Method 1: Stay in XSP context and navigate to movie item
+    _log("METHOD 1: XSP context with proper item navigation...")
     
     # Make sure we're still in the XSP view with the movie selected
     container_path = xbmc.getInfoLabel('Container.FolderPath').rstrip('/')
     xsp_path_norm = xsp_path.rstrip('/')
     
     if container_path == xsp_path_norm:
-        _log("METHOD 1: Still in XSP context, focusing list item")
+        _log("METHOD 1: Still in XSP context, focusing and navigating to movie")
         
-        # Focus the movie item in the XSP list
+        # Focus the list control first
         if focus_list(LIST_ID, tries=3, sleep_ms=150):
-            _log("METHOD 1: List focused, getting current item info")
+            _log("METHOD 1: List focused, checking initial selection")
             current_title = xbmc.getInfoLabel('ListItem.Title')
-            current_dbid = xbmc.getInfoLabel('ListItem.DBID') 
-            current_file = xbmc.getInfoLabel('ListItem.FileNameAndPath')
-            _log(f"METHOD 1: Current item - Title: {current_title}, DBID: {current_dbid}, File: {current_file}")
+            current_dbid = xbmc.getInfoLabel('ListItem.DBID')
+            _log(f"METHOD 1: Initial item - Title: '{current_title}', DBID: '{current_dbid}'")
             
-            # Use JSON-RPC to open info with specific videodb path
-            videodb_path = f"videodb://movies/titles/{movieid}"
-            _log(f"METHOD 1: Opening info via JSON-RPC with path: {videodb_path}")
+            # If we're on ".." or empty title, navigate down to the movie
+            if not current_title or not current_dbid or current_title == "..":
+                _log("METHOD 1: On parent/empty item, navigating down to movie")
+                for nav_attempt in range(3):  # Try navigating down a few times
+                    xbmc.executebuiltin('Action(Down)')
+                    xbmc.sleep(200)
+                    current_title = xbmc.getInfoLabel('ListItem.Title')
+                    current_dbid = xbmc.getInfoLabel('ListItem.DBID')
+                    current_file = xbmc.getInfoLabel('ListItem.FileNameAndPath')
+                    _log(f"METHOD 1: After nav {nav_attempt + 1} - Title: '{current_title}', DBID: '{current_dbid}', File: '{current_file}'")
+                    
+                    # Check if we found the movie (has title and DBID)
+                    if current_title and current_dbid and current_title != "..":
+                        _log(f"METHOD 1: Found movie item: {current_title} (DBID: {current_dbid})")
+                        break
+                else:
+                    _log("METHOD 1: Could not navigate to movie item after 3 attempts")
             
-            json_result = jsonrpc("GUI.ActivateWindow", {
-                "window": "movieinformation",
-                "parameters": [videodb_path]
-            })
-            _log(f"METHOD 1: JSON-RPC result: {json_result}")
-            xbmc.sleep(800)
+            # Now try to open info for the selected item
+            current_title = xbmc.getInfoLabel('ListItem.Title')
+            current_dbid = xbmc.getInfoLabel('ListItem.DBID')
             
-            info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)') or \
-                       xbmc.getCondVisibility('Window.IsActive(movieinformation.xml)')
-            _log(f"METHOD 1: Info dialog open via JSON-RPC with videodb path: {info_open}")
-            method_results.append(f"Method1: jsonrpc_videodb_path, info_open={info_open}")
-            if info_open:
-                success = True
+            if current_title and current_dbid and current_title != "..":
+                _log(f"METHOD 1: Attempting info for movie: {current_title} (DBID: {current_dbid})")
+                
+                # Try Action(Info) first since we're now on the movie item
+                _log("METHOD 1: Sending Action(Info)")
+                xbmc.executebuiltin('Action(Info)')
+                xbmc.sleep(800)
+                
+                info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)') or \
+                           xbmc.getCondVisibility('Window.IsActive(movieinformation.xml)')
+                _log(f"METHOD 1: Info dialog open via Action(Info): {info_open}")
+                method_results.append(f"Method1: action_info_on_movie, info_open={info_open}")
+                
+                if not info_open:
+                    # Fallback to JSON-RPC with videodb path
+                    videodb_path = f"videodb://movies/titles/{movieid}"
+                    _log(f"METHOD 1: Fallback - Opening info via JSON-RPC with path: {videodb_path}")
+                    
+                    json_result = jsonrpc("GUI.ActivateWindow", {
+                        "window": "movieinformation",
+                        "parameters": [videodb_path]
+                    })
+                    _log(f"METHOD 1: JSON-RPC result: {json_result}")
+                    xbmc.sleep(800)
+                    
+                    info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)') or \
+                               xbmc.getCondVisibility('Window.IsActive(movieinformation.xml)')
+                    _log(f"METHOD 1: Info dialog open via JSON-RPC fallback: {info_open}")
+                    method_results.append(f"Method1: jsonrpc_videodb_fallback, info_open={info_open}")
+                
+                if info_open:
+                    success = True
+            else:
+                _log(f"METHOD 1: Still no valid movie item selected - Title: '{current_title}', DBID: '{current_dbid}'")
+                method_results.append("Method1: no_valid_movie_item, info_open=False")
         else:
             _log("METHOD 1: Could not focus list control")
             method_results.append("Method1: focus_failed, info_open=False")
