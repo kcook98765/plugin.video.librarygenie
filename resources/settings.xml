@@ -7,7 +7,7 @@
     <setting label="30020" type="lsep"/>
     <setting id="confirm_destructive_actions" type="bool" label="30021" default="true"/>
     <setting id="show_item_counts" type="bool" label="30022" default="true"/>
-    <setting id="select_action" type="enum" label="35100" values="Play|Information" default="0"/>
+    <setting id="select_action" type="enum" label="35100" values="35101|35102" default="0"/>
     <setting label="30030" type="lsep"/>
     <setting id="track_library_changes" type="bool" label="30031" default="true"/>
     <setting id="soft_delete_removed_items" type="bool" label="30032" default="true"/>
