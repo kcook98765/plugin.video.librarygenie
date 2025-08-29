@@ -273,58 +273,76 @@ def show_info_matrix(movieid: int):
     success = False
     method_results = []
     
-    # Method 1: Direct videodb URL approach (most reliable for Matrix)
-    _log("METHOD 1: Direct videodb URL approach...")
+    # Method 1: Stay in XSP context and use JSON-RPC with library path
+    _log("METHOD 1: XSP context with JSON-RPC library navigation...")
     
-    # First try going directly to the videodb URL to select the item
-    videodb_url = f"videodb://movies/titles/{movieid}"
-    _log(f"METHOD 1: Navigating to videodb URL: {videodb_url}")
-    xbmc.executebuiltin(f'ActivateWindow(Videos,"{videodb_url}",return)')
-    xbmc.sleep(1000)  # Give time for navigation
+    # Make sure we're still in the XSP view with the movie selected
+    container_path = xbmc.getInfoLabel('Container.FolderPath').rstrip('/')
+    xsp_path_norm = xsp_path.rstrip('/')
     
-    # Wait for the videodb container to load
-    if wait_for_videos_container(videodb_url, timeout_ms=5000):
-        _log("METHOD 1: Videodb container loaded, trying info dialog")
-        # Try the correct window names for Matrix
-        dialog_names = ["movieinformation", "VideoInfo"]
+    if container_path == xsp_path_norm:
+        _log("METHOD 1: Still in XSP context, focusing list item")
         
-        for dialog_name in dialog_names:
-            _log(f"METHOD 1: Trying ActivateWindow({dialog_name})")
-            xbmc.executebuiltin(f'ActivateWindow({dialog_name})')
+        # Focus the movie item in the XSP list
+        if focus_list(LIST_ID, tries=3, sleep_ms=150):
+            _log("METHOD 1: List focused, getting current item info")
+            current_title = xbmc.getInfoLabel('ListItem.Title')
+            current_dbid = xbmc.getInfoLabel('ListItem.DBID') 
+            current_file = xbmc.getInfoLabel('ListItem.FileNameAndPath')
+            _log(f"METHOD 1: Current item - Title: {current_title}, DBID: {current_dbid}, File: {current_file}")
+            
+            # Use JSON-RPC to open info with specific videodb path
+            videodb_path = f"videodb://movies/titles/{movieid}"
+            _log(f"METHOD 1: Opening info via JSON-RPC with path: {videodb_path}")
+            
+            json_result = jsonrpc("GUI.ActivateWindow", {
+                "window": "movieinformation",
+                "parameters": [videodb_path]
+            })
+            _log(f"METHOD 1: JSON-RPC result: {json_result}")
             xbmc.sleep(800)
-            info_open = xbmc.getCondVisibility(f'Window.IsActive({dialog_name}.xml)') or \
-                       xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
-            _log(f"METHOD 1: Info dialog open via {dialog_name}: {info_open}")
-            method_results.append(f"Method1: {dialog_name}, info_open={info_open}")
-            if info_open:
-                success = True
-                break
-        
-        if not success:
-            # Try Action(Info) from videodb view
-            _log("METHOD 1: Trying Action(Info) from videodb view")
-            xbmc.executebuiltin('Action(Info)')
-            xbmc.sleep(800)
+            
             info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)') or \
                        xbmc.getCondVisibility('Window.IsActive(movieinformation.xml)')
-            _log(f"METHOD 1: Info dialog open via Action(Info): {info_open}")
-            method_results.append(f"Method1: videodb_action_info, info_open={info_open}")
+            _log(f"METHOD 1: Info dialog open via JSON-RPC with videodb path: {info_open}")
+            method_results.append(f"Method1: jsonrpc_videodb_path, info_open={info_open}")
             if info_open:
                 success = True
+        else:
+            _log("METHOD 1: Could not focus list control")
+            method_results.append("Method1: focus_failed, info_open=False")
     else:
-        _log("METHOD 1: Failed to load videodb container")
-        method_results.append("Method1: videodb_container_failed, info_open=False")
+        _log(f"METHOD 1: Not in XSP context anymore. Current: {container_path}, Expected: {xsp_path_norm}")
+        # Try to navigate back to XSP
+        _log("METHOD 1: Attempting to return to XSP...")
+        xbmc.executebuiltin(f'ActivateWindow(Videos,"{xsp_path}",return)')
+        xbmc.sleep(500)
+        if wait_for_videos_container(xsp_path, timeout_ms=3000):
+            _log("METHOD 1: Back in XSP, trying Action(Info)")
+            if focus_list(LIST_ID, tries=2):
+                xbmc.executebuiltin('Action(Info)')
+                xbmc.sleep(600)
+                info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+                method_results.append(f"Method1: xsp_return_action_info, info_open={info_open}")
+                if info_open:
+                    success = True
+        
+        if not success:
+            method_results.append("Method1: xsp_return_failed, info_open=False")
     
-    # Method 2: RunScript approach (alternative for Matrix)
+    # Method 2: Direct builtin with movieid (Matrix approach)
     if not success:
-        _log("METHOD 2: RunScript approach...")
-        script_cmd = f'RunScript(script.module.kodi65,info=movie,dbid={movieid})'
-        _log(f"METHOD 2: Trying {script_cmd}")
-        xbmc.executebuiltin(script_cmd)
+        _log("METHOD 2: Direct builtin approach...")
+        
+        # Try ShowVideoInfo builtin with movieid
+        builtin_cmd = f'ShowVideoInfo({movieid})'
+        _log(f"METHOD 2: Trying {builtin_cmd}")
+        xbmc.executebuiltin(builtin_cmd)
         xbmc.sleep(600)
+        
         info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
-        _log(f"METHOD 2: Info dialog open via RunScript: {info_open}")
-        method_results.append(f"Method2: RunScript, info_open={info_open}")
+        _log(f"METHOD 2: Info dialog open via ShowVideoInfo: {info_open}")
+        method_results.append(f"Method2: ShowVideoInfo, info_open={info_open}")
         if info_open:
             success = True
     
@@ -357,25 +375,27 @@ def show_info_matrix(movieid: int):
             else:
                 _log(f"METHOD 3: Could not focus control {candidate}")
     
-    # Method 4: JSON-RPC GUI.ActivateWindow with correct window names
+    # Method 4: Fallback - Simple Action(Info) from current context
     if not success:
-        _log("METHOD 4: JSON-RPC GUI.ActivateWindow...")
-        window_names = ["movieinformation", "VideoInfo", "videos"]
+        _log("METHOD 4: Fallback Action(Info) from current context...")
         
-        for window_name in window_names:
-            json_result = jsonrpc("GUI.ActivateWindow", {
-                "window": window_name,
-                "parameters": [f"videodb://movies/titles/{movieid}"]
-            })
-            _log(f"METHOD 4: JSON-RPC {window_name} result: {json_result}")
-            xbmc.sleep(600)
-            info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)') or \
-                       xbmc.getCondVisibility('Window.IsActive(movieinformation.xml)')
-            _log(f"METHOD 4: Info dialog open via JSON-RPC {window_name}: {info_open}")
-            method_results.append(f"Method4: jsonrpc_{window_name}, info_open={info_open}")
-            if info_open:
-                success = True
-                break
+        # Make sure we're in a videos window
+        current_window = xbmc.getInfoLabel('System.CurrentWindow')
+        if "video" not in current_window.lower():
+            _log("METHOD 4: Not in videos window, navigating to movies...")
+            xbmc.executebuiltin('ActivateWindow(Videos,videodb://movies/titles/,return)')
+            xbmc.sleep(800)
+        
+        # Try simple Action(Info) - this should use whatever is currently focused
+        _log("METHOD 4: Sending Action(Info)")
+        xbmc.executebuiltin('Action(Info)')
+        xbmc.sleep(600)
+        
+        info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+        _log(f"METHOD 4: Info dialog open via fallback Action(Info): {info_open}")
+        method_results.append(f"Method4: fallback_action_info, info_open={info_open}")
+        if info_open:
+            success = True
     
     # Method 5: Context menu approach
     if not success:
