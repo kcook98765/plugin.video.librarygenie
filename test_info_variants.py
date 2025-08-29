@@ -104,6 +104,51 @@ def find_movie_index_in_titles(movieid: int) -> int | None:
 def notify(heading: str, message: str, time_ms: int = 3500):
     xbmcgui.Dialog().notification(heading, message, xbmcgui.NOTIFICATION_INFO, time_ms)
 
+
+def create_movie_xsp(movieid: int) -> str | None:
+    """Create a temporary XSP file that filters to a specific movie"""
+    try:
+        import os
+        import tempfile
+        
+        # Create XSP content that filters for our specific movie ID
+        xsp_content = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<smartplaylist type="movies">
+    <name>LibraryGenie Test - Movie {movieid}</name>
+    <match>all</match>
+    <rule field="dbid" operator="is">
+        <value>{movieid}</value>
+    </rule>
+    <order direction="ascending">title</order>
+</smartplaylist>'''
+        
+        # Create temp file with .xsp extension
+        temp_dir = tempfile.gettempdir()
+        xsp_filename = f"libgenie_test_{movieid}.xsp"
+        xsp_path = os.path.join(temp_dir, xsp_filename)
+        
+        # Write XSP file
+        with open(xsp_path, 'w', encoding='utf-8') as f:
+            f.write(xsp_content)
+        
+        _log(f"Created XSP file: {xsp_path}")
+        return xsp_path
+        
+    except Exception as e:
+        _log(f"Failed to create XSP file: {e}", xbmc.LOGWARNING)
+        return None
+
+
+def cleanup_temp_xsp(xsp_path: str):
+    """Clean up temporary XSP file"""
+    try:
+        import os
+        if os.path.exists(xsp_path):
+            os.remove(xsp_path)
+            _log(f"Cleaned up XSP file: {xsp_path}")
+    except Exception as e:
+        _log(f"Failed to cleanup XSP file: {e}", xbmc.LOGDEBUG)
+
 # ------------------------------
 # Matrix (v19) test
 # ------------------------------
@@ -112,48 +157,42 @@ def notify(heading: str, message: str, time_ms: int = 3500):
 def show_info_matrix(movieid: int):
     if kodi_major() != 19:
         _log(f"Matrix path requested on Kodi {kodi_major()}, proceeding anyway but this is designed for v19.")
-    _log(f"Matrix test start: movie {movieid} → open {VDB_TITLES_DIR} …")
-
-    xbmc.executebuiltin(f'ActivateWindow(Videos,"{VDB_TITLES_DIR}",return)')
-    if not wait_for_videos_container(VDB_TITLES_DIR):
-        _log("Timeout waiting for Videos container", xbmc.LOGWARNING)
-        notify("Matrix test", "Timed out waiting for movie titles list")
+    
+    _log(f"Matrix test start: movie {movieid} → creating XSP filter …")
+    
+    # Create temporary XSP file for this movie
+    xsp_path = create_movie_xsp(movieid)
+    if not xsp_path:
+        notify("Matrix test", "Failed to create movie filter")
         return
-
-    # Debug: log current window and available controls
+    
+    # Open the XSP file - this should show just our target movie
+    _log(f"Opening XSP: {xsp_path}")
+    xbmc.executebuiltin(f'ActivateWindow(Videos,"{xsp_path}",return)')
+    
+    # Wait for container to load with our filtered movie
+    if not wait_for_videos_container(xsp_path, timeout_ms=3000):
+        _log("Timeout waiting for XSP container", xbmc.LOGWARNING)
+        notify("Matrix test", "Timed out waiting for filtered movie list")
+        cleanup_temp_xsp(xsp_path)
+        return
+    
+    # Debug info
     _log(f"Current window: {xbmc.getInfoLabel('System.CurrentWindow')}")
-    _log(f"Current control: {xbmc.getInfoLabel('System.CurrentControl')}")
-
+    _log(f"Container items: {xbmc.getInfoLabel('Container.NumItems')}")
+    
+    # Focus list and trigger Info
     if not focus_list(LIST_ID):
-        _log(f"Could not focus any list control (tried {LIST_ID} + fallbacks)", xbmc.LOGWARNING)
-
-        # Try generic navigation as last resort
-        _log("Attempting generic navigation fallback")
-        xbmc.executebuiltin('Action(FirstItem)')
-        xbmc.sleep(200)
-
-        # Check if we're at least positioned on something
-        current_item = xbmc.getInfoLabel('ListItem.Label')
-        if current_item:
-            _log(f"Generic navigation positioned on: '{current_item}'")
-        else:
-            notify("Matrix test", "Couldn't focus any list control")
-            return
-
-
-    # Optional nudge to top; FirstItem is not valid on Matrix — use FirstPage
-    xbmc.executebuiltin('Action(FirstPage)')
-
-    idx = find_movie_index_in_titles(movieid)
-    if idx is None:
-        _log(f"movieid {movieid} not present in label-asc list", xbmc.LOGWARNING)
-        notify("Matrix test", f"Movie {movieid} not found in list")
-        return
-
-    _log(f"Focusing index {idx} then opening Info")
-    xbmc.executebuiltin(f'SetFocus({LIST_ID},{idx})')
-    xbmc.sleep(150)
+        _log("Could not focus list control, trying Action(Info) anyway", xbmc.LOGWARNING)
+    
+    # Since XSP should contain only our target movie, we can go directly to Info
+    _log(f"Opening Info for movie {movieid}")
+    xbmc.sleep(200)  # Brief pause for container to settle
     xbmc.executebuiltin('Action(Info)')
+    
+    # Clean up temp file after a delay
+    xbmc.sleep(500)
+    cleanup_temp_xsp(xsp_path)
 
 # ------------------------------
 # Nexus+ (v20/v21) test
