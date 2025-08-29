@@ -554,16 +554,23 @@ class ListItemBuilder:
     def _build_art_dict(self, item: Dict[str, Any]) -> Dict[str, str]:
         """Build artwork dictionary from item data"""
         art = {}
+        title = item.get('title', 'Unknown')
+
+        self.logger.debug(f"ART BUILD: Building art dict for '{title}'")
+        self.logger.debug(f"ART BUILD: Available art sources - item.art: {type(item.get('art'))}, item.poster: {bool(item.get('poster'))}, item.fanart: {bool(item.get('fanart'))}")
 
         # First check if we have a JSON-RPC art dict
         item_art = item.get('art')
         if item_art:
+            self.logger.debug(f"ART BUILD: Found art data of type {type(item_art)} for '{title}'")
             # Handle both dict and JSON string formats
             if isinstance(item_art, str):
                 try:
                     import json
                     item_art = json.loads(item_art)
+                    self.logger.debug(f"ART BUILD: Parsed JSON art string for '{title}': {list(item_art.keys()) if isinstance(item_art, dict) else 'not a dict'}")
                 except (json.JSONDecodeError, ValueError):
+                    self.logger.warning(f"ART BUILD: Failed to parse art JSON for '{title}': {item_art[:100]}")
                     item_art = {}
 
             if isinstance(item_art, dict):
@@ -572,22 +579,23 @@ class ListItemBuilder:
                                'clearlogo', 'clearart', 'discart', 'icon']:
                     if art_key in item_art and item_art[art_key]:
                         art[art_key] = item_art[art_key]
+                        self.logger.debug(f"ART BUILD: Added {art_key} for '{title}': {item_art[art_key][:50]}...")
 
-        # Fallback to top-level fields if art dict wasn't available
-        if not art:
-            if item.get('poster'):
-                art['poster'] = item['poster']
-            if item.get('fanart'):
-                art['fanart'] = item['fanart']
-            if item.get('thumb'):
-                art['thumb'] = item['thumb']
+        # Also check top-level fields (enrichment may have flattened them)
+        for art_key in ['poster', 'fanart', 'thumb', 'banner', 'landscape', 'clearlogo']:
+            if item.get(art_key) and not art.get(art_key):
+                art[art_key] = item[art_key]
+                self.logger.debug(f"ART BUILD: Added top-level {art_key} for '{title}': {item[art_key][:50]}...")
 
         # If we have poster but no thumb/icon, set them for list view compatibility
         if art.get('poster') and not art.get('thumb'):
             art['thumb'] = art['poster']
+            self.logger.debug(f"ART BUILD: Set thumb=poster for '{title}'")
         if art.get('poster') and not art.get('icon'):
             art['icon'] = art['poster']
+            self.logger.debug(f"ART BUILD: Set icon=poster for '{title}'")
 
+        self.logger.debug(f"ART BUILD: Final art dict for '{title}': {list(art.keys())}")
         return art
 
     def _set_resume_info_versioned(self, list_item: xbmcgui.ListItem, item: Dict[str, Any]):
