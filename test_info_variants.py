@@ -16,6 +16,7 @@
 from __future__ import annotations
 import json
 import sys
+import time
 from urllib.parse import urlencode, parse_qs
 
 import xbmc
@@ -60,8 +61,8 @@ def wait_for_videos_container(target_dir: str, timeout_ms: int = 6000) -> bool:
     """Wait until the Videos window is active, the folder path matches, items are present, and busy dialog is closed."""
     mon = xbmc.Monitor()
     target = target_dir.rstrip('/') + '/'
-    start = xbmc.Millisecs()
-    while xbmc.Millisecs() - start < timeout_ms and not mon.abortRequested():
+    start = time.time() * 1000  # Convert to milliseconds
+    while (time.time() * 1000) - start < timeout_ms and not mon.abortRequested():
         if not xbmc.getCondVisibility(f'Window.IsActive({VIDEOS_WINDOW})'):
             xbmc.sleep(120)
             continue
