@@ -116,7 +116,7 @@ def create_movie_xsp(movieid: int) -> str | None:
 <smartplaylist type="movies">
     <name>LibraryGenie Test - Movie {movieid}</name>
     <match>all</match>
-    <rule field="dbid" operator="is">
+    <rule field="id" operator="is">
         <value>{movieid}</value>
     </rule>
     <order direction="ascending">title</order>
