@@ -133,9 +133,25 @@ def _cleanup_xsp(path_special: str):
     except Exception as e:
         _log(f"Cleanup failed: {e}", xbmc.LOGDEBUG)
 
+def _swap_under_info(orig_path: str, wait_ms: int = 300):
+    """Wait until the info dialog is active, then replace the XSP page in-place"""
+    deadline = time.time() + 3
+    while time.time() < deadline and not xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)'):
+        xbmc.sleep(50)
+    
+    if orig_path:
+        _log(f"SWAP: Container.Update to '{orig_path}' (replace)")
+        xbmc.executebuiltin(f'Container.Update("{orig_path}",replace)')
+    else:
+        _log("SWAP: No original path to restore", xbmc.LOGWARNING)
+
 def show_info_matrix(movieid: int):
     kodi_ver = kodi_major()
     _log(f"=== MATRIX TEST START: movie {movieid} on Kodi v{kodi_ver} ===")
+
+    # Remember where we came from (your plugin listing)
+    orig_path = xbmc.getInfoLabel('Container.FolderPath') or ''
+    _log(f"CAPTURE: Original container path: '{orig_path}'")
 
     # Step 1: Verify movie exists
     _log("STEP 1: Verifying movie exists in library...")
@@ -207,6 +223,11 @@ def show_info_matrix(movieid: int):
     # Open info dialog
     _log("STEP 5: Opening info dialog with Action(Info)...")
     xbmc.executebuiltin('Action(Info)')
+
+    # Replace XSP underneath the dialog so Back returns to your plugin page
+    import threading
+    threading.Thread(target=_swap_under_info, args=(orig_path,), daemon=True).start()
+
     xbmc.sleep(1000)  # Give time for dialog to open
 
     # Step 6: Verify success
