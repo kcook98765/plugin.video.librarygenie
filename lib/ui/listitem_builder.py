@@ -635,6 +635,27 @@ class ListItemBuilder:
             self.logger.error(f"RESUME: failed to set resume info: {e}")
 
     # ----- misc helpers -----
+    def _library_click_url(self, media_type: str, kodi_id: int, tvshowid=None, season=None) -> str:
+        """
+        Build plugin URL for library item selection handling with proper query parameters.
+        
+        Args:
+            media_type: 'movie' or 'episode'
+            kodi_id: Kodi database ID for the item
+            tvshowid: TV show ID (for episodes)
+            season: Season number (for episodes)
+            
+        Returns:
+            str: Plugin URL with on_select action and database parameters
+        """
+        qs = [("action", "on_select"), ("dbtype", media_type), ("dbid", str(kodi_id))]
+        if tvshowid is not None:
+            qs.append(("tvshowid", str(tvshowid)))
+        if season is not None:
+            qs.append(("season", str(season)))
+        query = "&".join(f"{k}={v}" for k, v in qs)
+        return f"plugin://{self.addon_id}/?{query}"
+
     def _build_playback_url(self, item: Dict[str, Any]) -> str:
         """
         Return direct play URL if provided; otherwise build a plugin URL
