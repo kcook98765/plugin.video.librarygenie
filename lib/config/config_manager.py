@@ -72,8 +72,8 @@ class ConfigManager:
             value = self._addon.getSettingBool(key)
             return value
         except Exception:
-            self.logger.warning(f"Failed to get bool setting '{key}', using default: {default}")
-            return default
+            # Use defaults dict fallback if available, otherwise use provided default
+            return self._defaults.get(key, default)
 
     def get_int(self, key, default=0):
         """Get integer setting with safe fallback"""
@@ -137,12 +137,19 @@ class ConfigManager:
             return "int"
         elif key in float_settings:
             return "number"
-        # String settings (including enum stored as string)
-        string_settings = [
-            "default_list_id", "remote_base_url", "device_name", "select_action"
+        # Select settings (stored as integer indexes)
+        select_settings = [
+            "select_action"
         ]
         
-        if key in string_settings:
+        # String settings
+        string_settings = [
+            "default_list_id", "remote_base_url", "device_name"
+        ]
+        
+        if key in select_settings:
+            return "int"  # Select controls store integer indexes
+        elif key in string_settings:
             return "string"
         else:
             return "string"
@@ -217,18 +224,22 @@ class ConfigManager:
     def get_select_action(self) -> str:
         """Get the select action preference: 'play' or 'info'"""
         try:
-            # For select type settings, Kodi stores the index as a string
-            # Use getSettingString which is most compatible
-            raw_value = self._addon.getSettingString("select_action")
-            if raw_value and raw_value.strip():
-                try:
-                    # Convert string index to preference
-                    index = int(raw_value.strip())
-                    return "info" if index == 1 else "play"
-                except (ValueError, TypeError):
-                    # If not a number, check string value directly
-                    if raw_value.strip().lower() in ["info", "1"]:
-                        return "info"
+            # For select type settings, try getSettingInt first (most reliable for select controls)
+            try:
+                index = self._addon.getSettingInt("select_action")
+                return "info" if index == 1 else "play"
+            except Exception:
+                # Fallback to string method
+                raw_value = self._addon.getSettingString("select_action")
+                if raw_value and raw_value.strip():
+                    try:
+                        # Convert string index to preference
+                        index = int(raw_value.strip())
+                        return "info" if index == 1 else "play"
+                    except (ValueError, TypeError):
+                        # If not a number, check string value directly
+                        if raw_value.strip().lower() in ["info", "1"]:
+                            return "info"
             
             # Safe default if setting not found or invalid
             return "play"
