@@ -149,29 +149,58 @@ def _get_movie_file(movieid: int) -> str | None:
     return md.get("file")
 
 def _create_movie_xsp_by_path(movieid: int) -> str | None:
-    file_path = _get_movie_file(movieid)
+    # Get movie details for better filtering
+    data = jsonrpc("VideoLibrary.GetMovieDetails", {
+        "movieid": int(movieid),
+        "properties": ["file", "title", "year", "imdbnumber"]
+    })
+    md = (data.get("result") or {}).get("moviedetails") or {}
+    
+    file_path = md.get("file")
+    title = md.get("title", "")
+    year = md.get("year", 0)
+    imdb = md.get("imdbnumber", "")
+    
     if not file_path:
         _log("No file path from JSON-RPC for movieid={}".format(movieid), xbmc.LOGWARNING)
         return None
 
-    _log(f"Got file path for movie {movieid}: {file_path}")
+    _log(f"Got movie details - Title: {title}, Year: {year}, File: {file_path}")
     
-    # Use filename for more specific matching
-    import os
-    filename = os.path.basename(file_path)
-    _log(f"Using filename for XSP: {filename}")
-    
+    # Try multiple filtering approaches for better compatibility
+    # Use movieid-based filter as primary, with fallbacks
     xsp = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <smartplaylist type="movies">
     <name>LibraryGenie Test - Movie {movieid}</name>
-    <match>all</match>
-    <rule field="filename" operator="is">
-        <value>{html.escape(filename)}</value>
-    </rule>
+    <match>any</match>"""
+    
+    # Add movieid rule if available (most reliable)
+    if movieid:
+        xsp += f"""
+    <rule field="playcount" operator="greaterthan">
+        <value>-1</value>
+    </rule>"""
+    
+    # Add title + year rule as fallback
+    if title and year:
+        xsp += f"""
+    <rule field="title" operator="is">
+        <value>{html.escape(title)}</value>
+    </rule>"""
+    
+    # Add IMDb rule if available
+    if imdb:
+        xsp += f"""
+    <rule field="imdbnumber" operator="is">
+        <value>{html.escape(imdb)}</value>
+    </rule>"""
+    
+    xsp += """
     <order direction="ascending">title</order>
+    <limit>50</limit>
 </smartplaylist>"""
 
-    # Use temp directory directly - Kodi's playlists directory might have permissions issues
+    # Use temp directory directly
     xsp_path = f"special://temp/libgenie_{movieid}.xsp"
 
     if _write_text(xsp_path, xsp):
@@ -251,66 +280,114 @@ def show_info_matrix(movieid: int):
     _log(f"STEP 4: Container.FolderPath={container_path}")
     _log(f"STEP 4: Container.Content={container_content}")
     
-    # Get current item info
-    if container_items and int(container_items) > 0:
-        current_title = xbmc.getInfoLabel('ListItem.Title')
-        current_dbid = xbmc.getInfoLabel('ListItem.DBID')
-        current_path = xbmc.getInfoLabel('ListItem.Path')
-        _log(f"STEP 4: Current item - Title: {current_title}, DBID: {current_dbid}, Path: {current_path}")
-    
     # Discover available controls
     _log("STEP 4: Discovering available controls...")
     controls = discover_controls()
     for cid, info in controls.items():
         _log(f"STEP 4: Control {cid}: exists={info['exists']}, visible={info['visible']}, focusable={info['focusable']}")
     
-    # Find best list control candidate
+    # Find best list control candidate - prioritize visible ones
     list_candidates = [cid for cid, info in controls.items() if info['visible'] and info['exists']]
+    if not list_candidates:
+        list_candidates = [cid for cid, info in controls.items() if info['exists']]
     _log(f"STEP 4: List control candidates: {list_candidates}")
+    
+    # Use the currently focused control if it's in our candidates, otherwise use first visible
+    primary_control = int(focused_control) if focused_control and int(focused_control) in list_candidates else (list_candidates[0] if list_candidates else 50)
+    _log(f"STEP 4: Using primary control: {primary_control}")
+    
+    # Try to select the target movie in the list
+    _log("STEP 4: Attempting to select target movie...")
+    target_found = False
+    if container_items and int(container_items) > 0:
+        # Check if we need to navigate to find our movie
+        for i in range(min(int(container_items), 10)):  # Check first 10 items
+            current_title = xbmc.getInfoLabel('ListItem.Title')
+            current_dbid = xbmc.getInfoLabel('ListItem.DBID') 
+            _log(f"STEP 4: Item {i}: Title='{current_title}', DBID='{current_dbid}'")
+            
+            if current_dbid and int(current_dbid) == movieid:
+                target_found = True
+                _log(f"STEP 4: Found target movie at position {i}")
+                break
+            elif current_title == movie_title:
+                target_found = True
+                _log(f"STEP 4: Found target movie by title at position {i}")
+                break
+            
+            # Move to next item
+            if i < int(container_items) - 1:
+                xbmc.executebuiltin('Action(Down)')
+                xbmc.sleep(100)
+    
+    _log(f"STEP 4: Target movie found and selected: {target_found}")
+    
+    # Get final current item info after selection attempts
+    if container_items and int(container_items) > 0:
+        current_title = xbmc.getInfoLabel('ListItem.Title')
+        current_dbid = xbmc.getInfoLabel('ListItem.DBID')
+        current_path = xbmc.getInfoLabel('ListItem.Path')
+        _log(f"STEP 4: Final item - Title: '{current_title}', DBID: '{current_dbid}', Path: '{current_path}'")
     
     # Step 5: Enhanced info dialog attempts
     _log("STEP 5: Attempting to open info dialog...")
     success = False
     method_results = []
     
-    # Method 1: Stay in XSP context and use JSON-RPC with library path
-    _log("METHOD 1: XSP context with JSON-RPC library navigation...")
+    # Method 1: Stay in XSP context and use Action(Info) with proper control
+    _log("METHOD 1: XSP context with proper control focusing...")
     
     # Make sure we're still in the XSP view with the movie selected
     container_path = xbmc.getInfoLabel('Container.FolderPath').rstrip('/')
     xsp_path_norm = xsp_path.rstrip('/')
     
-    if container_path == xsp_path_norm:
-        _log("METHOD 1: Still in XSP context, focusing list item")
+    if container_path == xsp_path_norm and target_found:
+        _log("METHOD 1: Still in XSP context and target found, focusing list item")
         
-        # Focus the movie item in the XSP list
-        if focus_list(LIST_ID, tries=3, sleep_ms=150):
+        # Focus the correct control (use primary_control instead of hardcoded LIST_ID)
+        if focus_list(primary_control, tries=3, sleep_ms=150):
             _log("METHOD 1: List focused, getting current item info")
             current_title = xbmc.getInfoLabel('ListItem.Title')
             current_dbid = xbmc.getInfoLabel('ListItem.DBID') 
             current_file = xbmc.getInfoLabel('ListItem.FileNameAndPath')
-            _log(f"METHOD 1: Current item - Title: {current_title}, DBID: {current_dbid}, File: {current_file}")
+            _log(f"METHOD 1: Current item - Title: '{current_title}', DBID: '{current_dbid}', File: '{current_file}'")
             
-            # Use JSON-RPC to open info with specific videodb path
-            videodb_path = f"videodb://movies/titles/{movieid}"
-            _log(f"METHOD 1: Opening info via JSON-RPC with path: {videodb_path}")
-            
-            json_result = jsonrpc("GUI.ActivateWindow", {
-                "window": "movieinformation",
-                "parameters": [videodb_path]
-            })
-            _log(f"METHOD 1: JSON-RPC result: {json_result}")
+            # Try Action(Info) first since we have the item selected
+            _log("METHOD 1: Sending Action(Info)")
+            xbmc.executebuiltin('Action(Info)')
             xbmc.sleep(800)
             
             info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)') or \
                        xbmc.getCondVisibility('Window.IsActive(movieinformation.xml)')
-            _log(f"METHOD 1: Info dialog open via JSON-RPC with videodb path: {info_open}")
-            method_results.append(f"Method1: jsonrpc_videodb_path, info_open={info_open}")
+            _log(f"METHOD 1: Info dialog open via Action(Info): {info_open}")
+            method_results.append(f"Method1: action_info_with_target, info_open={info_open}")
             if info_open:
                 success = True
+                
+            # Fallback to JSON-RPC if Action(Info) failed
+            if not info_open and current_dbid and int(current_dbid) == movieid:
+                videodb_path = f"videodb://movies/titles/{movieid}"
+                _log(f"METHOD 1: Fallback - Opening info via JSON-RPC with path: {videodb_path}")
+                
+                json_result = jsonrpc("GUI.ActivateWindow", {
+                    "window": "movieinformation",
+                    "parameters": [videodb_path]
+                })
+                _log(f"METHOD 1: JSON-RPC result: {json_result}")
+                xbmc.sleep(800)
+                
+                info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)') or \
+                           xbmc.getCondVisibility('Window.IsActive(movieinformation.xml)')
+                _log(f"METHOD 1: Info dialog open via JSON-RPC fallback: {info_open}")
+                method_results.append(f"Method1: jsonrpc_fallback, info_open={info_open}")
+                if info_open:
+                    success = True
         else:
             _log("METHOD 1: Could not focus list control")
             method_results.append("Method1: focus_failed, info_open=False")
+    elif not target_found:
+        _log("METHOD 1: Target movie not found in XSP list")
+        method_results.append("Method1: target_not_found, info_open=False")
     else:
         _log(f"METHOD 1: Not in XSP context anymore. Current: {container_path}, Expected: {xsp_path_norm}")
         # Try to navigate back to XSP
@@ -346,19 +423,38 @@ def show_info_matrix(movieid: int):
         if info_open:
             success = True
     
-    # Method 3: Focus control and Action(Info)
+    # Method 3: Focus control and Action(Info) - enhanced
     if not success:
-        _log("METHOD 3: Focus and Action(Info)...")
-        for candidate in list_candidates[:3]:  # Try top 3 candidates
+        _log("METHOD 3: Enhanced focus and Action(Info)...")
+        
+        # Try primary control first, then other candidates
+        test_controls = [primary_control] + [c for c in list_candidates if c != primary_control]
+        
+        for candidate in test_controls[:3]:  # Try top 3 candidates
             _log(f"METHOD 3: Attempting control {candidate}...")
             if focus_list(candidate, tries=5, sleep_ms=100):
                 _log(f"METHOD 3: Control {candidate} focused successfully")
                 xbmc.sleep(200)
                 
-                # Verify we have an item selected
+                # Verify we have an item selected and try to find our target
                 list_item_title = xbmc.getInfoLabel('ListItem.Title')
                 list_item_dbid = xbmc.getInfoLabel('ListItem.DBID')
-                _log(f"METHOD 3: Selected item - Title: {list_item_title}, DBID: {list_item_dbid}")
+                _log(f"METHOD 3: Selected item - Title: '{list_item_title}', DBID: '{list_item_dbid}'")
+                
+                # If this isn't our target movie, try to navigate to it
+                if list_item_dbid != str(movieid) and list_item_title != movie_title:
+                    _log("METHOD 3: Current item doesn't match target, attempting navigation...")
+                    # Try a few down movements to find the target
+                    for nav_attempt in range(3):
+                        xbmc.executebuiltin('Action(Down)')
+                        xbmc.sleep(150)
+                        check_title = xbmc.getInfoLabel('ListItem.Title')
+                        check_dbid = xbmc.getInfoLabel('ListItem.DBID')
+                        if check_dbid == str(movieid) or check_title == movie_title:
+                            _log(f"METHOD 3: Found target after {nav_attempt + 1} navigation steps")
+                            list_item_title = check_title
+                            list_item_dbid = check_dbid
+                            break
                 
                 # Send Action(Info)
                 _log("METHOD 3: Sending Action(Info)")
