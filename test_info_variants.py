@@ -46,11 +46,23 @@ def notify(heading: str, message: str, time_ms: int = 3500):
     xbmcgui.Dialog().notification(heading, message, xbmcgui.NOTIFICATION_INFO, time_ms)
 
 def focus_list(control_id: int = LIST_ID, tries: int = 10, sleep_ms: int = 50) -> bool:
-    for _ in range(tries):
+    _log(f"FOCUS_LIST: Attempting to focus control {control_id} (max {tries} tries, {sleep_ms}ms sleep)")
+    
+    for attempt in range(tries):
         xbmc.executebuiltin(f'SetFocus({control_id})')
-        if xbmc.getCondVisibility(f'Control.HasFocus({control_id})'):
+        focused = xbmc.getCondVisibility(f'Control.HasFocus({control_id})')
+        current_focus = xbmc.getInfoLabel('System.CurrentControlId')
+        
+        if focused:
+            _log(f"FOCUS_LIST: SUCCESS on attempt {attempt + 1} - control {control_id} now focused")
             return True
+        
+        if attempt < 3 or attempt == tries - 1:  # Log first few and last attempt
+            _log(f"FOCUS_LIST: Attempt {attempt + 1} failed - current focus: {current_focus}")
+        
         xbmc.sleep(sleep_ms)
+    
+    _log(f"FOCUS_LIST: FAILED after {tries} attempts - final focus: {xbmc.getInfoLabel('System.CurrentControlId')}")
     return False
 
 def wait_for_videos_container(target_path: str, timeout_ms: int = 6000) -> bool:
@@ -158,73 +170,135 @@ def show_info_matrix(movieid: int):
     if kodi_major() != 19:
         _log(f"Matrix path requested on Kodi {kodi_major()} — designed for v19.", xbmc.LOGWARNING)
 
-    _log(f"Matrix test start: movie {movieid} → creating XSP filter …")
+    _log(f"=== MATRIX TEST START: movie {movieid} ===")
+    
+    # Step 1: Create XSP
+    _log("STEP 1: Creating XSP filter...")
     xsp_path = _create_movie_xsp_by_path(movieid)
     if not xsp_path:
+        _log("STEP 1: FAILED - Could not create XSP", xbmc.LOGERROR)
         notify("Matrix test", "Failed to create smart playlist")
         return
+    _log(f"STEP 1: SUCCESS - XSP created at {xsp_path}")
 
-    _log(f"Opening XSP: {xsp_path}")
+    # Step 2: Navigate to XSP
+    _log("STEP 2: Navigating to XSP...")
+    _log(f"STEP 2: Executing ActivateWindow(Videos,\"{xsp_path}\",return)")
     xbmc.executebuiltin(f'ActivateWindow(Videos,"{xsp_path}",return)')
+    
+    # Step 3: Wait for container
+    _log("STEP 3: Waiting for container to load...")
     if not wait_for_videos_container(xsp_path, timeout_ms=5000):
-        _log("Timeout waiting for XSP container", xbmc.LOGWARNING)
+        _log("STEP 3: FAILED - Timeout waiting for XSP container", xbmc.LOGERROR)
         notify("Matrix test", "Timed out waiting for playlist")
         _cleanup_xsp(xsp_path)
         return
-
-    _log(f"Container items: {xbmc.getInfoLabel('Container.NumItems')}")
     
-    # Wait for window to be fully ready
+    container_items = xbmc.getInfoLabel('Container.NumItems')
+    _log(f"STEP 3: SUCCESS - Container loaded with {container_items} items")
+    
+    # Step 4: Window state analysis
+    _log("STEP 4: Analyzing window state...")
     xbmc.sleep(500)
-    
-    # Check current window and control state
     current_window = xbmc.getInfoLabel('System.CurrentWindow')
-    _log(f"Current window: {current_window}")
+    current_control = xbmc.getInfoLabel('System.CurrentControl')
+    focused_control = xbmc.getInfoLabel('System.CurrentControlId')
+    container_path = xbmc.getInfoLabel('Container.FolderPath')
     
-    # Try multiple approaches rapidly to focus and open info
+    _log(f"STEP 4: Window={current_window}, Control={current_control}, FocusedId={focused_control}")
+    _log(f"STEP 4: Container.FolderPath={container_path}")
+    
+    # Step 5: Info dialog attempts with detailed tracking
+    _log("STEP 5: Attempting to open info dialog...")
     success = False
+    method_results = []
     
-    # Method 1: Try to focus using the list control (fast timeout)
-    _log("Method 1: Attempting to focus list control")
+    # Method 1: Focus list control
+    _log("METHOD 1: Focusing list control...")
+    method1_start = int(time.time() * 1000)
     if focus_list(LIST_ID, tries=10, sleep_ms=50):
-        _log("List focused - triggering info dialog")
+        method1_duration = int(time.time() * 1000) - method1_start
+        _log(f"METHOD 1: SUCCESS - List focused in {method1_duration}ms")
+        _log("METHOD 1: Sending Action(Info)")
         xbmc.sleep(100)
         xbmc.executebuiltin('Action(Info)')
+        xbmc.sleep(300)  # Give time for dialog to appear
+        
+        # Check if info dialog opened
+        info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+        _log(f"METHOD 1: Info dialog open: {info_open}")
+        method_results.append(f"Method1: focus_success={method1_duration}ms, info_open={info_open}")
         success = True
     else:
-        _log("Method 1 failed - trying alternative approaches")
+        method1_duration = int(time.time() * 1000) - method1_start
+        _log(f"METHOD 1: FAILED - Could not focus list in {method1_duration}ms")
+        method_results.append(f"Method1: focus_failed={method1_duration}ms")
         
-        # Method 2: Try focusing container first, then info
-        _log("Method 2: Focus container then info")
-        xbmc.executebuiltin('SetFocus(50)')  # Try main container
+        # Method 2: Focus container then info
+        _log("METHOD 2: Focus container approach...")
+        xbmc.executebuiltin('SetFocus(50)')
         xbmc.sleep(100)
+        focused_after = xbmc.getInfoLabel('System.CurrentControlId')
+        _log(f"METHOD 2: Focused control after SetFocus(50): {focused_after}")
         xbmc.executebuiltin('Action(Info)')
         xbmc.sleep(200)
+        info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+        _log(f"METHOD 2: Info dialog open: {info_open}")
+        method_results.append(f"Method2: focused_control={focused_after}, info_open={info_open}")
         
-        # Method 3: Try direct context menu approach
-        _log("Method 3: Context menu approach")
+        # Method 3: Context menu approach
+        _log("METHOD 3: Context menu approach...")
         xbmc.executebuiltin('Action(ContextMenu)')
         xbmc.sleep(100)
+        context_open = xbmc.getCondVisibility('Window.IsActive(DialogContextMenu.xml)')
+        _log(f"METHOD 3: Context menu open: {context_open}")
         xbmc.executebuiltin('Action(Info)')
         xbmc.sleep(200)
+        info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+        _log(f"METHOD 3: Info dialog open: {info_open}")
+        method_results.append(f"Method3: context_open={context_open}, info_open={info_open}")
         
-        # Method 4: Try selecting first item then info
-        _log("Method 4: Select first item approach")
+        # Method 4: First item approach
+        _log("METHOD 4: Select first item approach...")
         xbmc.executebuiltin('Action(FirstItem)')
         xbmc.sleep(100)
+        current_pos = xbmc.getInfoLabel('Container.CurrentItem')
+        _log(f"METHOD 4: Current position: {current_pos}")
         xbmc.executebuiltin('Action(Info)')
+        xbmc.sleep(200)
+        info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+        _log(f"METHOD 4: Info dialog open: {info_open}")
+        method_results.append(f"Method4: position={current_pos}, info_open={info_open}")
         
         success = True
     
+    # Final state check
+    _log("STEP 6: Final state verification...")
+    final_info_open = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+    final_window = xbmc.getInfoLabel('System.CurrentWindow')
+    _log(f"STEP 6: Final info dialog state: {final_info_open}")
+    _log(f"STEP 6: Final window: {final_window}")
+    
+    # Summary logging
+    _log("=== TEST RESULTS SUMMARY ===")
+    for result in method_results:
+        _log(f"RESULT: {result}")
+    _log(f"FINAL: Info dialog successfully opened: {final_info_open}")
+    
     if success:
-        _log("Info methods executed - info dialog should be opening")
-        _log("XSP will remain available to keep dialog open - manual cleanup required")
-        notify("Matrix test", "Info dialog methods executed! Check screen.")
+        if final_info_open:
+            _log("SUCCESS: Info dialog is open - test completed successfully")
+            notify("Matrix test", "Info dialog opened successfully!")
+        else:
+            _log("PARTIAL: Methods executed but dialog state unclear")
+            notify("Matrix test", "Info methods executed - check manually")
+        _log("XSP remains available for manual cleanup")
     else:
-        _log("All focus methods failed", xbmc.LOGWARNING)
+        _log("FAILED: All focus methods failed", xbmc.LOGERROR)
         notify("Matrix test", "Failed to open info dialog")
-        # Only cleanup on failure
         _cleanup_xsp(xsp_path)
+    
+    _log(f"=== MATRIX TEST END: movie {movieid} ===")
 
 # ------------------------------
 # Nexus+ (v20/v21): setDbId + Action(Info)
