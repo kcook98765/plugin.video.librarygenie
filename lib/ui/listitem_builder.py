@@ -369,17 +369,14 @@ class ListItemBuilder:
                 li.setPath(url)
                 li.setProperty('IsPlayable', 'true')
 
-            # Set v20+ InfoTagVideo properties only if available (Step 8)
-            if is_kodi_v20_plus():
-                try:
-                    video_info_tag = li.getVideoInfoTag()
-                    video_info_tag.setMediaType(media_type)
-                    video_info_tag.setDbId(kodi_id)
-                    self.logger.debug(f"LIB ITEM v20+: Set InfoTagVideo for '{title}' (mediatype={media_type}, dbid={kodi_id})")
-                except Exception as e:
-                    self.logger.warning(f"LIB ITEM v20+: InfoTagVideo failed for '{title}': {e}")
-            else:
-                self.logger.debug(f"LIB ITEM: Kodi v19 or earlier, skipping InfoTagVideo for '{title}'")
+            # Set InfoTagVideo properties for v19+ (Matrix supports this)
+            try:
+                video_info_tag = li.getVideoInfoTag()
+                video_info_tag.setMediaType(media_type)
+                video_info_tag.setDbId(int(kodi_id), media_type)  # explicit type parameter for better DB merging
+                self.logger.debug(f"LIB ITEM: Set InfoTagVideo for '{title}' (mediatype={media_type}, dbid={kodi_id})")
+            except Exception as e:
+                self.logger.warning(f"LIB ITEM: InfoTagVideo failed for '{title}': {e}")
 
             # Resume (always for library movies/episodes)
             self._set_resume_info_versioned(li, item)
