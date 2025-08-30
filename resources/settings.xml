@@ -6,7 +6,7 @@
     <setting id="debug_logging" type="bool" label="30011" default="false"/>
     <setting label="30020" type="lsep"/>
     <setting id="confirm_destructive_actions" type="bool" label="30021" default="true"/>
-    <setting id="show_item_counts" type="bool" label="30022" default="true"/>
+    <setting id="show_missing_indicators" type="bool" label="30043" default="true"/>
     <setting id="select_action" type="select" label="35100" lvalues="35101|35102" default="0"/>
     <setting label="30030" type="lsep"/>
     <setting id="track_library_changes" type="bool" label="30031" default="true"/>

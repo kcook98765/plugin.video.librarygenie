@@ -64,15 +64,21 @@ def _get_file_for_dbitem(dbtype: str, dbid: int) -> Optional[str]:
     if dbtype == "movie":
         data = jsonrpc("VideoLibrary.GetMovieDetails", {"movieid": int(dbid), "properties": ["file"]})
         md = (data.get("result") or {}).get("moviedetails") or {}
-        return md.get("file")
+        file_path = md.get("file")
+        _log(f"Movie {dbid} file path: {file_path}", xbmc.LOGINFO)
+        return file_path
     elif dbtype == "episode":
         data = jsonrpc("VideoLibrary.GetEpisodeDetails", {"episodeid": int(dbid), "properties": ["file"]})
         md = (data.get("result") or {}).get("episodedetails") or {}
-        return md.get("file")
+        file_path = md.get("file")
+        _log(f"Episode {dbid} file path: {file_path}", xbmc.LOGINFO)
+        return file_path
     elif dbtype == "musicvideo":
         data = jsonrpc("VideoLibrary.GetMusicVideoDetails", {"musicvideoid": int(dbid), "properties": ["file"]})
         md = (data.get("result") or {}).get("musicvideodetails") or {}
-        return md.get("file")
+        file_path = md.get("file")
+        _log(f"MusicVideo {dbid} file path: {file_path}", xbmc.LOGINFO)
+        return file_path
     elif dbtype == "tvshow":
         # tvshow has multiple files; we'll still open its videodb node below.
         return None
@@ -81,22 +87,36 @@ def _get_file_for_dbitem(dbtype: str, dbid: int) -> Optional[str]:
 def _create_xsp_for_file(dbtype: str, dbid: int) -> Optional[str]:
     fp = _get_file_for_dbitem(dbtype, dbid)
     if not fp:
+        _log(f"No file path found for {dbtype} {dbid}", xbmc.LOGWARNING)
         return None
+        
     filename = os.path.basename(fp)
+    _log(f"Creating XSP for {dbtype} {dbid}: filename='{filename}', full_path='{fp}'", xbmc.LOGINFO)
+    
     name = f"LG Native Info {dbtype} {dbid}"
+    
+    # Try multiple matching strategies to handle various filename edge cases
+    # Strategy 1: Exact filename match
     xsp = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <smartplaylist type="video">
   <name>{html.escape(name)}</name>
-  <match>all</match>
+  <match>any</match>
   <rule field="filename" operator="is">
+    <value>{html.escape(filename)}</value>
+  </rule>
+  <rule field="path" operator="contains">
     <value>{html.escape(filename)}</value>
   </rule>
   <order direction="ascending">title</order>
 </smartplaylist>"""
+    
     path = f"special://temp/lg_hijack_{dbtype}_{dbid}.xsp"
     if _write_text(path, xsp):
+        _log(f"XSP created successfully: {path}", xbmc.LOGINFO)
         return path
-    return None
+    else:
+        _log(f"Failed to write XSP file: {path}", xbmc.LOGWARNING)
+        return None
 
 def _cleanup_xsp(path_special: Optional[str]):
     try:
@@ -153,21 +173,36 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
     if dbtype == "tvshow":
         path_to_open = f"videodb://tvshows/titles/{int(dbid)}"
         target_file = None
+        logger.info(f"HIJACK HELPER: Using videodb path for tvshow: {path_to_open}")
     else:
+        # Try XSP first, but fallback to videodb if it fails
         xsp = _create_xsp_for_file(dbtype, dbid)
         if xsp:
             path_to_open = xsp
             target_file = _get_file_for_dbitem(dbtype, dbid)
+            logger.info(f"HIJACK HELPER: Using XSP path: {path_to_open}")
         else:
-            # Fallback to a generic videodb node if no file (rare)
+            # Fallback to videodb node - this should always work
+            logger.info(f"HIJACK HELPER: XSP failed, falling back to videodb for {dbtype} {dbid}")
             if dbtype == "movie":
                 path_to_open = f"videodb://movies/titles/{int(dbid)}"
             elif dbtype == "episode":
-                # as a fallback, show season/episodes node; still better than nothing
-                path_to_open = f"videodb://episodes/"
+                # For episodes, try to get the show info for a better path
+                ep_data = jsonrpc("VideoLibrary.GetEpisodeDetails", {"episodeid": int(dbid), "properties": ["tvshowid", "season"]})
+                ep_details = (ep_data.get("result") or {}).get("episodedetails") or {}
+                tvshowid = ep_details.get("tvshowid")
+                season = ep_details.get("season")
+                if tvshowid and season is not None:
+                    path_to_open = f"videodb://tvshows/titles/{tvshowid}/{season}/"
+                else:
+                    path_to_open = f"videodb://episodes/"
+            elif dbtype == "musicvideo":
+                path_to_open = f"videodb://musicvideos/titles/{int(dbid)}"
             else:
+                logger.warning(f"HIJACK HELPER: Unsupported dbtype: {dbtype}")
                 return False
             target_file = None
+            logger.info(f"HIJACK HELPER: Using videodb fallback path: {path_to_open}")
 
     # 2) Show the directory in Videos
     logger.info(f"HIJACK HELPER: Step 2 - Opening Videos window with path: {path_to_open}")
