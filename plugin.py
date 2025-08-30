@@ -720,8 +720,10 @@ def main():
         elif action == 'signout':
             handle_signout()
         elif action == 'on_select':
-            logger.info(f"ROUTING: on_select action detected with params: {params}")
-            handle_on_select(params, addon_handle)
+            # Legacy handler - library items now use videodb:// URLs for native behavior
+            logger.info(f"ROUTING: on_select action detected (legacy) with params: {params}")
+            logger.info(f"Library items now use videodb:// URLs for native Kodi behavior")
+            xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
         elif action == 'test_info_variants':
             logger.info(f"[TEST-HARNESS] ROUTING: test_info_variants action detected - using new module")
             tiv.add_menu(addon_handle, base_url, dbtype='movie', dbid=883)

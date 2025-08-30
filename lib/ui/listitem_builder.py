@@ -305,7 +305,7 @@ class ListItemBuilder:
     def _create_library_listitem(self, item: Dict[str, Any]) -> Optional[tuple]:
         """
         Build library-backed movie/episode row as (url, listitem, is_folder=False)
-        with lightweight info and versioned resume.
+        with videodb:// path and proper library integration for native Kodi behavior.
         """
         try:
             title = item.get('title', 'Unknown')
@@ -342,22 +342,14 @@ class ListItemBuilder:
             for prop_name, prop_value in properties.items():
                 li.setProperty(prop_name, prop_value)
 
-            # Build a plugin URL so we can decide Play vs Info on click
-            url = self._library_click_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
+            # Build videodb:// URL for native library integration
+            url = self._build_videodb_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
             li.setPath(url)
-            self.logger.info(f"LIB ITEM: Generated click URL for '{title}': {url}")
+            self.logger.info(f"LIB ITEM: Generated videodb URL for '{title}': {url}")
 
-            # Get user preference safely (but don't let it break ListItem creation)
-            # The original code had an incorrect import for get_select_pref.
-            # It was defined in this file but intended to be imported from config_manager.
-            # The fix involves changing the import path to the correct location.
-            pref = get_select_pref()
-            self.logger.debug(f"LIB ITEM: User preference for '{title}': {pref}")
-
-            # CRITICAL: Always mark as playable so the ListItem can be clicked/activated
-            # Without this, Kodi won't send click events to our plugin
+            # Mark as playable for library items (Kodi handles play/info based on user settings)
             li.setProperty('IsPlayable', 'true')
-            self.logger.info(f"LIB ITEM: Set IsPlayable=true for '{title}' - enables click handling")
+            self.logger.info(f"LIB ITEM: Set IsPlayable=true for '{title}' - native library behavior")
 
             is_folder = False
 
@@ -452,21 +444,21 @@ class ListItemBuilder:
     # ----- info/art/resume helpers -----
     def _build_lightweight_info(self, item: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Build lightweight info dictionary for list items (no heavy arrays).
-        Duration is in minutes; mediatype set for overlays.
+        Build lightweight info dictionary for list items with native library metadata.
+        Includes fields that Kodi expects for proper library integration but avoids heavy arrays.
 
         IMPORTANT: This method intentionally avoids heavy fields like:
-        - cast/crew arrays
+        - cast/crew arrays (Kodi will populate these automatically via dbid)
         - deep streamdetails
-        - detailed metadata that would slow down list scrolling
-        This keeps list views snappy per Kodi's own approach.
+        - complex metadata that would slow down list scrolling
+        This keeps list views snappy while providing native library behavior.
         """
         info: Dict[str, Any] = {}
         title = item.get('title', 'Unknown')
 
-        self.logger.debug(f"INFO BUILD: Building lightweight info for '{title}'")
+        self.logger.debug(f"INFO BUILD: Building enhanced lightweight info for '{title}'")
 
-        # Common
+        # Core identification fields
         if item.get('title'):
             info['title'] = item['title']
             self.logger.debug(f"INFO BUILD: Set title='{info['title']}'")
@@ -476,16 +468,25 @@ class ListItemBuilder:
         if item.get('sorttitle'):
             info['sorttitle'] = item['sorttitle']
             self.logger.debug(f"INFO BUILD: Set sorttitle='{info['sorttitle']}'")
+
+        # Year and date fields
         if item.get('year') is not None:
             info['year'] = int(item['year'])
             self.logger.debug(f"INFO BUILD: Set year={info['year']}")
-        if item.get('genre'):
-            info['genre'] = item['genre']
-            self.logger.debug(f"INFO BUILD: Set genre='{info['genre']}'")
+        if item.get('premiered'):
+            info['premiered'] = item['premiered']
+            self.logger.debug(f"INFO BUILD: Set premiered='{info['premiered']}'")
+
+        # Content description
         if item.get('plot'):
             info['plot'] = item['plot']
             plot_preview = info['plot'][:100] + "..." if len(info['plot']) > 100 else info['plot']
             self.logger.debug(f"INFO BUILD: Set plot (length={len(info['plot'])}): '{plot_preview}'")
+        if item.get('plotoutline'):
+            info['plotoutline'] = item['plotoutline']
+            self.logger.debug(f"INFO BUILD: Set plotoutline")
+
+        # Ratings and content classification
         if item.get('rating') is not None:
             info['rating'] = float(item['rating'])
             self.logger.debug(f"INFO BUILD: Set rating={info['rating']}")
@@ -496,35 +497,68 @@ class ListItemBuilder:
             info['mpaa'] = item['mpaa']
             self.logger.debug(f"INFO BUILD: Set mpaa='{info['mpaa']}'")
 
-        # Duration handling - prioritize runtime (minutes), fallback to duration
+        # Genre handling
+        if item.get('genre'):
+            info['genre'] = item['genre']
+            self.logger.debug(f"INFO BUILD: Set genre='{info['genre']}'")
+
+        # Duration handling - Kodi expects duration in seconds for info dict
         runtime_minutes = item.get('runtime', 0)
         duration_seconds = item.get('duration', 0)
+        duration_minutes = item.get('duration_minutes', 0)
 
+        calculated_duration = None
         if runtime_minutes and isinstance(runtime_minutes, (int, float)) and runtime_minutes > 0:
-            # Runtime is in minutes, convert to seconds
-            info['duration'] = int(runtime_minutes * 60)
+            calculated_duration = int(runtime_minutes * 60)
+        elif duration_minutes and isinstance(duration_minutes, (int, float)) and duration_minutes > 0:
+            calculated_duration = int(duration_minutes * 60)
         elif duration_seconds and isinstance(duration_seconds, (int, float)) and duration_seconds > 0:
-            # Duration might be in seconds already, but check if it's suspiciously small (likely minutes)
             if duration_seconds < 3600:  # Less than 1 hour, probably minutes
-                info['duration'] = int(duration_seconds * 60)
+                calculated_duration = int(duration_seconds * 60)
             else:
-                info['duration'] = int(duration_seconds)
+                calculated_duration = int(duration_seconds)
 
-        # Keep duration_minutes for backward compatibility
-        if runtime_minutes:
-            info['duration_minutes'] = int(runtime_minutes)
+        if calculated_duration:
+            info['duration'] = calculated_duration
+            self.logger.debug(f"INFO BUILD: Set duration={calculated_duration} seconds")
+
+        # Production information (lightweight strings only)
+        if item.get('director'):
+            # Handle both string and list formats
+            if isinstance(item['director'], list):
+                info['director'] = ", ".join(item['director']) if item['director'] else ""
+            else:
+                info['director'] = str(item['director'])
+            if info['director']:
+                self.logger.debug(f"INFO BUILD: Set director='{info['director']}'")
 
         if item.get('studio'):
-            info['studio'] = item['studio']
-            self.logger.debug(f"INFO BUILD: Set studio='{info['studio']}'")
-        if item.get('country'):
-            info['country'] = item['country']
-            self.logger.debug(f"INFO BUILD: Set country='{info['country']}'")
-        if item.get('premiered'):
-            info['premiered'] = item['premiered']
-            self.logger.debug(f"INFO BUILD: Set premiered='{info['premiered']}'")
+            # Handle both string and list formats
+            if isinstance(item['studio'], list):
+                info['studio'] = item['studio'][0] if item['studio'] else ""
+            else:
+                info['studio'] = str(item['studio'])
+            if info['studio']:
+                self.logger.debug(f"INFO BUILD: Set studio='{info['studio']}'")
 
-        # Episode extras
+        if item.get('country'):
+            # Handle both string and list formats  
+            if isinstance(item['country'], list):
+                info['country'] = item['country'][0] if item['country'] else ""
+            else:
+                info['country'] = str(item['country'])
+            if info['country']:
+                self.logger.debug(f"INFO BUILD: Set country='{info['country']}'")
+
+        # Playback tracking
+        if item.get('playcount') is not None:
+            info['playcount'] = int(item['playcount'])
+            self.logger.debug(f"INFO BUILD: Set playcount={info['playcount']}")
+        if item.get('lastplayed'):
+            info['lastplayed'] = item['lastplayed']
+            self.logger.debug(f"INFO BUILD: Set lastplayed='{info['lastplayed']}'")
+
+        # Episode-specific fields
         if item.get('media_type') == 'episode':
             self.logger.debug(f"INFO BUILD: Processing episode-specific fields for '{title}'")
             if item.get('tvshowtitle'):
@@ -539,17 +573,12 @@ class ListItemBuilder:
             if item.get('aired'):
                 info['aired'] = item['aired']
                 self.logger.debug(f"INFO BUILD: Set aired='{info['aired']}'")
-            if item.get('playcount') is not None:
-                info['playcount'] = int(item['playcount'])
-                self.logger.debug(f"INFO BUILD: Set playcount={info['playcount']}")
-            if item.get('lastplayed'):
-                info['lastplayed'] = item['lastplayed']
-                self.logger.debug(f"INFO BUILD: Set lastplayed='{info['lastplayed']}'")
 
+        # Media type for proper overlays and library recognition
         info['mediatype'] = item.get('media_type', 'movie')
         self.logger.debug(f"INFO BUILD: Set mediatype='{info['mediatype']}'")
 
-        self.logger.debug(f"INFO BUILD: Completed info dict for '{title}' with {len(info)} fields: {list(info.keys())}")
+        self.logger.debug(f"INFO BUILD: Completed enhanced info dict for '{title}' with {len(info)} fields: {list(info.keys())}")
         return info
 
     def _build_art_dict(self, item: Dict[str, Any]) -> Dict[str, str]:
@@ -627,9 +656,9 @@ class ListItemBuilder:
             self.logger.error(f"RESUME: failed to set resume info: {e}")
 
     # ----- misc helpers -----
-    def _library_click_url(self, media_type: str, kodi_id: int, tvshowid=None, season=None) -> str:
+    def _build_videodb_url(self, media_type: str, kodi_id: int, tvshowid=None, season=None) -> str:
         """
-        Build plugin URL for library item selection handling with proper query parameters.
+        Build videodb:// URL for native Kodi library integration.
 
         Args:
             media_type: 'movie' or 'episode'
@@ -638,29 +667,27 @@ class ListItemBuilder:
             season: Season number (for episodes)
 
         Returns:
-            str: Plugin URL with on_select action and database parameters
+            str: videodb:// URL for native library handling
         """
-        import urllib.parse
-
-        # Build clean query parameters
-        params = {
-            "action": "on_select",
-            "dbtype": media_type,
-            "dbid": str(kodi_id)
-        }
-
-        # Add episode-specific parameters if provided
-        if tvshowid is not None:
-            params["tvshowid"] = str(tvshowid)
-        if season is not None:
-            params["season"] = str(season)
-
-        # Use urllib.parse.urlencode for proper encoding
-        query = urllib.parse.urlencode(params)
-        url = f"plugin://{self.addon_id}/?{query}"
-
-        self.logger.debug(f"CLICK URL: Built URL for {media_type} {kodi_id}: {url}")
-        return url
+        if media_type == "movie":
+            url = f"videodb://movies/titles/{kodi_id}"
+            self.logger.debug(f"VIDEODB URL: Built movie URL: {url}")
+            return url
+        elif media_type == "episode":
+            if tvshowid is not None and season is not None:
+                url = f"videodb://tvshows/titles/{tvshowid}/{season}/{kodi_id}"
+                self.logger.debug(f"VIDEODB URL: Built episode URL with show/season: {url}")
+                return url
+            else:
+                # Fallback for episodes without show/season info
+                url = f"videodb://episodes/{kodi_id}"
+                self.logger.debug(f"VIDEODB URL: Built episode URL fallback: {url}")
+                return url
+        else:
+            # Fallback to generic format
+            url = f"videodb://movies/titles/{kodi_id}"
+            self.logger.debug(f"VIDEODB URL: Built fallback URL for {media_type}: {url}")
+            return url
 
     def _build_playback_url(self, item: Dict[str, Any]) -> str:
         """
