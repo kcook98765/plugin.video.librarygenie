@@ -256,11 +256,21 @@ def build_nexus_item(handle: int, base_url: str, movieid: int):
     q = urlencode({"action": "nexus_info_click", "movieid": movieid})
     url = f"{base_url}?{q}"
 
-    # Set basic info to make it look like a movie
-    li.setInfo('video', {
-        'title': f'Test Movie {movieid}',
-        'mediatype': 'movie'
-    })
+    # Use InfoTagVideo setters for v20+ instead of deprecated setInfo
+    try:
+        video_tag = li.getVideoInfoTag()
+        video_tag.setTitle(f'Test Movie {movieid}')
+        video_tag.setPlot(f'Test movie for Info dialog testing (movieid={movieid})')
+        video_tag.setYear(2023)  # Add some basic metadata
+        video_tag.setGenres(['Action', 'Test'])
+        _log(f"Set InfoTagVideo properties for movie {movieid}")
+    except Exception as e:
+        _log(f"InfoTagVideo setters failed, falling back to setInfo: {e}", xbmc.LOGWARNING)
+        # Fallback to old method if InfoTagVideo fails
+        li.setInfo('video', {
+            'title': f'Test Movie {movieid}',
+            'mediatype': 'movie'
+        })
     
     # Make it non-playable but clickable
     li.setProperty('IsPlayable', 'false')
