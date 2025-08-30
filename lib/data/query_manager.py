@@ -1218,6 +1218,72 @@ class QueryManager:
             self.logger.error(f"Failed to check if folder {folder_id} is reserved: {e}")
             return False
 
+    def get_lists_in_folder(self, folder_id):
+        """Get all lists within a specific folder"""
+        try:
+            self.logger.debug(f"Getting lists in folder {folder_id}")
+
+            lists = self.connection_manager.execute_query("""
+                SELECT 
+                    l.id,
+                    l.name,
+                    l.created_at,
+                    l.created_at as updated_at,
+                    (SELECT COUNT(*) FROM list_items WHERE list_id = l.id) as item_count,
+                    f.name as folder_name
+                FROM lists l
+                LEFT JOIN folders f ON l.folder_id = f.id
+                WHERE l.folder_id = ?
+                ORDER BY l.created_at DESC
+            """, [int(folder_id)])
+
+            # Convert to expected format
+            result = []
+            for row in lists:
+                folder_context = f" ({row['folder_name']})" if row['folder_name'] else ""
+
+                result.append({
+                    "id": str(row['id']),
+                    "name": row['name'],
+                    "description": f"{row['item_count']} items{folder_context}",
+                    "item_count": row['item_count'],
+                    "created": row['created_at'][:10] if row['created_at'] else '',
+                    "modified": row['updated_at'][:10] if row['updated_at'] else '',
+                    "folder_name": row['folder_name']
+                })
+
+            self.logger.debug(f"Retrieved {len(result)} lists in folder {folder_id}")
+            return result
+
+        except Exception as e:
+            self.logger.error(f"Failed to get lists in folder {folder_id}: {e}")
+            return []
+
+    def get_folder_by_id(self, folder_id):
+        """Get folder information by ID"""
+        try:
+            result = self.connection_manager.execute_single("""
+                SELECT 
+                    f.id, f.name, f.created_at,
+                    (SELECT COUNT(*) FROM lists WHERE folder_id = f.id) as list_count
+                FROM folders f
+                WHERE f.id = ?
+            """, [int(folder_id)])
+
+            if result:
+                return {
+                    "id": str(result['id']),
+                    "name": result['name'],
+                    "created": result['created_at'][:10] if result['created_at'] else '',
+                    "item_count": result['list_count']  # For folders, this is the count of lists
+                }
+
+            return None
+
+        except Exception as e:
+            self.logger.error(f"Failed to get folder {folder_id}: {e}")
+            return None
+
 
 # Global query manager instance
 _query_manager_instance = None

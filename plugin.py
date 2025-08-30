@@ -214,7 +214,7 @@ def handle_lists(addon_handle, base_url):
                 handle_create_list()
             return
 
-        # Build menu items for lists
+        # Build menu items for lists and folders
         menu_items = []
 
         # Add "Create New List" option at the top
@@ -235,65 +235,90 @@ def handle_lists(addon_handle, base_url):
             "icon": "DefaultFolder.png"
         })
 
-        # Add each list/folder
+        # Separate folders and lists for proper organization
+        folders_seen = set()
+        standalone_lists = []
+
+        # First pass: collect folders and standalone lists
         for list_item in user_lists:
-            # Check if it's the reserved "Search History" folder and disable context menus if so
-            is_reserved_folder = 'Search History' in str(list_item.get('name', ''))
-            context_menu = []
+            folder_name = list_item.get('folder_name')
+            
+            if folder_name and folder_name != 'Root':
+                # This list belongs to a folder - we'll handle folders separately
+                folders_seen.add(folder_name)
+            else:
+                # This is a standalone list (not in any folder)
+                standalone_lists.append(list_item)
+
+        # Second pass: Add folders with their contents
+        for folder_name in folders_seen:
+            # Find a folder representative to get folder info
+            folder_representative = next((item for item in user_lists if item.get('folder_name') == folder_name), None)
+            
+            if not folder_representative:
+                continue
+
+            # Check if it's the reserved "Search History" folder
+            is_reserved_folder = folder_name == 'Search History'
+            folder_context_menu = []
+            
             if not is_reserved_folder:
-                context_menu = [
-                    (f"Rename '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={list_item['id']})"),
-                    (f"Delete '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_item['id']})")
-                ]
+                # Get folder ID from the first list in this folder
+                folder_id = None
+                try:
+                    # Query to get folder ID
+                    folder_info = query_manager.connection_manager.execute_single("""
+                        SELECT id FROM folders WHERE name = ?
+                    """, [folder_name])
+                    if folder_info:
+                        folder_id = folder_info['id']
+                except Exception as e:
+                    logger.error(f"Error getting folder ID for {folder_name}: {e}")
 
-            # If the item is a folder, add its contents
-            if list_item.get('is_folder'):
-                # Get lists within this folder
-                folder_lists = query_manager.get_lists_in_folder(list_item['id'])
-                folder_menu_items = []
-                for sub_list in folder_lists:
-                    sub_list_context_menu = []
-                    if sub_list.get('folder_name') != 'Search History': # Assuming folder_name indicates search history
-                        sub_list_context_menu = [
-                            (f"Rename '{sub_list['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={sub_list['id']})"),
-                            (f"Delete '{sub_list['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={sub_list['id']})")
-                        ]
-                    folder_menu_items.append({
-                        "title": f"{sub_list['name']} ({sub_list['item_count']} items)",
-                        "action": "view_list",
-                        "list_id": sub_list['id'],
-                        "description": f"Created: {sub_list['created']}",
-                        "is_folder": False, # Lists are not folders themselves
-                        "icon": "DefaultVideoPlaylists.png",
-                        "context_menu": sub_list_context_menu
-                    })
+                if folder_id:
+                    folder_context_menu = [
+                        (f"Rename Folder '{folder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_folder&folder_id={folder_id})"),
+                        (f"Delete Folder '{folder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_folder&folder_id={folder_id})")
+                    ]
 
-                # Add the folder to the menu
+            # Add the folder as a navigable item
+            folder_id = None
+            try:
+                folder_info = query_manager.connection_manager.execute_single("""
+                    SELECT id FROM folders WHERE name = ?
+                """, [folder_name])
+                if folder_info:
+                    folder_id = folder_info['id']
+            except Exception as e:
+                logger.error(f"Error getting folder ID for folder menu: {e}")
+
+            if folder_id:
                 menu_items.append({
-                    "title": f"[COLOR cyan]{list_item['name']}[/COLOR]", # Folder name in cyan
+                    "title": f"[COLOR cyan]📁 {folder_name}[/COLOR]",
                     "action": "show_folder",
-                    "folder_id": list_item['id'],
-                    "description": f"Created: {list_item['created']}",
+                    "folder_id": folder_id,
+                    "description": f"Folder with lists",
                     "is_folder": True,
                     "icon": "DefaultFolder.png",
-                    "context_menu": [ # Context menu for the folder itself
-                        (f"Rename Folder '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_folder&folder_id={list_item['id']})"),
-                        (f"Delete Folder '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_folder&folder_id={list_item['id']})")
-                    ]
+                    "context_menu": folder_context_menu
                 })
-                # Add lists within the folder as sub-items of the folder
-                menu_items.extend(folder_menu_items)
-            else:
-                # This is a standalone list
-                menu_items.append({
-                    "title": f"{list_item['name']} ({list_item['item_count']} items)",
-                    "action": "view_list",
-                    "list_id": list_item['id'],
-                    "description": f"Created: {list_item['created']}",
-                    "is_folder": False,
-                    "icon": "DefaultVideoPlaylists.png",
-                    "context_menu": context_menu
-                })
+
+        # Add standalone lists (not in any folder)
+        for list_item in standalone_lists:
+            context_menu = [
+                (f"Rename '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={list_item['id']})"),
+                (f"Delete '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_item['id']})")
+            ]
+
+            menu_items.append({
+                "title": f"{list_item['name']} ({list_item['item_count']} items)",
+                "action": "view_list",
+                "list_id": list_item['id'],
+                "description": f"Created: {list_item['created']}",
+                "is_folder": False,
+                "icon": "DefaultVideoPlaylists.png",
+                "context_menu": context_menu
+            })
 
 
         # Build and display the menu
