@@ -343,13 +343,29 @@ class ListItemBuilder:
                 li.setProperty(prop_name, prop_value)
 
             # Build videodb:// URL for native library integration
-            url = self._build_videodb_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
-            li.setPath(url)
-            self.logger.info(f"LIB ITEM: Generated videodb URL for '{title}': {url}")
-
-            # Mark as playable for library items (Kodi handles play/info based on user settings)
-            li.setProperty('IsPlayable', 'true')
-            self.logger.info(f"LIB ITEM: Set IsPlayable=true for '{title}' - native library behavior")
+            videodb_url = self._build_videodb_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
+            
+            # For v19, we need to use plugin URL with on_select action for proper handling
+            if is_kodi_v20_plus():
+                # v20+ can use videodb:// URLs directly
+                url = videodb_url
+                li.setPath(url)
+                li.setProperty('IsPlayable', 'true')
+                self.logger.info(f"LIB ITEM: v20+ - Generated videodb URL for '{title}': {url}")
+            else:
+                # v19 needs plugin URL with on_select action
+                url = f"plugin://{self.addon_id}?action=on_select&dbtype={media_type}&dbid={kodi_id}"
+                if item.get('tvshowid') is not None:
+                    url += f"&tvshowid={item.get('tvshowid')}"
+                if item.get('season') is not None:
+                    url += f"&season={item.get('season')}"
+                li.setPath(url)
+                li.setProperty('IsPlayable', 'false')  # Let plugin handle the action
+                self.logger.info(f"LIB ITEM: v19 - Generated plugin URL for '{title}': {url}")
+            
+            # Store videodb path for reference
+            li.setProperty('videodb_path', videodb_url)
+            self.logger.info(f"LIB ITEM: Set videodb_path property for '{title}': {videodb_url}")
 
             is_folder = False
 
