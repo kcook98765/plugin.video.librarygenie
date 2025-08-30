@@ -261,7 +261,6 @@ def handle_lists(addon_handle, base_url):
                 "folder_id": folder_id,
                 "description": f"Folder with {list_count} lists",
                 "is_folder": True,
-                "icon": "DefaultFolder.png",
                 "context_menu": folder_context_menu
             })
 
