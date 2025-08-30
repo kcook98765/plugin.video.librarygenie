@@ -365,9 +365,12 @@ class ListItemBuilder:
                     except Exception as e:
                         self.logger.warning(f"LIB ITEM: setMediaType() failed for '{title}': {e}")
 
-                    # setDbId() for library linking on v20+
-                    video_info_tag.setDbId(int(kodi_id), media_type)
-                    self.logger.debug(f"LIB ITEM: Set dbid={kodi_id} for '{title}' - library linking enabled (v20+)")
+                    # setDbId() for library linking on v20+ (only takes dbid, not media_type)
+                    try:
+                        video_info_tag.setDbId(int(kodi_id))
+                        self.logger.debug(f"LIB ITEM: Set dbid={kodi_id} for '{title}' - library linking enabled (v20+)")
+                    except Exception as e:
+                        self.logger.warning(f"LIB ITEM: setDbId() failed for '{title}': {e}")
 
                 except Exception as e:
                     self.logger.warning(f"LIB ITEM: InfoTagVideo setup failed for '{title}': {e}")
