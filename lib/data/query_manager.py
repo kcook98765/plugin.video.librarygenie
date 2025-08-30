@@ -982,7 +982,9 @@ def get_query_manager():
     """Get or create the global query manager instance"""
     global _query_manager_instance
     if _query_manager_instance is None:
-        _query_manager_instance = QueryManager()
+        from .storage_manager import get_storage_manager
+        db_manager = get_storage_manager()
+        _query_manager_instance = QueryManager(db_manager)
     return _query_manager_instance
 
 
