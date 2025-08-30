@@ -334,14 +334,14 @@ class ListItemBuilder:
             self.logger.debug(f"LIB ITEM: Display label set to: '{display}'")
             li = xbmcgui.ListItem(label=display)
 
-            # Set lightweight info (skip on v21+ since we use InfoTagVideo setters)
+            # Skip setInfo() entirely on v21+ for library items to avoid suppressing DB metadata
             kodi_major = get_kodi_major_version()
             if kodi_major < 21:
                 info = self._build_lightweight_info(item)
                 self.logger.debug(f"LIB ITEM: Video info dict for '{title}': {info}")
                 li.setInfo('video', info)
             else:
-                self.logger.debug(f"LIB ITEM v21+: Skipping setInfo() - using InfoTagVideo setters instead")
+                self.logger.debug(f"LIB ITEM v21+: Skipping setInfo() entirely to preserve DB metadata resolution in Info dialog")
 
             # Art (poster/fanart minimum)
             art = self._build_art_dict(item)
@@ -351,24 +351,16 @@ class ListItemBuilder:
             else:
                 self.logger.debug(f"LIB ITEM: No art available for '{title}'")
 
-            # Set library identity properties (v19 compatible)
-            properties = {
-                'dbtype': media_type,
-                'dbid': str(kodi_id),
-                'mediatype': media_type
-            }
-            self.logger.debug(f"LIB ITEM: Setting properties for '{title}': {properties}")
-            for prop_name, prop_value in properties.items():
-                li.setProperty(prop_name, prop_value)
+            # Library identity properties are now set after InfoTagVideo setup for better compatibility
 
             # Build videodb:// URL for native library integration
             url = self._build_videodb_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
             li.setPath(url)
             self.logger.info(f"LIB ITEM: Generated videodb URL for '{title}': {url}")
 
-            # Mark as playable for library items (Kodi handles play/info based on user settings)
-            li.setProperty('IsPlayable', 'true')
-            self.logger.info(f"LIB ITEM: Set IsPlayable=true for '{title}' - native library behavior")
+            # Do NOT set IsPlayable for videodb:// items - Kodi handles this natively
+            # Setting IsPlayable can interfere with native library handling and skins
+            self.logger.debug(f"LIB ITEM: Skipping IsPlayable for videodb:// item '{title}' - native library behavior")
 
             is_folder = False
 
@@ -384,22 +376,42 @@ class ListItemBuilder:
                     except Exception as e:
                         self.logger.warning(f"LIB ITEM: setMediaType() failed for '{title}': {e}")
 
-                    # setDbId() for library linking on v20+
-                    # The key fix: Kodi v21+ requires media_type as the second argument.
+                    # setDbId() for library linking - use feature detection instead of version detection
+                    dbid_success = False
                     try:
-                        if kodi_major >= 21:
-                            video_info_tag.setDbId(int(kodi_id), media_type)
-                            self.logger.debug(f"LIB ITEM: Set dbid={kodi_id}, media_type='{media_type}' for '{title}' - library linking enabled (v21+)")
-                        else:
+                        # Try v21+ signature first (2 args)
+                        video_info_tag.setDbId(int(kodi_id), media_type)
+                        self.logger.debug(f"LIB ITEM: Set dbid={kodi_id}, media_type='{media_type}' for '{title}' - library linking enabled (v21+ 2-arg)")
+                        dbid_success = True
+                    except TypeError:
+                        # Fallback to v19/v20 signature (1 arg)
+                        try:
                             video_info_tag.setDbId(int(kodi_id))
-                            self.logger.debug(f"LIB ITEM: Set dbid={kodi_id} for '{title}' - library linking enabled (v20)")
+                            self.logger.debug(f"LIB ITEM: Set dbid={kodi_id} for '{title}' - library linking enabled (v20 1-arg)")
+                            dbid_success = True
+                        except Exception as e:
+                            self.logger.warning(f"LIB ITEM: setDbId() 1-arg fallback failed for '{title}': {e}")
                     except Exception as e:
-                        self.logger.warning(f"LIB ITEM: setDbId() failed for '{title}': {e}")
+                        self.logger.warning(f"LIB ITEM: setDbId() 2-arg failed for '{title}': {e}")
+
+                    # Always set property fallbacks for safety (helps v19/v20 and failed setDbId cases)
+                    if not dbid_success:
+                        self.logger.debug(f"LIB ITEM: setDbId failed, relying on property fallbacks for '{title}'")
 
                 except Exception as e:
                     self.logger.warning(f"LIB ITEM: InfoTagVideo setup failed for '{title}': {e}")
             else:
                 self.logger.debug(f"LIB ITEM: Skipping InfoTagVideo setters for '{title}' on v19")
+
+            # Always set property fallbacks for maximum compatibility
+            # These help when setDbId fails or on older versions
+            try:
+                li.setProperty('dbtype', media_type)
+                li.setProperty('dbid', str(kodi_id))
+                li.setProperty('mediatype', media_type)
+                self.logger.debug(f"LIB ITEM: Set property fallbacks for '{title}': dbtype={media_type}, dbid={kodi_id}")
+            except Exception as e:
+                self.logger.warning(f"LIB ITEM: Property fallback setup failed for '{title}': {e}")
 
             # Resume (always for library movies/episodes)
             self._set_resume_info_versioned(li, item)
