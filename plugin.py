@@ -1106,15 +1106,35 @@ def main():
                 kodi_id = params.get('kodi_id', [''])[0]
                 media_type = params.get('media_type', [''])[0]
 
-                logger.info(f"Info action triggered for {media_type} {kodi_id} - this should trigger hijack")
+                logger.info(f"Info action triggered for {media_type} {kodi_id} - preparing for hijack")
 
-                # Simply show the info dialog - the hijack manager will detect it and take over
                 if kodi_id and media_type:
                     try:
                         kodi_id_int = int(kodi_id)
-                        # Open info dialog which will be detected by hijack manager
+                        
+                        # Create a temporary listitem with hijack properties
+                        temp_item = xbmcgui.ListItem(label="Temp")
+                        temp_item.setProperty("LG.InfoHijack.Armed", "1")
+                        temp_item.setProperty("LG.InfoHijack.DBID", str(kodi_id_int))
+                        temp_item.setProperty("LG.InfoHijack.DBType", media_type)
+                        
+                        # Use videodb URL for the actual info dialog
+                        if media_type == "movie":
+                            videodb_url = f"videodb://movies/titles/{kodi_id_int}"
+                        elif media_type == "episode":
+                            videodb_url = f"videodb://episodes/{kodi_id_int}"
+                        else:
+                            videodb_url = f"videodb://movies/titles/{kodi_id_int}"  # fallback
+                        
+                        logger.info(f"Opening native info for {media_type} {kodi_id_int} via {videodb_url}")
+                        
+                        # Navigate to the videodb URL and open info - this will trigger hijack
+                        xbmc.executebuiltin(f'ActivateWindow(Videos,"{videodb_url}",return)')
+                        # Small delay to ensure navigation completes
+                        xbmc.sleep(100)
                         xbmc.executebuiltin("Action(Info)")
-                        logger.info(f"Opened info dialog for {media_type} {kodi_id_int} - hijack should activate")
+                        
+                        logger.info(f"Native info dialog opened for {media_type} {kodi_id_int} - hijack should detect")
                     except ValueError:
                         logger.error(f"Invalid kodi_id for info action: {kodi_id}")
                 else:

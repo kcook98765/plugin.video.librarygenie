@@ -351,10 +351,10 @@ class ListItemBuilder:
             self.logger.debug(f"LIB ITEM: Display label set to: '{display}'")
             li = xbmcgui.ListItem(label=display)
 
-            # Build videodb:// URL for native library integration
-            url = self._build_videodb_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
-            li.setPath(url)
-            self.logger.info(f"LIB ITEM: Generated videodb URL for '{title}': {url}")
+            # Library item: use plugin URL to ensure hijack compatibility in v20+
+            # videodb:// URLs bypass plugin interaction in v20+, preventing hijack
+            url = f"{self.base_url}?action=info&kodi_id={kodi_id}&media_type={media_type}"
+            self.logger.info(f"LIB ITEM: Generated plugin URL for '{title}': {url}")
 
             # Do NOT set IsPlayable for videodb:// items - Kodi handles this natively
             # Setting IsPlayable can interfere with native library handling and skins
