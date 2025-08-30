@@ -10,9 +10,11 @@ import xbmcaddon
 try:
     from typing import Optional, List
 except ImportError:
-    # Python < 3.5 fallback
-    Optional = object
-    List = object
+    # Python < 3.5 fallback - define compatible type hints
+    def Optional(x):
+        return x
+    def List(x):
+        return x
 
 
 class ConfigManager:
