@@ -72,7 +72,17 @@ class SearchHandler:
                 list_id = self._create_search_history_list(query, search_type, results)
                 if list_id:
                     self.logger.info("Redirecting to saved search list")
-                    self._navigate_to_search_list(list_id)
+                    # Instead of trying to navigate, redirect the plugin to the list URL
+                    import sys
+                    from urllib.parse import parse_qsl
+                    
+                    # Modify sys.argv to redirect to the list
+                    list_url_params = f"action=show_list&list_id={list_id}"
+                    sys.argv[2] = f"?{list_url_params}"
+                    
+                    # Now call the list handler directly
+                    from plugin import handle_view_list
+                    handle_view_list(self.addon_handle, sys.argv[0])
                     return
                 else:
                     self.logger.warning("Failed to create search list, showing results normally")
@@ -365,9 +375,9 @@ class SearchHandler:
             import sys
             list_url = f"{sys.argv[0]}?action=show_list&list_id={list_id}"
             
-            # Use ActivateWindow with Videos,plugin:// syntax for proper navigation
+            # Use Container.Update for plugin-to-plugin navigation
             import xbmc
-            xbmc.executebuiltin(f'ActivateWindow(Videos,{list_url},return)')
+            xbmc.executebuiltin(f'Container.Update({list_url})')
             
             self.logger.info(f"Navigated to search list with ID: {list_id}")
             
