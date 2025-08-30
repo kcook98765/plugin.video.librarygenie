@@ -242,7 +242,7 @@ def build_nexus_item(handle: int, base_url: str, movieid: int):
     if kodi_major() < 20:
         _log(f"Nexus+ item requested on Kodi {kodi_major()} — requires v20+.", xbmc.LOGWARNING)
 
-    label = f"Nexus+ setDbId(movieid={movieid})"
+    label = f"Nexus+ setDbId(movieid={movieid}) - Click to test Info"
     li = xbmcgui.ListItem(label=label)
     try:
         vit = li.getVideoInfoTag()
@@ -252,21 +252,50 @@ def build_nexus_item(handle: int, base_url: str, movieid: int):
     except Exception as e:
         _log(f"setDbId/setMediaType failed: {e}", xbmc.LOGWARNING)
 
-    q = urlencode({"action": "nexus_info_click"})
+    # URL for clicking the item
+    q = urlencode({"action": "nexus_info_click", "movieid": movieid})
     url = f"{base_url}?{q}"
 
+    # Set basic info to make it look like a movie
+    li.setInfo('video', {
+        'title': f'Test Movie {movieid}',
+        'mediatype': 'movie'
+    })
+    
+    # Make it non-playable but clickable
     li.setProperty('IsPlayable', 'false')
-    li.setInfo('video', {})
-    li.addContextMenuItems([("Open Info (Nexus+)", f'RunPlugin({url})')])
+    
+    # Add context menu as backup
+    li.addContextMenuItems([("Open Info (Context Menu)", f'RunPlugin({url})')])
 
     xbmcplugin.addDirectoryItem(handle, url, li, isFolder=False)
     xbmcplugin.endOfDirectory(handle, cacheToDisc=False)
-    _log("Nexus+ list built; activate Info by clicking or via context menu.")
+    _log("Nexus+ list built; click item to activate Info.")
 
-def nexus_info_click():
-    focus_list(LIST_ID)
+def nexus_info_click(movieid: int = None):
+    _log(f"=== NEXUS+ INFO CLICK: movie {movieid} on Kodi v{kodi_major()} ===")
+    
+    # Focus the list first
+    if not focus_list(LIST_ID):
+        _log("Failed to focus list control", xbmc.LOGWARNING)
+        notify("Nexus+ test", "Failed to focus list")
+        return
+    
+    # Small delay to ensure focus
     xbmc.sleep(120)
+    
+    # Trigger Info action
+    _log("Triggering Action(Info) on focused item")
     xbmc.executebuiltin('Action(Info)')
+    
+    # Verify if info dialog opened
+    if wait_until(lambda: xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)'), timeout_ms=2000):
+        notify("Nexus+ test", f"Info dialog opened for movie {movieid}!")
+    else:
+        notify("Nexus+ test", "Info dialog did not open")
+        _log("Info dialog failed to open", xbmc.LOGWARNING)
+    
+    _log(f"=== NEXUS+ INFO CLICK END: movie {movieid} ===")
 
 # ------------------------------
 # Public API for your plugin router
@@ -310,7 +339,8 @@ def handle_click(params: dict, handle: int | None = None, base_url: str | None =
         build_nexus_item(handle, base_url, dbid)
 
     elif action == 'nexus_info_click':
-        nexus_info_click()
+        movieid = int(params.get('movieid', dbid))
+        nexus_info_click(movieid)
 
     else:
         _log(f"Unknown action: {action}", xbmc.LOGWARNING)
