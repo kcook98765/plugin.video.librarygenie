@@ -91,7 +91,7 @@ class LocalSearchEngine:
 
             # Split query into individual words
             words = [word.strip() for word in query_lower.split() if word.strip()]
-            
+
             if not words:
                 self.logger.info("No valid words in query, returning empty results")
                 return []
@@ -101,20 +101,20 @@ class LocalSearchEngine:
             where_conditions = []
             params = []
             title_conditions = []  # For prioritization
-            
+
             for word in words:
                 word_pattern = f"%{word.lower()}%"
                 # Each word must exist in either title OR plot (both fields converted to lowercase)
                 where_conditions.append("(LOWER(title) LIKE ? OR LOWER(COALESCE(plot, '')) LIKE ?)")
                 params.extend([word_pattern, word_pattern])
-                
+
                 # Track title matches for prioritization
                 title_conditions.append(f"LOWER(title) LIKE ?")
                 params.append(word_pattern)
 
             # All words must match somewhere across title/plot fields (AND condition)
             where_clause = " AND ".join(where_conditions)
-            
+
             # Build prioritization - count how many words match in title
             title_match_count = " + ".join([f"CASE WHEN {cond} THEN 1 ELSE 0 END" 
                                           for cond in title_conditions])
@@ -132,20 +132,20 @@ class LocalSearchEngine:
                     title
                 LIMIT ?
             """
-            
+
             params.append(limit)
-            
+
             # Debug logging - show the actual SQL and parameters
             self.logger.debug(f"Executing SQL query: {sql}")
             self.logger.debug(f"Query parameters: {params}")
-            
+
             # Also check what's actually in the database
             count_sql = "SELECT COUNT(*) as count FROM media_items WHERE media_type = 'movie'"
             total_movies = conn_manager.execute_single(count_sql, [])
             if total_movies:
                 total_count = total_movies.get('count', 0) if hasattr(total_movies, 'get') else total_movies[0]
                 self.logger.debug(f"Total movies in database: {total_count}")
-            
+
             movies = conn_manager.execute_query(sql, params)
 
             # Debug: Test individual word searches to understand what's in the database
@@ -171,7 +171,7 @@ class LocalSearchEngine:
                             result_dict = dict(result)
                         else:
                             result_dict = result
-                        
+
                         title = result_dict.get('title', 'Unknown')
                         plot_preview = result_dict.get('plot_preview', '')
                         title_match = result_dict.get('title_match', '')
@@ -204,9 +204,15 @@ class LocalSearchEngine:
             results = []
             for movie in movies:
                 result = self._format_sqlite_movie_result(movie)
-                results.append(result)
+                # Log first item's details, then batch log
+                if len(results) < 1:
+                    self.logger.info(f"LOCAL SEARCH DETAIL: Movie '{result.get('title', 'Unknown')}'")
+                elif len(results) == 1:
+                    self.logger.info(f"LOCAL SEARCH SUMMARY: Started batch logging for movies...")
 
-            self.logger.info(f"SQLite movie search completed: {len(results)} results")
+                results.append(result)
+                self._search_results_logged = len(results) # Track number of detailed results logged
+
             return results
 
         except Exception as e:
@@ -239,11 +245,17 @@ class LocalSearchEngine:
                 # Client-side fallback filter - match either episode title or show title
                 if query_lower in title or query_lower in show_title:
                     result = self._format_episode_result(episode)
+                    # Log first item's details, then batch log
+                    if len(results) < 1:
+                        self.logger.info(f"LOCAL SEARCH DETAIL: Episode '{result.get('label', 'Unknown')}'")
+                    elif len(results) == 1:
+                        self.logger.info(f"LOCAL SEARCH SUMMARY: Started batch logging for episodes...")
+
                     results.append(result)
+                    self._search_results_logged = len(results) # Track number of detailed results logged
 
                     if len(results) >= limit:
                         break
-
             return results
 
         except Exception as e:
