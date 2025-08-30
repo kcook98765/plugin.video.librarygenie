@@ -95,12 +95,13 @@ def _create_xsp_for_file(dbtype: str, dbid: int) -> Optional[str]:
     
     name = f"LG Native Info {dbtype} {dbid}"
     
-    # Simple XSP with exact filename match only
+    # Use 'contains' operator for more robust filename matching
+    # This handles cases where the database stores full paths vs just filenames
     xsp = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <smartplaylist type="video">
   <name>{html.escape(name)}</name>
   <match>all</match>
-  <rule field="filename" operator="is">
+  <rule field="filename" operator="contains">
     <value>{html.escape(filename)}</value>
   </rule>
   <order direction="ascending">title</order>
