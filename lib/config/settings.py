@@ -247,7 +247,7 @@ class ImportExportSettings:
             "validate_paths": self.get("storage_validate_paths", True)
         }
 
-    def reset_to_defaults(self, keys: List[str] = None):
+    def reset_to_defaults(self, keys: Optional[List[str]] = None):
         """Reset specified keys to default values"""
         if keys is None:
             keys = list(self.defaults.keys())
