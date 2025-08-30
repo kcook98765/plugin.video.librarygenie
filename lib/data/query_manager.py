@@ -13,7 +13,7 @@ from .connection_manager import get_connection_manager
 from .migrations import get_migration_manager
 from ..utils.logger import get_logger
 # from ..kodi.json_rpc_client import JsonRpcClient # Original import, now removed
-from ..kodi.json_rpc_client import get_json_rpc_client # Corrected import
+from ..kodi.json_rpc_client import get_kodi_client
 
 
 class QueryManager:
@@ -23,8 +23,7 @@ class QueryManager:
         self.logger = get_logger(__name__)
         self.db_manager = db_manager
         self.config_manager = config_manager
-        # self.json_rpc_client = JsonRpcClient(config_manager) # Original instantiation
-        self.json_rpc_client = get_json_rpc_client() # Corrected instantiation
+        self.json_rpc_client = get_kodi_client()
         self._enrichment_counters = {
             'movies_processed': 0,
             'movies_enriched': 0,

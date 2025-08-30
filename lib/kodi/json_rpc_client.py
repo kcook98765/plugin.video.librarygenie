@@ -238,3 +238,8 @@ def get_kodi_client():
     if _client_instance is None:
         _client_instance = KodiJsonRpcClient()
     return _client_instance
+
+
+def get_json_rpc_client():
+    """Alias for get_kodi_client for backward compatibility"""
+    return get_kodi_client()

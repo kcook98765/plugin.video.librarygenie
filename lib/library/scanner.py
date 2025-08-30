@@ -12,7 +12,7 @@ from typing import List, Dict, Set, Any, Optional
 
 from ..data import QueryManager
 from ..data.connection_manager import get_connection_manager
-from ..kodi.json_rpc_helper import get_json_rpc_client
+from ..kodi.json_rpc_client import get_kodi_client
 from ..utils.logger import get_logger
 
 
@@ -22,7 +22,7 @@ class LibraryScanner:
     def __init__(self):
         self.logger = get_logger(__name__)
         self.query_manager = QueryManager()
-        self.kodi_client = get_json_rpc_client()
+        self.kodi_client = get_kodi_client()
         self.conn_manager = get_connection_manager()
         self.batch_size = 200  # Batch size for database operations
 

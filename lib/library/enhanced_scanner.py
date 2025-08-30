@@ -15,6 +15,7 @@ import xbmc
 from ..data import QueryManager
 from ..data.connection_manager import get_connection_manager
 from ..kodi.json_rpc_helper import get_json_rpc_helper
+from ..kodi.json_rpc_client import get_kodi_client
 from ..utils.logger import get_logger
 from ..config import get_config
 
@@ -26,6 +27,7 @@ class Phase3LibraryScanner:
         self.logger = get_logger(__name__)
         self.query_manager = QueryManager()
         self.json_rpc = get_json_rpc_helper()
+        self.kodi_client = get_kodi_client()
         self.conn_manager = get_connection_manager()
         self.config = get_config()
 
