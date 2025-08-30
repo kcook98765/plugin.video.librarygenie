@@ -386,6 +386,11 @@ class ListItemBuilder:
                     except Exception as e:
                         self.logger.warning(f"LIB ITEM: setDbId() 2-arg failed for '{title}': {e}")
 
+                    # ✨ Add these three properties on library items only:
+                    li.setProperty("LG.InfoHijack.Armed", "1")
+                    li.setProperty("LG.InfoHijack.DBID", str(kodi_id))
+                    li.setProperty("LG.InfoHijack.DBType", media_type)
+
                     # Report dbid success/failure for diagnostics
                     if dbid_success:
                         self.logger.info(f"LIB ITEM: DB linking successful for '{title}' - Info dialog will show full cast")
@@ -421,15 +426,6 @@ class ListItemBuilder:
                 self.logger.debug(f"LIB ITEM: Set property fallbacks for '{title}': dbtype={media_type}, dbid={kodi_id}")
             except Exception as e:
                 self.logger.warning(f"LIB ITEM: Property fallback setup failed for '{title}': {e}")
-
-            # ✨ Add info hijack properties for library items only
-            try:
-                li.setProperty("LG.InfoHijack.Armed", "1")
-                li.setProperty("LG.InfoHijack.DBID", str(kodi_id))
-                li.setProperty("LG.InfoHijack.DBType", media_type)
-                self.logger.debug(f"LIB ITEM: Set info hijack properties for '{title}': Armed=1, DBID={kodi_id}, DBType={media_type}")
-            except Exception as e:
-                self.logger.warning(f"LIB ITEM: Info hijack property setup failed for '{title}': {e}")
 
             # Resume (always for library movies/episodes)
             self._set_resume_info_versioned(li, item)
