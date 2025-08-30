@@ -480,11 +480,14 @@ class ListItemBuilder:
         - deep streamdetails
         - detailed metadata that would slow down list scrolling
         This keeps list views snappy per Kodi's own approach.
+        
+        On v19, we also strip ALL library-identifying fields to prevent interception.
         """
         info: Dict[str, Any] = {}
         title = item.get('title', 'Unknown')
+        is_v19 = not is_kodi_v20_plus()
 
-        self.logger.debug(f"INFO BUILD: Building lightweight info for '{title}'")
+        self.logger.debug(f"INFO BUILD: Building lightweight info for '{title}' (v19_mode: {is_v19})")
 
         # Common
         if item.get('title'):
@@ -566,13 +569,28 @@ class ListItemBuilder:
                 info['lastplayed'] = item['lastplayed']
                 self.logger.debug(f"INFO BUILD: Set lastplayed='{info['lastplayed']}'")
 
-        # Only set mediatype on v20+ - on v19, this causes interception even without other library properties
-        if is_kodi_v20_plus():
+        # CRITICAL v19 WORKAROUND: Use completely sanitized info dict
+        if is_v19:
+            # On v19, create a minimal, non-library info dict to prevent ALL forms of interception
+            sanitized_info = {
+                'title': info.get('title', title),
+                'plot': info.get('plot', ''),
+                'year': info.get('year'),
+                'genre': info.get('genre', ''),
+                'rating': info.get('rating'),
+                'duration': info.get('duration')  # seconds for v19
+            }
+            
+            # Remove any None values
+            sanitized_info = {k: v for k, v in sanitized_info.items() if v is not None}
+            
+            self.logger.info(f"V19 SANITIZED: Using minimal info dict for '{title}': {list(sanitized_info.keys())}")
+            return sanitized_info
+        else:
+            # v20+ can use full info with mediatype
             info['mediatype'] = item.get('media_type', 'movie')
             self.logger.debug(f"INFO BUILD: Set mediatype='{info['mediatype']}' (v20+)")
-        else:
-            self.logger.debug(f"INFO BUILD: Skipping mediatype for '{title}' on v19 to prevent interception")
-
+            
         self.logger.debug(f"INFO BUILD: Completed info dict for '{title}' with {len(info)} fields: {list(info.keys())}")
         return info
 
