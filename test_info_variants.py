@@ -272,8 +272,13 @@ def build_nexus_item(handle: int, base_url: str, movieid: int):
             'mediatype': 'movie'
         })
     
-    # Make it non-playable but clickable
-    li.setProperty('IsPlayable', 'false')
+    # CRITICAL: Set the path so Kodi recognizes this as a clickable item
+    li.setPath(url)
+    _log(f"Set ListItem path: {url}")
+    
+    # Make it clickable but not playable (this should trigger our plugin URL)
+    li.setProperty('IsPlayable', 'true')  # Changed to 'true' so it can be activated
+    _log("Set IsPlayable=true for click handling")
     
     # Add context menu as backup
     li.addContextMenuItems([("Open Info (Context Menu)", f'RunPlugin({url})')])
@@ -284,26 +289,53 @@ def build_nexus_item(handle: int, base_url: str, movieid: int):
 
 def nexus_info_click(movieid: int = None):
     _log(f"=== NEXUS+ INFO CLICK: movie {movieid} on Kodi v{kodi_major()} ===")
+    _log("Plugin URL was clicked - this handler was called successfully!")
     
-    # Focus the list first
-    if not focus_list(LIST_ID):
-        _log("Failed to focus list control", xbmc.LOGWARNING)
-        notify("Nexus+ test", "Failed to focus list")
-        return
+    # For Nexus+, we have multiple approaches to try:
     
-    # Small delay to ensure focus
-    xbmc.sleep(120)
+    # Approach 1: Direct videodb path (most reliable for library items)
+    try:
+        videodb_path = f"videodb://movies/titles/{movieid}"
+        _log(f"Approach 1: Opening info for videodb path: {videodb_path}")
+        xbmc.executebuiltin(f'ActivateWindow(DialogVideoInfo,"{videodb_path}",return)')
+        
+        # Check if dialog opened
+        if wait_until(lambda: xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)'), timeout_ms=2000):
+            notify("Nexus+ test", f"Info opened via videodb path!")
+            _log("SUCCESS: Info dialog opened via videodb path")
+            return
+        else:
+            _log("Approach 1 failed - dialog did not open", xbmc.LOGWARNING)
+    except Exception as e:
+        _log(f"Approach 1 failed with exception: {e}", xbmc.LOGWARNING)
     
-    # Trigger Info action
-    _log("Triggering Action(Info) on focused item")
-    xbmc.executebuiltin('Action(Info)')
+    # Approach 2: Focus list and use Action(Info) 
+    try:
+        _log("Approach 2: Focus list control and trigger Action(Info)")
+        if focus_list(LIST_ID):
+            _log("List focused successfully")
+            # Give more time for focus to settle
+            xbmc.sleep(200)
+            
+            # Trigger Info action
+            _log("Triggering Action(Info) on focused item")
+            xbmc.executebuiltin('Action(Info)')
+            
+            # Check if dialog opened
+            if wait_until(lambda: xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)'), timeout_ms=2000):
+                notify("Nexus+ test", f"Info opened via Action(Info)!")
+                _log("SUCCESS: Info dialog opened via Action(Info)")
+                return
+            else:
+                _log("Approach 2 failed - dialog did not open", xbmc.LOGWARNING)
+        else:
+            _log("Approach 2 failed - could not focus list", xbmc.LOGWARNING)
+    except Exception as e:
+        _log(f"Approach 2 failed with exception: {e}", xbmc.LOGWARNING)
     
-    # Verify if info dialog opened
-    if wait_until(lambda: xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)'), timeout_ms=2000):
-        notify("Nexus+ test", f"Info dialog opened for movie {movieid}!")
-    else:
-        notify("Nexus+ test", "Info dialog did not open")
-        _log("Info dialog failed to open", xbmc.LOGWARNING)
+    # If we get here, both approaches failed
+    notify("Nexus+ test", "All approaches failed to open info dialog")
+    _log("FAILURE: All approaches to open info dialog failed", xbmc.LOGWARNING)
     
     _log(f"=== NEXUS+ INFO CLICK END: movie {movieid} ===")
 
