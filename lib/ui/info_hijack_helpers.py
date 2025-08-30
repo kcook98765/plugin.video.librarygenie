@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 import os, json, time, html
@@ -20,7 +19,7 @@ def _get_list_control_id() -> int:
     try:
         build_version = xbmc.getInfoLabel("System.BuildVersion")
         major = int(build_version.split('.')[0].split('-')[0])
-        
+
         if major >= 20:
             # Kodi v20/v21 Estuary uses control ID 55 as default main list
             return 55
@@ -61,7 +60,7 @@ def focus_list(control_id: int = None, tries: int = 20, step_ms: int = 30) -> bo
     """Focus the main list control, trying version-specific control IDs"""
     if control_id is None:
         control_id = _get_list_control_id()
-    
+
     # Try the specified control ID first
     for _ in range(tries // 2):
         xbmc.executebuiltin(f"SetFocus({control_id})")
@@ -69,13 +68,13 @@ def focus_list(control_id: int = None, tries: int = 20, step_ms: int = 30) -> bo
             _log(f"Successfully focused control {control_id}", xbmc.LOGINFO)
             return True
         xbmc.sleep(step_ms)
-    
+
     # If that failed, try alternative control IDs
     # 55: v20/v21 Estuary default, 500: grid/panel views, 50/52: v19 compatibility
     alternative_ids = [55, 500, 50, 52]  # Proper control IDs based on version/skin
     if control_id in alternative_ids:
         alternative_ids.remove(control_id)
-    
+
     for alt_id in alternative_ids:
         _log(f"Trying alternative control ID {alt_id}", xbmc.LOGINFO)
         for _ in range(5):  # Fewer tries per alternative
@@ -84,7 +83,7 @@ def focus_list(control_id: int = None, tries: int = 20, step_ms: int = 30) -> bo
                 _log(f"Successfully focused alternative control {alt_id}", xbmc.LOGINFO)
                 return True
             xbmc.sleep(step_ms)
-    
+
     _log(f"Failed to focus any control (tried {control_id}, {alternative_ids})", xbmc.LOGWARNING)
     return False
 
@@ -127,14 +126,14 @@ def _create_xsp_for_file(dbtype: str, dbid: int) -> Optional[str]:
     if not fp:
         _log(f"No file path found for {dbtype} {dbid}", xbmc.LOGWARNING)
         return None
-        
+
     filename = os.path.basename(fp)
     # Remove file extension for XSP matching
     filename_no_ext = os.path.splitext(filename)[0]
     _log(f"Creating XSP for {dbtype} {dbid}: filename='{filename}', no_ext='{filename_no_ext}', full_path='{fp}'", xbmc.LOGINFO)
-    
+
     name = f"LG Native Info {dbtype} {dbid}"
-    
+
     # Use 'contains' operator for more robust filename matching
     # This handles cases where the database stores full paths vs just filenames
     xsp = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -146,12 +145,12 @@ def _create_xsp_for_file(dbtype: str, dbid: int) -> Optional[str]:
   </rule>
   <order direction="ascending">title</order>
 </smartplaylist>"""
-    
+
     # Use profile playlists path with generic filename (persistent for debugging)
     playlists_dir = "special://profile/playlists/video/"
     xsp_filename = "lg_hijack_debug.xsp"
     path = playlists_dir + xsp_filename
-    
+
     # Ensure playlists directory exists
     try:
         if not xbmcvfs.exists(playlists_dir):
@@ -161,10 +160,10 @@ def _create_xsp_for_file(dbtype: str, dbid: int) -> Optional[str]:
         _log(f"Failed to create playlists directory: {e}", xbmc.LOGWARNING)
         # Fallback to temp
         path = f"special://temp/{xsp_filename}"
-    
+
     # Log the raw XSP content for debugging
     _log(f"XSP RAW CONTENT for {dbtype} {dbid}:\n{xsp}", xbmc.LOGINFO)
-    
+
     if _write_text(path, xsp):
         _log(f"XSP created successfully: {path} (filename='{filename}')", xbmc.LOGINFO)
         return path
@@ -182,11 +181,11 @@ def _find_index_in_dir_by_file(directory: str, target_file: Optional[str]) -> in
     })
     items = (data.get("result") or {}).get("files") or []
     _log(f"XSP directory items count: {len(items)}", xbmc.LOGINFO)
-    
+
     if not items:
         _log("No items found in XSP directory", xbmc.LOGWARNING)
         return 0
-    
+
     # Simple logic: if first item is ".." parent, use index 1 (the movie)
     # Otherwise use index 0
     if len(items) >= 2 and items[0].get("file", "").endswith(".."):
@@ -205,15 +204,15 @@ def _wait_videos_on(path: str, timeout_ms=6000) -> bool:
         and not xbmc.getCondVisibility("Window.IsActive(DialogBusy.xml)")
     , timeout_ms=timeout_ms, step_ms=100)
 
-def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
+def open_native_info(dbtype: str, dbid: int, logger, orig_path: str, should_restore_path: bool = True) -> bool:
     """
     Close current dialog (already open on plugin item), navigate to a native
     library context (XSP by file for items with a file; videodb node for tvshow),
-    focus row, open Info, then immediately restore underlying container to orig_path.
+    focus row, open Info, then optionally restore underlying container to orig_path.
     """
     logger.info(f"HIJACK HELPER: 🎬 Starting native info process for {dbtype} {dbid}")
     logger.debug(f"HIJACK HELPER: Original path: {orig_path}")
-    
+
     # 1) Close the plugin's Info dialog
     logger.debug("HIJACK HELPER: Step 1 - Closing plugin Info dialog")
     xbmc.executebuiltin("Action(Back)")
@@ -236,7 +235,7 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
         if not xsp:
             logger.warning(f"HIJACK HELPER: XSP creation failed for {dbtype} {dbid}")
             return False
-        
+
         path_to_open = xsp
         target_file = _get_file_for_dbitem(dbtype, dbid)
         logger.info(f"HIJACK HELPER: Using XSP path: {path_to_open}")
@@ -256,15 +255,15 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
     if not focus_list():  # Let focus_list determine the correct control ID
         logger.warning("HIJACK HELPER: Could not focus list control")
         return False
-    
+
     if path_to_open.endswith(".xsp"):
         # For XSP: assume movie is the only match, just navigate down once from parent
         logger.debug("HIJACK HELPER: XSP opened, navigating to movie item")
-        
+
         # Simple approach: navigate down once to get from ".." to the movie
         xbmc.executebuiltin("Action(Down)")
         xbmc.sleep(150)  # Allow navigation to complete
-        
+
         # Log what we landed on
         current_label = xbmc.getInfoLabel('ListItem.Label')
         logger.debug(f"HIJACK HELPER: After Down navigation - Label='{current_label}'")
@@ -278,12 +277,24 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
         return False
     logger.info("HIJACK HELPER: ✅ Native Info dialog opened")
 
-    # 5) Replace underlying container back to the original path (so Back works)
-    if orig_path:
-        logger.debug(f"HIJACK HELPER: Step 5 - Restoring original container: {orig_path}")
-        xbmc.executebuiltin(f'Container.Update("{orig_path}",replace)')
+    # 6) Conditionally restore original container (async - after brief delay)
+    if should_restore_path:
+        logger.debug(f"HIJACK HELPER: Step 6 - Restoring container to: {orig_path}")
+
+        def restore_container():
+            time.sleep(0.5)  # Brief delay to ensure Info dialog is stable
+            if orig_path and orig_path.strip():
+                xbmc.executebuiltin(f'Container.Update("{orig_path}")')
+                logger.debug(f"HIJACK HELPER: Container restored to: {orig_path}")
+            else:
+                logger.debug("HIJACK HELPER: No original path to restore")
+
+        import threading
+        restore_thread = threading.Thread(target=restore_container)
+        restore_thread.daemon = True
+        restore_thread.start()
     else:
-        logger.debug("HIJACK HELPER: No original path to restore")
+        logger.debug(f"HIJACK HELPER: Step 6 - Skipping container restoration for list context")
 
     logger.info(f"HIJACK HELPER: 🎉 Successfully completed hijack for {dbtype} {dbid}")
     return True
