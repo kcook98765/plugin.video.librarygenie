@@ -141,12 +141,12 @@ class ConfigManager:
         select_settings = [
             "select_action"
         ]
-        
+
         # String settings
         string_settings = [
             "default_list_id", "remote_base_url", "device_name"
         ]
-        
+
         if key in select_settings:
             return "int"  # Select controls store integer indexes
         elif key in string_settings:
@@ -240,10 +240,10 @@ class ConfigManager:
                         # If not a number, check string value directly
                         if raw_value.strip().lower() in ["info", "1"]:
                             return "info"
-            
+
             # Safe default if setting not found or invalid
             return "play"
-            
+
         except Exception:
             # Ultimate fallback
             return "play"
