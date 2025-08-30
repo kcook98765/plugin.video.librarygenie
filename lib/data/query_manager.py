@@ -459,7 +459,7 @@ class QueryManager:
                     INSERT OR IGNORE INTO folders (name, parent_id)
                     VALUES (?, NULL)
                 """, ["Search History"])
-                
+
                 # If no rows were inserted (folder already existed), get the existing ID
                 if cursor.rowcount == 0:
                     existing = conn.execute("""
@@ -546,6 +546,29 @@ class QueryManager:
         except Exception as e:
             self.logger.error(f"Failed to add search results to list: {e}")
             return 0
+
+    def remove_item_from_list(self, list_id, item_id):
+        """Remove an item from a list"""
+        try:
+            with self.connection_manager.transaction() as conn:
+                cursor = conn.execute("""
+                    DELETE FROM list_items 
+                    WHERE list_id = ? AND media_item_id = ?
+                """, [list_id, item_id])
+
+                removed_count = cursor.rowcount
+
+                if removed_count > 0:
+                    self.logger.info(f"Removed {removed_count} item(s) from list {list_id}")
+                    return {"success": True, "removed_count": removed_count}
+                else:
+                    self.logger.warning(f"No items found to remove from list {list_id} with item_id {item_id}")
+                    return {"error": "item_not_found"}
+
+        except Exception as e:
+            self.logger.error(f"Failed to remove item from list: {e}")
+            return {"error": str(e)}
+
 
     def _extract_media_item_data(self, item):
         """Extract standardized media item data from various sources, normalized to canonical format"""

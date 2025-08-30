@@ -429,23 +429,69 @@ def handle_view_list(addon_handle, base_url):
         content_type = query_manager.detect_content_type(list_items)
         logger.info(f"Detected content type '{content_type}' for list '{list_info['name']}'")
 
-        # Use ListItemBuilder to create proper videodb URLs for library items
-        from lib.ui.listitem_builder import ListItemBuilder
-        builder = ListItemBuilder(addon_handle, "plugin.video.librarygenie")
+        # Use MenuBuilder instead of ListItemBuilder for list contents to avoid InfoHijack
+        from lib.ui.menu_builder import MenuBuilder
+        menu_builder = MenuBuilder()
 
         # Set category for better navigation
         xbmcplugin.setPluginCategory(addon_handle, f"List: {list_info['name']}")
+        
+        # Set content type for proper skin support
+        xbmcplugin.setContent(addon_handle, content_type)
 
-        # Define context menu callback for list items
-        def add_list_context_menu(listitem, item):
+        # Convert list items to menu items format
+        menu_items = []
+        for item in list_items:
+            # Build display title
+            title = item.get('title', 'Unknown')
+            year = item.get('year')
+            display_title = f"{title} ({year})" if year else title
+            
+            # Create context menu for list item
             context_menu = [
                 (f"Remove from '{list_info['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={list_id}&item_id={item.get('id')})")
             ]
-            listitem.addContextMenuItems(context_menu)
+            
+            # For library items, use on_select action to handle play/info preference
+            kodi_id = item.get('kodi_id') or item.get('movieid') or item.get('episodeid')
+            if kodi_id:
+                # Library item - use on_select action
+                menu_item = {
+                    "title": display_title,
+                    "action": "on_select",
+                    "dbtype": item.get('media_type', 'movie'),
+                    "dbid": kodi_id,
+                    "description": f"Rating: {item.get('rating', 'N/A')} | {item.get('plot', '')[:100]}...",
+                    "is_folder": False,
+                    "icon": "DefaultMovies.png",
+                    "context_menu": context_menu,
+                    "movie_data": item  # For enhanced rendering
+                }
+                
+                # Add episode-specific data for videodb URL construction
+                if item.get('media_type') == 'episode':
+                    if item.get('tvshowid'):
+                        menu_item["tvshowid"] = item['tvshowid']
+                    if item.get('season'):
+                        menu_item["season"] = item['season']
+            else:
+                # External item - use plugin URL
+                menu_item = {
+                    "title": display_title,
+                    "action": "play_external",
+                    "item_id": item.get('id', ''),
+                    "description": f"Rating: {item.get('rating', 'N/A')} | {item.get('plot', '')[:100]}...",
+                    "is_folder": False,
+                    "icon": "DefaultMovies.png",
+                    "context_menu": context_menu,
+                    "movie_data": item  # For enhanced rendering
+                }
+            
+            menu_items.append(menu_item)
 
-        # Build directory with detected content type and context menu callback
-        # This ensures proper content type is set via build_directory()
-        success = builder.build_directory(list_items, content_type, add_list_context_menu)
+        # Build menu using MenuBuilder
+        menu_builder.build_menu(menu_items, addon_handle, base_url)
+        success = True
 
         if success:
             logger.info(f"Successfully built list directory with content_type='{content_type}'")
@@ -807,6 +853,51 @@ def handle_delete_folder():
         logger.error(f"Delete folder error traceback: {traceback.format_exc()}")
 
 
+def handle_remove_from_list():
+    """Handle removing an item from a list"""
+    try:
+        list_id = args.get('list_id')
+        item_id = args.get('item_id')
+        
+        if not list_id or not item_id:
+            logger.error("Missing list_id or item_id for remove_from_list")
+            return
+
+        logger.info(f"Removing item {item_id} from list {list_id}")
+
+        # Initialize query manager
+        query_manager = get_query_manager()
+        if not query_manager.initialize():
+            logger.error("Failed to initialize query manager")
+            return
+
+        # Remove the item from the list
+        result = query_manager.remove_item_from_list(list_id, item_id)
+
+        if result.get("error"):
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().ok(
+                addon.getLocalizedString(35002),
+                "Failed to remove item from list"
+            )
+        else:
+            logger.info(f"Successfully removed item from list")
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),
+                "Item removed from list",
+                xbmcgui.NOTIFICATION_INFO,
+                2000
+            )
+            # Refresh the current view
+            xbmc.executebuiltin('Container.Refresh')
+
+    except Exception as e:
+        logger.error(f"Error removing item from list: {e}")
+        import traceback
+        logger.error(f"Remove from list error traceback: {traceback.format_exc()}")
+
+
 def handle_show_folder(addon_handle, base_url):
     """Handle showing the contents of a folder"""
     try:
@@ -997,6 +1088,7 @@ action_handlers = {
     'view_list': handle_view_list,
     'rename_list': handle_rename_list,
     'delete_list': handle_delete_list,
+    'remove_from_list': handle_remove_from_list,
     'create_folder': handle_create_folder,
     'rename_folder': handle_rename_folder,
     'delete_folder': handle_delete_folder,
