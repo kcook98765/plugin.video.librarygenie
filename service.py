@@ -31,6 +31,19 @@ class BackgroundService:
         self.track_library_changes = self.config.get_bool("track_library_changes", False)  # Default off
         self.token_refresh_enabled = self.config.get_bool("background_token_refresh", True)
 
+        # ✨ Gate: user setting to enable the hijack behavior
+        self.info_hijack_enabled = self.config.get_bool("info_hijack_enabled", True)
+        self._info_hijack = None
+        if self.info_hijack_enabled:
+            try:
+                from lib.ui.info_hijack_manager import InfoHijackManager
+                self._info_hijack = InfoHijackManager(logger=self.logger)
+                self.logger.debug("InfoHijackManager initialized (enabled)")
+            except Exception as e:
+                self.logger.warning(f"Failed to init InfoHijackManager: {e}")
+        else:
+            self.logger.debug("Info hijack disabled by setting")
+
         # Error handling and backoff
         self.consecutive_failures = 0
         self.max_consecutive_failures = 5
@@ -88,9 +101,22 @@ class BackgroundService:
                 if self.consecutive_failures >= self.max_consecutive_failures:
                     self.logger.warning(f"Too many consecutive failures ({self.consecutive_failures}), applying backoff")
 
-            # Wait for next cycle or abort using proper Monitor method
-            if self.monitor.waitForAbort(current_interval):
-                break
+            # Wait for next cycle, but poll quickly so Info hijack feels instant
+            waited = 0.0
+            step = 0.15  # 150 ms
+            while waited < current_interval and not self.monitor.abortRequested():
+                # ✨ run the hijack tick only when enabled/available
+                if self._info_hijack is not None:
+                    try:
+                        self._info_hijack.tick()
+                    except Exception as e:
+                        self.logger.debug(f"InfoHijack tick error: {e}")
+
+                # use waitForAbort to be responsive to shutdowns
+                remaining = max(0.0, current_interval - waited)
+                if self.monitor.waitForAbort(min(step, remaining)):
+                    return
+                waited += step
 
         self.logger.info("Background service stopped")
 
