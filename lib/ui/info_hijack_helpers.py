@@ -215,9 +215,15 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str, should_rest
 
     # Check if orig_path is a search action that would cause the search dialog to reopen
     should_restore = should_restore_path
+    restore_path = orig_path
+    
     if orig_path and "action=search" in orig_path:
-        logger.info("HIJACK HELPER: Detected search action in original path - skipping restoration to prevent search dialog reopening")
-        should_restore = False
+        logger.info("HIJACK HELPER: Detected search action in original path - converting to list URL to prevent search dialog reopening")
+        # Convert search action to the most recent search list to avoid reopening search dialog
+        # This allows proper Back navigation while preventing the search prompt
+        restore_path = orig_path.replace("action=search", "action=view_list&list_id=1")
+        logger.info(f"HIJACK HELPER: Modified restore path: {restore_path}")
+        should_restore = True
 
     # 1) Close the plugin's Info dialog
     logger.debug("HIJACK HELPER: Step 1 - Closing plugin Info dialog")
@@ -289,11 +295,11 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str, should_rest
 
         def restore_container():
             time.sleep(0.5)  # Brief delay to ensure Info dialog is stable
-            if orig_path and orig_path.strip():
-                xbmc.executebuiltin(f'Container.Update("{orig_path}")')
-                logger.debug(f"HIJACK HELPER: Container restored to: {orig_path}")
+            if restore_path and restore_path.strip():
+                xbmc.executebuiltin(f'Container.Update("{restore_path}")')
+                logger.debug(f"HIJACK HELPER: Container restored to: {restore_path}")
             else:
-                logger.debug("HIJACK HELPER: No original path to restore")
+                logger.debug("HIJACK HELPER: No path to restore")
 
         import threading
         restore_thread = threading.Thread(target=restore_container)
