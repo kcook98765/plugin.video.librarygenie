@@ -12,7 +12,7 @@ from typing import List, Dict, Any, Optional, Union
 from .connection_manager import get_connection_manager
 from .migrations import get_migration_manager
 from ..utils.logger import get_logger
-from ..kodi.json_rpc_client import JsonRpcClient
+from ..kodi.json_rpc_helper import JsonRpcHelper as JsonRpcClient
 
 
 class QueryManager:
