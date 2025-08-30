@@ -1103,7 +1103,7 @@ action_handlers = {
     'rename_folder': handle_rename_folder,
     'delete_folder': handle_delete_folder,
     'show_folder': handle_show_folder, # Added handler for showing folder contents
-    'show_list': lambda handle, base_url, params: handle_view_list(handle, base_url), # Alias for show_list to handle_view_list
+    'show_list': handle_view_list, # Route show_list to handle_view_list
     'remote_lists': show_remote_lists_menu,
     'authorize': handle_authorize,
     'signout': handle_signout,
