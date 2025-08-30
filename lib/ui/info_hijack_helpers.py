@@ -213,6 +213,12 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str, should_rest
     logger.info(f"HIJACK HELPER: 🎬 Starting native info process for {dbtype} {dbid}")
     logger.debug(f"HIJACK HELPER: Original path: {orig_path}")
 
+    # Check if orig_path is a search action that would cause the search dialog to reopen
+    should_restore = should_restore_path
+    if orig_path and "action=search" in orig_path:
+        logger.info("HIJACK HELPER: Detected search action in original path - skipping restoration to prevent search dialog reopening")
+        should_restore = False
+
     # 1) Close the plugin's Info dialog
     logger.debug("HIJACK HELPER: Step 1 - Closing plugin Info dialog")
     xbmc.executebuiltin("Action(Back)")
@@ -278,7 +284,7 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str, should_rest
     logger.info("HIJACK HELPER: ✅ Native Info dialog opened")
 
     # 6) Conditionally restore original container (async - after brief delay)
-    if should_restore_path:
+    if should_restore:
         logger.debug(f"HIJACK HELPER: Step 6 - Restoring container to: {orig_path}")
 
         def restore_container():
@@ -294,7 +300,7 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str, should_rest
         restore_thread.daemon = True
         restore_thread.start()
     else:
-        logger.debug(f"HIJACK HELPER: Step 6 - Skipping container restoration for list context")
+        logger.debug(f"HIJACK HELPER: Step 6 - Skipping container restoration to prevent search dialog reopening")
 
     logger.info(f"HIJACK HELPER: 🎉 Successfully completed hijack for {dbtype} {dbid}")
     return True
