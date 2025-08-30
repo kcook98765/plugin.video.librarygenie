@@ -279,7 +279,7 @@ def handle_lists(addon_handle, base_url):
                 "action": "show_list",
                 "list_id": list_id,
                 "description": description,
-                "is_folder": False,
+                "is_folder": True,
                 "icon": "DefaultPlaylist.png",
                 "context_menu": [
                     (f"Rename List '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={list_id})"),
@@ -989,7 +989,7 @@ def handle_show_folder(addon_handle, base_url):
                 "action": "show_list",
                 "list_id": list_id,
                 "description": description,
-                "is_folder": False,
+                "is_folder": True,
                 "icon": "DefaultPlaylist.png",
                 "context_menu": context_menu
             })
