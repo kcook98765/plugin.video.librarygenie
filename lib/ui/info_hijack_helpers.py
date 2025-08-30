@@ -95,35 +95,40 @@ def _create_xsp_for_file(dbtype: str, dbid: int) -> Optional[str]:
     
     name = f"LG Native Info {dbtype} {dbid}"
     
-    # Try multiple matching strategies to handle various filename edge cases
-    # Strategy 1: Exact filename match
+    # Simple XSP with exact filename match only
     xsp = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <smartplaylist type="video">
   <name>{html.escape(name)}</name>
-  <match>any</match>
+  <match>all</match>
   <rule field="filename" operator="is">
-    <value>{html.escape(filename)}</value>
-  </rule>
-  <rule field="path" operator="contains">
     <value>{html.escape(filename)}</value>
   </rule>
   <order direction="ascending">title</order>
 </smartplaylist>"""
     
-    path = f"special://temp/lg_hijack_{dbtype}_{dbid}.xsp"
+    # Use profile playlists path with generic filename (persistent for debugging)
+    playlists_dir = "special://profile/playlists/video/"
+    xsp_filename = "lg_hijack_debug.xsp"
+    path = playlists_dir + xsp_filename
+    
+    # Ensure playlists directory exists
+    try:
+        if not xbmcvfs.exists(playlists_dir):
+            _log(f"Creating playlists directory: {playlists_dir}", xbmc.LOGINFO)
+            xbmcvfs.mkdirs(playlists_dir)
+    except Exception as e:
+        _log(f"Failed to create playlists directory: {e}", xbmc.LOGWARNING)
+        # Fallback to temp
+        path = f"special://temp/{xsp_filename}"
+    
     if _write_text(path, xsp):
-        _log(f"XSP created successfully: {path}", xbmc.LOGINFO)
+        _log(f"XSP created successfully: {path} (filename='{filename}')", xbmc.LOGINFO)
         return path
     else:
         _log(f"Failed to write XSP file: {path}", xbmc.LOGWARNING)
         return None
 
-def _cleanup_xsp(path_special: Optional[str]):
-    try:
-        if path_special and xbmcvfs.exists(path_special):
-            xbmcvfs.delete(path_special)
-    except Exception as e:
-        _log(f"Cleanup failed: {e}", xbmc.LOGDEBUG)
+# XSP cleanup removed - using persistent generic filename for debugging
 
 def _find_index_in_dir_by_file(directory: str, target_file: Optional[str]) -> int:
     data = jsonrpc("Files.GetDirectory", {
@@ -175,48 +180,23 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
         target_file = None
         logger.info(f"HIJACK HELPER: Using videodb path for tvshow: {path_to_open}")
     else:
-        # Try XSP first, but fallback to videodb if it fails
+        # Use XSP for items with files (no fallbacks)
         xsp = _create_xsp_for_file(dbtype, dbid)
-        if xsp:
-            path_to_open = xsp
-            target_file = _get_file_for_dbitem(dbtype, dbid)
-            logger.info(f"HIJACK HELPER: Using XSP path: {path_to_open}")
-        else:
-            # Fallback to videodb node - this should always work
-            logger.info(f"HIJACK HELPER: XSP failed, falling back to videodb for {dbtype} {dbid}")
-            if dbtype == "movie":
-                path_to_open = f"videodb://movies/titles/{int(dbid)}"
-            elif dbtype == "episode":
-                # For episodes, try to get the show info for a better path
-                ep_data = jsonrpc("VideoLibrary.GetEpisodeDetails", {"episodeid": int(dbid), "properties": ["tvshowid", "season"]})
-                ep_details = (ep_data.get("result") or {}).get("episodedetails") or {}
-                tvshowid = ep_details.get("tvshowid")
-                season = ep_details.get("season")
-                if tvshowid and season is not None:
-                    path_to_open = f"videodb://tvshows/titles/{tvshowid}/{season}/"
-                else:
-                    path_to_open = f"videodb://episodes/"
-            elif dbtype == "musicvideo":
-                path_to_open = f"videodb://musicvideos/titles/{int(dbid)}"
-            else:
-                logger.warning(f"HIJACK HELPER: Unsupported dbtype: {dbtype}")
-                return False
-            target_file = None
-            logger.info(f"HIJACK HELPER: Using videodb fallback path: {path_to_open}")
+        if not xsp:
+            logger.warning(f"HIJACK HELPER: XSP creation failed for {dbtype} {dbid}")
+            return False
+        
+        path_to_open = xsp
+        target_file = _get_file_for_dbitem(dbtype, dbid)
+        logger.info(f"HIJACK HELPER: Using XSP path: {path_to_open}")
 
     # 2) Show the directory in Videos
     logger.info(f"HIJACK HELPER: Step 2 - Opening Videos window with path: {path_to_open}")
-    if path_to_open.endswith(".xsp"):
-        xbmc.executebuiltin(f'ActivateWindow(Videos,"{path_to_open}",return)')
-        logger.debug("HIJACK HELPER: Used XSP path")
-    else:
-        xbmc.executebuiltin(f'ActivateWindow(Videos,"{path_to_open}",return)')
-        logger.debug("HIJACK HELPER: Used videodb path")
+    xbmc.executebuiltin(f'ActivateWindow(Videos,"{path_to_open}",return)')
+    logger.debug(f"HIJACK HELPER: Opened Videos window with {'XSP' if path_to_open.endswith('.xsp') else 'videodb'} path")
 
     if not _wait_videos_on(path_to_open, timeout_ms=8000):
         logger.warning("HIJACK HELPER: ⏰ Timed out opening native container")
-        if path_to_open.endswith(".xsp"):
-            _cleanup_xsp(path_to_open)
         return False
     logger.debug("HIJACK HELPER: Videos window opened successfully")
 
@@ -234,8 +214,6 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
     ok = wait_until(lambda: xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)"), timeout_ms=1500, step_ms=50)
     if not ok:
         logger.warning("HIJACK HELPER: ❌ Native Info did not open")
-        if path_to_open.endswith(".xsp"):
-            _cleanup_xsp(path_to_open)
         return False
     logger.info("HIJACK HELPER: ✅ Native Info dialog opened")
 
@@ -246,10 +224,5 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
     else:
         logger.debug("HIJACK HELPER: No original path to restore")
 
-    # 6) Cleanup
-    if path_to_open.endswith(".xsp"):
-        logger.debug("HIJACK HELPER: Step 6 - Cleaning up XSP file")
-        _cleanup_xsp(path_to_open)
-    
     logger.info(f"HIJACK HELPER: 🎉 Successfully completed hijack for {dbtype} {dbid}")
     return True
