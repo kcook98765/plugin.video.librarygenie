@@ -452,16 +452,28 @@ class QueryManager:
             if folder:
                 return folder['id']
 
-            # Create Search History folder
+            # Create Search History folder with INSERT OR IGNORE to handle duplicates
             self.logger.info("Creating Search History folder")
             with self.connection_manager.transaction() as conn:
                 cursor = conn.execute("""
-                    INSERT INTO folders (name, parent_id)
+                    INSERT OR IGNORE INTO folders (name, parent_id)
                     VALUES (?, NULL)
                 """, ["Search History"])
-                folder_id = cursor.lastrowid
-                self.logger.info(f"Created Search History folder with ID: {folder_id}")
-                return folder_id
+                
+                # If no rows were inserted (folder already existed), get the existing ID
+                if cursor.rowcount == 0:
+                    existing = conn.execute("""
+                        SELECT id FROM folders WHERE name = ? AND parent_id IS NULL
+                    """, ["Search History"]).fetchone()
+                    if existing:
+                        return existing['id']
+                    else:
+                        self.logger.error("Failed to find or create Search History folder")
+                        return None
+                else:
+                    folder_id = cursor.lastrowid
+                    self.logger.info(f"Created Search History folder with ID: {folder_id}")
+                    return folder_id
 
         except Exception as e:
             self.logger.error(f"Failed to create Search History folder: {e}")
