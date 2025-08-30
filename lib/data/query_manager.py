@@ -12,39 +12,16 @@ from typing import List, Dict, Any, Optional, Union
 from .connection_manager import get_connection_manager
 from .migrations import get_migration_manager
 from ..utils.logger import get_logger
-# from ..kodi.json_rpc_client import JsonRpcClient # Original import, now removed
-from ..kodi.json_rpc_client import get_kodi_client
 
 
 class QueryManager:
     """Manages data queries and database operations using SQLite"""
 
-    def __init__(self, db_manager, config_manager=None):
+    def __init__(self):
         self.logger = get_logger(__name__)
-        self.db_manager = db_manager
-        self.config_manager = config_manager
-        self.json_rpc_client = get_kodi_client()
-        self._enrichment_counters = {
-            'movies_processed': 0,
-            'movies_enriched': 0,
-            'episodes_processed': 0,
-            'episodes_enriched': 0
-        }
-
-    def _log_enrichment_summary(self):
-        """Log summary of enrichment operations and reset counters"""
-        if any(self._enrichment_counters.values()):
-            self.logger.info(f"ENRICHMENT BATCH SUMMARY: Movies processed: {self._enrichment_counters['movies_processed']}, "
-                           f"enriched: {self._enrichment_counters['movies_enriched']}, "
-                           f"Episodes processed: {self._enrichment_counters['episodes_processed']}, "
-                           f"enriched: {self._enrichment_counters['episodes_enriched']}")
-            # Reset counters for next batch
-            self._enrichment_counters = {
-                'movies_processed': 0,
-                'movies_enriched': 0,
-                'episodes_processed': 0,
-                'episodes_enriched': 0
-            }
+        self.connection_manager = get_connection_manager()
+        self.migration_manager = get_migration_manager()
+        self._initialized = False
 
     def _normalize_to_canonical(self, item: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize any media item to canonical format"""
@@ -150,13 +127,13 @@ class QueryManager:
             self.logger.debug("Getting user lists from database")
 
             lists = self.connection_manager.execute_query("""
-                SELECT
+                SELECT 
                     id,
                     name,
                     created_at,
                     updated_at,
                     (SELECT COUNT(*) FROM list_item WHERE list_id = user_list.id) as item_count
-                FROM user_list
+                FROM user_list 
                 ORDER BY created_at ASC
             """)
 
@@ -187,7 +164,7 @@ class QueryManager:
 
             # Get list items with media data
             cursor.execute("""
-                SELECT
+                SELECT 
                     li.media_item_id as item_id,
                     li.position as order_score,
                     mi.kodi_id,
@@ -335,7 +312,7 @@ class QueryManager:
 
             with self.connection_manager.transaction() as conn:
                 conn.execute("""
-                    DELETE FROM list_item
+                    DELETE FROM list_item 
                     WHERE id = ? AND list_id = ?
                 """, [int(item_id), int(list_id)])
 
@@ -367,7 +344,7 @@ class QueryManager:
 
                 # Update the list name
                 conn.execute("""
-                    UPDATE user_list
+                    UPDATE user_list 
                     SET name = ?, updated_at = datetime('now')
                     WHERE id = ?
                 """, [new_name, int(list_id)])
@@ -410,10 +387,10 @@ class QueryManager:
         """Get a specific list by ID"""
         try:
             result = self.connection_manager.execute_single("""
-                SELECT
+                SELECT 
                     id, name, created_at, updated_at,
                     (SELECT COUNT(*) FROM list_item WHERE list_id = user_list.id) as item_count
-                FROM user_list
+                FROM user_list 
                 WHERE id = ?
             """, [int(list_id)])
 
@@ -585,7 +562,7 @@ class QueryManager:
             # Try to find by title and year
             if media_data.get('title') and media_data.get('year'):
                 existing = conn.execute("""
-                    SELECT id FROM media_items
+                    SELECT id FROM media_items 
                     WHERE title = ? AND year = ? AND media_type = ?
                 """, [media_data['title'], media_data['year'], media_data['media_type']]).fetchone()
 
@@ -594,9 +571,9 @@ class QueryManager:
 
             # Insert new media item
             cursor = conn.execute("""
-                INSERT INTO media_items
-                (media_type, title, year, imdbnumber, tmdb_id, kodi_id, source,
-                 play, poster, fanart, plot, rating, votes, duration, mpaa,
+                INSERT INTO media_items 
+                (media_type, title, year, imdbnumber, tmdb_id, kodi_id, source, 
+                 play, poster, fanart, plot, rating, votes, duration, mpaa, 
                  genre, director, studio, country, writer, cast, art)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, [
@@ -623,7 +600,7 @@ class QueryManager:
 
             # Get all lists including those in folders
             lists = self.connection_manager.execute_query("""
-                SELECT
+                SELECT 
                     l.id,
                     l.name,
                     l.folder_id,
@@ -636,7 +613,7 @@ class QueryManager:
 
                 UNION ALL
 
-                SELECT
+                SELECT 
                     ul.id,
                     ul.name,
                     NULL as folder_id,
@@ -675,92 +652,145 @@ class QueryManager:
     def _get_kodi_episode_enrichment_data(self, kodi_ids: List[int]) -> Dict[int, Dict[str, Any]]:
         """Fetch lightweight episode metadata from Kodi JSON-RPC"""
         try:
+            import json
             import xbmc
 
             if not kodi_ids:
                 return {}
 
-            # Handle batch logging: log details only for the first batch or single items
-            if len(kodi_ids) == 1 or self._enrichment_counters['episodes_processed'] == 0:
-                self.logger.info(f"Fetching JSON-RPC data for {len(kodi_ids)} episodes: {kodi_ids}")
+            self.logger.info(f"Fetching episode JSON-RPC data for {len(kodi_ids)} episodes: {kodi_ids}")
 
-            enriched = self.json_rpc_client.get_episodes_batch(kodi_ids)
-            if not enriched:
-                self.logger.warning("No JSON-RPC data returned for episodes")
-                return {}
+            enrichment_data = {}
 
-            # Process each episode
-            result = {}
-            success_count = 0
-            for episode_data in enriched:
-                episode_id = episode_data.get('episodeid')
-                if not episode_id:
+            # Define which properties to fetch for each media type
+            # Keep property sets "light" but include resume for movies/episodes
+            properties = {
+                'movies': [
+                    'title', 'year', 'genre', 'plot', 'runtime', 'rating', 'votes', 
+                    'mpaa', 'studio', 'country', 'premiered', 'art', 'playcount', 
+                    'lastplayed', 'originaltitle', 'sorttitle', 'resume'
+                ],
+                'episodes': [
+                    'title', 'season', 'episode', 'showtitle', 'plot', 'runtime',
+                    'rating', 'votes', 'aired', 'art', 'playcount', 'lastplayed',
+                    'tvshowid', 'resume'
+                ],
+                'tvshows': [
+                    'title', 'year', 'genre', 'plot', 'rating', 'votes', 'mpaa',
+                    'studio', 'premiered', 'art', 'playcount', 'lastplayed'
+                ]
+            }
+
+            for kodi_id in kodi_ids:
+                try:
+                    request = {
+                        "jsonrpc": "2.0",
+                        "method": "VideoLibrary.GetEpisodeDetails",
+                        "params": {
+                            "episodeid": int(kodi_id),
+                            "properties": properties.get('episodes', [])
+                        },
+                        "id": 1
+                    }
+
+                    response_str = xbmc.executeJSONRPC(json.dumps(request))
+                    response = json.loads(response_str)
+
+                    if "error" in response:
+                        self.logger.warning(f"JSON-RPC error for episode {kodi_id}: {response['error']}")
+                        continue
+
+                    episode_details = response.get("result", {}).get("episodedetails")
+                    if episode_details:
+                        normalized = self._normalize_kodi_episode_details(episode_details)
+                        if normalized:
+                            enrichment_data[kodi_id] = normalized
+
+                except Exception as e:
+                    self.logger.error(f"Failed to fetch details for episode {kodi_id}: {e}")
                     continue
 
-                title = episode_data.get('title', 'Unknown')
-                result[episode_id] = episode_data
-                success_count += 1
-                self._enrichment_counters['episodes_enriched'] += 1
-
-                # Only log first enrichment in detail
-                if self._enrichment_counters['episodes_enriched'] == 1:
-                    self.logger.info(f"Successfully enriched episode {episode_id}: {title}")
-
-            self._enrichment_counters['episodes_processed'] += len(kodi_ids)
-
-            # Log summary for batches or single items after first
-            if len(kodi_ids) > 1 or self._enrichment_counters['episodes_processed'] > 1:
-                self.logger.info(f"Successfully enriched {success_count} out of {len(kodi_ids)} episodes")
-
-            return result
+            return enrichment_data
 
         except Exception as e:
             self.logger.error(f"Error fetching episode enrichment data: {e}")
-            import traceback
-            self.logger.error(f"Enrichment error traceback: {traceback.format_exc()}")
             return {}
 
     def _get_kodi_enrichment_data(self, kodi_ids: List[int]) -> Dict[int, Dict[str, Any]]:
         """Fetch rich metadata from Kodi JSON-RPC for the given kodi_ids"""
         try:
+            import json
             import xbmc
 
             if not kodi_ids:
                 return {}
 
-            # Handle batch logging: log details only for the first batch or single items
-            if len(kodi_ids) == 1 or self._enrichment_counters['movies_processed'] == 0:
-                self.logger.info(f"Fetching JSON-RPC data for {len(kodi_ids)} movies: {kodi_ids}")
+            self.logger.info(f"Fetching JSON-RPC data for {len(kodi_ids)} movies: {kodi_ids}")
 
-            enriched = self.json_rpc_client.get_movies_batch(kodi_ids)
-            if not enriched:
-                self.logger.warning("No JSON-RPC data returned for movies")
-                return {}
+            enrichment_data = {}
 
-            # Process each movie
-            result = {}
-            success_count = 0
-            for movie_data in enriched:
-                movie_id = movie_data.get('movieid')
-                if not movie_id:
+            # Define which properties to fetch for each media type
+            # Keep property sets "light" but include resume for movies/episodes
+            properties = {
+                'movies': [
+                    'title', 'year', 'genre', 'plot', 'runtime', 'rating', 'votes', 
+                    'mpaa', 'studio', 'country', 'premiered', 'art', 'playcount', 
+                    'lastplayed', 'originaltitle', 'sorttitle', 'resume'
+                ],
+                'episodes': [
+                    'title', 'season', 'episode', 'showtitle', 'plot', 'runtime',
+                    'rating', 'votes', 'aired', 'art', 'playcount', 'lastplayed',
+                    'tvshowid', 'resume'
+                ],
+                'tvshows': [
+                    'title', 'year', 'genre', 'plot', 'rating', 'votes', 'mpaa',
+                    'studio', 'premiered', 'art', 'playcount', 'lastplayed'
+                ]
+            }
+
+            # Fetch data for each movie
+            for kodi_id in kodi_ids:
+                try:
+                    request = {
+                        "jsonrpc": "2.0",
+                        "method": "VideoLibrary.GetMovieDetails",
+                        "params": {
+                            "movieid": int(kodi_id),
+                            "properties": properties.get('movies', [])
+                        },
+                        "id": 1
+                    }
+
+                    self.logger.debug(f"JSON-RPC request for movie {kodi_id}: {json.dumps(request)}")
+                    response_str = xbmc.executeJSONRPC(json.dumps(request))
+                    self.logger.debug(f"JSON-RPC response for movie {kodi_id}: {response_str[:200]}...")
+                    response = json.loads(response_str)
+
+                    if "error" in response:
+                        self.logger.warning(f"JSON-RPC error for movie {kodi_id}: {response['error']}")
+                        continue
+
+                    movie_details = response.get("result", {}).get("moviedetails")
+                    if movie_details:
+                        self.logger.debug(f"Got movie details for {kodi_id}: {movie_details.get('title', 'Unknown')}")
+                        # Normalize the movie data similar to how json_rpc_client does it
+                        normalized = self._normalize_kodi_movie_details(movie_details)
+                        if normalized:
+                            enrichment_data[kodi_id] = normalized
+                            self.logger.info(f"Successfully enriched movie {kodi_id}: {normalized.get('title')}")
+                        else:
+                            self.logger.warning(f"Failed to normalize movie details for {kodi_id}")
+                    else:
+                        self.logger.warning(f"No moviedetails found in response for {kodi_id}")
+
+                except Exception as e:
+                    self.logger.error(f"Failed to fetch details for movie {kodi_id}: {e}")
+                    import traceback
+                    self.logger.error(f"Enrichment error traceback: {traceback.format_exc()}")
                     continue
 
-                title = movie_data.get('title', 'Unknown')
-                result[movie_id] = movie_data
-                success_count += 1
-                self._enrichment_counters['movies_enriched'] += 1
-
-                # Only log first enrichment in detail
-                if self._enrichment_counters['movies_enriched'] == 1:
-                    self.logger.info(f"Successfully enriched movie {movie_id}: {title}")
-
-            self._enrichment_counters['movies_processed'] += len(kodi_ids)
-
-            # Log summary for batches or single items after first
-            if len(kodi_ids) > 1 or self._enrichment_counters['movies_processed'] > 1:
-                self.logger.info(f"Successfully enriched {success_count} out of {len(kodi_ids)} movies")
-
-            return result
+            self.logger.info(f"Successfully enriched {len(enrichment_data)} out of {len(kodi_ids)} movies")
+            return enrichment_data
 
         except Exception as e:
             self.logger.error(f"Error fetching Kodi enrichment data: {e}")
@@ -788,9 +818,6 @@ class QueryManager:
         if episode_ids:
             episode_data = self._get_kodi_episode_enrichment_data(episode_ids)
             enriched_data.update(episode_data)
-
-        # Log summary at the end of processing all items if any enrichment happened
-        self._log_enrichment_summary()
 
         enriched_items = []
         for item in items:
@@ -852,9 +879,9 @@ class QueryManager:
                         break
 
                     # Match by title and year
-                    elif (item_title and library_title and
-                          item_title == library_title and
-                          item_year and library_year and
+                    elif (item_title and library_title and 
+                          item_title == library_title and 
+                          item_year and library_year and 
                           int(item_year) == int(library_year)):
                         matched_kodi_id = library_movie.get('kodi_id')
                         self.logger.debug(f"Title/Year match: {item_title} ({item_year}) -> kodi_id {matched_kodi_id}")
