@@ -137,47 +137,26 @@ def _create_xsp_for_file(dbtype: str, dbid: int) -> Optional[str]:
 # XSP cleanup removed - using persistent generic filename for debugging
 
 def _find_index_in_dir_by_file(directory: str, target_file: Optional[str]) -> int:
-    """Find the index of target file in directory listing"""
+    """Simplified: assume movie is only match, just skip parent if present"""
     data = jsonrpc("Files.GetDirectory", {
         "directory": directory, "media": "video",
         "properties": ["file", "title", "thumbnail"]
     })
     items = (data.get("result") or {}).get("files") or []
-    _log(f"Directory items count: {len(items)}", xbmc.LOGINFO)
+    _log(f"XSP directory items count: {len(items)}", xbmc.LOGINFO)
     
     if not items:
-        _log("No items found in directory", xbmc.LOGWARNING)
+        _log("No items found in XSP directory", xbmc.LOGWARNING)
         return 0
-        
-    # Log all items for debugging
-    for idx, it in enumerate(items):
-        file_path = it.get("file", "")
-        title = it.get("title", "")
-        _log(f"Item {idx}: file='{file_path}', title='{title}'", xbmc.LOGINFO)
     
-    if target_file:
-        # Try exact file match first
-        for idx, it in enumerate(items):
-            if it.get("file") == target_file:
-                _log(f"Found exact file match at index {idx}", xbmc.LOGINFO)
-                return idx
-        
-        # Try basename match if exact fails
-        import os
-        target_basename = os.path.basename(target_file)
-        for idx, it in enumerate(items):
-            item_file = it.get("file", "")
-            if item_file and os.path.basename(item_file) == target_basename:
-                _log(f"Found basename match at index {idx}", xbmc.LOGINFO)
-                return idx
-    
-    # Default logic: skip ".." parent if present
+    # Simple logic: if first item is ".." parent, use index 1 (the movie)
+    # Otherwise use index 0
     if len(items) >= 2 and items[0].get("file", "").endswith(".."):
-        _log("Using index 1 (skipping parent item)", xbmc.LOGINFO)
+        _log("XSP has parent item, using index 1 for movie", xbmc.LOGINFO)
         return 1
-    
-    _log("Using index 0 (fallback)", xbmc.LOGINFO)
-    return 0
+    else:
+        _log("XSP has no parent item, using index 0 for movie", xbmc.LOGINFO)
+        return 0
 
 def _wait_videos_on(path: str, timeout_ms=6000) -> bool:
     t_norm = (path or "").rstrip('/')
@@ -241,26 +220,16 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
         return False
     
     if path_to_open.endswith(".xsp"):
-        # For XSP, we need to find the movie item (not the ".." parent)
-        focus_index = _find_index_in_dir_by_file(path_to_open, target_file)
-        logger.debug(f"HIJACK HELPER: Calculated focus_index={focus_index} for target_file='{target_file}'")
+        # For XSP: assume movie is the only match, just navigate down once from parent
+        logger.debug("HIJACK HELPER: XSP opened, navigating to movie item")
         
-        # Focus the calculated index
-        xbmc.executebuiltin(f"SetFocus({LIST_ID},{focus_index})")
-        xbmc.sleep(200)  # Give more time for focus to settle
+        # Simple approach: navigate down once to get from ".." to the movie
+        xbmc.executebuiltin("Action(Down)")
+        xbmc.sleep(150)  # Allow navigation to complete
         
-        # Verify we're focused on the right item
+        # Log what we landed on
         current_label = xbmc.getInfoLabel('ListItem.Label')
-        current_file = xbmc.getInfoLabel('ListItem.FileNameAndPath')
-        logger.debug(f"HIJACK HELPER: After focus - Label='{current_label}', File='{current_file}'")
-        
-        # If we're still on ".." or wrong item, try to navigate to the movie
-        if current_label == ".." or not current_file or "Witchboard" not in current_label:
-            logger.debug("HIJACK HELPER: Still on parent or wrong item, trying to navigate down")
-            xbmc.executebuiltin("Action(Down)")
-            xbmc.sleep(100)
-            current_label = xbmc.getInfoLabel('ListItem.Label')
-            logger.debug(f"HIJACK HELPER: After Down action - Label='{current_label}'")
+        logger.debug(f"HIJACK HELPER: After Down navigation - Label='{current_label}'")
 
     # 4) Open native Info
     logger.debug("HIJACK HELPER: Step 4 - Opening native Info dialog")
