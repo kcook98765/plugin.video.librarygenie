@@ -334,25 +334,6 @@ class ListItemBuilder:
             self.logger.debug(f"LIB ITEM: Display label set to: '{display}'")
             li = xbmcgui.ListItem(label=display)
 
-            # Skip setInfo() entirely on v21+ for library items to avoid suppressing DB metadata
-            kodi_major = get_kodi_major_version()
-            if kodi_major < 21:
-                info = self._build_lightweight_info(item)
-                self.logger.debug(f"LIB ITEM: Video info dict for '{title}': {info}")
-                li.setInfo('video', info)
-            else:
-                self.logger.debug(f"LIB ITEM v21+: Skipping setInfo() entirely to preserve DB metadata resolution in Info dialog")
-
-            # Art (poster/fanart minimum)
-            art = self._build_art_dict(item)
-            if art:
-                self.logger.debug(f"LIB ITEM: Art dict for '{title}': {art}")
-                li.setArt(art)
-            else:
-                self.logger.debug(f"LIB ITEM: No art available for '{title}'")
-
-            # Library identity properties are now set after InfoTagVideo setup for better compatibility
-
             # Build videodb:// URL for native library integration
             url = self._build_videodb_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
             li.setPath(url)
@@ -364,8 +345,10 @@ class ListItemBuilder:
 
             is_folder = False
 
-            # Set InfoTagVideo properties only for v20+ (skip entirely on v19)
-            if is_kodi_v20_plus():
+            # Handle metadata setting based on Kodi version
+            kodi_major = get_kodi_major_version()
+            if kodi_major >= 20:
+                # v20+: Use InfoTagVideo setters and avoid setInfo() for library items
                 try:
                     video_info_tag = li.getVideoInfoTag()
 
@@ -394,14 +377,31 @@ class ListItemBuilder:
                     except Exception as e:
                         self.logger.warning(f"LIB ITEM: setDbId() 2-arg failed for '{title}': {e}")
 
-                    # Always set property fallbacks for safety (helps v19/v20 and failed setDbId cases)
-                    if not dbid_success:
-                        self.logger.debug(f"LIB ITEM: setDbId failed, relying on property fallbacks for '{title}'")
+                    # Report dbid success/failure for diagnostics
+                    if dbid_success:
+                        self.logger.info(f"LIB ITEM: DB linking successful for '{title}' - Info dialog will show full cast")
+                    else:
+                        self.logger.warning(f"LIB ITEM: DB linking failed for '{title}' - falling back to property method")
+
+                    # Set metadata via InfoTagVideo setters (v20+) - but keep it lightweight
+                    self._set_infotag_metadata(video_info_tag, item, title)
 
                 except Exception as e:
                     self.logger.warning(f"LIB ITEM: InfoTagVideo setup failed for '{title}': {e}")
             else:
-                self.logger.debug(f"LIB ITEM: Skipping InfoTagVideo setters for '{title}' on v19")
+                # v19: Use classic setInfo() approach
+                info = self._build_lightweight_info(item)
+                self.logger.debug(f"LIB ITEM: Video info dict for '{title}': {info}")
+                li.setInfo('video', info)
+                self.logger.debug(f"LIB ITEM v19: Using setInfo() for '{title}'")
+
+            # Art (poster/fanart minimum)
+            art = self._build_art_dict(item)
+            if art:
+                self.logger.debug(f"LIB ITEM: Art dict for '{title}': {art}")
+                li.setArt(art)
+            else:
+                self.logger.debug(f"LIB ITEM: No art available for '{title}'")
 
             # Always set property fallbacks for maximum compatibility
             # These help when setDbId fails or on older versions
@@ -753,3 +753,58 @@ class ListItemBuilder:
             f"RunPlugin(plugin://{self.addon_id}/?action=add_to_list&item_id={item.get('id','')})"
         ))
         list_item.addContextMenuItems(cm)
+
+    def _set_infotag_metadata(self, video_info_tag, item: Dict[str, Any], title: str):
+        """
+        Set metadata via InfoTagVideo setters for v20+ library items.
+        This keeps metadata lightweight while avoiding setInfo() that can suppress DB resolution.
+        """
+        try:
+            # Core identification - but keep minimal to let DB metadata take precedence
+            if item.get('title'):
+                video_info_tag.setTitle(item['title'])
+                self.logger.debug(f"LIB ITEM v20+: Set title='{item['title']}' via InfoTagVideo")
+
+            if item.get('year'):
+                video_info_tag.setYear(int(item['year']))
+                self.logger.debug(f"LIB ITEM v20+: Set year={item['year']} via InfoTagVideo")
+
+            if item.get('plot'):
+                video_info_tag.setPlot(item['plot'])
+                self.logger.debug(f"LIB ITEM v20+: Set plot via InfoTagVideo")
+
+            # Genre handling
+            if item.get('genre'):
+                # Convert string to list for setGenres()
+                if isinstance(item['genre'], str):
+                    genres = [g.strip() for g in item['genre'].split(',') if g.strip()]
+                else:
+                    genres = item['genre'] if isinstance(item['genre'], list) else []
+                
+                if genres:
+                    video_info_tag.setGenres(genres)
+                    self.logger.debug(f"LIB ITEM v20+: Set genres={genres} via InfoTagVideo")
+
+            # Rating
+            if item.get('rating'):
+                video_info_tag.setRating(float(item['rating']))
+                self.logger.debug(f"LIB ITEM v20+: Set rating={item['rating']} via InfoTagVideo")
+
+            # Episode-specific fields
+            if item.get('media_type') == 'episode':
+                if item.get('season') is not None:
+                    video_info_tag.setSeason(int(item['season']))
+                    self.logger.debug(f"LIB ITEM v20+: Set season={item['season']} via InfoTagVideo")
+                
+                if item.get('episode') is not None:
+                    video_info_tag.setEpisode(int(item['episode']))
+                    self.logger.debug(f"LIB ITEM v20+: Set episode={item['episode']} via InfoTagVideo")
+                
+                if item.get('tvshowtitle'):
+                    video_info_tag.setTvShowTitle(item['tvshowtitle'])
+                    self.logger.debug(f"LIB ITEM v20+: Set tvshowtitle='{item['tvshowtitle']}' via InfoTagVideo")
+
+            self.logger.debug(f"LIB ITEM v20+: Completed InfoTagVideo metadata setup for '{title}'")
+
+        except Exception as e:
+            self.logger.warning(f"LIB ITEM v20+: InfoTagVideo metadata setup failed for '{title}': {e}")
