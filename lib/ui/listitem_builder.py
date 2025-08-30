@@ -52,13 +52,29 @@ def get_kodi_major_version() -> int:
 
 
 class ListItemBuilder:
-    """Builds ListItems with proper separation between Kodi library and external items"""
+    """Builds ListItems for different media types with optimized metadata handling"""
 
-    # -------- lifecycle --------
-    def __init__(self, addon_handle: int, addon_id: str):
-        self.addon_handle = addon_handle
-        self.addon_id = addon_id
+    def __init__(self, config_manager=None):
         self.logger = get_logger(__name__)
+        self.config_manager = config_manager
+        self._batch_counters = {
+            'lib_items_processed': 0,
+            'videodb_urls_generated': 0,
+            'db_linking_successful': 0
+        }
+
+    def _log_batch_summary(self):
+        """Log summary of batch processing operations"""
+        if any(self._batch_counters.values()):
+            self.logger.info(f"LIB ITEM BATCH SUMMARY: Processed {self._batch_counters['lib_items_processed']} items, "
+                           f"generated {self._batch_counters['videodb_urls_generated']} videodb URLs, "
+                           f"{self._batch_counters['db_linking_successful']} successful DB links")
+            # Reset counters for next batch
+            self._batch_counters = {
+                'lib_items_processed': 0,
+                'videodb_urls_generated': 0,
+                'db_linking_successful': 0
+            }
 
     # -------- public API --------
     def build_directory(self, items: List[Dict[str, Any]], content_type: str = "movies") -> bool:
@@ -98,7 +114,7 @@ class ListItemBuilder:
                     self.logger.debug(f"DIRECTORY BUILD: Raw item #{idx} data: {raw}")
 
                     item = self._normalize_item(raw)  # canonical shape
-                    self.logger.debug(f"DIRECTORY BUILD: Normalized item #{idx}: {item}")
+                    self.logger.debug(f"DIRECTORY DIRECTORY BUILD: Normalized item #{idx}: {item}")
 
                     built = self._build_single_item(item)
                     if built:
@@ -125,6 +141,10 @@ class ListItemBuilder:
             self.logger.debug(f"DIRECTORY BUILD: Calling endOfDirectory(handle={self.addon_handle}, succeeded=True)")
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True)
             self.logger.info(f"DIRECTORY BUILD: Successfully completed directory with {ok} items")
+
+            # Log the summary after processing all items in the directory
+            self._log_batch_summary()
+
             return True
         except Exception as e:
             self.logger.error(f"DIRECTORY BUILD: fatal error: {e}")
@@ -138,12 +158,12 @@ class ListItemBuilder:
         Decide whether to build a library-backed or external item.
         Returns (url, listitem, is_folder) or None on failure.
         """
-        title = item.get('title', 'Unknown')
-        media_type = item.get('media_type', 'movie')
-        kodi_id = item.get('kodi_id')  # already normalized to int/None
-        self.logger.debug(f"ITEM BUILD: '{title}' type={media_type} kodi_id={kodi_id}")
-
         try:
+            title = item.get('title', 'Unknown')
+            media_type = item.get('media_type', 'movie')
+            kodi_id = item.get('kodi_id')  # already normalized to int/None
+            self.logger.debug(f"ITEM BUILD: '{title}' type={media_type} kodi_id={kodi_id}")
+
             # Treat as library-backed ONLY if we truly have a library DB id for movies/episodes
             if media_type in ('movie', 'episode') and isinstance(kodi_id, int):
                 return self._create_library_listitem(item)
@@ -336,8 +356,19 @@ class ListItemBuilder:
 
             # Build videodb:// URL for native library integration
             url = self._build_videodb_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
-            li.setPath(url)
-            self.logger.info(f"LIB ITEM: Generated videodb URL for '{title}': {url}")
+            if url:
+                self._batch_counters['videodb_urls_generated'] += 1
+                if self._batch_counters['videodb_urls_generated'] == 1:
+                    self.logger.info(f"LIB ITEM: Generated videodb URL for '{title}': {url}")
+
+                # Set the videodb URL as the ListItem path for full DB metadata resolution
+                li.setPath(url)
+
+                self._batch_counters['db_linking_successful'] += 1
+                if self._batch_counters['db_linking_successful'] == 1:
+                    self.logger.info(f"LIB ITEM: DB linking successful for '{title}' - Info dialog will show full cast")
+            else:
+                self.logger.warning(f"LIB ITEM: Failed to generate videodb URL for '{title}' - fallback metadata only")
 
             # Do NOT set IsPlayable for videodb:// items - Kodi handles this natively
             # Setting IsPlayable can interfere with native library handling and skins
@@ -391,7 +422,7 @@ class ListItemBuilder:
             else:
                 # v19: Use classic setInfo() approach
                 info = self._build_lightweight_info(item)
-                self.logger.debug(f"LIB ITEM: Video info dict for '{title}': {info}")
+                self.logger.debug(f"LIB ITEM v19: Video info dict for '{title}': {info}")
                 li.setInfo('video', info)
                 self.logger.debug(f"LIB ITEM v19: Using setInfo() for '{title}'")
 
@@ -416,7 +447,10 @@ class ListItemBuilder:
             # Resume (always for library movies/episodes)
             self._set_resume_info_versioned(li, item)
 
-            self.logger.info(f"LIB ITEM: Successfully created library ListItem '{title}' -> URL: {url}, isFolder: {is_folder}")
+            self._batch_counters['lib_items_processed'] += 1
+            if self._batch_counters['lib_items_processed'] == 1:
+                self.logger.info(f"LIB ITEM: Successfully created library ListItem '{title}' -> URL: {url or 'fallback'}, isFolder: {is_folder}")
+
             return url, li, is_folder
         except Exception as e:
             self.logger.error(f"LIB ITEM: failed for '{item.get('title','Unknown')}': {e}")
@@ -791,7 +825,7 @@ class ListItemBuilder:
                     genres = [g.strip() for g in item['genre'].split(',') if g.strip()]
                 else:
                     genres = item['genre'] if isinstance(item['genre'], list) else []
-                
+
                 if genres:
                     video_info_tag.setGenres(genres)
                     self.logger.debug(f"LIB ITEM v20+: Set genres={genres} via InfoTagVideo")
@@ -806,11 +840,11 @@ class ListItemBuilder:
                 if item.get('season') is not None:
                     video_info_tag.setSeason(int(item['season']))
                     self.logger.debug(f"LIB ITEM v20+: Set season={item['season']} via InfoTagVideo")
-                
+
                 if item.get('episode') is not None:
                     video_info_tag.setEpisode(int(item['episode']))
                     self.logger.debug(f"LIB ITEM v20+: Set episode={item['episode']} via InfoTagVideo")
-                
+
                 if item.get('tvshowtitle'):
                     video_info_tag.setTvShowTitle(item['tvshowtitle'])
                     self.logger.debug(f"LIB ITEM v20+: Set tvshowtitle='{item['tvshowtitle']}' via InfoTagVideo")
