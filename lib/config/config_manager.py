@@ -7,14 +7,7 @@ Reads Kodi settings and manages addon configuration
 """
 
 import xbmcaddon
-try:
-    from typing import Optional, List
-except ImportError:
-    # Python < 3.5 fallback - define compatible type hints
-    def Optional(x):
-        return x
-    def List(x):
-        return x
+from typing import Optional, List
 
 
 class ConfigManager:
