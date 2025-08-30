@@ -18,6 +18,7 @@ from ..utils.logger import get_logger
 # It was defined in this file but intended to be imported from config_manager.
 # The fix involves changing the import path to the correct location.
 from ..config.config_manager import get_select_pref
+from .matrix_info_helper import open_movie_info_v19
 
 
 def is_kodi_v20_plus() -> bool:
@@ -687,3 +688,75 @@ class ListItemBuilder:
             f"RunPlugin(plugin://{self.addon_id}/?action=add_to_list&item_id={item.get('id','')})"
         ))
         list_item.addContextMenuItems(cm)
+
+    def open_library_info_dialog(self, media_type: str, kodi_id: int, return_path: Optional[str] = None) -> bool:
+        """
+        Open info dialog for a library item with version-aware handling
+        
+        Args:
+            media_type: 'movie' or 'episode'
+            kodi_id: Kodi database ID for the item
+            return_path: Optional path to return to when info is closed
+            
+        Returns:
+            bool: True if info dialog was successfully opened
+        """
+        try:
+            kodi_major = self._get_kodi_major_version()
+            self.logger.info(f"Opening info dialog for {media_type} {kodi_id} on Kodi v{kodi_major}")
+            
+            if media_type == 'movie':
+                if kodi_major <= 19:
+                    # Use Matrix XSP navigation method
+                    return open_movie_info_v19(kodi_id, return_path)
+                else:
+                    # Use Nexus+ direct method
+                    return self._open_info_nexus_plus(media_type, kodi_id)
+            elif media_type == 'episode':
+                # For episodes, use direct videodb approach on all versions
+                return self._open_info_videodb(media_type, kodi_id)
+            else:
+                self.logger.error(f"Unsupported media type for info dialog: {media_type}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Failed to open info dialog for {media_type} {kodi_id}: {e}")
+            return False
+    
+    def _get_kodi_major_version(self) -> int:
+        """Get Kodi major version number"""
+        try:
+            build_version = xbmc.getInfoLabel("System.BuildVersion")
+            major = int(build_version.split('.')[0].split('-')[0])
+            return major
+        except Exception:
+            return 19  # Safe fallback to Matrix behavior
+    
+    def _open_info_nexus_plus(self, media_type: str, kodi_id: int) -> bool:
+        """Open info dialog using Nexus+ Action(Info) method"""
+        try:
+            # This assumes the item is already focused/selected in a list
+            xbmc.executebuiltin('Action(Info)')
+            self.logger.info(f"Opened info dialog for {media_type} {kodi_id} using Action(Info)")
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to open info using Action(Info): {e}")
+            return False
+    
+    def _open_info_videodb(self, media_type: str, kodi_id: int) -> bool:
+        """Open info dialog using videodb:// path method"""
+        try:
+            if media_type == "movie":
+                videodb_path = f'videodb://movies/titles/{kodi_id}'
+            elif media_type == "episode":
+                videodb_path = f'videodb://episodes/{kodi_id}'
+            else:
+                self.logger.error(f"Unsupported media type for videodb method: {media_type}")
+                return False
+            
+            xbmc.executebuiltin(f'ActivateWindow(DialogVideoInfo,"{videodb_path}",return)')
+            self.logger.info(f"Opened info dialog for {media_type} {kodi_id} using videodb path")
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to open info using videodb path: {e}")
+            return False
