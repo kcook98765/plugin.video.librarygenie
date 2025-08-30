@@ -201,7 +201,7 @@ def handle_lists(addon_handle, base_url):
         logger.info(f"Found {len(user_lists)} user lists")
 
         # Debug: Check for Search History folder specifically
-        search_history_items = [item for item in user_lists if 'Search History' in str(item.get('name', ''))]
+        search_history_items = [item for item in user_lists if item.get('folder_name') == 'Search History']
         logger.info(f"Found {len(search_history_items)} Search History items: {search_history_items}")
 
         if not user_lists:
