@@ -362,12 +362,19 @@ class ListItemBuilder:
             pref = get_select_pref()
             self.logger.debug(f"LIB ITEM: User preference for '{title}': {pref}")
 
-            # CRITICAL: Always mark as playable so the ListItem can be clicked/activated
-            # Without this, Kodi won't send click events to our plugin
-            li.setProperty('IsPlayable', 'true')
-            self.logger.info(f"LIB ITEM: Set IsPlayable=true for '{title}' - enables click handling")
+            # CRITICAL v19 WORKAROUND: Don't mark library items as playable on v19
+            # When IsPlayable=true + library properties are set, v19 intercepts clicks
+            # and opens native DialogVideoInfo instead of routing through plugin
+            if is_kodi_v20_plus():
+                li.setProperty('IsPlayable', 'true')
+                self.logger.info(f"LIB ITEM: Set IsPlayable=true for '{title}' on v20+ - enables click handling")
+            else:
+                # On v19, leave IsPlayable unset so item behaves like a folder that routes to plugin
+                self.logger.info(f"LIB ITEM: Leaving IsPlayable unset for '{title}' on v19 to prevent interception")
 
-            is_folder = False
+            # On v19, library items behave like folders since they're not marked IsPlayable
+            # This ensures proper navigation through our plugin instead of native interception
+            is_folder = not is_kodi_v20_plus()
 
             # Set InfoTagVideo properties only for v20+ (skip entirely on v19)
             if is_kodi_v20_plus():
