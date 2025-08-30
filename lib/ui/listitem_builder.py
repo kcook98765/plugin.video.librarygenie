@@ -61,7 +61,7 @@ class ListItemBuilder:
         self.logger = get_logger(__name__)
 
     # -------- public API --------
-    def build_directory(self, items: List[Dict[str, Any]], content_type: str = "movies") -> bool:
+    def build_directory(self, items: List[Dict[str, Any]], content_type: str = "movies", context_menu_callback=None) -> bool:
         """
         Build a directory with proper content type and ListItems.
 
@@ -103,6 +103,15 @@ class ListItemBuilder:
                     built = self._build_single_item(item)
                     if built:
                         url, listitem, is_folder = built
+                        
+                        # Apply custom context menu if callback provided
+                        if context_menu_callback:
+                            try:
+                                context_menu_callback(listitem, item)
+                                self.logger.debug(f"DIRECTORY BUILD: Applied custom context menu for item #{idx}")
+                            except Exception as e:
+                                self.logger.warning(f"DIRECTORY BUILD: Custom context menu failed for item #{idx}: {e}")
+                        
                         self.logger.debug(f"DIRECTORY BUILD: Built item #{idx} - URL: '{url}', isFolder: {is_folder}")
                         tuples.append(built)  # (url, listitem, is_folder)
                         ok += 1

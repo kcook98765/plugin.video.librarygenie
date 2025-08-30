@@ -402,6 +402,10 @@ def handle_view_list(addon_handle, base_url):
             xbmcplugin.endOfDirectory(addon_handle)
             return
 
+        # Detect content type based on list items
+        content_type = query_manager.detect_content_type(list_items)
+        logger.info(f"Detected content type '{content_type}' for list '{list_info['name']}'")
+
         # Use ListItemBuilder to create proper videodb URLs for library items
         from lib.ui.listitem_builder import ListItemBuilder
         builder = ListItemBuilder(addon_handle, "plugin.video.librarygenie")
@@ -409,36 +413,25 @@ def handle_view_list(addon_handle, base_url):
         # Set category for better navigation
         xbmcplugin.setPluginCategory(addon_handle, f"List: {list_info['name']}")
 
-        # Build each item with proper URLs and context menus
-        for item in list_items:
-            try:
-                # Use builder to get proper URL, listitem, and folder status
-                result = builder._build_single_item(item)
-                if not result:
-                    logger.warning(f"Skipping item '{item.get('title', 'Unknown')}' - failed to build")
-                    continue
+        # Define context menu callback for list items
+        def add_list_context_menu(listitem, item):
+            context_menu = [
+                (f"Remove from '{list_info['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={list_id}&item_id={item.get('id')})")
+            ]
+            listitem.addContextMenuItems(context_menu)
 
-                url, list_item, is_folder = result
+        # Build directory with detected content type and context menu callback
+        # This ensures proper content type is set via build_directory()
+        success = builder.build_directory(list_items, content_type, add_list_context_menu)
+        
+        if success:
+            logger.info(f"Successfully built list directory with content_type='{content_type}'")
+        else:
+            logger.error(f"Failed to build list directory")
+            
+        return  # build_directory() already handles endOfDirectory()
 
-                # Add context menu for removal from list
-                context_menu = [
-                    (f"Remove from '{list_info['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={list_id}&item_id={item.get('id')})")
-                ]
-                list_item.addContextMenuItems(context_menu)
-
-                # Add to directory with proper URL (videodb:// for library items)
-                xbmcplugin.addDirectoryItem(
-                    addon_handle,
-                    url,
-                    list_item,
-                    isFolder=is_folder
-                )
-
-            except Exception as e:
-                logger.error(f"Error building list item '{item.get('title', 'Unknown')}': {e}")
-
-        # Finish the directory
-        xbmcplugin.endOfDirectory(addon_handle)
+        
 
     except Exception as e:
         logger.error(f"Error viewing list: {e}")
