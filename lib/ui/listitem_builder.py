@@ -17,7 +17,7 @@ from ..utils.logger import get_logger
 # The original code had an incorrect import for get_select_pref.
 # It was defined in this file but intended to be imported from config_manager.
 # The fix involves changing the import path to the correct location.
-from ..config.config_manager import get_select_pref
+# from ..config.config_manager import get_select_pref
 
 
 def is_kodi_v20_plus() -> bool:
