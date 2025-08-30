@@ -246,9 +246,11 @@ def build_nexus_item(handle: int, base_url: str, movieid: int):
     li = xbmcgui.ListItem(label=label)
     try:
         vit = li.getVideoInfoTag()
-        vit.setDbId(int(movieid), 'movie')
+        vit.setMediaType('movie')
+        vit.setDbId(int(movieid))
+        _log(f"Successfully set dbId={movieid} and mediaType='movie' for Nexus+")
     except Exception as e:
-        _log(f"setDbId failed: {e}", xbmc.LOGWARNING)
+        _log(f"setDbId/setMediaType failed: {e}", xbmc.LOGWARNING)
 
     q = urlencode({"action": "nexus_info_click"})
     url = f"{base_url}?{q}"
