@@ -226,12 +226,13 @@ def handle_lists(addon_handle, base_url):
             "icon": "DefaultAddSource.png"
         })
 
-        # Add separator
+        # Add "Create New Folder" option
         menu_items.append({
-            "title": "─" * 30,
-            "action": "",
-            "description": "",
-            "is_folder": False
+            "title": "[COLOR cyan]+ Create New Folder[/COLOR]",
+            "action": "create_folder",
+            "description": "Create a new folder",
+            "is_folder": False,
+            "icon": "DefaultFolder.png"
         })
 
         # Add each list/folder
@@ -562,6 +563,43 @@ def handle_delete_list():
         logger.error(f"Delete list error traceback: {traceback.format_exc()}")
 
 
+def handle_create_folder():
+    """Handle creating a new folder"""
+    try:
+        logger.info("Handling create folder request")
+
+        # Get folder name from user
+        addon = xbmcaddon.Addon()
+        folder_name = xbmcgui.Dialog().input(
+            "Enter folder name:",
+            type=xbmcgui.INPUT_ALPHANUM
+        )
+
+        if not folder_name or not folder_name.strip():
+            logger.info("User cancelled folder creation or entered empty name")
+            return
+
+        # Initialize query manager and create folder
+        query_manager = get_query_manager()
+        if not query_manager.initialize():
+            logger.error("Failed to initialize query manager")
+            return
+
+        # Note: You'll need to implement create_folder in query_manager
+        # For now, show a placeholder message
+        xbmcgui.Dialog().notification(
+            addon.getLocalizedString(35002),
+            f"Folder creation: {folder_name} (Not yet implemented)",
+            xbmcgui.NOTIFICATION_INFO,
+            3000
+        )
+
+    except Exception as e:
+        logger.error(f"Error creating folder: {e}")
+        import traceback
+        logger.error(f"Create folder error traceback: {traceback.format_exc()}")
+
+
 def _videodb_path(dbtype: str, dbid: int, tvshowid=None, season=None) -> str:
     """Build videodb:// path for Kodi library items"""
     if dbtype == "movie":
@@ -686,6 +724,8 @@ def main():
             handle_rename_list()
         elif action == 'delete_list':
             handle_delete_list()
+        elif action == 'create_folder':
+            handle_create_folder()
         elif action == 'remote_lists':
             show_remote_lists_menu(addon_handle)
         elif action == 'authorize':

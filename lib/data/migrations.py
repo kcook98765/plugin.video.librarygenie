@@ -394,14 +394,7 @@ class MigrationManager:
 
             conn.execute("CREATE INDEX idx_library_scan_log_type_time ON library_scan_log (scan_type, start_time)")
 
-            # Create a default list in both tables for compatibility
-            conn.execute("""
-                INSERT INTO user_list (name) VALUES ('My Movies')
-            """)
-
-            conn.execute("""
-                INSERT INTO lists (name) VALUES ('My Movies')
-            """)
+            # No default lists - users will create their own
 
 
 # Global migration manager instance

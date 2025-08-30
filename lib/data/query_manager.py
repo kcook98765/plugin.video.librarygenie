@@ -397,23 +397,8 @@ class QueryManager:
             return None
 
     def _ensure_default_list(self):
-        """Ensure default list exists"""
-        try:
-            # Check if default list exists
-            default_list = self.connection_manager.execute_single("""
-                SELECT id FROM user_list WHERE name = ?
-            """, ["Default"])
-
-            if not default_list:
-                self.logger.info("Creating default list")
-                with self.connection_manager.transaction() as conn:
-                    conn.execute("""
-                        INSERT INTO user_list (name)
-                        VALUES (?)
-                    """, ["Default"])
-
-        except Exception as e:
-            self.logger.error(f"Failed to create default list: {e}")
+        """Default list creation disabled - users create their own lists"""
+        pass
 
     def get_or_create_search_history_folder(self):
         """Get or create the Search History folder"""
