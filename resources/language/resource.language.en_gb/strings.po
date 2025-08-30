@@ -946,3 +946,15 @@ msgstr ""
 msgctxt "#35032"
 msgid "Sign out failed"
 msgstr ""
+
+msgctxt "#32086"
+msgid "Automatically refresh authentication tokens"
+msgstr ""
+
+msgctxt "#32087"
+msgid "Use native Kodi Info for library items"
+msgstr ""
+
+msgctxt "#32088"
+msgid "Enable automatic token refresh in the background service"
+msgstr ""
