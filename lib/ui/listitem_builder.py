@@ -103,7 +103,7 @@ class ListItemBuilder:
                     built = self._build_single_item(item)
                     if built:
                         url, listitem, is_folder = built
-                        
+
                         # Apply custom context menu if callback provided
                         if context_menu_callback:
                             try:
@@ -111,7 +111,7 @@ class ListItemBuilder:
                                 self.logger.debug(f"DIRECTORY BUILD: Applied custom context menu for item #{idx}")
                             except Exception as e:
                                 self.logger.warning(f"DIRECTORY BUILD: Custom context menu failed for item #{idx}: {e}")
-                        
+
                         self.logger.debug(f"DIRECTORY BUILD: Built item #{idx} - URL: '{url}', isFolder: {is_folder}")
                         tuples.append(built)  # (url, listitem, is_folder)
                         ok += 1
@@ -172,7 +172,7 @@ class ListItemBuilder:
 
         # media type - be more specific for library items
         media_type = (src.get('media_type') or src.get('type') or 'movie').lower()
-        
+
         # For library items with movieid, ensure it's identified as 'movie'
         if src.get('movieid') or (src.get('kodi_id') and not src.get('episodeid')):
             media_type = 'movie'
@@ -180,7 +180,7 @@ class ListItemBuilder:
             media_type = 'episode'
         elif media_type not in ('movie', 'episode', 'tvshow', 'musicvideo'):
             media_type = 'movie'
-        
+
         out['media_type'] = media_type
 
         # kodi id (only for movie/episode)
@@ -400,7 +400,7 @@ class ListItemBuilder:
             else:
                 # v19: Use classic setInfo() approach
                 info = self._build_lightweight_info(item)
-                self.logger.debug(f"LIB ITEM: Video info dict for '{title}': {info}")
+                self.logger.debug(f"LIB ITEM v19: Video info dict for '{title}': {info}")
                 li.setInfo('video', info)
                 self.logger.debug(f"LIB ITEM v19: Using setInfo() for '{title}'")
 
@@ -808,7 +808,7 @@ class ListItemBuilder:
                     genres = [g.strip() for g in item['genre'].split(',') if g.strip()]
                 else:
                     genres = item['genre'] if isinstance(item['genre'], list) else []
-                
+
                 if genres:
                     video_info_tag.setGenres(genres)
                     self.logger.debug(f"LIB ITEM v20+: Set genres={genres} via InfoTagVideo")
@@ -823,11 +823,11 @@ class ListItemBuilder:
                 if item.get('season') is not None:
                     video_info_tag.setSeason(int(item['season']))
                     self.logger.debug(f"LIB ITEM v20+: Set season={item['season']} via InfoTagVideo")
-                
+
                 if item.get('episode') is not None:
                     video_info_tag.setEpisode(int(item['episode']))
                     self.logger.debug(f"LIB ITEM v20+: Set episode={item['episode']} via InfoTagVideo")
-                
+
                 if item.get('tvshowtitle'):
                     video_info_tag.setTvShowTitle(item['tvshowtitle'])
                     self.logger.debug(f"LIB ITEM v20+: Set tvshowtitle='{item['tvshowtitle']}' via InfoTagVideo")
