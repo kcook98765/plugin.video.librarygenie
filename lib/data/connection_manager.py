@@ -10,17 +10,7 @@ import os
 import sqlite3
 import threading
 import atexit
-try:
-    from typing import Any, List, Dict, Optional, Union, Callable
-except ImportError:
-    # Python < 3.5 fallback
-    Any = object
-    List = list
-    Dict = dict
-    Optional = object
-    Union = object
-    Callable = object
-
+from typing import Any, List, Dict, Optional, Union, Callable
 from contextlib import contextmanager
 
 from ..utils.logger import get_logger
