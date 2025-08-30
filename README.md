@@ -286,6 +286,7 @@ Enable debug logging in addon settings → General → Debug & Logging to get de
 - Library scan progress and error details
 - Configuration validation and fallback behavior
 
+
 ### Reset and Recovery
 
 If the addon stops working correctly:
