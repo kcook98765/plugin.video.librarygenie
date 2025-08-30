@@ -239,18 +239,21 @@ class ListItemRenderer:
         """Set context menu for folder items"""
         context_items = []
         folder_id = folder_data.get('id', '')
+        folder_name = folder_data.get('name', '')
 
-        # Rename folder
-        context_items.append((
-            "Rename",
-            f"RunPlugin(plugin://{self.addon_id}/?action=rename_folder&folder_id={folder_id})"
-        ))
+        # Don't add rename/delete options for reserved Search History folder
+        if folder_name != "Search History":
+            # Rename folder
+            context_items.append((
+                "Rename",
+                f"RunPlugin(plugin://{self.addon_id}/?action=rename_folder&folder_id={folder_id})"
+            ))
 
-        # Delete folder
-        context_items.append((
-            "Delete",
-            f"RunPlugin(plugin://{self.addon_id}/?action=delete_folder&folder_id={folder_id})"
-        ))
+            # Delete folder
+            context_items.append((
+                "Delete",
+                f"RunPlugin(plugin://{self.addon_id}/?action=delete_folder&folder_id={folder_id})"
+            ))
 
         list_item.addContextMenuItems(context_items)
 

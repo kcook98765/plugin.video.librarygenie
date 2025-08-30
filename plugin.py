@@ -237,6 +237,15 @@ def handle_lists(addon_handle, base_url):
 
         # Add each list/folder
         for list_item in user_lists:
+            # Check if it's the reserved "Search History" folder and disable context menus if so
+            is_reserved_folder = 'Search History' in str(list_item.get('name', ''))
+            context_menu = []
+            if not is_reserved_folder:
+                context_menu = [
+                    (f"Rename '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={list_item['id']})"),
+                    (f"Delete '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_item['id']})")
+                ]
+
             menu_items.append({
                 "title": f"{list_item['name']} ({list_item['item_count']} items)",
                 "action": "view_list",
@@ -244,10 +253,7 @@ def handle_lists(addon_handle, base_url):
                 "description": f"Created: {list_item['created']}",
                 "is_folder": True,
                 "icon": "DefaultFolder.png",
-                "context_menu": [
-                    (f"Rename '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={list_item['id']})"),
-                    (f"Delete '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_item['id']})")
-                ]
+                "context_menu": context_menu
             })
 
         # Use menu builder to display
@@ -585,19 +591,190 @@ def handle_create_folder():
             logger.error("Failed to initialize query manager")
             return
 
-        # Note: You'll need to implement create_folder in query_manager
-        # For now, show a placeholder message
-        xbmcgui.Dialog().notification(
-            addon.getLocalizedString(35002),
-            f"Folder creation: {folder_name} (Not yet implemented)",
-            xbmcgui.NOTIFICATION_INFO,
-            3000
-        )
+        # Check if folder name is reserved
+        if folder_name.strip() == "Search History":
+            xbmcgui.Dialog().ok(
+                addon.getLocalizedString(35002),
+                "Cannot create 'Search History' folder. It is a reserved folder."
+            )
+            return
+
+        result = query_manager.create_folder(folder_name.strip())
+
+        if result.get("error"):
+            if result["error"] == "duplicate_name":
+                xbmcgui.Dialog().ok(
+                    addon.getLocalizedString(35002),
+                    f"Folder '{folder_name}' already exists"
+                )
+            else:
+                xbmcgui.Dialog().ok(
+                    addon.getLocalizedString(35002),
+                    "Failed to create folder"
+                )
+        else:
+            logger.info(f"Successfully created folder: {folder_name}")
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),
+                f"Created folder: {folder_name}",
+                xbmcgui.NOTIFICATION_INFO,
+                3000
+            )
+            # Refresh the lists view
+            xbmc.executebuiltin('Container.Refresh')
 
     except Exception as e:
         logger.error(f"Error creating folder: {e}")
         import traceback
         logger.error(f"Create folder error traceback: {traceback.format_exc()}")
+
+
+def handle_rename_folder():
+    """Handle renaming a folder"""
+    try:
+        folder_id = args.get('folder_id') # Assuming folder_id is passed
+        if not folder_id:
+            logger.error("No folder_id provided for rename_folder")
+            return
+
+        logger.info(f"Renaming folder {folder_id}")
+
+        # Initialize query manager
+        query_manager = get_query_manager()
+        if not query_manager.initialize():
+            logger.error("Failed to initialize query manager")
+            return
+
+        # Get current folder info
+        folder_info = query_manager.get_folder_by_id(folder_id) # Assuming this method exists
+        if not folder_info:
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().ok(
+                addon.getLocalizedString(35002),
+                "Folder not found"
+            )
+            return
+
+        # Check if it's the reserved "Search History" folder
+        if folder_info['name'] == "Search History":
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().ok(
+                addon.getLocalizedString(35002),
+                "Cannot rename the reserved 'Search History' folder."
+            )
+            return
+
+        # Get new name from user
+        addon = xbmcaddon.Addon()
+        new_name = xbmcgui.Dialog().input(
+            "Enter new folder name:",
+            defaultt=folder_info['name'],
+            type=xbmcgui.INPUT_ALPHANUM
+        )
+
+        if not new_name or not new_name.strip():
+            logger.info("User cancelled rename or entered empty name")
+            return
+
+        # Rename the folder
+        result = query_manager.rename_folder(folder_id, new_name.strip()) # Assuming this method exists
+
+        if result.get("error"):
+            if result["error"] == "duplicate_name":
+                xbmcgui.Dialog().ok(
+                    addon.getLocalizedString(35002),
+                    f"Folder '{new_name}' already exists"
+                )
+            else:
+                xbmcgui.Dialog().ok(
+                    addon.getLocalizedString(35002),
+                    "Failed to rename folder"
+                )
+        else:
+            logger.info(f"Successfully renamed folder to: {new_name}")
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),
+                f"Renamed folder to: {new_name}",
+                xbmcgui.NOTIFICATION_INFO,
+                3000
+            )
+            # Refresh the lists view
+            xbmc.executebuiltin('Container.Refresh')
+
+    except Exception as e:
+        logger.error(f"Error renaming folder: {e}")
+        import traceback
+        logger.error(f"Rename folder error traceback: {traceback.format_exc()}")
+
+
+def handle_delete_folder():
+    """Handle deleting a folder"""
+    try:
+        folder_id = args.get('folder_id') # Assuming folder_id is passed
+        if not folder_id:
+            logger.error("No folder_id provided for delete_folder")
+            return
+
+        logger.info(f"Deleting folder {folder_id}")
+
+        # Initialize query manager
+        query_manager = get_query_manager()
+        if not query_manager.initialize():
+            logger.error("Failed to initialize query manager")
+            return
+
+        # Get current folder info
+        folder_info = query_manager.get_folder_by_id(folder_id) # Assuming this method exists
+        if not folder_info:
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().ok(
+                addon.getLocalizedString(35002),
+                "Folder not found"
+            )
+            return
+
+        # Check if it's the reserved "Search History" folder
+        if folder_info['name'] == "Search History":
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().ok(
+                addon.getLocalizedString(35002),
+                "Cannot delete the reserved 'Search History' folder."
+            )
+            return
+
+        # Confirm deletion
+        addon = xbmcaddon.Addon()
+        if not xbmcgui.Dialog().yesno(
+            addon.getLocalizedString(35002),
+            f"Delete folder '{folder_info['name']}'?",
+            f"This will remove {folder_info['item_count']} items from the folder." # Assuming item_count exists
+        ):
+            logger.info("User cancelled folder deletion")
+            return
+
+        # Delete the folder
+        result = query_manager.delete_folder(folder_id) # Assuming this method exists
+
+        if result.get("error"):
+            xbmcgui.Dialog().ok(
+                addon.getLocalizedString(35002),
+                "Failed to delete folder"
+            )
+        else:
+            logger.info(f"Successfully deleted folder: {folder_info['name']}")
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),
+                f"Deleted folder: {folder_info['name']}",
+                xbmcgui.NOTIFICATION_INFO,
+                3000
+            )
+            # Refresh the lists view
+            xbmc.executebuiltin('Container.Refresh')
+
+    except Exception as e:
+        logger.error(f"Error deleting folder: {e}")
+        import traceback
+        logger.error(f"Delete folder error traceback: {traceback.format_exc()}")
 
 
 def _videodb_path(dbtype: str, dbid: int, tvshowid=None, season=None) -> str:
@@ -679,8 +856,23 @@ def handle_settings():
     xbmcaddon.Addon().openSettings()
 
 
-
-
+# Define the route mapping for actions
+action_handlers = {
+    'search': show_search_menu,
+    'lists': handle_lists,
+    'create_list': handle_create_list,
+    'view_list': handle_view_list,
+    'rename_list': handle_rename_list,
+    'delete_list': handle_delete_list,
+    'create_folder': handle_create_folder,
+    'rename_folder': handle_rename_folder,
+    'delete_folder': handle_delete_folder,
+    'remote_lists': show_remote_lists_menu,
+    'authorize': handle_authorize,
+    'signout': handle_signout,
+    'on_select': handle_on_select, # This is handled differently in main now
+    'noop': lambda handle, base_url, params: xbmcplugin.endOfDirectory(handle, succeeded=False) # Dummy handler for noop
+}
 
 def main():
     """Main plugin entry point"""
@@ -712,39 +904,24 @@ def main():
             logger.info(f"[TEST-HARNESS] NAVIGATION: User triggered action '{action}'")
             logger.info(f"[TEST-HARNESS] NAVIGATION: Full routing context - handle={addon_handle}, base_url={base_url}")
 
-        if action == 'search':
-            show_search_menu(addon_handle)
-        elif action == 'lists':
-            handle_lists(addon_handle, base_url)
-        elif action == 'create_list':
-            handle_create_list()
-        elif action == 'view_list':
-            handle_view_list(addon_handle, base_url)
-        elif action == 'rename_list':
-            handle_rename_list()
-        elif action == 'delete_list':
-            handle_delete_list()
-        elif action == 'create_folder':
-            handle_create_folder()
-        elif action == 'remote_lists':
-            show_remote_lists_menu(addon_handle)
-        elif action == 'authorize':
-            handle_authorize()
-        elif action == 'signout':
-            handle_signout()
-        elif action == 'on_select':
-            # Legacy handler - library items now use videodb:// URLs for native behavior
-            logger.info(f"ROUTING: on_select action detected (legacy) with params: {params}")
-            logger.info(f"Library items now use videodb:// URLs for native Kodi behavior")
-            xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
-        elif action == 'noop':
-            logger.info(f"[TEST-HARNESS] ROUTING: noop action (test baseline)")
-            logger.info(f"[TEST-HARNESS] Noop params: {params}")
-            logger.info(f"[TEST-HARNESS] This is a no-op test variant - ending directory")
-            # No-op action for test variants - just end directory
-            xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
+        # Call the appropriate handler
+        handler = action_handlers.get(action)
+
+        if handler:
+            # Special handling for actions that require specific arguments or logic
+            if action == 'search':
+                handler(addon_handle)
+            elif action == 'lists':
+                handler(addon_handle, base_url)
+            elif action == 'view_list':
+                handler(addon_handle, base_url)
+            elif action == 'on_select':
+                # handle_on_select expects params and addon_handle
+                handler(params, addon_handle)
+            else:
+                handler() # For actions like create_list, authorize, signout, etc.
         else:
-            # Show main menu by default
+            # Show main menu by default if action is not recognized or is empty
             show_main_menu(addon_handle)
 
     except Exception as e:

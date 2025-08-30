@@ -17,6 +17,8 @@ from ..utils.logger import get_logger
 class QueryManager:
     """Manages data queries and database operations using SQLite"""
 
+    RESERVED_FOLDERS = ["Search History"]
+
     def __init__(self):
         self.logger = get_logger(__name__)
         self.connection_manager = get_connection_manager()
@@ -144,7 +146,7 @@ class QueryManager:
             for row in lists:
                 # Show folder context in description if item is in a folder
                 folder_context = f" ({row['folder_name']})" if row['folder_name'] else ""
-                
+
                 result.append({
                     "id": str(row['id']),
                     "name": row['name'],
@@ -283,7 +285,7 @@ class QueryManager:
 
                 # Insert or get media item
                 media_item_id = self._insert_or_get_media_item(conn, media_data)
-                
+
                 if not media_item_id:
                     return None
 
@@ -899,7 +901,7 @@ class QueryManager:
         try:
             # Normalize the item first
             canonical_item = self._normalize_to_canonical(kodi_item)
-            
+
             # Extract basic fields for media_items table
             media_data = {
                 'media_type': canonical_item['media_type'],
@@ -931,7 +933,7 @@ class QueryManager:
             with self.connection_manager.transaction() as conn:
                 # Insert or get media item
                 media_item_id = self._insert_or_get_media_item(conn, media_data)
-                
+
                 if not media_item_id:
                     return None
 
@@ -1062,6 +1064,144 @@ class QueryManager:
         }
 
         return type_mapping.get(most_common, 'movies')
+
+    def create_folder(self, name, parent_id=None):
+        """Create a new folder"""
+        try:
+            # Validate name
+            if not name or not name.strip():
+                return {"success": False, "error": "invalid_name", "message": "Folder name cannot be empty"}
+
+            name = name.strip()
+
+            # Check for reserved names
+            if name in self.RESERVED_FOLDERS:
+                return {"success": False, "error": "reserved_name", "message": "Folder name is reserved"}
+
+            # Check for duplicate names in same parent
+            existing = self.connection_manager.execute_single("""
+                SELECT id FROM folders WHERE name = ? AND parent_id IS ?
+            """, [name, parent_id])
+
+            if existing:
+                return {"success": False, "error": "duplicate", "message": "Folder name already exists"}
+
+            # Create folder
+            with self.connection_manager.transaction() as conn:
+                cursor = conn.execute("""
+                    INSERT INTO folders (name, parent_id)
+                    VALUES (?, ?)
+                """, [name, parent_id])
+                folder_id = cursor.lastrowid
+
+            self.logger.info(f"Created folder '{name}' with ID: {folder_id}")
+            return {"success": True, "folder_id": folder_id}
+
+        except Exception as e:
+            self.logger.error(f"Failed to create folder: {e}")
+            return {"success": False, "error": "database_error", "message": str(e)}
+
+    def rename_folder(self, folder_id, new_name):
+        """Rename a folder"""
+        try:
+            # Check if folder is reserved
+            if self.is_reserved_folder(folder_id):
+                return {"success": False, "error": "reserved", "message": "Cannot rename reserved folder"}
+
+            # Validate name
+            if not new_name or not new_name.strip():
+                return {"success": False, "error": "invalid_name", "message": "Folder name cannot be empty"}
+
+            new_name = new_name.strip()
+
+            # Check for reserved names
+            if new_name in self.RESERVED_FOLDERS:
+                return {"success": False, "error": "reserved_name", "message": "Folder name is reserved"}
+
+            # Get current folder info
+            folder = self.connection_manager.execute_single("""
+                SELECT name, parent_id FROM folders WHERE id = ?
+            """, [folder_id])
+
+            if not folder:
+                return {"success": False, "error": "not_found", "message": "Folder not found"}
+
+            # Check for duplicate names in same parent
+            existing = self.connection_manager.execute_single("""
+                SELECT id FROM folders WHERE name = ? AND parent_id IS ? AND id != ?
+            """, [new_name, folder['parent_id'], folder_id])
+
+            if existing:
+                return {"success": False, "error": "duplicate", "message": "Folder name already exists"}
+
+            # Rename folder
+            with self.connection_manager.transaction() as conn:
+                conn.execute("""
+                    UPDATE folders SET name = ? WHERE id = ?
+                """, [new_name, folder_id])
+
+            self.logger.info(f"Renamed folder {folder_id} from '{folder['name']}' to '{new_name}'")
+            return {"success": True}
+
+        except Exception as e:
+            self.logger.error(f"Failed to rename folder: {e}")
+            return {"success": False, "error": "database_error", "message": str(e)}
+
+    def delete_folder(self, folder_id):
+        """Delete a folder (must be empty)"""
+        try:
+            # Check if folder is reserved
+            if self.is_reserved_folder(folder_id):
+                return {"success": False, "error": "reserved", "message": "Cannot delete reserved folder"}
+
+            # Check if folder exists
+            folder = self.connection_manager.execute_single("""
+                SELECT name FROM folders WHERE id = ?
+            """, [folder_id])
+
+            if not folder:
+                return {"success": False, "error": "not_found", "message": "Folder not found"}
+
+            # Check if folder has lists
+            lists_count = self.connection_manager.execute_single("""
+                SELECT COUNT(*) as count FROM lists WHERE folder_id = ?
+            """, [folder_id])
+
+            if lists_count and lists_count['count'] > 0:
+                return {"success": False, "error": "not_empty", "message": "Folder contains lists"}
+
+            # Check if folder has subfolders
+            subfolders_count = self.connection_manager.execute_single("""
+                SELECT COUNT(*) as count FROM folders WHERE parent_id = ?
+            """, [folder_id])
+
+            if subfolders_count and subfolders_count['count'] > 0:
+                return {"success": False, "error": "not_empty", "message": "Folder contains subfolders"}
+
+            # Delete folder
+            with self.connection_manager.transaction() as conn:
+                conn.execute("DELETE FROM folders WHERE id = ?", [folder_id])
+
+            self.logger.info(f"Deleted folder '{folder['name']}' (ID: {folder_id})")
+            return {"success": True}
+
+        except Exception as e:
+            self.logger.error(f"Failed to delete folder: {e}")
+            return {"success": False, "error": "database_error", "message": str(e)}
+    
+    def is_reserved_folder(self, folder_id):
+        """Check if a folder is reserved"""
+        try:
+            folder = self.connection_manager.execute_single("""
+                SELECT name FROM folders WHERE id = ?
+            """, [folder_id])
+            
+            if folder and folder['name'] in self.RESERVED_FOLDERS:
+                return True
+            return False
+        except Exception as e:
+            self.logger.error(f"Failed to check if folder {folder_id} is reserved: {e}")
+            return False
 
 
 # Global query manager instance

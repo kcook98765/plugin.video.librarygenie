@@ -321,6 +321,12 @@ class MigrationManager:
 
             conn.execute("CREATE INDEX idx_library_scan_log_type_time ON library_scan_log (scan_type, start_time)")
 
+            # Create reserved Search History folder
+            conn.execute("""
+                INSERT INTO folders (name, parent_id)
+                VALUES ('Search History', NULL)
+            """)
+
             # No default lists - users will create their own
 
     def _migrate_to_unified_lists(self):
