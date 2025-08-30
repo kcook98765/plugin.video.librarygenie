@@ -161,10 +161,17 @@ class ListItemBuilder:
         """
         out: Dict[str, Any] = {}
 
-        # media type
+        # media type - be more specific for library items
         media_type = (src.get('media_type') or src.get('type') or 'movie').lower()
-        if media_type not in ('movie', 'episode', 'tvshow', 'musicvideo'):
+        
+        # For library items with movieid, ensure it's identified as 'movie'
+        if src.get('movieid') or (src.get('kodi_id') and not src.get('episodeid')):
             media_type = 'movie'
+        elif src.get('episodeid') or src.get('episode') is not None:
+            media_type = 'episode'
+        elif media_type not in ('movie', 'episode', 'tvshow', 'musicvideo'):
+            media_type = 'movie'
+        
         out['media_type'] = media_type
 
         # kodi id (only for movie/episode)
@@ -351,13 +358,6 @@ class ListItemBuilder:
                 # v20+: Use InfoTagVideo setters and avoid setInfo() for library items
                 try:
                     video_info_tag = li.getVideoInfoTag()
-
-                    # setMediaType() is v20+ only
-                    try:
-                        video_info_tag.setMediaType(media_type)
-                        self.logger.debug(f"LIB ITEM: Set mediatype='{media_type}' for '{title}' (v20+)")
-                    except Exception as e:
-                        self.logger.warning(f"LIB ITEM: setMediaType() failed for '{title}': {e}")
 
                     # setDbId() for library linking - use feature detection instead of version detection
                     dbid_success = False
@@ -771,6 +771,14 @@ class ListItemBuilder:
         This keeps metadata lightweight while avoiding setInfo() that can suppress DB resolution.
         """
         try:
+            # Ensure proper media type is set first for correct identification
+            media_type = item.get('media_type', 'movie')
+            try:
+                video_info_tag.setMediaType(media_type)
+                self.logger.debug(f"LIB ITEM v20+: Set mediaType='{media_type}' via InfoTagVideo for '{title}'")
+            except Exception as e:
+                self.logger.warning(f"LIB ITEM v20+: setMediaType() failed for '{title}': {e}")
+
             # Core identification - but keep minimal to let DB metadata take precedence
             if item.get('title'):
                 video_info_tag.setTitle(item['title'])
