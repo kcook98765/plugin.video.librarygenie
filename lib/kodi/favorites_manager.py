@@ -12,7 +12,7 @@ from typing import List, Dict, Set, Any, Optional
 
 from ..data import get_connection_manager
 from ..utils.logger import get_logger
-from .phase4_favorites_parser import get_phase4_favorites_parser
+from .favorites_parser import get_phase4_favorites_parser
 
 
 class Phase4FavoritesManager:

@@ -291,20 +291,6 @@ class QueryManager:
             self.logger.error(f"Failed to count items in list {list_id}: {e}")
             return 0
 
-    def delete_list(self, list_id):
-        """Delete a list from database"""
-        try:
-            self.logger.info(f"Deleting list {list_id}")
-
-            with self.connection_manager.transaction() as conn:
-                conn.execute("DELETE FROM user_list WHERE id = ?", [int(list_id)])
-
-            return True
-
-        except Exception as e:
-            self.logger.error(f"Failed to delete list {list_id}: {e}")
-            return False
-
     def delete_item_from_list(self, list_id, item_id):
         """Delete an item from a list in database"""
         try:
