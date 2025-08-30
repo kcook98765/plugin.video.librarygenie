@@ -35,6 +35,21 @@ def is_kodi_v20_plus() -> bool:
         # Safe fallback (Matrix behavior)
         return False
 
+def get_kodi_major_version() -> int:
+    """
+    Get the major version number of Kodi.
+    Returns:
+        int: The major version number (e.g., 19, 20, 21).
+    """
+    try:
+        build_version = xbmc.getInfoLabel("System.BuildVersion")
+        # "20.2 (20.2.0) Git:..." -> "20"
+        major = int(build_version.split('.')[0].split('-')[0])
+        return major
+    except Exception:
+        # Safe fallback (Matrix behavior)
+        return 19
+
 
 class ListItemBuilder:
     """Builds ListItems with proper separation between Kodi library and external items"""
@@ -319,10 +334,14 @@ class ListItemBuilder:
             self.logger.debug(f"LIB ITEM: Display label set to: '{display}'")
             li = xbmcgui.ListItem(label=display)
 
-            # Set lightweight info for all versions (plot, rating, etc. are needed)
-            info = self._build_lightweight_info(item)
-            self.logger.debug(f"LIB ITEM: Video info dict for '{title}': {info}")
-            li.setInfo('video', info)
+            # Set lightweight info (skip on v21+ since we use InfoTagVideo setters)
+            kodi_major = get_kodi_major_version()
+            if kodi_major < 21:
+                info = self._build_lightweight_info(item)
+                self.logger.debug(f"LIB ITEM: Video info dict for '{title}': {info}")
+                li.setInfo('video', info)
+            else:
+                self.logger.debug(f"LIB ITEM v21+: Skipping setInfo() - using InfoTagVideo setters instead")
 
             # Art (poster/fanart minimum)
             art = self._build_art_dict(item)
@@ -365,10 +384,15 @@ class ListItemBuilder:
                     except Exception as e:
                         self.logger.warning(f"LIB ITEM: setMediaType() failed for '{title}': {e}")
 
-                    # setDbId() for library linking on v20+ (only takes dbid, not media_type)
+                    # setDbId() for library linking on v20+
+                    # The key fix: Kodi v21+ requires media_type as the second argument.
                     try:
-                        video_info_tag.setDbId(int(kodi_id))
-                        self.logger.debug(f"LIB ITEM: Set dbid={kodi_id} for '{title}' - library linking enabled (v20+)")
+                        if kodi_major >= 21:
+                            video_info_tag.setDbId(int(kodi_id), media_type)
+                            self.logger.debug(f"LIB ITEM: Set dbid={kodi_id}, media_type='{media_type}' for '{title}' - library linking enabled (v21+)")
+                        else:
+                            video_info_tag.setDbId(int(kodi_id))
+                            self.logger.debug(f"LIB ITEM: Set dbid={kodi_id} for '{title}' - library linking enabled (v20)")
                     except Exception as e:
                         self.logger.warning(f"LIB ITEM: setDbId() failed for '{title}': {e}")
 
@@ -545,7 +569,7 @@ class ListItemBuilder:
                 self.logger.debug(f"INFO BUILD: Set studio='{info['studio']}'")
 
         if item.get('country'):
-            # Handle both string and list formats  
+            # Handle both string and list formats
             if isinstance(item['country'], list):
                 info['country'] = item['country'][0] if item['country'] else ""
             else:
