@@ -15,6 +15,22 @@ VIDEOS_WINDOW = "MyVideoNav.xml"
 def _log(msg, level=xbmc.LOGINFO):
     xbmc.log(f"{LOG_PREFIX} {msg}", level)
 
+def _get_list_control_id() -> int:
+    """Get the correct list control ID based on Kodi version"""
+    try:
+        build_version = xbmc.getInfoLabel("System.BuildVersion")
+        major = int(build_version.split('.')[0].split('-')[0])
+        
+        if major >= 20:
+            # Kodi v20+ might use different control IDs
+            # Try common alternatives: 451 (library views), 52 (some skins)
+            return 451
+        else:
+            # Kodi v19 uses control ID 50
+            return 50
+    except Exception:
+        return 50  # Fallback to v19 behavior
+
 def kodi_major() -> int:
     ver = xbmc.getInfoLabel('System.BuildVersion') or ''
     try:
@@ -42,12 +58,34 @@ def wait_until(cond, timeout_ms=2000, step_ms=30) -> bool:
         xbmc.sleep(step_ms)
     return False
 
-def focus_list(control_id: int = LIST_ID, tries: int = 20, step_ms: int = 30) -> bool:
-    for _ in range(tries):
+def focus_list(control_id: int = None, tries: int = 20, step_ms: int = 30) -> bool:
+    """Focus the main list control, trying version-specific control IDs"""
+    if control_id is None:
+        control_id = _get_list_control_id()
+    
+    # Try the specified control ID first
+    for _ in range(tries // 2):
         xbmc.executebuiltin(f"SetFocus({control_id})")
         if xbmc.getCondVisibility(f"Control.HasFocus({control_id})"):
+            _log(f"Successfully focused control {control_id}", xbmc.LOGINFO)
             return True
         xbmc.sleep(step_ms)
+    
+    # If that failed, try alternative control IDs for Kodi v20+
+    alternative_ids = [50, 451, 52, 500]  # Common list control IDs
+    if control_id in alternative_ids:
+        alternative_ids.remove(control_id)
+    
+    for alt_id in alternative_ids:
+        _log(f"Trying alternative control ID {alt_id}", xbmc.LOGINFO)
+        for _ in range(5):  # Fewer tries per alternative
+            xbmc.executebuiltin(f"SetFocus({alt_id})")
+            if xbmc.getCondVisibility(f"Control.HasFocus({alt_id})"):
+                _log(f"Successfully focused alternative control {alt_id}", xbmc.LOGINFO)
+                return True
+            xbmc.sleep(step_ms)
+    
+    _log(f"Failed to focus any control (tried {control_id}, {alternative_ids})", xbmc.LOGWARNING)
     return False
 
 def _write_text(path_special: str, text: str) -> bool:
@@ -215,7 +253,7 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
 
     # 3) Focus list, jump to the correct row if we can infer it
     logger.debug("HIJACK HELPER: Step 3 - Focusing list and finding item")
-    if not focus_list(LIST_ID):
+    if not focus_list():  # Let focus_list determine the correct control ID
         logger.warning("HIJACK HELPER: Could not focus list control")
         return False
     
