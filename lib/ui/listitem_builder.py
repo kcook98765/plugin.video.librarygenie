@@ -361,12 +361,25 @@ class ListItemBuilder:
 
             is_folder = False
 
+            # ✨ ALWAYS set InfoHijack properties on library items first (before any metadata operations)
+            self.logger.info(f"LIB ITEM: Setting InfoHijack properties for '{title}' - DBID={kodi_id}, DBType={media_type}")
+            try:
+                li.setProperty("LG.InfoHijack.Armed", "1")
+                li.setProperty("LG.InfoHijack.DBID", str(kodi_id))
+                li.setProperty("LG.InfoHijack.DBType", media_type)
+                self.logger.info(f"LIB ITEM: ✅ InfoHijack properties SET for '{title}': Armed=1, DBID={kodi_id}, DBType={media_type}")
+            except Exception as e:
+                self.logger.error(f"LIB ITEM: ❌ Failed to set InfoHijack properties for '{title}': {e}")
+
             # Handle metadata setting based on Kodi version
             kodi_major = get_kodi_major_version()
+            self.logger.debug(f"LIB ITEM: Detected Kodi major version {kodi_major} for '{title}'")
+            
             if kodi_major >= 20:
                 # v20+: Use InfoTagVideo setters and avoid setInfo() for library items
                 try:
                     video_info_tag = li.getVideoInfoTag()
+                    self.logger.debug(f"LIB ITEM v20+: Got VideoInfoTag for '{title}'")
 
                     # setDbId() for library linking - use feature detection instead of version detection
                     dbid_success = False
@@ -386,12 +399,6 @@ class ListItemBuilder:
                     except Exception as e:
                         self.logger.warning(f"LIB ITEM: setDbId() 2-arg failed for '{title}': {e}")
 
-                    # ✨ Add these three properties on library items only:
-                    li.setProperty("LG.InfoHijack.Armed", "1")
-                    li.setProperty("LG.InfoHijack.DBID", str(kodi_id))
-                    li.setProperty("LG.InfoHijack.DBType", media_type)
-                    self.logger.info(f"LIB ITEM: Set InfoHijack properties for '{title}': Armed=1, DBID={kodi_id}, DBType={media_type}")
-
                     # Report dbid success/failure for diagnostics
                     if dbid_success:
                         self.logger.info(f"LIB ITEM: DB linking successful for '{title}' - Info dialog will show full cast")
@@ -402,9 +409,10 @@ class ListItemBuilder:
                     self._set_infotag_metadata(video_info_tag, item, title)
 
                 except Exception as e:
-                    self.logger.warning(f"LIB ITEM: InfoTagVideo setup failed for '{title}': {e}")
+                    self.logger.error(f"LIB ITEM: InfoTagVideo setup failed for '{title}': {e}")
             else:
                 # v19: Use classic setInfo() approach
+                self.logger.debug(f"LIB ITEM v19: Using setInfo() approach for '{title}'")
                 info = self._build_lightweight_info(item)
                 self.logger.debug(f"LIB ITEM v19: Video info dict for '{title}': {info}")
                 li.setInfo('video', info)
