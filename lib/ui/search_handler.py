@@ -365,9 +365,9 @@ class SearchHandler:
             import sys
             list_url = f"{sys.argv[0]}?action=show_list&list_id={list_id}"
             
-            # Use Kodi's Container.Update to navigate to the list
+            # Use ActivateWindow with Videos,plugin:// syntax for proper navigation
             import xbmc
-            xbmc.executebuiltin(f'Container.Update({list_url})')
+            xbmc.executebuiltin(f'ActivateWindow(Videos,{list_url},return)')
             
             self.logger.info(f"Navigated to search list with ID: {list_id}")
             
