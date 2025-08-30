@@ -31,16 +31,32 @@ class InfoHijackManager:
         # Debug current state
         self._logger.debug("HIJACK: Info dialog detected, checking for tagged items...")
 
-        # Only intercept our tagged rows
+        # Check for hijack armed status - try multiple property sources
         armed = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)') == '1'
         self._logger.debug(f"HIJACK: Armed status = '{xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)')}'")
         
-        if not armed:
-            self._logger.debug("HIJACK: Item not armed, ignoring")
+        # Also check if this is a library item that should be hijacked (fallback detection)
+        dbid_prop = xbmc.getInfoLabel('ListItem.Property(DBID)') or xbmc.getInfoLabel('ListItem.DBID')
+        dbtype_prop = (xbmc.getInfoLabel('ListItem.Property(DBTYPE)') or xbmc.getInfoLabel('ListItem.DBTYPE') or '').lower()
+        
+        # Get current container path to check if this is from our plugin
+        container_path = xbmc.getInfoLabel('Container.FolderPath') or ''
+        is_from_plugin = 'plugin.video.librarygenie' in container_path
+        
+        # Trigger hijack if explicitly armed OR if it's a library item from our plugin
+        should_hijack = armed or (is_from_plugin and dbid_prop and dbtype_prop in ['movie', 'episode'])
+        
+        if not should_hijack:
+            self._logger.debug(f"HIJACK: Not hijacking - armed={armed}, from_plugin={is_from_plugin}, dbid={dbid_prop}, dbtype={dbtype_prop}")
             return
 
-        dbid = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBID)') or xbmc.getInfoLabel('ListItem.DBID')
-        dbtype = (xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBType)') or xbmc.getInfoLabel('ListItem.DBTYPE') or '').lower()
+        # Get database info from multiple sources
+        dbid = (xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBID)') or 
+                xbmc.getInfoLabel('ListItem.Property(DBID)') or 
+                xbmc.getInfoLabel('ListItem.DBID'))
+        dbtype = (xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBType)') or 
+                  xbmc.getInfoLabel('ListItem.Property(DBTYPE)') or 
+                  xbmc.getInfoLabel('ListItem.DBTYPE') or '').lower()
         
         self._logger.info(f"HIJACK: 🎯 TRIGGERED for armed item - DBID={dbid}, DBType={dbtype}")
         

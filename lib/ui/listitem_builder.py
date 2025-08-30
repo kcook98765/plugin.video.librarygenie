@@ -351,15 +351,16 @@ class ListItemBuilder:
             self.logger.debug(f"LIB ITEM: Display label set to: '{display}'")
             li = xbmcgui.ListItem(label=display)
 
-            # Library item: use plugin URL to ensure hijack compatibility in v20+
-            # videodb:// URLs bypass plugin interaction in v20+, preventing hijack
-            url = f"{self.base_url}?action=info&kodi_id={kodi_id}&media_type={media_type}"
-            self.logger.info(f"LIB ITEM: Generated plugin URL for '{title}': {url}")
+            # Use videodb:// URL for proper library integration
+            url = self._build_videodb_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
+            self.logger.info(f"LIB ITEM: Generated videodb URL for '{title}': {url}")
+            
+            # Set the URL on the ListItem for proper navigation
+            li.setPath(url)
 
-            # Do NOT set IsPlayable for videodb:// items - Kodi handles this natively
-            # Setting IsPlayable can interfere with native library handling and skins
-            self.logger.debug(f"LIB ITEM: Skipping IsPlayable for videodb:// item '{title}' - native library behavior")
-
+            # CRITICAL: Do NOT set IsPlayable=true for library items
+            # This prevents Kodi from showing the info dialog correctly
+            # Library items should be navigable but not directly playable from lists
             is_folder = False
 
             # ✨ ALWAYS set InfoHijack properties on library items first (before any metadata operations)
@@ -427,15 +428,20 @@ class ListItemBuilder:
             else:
                 self.logger.debug(f"LIB ITEM: No art available for '{title}'")
 
-            # Always set property fallbacks for maximum compatibility
-            # These help when setDbId fails or on older versions
+            # Set comprehensive properties for both library integration and hijack detection
             try:
+                # Standard library properties
                 li.setProperty('dbtype', media_type)
                 li.setProperty('dbid', str(kodi_id))
                 li.setProperty('mediatype', media_type)
-                self.logger.debug(f"LIB ITEM: Set property fallbacks for '{title}': dbtype={media_type}, dbid={kodi_id}")
+                
+                # Set DBID/DBTYPE properties that Kodi preserves during navigation
+                li.setProperty('DBID', str(kodi_id))
+                li.setProperty('DBTYPE', media_type.upper())
+                
+                self.logger.debug(f"LIB ITEM: Set comprehensive properties for '{title}': dbtype={media_type}, dbid={kodi_id}, DBID={kodi_id}, DBTYPE={media_type.upper()}")
             except Exception as e:
-                self.logger.warning(f"LIB ITEM: Property fallback setup failed for '{title}': {e}")
+                self.logger.warning(f"LIB ITEM: Property setup failed for '{title}': {e}")
 
             # Resume (always for library movies/episodes)
             self._set_resume_info_versioned(li, item)
