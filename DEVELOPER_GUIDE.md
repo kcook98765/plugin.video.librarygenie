@@ -14,15 +14,17 @@ LibraryGenie consists of three main layers:
    - Provides context menu entries for list/folder management.
 
 2. **Data Layer**
-   - SQLite backend (`database.py`).
+   - SQLite backend with connection management (`connection_manager.py`).
+   - Schema migrations (`migrations.py`).
    - Query abstraction (`query_manager.py`).
-   - Schema includes `media_items`, `list_items`, `lists`, `folders`, `imdb_to_kodi`, and caches.
+   - Schema includes `lists`, `folders`, `media_items`, `list_items`, `imdb_to_kodi`, `search_history`, `search_preferences`, `ui_preferences`, `library_scan_log`, and various cache/sync tables.
 
 3. **Feature Layer**
-   - List/folder CRUD (`lists_service.py`).
-   - Export/import in NDJSON format (`export_import.py`).
-   - Directory building with batched JSON-RPC (`directory_builder.py`).
-   - Mapping indexer (IMDb → Kodi DBIDs).
+   - List/folder CRUD (`query_manager.py`).
+   - Export/import in NDJSON format (`export_engine.py`, `import_engine.py`).
+   - Directory building with batched JSON-RPC (`listitem_builder.py`, `menu_builder.py`).
+   - Library scanning and indexing (`scanner.py`).
+   - Search functionality (`local_engine.py`, `enhanced_search_engine.py`).
    - External integrations (remote API, TMDb enrichment).
 
 ---

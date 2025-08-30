@@ -43,6 +43,13 @@ Hierarchical folder structure for organizing lists.
 
 Constraints:
 - UNIQUE(name, parent_id).
+- Create reserved Search History folder
+            conn.execute("""
+                INSERT INTO folders (name, parent_id)
+                VALUES ('Search History', NULL)
+            """)
+
+            # No default lists - users will create their own
 
 ---
 
@@ -236,5 +243,4 @@ Indexes:
 
 - IMDb is the primary identifier for portability.  
 - All fallbacks (TMDb, title/year, season/episode, artist/track) are secondary.  
-- Schema designed for **resilience** (recovery after Kodi crash, portable export/import).  
-
+- Schema designed for **resilience** (recovery after Kodi crash, portable export/import).
