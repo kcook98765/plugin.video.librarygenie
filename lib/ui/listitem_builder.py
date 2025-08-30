@@ -390,6 +390,7 @@ class ListItemBuilder:
                     li.setProperty("LG.InfoHijack.Armed", "1")
                     li.setProperty("LG.InfoHijack.DBID", str(kodi_id))
                     li.setProperty("LG.InfoHijack.DBType", media_type)
+                    self.logger.info(f"LIB ITEM: Set InfoHijack properties for '{title}': Armed=1, DBID={kodi_id}, DBType={media_type}")
 
                     # Report dbid success/failure for diagnostics
                     if dbid_success:
