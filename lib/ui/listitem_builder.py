@@ -319,26 +319,53 @@ class ListItemBuilder:
             title = item.get('title', 'Unknown')
             media_type = item.get('media_type', 'movie')
             kodi_id = item.get('kodi_id')
+            is_v19 = not is_kodi_v20_plus()
 
-            self.logger.debug(f"LIB ITEM: Creating library ListItem for '{title}' (type={media_type}, kodi_id={kodi_id})")
+            self.logger.debug(f"LIB ITEM: Creating library ListItem for '{title}' (type={media_type}, kodi_id={kodi_id}, v19_mode={is_v19})")
 
-            # Label: include year if present
-            display = f"{title} ({item['year']})" if item.get('year') else title
-            self.logger.debug(f"LIB ITEM: Display label set to: '{display}'")
-            li = xbmcgui.ListItem(label=display)
-
-            # Set lightweight info for all versions (plot, rating, etc. are needed)
-            info = self._build_lightweight_info(item)
-            self.logger.debug(f"LIB ITEM: Video info dict for '{title}': {info}")
-            li.setInfo('video', info)
-
-            # Art (poster/fanart minimum)
-            art = self._build_art_dict(item)
-            if art:
-                self.logger.debug(f"LIB ITEM: Art dict for '{title}': {art}")
-                li.setArt(art)
+            # CRITICAL v19 WORKAROUND: Use basic display-only data on v19
+            if is_v19:
+                # On v19, create completely basic ListItem with minimal display data only
+                # This prevents any library association that could trigger interception
+                basic_title = item.get('title', 'Unknown')
+                basic_year = item.get('year')
+                display = f"{basic_title} ({basic_year})" if basic_year else basic_title
+                
+                self.logger.info(f"V19 BASIC: Creating basic ListItem for '{display}' - no enriched data")
+                li = xbmcgui.ListItem(label=display)
+                
+                # Set only the most basic info - no enriched JSON-RPC data
+                basic_info = {
+                    'title': basic_title,
+                    'year': basic_year if basic_year else None
+                }
+                # Remove None values
+                basic_info = {k: v for k, v in basic_info.items() if v is not None}
+                
+                self.logger.info(f"V19 BASIC: Using ultra-minimal info dict for '{display}': {list(basic_info.keys())}")
+                li.setInfo('video', basic_info)
+                
+                # No art on v19 to prevent any library association
+                self.logger.debug(f"V19 BASIC: Skipping art for '{display}' to prevent library detection")
+                
             else:
-                self.logger.debug(f"LIB ITEM: No art available for '{title}'")
+                # v20+ can use full enriched data
+                display = f"{title} ({item['year']})" if item.get('year') else title
+                self.logger.debug(f"LIB ITEM: Display label set to: '{display}'")
+                li = xbmcgui.ListItem(label=display)
+
+                # Set lightweight info for all versions (plot, rating, etc. are needed)
+                info = self._build_lightweight_info(item)
+                self.logger.debug(f"LIB ITEM: Video info dict for '{title}': {info}")
+                li.setInfo('video', info)
+
+                # Art (poster/fanart minimum)
+                art = self._build_art_dict(item)
+                if art:
+                    self.logger.debug(f"LIB ITEM: Art dict for '{title}': {art}")
+                    li.setArt(art)
+                else:
+                    self.logger.debug(f"LIB ITEM: No art available for '{title}'")
 
             # Set library identity properties only on v20+ to prevent v19 interception
             # On v19, any combination of library properties causes Kodi to intercept clicks
@@ -402,8 +429,11 @@ class ListItemBuilder:
             else:
                 self.logger.debug(f"LIB ITEM: Skipping InfoTagVideo setters for '{title}' on v19")
 
-            # Resume (always for library movies/episodes)
-            self._set_resume_info_versioned(li, item)
+            # Resume - only on v20+ for library items, skip on v19 to prevent library detection
+            if is_kodi_v20_plus():
+                self._set_resume_info_versioned(li, item)
+            else:
+                self.logger.debug(f"V19 BASIC: Skipping resume info for '{title}' to prevent library detection")
 
             self.logger.info(f"LIB ITEM: Successfully created library ListItem '{title}' -> URL: {url}, isFolder: {is_folder}")
             return url, li, is_folder
