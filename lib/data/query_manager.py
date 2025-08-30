@@ -613,7 +613,6 @@ class QueryManager:
                 SELECT 
                     l.id,
                     l.name,
-                    l.description,
                     COUNT(li.id) as item_count,
                     date(l.created_at) as created,
                     date(l.modified_at) as modified,
@@ -622,7 +621,7 @@ class QueryManager:
                 FROM lists l
                 LEFT JOIN folders f ON l.folder_id = f.id
                 LEFT JOIN list_items li ON l.id = li.list_id
-                GROUP BY l.id, l.name, l.description, l.created_at, l.modified_at, f.name, f.id
+                GROUP BY l.id, l.name, l.created_at, l.modified_at, f.name, f.id
                 ORDER BY 
                     CASE WHEN f.name = 'Search History' THEN 0 ELSE 1 END,
                     f.name NULLS LAST, 
@@ -638,6 +637,9 @@ class QueryManager:
                     row_dict = dict(row)
                     # Ensure string conversion for compatibility
                     row_dict['id'] = str(row_dict['id'])
+                    # Add description based on item count and folder
+                    folder_context = f" ({row_dict['folder_name']})" if row_dict['folder_name'] != 'Root' else ""
+                    row_dict['description'] = f"{row_dict['item_count']} items{folder_context}"
                     formatted_results.append(row_dict)
 
                 self.logger.info(f"Retrieved {len(formatted_results)} lists with folders")
