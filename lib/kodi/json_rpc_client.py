@@ -1,117 +1,240 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
-LibraryGenie - JSON-RPC Client
-Handles communication with Kodi's JSON-RPC API
+LibraryGenie - Kodi JSON-RPC Client
+Safe, paginated communication with Kodi's video library
 """
 
 import json
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional, Union, List
 
 import xbmc
 
 from ..utils.logger import get_logger
 
 
-class JsonRpcClient:
-    """Client for Kodi JSON-RPC API calls"""
+class KodiJsonRpcClient:
+    """Client for safely communicating with Kodi's JSON-RPC API"""
 
-    def __init__(self, config_manager=None):
+    def __init__(self):
         self.logger = get_logger(__name__)
-        self.config_manager = config_manager
+        self.page_size = 100  # Safe page size for large libraries
 
-    def execute(self, method: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Execute a JSON-RPC method call"""
+    def get_movies(self, offset: int = 0, limit: Optional[int] = None) -> Dict[str, Any]:
+        """Get movies from Kodi library with pagination"""
+        actual_limit = limit or self.page_size
+
+        request = {
+            "jsonrpc": "2.0",
+            "method": "VideoLibrary.GetMovies",
+            "params": {
+                "properties": [
+                    "title",
+                    "year",
+                    "imdbnumber",
+                    "uniqueid",
+                    "file",
+                    "dateadded",
+                    "art",
+                    "plot",
+                    "plotoutline",
+                    "runtime",
+                    "rating",
+                    "genre",
+                    "mpaa",
+                    "director",
+                    "country",
+                    "studio",
+                    # NOTE: DO NOT REQUEST "cast" HERE - Cast data should not be requested
+                    # when building ListItems as it can cause performance issues and
+                    # is not needed for list display. Kodi will populate cast data
+                    # automatically when dbid is set on the ListItem.
+                    "playcount",
+                    "resume"
+                ],
+                "limits": {
+                    "start": offset,
+                    "end": offset + actual_limit
+                }
+            },
+            "id": 1
+        }
+
         try:
-            payload = {
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": method,
-                "params": params or {}
-            }
+            self.logger.debug(f"JSON-RPC request: VideoLibrary.GetMovies offset={offset} limit={actual_limit}")
+            response_str = xbmc.executeJSONRPC(json.dumps(request))
+            response = json.loads(response_str)
 
-            raw_response = xbmc.executeJSONRPC(json.dumps(payload))
-            response = json.loads(raw_response)
+            if "error" in response:
+                self.logger.error(f"JSON-RPC error: {response['error']}")
+                return {"movies": [], "limits": {"total": 0}}
 
-            if 'error' in response:
-                self.logger.error(f"JSON-RPC error in {method}: {response['error']}")
-                return {}
+            result = response.get("result", {})
+            movies = result.get("movies", [])
+            limits = result.get("limits", {"total": 0})
 
-            return response.get('result', {})
+            self.logger.debug(f"Retrieved {len(movies)} movies, total: {limits.get('total', 0)}")
+
+            # Normalize the movie data
+            normalized_movies = []
+            for movie in movies:
+                normalized = self._normalize_movie_data(movie)
+                if normalized:
+                    normalized_movies.append(normalized)
+
+            return {"movies": normalized_movies, "limits": limits}
 
         except Exception as e:
-            self.logger.error(f"Error executing JSON-RPC method {method}: {e}")
-            return {}
+            self.logger.error(f"JSON-RPC request failed: {e}")
+            return {"movies": [], "limits": {"total": 0}}
 
-    def get_movies_batch(self, movie_ids: List[int]) -> List[Dict[str, Any]]:
-        """Get movie details for a batch of movie IDs"""
+    def get_movie_count(self) -> int:
+        """Get total count of movies in library"""
+
+        request = {
+            "jsonrpc": "2.0",
+            "method": "VideoLibrary.GetMovies",
+            "params": {
+                "properties": ["title"],
+                "limits": {"start": 0, "end": 1}
+            },
+            "id": 1
+        }
+
         try:
-            if not movie_ids:
+            response_str = xbmc.executeJSONRPC(json.dumps(request))
+            response = json.loads(response_str)
+
+            if "error" in response:
+                self.logger.error(f"JSON-RPC count error: {response['error']}")
+                return 0
+
+            result = response.get("result", {})
+            limits = result.get("limits", {"total": 0})
+
+            return limits.get("total", 0)
+
+        except Exception as e:
+            self.logger.error(f"JSON-RPC count request failed: {e}")
+            return 0
+
+    def get_movies_quick_check(self) -> List[Dict[str, Any]]:
+        """Quick check of library IDs and basic metadata for delta detection"""
+
+        request = {
+            "jsonrpc": "2.0",
+            "method": "VideoLibrary.GetMovies",
+            "params": {
+                "properties": ["file", "dateadded"],
+                "limits": {"start": 0, "end": 10000}  # Large limit for quick checks
+            },
+            "id": 1
+        }
+
+        try:
+            response_str = xbmc.executeJSONRPC(json.dumps(request))
+            response = json.loads(response_str)
+
+            if "error" in response:
+                self.logger.error(f"JSON-RPC quick check error: {response['error']}")
                 return []
 
-            # Get details for each movie
-            movies = []
-            for movie_id in movie_ids:
-                result = self.execute("VideoLibrary.GetMovieDetails", {
-                    "movieid": movie_id,
-                    "properties": [
-                        "title", "originaltitle", "sorttitle", "year", "genre", 
-                        "plot", "rating", "votes", "mpaa", "runtime", "studio", 
-                        "country", "premiered", "art", "resume", "file"
-                    ]
-                })
-
-                movie_details = result.get("moviedetails")
-                if movie_details:
-                    movies.append(movie_details)
+            result = response.get("result", {})
+            movies = result.get("movies", [])
 
             return movies
 
         except Exception as e:
-            self.logger.error(f"Error in get_movies_batch: {e}")
+            self.logger.error(f"JSON-RPC quick check failed: {e}")
             return []
 
-    def get_episodes_batch(self, episode_ids: List[int]) -> List[Dict[str, Any]]:
-        """Get episode details for a batch of episode IDs"""
+    def _normalize_movie_data(self, movie: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Normalize movie data from Kodi JSON-RPC response"""
         try:
-            if not episode_ids:
-                return []
+            # Extract external IDs
+            imdb_id = None
+            tmdb_id = None
 
-            # Get details for each episode
-            episodes = []
-            for episode_id in episode_ids:
-                result = self.execute("VideoLibrary.GetEpisodeDetails", {
-                    "episodeid": episode_id,
-                    "properties": [
-                        "title", "showtitle", "season", "episode", "plot", 
-                        "rating", "runtime", "art", "resume", "file", "aired",
-                        "playcount", "lastplayed", "tvshowid"
-                    ]
-                })
+            # Try the old imdbnumber field
+            if "imdbnumber" in movie and movie["imdbnumber"]:
+                if movie["imdbnumber"].startswith("tt"):
+                    imdb_id = movie["imdbnumber"]
 
-                episode_details = result.get("episodedetails")
-                if episode_details:
-                    episodes.append(episode_details)
+            # Try the newer uniqueid structure
+            if "uniqueid" in movie and isinstance(movie["uniqueid"], dict):
+                if "imdb" in movie["uniqueid"]:
+                    imdb_id = movie["uniqueid"]["imdb"]
+                if "tmdb" in movie["uniqueid"]:
+                    tmdb_id = str(movie["uniqueid"]["tmdb"])
 
-            return episodes
+            # Extract artwork URLs
+            art = movie.get("art", {})
+            poster = art.get("poster", "")
+            fanart = art.get("fanart", "")
+            thumb = art.get("thumb", poster)  # Fallback to poster
+
+            # Extract and process metadata
+            genres = movie.get("genre", [])
+            genre_str = ", ".join(genres) if isinstance(genres, list) else str(genres) if genres else ""
+
+            directors = movie.get("director", [])
+            director_str = ", ".join(directors) if isinstance(directors, list) else str(directors) if directors else ""
+
+            # Handle resume point
+            resume_data = movie.get("resume", {})
+            resume_time = resume_data.get("position", 0) if isinstance(resume_data, dict) else 0
+            
+            # Extract plot data and log if present
+            plot_data = movie.get("plot", "")
+            if plot_data:
+                self.logger.debug(f"JSON-RPC returned plot for '{movie.get('title', 'Unknown')}': {len(plot_data)} characters")
+
+            # NOTE: Cast data is intentionally not processed here.
+            # Cast information should not be requested in JSON-RPC calls for ListItems
+            # as it causes performance issues. Kodi will handle cast population automatically
+            # when the ListItem has a proper dbid set.
+            
+            return {
+                "kodi_id": movie.get("movieid"),
+                "title": movie.get("title", "Unknown Title"),
+                "year": movie.get("year"),
+                "imdb_id": imdb_id,
+                "tmdb_id": tmdb_id,
+                "file_path": movie.get("file", ""),
+                "date_added": movie.get("dateadded", ""),
+                # Phase 11: Artwork URLs
+                "poster": poster,
+                "fanart": fanart,
+                "thumb": thumb,
+                # Phase 11: Extended metadata
+                "plot": movie.get("plot", ""),
+                "plotoutline": movie.get("plotoutline", ""),
+                "runtime": movie.get("runtime", 0),
+                "rating": movie.get("rating", 0.0),
+                "genre": genre_str,
+                "mpaa": movie.get("mpaa", ""),
+                "director": director_str,
+                "country": movie.get("country", []),
+                "studio": movie.get("studio", []),
+                # Cast data intentionally omitted - see note above
+                "playcount": movie.get("playcount", 0),
+                "resume_time": resume_time
+            }
 
         except Exception as e:
-            self.logger.error(f"Error in get_episodes_batch: {e}")
-            return []
+            self.logger.warning(f"Failed to normalize movie data: {e}")
+            return None
 
 
-# Global instance
-_json_rpc_client = None
 
-def get_json_rpc_client(config_manager=None):
-    """Get or create the global JSON-RPC client instance"""
-    global _json_rpc_client
-    if _json_rpc_client is None:
-        _json_rpc_client = JsonRpcClient(config_manager)
-    return _json_rpc_client
+# Global client instance
+_client_instance = None
 
-def get_kodi_client(config_manager=None):
-    """Alias for get_json_rpc_client for backward compatibility"""
-    return get_json_rpc_client(config_manager)
+
+def get_kodi_client():
+    """Get global Kodi JSON-RPC client instance"""
+    global _client_instance
+    if _client_instance is None:
+        _client_instance = KodiJsonRpcClient()
+    return _client_instance

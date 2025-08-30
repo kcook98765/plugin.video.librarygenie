@@ -166,10 +166,8 @@ def _check_and_trigger_initial_scan():
         migration_manager = get_migration_manager()
         migration_manager.ensure_initialized()
 
-        # Check if library needs indexing - get storage manager for scanner
-        from lib.data.storage_manager import get_storage_manager
-        db_manager = get_storage_manager()
-        scanner = get_library_scanner(db_manager)
+        # Check if library needs indexing
+        scanner = get_library_scanner()
         if not scanner.is_library_indexed():
             logger.info("Library not indexed - triggering initial scan")
 

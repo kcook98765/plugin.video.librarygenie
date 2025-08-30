@@ -48,13 +48,8 @@ class BackgroundService:
         self._library_scanner = None
         try:
             from lib.library.scanner import get_library_scanner
-            # Try to get library scanner for periodic operations
-            from lib.data.storage_manager import get_storage_manager
-            db_manager = get_storage_manager()
-            scanner = get_library_scanner(db_manager)
-            if scanner:
-                self._library_scanner = scanner
-                self.logger.debug("Library scanner initialized")
+            self._library_scanner = get_library_scanner()
+            self.logger.debug("Library scanner initialized")
         except Exception as e:
             self.logger.warning(f"Failed to initialize library scanner: {e}")
 
