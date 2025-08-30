@@ -29,7 +29,7 @@ def is_kodi_v20_plus() -> bool:
     try:
         build_version = xbmc.getInfoLabel("System.BuildVersion")
         # "20.2 (20.2.0) Git:..." -> "20"
-        major = int(build_version.split('.')[0].split('-')[0])
+        major = int(build_version.split('.')[0].split('-0')[0])
         return major >= 20
     except Exception:
         # Safe fallback (Matrix behavior)
@@ -44,7 +44,7 @@ def get_kodi_major_version() -> int:
     try:
         build_version = xbmc.getInfoLabel("System.BuildVersion")
         # "20.2 (20.2.0) Git:..." -> "20"
-        major = int(build_version.split('.')[0].split('-')[0])
+        major = int(build_version.split('.')[0].split('-0')[0])
         return major
     except Exception:
         # Safe fallback (Matrix behavior)
@@ -374,7 +374,7 @@ class ListItemBuilder:
             # Handle metadata setting based on Kodi version
             kodi_major = get_kodi_major_version()
             self.logger.debug(f"LIB ITEM: Detected Kodi major version {kodi_major} for '{title}'")
-            
+
             if kodi_major >= 20:
                 # v20+: Use InfoTagVideo setters and avoid setInfo() for library items
                 try:
@@ -495,10 +495,23 @@ class ListItemBuilder:
             is_folder = not is_playable
             self.logger.debug(f"EXT ITEM: Playable flags for '{title}': is_playable={is_playable}, is_folder={is_folder}, play_value={item.get('play')}")
 
+            # *** MODIFICATION START ***
+            # Ensure list items that are meant to display list contents are marked as folders.
+            # This prevents Kodi from trying to show video info for them.
+            if is_folder:
+                # If it's explicitly marked as not playable and not a video, it should be a folder.
+                # However, if the action is specifically to "show_list", it MUST be a folder.
+                action = item.get("action", "")
+                if action == "show_list":
+                    is_folder = True  # Lists should be navigable folders
+                else:
+                    is_folder = False # Default to not a folder unless it's a "show_list" action or similar
+
+            # For playable items, set additional properties
             if is_playable:
                 li.setProperty('IsPlayable', 'true')
                 self.logger.debug(f"EXT ITEM: Set IsPlayable=true for '{title}'")
-            # Do NOT set IsPlayable='false' for folders/non-playable
+            # *** MODIFICATION END ***
 
             # Resume for plugin-only: only if you maintain your own resume store
             # (Skip resume for external items - at your discretion)

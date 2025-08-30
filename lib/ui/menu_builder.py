@@ -36,7 +36,7 @@ class MenuBuilder:
                 item_title = item.get('title', 'Unknown')
                 self.logger.debug(f"MENU BUILD: Processing menu item {idx+1}/{len(items)}: '{item_title}'")
                 self.logger.debug(f"MENU BUILD: Item {idx+1} data: {item}")
-                
+
                 self._add_directory_item(item, addon_handle, base_url)
                 successful_items += 1
                 self.logger.debug(f"MENU BUILD: Successfully added menu item {idx+1}: '{item_title}'")
@@ -58,7 +58,7 @@ class MenuBuilder:
         context_menu = item.get("context_menu", [])
 
         self.logger.debug(f"MENU ITEM: Processing '{title}' - action='{action}', is_folder={is_folder}")
-        
+
         # Log all item properties for debugging
         item_keys = list(item.keys())
         self.logger.debug(f"MENU ITEM: Available properties for '{title}': {item_keys}")
@@ -66,7 +66,7 @@ class MenuBuilder:
         # Build URL with parameters
         params = {"action": action}
         excluded_keys = ["title", "description", "action", "is_folder", "context_menu", "movie_data"]
-        
+
         param_keys = []
         for key, value in item.items():
             if key not in excluded_keys:
@@ -170,7 +170,7 @@ class MenuBuilder:
         # Build movie items
         successful_movies = 0
         failed_movies = 0
-        
+
         for idx, movie in enumerate(movies):
             try:
                 self.logger.debug(f"MOVIE MENU: Processing movie {idx+1}/{len(movies)}: '{movie.get('title', 'Unknown')}'")

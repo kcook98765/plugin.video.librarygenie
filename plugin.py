@@ -243,11 +243,11 @@ def handle_lists(addon_handle, base_url):
             folder_id = folder_info['id']
             folder_name = folder_info['name']
             list_count = folder_info['list_count']
-            
+
             # Check if it's the reserved "Search History" folder
             is_reserved_folder = folder_name == 'Search History'
             folder_context_menu = []
-            
+
             if not is_reserved_folder:
                 folder_context_menu = [
                     (f"Rename Folder '{folder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_folder&folder_id={folder_id})"),
@@ -270,19 +270,22 @@ def handle_lists(addon_handle, base_url):
 
         # Add standalone lists (not in any folder)
         for list_item in standalone_lists:
-            context_menu = [
-                (f"Rename '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={list_item['id']})"),
-                (f"Delete '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_item['id']})")
-            ]
+            list_id = list_item.get('id')
+            name = list_item.get('name', 'Unnamed List')
+            description = list_item.get('description', '')
+            item_count = list_item.get('item_count', 0)
 
             menu_items.append({
-                "title": f"{list_item['name']} ({list_item['item_count']} items)",
-                "action": "view_list",
-                "list_id": list_item['id'],
-                "description": f"Created: {list_item['created']}",
+                "title": f"[COLOR yellow]📋 {name}[/COLOR]",
+                "action": "show_list",
+                "list_id": list_id,
+                "description": description,
                 "is_folder": False,
-                "icon": "DefaultVideoPlaylists.png",
-                "context_menu": context_menu
+                "icon": "DefaultPlaylist.png",
+                "context_menu": [
+                    (f"Rename List '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={list_id})"),
+                    (f"Delete List '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_id})")
+                ]
             })
 
 
@@ -435,7 +438,7 @@ def handle_view_list(addon_handle, base_url):
 
         # Set category for better navigation
         xbmcplugin.setPluginCategory(addon_handle, f"List: {list_info['name']}")
-        
+
         # Set content type for proper skin support
         xbmcplugin.setContent(addon_handle, content_type)
 
@@ -446,12 +449,12 @@ def handle_view_list(addon_handle, base_url):
             title = item.get('title', 'Unknown')
             year = item.get('year')
             display_title = f"{title} ({year})" if year else title
-            
+
             # Create context menu for list item
             context_menu = [
                 (f"Remove from '{list_info['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={list_id}&item_id={item.get('id')})")
             ]
-            
+
             # For library items, use on_select action to handle play/info preference
             kodi_id = item.get('kodi_id') or item.get('movieid') or item.get('episodeid')
             if kodi_id:
@@ -467,7 +470,7 @@ def handle_view_list(addon_handle, base_url):
                     "context_menu": context_menu,
                     "movie_data": item  # For enhanced rendering
                 }
-                
+
                 # Add episode-specific data for videodb URL construction
                 if item.get('media_type') == 'episode':
                     if item.get('tvshowid'):
@@ -486,7 +489,7 @@ def handle_view_list(addon_handle, base_url):
                     "context_menu": context_menu,
                     "movie_data": item  # For enhanced rendering
                 }
-            
+
             menu_items.append(menu_item)
 
         # Build menu using MenuBuilder
@@ -858,7 +861,7 @@ def handle_remove_from_list():
     try:
         list_id = args.get('list_id')
         item_id = args.get('item_id')
-        
+
         if not list_id or not item_id:
             logger.error("Missing list_id or item_id for remove_from_list")
             return
@@ -968,20 +971,28 @@ def handle_show_folder(addon_handle, base_url):
         menu_items = []
         # Build menu items for lists within the folder
         for list_item in folder_lists:
-            sub_list_context_menu = []
-            # Add context menu for each list
-            sub_list_context_menu = [
-                (f"Rename '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={list_item['id']})"),
-                (f"Delete '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_item['id']})")
-            ]
+            list_id = list_item.get('id')
+            name = list_item.get('name', 'Unnamed List')
+            description = list_item.get('description', '')
+
+            # Check if it's in Search History folder to prevent deletion
+            is_search_history = folder_name == 'Search History'
+            context_menu = []
+
+            if not is_search_history:
+                context_menu = [
+                    (f"Rename List '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={list_id})"),
+                    (f"Delete List '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_id})")
+                ]
+
             menu_items.append({
-                "title": f"{list_item['name']} ({list_item['item_count']} items)",
-                "action": "view_list",
-                "list_id": list_item['id'],
-                "description": f"Created: {list_item['created']}",
+                "title": f"[COLOR yellow]📋 {name}[/COLOR]",
+                "action": "show_list",
+                "list_id": list_id,
+                "description": description,
                 "is_folder": False,
-                "icon": "DefaultVideoPlaylists.png",
-                "context_menu": sub_list_context_menu
+                "icon": "DefaultPlaylist.png",
+                "context_menu": context_menu
             })
 
         # Build and display the menu for the folder contents
@@ -1093,6 +1104,7 @@ action_handlers = {
     'rename_folder': handle_rename_folder,
     'delete_folder': handle_delete_folder,
     'show_folder': handle_show_folder, # Added handler for showing folder contents
+    'show_list': lambda handle, base_url, params: handle_view_list(handle, base_url), # Alias for show_list to handle_view_list
     'remote_lists': show_remote_lists_menu,
     'authorize': handle_authorize,
     'signout': handle_signout,
@@ -1137,11 +1149,7 @@ def main():
             # Special handling for actions that require specific arguments or logic
             if action == 'search':
                 handler(addon_handle)
-            elif action == 'lists':
-                handler(addon_handle, base_url)
-            elif action == 'view_list':
-                handler(addon_handle, base_url)
-            elif action == 'show_folder': # Handle show_folder action
+            elif action in ('lists', 'view_list', 'show_folder', 'show_list'):
                 handler(addon_handle, base_url)
             elif action == 'on_select':
                 # handle_on_select expects params and addon_handle
