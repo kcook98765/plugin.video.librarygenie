@@ -566,8 +566,12 @@ class ListItemBuilder:
                 info['lastplayed'] = item['lastplayed']
                 self.logger.debug(f"INFO BUILD: Set lastplayed='{info['lastplayed']}'")
 
-        info['mediatype'] = item.get('media_type', 'movie')
-        self.logger.debug(f"INFO BUILD: Set mediatype='{info['mediatype']}')")
+        # Only set mediatype on v20+ - on v19, this causes interception even without other library properties
+        if is_kodi_v20_plus():
+            info['mediatype'] = item.get('media_type', 'movie')
+            self.logger.debug(f"INFO BUILD: Set mediatype='{info['mediatype']}' (v20+)")
+        else:
+            self.logger.debug(f"INFO BUILD: Skipping mediatype for '{title}' on v19 to prevent interception")
 
         self.logger.debug(f"INFO BUILD: Completed info dict for '{title}' with {len(info)} fields: {list(info.keys())}")
         return info
