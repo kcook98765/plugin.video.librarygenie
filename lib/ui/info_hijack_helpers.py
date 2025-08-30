@@ -22,9 +22,8 @@ def _get_list_control_id() -> int:
         major = int(build_version.split('.')[0].split('-')[0])
         
         if major >= 20:
-            # Kodi v20+ might use different control IDs
-            # Try common alternatives: 451 (library views), 52 (some skins)
-            return 451
+            # Kodi v20/v21 Estuary uses control ID 55 as default main list
+            return 55
         else:
             # Kodi v19 uses control ID 50
             return 50
@@ -71,8 +70,9 @@ def focus_list(control_id: int = None, tries: int = 20, step_ms: int = 30) -> bo
             return True
         xbmc.sleep(step_ms)
     
-    # If that failed, try alternative control IDs for Kodi v20+
-    alternative_ids = [50, 451, 52, 500]  # Common list control IDs
+    # If that failed, try alternative control IDs
+    # 55: v20/v21 Estuary default, 500: grid/panel views, 50/52: v19 compatibility
+    alternative_ids = [55, 500, 50, 52]  # Proper control IDs based on version/skin
     if control_id in alternative_ids:
         alternative_ids.remove(control_id)
     
