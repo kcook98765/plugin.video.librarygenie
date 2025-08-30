@@ -17,7 +17,7 @@ from ..utils.logger import get_logger
 # The original code had an incorrect import for get_select_pref.
 # It was defined in this file but intended to be imported from config_manager.
 # The fix involves changing the import path to the correct location.
-# from ..config.config_manager import get_select_pref
+from ..config.config_manager import get_select_pref
 
 
 def is_kodi_v20_plus() -> bool:
@@ -59,7 +59,6 @@ class ListItemBuilder:
         self.addon_handle = addon_handle
         self.addon_id = addon_id
         self.logger = get_logger(__name__)
-        self.base_url = f"plugin://{addon_id}"
 
     # -------- public API --------
     def build_directory(self, items: List[Dict[str, Any]], content_type: str = "movies", context_menu_callback=None) -> bool:
@@ -351,16 +350,15 @@ class ListItemBuilder:
             self.logger.debug(f"LIB ITEM: Display label set to: '{display}'")
             li = xbmcgui.ListItem(label=display)
 
-            # Use videodb:// URL for proper library integration
+            # Build videodb:// URL for native library integration
             url = self._build_videodb_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
-            self.logger.info(f"LIB ITEM: Generated videodb URL for '{title}': {url}")
-            
-            # Set the URL on the ListItem for proper navigation
             li.setPath(url)
+            self.logger.info(f"LIB ITEM: Generated videodb URL for '{title}': {url}")
 
-            # CRITICAL: Do NOT set IsPlayable=true for library items
-            # This prevents Kodi from showing the info dialog correctly
-            # Library items should be navigable but not directly playable from lists
+            # Do NOT set IsPlayable for videodb:// items - Kodi handles this natively
+            # Setting IsPlayable can interfere with native library handling and skins
+            self.logger.debug(f"LIB ITEM: Skipping IsPlayable for videodb:// item '{title}' - native library behavior")
+
             is_folder = False
 
             # ✨ ALWAYS set InfoHijack properties on library items first (before any metadata operations)
@@ -428,20 +426,15 @@ class ListItemBuilder:
             else:
                 self.logger.debug(f"LIB ITEM: No art available for '{title}'")
 
-            # Set comprehensive properties for both library integration and hijack detection
+            # Always set property fallbacks for maximum compatibility
+            # These help when setDbId fails or on older versions
             try:
-                # Standard library properties
                 li.setProperty('dbtype', media_type)
                 li.setProperty('dbid', str(kodi_id))
                 li.setProperty('mediatype', media_type)
-                
-                # Set DBID/DBTYPE properties that Kodi preserves during navigation
-                li.setProperty('DBID', str(kodi_id))
-                li.setProperty('DBTYPE', media_type.upper())
-                
-                self.logger.debug(f"LIB ITEM: Set comprehensive properties for '{title}': dbtype={media_type}, dbid={kodi_id}, DBID={kodi_id}, DBTYPE={media_type.upper()}")
+                self.logger.debug(f"LIB ITEM: Set property fallbacks for '{title}': dbtype={media_type}, dbid={kodi_id}")
             except Exception as e:
-                self.logger.warning(f"LIB ITEM: Property setup failed for '{title}': {e}")
+                self.logger.warning(f"LIB ITEM: Property fallback setup failed for '{title}': {e}")
 
             # Resume (always for library movies/episodes)
             self._set_resume_info_versioned(li, item)

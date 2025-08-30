@@ -14,101 +14,54 @@ class InfoHijackManager:
     def __init__(self, logger):
         self._logger = logger
         self._in_progress = False
-        self._last_dialog_state = False
-        self._tick_count = 0
 
     def tick(self):
-        self._tick_count += 1
-        
-        # Log every 1000 ticks to prove the service is running
-        if self._tick_count % 1000 == 0:
-            self._logger.debug(f"HIJACK: Service tick #{self._tick_count} - hijack manager is running")
-        
-        # Check if Info dialog is currently open
+        # Only act while Info dialog is up
         dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
-        
-        # Log dialog state changes
-        if dialog_active != self._last_dialog_state:
-            if dialog_active:
-                self._logger.info("HIJACK: 🎬 Info dialog OPENED - checking for hijack targets")
-            else:
-                self._logger.debug("HIJACK: Info dialog CLOSED")
-                if self._in_progress:
-                    self._logger.debug("HIJACK: Resetting hijack state")
-                self._in_progress = False
-            self._last_dialog_state = dialog_active
-        
-        # Only process when dialog is active
         if not dialog_active:
+            if self._in_progress:
+                self._logger.debug("HIJACK: Info dialog closed, resetting state")
+            self._in_progress = False
             return
 
         # Already hijacking this one
         if self._in_progress:
             return
 
-        # Get all the possible hijack properties
-        armed_prop = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)')
-        dbid_hijack = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBID)')
-        dbtype_hijack = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBType)')
+        # Debug current state
+        self._logger.debug("HIJACK: Info dialog detected, checking for tagged items...")
+
+        # Only intercept our tagged rows
+        armed = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)') == '1'
+        self._logger.debug(f"HIJACK: Armed status = '{xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)')}'")
         
-        # Also check standard library properties as fallback
-        dbid_standard = xbmc.getInfoLabel('ListItem.Property(DBID)') or xbmc.getInfoLabel('ListItem.DBID')
-        dbtype_standard = (xbmc.getInfoLabel('ListItem.Property(DBTYPE)') or xbmc.getInfoLabel('ListItem.DBTYPE') or '').lower()
-        
-        # Get container path to check if this is from our plugin
-        container_path = xbmc.getInfoLabel('Container.FolderPath') or ''
-        is_from_plugin = 'plugin.video.librarygenie' in container_path
-        
-        # Current ListItem title for debugging
-        current_title = xbmc.getInfoLabel('ListItem.Title') or xbmc.getInfoLabel('ListItem.Label')
-        
-        # Log detailed state for debugging
-        self._logger.debug(f"HIJACK: Dialog active, checking item '{current_title}':")
-        self._logger.debug(f"  Armed={armed_prop}, DBID_hijack={dbid_hijack}, DBType_hijack={dbtype_hijack}")
-        self._logger.debug(f"  DBID_std={dbid_standard}, DBType_std={dbtype_standard}")
-        self._logger.debug(f"  Container={container_path}, FromPlugin={is_from_plugin}")
-        
-        # Determine if we should hijack
-        explicitly_armed = armed_prop == '1'
-        has_hijack_data = dbid_hijack and dbtype_hijack
-        has_library_data = dbid_standard and dbtype_standard in ['movie', 'episode']
-        
-        should_hijack = explicitly_armed and has_hijack_data
-        
-        # Also hijack library items from our plugin as fallback
-        if not should_hijack and is_from_plugin and has_library_data:
-            should_hijack = True
-            dbid_hijack = dbid_standard
-            dbtype_hijack = dbtype_standard
-            self._logger.info(f"HIJACK: Using fallback detection for library item from plugin")
-        
-        if not should_hijack:
-            self._logger.debug(f"HIJACK: Not hijacking - armed={explicitly_armed}, hijack_data={has_hijack_data}, lib_data={has_library_data}, from_plugin={is_from_plugin}")
+        if not armed:
+            self._logger.debug("HIJACK: Item not armed, ignoring")
             return
 
-        # We have a hijack target!
-        self._logger.info(f"HIJACK: 🎯 HIJACK TRIGGERED for '{current_title}' - DBID={dbid_hijack}, DBType={dbtype_hijack}")
+        dbid = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBID)') or xbmc.getInfoLabel('ListItem.DBID')
+        dbtype = (xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBType)') or xbmc.getInfoLabel('ListItem.DBTYPE') or '').lower()
         
-        if not dbid_hijack or not dbtype_hijack:
-            self._logger.warning(f"HIJACK: Missing required data - DBID={dbid_hijack}, DBType={dbtype_hijack}")
+        self._logger.info(f"HIJACK: 🎯 TRIGGERED for armed item - DBID={dbid}, DBType={dbtype}")
+        
+        if not dbid or not dbtype:
+            self._logger.warning(f"HIJACK: Missing data - DBID={dbid}, DBType={dbtype}")
             return
 
         self._in_progress = True
-        self._logger.info(f"HIJACK: 🚀 Starting hijack process for {dbtype_hijack} {dbid_hijack}")
+        self._logger.info(f"HIJACK: 🚀 Starting hijack process for {dbtype} {dbid}")
         
         try:
-            orig_path = container_path
+            orig_path = xbmc.getInfoLabel('Container.FolderPath') or ''
             self._logger.debug(f"HIJACK: Original container path: {orig_path}")
             
-            ok = open_native_info(dbtype_hijack, int(dbid_hijack), self._logger, orig_path)
+            ok = open_native_info(dbtype, int(dbid), self._logger, orig_path)
             if ok:
-                self._logger.info(f"HIJACK: ✅ Successfully opened native info for {dbtype_hijack} {dbid_hijack}")
+                self._logger.info(f"HIJACK: ✅ Successfully opened native info for {dbtype} {dbid}")
             else:
-                self._logger.warning(f"HIJACK: ❌ Failed to open native info for {dbtype_hijack} {dbid_hijack}")
+                self._logger.warning(f"HIJACK: ❌ Failed to open native info for {dbtype} {dbid}")
         except Exception as e:
             self._logger.error(f"HIJACK: 💥 Exception during hijack: {e}")
-            import traceback
-            self._logger.error(f"HIJACK: Hijack traceback: {traceback.format_exc()}")
         finally:
             # When native info is up, it won't be tagged; tick() will idle.
             self._in_progress = False

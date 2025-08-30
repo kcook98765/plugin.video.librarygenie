@@ -1022,6 +1022,74 @@ def _videodb_path(dbtype: str, dbid: int, tvshowid=None, season=None) -> str:
     return ""
 
 
+def handle_on_select(params: dict, addon_handle: int):
+    """Handle library item selection - play or show info based on user preference"""
+    try:
+        from lib.config.config_manager import get_select_pref
+        import re, xbmc, xbmcplugin
+
+        logger.info(f"=== ON_SELECT HANDLER CALLED ===")
+        logger.info(f"Handling on_select with params: {params}")
+        logger.info(f"Addon handle: {addon_handle}")
+
+        dbtype = params.get("dbtype", "movie")
+        dbid = int(params.get("dbid", "0"))
+        tvshowid = params.get("tvshowid")
+        season = params.get("season")
+        tvshowid = int(tvshowid) if tvshowid and tvshowid.isdigit() else None
+        season = int(season) if season and season.isdigit() else None
+
+        vdb = _videodb_path(dbtype, dbid, tvshowid, season)  # must be a videodb:// path
+        pref = get_select_pref()  # 'play' or 'info'
+
+        # Parse major Kodi version (19, 20, 21, ...)
+        ver_str = xbmc.getInfoLabel('System.BuildVersion')
+        try:
+            kodi_major = int(re.split(r'[^0-9]', ver_str, 1)[0])
+        except Exception:
+            kodi_major = 0
+
+        logger.info(f"on_select: dbtype={dbtype}, dbid={dbid}, videodb_path={vdb}, preference={pref}, kodi_major={kodi_major}")
+
+        if pref == "play":
+            logger.info(f"Playing media: {vdb}")
+            xbmc.executebuiltin(f'PlayMedia("{vdb}")')
+        else:
+            # IMPORTANT:
+            # - On v19, open the *library* item’s info dialog explicitly so Kodi fetches cast from DB.
+            # - On v20+, your existing indicators usually make Action(Info) fine; if you want to be
+            #   100% consistent, you can also open by videodb path here too.
+            if kodi_major <= 19:
+                logger.info("Opening DialogVideoInfo for videodb item (Matrix)")
+                xbmc.executebuiltin(f'ActivateWindow(DialogVideoInfo,"{vdb}",return)')
+            else:
+                logger.info("Opening info dialog for focused item (Nexus+)")
+                xbmc.executebuiltin('Action(Info)')
+                # If you prefer forcing DB context on v20+ as well, use:
+                # xbmc.executebuiltin(f'ActivateWindow(VideoInformation,"{vdb}",return)')
+
+        # Don’t render a directory for this action
+        try:
+            xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
+        except Exception:
+            pass
+
+    except Exception as e:
+        logger.error(f"Error in handle_on_select: {e}")
+        import traceback
+        logger.error(f"on_select error traceback: {traceback.format_exc()}")
+        try:
+            xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
+        except Exception:
+            pass
+
+
+def handle_settings():
+    """Handle settings menu"""
+    logger.info("Opening addon settings")
+    xbmcaddon.Addon().openSettings()
+
+
 # Define the route mapping for actions
 action_handlers = {
     'search': show_search_menu,
@@ -1039,29 +1107,13 @@ action_handlers = {
     'remote_lists': show_remote_lists_menu,
     'authorize': handle_authorize,
     'signout': handle_signout,
-    'noop': lambda handle, base_url, params: xbmcplugin.endOfDirectory(handle, succeeded=False), # Dummy handler for noop
-    'info': lambda handle, base_url, params: None # Placeholder for info action, will be handled in main
+    'on_select': handle_on_select, # This is handled differently in main now
+    'noop': lambda handle, base_url, params: xbmcplugin.endOfDirectory(handle, succeeded=False) # Dummy handler for noop
 }
 
 def main():
     """Main plugin entry point"""
     logger.debug(f"Plugin arguments: {sys.argv}")
-    
-    # Check if service is running and start hijack manager if needed
-    try:
-        from lib.ui.info_hijack_manager import InfoHijackManager
-        logger.info("🔍 PLUGIN: Checking if hijack service is available")
-        
-        # Try to get service instance to ensure it's running
-        try:
-            from service import get_service_instance
-            service = get_service_instance()
-            logger.info("🎯 PLUGIN: Hijack service is available and running")
-        except Exception as e:
-            logger.warning(f"🚨 PLUGIN: Hijack service not available: {e}")
-            
-    except Exception as e:
-        logger.error(f"PLUGIN: Service check failed: {e}")
 
     try:
         # Parse plugin arguments
@@ -1098,66 +1150,9 @@ def main():
                 handler(addon_handle)
             elif action in ('lists', 'view_list', 'show_folder', 'show_list'):
                 handler(addon_handle, base_url)
-            elif action == 'context_action':
-                kodi_id = int(params.get('kodi_id', [0])[0])
-                context_action = params.get('context_action', [''])[0]
-
-                logger.info(f"Handling context action '{context_action}' for kodi_id {kodi_id}")
-
-                if context_action and kodi_id:
-                    from lib.ui.context_menu import ContextMenuHandler
-                    addon = xbmcaddon.Addon() # Ensure addon is available for getLocalizedString
-                    handler = ContextMenuHandler(base_url, addon.getLocalizedString)
-                    success = handler.handle_context_action(context_action, kodi_id)
-                    if not success:
-                        logger.warning(f"Context action '{context_action}' failed for kodi_id {kodi_id}")
-                else:
-                    logger.warning(f"Invalid context action parameters: action='{context_action}', kodi_id={kodi_id}")
-
-                # No directory listing needed for context actions
-                return
-
-            elif action == 'info':
-                # Handle info action for hijack functionality
-                kodi_id = params.get('kodi_id', [''])[0]
-                media_type = params.get('media_type', [''])[0]
-
-                logger.info(f"Info action triggered for {media_type} {kodi_id} - preparing for hijack")
-
-                if kodi_id and media_type:
-                    try:
-                        kodi_id_int = int(kodi_id)
-                        
-                        # Create a temporary listitem with hijack properties
-                        temp_item = xbmcgui.ListItem(label="Temp")
-                        temp_item.setProperty("LG.InfoHijack.Armed", "1")
-                        temp_item.setProperty("LG.InfoHijack.DBID", str(kodi_id_int))
-                        temp_item.setProperty("LG.InfoHijack.DBType", media_type)
-                        
-                        # Use videodb URL for the actual info dialog
-                        if media_type == "movie":
-                            videodb_url = f"videodb://movies/titles/{kodi_id_int}"
-                        elif media_type == "episode":
-                            videodb_url = f"videodb://episodes/{kodi_id_int}"
-                        else:
-                            videodb_url = f"videodb://movies/titles/{kodi_id_int}"  # fallback
-                        
-                        logger.info(f"Opening native info for {media_type} {kodi_id_int} via {videodb_url}")
-                        
-                        # Navigate to the videodb URL and open info - this will trigger hijack
-                        xbmc.executebuiltin(f'ActivateWindow(Videos,"{videodb_url}",return)')
-                        # Small delay to ensure navigation completes
-                        xbmc.sleep(100)
-                        xbmc.executebuiltin("Action(Info)")
-                        
-                        logger.info(f"Native info dialog opened for {media_type} {kodi_id_int} - hijack should detect")
-                    except ValueError:
-                        logger.error(f"Invalid kodi_id for info action: {kodi_id}")
-                else:
-                    logger.warning(f"Missing parameters for info action: kodi_id='{kodi_id}', media_type='{media_type}'")
-
-                # No directory listing needed for info actions
-                return
+            elif action == 'on_select':
+                # handle_on_select expects params and addon_handle
+                handler(params, addon_handle)
             else:
                 handler() # For actions like create_list, authorize, signout, etc.
         else:
