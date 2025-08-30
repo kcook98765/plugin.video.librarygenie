@@ -67,10 +67,17 @@ class SearchHandler:
             results = self._perform_search_with_type(query, search_type)
             self.logger.info(f"Search completed, got {len(results.get('items', []))} results")
 
-            # Create search history list if we have results
+            # Create search history list if we have results and redirect to it
             if results.get('items'):
-                self._create_search_history_list(query, search_type, results)
-
+                list_id = self._create_search_history_list(query, search_type, results)
+                if list_id:
+                    self.logger.info("Redirecting to saved search list")
+                    self._navigate_to_search_list(list_id)
+                    return
+                else:
+                    self.logger.warning("Failed to create search list, showing results normally")
+            
+            # Fallback: display results normally if no items or list creation failed
             self.logger.debug("Displaying search results")
             self._display_results(results, query)
             self.logger.info("Search flow completed successfully")
@@ -351,12 +358,29 @@ class SearchHandler:
             xbmcgui.NOTIFICATION_INFO
         )
 
+    def _navigate_to_search_list(self, list_id):
+        """Navigate to the saved search list"""
+        try:
+            # Build the URL to navigate to the specific list
+            import sys
+            list_url = f"{sys.argv[0]}?action=show_list&list_id={list_id}"
+            
+            # Use Kodi's Container.Update to navigate to the list
+            import xbmc
+            xbmc.executebuiltin(f'Container.Update({list_url})')
+            
+            self.logger.info(f"Navigated to search list with ID: {list_id}")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to navigate to search list: {e}")
+            # Fallback: just log the error and let normal flow continue
+
 
     def _create_search_history_list(self, query, search_type, results):
         """Create a search history list with the results"""
         try:
             if not results.get('items'):
-                return
+                return None
 
             # Create the search history list
             list_id = self.query_manager.create_search_history_list(
@@ -367,7 +391,7 @@ class SearchHandler:
 
             if not list_id:
                 self.logger.error("Failed to create search history list")
-                return
+                return None
 
             # Add search results to the list
             added_count = self.query_manager.add_search_results_to_list(list_id, results)
@@ -379,17 +403,20 @@ class SearchHandler:
                 addon = xbmcaddon.Addon()
                 xbmcgui.Dialog().notification(
                     addon.getLocalizedString(35002),  # "LibraryGenie"
-                    f"Search saved: {added_count} items in Search History",
+                    f"Search saved: {added_count} items",
                     xbmcgui.NOTIFICATION_INFO,
-                    3000
+                    2000
                 )
+                return list_id
             else:
                 self.logger.warning("No items were added to search history list")
+                return None
 
         except Exception as e:
             import traceback
             self.logger.error(f"Failed to create search history list: {e}")
             self.logger.error(f"Search history error traceback: {traceback.format_exc()}")
+            return None
 
     def search_with_fallback(self, query, page=1, page_size=100):
         """Search with remote first, fallback to local"""
@@ -404,8 +431,6 @@ class SearchHandler:
                 remote_results = search_remote(query, page, page_size)
                 if remote_results.get('items'):
                     self.logger.info(f"Remote search successful: {len(remote_results['items'])} results")
-                    # Create search history list
-                    self._create_search_history_list(query, "remote", remote_results)
                     return remote_results
 
             except RemoteError as e:
@@ -420,11 +445,6 @@ class SearchHandler:
         try:
             local_results = self.local_engine.search(query, limit=page_size, offset=(page-1)*page_size)
             self.logger.info(f"Local search: {len(local_results.get('items', []))} results")
-
-            # Create search history list for non-empty results
-            if local_results.get('items'):
-                self._create_search_history_list(query, "local", local_results)
-
             return local_results
 
         except Exception as e:
