@@ -121,6 +121,9 @@ def _create_xsp_for_file(dbtype: str, dbid: int) -> Optional[str]:
         # Fallback to temp
         path = f"special://temp/{xsp_filename}"
     
+    # Log the raw XSP content for debugging
+    _log(f"XSP RAW CONTENT for {dbtype} {dbid}:\n{xsp}", xbmc.LOGINFO)
+    
     if _write_text(path, xsp):
         _log(f"XSP created successfully: {path} (filename='{filename}')", xbmc.LOGINFO)
         return path
