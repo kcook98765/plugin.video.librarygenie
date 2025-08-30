@@ -18,7 +18,6 @@ from ..utils.logger import get_logger
 # It was defined in this file but intended to be imported from config_manager.
 # The fix involves changing the import path to the correct location.
 from ..config.config_manager import get_select_pref
-from .matrix_info_helper import open_movie_info_v19
 
 
 def is_kodi_v20_plus() -> bool:
@@ -60,16 +59,9 @@ class ListItemBuilder:
         """
         try:
             count = len(items)
-            # Use 'files' content type on v19 to prevent Kodi from intercepting library items
-            if not is_kodi_v20_plus() and content_type in ('movies', 'episodes', 'tvshows'):
-                actual_content_type = 'files'
-                self.logger.info(f"DIRECTORY BUILD: Using 'files' content type on v19 instead of '{content_type}' to prevent interception")
-            else:
-                actual_content_type = content_type
-                
-            self.logger.info(f"DIRECTORY BUILD: Starting build with {count} items (content_type='{content_type}' -> '{actual_content_type}')")
-            self.logger.debug(f"DIRECTORY BUILD: Setting content type to '{actual_content_type}' for handle {self.addon_handle}")
-            xbmcplugin.setContent(self.addon_handle, actual_content_type)
+            self.logger.info(f"DIRECTORY BUILD: Starting build with {count} items (content_type='{content_type}')")
+            self.logger.debug(f"DIRECTORY BUILD: Setting content type to '{content_type}' for handle {self.addon_handle}")
+            xbmcplugin.setContent(self.addon_handle, content_type)
 
             # Add a few sane sort methods once
             sort_methods = [
@@ -319,68 +311,36 @@ class ListItemBuilder:
             title = item.get('title', 'Unknown')
             media_type = item.get('media_type', 'movie')
             kodi_id = item.get('kodi_id')
-            is_v19 = not is_kodi_v20_plus()
 
-            self.logger.debug(f"LIB ITEM: Creating library ListItem for '{title}' (type={media_type}, kodi_id={kodi_id}, v19_mode={is_v19})")
+            self.logger.debug(f"LIB ITEM: Creating library ListItem for '{title}' (type={media_type}, kodi_id={kodi_id})")
 
-            # CRITICAL v19 WORKAROUND: Use basic display-only data on v19
-            if is_v19:
-                # On v19, create completely basic ListItem with minimal display data only
-                # This prevents any library association that could trigger interception
-                basic_title = item.get('title', 'Unknown')
-                basic_year = item.get('year')
-                display = f"{basic_title} ({basic_year})" if basic_year else basic_title
-                
-                self.logger.info(f"V19 BASIC: Creating basic ListItem for '{display}' - no enriched data")
-                li = xbmcgui.ListItem(label=display)
-                
-                # Set only the most basic info - no enriched JSON-RPC data
-                basic_info = {
-                    'title': basic_title,
-                    'year': basic_year if basic_year else None
-                }
-                # Remove None values
-                basic_info = {k: v for k, v in basic_info.items() if v is not None}
-                
-                self.logger.info(f"V19 BASIC: Using ultra-minimal info dict for '{display}': {list(basic_info.keys())}")
-                li.setInfo('video', basic_info)
-                
-                # No art on v19 to prevent any library association
-                self.logger.debug(f"V19 BASIC: Skipping art for '{display}' to prevent library detection")
-                
+            # Label: include year if present
+            display = f"{title} ({item['year']})" if item.get('year') else title
+            self.logger.debug(f"LIB ITEM: Display label set to: '{display}'")
+            li = xbmcgui.ListItem(label=display)
+
+            # Set lightweight info for all versions (plot, rating, etc. are needed)
+            info = self._build_lightweight_info(item)
+            self.logger.debug(f"LIB ITEM: Video info dict for '{title}': {info}")
+            li.setInfo('video', info)
+
+            # Art (poster/fanart minimum)
+            art = self._build_art_dict(item)
+            if art:
+                self.logger.debug(f"LIB ITEM: Art dict for '{title}': {art}")
+                li.setArt(art)
             else:
-                # v20+ can use full enriched data
-                display = f"{title} ({item['year']})" if item.get('year') else title
-                self.logger.debug(f"LIB ITEM: Display label set to: '{display}'")
-                li = xbmcgui.ListItem(label=display)
+                self.logger.debug(f"LIB ITEM: No art available for '{title}'")
 
-                # Set lightweight info for all versions (plot, rating, etc. are needed)
-                info = self._build_lightweight_info(item)
-                self.logger.debug(f"LIB ITEM: Video info dict for '{title}': {info}")
-                li.setInfo('video', info)
-
-                # Art (poster/fanart minimum)
-                art = self._build_art_dict(item)
-                if art:
-                    self.logger.debug(f"LIB ITEM: Art dict for '{title}': {art}")
-                    li.setArt(art)
-                else:
-                    self.logger.debug(f"LIB ITEM: No art available for '{title}'")
-
-            # Set library identity properties only on v20+ to prevent v19 interception
-            # On v19, any combination of library properties causes Kodi to intercept clicks
-            # and open native DialogVideoInfo regardless of IsPlayable or URL settings
-            if is_kodi_v20_plus():
-                properties = {
-                    'dbtype': media_type,
-                    'dbid': str(kodi_id),
-                    'mediatype': media_type
-                }
-                self.logger.debug(f"LIB ITEM: Setting properties for '{title}': {properties}")
-                for prop_name, prop_value in properties.items():
-                    li.setProperty(prop_name, prop_value)
-            else:
-                self.logger.debug(f"LIB ITEM: Skipping library properties for '{title}' on v19 to prevent interception")
+            # Set library identity properties (v19 compatible)
+            properties = {
+                'dbtype': media_type,
+                'dbid': str(kodi_id),
+                'mediatype': media_type
+            }
+            self.logger.debug(f"LIB ITEM: Setting properties for '{title}': {properties}")
+            for prop_name, prop_value in properties.items():
+                li.setProperty(prop_name, prop_value)
 
             # Build a plugin URL so we can decide Play vs Info on click
             url = self._library_click_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
@@ -394,19 +354,12 @@ class ListItemBuilder:
             pref = get_select_pref()
             self.logger.debug(f"LIB ITEM: User preference for '{title}': {pref}")
 
-            # CRITICAL v19 WORKAROUND: Don't mark library items as playable on v19
-            # When IsPlayable=true + library properties are set, v19 intercepts clicks
-            # and opens native DialogVideoInfo instead of routing through plugin
-            if is_kodi_v20_plus():
-                li.setProperty('IsPlayable', 'true')
-                self.logger.info(f"LIB ITEM: Set IsPlayable=true for '{title}' on v20+ - enables click handling")
-            else:
-                # On v19, leave IsPlayable unset so item behaves like a folder that routes to plugin
-                self.logger.info(f"LIB ITEM: Leaving IsPlayable unset for '{title}' on v19 to prevent interception")
+            # CRITICAL: Always mark as playable so the ListItem can be clicked/activated
+            # Without this, Kodi won't send click events to our plugin
+            li.setProperty('IsPlayable', 'true')
+            self.logger.info(f"LIB ITEM: Set IsPlayable=true for '{title}' - enables click handling")
 
-            # On v19, library items behave like folders since they're not marked IsPlayable
-            # This ensures proper navigation through our plugin instead of native interception
-            is_folder = not is_kodi_v20_plus()
+            is_folder = False
 
             # Set InfoTagVideo properties only for v20+ (skip entirely on v19)
             if is_kodi_v20_plus():
@@ -429,11 +382,8 @@ class ListItemBuilder:
             else:
                 self.logger.debug(f"LIB ITEM: Skipping InfoTagVideo setters for '{title}' on v19")
 
-            # Resume - only on v20+ for library items, skip on v19 to prevent library detection
-            if is_kodi_v20_plus():
-                self._set_resume_info_versioned(li, item)
-            else:
-                self.logger.debug(f"V19 BASIC: Skipping resume info for '{title}' to prevent library detection")
+            # Resume (always for library movies/episodes)
+            self._set_resume_info_versioned(li, item)
 
             self.logger.info(f"LIB ITEM: Successfully created library ListItem '{title}' -> URL: {url}, isFolder: {is_folder}")
             return url, li, is_folder
@@ -510,14 +460,11 @@ class ListItemBuilder:
         - deep streamdetails
         - detailed metadata that would slow down list scrolling
         This keeps list views snappy per Kodi's own approach.
-        
-        On v19, we also strip ALL library-identifying fields to prevent interception.
         """
         info: Dict[str, Any] = {}
         title = item.get('title', 'Unknown')
-        is_v19 = not is_kodi_v20_plus()
 
-        self.logger.debug(f"INFO BUILD: Building lightweight info for '{title}' (v19_mode: {is_v19})")
+        self.logger.debug(f"INFO BUILD: Building lightweight info for '{title}'")
 
         # Common
         if item.get('title'):
@@ -599,28 +546,9 @@ class ListItemBuilder:
                 info['lastplayed'] = item['lastplayed']
                 self.logger.debug(f"INFO BUILD: Set lastplayed='{info['lastplayed']}'")
 
-        # CRITICAL v19 WORKAROUND: Use completely sanitized info dict
-        if is_v19:
-            # On v19, create a minimal, non-library info dict to prevent ALL forms of interception
-            sanitized_info = {
-                'title': info.get('title', title),
-                'plot': info.get('plot', ''),
-                'year': info.get('year'),
-                'genre': info.get('genre', ''),
-                'rating': info.get('rating'),
-                'duration': info.get('duration')  # seconds for v19
-            }
-            
-            # Remove any None values
-            sanitized_info = {k: v for k, v in sanitized_info.items() if v is not None}
-            
-            self.logger.info(f"V19 SANITIZED: Using minimal info dict for '{title}': {list(sanitized_info.keys())}")
-            return sanitized_info
-        else:
-            # v20+ can use full info with mediatype
-            info['mediatype'] = item.get('media_type', 'movie')
-            self.logger.debug(f"INFO BUILD: Set mediatype='{info['mediatype']}' (v20+)")
-            
+        info['mediatype'] = item.get('media_type', 'movie')
+        self.logger.debug(f"INFO BUILD: Set mediatype='{info['mediatype']}'")
+
         self.logger.debug(f"INFO BUILD: Completed info dict for '{title}' with {len(info)} fields: {list(info.keys())}")
         return info
 
@@ -759,75 +687,3 @@ class ListItemBuilder:
             f"RunPlugin(plugin://{self.addon_id}/?action=add_to_list&item_id={item.get('id','')})"
         ))
         list_item.addContextMenuItems(cm)
-
-    def open_library_info_dialog(self, media_type: str, kodi_id: int, return_path: Optional[str] = None) -> bool:
-        """
-        Open info dialog for a library item with version-aware handling
-        
-        Args:
-            media_type: 'movie' or 'episode'
-            kodi_id: Kodi database ID for the item
-            return_path: Optional path to return to when info is closed
-            
-        Returns:
-            bool: True if info dialog was successfully opened
-        """
-        try:
-            kodi_major = self._get_kodi_major_version()
-            self.logger.info(f"Opening info dialog for {media_type} {kodi_id} on Kodi v{kodi_major}")
-            
-            if media_type == 'movie':
-                if kodi_major <= 19:
-                    # Use Matrix XSP navigation method
-                    return open_movie_info_v19(kodi_id, return_path)
-                else:
-                    # Use Nexus+ direct method
-                    return self._open_info_nexus_plus(media_type, kodi_id)
-            elif media_type == 'episode':
-                # For episodes, use direct videodb approach on all versions
-                return self._open_info_videodb(media_type, kodi_id)
-            else:
-                self.logger.error(f"Unsupported media type for info dialog: {media_type}")
-                return False
-                
-        except Exception as e:
-            self.logger.error(f"Failed to open info dialog for {media_type} {kodi_id}: {e}")
-            return False
-    
-    def _get_kodi_major_version(self) -> int:
-        """Get Kodi major version number"""
-        try:
-            build_version = xbmc.getInfoLabel("System.BuildVersion")
-            major = int(build_version.split('.')[0].split('-')[0])
-            return major
-        except Exception:
-            return 19  # Safe fallback to Matrix behavior
-    
-    def _open_info_nexus_plus(self, media_type: str, kodi_id: int) -> bool:
-        """Open info dialog using Nexus+ Action(Info) method"""
-        try:
-            # This assumes the item is already focused/selected in a list
-            xbmc.executebuiltin('Action(Info)')
-            self.logger.info(f"Opened info dialog for {media_type} {kodi_id} using Action(Info)")
-            return True
-        except Exception as e:
-            self.logger.error(f"Failed to open info using Action(Info): {e}")
-            return False
-    
-    def _open_info_videodb(self, media_type: str, kodi_id: int) -> bool:
-        """Open info dialog using videodb:// path method"""
-        try:
-            if media_type == "movie":
-                videodb_path = f'videodb://movies/titles/{kodi_id}'
-            elif media_type == "episode":
-                videodb_path = f'videodb://episodes/{kodi_id}'
-            else:
-                self.logger.error(f"Unsupported media type for videodb method: {media_type}")
-                return False
-            
-            xbmc.executebuiltin(f'ActivateWindow(DialogVideoInfo,"{videodb_path}",return)')
-            self.logger.info(f"Opened info dialog for {media_type} {kodi_id} using videodb path")
-            return True
-        except Exception as e:
-            self.logger.error(f"Failed to open info using videodb path: {e}")
-            return False
