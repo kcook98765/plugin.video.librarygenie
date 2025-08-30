@@ -25,9 +25,6 @@ from lib.auth.state import is_authorized
 # Import query manager for list operations
 from lib.data.query_manager import get_query_manager # Assuming this path is correct
 
-# Import test info variants module
-import test_info_variants as tiv
-
 # Get logger instance
 logger = get_logger(__name__)
 
@@ -44,12 +41,6 @@ def show_main_menu(handle):
     search_item = xbmcgui.ListItem(label=addon.getLocalizedString(35014))  # "Search"
     search_url = f"{sys.argv[0]}?action=search"
     xbmcplugin.addDirectoryItem(handle, search_url, search_item, True)
-
-    # Test Info Variants (debug/development tool) - now uses test_info_variants module
-    test_item = xbmcgui.ListItem(label="[COLOR gray]Test Info Variants[/COLOR]")
-    test_url = f"{sys.argv[0]}?action=test_info_variants&dbtype=movie&dbid=883"
-    logger.info(f"[TEST-HARNESS] Adding test menu item with URL: {test_url}")
-    xbmcplugin.addDirectoryItem(handle, test_url, test_item, True)
 
     # Lists (always visible)
     lists_item = xbmcgui.ListItem(label=addon.getLocalizedString(35016))  # "Lists"
@@ -418,15 +409,15 @@ def handle_view_list(addon_handle, base_url):
         # Build directory with detected content type and context menu callback
         # This ensures proper content type is set via build_directory()
         success = builder.build_directory(list_items, content_type, add_list_context_menu)
-        
+
         if success:
             logger.info(f"Successfully built list directory with content_type='{content_type}'")
         else:
             logger.error(f"Failed to build list directory")
-            
+
         return  # build_directory() already handles endOfDirectory()
 
-        
+
 
     except Exception as e:
         logger.error(f"Error viewing list: {e}")
@@ -677,7 +668,7 @@ def main():
 
         # Route based action parameter
         action = params.get('action', '')
-        
+
         # Log all routing for test harness tracking
         if action.startswith('test_') or action == 'noop':
             logger.info(f"[TEST-HARNESS] NAVIGATION: User triggered action '{action}'")
@@ -706,14 +697,6 @@ def main():
             logger.info(f"ROUTING: on_select action detected (legacy) with params: {params}")
             logger.info(f"Library items now use videodb:// URLs for native Kodi behavior")
             xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
-        elif action == 'test_info_variants':
-            logger.info(f"[TEST-HARNESS] ROUTING: test_info_variants action detected - using new module")
-            tiv.add_menu(addon_handle, base_url, dbtype='movie', dbid=883)
-        elif action in ('test_matrix', 'test_nexus', 'nexus_info_click'):
-            logger.info(f"[TEST-HARNESS] ROUTING: {action} action detected - using new module")
-            logger.info(f"[TEST-HARNESS] Params: {params}")
-            # pass handle & base_url for test_nexus so it can build the one-item list
-            tiv.handle_click(params, handle=addon_handle, base_url=base_url)
         elif action == 'noop':
             logger.info(f"[TEST-HARNESS] ROUTING: noop action (test baseline)")
             logger.info(f"[TEST-HARNESS] Noop params: {params}")
