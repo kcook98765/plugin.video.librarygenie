@@ -1022,74 +1022,6 @@ def _videodb_path(dbtype: str, dbid: int, tvshowid=None, season=None) -> str:
     return ""
 
 
-def handle_on_select(params: dict, addon_handle: int):
-    """Handle library item selection - play or show info based on user preference"""
-    try:
-        from lib.config.config_manager import get_select_pref
-        import re, xbmc, xbmcplugin
-
-        logger.info(f"=== ON_SELECT HANDLER CALLED ===")
-        logger.info(f"Handling on_select with params: {params}")
-        logger.info(f"Addon handle: {addon_handle}")
-
-        dbtype = params.get("dbtype", "movie")
-        dbid = int(params.get("dbid", "0"))
-        tvshowid = params.get("tvshowid")
-        season = params.get("season")
-        tvshowid = int(tvshowid) if tvshowid and tvshowid.isdigit() else None
-        season = int(season) if season and season.isdigit() else None
-
-        vdb = _videodb_path(dbtype, dbid, tvshowid, season)  # must be a videodb:// path
-        pref = get_select_pref()  # 'play' or 'info'
-
-        # Parse major Kodi version (19, 20, 21, ...)
-        ver_str = xbmc.getInfoLabel('System.BuildVersion')
-        try:
-            kodi_major = int(re.split(r'[^0-9]', ver_str, 1)[0])
-        except Exception:
-            kodi_major = 0
-
-        logger.info(f"on_select: dbtype={dbtype}, dbid={dbid}, videodb_path={vdb}, preference={pref}, kodi_major={kodi_major}")
-
-        if pref == "play":
-            logger.info(f"Playing media: {vdb}")
-            xbmc.executebuiltin(f'PlayMedia("{vdb}")')
-        else:
-            # IMPORTANT:
-            # - On v19, open the *library* item’s info dialog explicitly so Kodi fetches cast from DB.
-            # - On v20+, your existing indicators usually make Action(Info) fine; if you want to be
-            #   100% consistent, you can also open by videodb path here too.
-            if kodi_major <= 19:
-                logger.info("Opening DialogVideoInfo for videodb item (Matrix)")
-                xbmc.executebuiltin(f'ActivateWindow(DialogVideoInfo,"{vdb}",return)')
-            else:
-                logger.info("Opening info dialog for focused item (Nexus+)")
-                xbmc.executebuiltin('Action(Info)')
-                # If you prefer forcing DB context on v20+ as well, use:
-                # xbmc.executebuiltin(f'ActivateWindow(VideoInformation,"{vdb}",return)')
-
-        # Don’t render a directory for this action
-        try:
-            xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
-        except Exception:
-            pass
-
-    except Exception as e:
-        logger.error(f"Error in handle_on_select: {e}")
-        import traceback
-        logger.error(f"on_select error traceback: {traceback.format_exc()}")
-        try:
-            xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
-        except Exception:
-            pass
-
-
-def handle_settings():
-    """Handle settings menu"""
-    logger.info("Opening addon settings")
-    xbmcaddon.Addon().openSettings()
-
-
 # Define the route mapping for actions
 action_handlers = {
     'search': show_search_menu,
@@ -1107,7 +1039,6 @@ action_handlers = {
     'remote_lists': show_remote_lists_menu,
     'authorize': handle_authorize,
     'signout': handle_signout,
-    'on_select': handle_on_select, # This is handled differently in main now
     'noop': lambda handle, base_url, params: xbmcplugin.endOfDirectory(handle, succeeded=False) # Dummy handler for noop
 }
 
@@ -1150,9 +1081,6 @@ def main():
                 handler(addon_handle)
             elif action in ('lists', 'view_list', 'show_folder', 'show_list'):
                 handler(addon_handle, base_url)
-            elif action == 'on_select':
-                # handle_on_select expects params and addon_handle
-                handler(params, addon_handle)
             else:
                 handler() # For actions like create_list, authorize, signout, etc.
         else:
