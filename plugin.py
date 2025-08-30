@@ -1046,6 +1046,22 @@ action_handlers = {
 def main():
     """Main plugin entry point"""
     logger.debug(f"Plugin arguments: {sys.argv}")
+    
+    # Check if service is running and start hijack manager if needed
+    try:
+        from lib.ui.info_hijack_manager import InfoHijackManager
+        logger.info("🔍 PLUGIN: Checking if hijack service is available")
+        
+        # Try to get service instance to ensure it's running
+        try:
+            from service import get_service_instance
+            service = get_service_instance()
+            logger.info("🎯 PLUGIN: Hijack service is available and running")
+        except Exception as e:
+            logger.warning(f"🚨 PLUGIN: Hijack service not available: {e}")
+            
+    except Exception as e:
+        logger.error(f"PLUGIN: Service check failed: {e}")
 
     try:
         # Parse plugin arguments
