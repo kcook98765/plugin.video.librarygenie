@@ -402,46 +402,40 @@ def handle_view_list(addon_handle, base_url):
             xbmcplugin.endOfDirectory(addon_handle)
             return
 
-        # Items are already canonical from get_list_items normalization
-        # No additional normalization needed here
-
-        # Use ListItemRenderer for rich display
-        from lib.ui.listitem_renderer import get_listitem_renderer
-        renderer = get_listitem_renderer()
+        # Use ListItemBuilder to create proper videodb URLs for library items
+        from lib.ui.listitem_builder import ListItemBuilder
+        builder = ListItemBuilder(addon_handle, "plugin.video.librarygenie")
 
         # Set category for better navigation
         xbmcplugin.setPluginCategory(addon_handle, f"List: {list_info['name']}")
 
-        # Add each item using renderer
+        # Build each item with proper URLs and context menus
         for item in list_items:
-            # Create rich ListItem using renderer
-            list_item = renderer.create_movie_listitem(item, base_url, "play_item")
+            try:
+                # Use builder to get proper URL, listitem, and folder status
+                result = builder._build_single_item(item)
+                if not result:
+                    logger.warning(f"Skipping item '{item.get('title', 'Unknown')}' - failed to build")
+                    continue
 
-            # Skip if renderer failed to create ListItem
-            if not list_item:
-                logger.warning(f"Skipping item '{item.get('title', 'Unknown')}' - failed to create ListItem")
-                continue
+                url, list_item, is_folder = result
 
-            # Build URL for this item
-            url = f"{base_url}?action=play_item&item_id={item.get('id')}&list_id={list_id}"
+                # Add context menu for removal from list
+                context_menu = [
+                    (f"Remove from '{list_info['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={list_id}&item_id={item.get('id')})")
+                ]
+                list_item.addContextMenuItems(context_menu)
 
-            # Add context menu for removal
-            context_menu = [
-                (f"Remove from '{list_info['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={list_id}&item_id={item.get('id')})")
-            ]
-            list_item.addContextMenuItems(context_menu)
+                # Add to directory with proper URL (videodb:// for library items)
+                xbmcplugin.addDirectoryItem(
+                    addon_handle,
+                    url,
+                    list_item,
+                    isFolder=is_folder
+                )
 
-            # Set playable if we have a file path
-            is_playable = bool(item.get('file_path') or item.get('kodi_id'))
-            list_item.setProperty('IsPlayable', 'true' if is_playable else 'false')
-
-            # Add to directory
-            xbmcplugin.addDirectoryItem(
-                addon_handle,
-                url,
-                list_item,
-                isFolder=False
-            )
+            except Exception as e:
+                logger.error(f"Error building list item '{item.get('title', 'Unknown')}': {e}")
 
         # Finish the directory
         xbmcplugin.endOfDirectory(addon_handle)
