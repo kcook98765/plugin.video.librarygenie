@@ -59,6 +59,7 @@ class ListItemBuilder:
         self.addon_handle = addon_handle
         self.addon_id = addon_id
         self.logger = get_logger(__name__)
+        self.base_url = f"plugin://{addon_id}"
 
     # -------- public API --------
     def build_directory(self, items: List[Dict[str, Any]], content_type: str = "movies", context_menu_callback=None) -> bool:

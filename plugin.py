@@ -1039,7 +1039,8 @@ action_handlers = {
     'remote_lists': show_remote_lists_menu,
     'authorize': handle_authorize,
     'signout': handle_signout,
-    'noop': lambda handle, base_url, params: xbmcplugin.endOfDirectory(handle, succeeded=False) # Dummy handler for noop
+    'noop': lambda handle, base_url, params: xbmcplugin.endOfDirectory(handle, succeeded=False), # Dummy handler for noop
+    'info': lambda handle, base_url, params: None # Placeholder for info action, will be handled in main
 }
 
 def main():
@@ -1081,6 +1082,46 @@ def main():
                 handler(addon_handle)
             elif action in ('lists', 'view_list', 'show_folder', 'show_list'):
                 handler(addon_handle, base_url)
+            elif action == 'context_action':
+                kodi_id = int(params.get('kodi_id', [0])[0])
+                context_action = params.get('context_action', [''])[0]
+
+                logger.info(f"Handling context action '{context_action}' for kodi_id {kodi_id}")
+
+                if context_action and kodi_id:
+                    from lib.ui.context_menu import ContextMenuHandler
+                    addon = xbmcaddon.Addon() # Ensure addon is available for getLocalizedString
+                    handler = ContextMenuHandler(base_url, addon.getLocalizedString)
+                    success = handler.handle_context_action(context_action, kodi_id)
+                    if not success:
+                        logger.warning(f"Context action '{context_action}' failed for kodi_id {kodi_id}")
+                else:
+                    logger.warning(f"Invalid context action parameters: action='{context_action}', kodi_id={kodi_id}")
+
+                # No directory listing needed for context actions
+                return
+
+            elif action == 'info':
+                # Handle info action for hijack functionality
+                kodi_id = params.get('kodi_id', [''])[0]
+                media_type = params.get('media_type', [''])[0]
+
+                logger.info(f"Info action triggered for {media_type} {kodi_id} - this should trigger hijack")
+
+                # Simply show the info dialog - the hijack manager will detect it and take over
+                if kodi_id and media_type:
+                    try:
+                        kodi_id_int = int(kodi_id)
+                        # Open info dialog which will be detected by hijack manager
+                        xbmc.executebuiltin("Action(Info)")
+                        logger.info(f"Opened info dialog for {media_type} {kodi_id_int} - hijack should activate")
+                    except ValueError:
+                        logger.error(f"Invalid kodi_id for info action: {kodi_id}")
+                else:
+                    logger.warning(f"Missing parameters for info action: kodi_id='{kodi_id}', media_type='{media_type}'")
+
+                # No directory listing needed for info actions
+                return
             else:
                 handler() # For actions like create_list, authorize, signout, etc.
         else:
