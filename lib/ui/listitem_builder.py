@@ -438,10 +438,21 @@ class ListItemBuilder:
             self.logger.debug(f"EXT ITEM: Display label set to: '{display}'")
             li = xbmcgui.ListItem(label=display)
 
-            # Apply exact same lightweight info profile as library items (Step 4)
-            info = self._build_lightweight_info(item)
-            self.logger.debug(f"EXT ITEM: Video info dict for '{title}': {info}")
-            li.setInfo('video', info)
+            # Apply metadata based on Kodi version - use InfoTagVideo on v20+
+            kodi_major = get_kodi_major_version()
+            if kodi_major >= 20:
+                # v20+: Use InfoTagVideo setters to avoid deprecation warnings
+                try:
+                    video_info_tag = li.getVideoInfoTag()
+                    self._set_infotag_metadata(video_info_tag, item, title)
+                    self.logger.debug(f"EXT ITEM v20+: Set metadata via InfoTagVideo for '{title}'")
+                except Exception as e:
+                    self.logger.warning(f"EXT ITEM v20+: InfoTagVideo setup failed for '{title}': {e}")
+            else:
+                # v19: Use setInfo()
+                info = self._build_lightweight_info(item)
+                self.logger.debug(f"EXT ITEM v19: Video info dict for '{title}': {info}")
+                li.setInfo('video', info)
 
             # Apply exact same art keys as library items (Step 4)
             art = self._build_art_dict(item)

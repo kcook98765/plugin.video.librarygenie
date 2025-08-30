@@ -136,11 +136,24 @@ class ListItemRenderer:
             name = list_data.get('name', 'Unnamed List')
             list_item = xbmcgui.ListItem(label=name)
 
-            # Set basic info
-            list_item.setInfo('video', {
-                'title': name,
-                'plot': f"User list: {name}"
-            })
+            # Set basic info - guard setInfo() for v20+
+            from .listitem_builder import get_kodi_major_version
+            if get_kodi_major_version() >= 20:
+                # v20+: Use InfoTagVideo setters
+                try:
+                    video_info_tag = list_item.getVideoInfoTag()
+                    video_info_tag.setTitle(name)
+                    video_info_tag.setPlot(f"User list: {name}")
+                    self.logger.debug(f"LIST ITEM v20+: Set metadata via InfoTagVideo for '{name}'")
+                except Exception as e:
+                    self.logger.warning(f"LIST ITEM v20+: InfoTagVideo failed for '{name}': {e}")
+            else:
+                # v19: Use setInfo()
+                list_item.setInfo('video', {
+                    'title': name,
+                    'plot': f"User list: {name}"
+                })
+                self.logger.debug(f"LIST ITEM v19: Set metadata via setInfo for '{name}'")
 
             # Set folder icon
             list_item.setArt({
@@ -163,11 +176,24 @@ class ListItemRenderer:
             name = folder_data.get('name', 'Unnamed Folder')
             list_item = xbmcgui.ListItem(label=name)
 
-            # Set basic info
-            list_item.setInfo('video', {
-                'title': name,
-                'plot': f"Folder: {name}"
-            })
+            # Set basic info - guard setInfo() for v20+
+            from .listitem_builder import get_kodi_major_version
+            if get_kodi_major_version() >= 20:
+                # v20+: Use InfoTagVideo setters
+                try:
+                    video_info_tag = list_item.getVideoInfoTag()
+                    video_info_tag.setTitle(name)
+                    video_info_tag.setPlot(f"Folder: {name}")
+                    self.logger.debug(f"FOLDER ITEM v20+: Set metadata via InfoTagVideo for '{name}'")
+                except Exception as e:
+                    self.logger.warning(f"FOLDER ITEM v20+: InfoTagVideo failed for '{name}': {e}")
+            else:
+                # v19: Use setInfo()
+                list_item.setInfo('video', {
+                    'title': name,
+                    'plot': f"Folder: {name}"
+                })
+                self.logger.debug(f"FOLDER ITEM v19: Set metadata via setInfo for '{name}'")
 
             # Set folder icon
             list_item.setArt({
@@ -234,14 +260,27 @@ class ListItemRenderer:
             self.logger.debug(f"SIMPLE LISTITEM: Creating for '{title}'")
             list_item = xbmcgui.ListItem(label=title)
 
-            # Set basic info
-            info = {'title': title}
-            if description:
-                info['plot'] = description
-                self.logger.debug(f"SIMPLE LISTITEM: Set description for '{title}': {len(description)} chars")
+            # Set basic info - guard setInfo() for v20+
+            from .listitem_builder import get_kodi_major_version
+            if get_kodi_major_version() >= 20:
+                # v20+: Use InfoTagVideo setters
+                try:
+                    video_info_tag = list_item.getVideoInfoTag()
+                    video_info_tag.setTitle(title)
+                    if description:
+                        video_info_tag.setPlot(description)
+                    self.logger.debug(f"SIMPLE LISTITEM v20+: Set metadata via InfoTagVideo for '{title}'")
+                except Exception as e:
+                    self.logger.warning(f"SIMPLE LISTITEM v20+: InfoTagVideo failed for '{title}': {e}")
+            else:
+                # v19: Use setInfo()
+                info = {'title': title}
+                if description:
+                    info['plot'] = description
+                    self.logger.debug(f"SIMPLE LISTITEM: Set description for '{title}': {len(description)} chars")
 
-            list_item.setInfo('video', info)
-            self.logger.debug(f"SIMPLE LISTITEM: Set video info for '{title}': {list(info.keys())}")
+                list_item.setInfo('video', info)
+                self.logger.debug(f"SIMPLE LISTITEM v19: Set video info for '{title}': {list(info.keys())}")
 
             # Set icon/artwork
             art = {}
