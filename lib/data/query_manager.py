@@ -606,46 +606,47 @@ class QueryManager:
             return None
 
     def get_all_lists_with_folders(self):
-        """Get all lists from unified lists table with folder information"""
+        """Get all lists with their folder information"""
         try:
-            self.logger.debug("Getting all lists with folders from database")
-
-            # Get all lists from unified table
-            lists = self.connection_manager.execute_query("""
+            # Get all lists with folder names
+            query = """
                 SELECT 
                     l.id,
                     l.name,
-                    l.folder_id,
-                    l.created_at,
-                    l.created_at as updated_at,
-                    (SELECT COUNT(*) FROM list_items WHERE list_id = l.id) as item_count,
-                    f.name as folder_name
+                    l.description,
+                    COUNT(li.id) as item_count,
+                    date(l.created_at) as created,
+                    date(l.modified_at) as modified,
+                    COALESCE(f.name, 'Root') as folder_name,
+                    CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_folder
                 FROM lists l
                 LEFT JOIN folders f ON l.folder_id = f.id
-                ORDER BY l.created_at ASC
-            """)
+                LEFT JOIN list_items li ON l.id = li.list_id
+                GROUP BY l.id, l.name, l.description, l.created_at, l.modified_at, f.name, f.id
+                ORDER BY 
+                    CASE WHEN f.name = 'Search History' THEN 0 ELSE 1 END,
+                    f.name NULLS LAST, 
+                    l.created_at DESC
+            """
 
-            # Convert to expected format
-            result: List[Dict[str, Any]] = []
-            for row in lists:
-                result.append({
-                    "id": str(row['id']),
-                    "name": row['name'],
-                    "description": f"{row['item_count']} items",
-                    "item_count": row['item_count'],
-                    "created": row['created_at'][:10] if row['created_at'] else '',
-                    "modified": row['updated_at'][:10] if row['updated_at'] else '',
-                    "folder_name": row['folder_name'],
-                    "is_folder": True
-                })
+            results = self.connection_manager.execute_query(query)
 
-            self.logger.debug(f"Retrieved {len(result)} lists with folders")
-            return result
+            if results:
+                # Convert to list of dicts for easier handling
+                formatted_results = []
+                for row in results:
+                    row_dict = dict(row)
+                    # Ensure string conversion for compatibility
+                    row_dict['id'] = str(row_dict['id'])
+                    formatted_results.append(row_dict)
+
+                self.logger.info(f"Retrieved {len(formatted_results)} lists with folders")
+                return formatted_results
+
+            return []
 
         except Exception as e:
-            self.logger.error(f"Failed to get all lists with folders: {e}")
-            import traceback
-            self.logger.error(f"Get all lists error traceback: {traceback.format_exc()}")
+            self.logger.error(f"Failed to get lists with folders: {e}")
             return []
 
     def _get_kodi_episode_enrichment_data(self, kodi_ids: List[int]) -> Dict[int, Dict[str, Any]]:
@@ -1188,14 +1189,14 @@ class QueryManager:
         except Exception as e:
             self.logger.error(f"Failed to delete folder: {e}")
             return {"success": False, "error": "database_error", "message": str(e)}
-    
+
     def is_reserved_folder(self, folder_id):
         """Check if a folder is reserved"""
         try:
             folder = self.connection_manager.execute_single("""
                 SELECT name FROM folders WHERE id = ?
             """, [folder_id])
-            
+
             if folder and folder['name'] in self.RESERVED_FOLDERS:
                 return True
             return False
