@@ -276,14 +276,15 @@ def build_nexus_item(handle: int, base_url: str, movieid: int):
     li.setPath(url)
     _log(f"Set ListItem path: {url}")
     
-    # Make it clickable but not playable (this should trigger our plugin URL)
-    li.setProperty('IsPlayable', 'true')  # Changed to 'true' so it can be activated
-    _log("Set IsPlayable=true for click handling")
+    # For v21+, don't set IsPlayable - let Kodi handle the plugin URL naturally
+    # The absence of IsPlayable lets Kodi route plugin:// URLs to the plugin
+    _log("Not setting IsPlayable - letting Kodi route plugin URL naturally")
     
     # Add context menu as backup
     li.addContextMenuItems([("Open Info (Context Menu)", f'RunPlugin({url})')])
 
-    xbmcplugin.addDirectoryItem(handle, url, li, isFolder=False)
+    # Use isFolder=True for plugin URLs - this ensures proper routing to the plugin
+    xbmcplugin.addDirectoryItem(handle, url, li, isFolder=True)
     xbmcplugin.endOfDirectory(handle, cacheToDisc=False)
     _log("Nexus+ list built; click item to activate Info.")
 
