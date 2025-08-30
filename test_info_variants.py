@@ -211,42 +211,26 @@ def show_info_matrix(movieid: int):
         _cleanup_xsp(xsp_path)
         return
 
-    row = find_index_in_xsp(xsp_path, movieid)
-    focus_list_index(LIST_ID, row)
-
-    # Enhanced focus verification with fallback navigation
-    ok = wait_until(lambda: xbmc.getInfoLabel('ListItem.DBID') == str(movieid), timeout_ms=1000)
-    if not ok:
-        _log(f"Direct index focus failed, trying navigation fallback", xbmc.LOGWARNING)
-        # Fallback: use arrow keys to navigate to the correct item
-        for attempt in range(5):  # Try up to 5 moves
-            current_dbid = xbmc.getInfoLabel('ListItem.DBID')
-            if current_dbid == str(movieid):
-                break
-            xbmc.executebuiltin('Action(Down)')
-            xbmc.sleep(100)  # Small delay for UI update
-        
-        # Final check
-        if xbmc.getInfoLabel('ListItem.DBID') != str(movieid):
-            _log(f"Could not focus correct item (expected {movieid}, got {xbmc.getInfoLabel('ListItem.DBID')})", xbmc.LOGWARNING)
-
-    # Ensure the list still has focus before opening Info
-    focus_list(LIST_ID)
-    xbmc.sleep(200)  # Give UI time to respond
+    # Navigate using Down arrow to find the correct item
+    for attempt in range(10):  # Try up to 10 moves to find the item
+        current_dbid = xbmc.getInfoLabel('ListItem.DBID')
+        if current_dbid == str(movieid):
+            _log(f"Found target movie at attempt {attempt + 1}")
+            break
+        xbmc.executebuiltin('Action(Down)')
+        xbmc.sleep(150)  # Give UI time to update
+    else:
+        _log(f"Could not find movie {movieid} after navigation attempts", xbmc.LOGWARNING)
 
     # Open Info and immediately replace the XSP page underneath
-    _log(f"Opening Info dialog for item with DBID: {xbmc.getInfoLabel('ListItem.DBID')}")
     xbmc.executebuiltin('Action(Info)')
-    
-    # Use longer timeout and start swap immediately
-    import threading
-    threading.Thread(target=swap_under_info, args=(orig_path, 3000), daemon=True).start()
+    swap_under_info(orig_path)  # returns as soon as the dialog is up
 
-    # Verify dialog is open with longer timeout
-    if wait_until(lambda: xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)'), timeout_ms=3000):
+    # Verify dialog is open (fast poll, no fixed sleep)
+    if wait_until(lambda: xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)'), timeout_ms=1500):
         notify("Matrix test", f"Info dialog opened for {title}!")
     else:
-        notify("Matrix test", "Failed to open info dialog - check if item supports Info")
+        notify("Matrix test", "Failed to open info dialog")
         _cleanup_xsp(xsp_path)
 
     _log(f"=== MATRIX TEST END: movie {movieid} ===")
