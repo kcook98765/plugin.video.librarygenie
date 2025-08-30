@@ -40,6 +40,10 @@ class JsonRpcClient:
 
             return response.get('result', {})
 
+        except Exception as e:
+            self.logger.error(f"Error executing JSON-RPC method {method}: {e}")
+            return {}
+
     def get_movies_batch(self, movie_ids: List[int]) -> List[Dict[str, Any]]:
         """Get movie details for a batch of movie IDs"""
         try:
