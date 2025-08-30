@@ -1284,6 +1284,38 @@ class QueryManager:
             self.logger.error(f"Failed to get folder {folder_id}: {e}")
             return None
 
+    def get_all_folders(self):
+        """Get all folders with their list counts"""
+        try:
+            folders = self.connection_manager.execute_query("""
+                SELECT 
+                    f.id, f.name, f.created_at,
+                    COUNT(l.id) as list_count
+                FROM folders f
+                LEFT JOIN lists l ON l.folder_id = f.id
+                WHERE f.parent_id IS NULL
+                GROUP BY f.id, f.name, f.created_at
+                ORDER BY 
+                    CASE WHEN f.name = 'Search History' THEN 0 ELSE 1 END,
+                    f.name
+            """)
+
+            result = []
+            for row in folders or []:
+                result.append({
+                    "id": str(row['id']),
+                    "name": row['name'],
+                    "created": row['created_at'][:10] if row['created_at'] else '',
+                    "list_count": row['list_count']
+                })
+
+            self.logger.debug(f"Retrieved {len(result)} folders")
+            return result
+
+        except Exception as e:
+            self.logger.error(f"Failed to get all folders: {e}")
+            return []
+
 
 # Global query manager instance
 _query_manager_instance = None

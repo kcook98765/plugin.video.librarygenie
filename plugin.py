@@ -235,73 +235,38 @@ def handle_lists(addon_handle, base_url):
             "icon": "DefaultFolder.png"
         })
 
-        # Separate folders and lists for proper organization
-        folders_seen = set()
-        standalone_lists = []
+        # Get all existing folders to display as navigable items
+        all_folders = query_manager.get_all_folders()
 
-        # First pass: collect folders and standalone lists
-        for list_item in user_lists:
-            folder_name = list_item.get('folder_name')
+        # Add folders as navigable items
+        for folder_info in all_folders:
+            folder_id = folder_info['id']
+            folder_name = folder_info['name']
+            list_count = folder_info['list_count']
             
-            if folder_name and folder_name != 'Root':
-                # This list belongs to a folder - we'll handle folders separately
-                folders_seen.add(folder_name)
-            else:
-                # This is a standalone list (not in any folder)
-                standalone_lists.append(list_item)
-
-        # Second pass: Add folders with their contents
-        for folder_name in folders_seen:
-            # Find a folder representative to get folder info
-            folder_representative = next((item for item in user_lists if item.get('folder_name') == folder_name), None)
-            
-            if not folder_representative:
-                continue
-
             # Check if it's the reserved "Search History" folder
             is_reserved_folder = folder_name == 'Search History'
             folder_context_menu = []
             
             if not is_reserved_folder:
-                # Get folder ID from the first list in this folder
-                folder_id = None
-                try:
-                    # Query to get folder ID
-                    folder_info = query_manager.connection_manager.execute_single("""
-                        SELECT id FROM folders WHERE name = ?
-                    """, [folder_name])
-                    if folder_info:
-                        folder_id = folder_info['id']
-                except Exception as e:
-                    logger.error(f"Error getting folder ID for {folder_name}: {e}")
-
-                if folder_id:
-                    folder_context_menu = [
-                        (f"Rename Folder '{folder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_folder&folder_id={folder_id})"),
-                        (f"Delete Folder '{folder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_folder&folder_id={folder_id})")
-                    ]
+                folder_context_menu = [
+                    (f"Rename Folder '{folder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_folder&folder_id={folder_id})"),
+                    (f"Delete Folder '{folder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_folder&folder_id={folder_id})")
+                ]
 
             # Add the folder as a navigable item
-            folder_id = None
-            try:
-                folder_info = query_manager.connection_manager.execute_single("""
-                    SELECT id FROM folders WHERE name = ?
-                """, [folder_name])
-                if folder_info:
-                    folder_id = folder_info['id']
-            except Exception as e:
-                logger.error(f"Error getting folder ID for folder menu: {e}")
+            menu_items.append({
+                "title": f"[COLOR cyan]📁 {folder_name}[/COLOR]",
+                "action": "show_folder",
+                "folder_id": folder_id,
+                "description": f"Folder with {list_count} lists",
+                "is_folder": True,
+                "icon": "DefaultFolder.png",
+                "context_menu": folder_context_menu
+            })
 
-            if folder_id:
-                menu_items.append({
-                    "title": f"[COLOR cyan]📁 {folder_name}[/COLOR]",
-                    "action": "show_folder",
-                    "folder_id": folder_id,
-                    "description": f"Folder with lists",
-                    "is_folder": True,
-                    "icon": "DefaultFolder.png",
-                    "context_menu": folder_context_menu
-                })
+        # Separate standalone lists (not in any folder)
+        standalone_lists = [item for item in user_lists if not item.get('folder_name') or item.get('folder_name') == 'Root']
 
         # Add standalone lists (not in any folder)
         for list_item in standalone_lists:
