@@ -246,17 +246,57 @@ def handle_lists(addon_handle, base_url):
                     (f"Delete '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_item['id']})")
                 ]
 
-            menu_items.append({
-                "title": f"{list_item['name']} ({list_item['item_count']} items)",
-                "action": "view_list",
-                "list_id": list_item['id'],
-                "description": f"Created: {list_item['created']}",
-                "is_folder": True,
-                "icon": "DefaultFolder.png",
-                "context_menu": context_menu
-            })
+            # If the item is a folder, add its contents
+            if list_item.get('is_folder'):
+                # Get lists within this folder
+                folder_lists = query_manager.get_lists_in_folder(list_item['id'])
+                folder_menu_items = []
+                for sub_list in folder_lists:
+                    sub_list_context_menu = []
+                    if sub_list.get('folder_name') != 'Search History': # Assuming folder_name indicates search history
+                        sub_list_context_menu = [
+                            (f"Rename '{sub_list['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={sub_list['id']})"),
+                            (f"Delete '{sub_list['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={sub_list['id']})")
+                        ]
+                    folder_menu_items.append({
+                        "title": f"{sub_list['name']} ({sub_list['item_count']} items)",
+                        "action": "view_list",
+                        "list_id": sub_list['id'],
+                        "description": f"Created: {sub_list['created']}",
+                        "is_folder": False, # Lists are not folders themselves
+                        "icon": "DefaultVideoPlaylists.png",
+                        "context_menu": sub_list_context_menu
+                    })
 
-        # Use menu builder to display
+                # Add the folder to the menu
+                menu_items.append({
+                    "title": f"[COLOR cyan]{list_item['name']}[/COLOR]", # Folder name in cyan
+                    "action": "show_folder",
+                    "folder_id": list_item['id'],
+                    "description": f"Created: {list_item['created']}",
+                    "is_folder": True,
+                    "icon": "DefaultFolder.png",
+                    "context_menu": [ # Context menu for the folder itself
+                        (f"Rename Folder '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_folder&folder_id={list_item['id']})"),
+                        (f"Delete Folder '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_folder&folder_id={list_item['id']})")
+                    ]
+                })
+                # Add lists within the folder as sub-items of the folder
+                menu_items.extend(folder_menu_items)
+            else:
+                # This is a standalone list
+                menu_items.append({
+                    "title": f"{list_item['name']} ({list_item['item_count']} items)",
+                    "action": "view_list",
+                    "list_id": list_item['id'],
+                    "description": f"Created: {list_item['created']}",
+                    "is_folder": False,
+                    "icon": "DefaultVideoPlaylists.png",
+                    "context_menu": context_menu
+                })
+
+
+        # Build and display the menu
         from lib.ui.menu_builder import MenuBuilder
         menu_builder = MenuBuilder()
         menu_builder.build_menu(menu_items, addon_handle, base_url)
@@ -777,6 +817,109 @@ def handle_delete_folder():
         logger.error(f"Delete folder error traceback: {traceback.format_exc()}")
 
 
+def handle_show_folder(addon_handle, base_url):
+    """Handle showing the contents of a folder"""
+    try:
+        # Parse plugin arguments
+        if len(sys.argv) < 3 or not sys.argv[2].startswith('?'):
+            logger.error("Invalid arguments received for handle_show_folder")
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),
+                "Invalid arguments",
+                xbmcgui.NOTIFICATION_ERROR
+            )
+            return
+
+        query_string = sys.argv[2][1:]
+        params = dict(parse_qsl(query_string))
+        folder_id = params.get('folder_id')
+
+        if not folder_id:
+            logger.error("No folder_id provided for show_folder")
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),
+                "Invalid folder ID",
+                xbmcgui.NOTIFICATION_ERROR
+            )
+            return
+
+        logger.info(f"Showing contents of folder {folder_id}")
+
+        # Initialize query manager
+        query_manager = get_query_manager()
+        if not query_manager.initialize():
+            logger.error("Failed to initialize query manager")
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),
+                "Database error",
+                xbmcgui.NOTIFICATION_ERROR
+            )
+            return
+
+        # Get folder info to set category
+        folder_info = query_manager.get_folder_by_id(folder_id)
+        if not folder_info:
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().ok(
+                addon.getLocalizedString(35002),
+                "Folder not found"
+            )
+            return
+
+        xbmcplugin.setPluginCategory(addon_handle, f"Folder: {folder_info['name']}")
+
+        # Get all lists within this folder
+        folder_lists = query_manager.get_lists_in_folder(folder_id)
+        logger.info(f"Found {len(folder_lists)} lists in folder {folder_id}")
+
+        if not folder_lists:
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().ok(
+                addon.getLocalizedString(35002),
+                f"Folder '{folder_info['name']}' is empty."
+            )
+            xbmcplugin.endOfDirectory(addon_handle)
+            return
+
+        menu_items = []
+        # Build menu items for lists within the folder
+        for list_item in folder_lists:
+            sub_list_context_menu = []
+            # Add context menu for each list
+            sub_list_context_menu = [
+                (f"Rename '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={list_item['id']})"),
+                (f"Delete '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_item['id']})")
+            ]
+            menu_items.append({
+                "title": f"{list_item['name']} ({list_item['item_count']} items)",
+                "action": "view_list",
+                "list_id": list_item['id'],
+                "description": f"Created: {list_item['created']}",
+                "is_folder": False,
+                "icon": "DefaultVideoPlaylists.png",
+                "context_menu": sub_list_context_menu
+            })
+
+        # Build and display the menu for the folder contents
+        from lib.ui.menu_builder import MenuBuilder
+        menu_builder = MenuBuilder()
+        menu_builder.build_menu(menu_items, addon_handle, base_url)
+
+    except Exception as e:
+        logger.error(f"Error showing folder contents: {e}")
+        import traceback
+        logger.error(f"Show folder error traceback: {traceback.format_exc()}")
+        addon = xbmcaddon.Addon()
+        xbmcgui.Dialog().notification(
+            addon.getLocalizedString(35002),
+            "Folder error",
+            xbmcgui.NOTIFICATION_ERROR
+        )
+
+
 def _videodb_path(dbtype: str, dbid: int, tvshowid=None, season=None) -> str:
     """Build videodb:// path for Kodi library items"""
     if dbtype == "movie":
@@ -867,6 +1010,7 @@ action_handlers = {
     'create_folder': handle_create_folder,
     'rename_folder': handle_rename_folder,
     'delete_folder': handle_delete_folder,
+    'show_folder': handle_show_folder, # Added handler for showing folder contents
     'remote_lists': show_remote_lists_menu,
     'authorize': handle_authorize,
     'signout': handle_signout,
@@ -914,6 +1058,8 @@ def main():
             elif action == 'lists':
                 handler(addon_handle, base_url)
             elif action == 'view_list':
+                handler(addon_handle, base_url)
+            elif action == 'show_folder': # Handle show_folder action
                 handler(addon_handle, base_url)
             elif action == 'on_select':
                 # handle_on_select expects params and addon_handle
