@@ -12,7 +12,8 @@ from typing import List, Dict, Any, Optional, Union
 from .connection_manager import get_connection_manager
 from .migrations import get_migration_manager
 from ..utils.logger import get_logger
-from ..kodi.json_rpc_client import JsonRpcClient
+# from ..kodi.json_rpc_client import JsonRpcClient # Original import, now removed
+from ..kodi.json_rpc_client import get_json_rpc_client # Corrected import
 
 
 class QueryManager:
@@ -22,7 +23,8 @@ class QueryManager:
         self.logger = get_logger(__name__)
         self.db_manager = db_manager
         self.config_manager = config_manager
-        self.json_rpc_client = JsonRpcClient(config_manager)
+        # self.json_rpc_client = JsonRpcClient(config_manager) # Original instantiation
+        self.json_rpc_client = get_json_rpc_client() # Corrected instantiation
         self._enrichment_counters = {
             'movies_processed': 0,
             'movies_enriched': 0,
