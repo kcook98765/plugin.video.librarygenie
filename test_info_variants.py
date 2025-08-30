@@ -45,20 +45,32 @@ def jsonrpc(method: str, params: dict | None = None) -> dict:
 def notify(heading: str, message: str, time_ms: int = 3500):
     xbmcgui.Dialog().notification(heading, message, xbmcgui.NOTIFICATION_INFO, time_ms)
 
-def focus_list(control_id: int = LIST_ID, tries: int = 5, sleep_ms: int = 100) -> bool:
-    _log(f"FOCUS_LIST: Attempting to focus control {control_id}")
-
-    for attempt in range(tries):
-        xbmc.executebuiltin(f'SetFocus({control_id})')
-        focused = xbmc.getCondVisibility(f'Control.HasFocus({control_id})')
-
-        if focused:
-            _log(f"FOCUS_LIST: SUCCESS on attempt {attempt + 1}")
+def wait_until(cond, timeout_ms=2000, step_ms=30):
+    """Wait for condition with fast polling, no fixed sleeps"""
+    end = time.time() + (timeout_ms / 1000.0)
+    while time.time() < end and not xbmc.Monitor().abortRequested():
+        if cond():
             return True
+        xbmc.sleep(step_ms)  # small, responsive yield
+    return False
 
-        xbmc.sleep(sleep_ms)
+def focus_list(control_id: int = LIST_ID, tries: int = 20, step_ms: int = 30) -> bool:
+    """Focus list control with fast polling"""
+    for _ in range(tries):
+        xbmc.executebuiltin(f'SetFocus({control_id})')
+        if xbmc.getCondVisibility(f'Control.HasFocus({control_id})'):
+            return True
+        xbmc.sleep(step_ms)
+    return False
 
-    _log(f"FOCUS_LIST: FAILED after {tries} attempts")
+def focus_list_index(control_id: int, index: int, tries: int = 20, step_ms: int = 30) -> bool:
+    """Focus specific index in list control (many skins support SetFocus(id,index))"""
+    for _ in range(tries):
+        xbmc.executebuiltin(f'SetFocus({control_id},{index})')
+        # Verify by checking if we have focus
+        if xbmc.getCondVisibility(f'Control.HasFocus({control_id})'):
+            return True
+        xbmc.sleep(step_ms)
     return False
 
 def wait_for_videos_container(target_path: str, timeout_ms: int = 6000) -> bool:
@@ -133,116 +145,88 @@ def _cleanup_xsp(path_special: str):
     except Exception as e:
         _log(f"Cleanup failed: {e}", xbmc.LOGDEBUG)
 
-def _swap_under_info(orig_path: str, wait_ms: int = 300):
-    """Wait until the info dialog is active, then replace the XSP page in-place"""
-    deadline = time.time() + 3
-    while time.time() < deadline and not xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)'):
-        xbmc.sleep(50)
-    
-    if orig_path:
-        _log(f"SWAP: Container.Update to '{orig_path}' (replace)")
+def find_index_in_xsp(xsp_path: str, movieid: int) -> int:
+    """Find the exact row index of movieid in the XSP folder"""
+    # Ask Kodi what's in that folder right now and find the row
+    data = jsonrpc("Files.GetDirectory", {
+        "directory": xsp_path, "media": "video",
+        "properties": ["title", "file", "thumbnail", "art", "resume"]
+    })
+    items = (data.get("result") or {}).get("files") or []
+    # Typical XSP list shows ".." first; our movie should be the only real item
+    # Match on movieid if present, otherwise match on filename from library
+    target_file = _get_movie_file(movieid) or ""
+    for idx, it in enumerate(items):
+        mid = it.get("movieid") or it.get("id")
+        if mid == movieid:
+            return idx
+        if target_file and it.get("file") == target_file:
+            return idx
+    # Fallback: if it's one movie plus (".."), that movie is usually index 1
+    return 1 if len(items) == 2 and items[0].get("file","").endswith("..") else 0
+
+def swap_under_info(orig_path: str, timeout_ms: int = 2000):
+    """Wait for info dialog to open, then replace history immediately"""
+    if wait_until(lambda: xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)'), timeout_ms):
+        _log(f"SWAP: Container.Update('{orig_path}', replace)")
         xbmc.executebuiltin(f'Container.Update("{orig_path}",replace)')
     else:
-        _log("SWAP: No original path to restore", xbmc.LOGWARNING)
+        _log("SWAP: Info dialog did not open in time", xbmc.LOGWARNING)
 
 def show_info_matrix(movieid: int):
-    kodi_ver = kodi_major()
-    _log(f"=== MATRIX TEST START: movie {movieid} on Kodi v{kodi_ver} ===")
+    _log(f"=== MATRIX TEST START: movie {movieid} on Kodi v{kodi_major()} ===")
 
-    # Remember where we came from (your plugin listing)
+    # Where we want Back to return to
     orig_path = xbmc.getInfoLabel('Container.FolderPath') or ''
-    _log(f"CAPTURE: Original container path: '{orig_path}'")
 
-    # Step 1: Verify movie exists
-    _log("STEP 1: Verifying movie exists in library...")
-    movie_data = jsonrpc("VideoLibrary.GetMovieDetails", {
-        "movieid": int(movieid),
-        "properties": ["title", "file"]
-    })
-    movie_details = (movie_data.get("result") or {}).get("moviedetails")
-    if not movie_details:
-        _log(f"STEP 1: FAILED - Movie {movieid} not found", xbmc.LOGERROR)
+    # Verify the movie exists
+    md = jsonrpc("VideoLibrary.GetMovieDetails", {"movieid": int(movieid), "properties": ["title","file"]})
+    details = (md.get("result") or {}).get("moviedetails")
+    if not details:
         notify("Matrix test", f"Movie {movieid} not found")
         return
+    title = details.get("title") or "Unknown"
 
-    movie_title = movie_details.get("title", "Unknown")
-    _log(f"STEP 1: SUCCESS - Found movie: {movie_title}")
-
-    # Step 2: Create XSP
-    _log("STEP 2: Creating XSP filter...")
+    # Build one-movie XSP and open it
     xsp_path = _create_movie_xsp_by_path(movieid)
     if not xsp_path:
-        _log("STEP 2: FAILED - Could not create XSP", xbmc.LOGERROR)
         notify("Matrix test", "Failed to create smart playlist")
         return
-    _log("STEP 2: SUCCESS - XSP created")
 
-    # Step 3: Navigate to XSP with return context
-    _log("STEP 3: Navigating to XSP with return context...")
-    # Use return parameter to preserve navigation stack
     xbmc.executebuiltin(f'ActivateWindow(Videos,"{xsp_path}",return)')
 
-    # Step 4: Wait for container
-    _log("STEP 4: Waiting for container to load...")
-    if not wait_for_videos_container(xsp_path, timeout_ms=8000):
-        _log("STEP 4: FAILED - Timeout waiting for XSP container", xbmc.LOGERROR)
+    # Wait until that folder is *actually* showing and populated
+    if not wait_until(lambda: xbmc.getCondVisibility(f'Window.IsActive({VIDEOS_WINDOW})')
+                               and (xbmc.getInfoLabel('Container.FolderPath') or '').rstrip('/') == xsp_path.rstrip('/')
+                               and int(xbmc.getInfoLabel('Container.NumItems') or '0') > 0
+                               and not xbmc.getCondVisibility('Window.IsActive(DialogBusy.xml)'),
+                      timeout_ms=8000):
         notify("Matrix test", "Timed out waiting for playlist")
         _cleanup_xsp(xsp_path)
         return
 
-    container_items = xbmc.getInfoLabel('Container.NumItems')
-    _log(f"STEP 4: SUCCESS - Container loaded with {container_items} items")
-
-    # Step 5: Focus list and navigate to movie
-    _log("STEP 5: Opening info dialog...")
-    xbmc.sleep(750)  # Let UI settle
-
-    # Focus the list control
-    if not focus_list(LIST_ID, tries=3, sleep_ms=150):
-        _log("STEP 5: FAILED - Could not focus list control", xbmc.LOGERROR)
+    # Focus the list & jump straight to the movie row
+    if not focus_list(LIST_ID): 
         notify("Matrix test", "Failed to focus list")
         _cleanup_xsp(xsp_path)
         return
 
-    # Navigate down from ".." to the movie item
-    _log("STEP 5: Moving to movie item...")
-    xbmc.executebuiltin('Action(Down)')
-    xbmc.sleep(400)  # Give time for selection to update
+    row = find_index_in_xsp(xsp_path, movieid)
+    focus_list_index(LIST_ID, row)
 
-    # Verify we selected the movie
-    current_title = xbmc.getInfoLabel('ListItem.Title')
-    current_dbid = xbmc.getInfoLabel('ListItem.DBID')
-    _log(f"STEP 5: Selected item - Title: '{current_title}', DBID: '{current_dbid}'")
+    # Sanity check we're on the correct item (no sleep needed)
+    ok = wait_until(lambda: xbmc.getInfoLabel('ListItem.DBID') == str(movieid), timeout_ms=600)
+    if not ok:
+        _log(f"Row focus verification failed; continuing to open Info anyway.", xbmc.LOGWARNING)
 
-    if not (current_title and current_dbid and current_title != ".."):
-        _log("STEP 5: FAILED - Did not select movie item properly", xbmc.LOGERROR)
-        notify("Matrix test", "Failed to select movie")
-        _cleanup_xsp(xsp_path)
-        return
-
-    # Open info dialog
-    _log("STEP 5: Opening info dialog with Action(Info)...")
+    # Open Info and immediately replace the XSP page underneath
     xbmc.executebuiltin('Action(Info)')
+    swap_under_info(orig_path)  # returns as soon as the dialog is up
 
-    # Replace XSP underneath the dialog so Back returns to your plugin page
-    import threading
-    threading.Thread(target=_swap_under_info, args=(orig_path,), daemon=True).start()
-
-    xbmc.sleep(1000)  # Give time for dialog to open
-
-    # Step 6: Verify success
-    _log("STEP 6: Verifying info dialog opened...")
-    xbmc.sleep(300)
-
-    dialog_names = ['DialogVideoInfo.xml', 'movieinformation.xml', 'VideoInfo.xml']
-    info_open = any(xbmc.getCondVisibility(f'Window.IsActive({dialog})') for dialog in dialog_names)
-
-    if info_open:
-        _log("SUCCESS: Info dialog is open")
-        notify("Matrix test", f"Info dialog opened for {movie_title}!")
-        # Keep XSP for manual cleanup if needed
+    # Verify dialog is open (fast poll, no fixed sleep)
+    if wait_until(lambda: xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)'), timeout_ms=1500):
+        notify("Matrix test", f"Info dialog opened for {title}!")
     else:
-        _log("FAILED: Info dialog did not open", xbmc.LOGERROR)
         notify("Matrix test", "Failed to open info dialog")
         _cleanup_xsp(xsp_path)
 
