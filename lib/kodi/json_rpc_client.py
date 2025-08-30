@@ -111,3 +111,7 @@ def get_json_rpc_client(config_manager=None):
     if _json_rpc_client is None:
         _json_rpc_client = JsonRpcClient(config_manager)
     return _json_rpc_client
+
+def get_kodi_client(config_manager=None):
+    """Alias for get_json_rpc_client for backward compatibility"""
+    return get_json_rpc_client(config_manager)
