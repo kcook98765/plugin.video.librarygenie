@@ -26,8 +26,13 @@ class MigrationManager:
             if current_version == 0:
                 self.logger.info("Initializing complete database schema")
                 self._create_complete_schema()
-                self._set_schema_version(8)
+                self._set_schema_version(9)
                 self.logger.info("Database initialized with complete schema")
+            elif current_version < 9:
+                self.logger.info("Migrating to unified lists structure")
+                self._migrate_to_unified_lists()
+                self._set_schema_version(9)
+                self.logger.info("Migration to unified lists complete")
             else:
                 self.logger.info(f"Database already initialized at version {current_version}")
 
@@ -395,6 +400,73 @@ class MigrationManager:
             conn.execute("CREATE INDEX idx_library_scan_log_type_time ON library_scan_log (scan_type, start_time)")
 
             # No default lists - users will create their own
+
+    def _migrate_to_unified_lists(self):
+        """Migrate data from legacy user_list/list_item to unified lists/list_items structure"""
+        with self.conn_manager.transaction() as conn:
+            self.logger.info("Starting migration to unified lists structure")
+
+            # Migrate user_list to lists (no folder_id, so they go to root)
+            conn.execute("""
+                INSERT INTO lists (id, name, folder_id, created_at)
+                SELECT id, name, NULL, created_at FROM user_list
+            """)
+
+            # Migrate list_item to media_items and list_items
+            # First create media_items from list_item data
+            conn.execute("""
+                INSERT INTO media_items 
+                (media_type, title, year, imdbnumber, tmdb_id, kodi_id, source, 
+                 play, poster, fanart, plot, rating, votes, duration, mpaa, 
+                 genre, director, studio, country, writer, cast, art, created_at)
+                SELECT 
+                    'movie' as media_type,
+                    li.title,
+                    li.year,
+                    li.imdb_id,
+                    li.tmdb_id,
+                    lm.kodi_id,
+                    'manual' as source,
+                    '' as play,
+                    '' as poster,
+                    '' as fanart,
+                    '' as plot,
+                    0.0 as rating,
+                    0 as votes,
+                    0 as duration,
+                    '' as mpaa,
+                    '' as genre,
+                    '' as director,
+                    '' as studio,
+                    '' as country,
+                    '' as writer,
+                    '' as cast,
+                    '' as art,
+                    li.created_at
+                FROM list_item li
+                LEFT JOIN library_movie lm ON li.library_movie_id = lm.id
+            """)
+
+            # Create mapping from old list_item.id to new media_items.id
+            # Then create list_items entries
+            conn.execute("""
+                INSERT INTO list_items (list_id, media_item_id, position, created_at)
+                SELECT 
+                    li.list_id,
+                    mi.id as media_item_id,
+                    ROW_NUMBER() OVER (PARTITION BY li.list_id ORDER BY li.created_at) - 1 as position,
+                    li.created_at
+                FROM list_item li
+                JOIN media_items mi ON (
+                    li.title = mi.title 
+                    AND COALESCE(li.year, 0) = COALESCE(mi.year, 0)
+                    AND COALESCE(li.imdb_id, '') = COALESCE(mi.imdbnumber, '')
+                    AND mi.source = 'manual'
+                    AND li.created_at = mi.created_at
+                )
+            """)
+
+            self.logger.info("Migration to unified lists structure completed")
 
 
 # Global migration manager instance

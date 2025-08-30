@@ -122,31 +122,37 @@ class QueryManager:
             return False
 
     def get_user_lists(self):
-        """Get all user lists from database"""
+        """Get all user lists from unified lists table"""
         try:
             self.logger.debug("Getting user lists from database")
 
             lists = self.connection_manager.execute_query("""
                 SELECT 
-                    id,
-                    name,
-                    created_at,
-                    updated_at,
-                    (SELECT COUNT(*) FROM list_item WHERE list_id = user_list.id) as item_count
-                FROM user_list 
-                ORDER BY created_at ASC
+                    l.id,
+                    l.name,
+                    l.created_at,
+                    l.created_at as updated_at,
+                    (SELECT COUNT(*) FROM list_items WHERE list_id = l.id) as item_count,
+                    f.name as folder_name
+                FROM lists l
+                LEFT JOIN folders f ON l.folder_id = f.id
+                ORDER BY l.created_at ASC
             """)
 
             # Convert to expected format
             result: List[Dict[str, Any]] = []
             for row in lists:
+                # Show folder context in description if item is in a folder
+                folder_context = f" ({row['folder_name']})" if row['folder_name'] else ""
+                
                 result.append({
                     "id": str(row['id']),
                     "name": row['name'],
-                    "description": f"{row['item_count']} items",
+                    "description": f"{row['item_count']} items{folder_context}",
                     "item_count": row['item_count'],
                     "created": row['created_at'][:10] if row['created_at'] else '',
                     "modified": row['updated_at'][:10] if row['updated_at'] else '',
+                    "folder_name": row['folder_name']
                 })
 
             self.logger.debug(f"Retrieved {len(result)} lists")
@@ -162,7 +168,7 @@ class QueryManager:
             connection = self.connection_manager.get_connection()
             cursor = connection.cursor()
 
-            # First try the new lists/list_items structure (for search history)
+            # Use unified lists/list_items structure
             cursor.execute("""
                 SELECT 
                     li.media_item_id as item_id,
@@ -181,26 +187,6 @@ class QueryManager:
             """, (list_id, limit, offset))
 
             rows = cursor.fetchall()
-
-            # If no results from new structure, try old structure
-            if not rows:
-                cursor.execute("""
-                    SELECT 
-                        li.id as item_id,
-                        0 as order_score,
-                        NULL as kodi_id,
-                        'movie' as media_type,
-                        li.title,
-                        li.year,
-                        li.imdb_id,
-                        NULL as data_json
-                    FROM list_item li
-                    WHERE li.list_id = ?
-                    ORDER BY li.title ASC
-                    LIMIT ? OFFSET ?
-                """, (list_id, limit, offset))
-                rows = cursor.fetchall()
-
             items = []
 
             for row in rows:
@@ -230,8 +216,8 @@ class QueryManager:
             self.logger.error(f"Error getting list items: {e}")
             return []
 
-    def create_list(self, name, description=""):
-        """Create a new list in database with proper validation"""
+    def create_list(self, name, description="", folder_id=None):
+        """Create a new list in unified lists table with proper validation"""
         if not name or not name.strip():
             self.logger.warning("Attempted to create list with empty name")
             return {"error": "empty_name"}
@@ -239,12 +225,12 @@ class QueryManager:
         name = name.strip()
 
         try:
-            self.logger.info(f"Creating list '{name}'")
+            self.logger.info(f"Creating list '{name}' in folder {folder_id}")
 
             with self.connection_manager.transaction() as conn:
                 cursor = conn.execute("""
-                    INSERT INTO user_list (name) VALUES (?)
-                """, [name])
+                    INSERT INTO lists (name, folder_id) VALUES (?, ?)
+                """, [name, folder_id])
 
                 list_id = cursor.lastrowid
 
@@ -263,21 +249,59 @@ class QueryManager:
                 self.logger.error(f"Failed to create list '{name}': {e}")
                 return {"error": "database_error"}
 
-    def add_item_to_list(self, list_id, title, year=None, imdb_id=None, tmdb_id=None):
-        """Add an item to a list in database"""
+    def add_item_to_list(self, list_id, title, year=None, imdb_id=None, tmdb_id=None, kodi_id=None):
+        """Add an item to a list using unified tables structure"""
         try:
             self.logger.info(f"Adding '{title}' to list {list_id}")
 
             with self.connection_manager.transaction() as conn:
-                cursor = conn.execute("""
-                    INSERT INTO list_item (list_id, title, year, imdb_id, tmdb_id)
-                    VALUES (?, ?, ?, ?, ?)
-                """, [int(list_id), title, year, imdb_id, tmdb_id])
+                # Create media item data
+                media_data = {
+                    'media_type': 'movie',
+                    'title': title,
+                    'year': year,
+                    'imdbnumber': imdb_id,
+                    'tmdb_id': tmdb_id,
+                    'kodi_id': kodi_id,
+                    'source': 'manual',
+                    'play': '',
+                    'poster': '',
+                    'fanart': '',
+                    'plot': '',
+                    'rating': 0.0,
+                    'votes': 0,
+                    'duration': 0,
+                    'mpaa': '',
+                    'genre': '',
+                    'director': '',
+                    'studio': '',
+                    'country': '',
+                    'writer': '',
+                    'cast': '',
+                    'art': ''
+                }
 
-                item_id = cursor.lastrowid
+                # Insert or get media item
+                media_item_id = self._insert_or_get_media_item(conn, media_data)
+                
+                if not media_item_id:
+                    return None
+
+                # Get next position
+                position_result = conn.execute("""
+                    SELECT COALESCE(MAX(position), -1) + 1 as next_position 
+                    FROM list_items WHERE list_id = ?
+                """, [int(list_id)]).fetchone()
+                next_position = position_result['next_position'] if position_result else 0
+
+                # Add to list
+                conn.execute("""
+                    INSERT OR IGNORE INTO list_items (list_id, media_item_id, position)
+                    VALUES (?, ?, ?)
+                """, [int(list_id), media_item_id, next_position])
 
             return {
-                "id": str(item_id),
+                "id": str(media_item_id),
                 "title": title,
                 "year": year,
                 "imdb_id": imdb_id,
@@ -289,37 +313,28 @@ class QueryManager:
             return None
 
     def count_list_items(self, list_id):
-        """Count items in a specific list"""
+        """Count items in a specific list using unified table"""
         try:
-            # First try user_list table
             result = self.connection_manager.execute_single("""
-                SELECT COUNT(*) as count FROM list_item WHERE list_id = ?
+                SELECT COUNT(*) as count FROM list_items WHERE list_id = ?
             """, [int(list_id)])
 
-            count = result['count'] if result else 0
-
-            # If no items found, try new lists table
-            if count == 0:
-                result = self.connection_manager.execute_single("""
-                    SELECT COUNT(*) as count FROM list_items WHERE list_id = ?
-                """, [int(list_id)])
-                count = result['count'] if result else 0
-
-            return count
+            return result['count'] if result else 0
 
         except Exception as e:
             self.logger.error(f"Failed to count items in list {list_id}: {e}")
             return 0
 
     def delete_item_from_list(self, list_id, item_id):
-        """Delete an item from a list in database"""
+        """Delete an item from a list using unified tables"""
         try:
             self.logger.info(f"Deleting item {item_id} from list {list_id}")
 
             with self.connection_manager.transaction() as conn:
+                # Delete from list_items (item_id is media_item_id in unified structure)
                 conn.execute("""
-                    DELETE FROM list_item 
-                    WHERE id = ? AND list_id = ?
+                    DELETE FROM list_items 
+                    WHERE media_item_id = ? AND list_id = ?
                 """, [int(item_id), int(list_id)])
 
             return True
@@ -329,7 +344,7 @@ class QueryManager:
             return False
 
     def rename_list(self, list_id, new_name):
-        """Rename a list with validation"""
+        """Rename a list with validation using unified lists table"""
         if not new_name or not new_name.strip():
             self.logger.warning("Attempted to rename list with empty name")
             return {"error": "empty_name"}
@@ -342,7 +357,7 @@ class QueryManager:
             with self.connection_manager.transaction() as conn:
                 # Check if list exists
                 existing = conn.execute(
-                    "SELECT name FROM user_list WHERE id = ?", [int(list_id)]
+                    "SELECT name, folder_id FROM lists WHERE id = ?", [int(list_id)]
                 ).fetchone()
 
                 if not existing:
@@ -350,8 +365,8 @@ class QueryManager:
 
                 # Update the list name
                 conn.execute("""
-                    UPDATE user_list 
-                    SET name = ?, updated_at = datetime('now')
+                    UPDATE lists 
+                    SET name = ?
                     WHERE id = ?
                 """, [new_name, int(list_id)])
 
@@ -367,21 +382,21 @@ class QueryManager:
                 return {"error": "database_error"}
 
     def delete_list(self, list_id):
-        """Delete a list and cascade delete its items"""
+        """Delete a list and cascade delete its items using unified tables"""
         try:
             self.logger.info(f"Deleting list {list_id}")
 
             with self.connection_manager.transaction() as conn:
                 # Check if list exists
                 existing = conn.execute(
-                    "SELECT name FROM user_list WHERE id = ?", [int(list_id)]
+                    "SELECT name FROM lists WHERE id = ?", [int(list_id)]
                 ).fetchone()
 
                 if not existing:
                     return {"error": "list_not_found"}
 
                 # Delete list (items cascade automatically via foreign key)
-                conn.execute("DELETE FROM user_list WHERE id = ?", [int(list_id)])
+                conn.execute("DELETE FROM lists WHERE id = ?", [int(list_id)])
 
             return {"success": True}
 
@@ -390,44 +405,28 @@ class QueryManager:
             return {"error": "database_error"}
 
     def get_list_by_id(self, list_id):
-        """Get a specific list by ID from both user_list and lists tables"""
+        """Get a specific list by ID from unified lists table"""
         try:
-            # First try the user_list table
             result = self.connection_manager.execute_single("""
                 SELECT 
-                    id, name, created_at, updated_at,
-                    (SELECT COUNT(*) FROM list_item WHERE list_id = user_list.id) as item_count
-                FROM user_list 
-                WHERE id = ?
+                    l.id, l.name, l.created_at, l.created_at as updated_at,
+                    (SELECT COUNT(*) FROM list_items WHERE list_id = l.id) as item_count,
+                    f.name as folder_name
+                FROM lists l
+                LEFT JOIN folders f ON l.folder_id = f.id
+                WHERE l.id = ?
             """, [int(list_id)])
 
             if result:
+                folder_context = f" ({result['folder_name']})" if result['folder_name'] else ""
                 return {
                     "id": str(result['id']),
                     "name": result['name'],
-                    "description": f"{result['item_count']} items",
+                    "description": f"{result['item_count']} items{folder_context}",
                     "item_count": result['item_count'],
                     "created": result['created_at'][:10] if result['created_at'] else '',
                     "modified": result['updated_at'][:10] if result['updated_at'] else '',
-                }
-
-            # If not found, try the lists table (for search history lists)
-            result = self.connection_manager.execute_single("""
-                SELECT 
-                    id, name, created_at, created_at as updated_at,
-                    (SELECT COUNT(*) FROM list_items WHERE list_id = lists.id) as item_count
-                FROM lists 
-                WHERE id = ?
-            """, [int(list_id)])
-
-            if result:
-                return {
-                    "id": str(result['id']),
-                    "name": result['name'],
-                    "description": f"{result['item_count']} items",
-                    "item_count": result['item_count'],
-                    "created": result['created_at'][:10] if result['created_at'] else '',
-                    "modified": result['updated_at'][:10] if result['updated_at'] else '',
+                    "folder_name": result['folder_name']
                 }
 
             return None
@@ -605,36 +604,23 @@ class QueryManager:
             return None
 
     def get_all_lists_with_folders(self):
-        """Get all lists including those in folders (like Search History)"""
+        """Get all lists from unified lists table with folder information"""
         try:
             self.logger.debug("Getting all lists with folders from database")
 
-            # Get all lists including those in folders
+            # Get all lists from unified table
             lists = self.connection_manager.execute_query("""
                 SELECT 
                     l.id,
                     l.name,
                     l.folder_id,
                     l.created_at,
-                    datetime('now') as updated_at,
+                    l.created_at as updated_at,
                     (SELECT COUNT(*) FROM list_items WHERE list_id = l.id) as item_count,
                     f.name as folder_name
                 FROM lists l
                 LEFT JOIN folders f ON l.folder_id = f.id
-
-                UNION ALL
-
-                SELECT 
-                    ul.id,
-                    ul.name,
-                    NULL as folder_id,
-                    ul.created_at,
-                    ul.updated_at,
-                    (SELECT COUNT(*) FROM list_item WHERE list_id = ul.id) as item_count,
-                    NULL as folder_name
-                FROM user_list ul
-
-                ORDER BY created_at ASC
+                ORDER BY l.created_at ASC
             """)
 
             # Convert to expected format
@@ -907,6 +893,70 @@ class QueryManager:
         except Exception as e:
             self.logger.error(f"Error matching items to Kodi library: {e}")
             return {}
+
+    def add_library_item_to_list(self, list_id, kodi_item):
+        """Add a Kodi library item to a list using unified structure"""
+        try:
+            # Normalize the item first
+            canonical_item = self._normalize_to_canonical(kodi_item)
+            
+            # Extract basic fields for media_items table
+            media_data = {
+                'media_type': canonical_item['media_type'],
+                'title': canonical_item['title'],
+                'year': canonical_item['year'],
+                'imdbnumber': canonical_item.get('imdb_id', ''),
+                'tmdb_id': canonical_item.get('tmdb_id', ''),
+                'kodi_id': canonical_item.get('kodi_id'),
+                'source': 'lib',
+                'play': '',
+                'poster': canonical_item.get('poster', ''),
+                'fanart': canonical_item.get('fanart', ''),
+                'plot': canonical_item.get('plot', ''),
+                'rating': canonical_item.get('rating', 0.0),
+                'votes': canonical_item.get('votes', 0),
+                'duration': canonical_item.get('duration_minutes', 0),
+                'mpaa': canonical_item.get('mpaa', ''),
+                'genre': canonical_item.get('genre', ''),
+                'director': canonical_item.get('director', ''),
+                'studio': canonical_item.get('studio', ''),
+                'country': canonical_item.get('country', ''),
+                'writer': canonical_item.get('writer', ''),
+                'cast': '',
+                'art': json.dumps(canonical_item.get('art', {}))
+            }
+
+            self.logger.info(f"Adding library item '{canonical_item['title']}' to list {list_id}")
+
+            with self.connection_manager.transaction() as conn:
+                # Insert or get media item
+                media_item_id = self._insert_or_get_media_item(conn, media_data)
+                
+                if not media_item_id:
+                    return None
+
+                # Get next position
+                position_result = conn.execute("""
+                    SELECT COALESCE(MAX(position), -1) + 1 as next_position 
+                    FROM list_items WHERE list_id = ?
+                """, [int(list_id)]).fetchone()
+                next_position = position_result['next_position'] if position_result else 0
+
+                # Add to list
+                conn.execute("""
+                    INSERT OR IGNORE INTO list_items (list_id, media_item_id, position)
+                    VALUES (?, ?, ?)
+                """, [int(list_id), media_item_id, next_position])
+
+            return {
+                "id": str(media_item_id),
+                "title": canonical_item['title'],
+                "year": canonical_item['year']
+            }
+
+        except Exception as e:
+            self.logger.error(f"Failed to add library item to list {list_id}: {e}")
+            return None
 
     def _row_to_dict(self, cursor, row):
         """Convert SQLite row to dictionary using cursor description"""
