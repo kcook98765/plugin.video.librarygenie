@@ -162,7 +162,7 @@ class QueryManager:
             connection = self.connection_manager.get_connection()
             cursor = connection.cursor()
 
-            # Get list items with media data
+            # First try the new lists/list_items structure (for search history)
             cursor.execute("""
                 SELECT 
                     li.media_item_id as item_id,
@@ -181,6 +181,26 @@ class QueryManager:
             """, (list_id, limit, offset))
 
             rows = cursor.fetchall()
+
+            # If no results from new structure, try old structure
+            if not rows:
+                cursor.execute("""
+                    SELECT 
+                        li.id as item_id,
+                        0 as order_score,
+                        NULL as kodi_id,
+                        'movie' as media_type,
+                        li.title,
+                        li.year,
+                        li.imdb_id,
+                        NULL as data_json
+                    FROM list_item li
+                    WHERE li.list_id = ?
+                    ORDER BY li.title ASC
+                    LIMIT ? OFFSET ?
+                """, (list_id, limit, offset))
+                rows = cursor.fetchall()
+
             items = []
 
             for row in rows:
@@ -370,8 +390,9 @@ class QueryManager:
             return {"error": "database_error"}
 
     def get_list_by_id(self, list_id):
-        """Get a specific list by ID"""
+        """Get a specific list by ID from both user_list and lists tables"""
         try:
+            # First try the user_list table
             result = self.connection_manager.execute_single("""
                 SELECT 
                     id, name, created_at, updated_at,
@@ -389,8 +410,27 @@ class QueryManager:
                     "created": result['created_at'][:10] if result['created_at'] else '',
                     "modified": result['updated_at'][:10] if result['updated_at'] else '',
                 }
-            else:
-                return None
+
+            # If not found, try the lists table (for search history lists)
+            result = self.connection_manager.execute_single("""
+                SELECT 
+                    id, name, created_at, created_at as updated_at,
+                    (SELECT COUNT(*) FROM list_items WHERE list_id = lists.id) as item_count
+                FROM lists 
+                WHERE id = ?
+            """, [int(list_id)])
+
+            if result:
+                return {
+                    "id": str(result['id']),
+                    "name": result['name'],
+                    "description": f"{result['item_count']} items",
+                    "item_count": result['item_count'],
+                    "created": result['created_at'][:10] if result['created_at'] else '',
+                    "modified": result['updated_at'][:10] if result['updated_at'] else '',
+                }
+
+            return None
 
         except Exception as e:
             self.logger.error(f"Failed to get list {list_id}: {e}")
