@@ -7,12 +7,7 @@ Handles periodic tasks and library monitoring
 """
 
 import time
-try:
-    from typing import Dict, Any
-except ImportError:
-    # Python < 3.5 fallback
-    Dict = dict
-    Any = object
+from typing import Dict, Any
 
 import xbmc
 import xbmcaddon
