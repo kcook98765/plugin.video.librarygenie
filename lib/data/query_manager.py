@@ -22,7 +22,7 @@ class QueryManager:
         self.logger = get_logger(__name__)
         self.db_manager = db_manager
         self.config_manager = config_manager
-        self.json_rpc_client = JsonRpcClient(config_manager)
+        self.json_rpc_client = JsonRpcClient()
         self._enrichment_counters = {
             'movies_processed': 0,
             'movies_enriched': 0,
