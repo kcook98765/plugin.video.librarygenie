@@ -70,6 +70,10 @@
     <!-- Background Service -->
     <setting id="background_interval_minutes" type="number" label="30451" help="30452" default="5" option="int" range="1,1440"/>
     <setting id="track_library_changes" type="bool" label="30453" help="30454" default="false"/>
-    <setting id="background_token_refresh" type="bool" label="30455" help="30456" default="true"/>
-  </category>
+    <setting id="background_token_refresh" type="bool" label="32086" default="true"/>
+    </category>
+
+    <category id="ui" label="User Interface">
+        <setting id="info_hijack_enabled" type="bool" label="Use native Kodi Info for library items" default="true"/>
+    </category>
 </settings>
