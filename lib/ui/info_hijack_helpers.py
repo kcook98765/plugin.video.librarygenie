@@ -135,9 +135,17 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
     library context (XSP by file for items with a file; videodb node for tvshow),
     focus row, open Info, then immediately restore underlying container to orig_path.
     """
+    logger.info(f"HIJACK HELPER: 🎬 Starting native info process for {dbtype} {dbid}")
+    logger.debug(f"HIJACK HELPER: Original path: {orig_path}")
+    
     # 1) Close the plugin's Info dialog
+    logger.debug("HIJACK HELPER: Step 1 - Closing plugin Info dialog")
     xbmc.executebuiltin("Action(Back)")
-    wait_until(lambda: not xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)"), 1200, 30)
+    closed = wait_until(lambda: not xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)"), 1200, 30)
+    if not closed:
+        logger.warning("HIJACK HELPER: Failed to close plugin Info dialog")
+        return False
+    logger.debug("HIJACK HELPER: Plugin Info dialog closed")
 
     path_to_open = None
     focus_index = 0
@@ -162,16 +170,20 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
             target_file = None
 
     # 2) Show the directory in Videos
+    logger.info(f"HIJACK HELPER: Step 2 - Opening Videos window with path: {path_to_open}")
     if path_to_open.endswith(".xsp"):
         xbmc.executebuiltin(f'ActivateWindow(Videos,"{path_to_open}",return)')
+        logger.debug("HIJACK HELPER: Used XSP path")
     else:
         xbmc.executebuiltin(f'ActivateWindow(Videos,"{path_to_open}",return)')
+        logger.debug("HIJACK HELPER: Used videodb path")
 
     if not _wait_videos_on(path_to_open, timeout_ms=8000):
-        logger.warning("Hijack: timed out opening native container")
+        logger.warning("HIJACK HELPER: ⏰ Timed out opening native container")
         if path_to_open.endswith(".xsp"):
             _cleanup_xsp(path_to_open)
         return False
+    logger.debug("HIJACK HELPER: Videos window opened successfully")
 
     # 3) Focus list, jump to the correct row if we can infer it
     if not focus_list(LIST_ID):
@@ -182,19 +194,27 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
         xbmc.sleep(120)
 
     # 4) Open native Info
+    logger.debug("HIJACK HELPER: Step 4 - Opening native Info dialog")
     xbmc.executebuiltin("Action(Info)")
     ok = wait_until(lambda: xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)"), timeout_ms=1500, step_ms=50)
     if not ok:
-        logger.warning("Hijack: native Info did not open")
+        logger.warning("HIJACK HELPER: ❌ Native Info did not open")
         if path_to_open.endswith(".xsp"):
             _cleanup_xsp(path_to_open)
         return False
+    logger.info("HIJACK HELPER: ✅ Native Info dialog opened")
 
     # 5) Replace underlying container back to the original path (so Back works)
     if orig_path:
+        logger.debug(f"HIJACK HELPER: Step 5 - Restoring original container: {orig_path}")
         xbmc.executebuiltin(f'Container.Update("{orig_path}",replace)')
+    else:
+        logger.debug("HIJACK HELPER: No original path to restore")
 
     # 6) Cleanup
     if path_to_open.endswith(".xsp"):
+        logger.debug("HIJACK HELPER: Step 6 - Cleaning up XSP file")
         _cleanup_xsp(path_to_open)
+    
+    logger.info(f"HIJACK HELPER: 🎉 Successfully completed hijack for {dbtype} {dbid}")
     return True
