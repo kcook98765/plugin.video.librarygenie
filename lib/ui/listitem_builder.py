@@ -340,15 +340,20 @@ class ListItemBuilder:
             else:
                 self.logger.debug(f"LIB ITEM: No art available for '{title}'")
 
-            # Set library identity properties (needed for proper overlays and info)
-            properties = {
-                'dbtype': media_type,
-                'dbid': str(kodi_id),
-                'mediatype': media_type
-            }
-            self.logger.debug(f"LIB ITEM: Setting properties for '{title}': {properties}")
-            for prop_name, prop_value in properties.items():
-                li.setProperty(prop_name, prop_value)
+            # Set library identity properties only on v20+ to prevent v19 interception
+            # On v19, any combination of library properties causes Kodi to intercept clicks
+            # and open native DialogVideoInfo regardless of IsPlayable or URL settings
+            if is_kodi_v20_plus():
+                properties = {
+                    'dbtype': media_type,
+                    'dbid': str(kodi_id),
+                    'mediatype': media_type
+                }
+                self.logger.debug(f"LIB ITEM: Setting properties for '{title}': {properties}")
+                for prop_name, prop_value in properties.items():
+                    li.setProperty(prop_name, prop_value)
+            else:
+                self.logger.debug(f"LIB ITEM: Skipping library properties for '{title}' on v19 to prevent interception")
 
             # Build a plugin URL so we can decide Play vs Info on click
             url = self._library_click_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
