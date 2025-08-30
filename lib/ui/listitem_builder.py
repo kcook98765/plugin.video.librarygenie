@@ -60,9 +60,16 @@ class ListItemBuilder:
         """
         try:
             count = len(items)
-            self.logger.info(f"DIRECTORY BUILD: Starting build with {count} items (content_type='{content_type}')")
-            self.logger.debug(f"DIRECTORY BUILD: Setting content type to '{content_type}' for handle {self.addon_handle}")
-            xbmcplugin.setContent(self.addon_handle, content_type)
+            # Use 'files' content type on v19 to prevent Kodi from intercepting library items
+            if not is_kodi_v20_plus() and content_type in ('movies', 'episodes', 'tvshows'):
+                actual_content_type = 'files'
+                self.logger.info(f"DIRECTORY BUILD: Using 'files' content type on v19 instead of '{content_type}' to prevent interception")
+            else:
+                actual_content_type = content_type
+                
+            self.logger.info(f"DIRECTORY BUILD: Starting build with {count} items (content_type='{content_type}' -> '{actual_content_type}')")
+            self.logger.debug(f"DIRECTORY BUILD: Setting content type to '{actual_content_type}' for handle {self.addon_handle}")
+            xbmcplugin.setContent(self.addon_handle, actual_content_type)
 
             # Add a few sane sort methods once
             sort_methods = [
@@ -333,18 +340,15 @@ class ListItemBuilder:
             else:
                 self.logger.debug(f"LIB ITEM: No art available for '{title}'")
 
-            # Set library identity properties only for v20+ (v19 can't handle these with plugin URLs)
-            if is_kodi_v20_plus():
-                properties = {
-                    'dbtype': media_type,
-                    'dbid': str(kodi_id),
-                    'mediatype': media_type
-                }
-                self.logger.debug(f"LIB ITEM: Setting properties for '{title}': {properties}")
-                for prop_name, prop_value in properties.items():
-                    li.setProperty(prop_name, prop_value)
-            else:
-                self.logger.debug(f"LIB ITEM: Skipping database properties for '{title}' on v19 to avoid native dialog interception")
+            # Set library identity properties (needed for proper overlays and info)
+            properties = {
+                'dbtype': media_type,
+                'dbid': str(kodi_id),
+                'mediatype': media_type
+            }
+            self.logger.debug(f"LIB ITEM: Setting properties for '{title}': {properties}")
+            for prop_name, prop_value in properties.items():
+                li.setProperty(prop_name, prop_value)
 
             # Build a plugin URL so we can decide Play vs Info on click
             url = self._library_click_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
@@ -550,12 +554,8 @@ class ListItemBuilder:
                 info['lastplayed'] = item['lastplayed']
                 self.logger.debug(f"INFO BUILD: Set lastplayed='{info['lastplayed']}'")
 
-        # Only set mediatype for v20+ (v19 uses this to identify library items and bypass plugin URLs)
-        if is_kodi_v20_plus():
-            info['mediatype'] = item.get('media_type', 'movie')
-            self.logger.debug(f"INFO BUILD: Set mediatype='{info['mediatype']}' (v20+)")
-        else:
-            self.logger.debug(f"INFO BUILD: Skipping mediatype for '{title}' on v19 to prevent dialog interception")
+        info['mediatype'] = item.get('media_type', 'movie')
+        self.logger.debug(f"INFO BUILD: Set mediatype='{info['mediatype']}')")
 
         self.logger.debug(f"INFO BUILD: Completed info dict for '{title}' with {len(info)} fields: {list(info.keys())}")
         return info
