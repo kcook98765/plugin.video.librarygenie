@@ -615,13 +615,13 @@ class QueryManager:
                     l.name,
                     COUNT(li.id) as item_count,
                     date(l.created_at) as created,
-                    date(l.modified_at) as modified,
+                    date(l.created_at) as modified,
                     COALESCE(f.name, 'Root') as folder_name,
                     CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_folder
                 FROM lists l
                 LEFT JOIN folders f ON l.folder_id = f.id
                 LEFT JOIN list_items li ON l.id = li.list_id
-                GROUP BY l.id, l.name, l.created_at, l.modified_at, f.name, f.id
+                GROUP BY l.id, l.name, l.created_at, f.name, f.id
                 ORDER BY 
                     CASE WHEN f.name = 'Search History' THEN 0 ELSE 1 END,
                     f.name NULLS LAST, 
