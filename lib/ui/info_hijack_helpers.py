@@ -91,7 +91,9 @@ def _create_xsp_for_file(dbtype: str, dbid: int) -> Optional[str]:
         return None
         
     filename = os.path.basename(fp)
-    _log(f"Creating XSP for {dbtype} {dbid}: filename='{filename}', full_path='{fp}'", xbmc.LOGINFO)
+    # Remove file extension for XSP matching
+    filename_no_ext = os.path.splitext(filename)[0]
+    _log(f"Creating XSP for {dbtype} {dbid}: filename='{filename}', no_ext='{filename_no_ext}', full_path='{fp}'", xbmc.LOGINFO)
     
     name = f"LG Native Info {dbtype} {dbid}"
     
@@ -102,7 +104,7 @@ def _create_xsp_for_file(dbtype: str, dbid: int) -> Optional[str]:
   <name>{html.escape(name)}</name>
   <match>all</match>
   <rule field="filename" operator="contains">
-    <value>Witchboard (1986)</value>
+    <value>{html.escape(filename_no_ext)}</value>
   </rule>
   <order direction="ascending">title</order>
 </smartplaylist>"""
