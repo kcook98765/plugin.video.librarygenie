@@ -976,7 +976,7 @@ def handle_show_folder(addon_handle, base_url):
             description = list_item.get('description', '')
 
             # Check if it's in Search History folder to prevent deletion
-            is_search_history = folder_name == 'Search History'
+            is_search_history = folder_info['name'] == 'Search History'
             context_menu = []
 
             if not is_search_history:
