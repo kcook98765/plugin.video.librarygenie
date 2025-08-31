@@ -695,7 +695,7 @@ class QueryManager:
             if not kodi_ids:
                 return {}
 
-            self.logger.info(f"Fetching episode JSON-RPC data for {len(kodi_ids)} episodes in single batch request")
+            self.logger.info(f"Batch enriching {len(kodi_ids)} episodes with JSON-RPC")
 
             # Build batch request array - multiple GetEpisodeDetails calls in one request
             batch_requests = []
@@ -716,7 +716,6 @@ class QueryManager:
                 batch_requests.append(request)
 
             # Send single batch request
-            self.logger.debug(f"Sending batch request with {len(batch_requests)} episode details calls")
             response_str = xbmc.executeJSONRPC(json.dumps(batch_requests))
             responses = json.loads(response_str)
 
@@ -735,7 +734,7 @@ class QueryManager:
                 
                 try:
                     if "error" in response:
-                        self.logger.warning(f"JSON-RPC batch error for episode {kodi_id}: {response['error']}")
+                        self.logger.warning(f"Batch enrichment error for episode {kodi_id}: {response['error']}")
                         continue
 
                     episode_details = response.get("result", {}).get("episodedetails")
@@ -748,11 +747,11 @@ class QueryManager:
                     self.logger.error(f"Failed to process batch response for episode {kodi_id}: {e}")
                     continue
 
-            self.logger.info(f"Successfully enriched {len(enrichment_data)} out of {len(kodi_ids)} episodes")
+            self.logger.info(f"Batch enriched {len(enrichment_data)} out of {len(kodi_ids)} episodes")
             return enrichment_data
 
         except Exception as e:
-            self.logger.error(f"Error fetching batch episode enrichment data: {e}")
+            self.logger.error(f"Error in batch episode enrichment: {e}")
             return {}
 
     def _get_kodi_episode_enrichment_data(self, kodi_ids: List[int]) -> Dict[int, Dict[str, Any]]:
@@ -831,7 +830,7 @@ class QueryManager:
             if not kodi_ids:
                 return {}
 
-            self.logger.info(f"Fetching JSON-RPC data for {len(kodi_ids)} movies in single batch request")
+            self.logger.info(f"Batch enriching {len(kodi_ids)} movies with JSON-RPC")
 
             # Build batch request array - multiple GetMovieDetails calls in one request
             batch_requests = []
@@ -852,7 +851,6 @@ class QueryManager:
                 batch_requests.append(request)
 
             # Send single batch request
-            self.logger.debug(f"Sending batch request with {len(batch_requests)} movie details calls")
             response_str = xbmc.executeJSONRPC(json.dumps(batch_requests))
             responses = json.loads(response_str)
 
@@ -871,7 +869,7 @@ class QueryManager:
                 
                 try:
                     if "error" in response:
-                        self.logger.warning(f"JSON-RPC batch error for movie {kodi_id}: {response['error']}")
+                        self.logger.warning(f"Batch enrichment error for movie {kodi_id}: {response['error']}")
                         continue
 
                     movie_details = response.get("result", {}).get("moviedetails")
@@ -884,13 +882,11 @@ class QueryManager:
                     self.logger.error(f"Failed to process batch response for movie {kodi_id}: {e}")
                     continue
 
-            self.logger.info(f"Successfully enriched {len(enrichment_data)} out of {len(kodi_ids)} movies")
+            self.logger.info(f"Batch enriched {len(enrichment_data)} out of {len(kodi_ids)} movies")
             return enrichment_data
 
         except Exception as e:
-            self.logger.error(f"Error fetching batch Kodi enrichment data: {e}")
-            import traceback
-            self.logger.error(f"Batch enrichment error traceback: {traceback.format_exc()}")
+            self.logger.error(f"Error in batch movie enrichment: {e}")
             return {}
 
     def _get_kodi_enrichment_data(self, kodi_ids: List[int]) -> Dict[int, Dict[str, Any]]:
@@ -988,12 +984,10 @@ class QueryManager:
 
         # Only fetch if we have IDs to process
         if movie_ids:
-            self.logger.info(f"Fetching JSON-RPC data for {len(movie_ids)} unique movies: {movie_ids}")
             movie_data = self._get_kodi_enrichment_data_batch(movie_ids)
             enriched_data.update(movie_data)
 
         if episode_ids:
-            self.logger.info(f"Fetching JSON-RPC data for {len(episode_ids)} unique episodes: {episode_ids}")
             episode_data = self._get_kodi_episode_enrichment_data_batch(episode_ids)
             enriched_data.update(episode_data)
 
