@@ -169,10 +169,7 @@ class Phase4FavoritesManager:
                         self.logger.warning(f"Error processing favorite '{favorite.get('name', 'unknown')}': {e}")
                         continue
 
-                # Update the list's updated_at timestamp
-                conn.execute("""
-                    UPDATE lists SET updated_at = datetime('now') WHERE id = ?
-                """, [kodi_list_id])
+                # Note: lists table doesn't have updated_at column in current schema
 
             self.logger.info(f"Imported {items_mapped} Kodi favorites into unified list")
 
