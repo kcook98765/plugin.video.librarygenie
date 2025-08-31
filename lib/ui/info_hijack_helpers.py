@@ -323,7 +323,7 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
     # 1) Close the plugin's Info dialog
     xbmc.executebuiltin("Action(Back)")
     # Brief delay to allow window state to stabilize
-    xbmc.sleep(25)
+    xbmc.sleep(50)
     closed = wait_until(lambda: not xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)"), 1200, 30)
     if not closed:
         return False
@@ -347,7 +347,7 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
     # 2) Show the directory in Videos
     xbmc.executebuiltin(f'ActivateWindow(Videos,"{path_to_open}",return)')
     # Small delay to allow window activation to begin processing
-    xbmc.sleep(50)
+    xbmc.sleep(100)
 
     if not _wait_videos_on(path_to_open, timeout_ms=8000):
         return False
@@ -364,12 +364,12 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
         # Only navigate if we're on the parent ".." item
         if current_label == ".." or not current_dbid or current_dbid == "0":
             xbmc.executebuiltin("Action(Down)")
-            xbmc.sleep(50)  # Minimal delay
+            xbmc.sleep(75)  # Minimal delay
 
     # 4) Open native Info
     xbmc.executebuiltin("Action(Info)")
     # Brief delay to allow Info action to be processed
-    xbmc.sleep(25)
+    xbmc.sleep(50)
     
     ok = wait_until(lambda: xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)"), timeout_ms=1500, step_ms=50)
     if not ok:
