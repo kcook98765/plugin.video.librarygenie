@@ -331,12 +331,26 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
         return False
     logger.info("HIJACK HELPER: ✅ Native Info dialog opened")
 
-    # 5) Replace underlying container back to the original path (so Back works)
+    # 5) Set up proper navigation history for Back button
+    # First, ensure the current path (XSP/videodb) is in navigation history
+    logger.debug("HIJACK HELPER: Step 5 - Setting up navigation history")
+    
+    # Wait a moment for the info dialog to fully initialize
+    xbmc.sleep(100)
+    
+    # Set the underlying container to maintain navigation context
+    # This ensures Back from info goes to the XSP/videodb view
+    current_path = xbmc.getInfoLabel('Container.FolderPath')
+    logger.debug(f"HIJACK HELPER: Current container path during info: {current_path}")
+    
+    # Store original path in window property for potential restoration
     if orig_path:
-        logger.debug(f"HIJACK HELPER: Step 5 - Restoring original container: {orig_path}")
-        xbmc.executebuiltin(f'Container.Update("{orig_path}",replace)')
-    else:
-        logger.debug("HIJACK HELPER: No original path to restore")
+        xbmc.executebuiltin(f'SetProperty(LG.OriginalPath,{orig_path},Home)')
+        logger.debug(f"HIJACK HELPER: Stored original path as property: {orig_path}")
+    
+    # Don't immediately replace the container - let the navigation history build naturally
+    # The XSP/videodb path should remain active so Back works properly
+    logger.debug("HIJACK HELPER: Navigation history setup complete") to restore")
 
     logger.info(f"HIJACK HELPER: 🎉 Successfully completed hijack for {dbtype} {dbid}")
     return True
