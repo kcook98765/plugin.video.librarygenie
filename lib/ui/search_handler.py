@@ -42,7 +42,7 @@ class SearchHandler:
         # Log call stack (filtered to addon paths)
         import traceback
         import os
-        
+
         stack = traceback.extract_stack()
         addon_stack = []
         for frame in stack:
@@ -50,10 +50,10 @@ class SearchHandler:
                 # Show relative path for readability
                 rel_path = os.path.basename(frame.filename)
                 addon_stack.append(f"{rel_path}:{frame.lineno} in {frame.name}")
-        
+
         if addon_stack:
             self.logger.info(f"Call stack (addon only): {' -> '.join(addon_stack[-5:])}")  # Last 5 frames
-        
+
         # Log current window state
         try:
             import xbmc
@@ -62,14 +62,14 @@ class SearchHandler:
             current_window = xbmc.getInfoLabel("System.CurrentWindow")
             container_path = xbmc.getInfoLabel("Container.FolderPath")
             container_label = xbmc.getInfoLabel("Container.FolderName")
-            
+
             self.logger.info(f"Window state at search entry:")
             self.logger.info(f"  Current window: {current_window}")
             self.logger.info(f"  Container path: {container_path}")
             self.logger.info(f"  Container label: {container_label}")
             self.logger.info(f"  DialogVideoInfo active: {dialog_video_info_active}")
             self.logger.info(f"  Keyboard dialog active: {keyboard_active}")
-            
+
             # PROTECTION: Don't open search dialog if DialogVideoInfo is active
             if dialog_video_info_active:
                 self.logger.warning("🚫 SEARCH BLOCKED: DialogVideoInfo is active, preventing search dialog overlay")
@@ -78,7 +78,7 @@ class SearchHandler:
                 import xbmcplugin
                 xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
                 return
-                
+
         except Exception as e:
             self.logger.warning(f"Failed to log window state: {e}")
 
@@ -491,6 +491,14 @@ class SearchHandler:
 
         try:
             results = self.search_with_fallback(query)
+            # Cache search results in session state for potential restoration
+            from .session_state import get_session_state
+            session = get_session_state()
+            session.last_search_results = results
+            session.last_search_query = query
+
+            # Build and display the results
+            self._display_results(results, query)
             return results.get('items', [])
 
         except Exception as e:
