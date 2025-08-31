@@ -39,7 +39,7 @@ def get_logger(name):
     if not logger.handlers:
         handler = KodiLogHandler()
         formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            "%(name)s - %(levelname)s - %(message)s"
         )
         handler.setFormatter(formatter)
         logger.addHandler(handler)
