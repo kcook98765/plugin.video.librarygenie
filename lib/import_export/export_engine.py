@@ -187,11 +187,11 @@ class ExportEngine:
         favorites_data = []
 
         query = """
-            SELECT kf.name, lm.kodi_id, lm.title, lm.year, lm.file_path,
-                   kf.normalized_path, lm.imdb_id, lm.tmdb_id
+            SELECT kf.name, mi.kodi_id, mi.title, mi.year, mi.file_path,
+                   kf.normalized_path, mi.imdb_id, mi.tmdb_id
             FROM kodi_favorite kf
-            INNER JOIN library_movie lm ON kf.library_movie_id = lm.id
-            WHERE lm.is_removed = 0
+            INNER JOIN media_items mi ON kf.library_movie_id = mi.id
+            WHERE mi.is_removed = 0
             ORDER BY kf.name
         """
 

@@ -248,7 +248,7 @@ class Phase4FavoritesManager:
 
                     # Find by Kodi dbid
                     result = self.conn_manager.execute_single("""
-                        SELECT id FROM library_movie
+                        SELECT id FROM media_items
                         WHERE kodi_id = ? AND is_removed = 0
                     """, [kodi_dbid])
 
@@ -259,7 +259,7 @@ class Phase4FavoritesManager:
             if classification == 'mappable_file':
                 # Try exact normalized path match
                 result = self.conn_manager.execute_single("""
-                    SELECT id FROM library_movie
+                    SELECT id FROM media_items
                     WHERE normalized_path = ? AND is_removed = 0
                 """, [normalized_key])
 
@@ -292,7 +292,7 @@ class Phase4FavoritesManager:
 
             # Look for files with same filename but different paths
             results = self.conn_manager.execute_query("""
-                SELECT id, file_path FROM library_movie
+                SELECT id, file_path FROM media_items
                 WHERE is_removed = 0
                 AND file_path LIKE ?
                 LIMIT 5
@@ -317,10 +317,10 @@ class Phase4FavoritesManager:
                        kf.favorite_type, kf.target_raw, kf.target_classification,
                        kf.is_mapped, kf.is_missing, kf.present,
                        kf.first_seen, kf.last_seen, kf.thumb_ref,
-                       lm.title as library_title, lm.year, lm.imdb_id, lm.tmdb_id,
+                       mi.title as library_title, mi.year, mi.imdb_id, mi.tmdb_id,
                        kf.library_movie_id
                 FROM kodi_favorite kf
-                LEFT JOIN library_movie lm ON kf.library_movie_id = lm.id
+                LEFT JOIN media_items mi ON kf.library_movie_id = mi.id
                 WHERE kf.present = 1
             """
 

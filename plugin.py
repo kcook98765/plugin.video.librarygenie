@@ -1252,6 +1252,93 @@ def handle_scan_favorites():
         )
 
 
+def handle_add_favorite_to_list():
+    """Handle adding a favorite to a user list"""
+    try:
+        favorite_id = args.get('favorite_id')
+        if not favorite_id:
+            logger.error("No favorite_id provided for add_favorite_to_list")
+            return
+
+        logger.info(f"Adding favorite {favorite_id} to list")
+
+        # Get available lists
+        from lib.data.query_manager import get_query_manager
+        query_manager = get_query_manager()
+        if not query_manager.initialize():
+            logger.error("Failed to initialize query manager")
+            return
+
+        # Get the favorite info
+        from lib.kodi.favorites_manager import get_phase4_favorites_manager
+        favorites_manager = get_phase4_favorites_manager()
+        
+        # Get all favorites and find the one we want
+        all_favorites = favorites_manager.get_mapped_favorites(show_unmapped=False)
+        target_favorite = None
+        for fav in all_favorites:
+            if str(fav.get('id')) == str(favorite_id):
+                target_favorite = fav
+                break
+
+        if not target_favorite or not target_favorite.get('library_movie_id'):
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().ok(
+                addon.getLocalizedString(35002),
+                "Favorite not found or not mapped to library"
+            )
+            return
+
+        # Get available lists
+        from lib.data.list_library_manager import get_list_library_manager
+        list_manager = get_list_library_manager()
+        available_lists = list_manager.get_available_lists_for_movie(target_favorite['library_movie_id'])
+
+        if not available_lists:
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().ok(
+                addon.getLocalizedString(35002),
+                "No available lists or favorite already in all lists"
+            )
+            return
+
+        # Let user pick a list
+        list_names = [list_item['name'] for list_item in available_lists]
+        selected_index = xbmcgui.Dialog().select("Add to list:", list_names)
+
+        if selected_index >= 0:
+            selected_list = available_lists[selected_index]
+            
+            # Add to the selected list
+            result = list_manager.add_library_movie_to_list(
+                selected_list['id'], 
+                target_favorite['library_movie_id']
+            )
+
+            if result.get("success"):
+                xbmcgui.Dialog().notification(
+                    addon.getLocalizedString(35002),
+                    f"Added '{target_favorite['name']}' to '{selected_list['name']}'",
+                    xbmcgui.NOTIFICATION_INFO,
+                    3000
+                )
+            else:
+                xbmcgui.Dialog().notification(
+                    addon.getLocalizedString(35002),
+                    f"Failed to add to list: {result.get('message', 'Unknown error')}",
+                    xbmcgui.NOTIFICATION_ERROR
+                )
+
+    except Exception as e:
+        logger.error(f"Error adding favorite to list: {e}")
+        addon = xbmcaddon.Addon()
+        xbmcgui.Dialog().notification(
+            addon.getLocalizedString(35002),
+            "Add to list error",
+            xbmcgui.NOTIFICATION_ERROR
+        )
+
+
 def handle_settings():
     """Handle settings menu"""
     logger.info("Opening addon settings")
@@ -1264,6 +1351,7 @@ action_handlers = {
     'lists': handle_lists,
     'kodi_favorites': handle_kodi_favorites,
     'scan_favorites': handle_scan_favorites,
+    'add_favorite_to_list': handle_add_favorite_to_list,
     'create_list': handle_create_list,
     'view_list': handle_view_list,
     'rename_list': handle_rename_list,
