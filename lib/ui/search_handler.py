@@ -74,6 +74,9 @@ class SearchHandler:
             if dialog_video_info_active:
                 self.logger.warning("🚫 SEARCH BLOCKED: DialogVideoInfo is active, preventing search dialog overlay")
                 self.logger.warning(f"🚫 Container path during block: {container_path}")
+                # Properly end directory to prevent Kodi errors
+                import xbmcplugin
+                xbmcplugin.endOfDirectory(self.handle, succeeded=False)
                 return
                 
         except Exception as e:
