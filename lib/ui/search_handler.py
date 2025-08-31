@@ -37,7 +37,7 @@ class SearchHandler:
 
     def prompt_and_show(self):
         """Prompt user for search query and show results"""
-        self.logger.info("Starting search prompt flow")
+        self.logger.debug("Starting search prompt flow")
 
         # Log call stack (filtered to addon paths)
         import traceback
@@ -52,7 +52,7 @@ class SearchHandler:
                 addon_stack.append(f"{rel_path}:{frame.lineno} in {frame.name}")
 
         if addon_stack:
-            self.logger.info(f"Call stack (addon only): {' -> '.join(addon_stack[-5:])}")  # Last 5 frames
+            self.logger.debug(f"Call stack (addon only): {' -> '.join(addon_stack[-5:])}")  # Last 5 frames
 
         # Log current window state
         try:
@@ -63,12 +63,12 @@ class SearchHandler:
             container_path = xbmc.getInfoLabel("Container.FolderPath")
             container_label = xbmc.getInfoLabel("Container.FolderName")
 
-            self.logger.info(f"Window state at search entry:")
-            self.logger.info(f"  Current window: {current_window}")
-            self.logger.info(f"  Container path: {container_path}")
-            self.logger.info(f"  Container label: {container_label}")
-            self.logger.info(f"  DialogVideoInfo active: {dialog_video_info_active}")
-            self.logger.info(f"  Keyboard dialog active: {keyboard_active}")
+            self.logger.debug(f"Window state at search entry:")
+            self.logger.debug(f"  Current window: {current_window}")
+            self.logger.debug(f"  Container path: {container_path}")
+            self.logger.debug(f"  Container label: {container_label}")
+            self.logger.debug(f"  DialogVideoInfo active: {dialog_video_info_active}")
+            self.logger.debug(f"  Keyboard dialog active: {keyboard_active}")
 
             # PROTECTION: Don't open search dialog if DialogVideoInfo is active
             # EXCEPT when we're restoring from a hijacked info dialog (detect by XSP path)
@@ -123,21 +123,21 @@ class SearchHandler:
                 type=xbmcgui.INPUT_ALPHANUM
             )
 
-            self.logger.info(f"User entered query: '{query}'")
+            self.logger.debug(f"User entered query: '{query}'")
 
             if not query or not query.strip():
                 self.logger.info("Empty query - returning to menu")
                 return
 
             query = query.strip()
-            self.logger.info(f"Processing search query: '{query}'")
+            self.logger.debug(f"Processing search query: '{query}'")
 
             # For authorized users, offer search type selection
             search_type = self._get_search_type_preference()
-            self.logger.info(f"Selected search type: {search_type}")
+            self.logger.debug(f"Selected search type: {search_type}")
 
             # Perform search with selected engine
-            self.logger.debug("Starting search execution")
+            self.logger.debug(f"Starting search execution for query: '{query}' with type: {search_type}")
             results = self._perform_search_with_type(query, search_type)
             self.logger.info(f"Search completed, got {len(results.get('items', []))} results")
 
@@ -211,11 +211,11 @@ class SearchHandler:
         Returns:
             dict: Search results with metadata
         """
-        self.logger.info(f"Starting search execution for query: '{query}' with type: {search_type}")
+        self.logger.debug(f"Starting search execution for query: '{query}' with type: {search_type}")
 
         if search_type == 'local':
             # Force local search only
-            self.logger.info("Using local search (user selected)")
+            self.logger.debug("Using local search (user selected)")
             return self._search_local(query, limit=200)
 
         elif search_type == 'remote':
@@ -330,7 +330,7 @@ class SearchHandler:
 
     def _search_local(self, query, limit=200):
         """Perform local search using local engine"""
-        self.logger.info(f"Starting local search for query: '{query}' with limit: {limit}")
+        self.logger.debug(f"Starting local search for query: '{query}' with limit: {limit}")
 
         try:
             # Check if local engine is properly initialized
@@ -381,29 +381,29 @@ class SearchHandler:
 
             # Get the most recent search history list for this query
             search_lists = self.query_manager.get_lists_in_folder(self.query_manager.get_or_create_search_history_folder())
-            
+
             if search_lists:
                 # Use the most recent search list (first in the list)
                 latest_list = search_lists[0]
                 list_id = latest_list['id']
-                
+
                 self.logger.info(f"Navigating to saved search list {list_id} instead of showing inline results")
-                
+
                 # Navigate to the saved list using Container.Update (V20+ behavior)
                 import xbmc
                 list_url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
-                
+
                 self.logger.info(f"Using Container.Update to navigate to: {list_url}")
                 xbmc.executebuiltin(f'Container.Update("{list_url}")')
-                
+
                 # Also end the directory to complete the navigation
                 import xbmcplugin
                 xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=True)
-                
+
                 used_remote = results.get('used_remote', False)
                 source = "remote" if used_remote else "local"
                 self.logger.info(f"Redirected to saved list containing {len(items)} {source} search results for '{query}'")
-                
+
             else:
                 # Fallback: display inline if no saved list found
                 self.logger.warning("No saved search list found, falling back to inline display")
@@ -413,7 +413,7 @@ class SearchHandler:
             import traceback
             self.logger.error(f"Failed to navigate to search results: {e}")
             self.logger.error(f"Display results traceback: {traceback.format_exc()}")
-            
+
             # Fallback to inline display on error
             self.logger.info("Falling back to inline display due to navigation error")
             self._display_results_inline(results, query)
