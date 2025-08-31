@@ -75,15 +75,15 @@ class SearchHandler:
             if dialog_video_info_active:
                 # Check if we're in a hijack restoration scenario
                 is_hijack_restoration = container_path and container_path.endswith("lg_hijack_debug.xsp")
-                
+
                 if is_hijack_restoration:
                     self.logger.info("🔄 HIJACK RESTORATION: Restoring previous search results instead of prompting")
-                    
+
                     # Try to restore cached search results from session state
                     try:
                         from .session_state import get_session_state
                         session = get_session_state()
-                        
+
                         if hasattr(session, 'last_search_results') and session.last_search_results:
                             self.logger.info(f"Restoring cached search results for query: '{getattr(session, 'last_search_query', 'unknown')}'")
                             self._display_results(session.last_search_results, getattr(session, 'last_search_query', ''))
@@ -94,7 +94,7 @@ class SearchHandler:
                             import xbmcplugin
                             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=False, cacheToDisc=False)
                             return
-                            
+
                     except Exception as e:
                         self.logger.error(f"Failed to restore search results: {e}")
                         # Fall back to empty directory
