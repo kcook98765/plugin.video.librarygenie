@@ -61,8 +61,8 @@ class InfoHijackManager:
                 self._logger.info(f"HIJACK: ✅ Successfully opened native info for {dbtype} {dbid}")
                 # Activate search suppression to prevent unwanted keyboard overlay
                 session_state = get_session_state()
-                session_state.activate_hijack_suppression(duration_seconds=2.0)
-                self._logger.debug("HIJACK: Activated search prompt suppression for 2 seconds")
+                session_state.activate_hijack_suppression(duration_seconds=5.0)
+                self._logger.info("HIJACK: Activated search prompt suppression for 5 seconds")
             else:
                 self._logger.warning(f"HIJACK: ❌ Failed to open native info for {dbtype} {dbid}")
         except Exception as e:

@@ -44,10 +44,11 @@ class SearchHandler:
             self.logger.warning("Search already in progress, ignoring duplicate prompt request")
             return
             
-        # Check if we should suppress search due to recent hijack completion
+        # Check if search should be suppressed due to hijack or dialog activity
         session_state = get_session_state()
-        if session_state.is_hijack_suppression_active():
-            self.logger.info("Search suppressed due to recent info hijack completion")
+        should_suppress, reason = session_state.should_suppress_search()
+        if should_suppress:
+            self.logger.info(f"Search suppressed: {reason}")
             return
             
         self._search_in_progress = True

@@ -21,6 +21,8 @@ class SessionState:
         self._notification_timestamps: Dict[str, float] = {}
         self._session_data: Dict[str, Any] = {}
         self._hijack_suppression_end_time = 0
+        self._notifications_shown = set()
+        self._last_notification_times = {}
 
     def should_show_notification(self, notification_key: str, cooldown_seconds: int = 300) -> bool:
         """Check if a notification should be shown based on session state"""
@@ -75,6 +77,32 @@ class SessionState:
         # Clean up expired suppression
         self._hijack_suppression_end_time = 0
         return False
+
+    def should_suppress_search(self):
+        """
+        Comprehensive check for whether search prompts should be suppressed.
+        Checks hijack suppression, active dialogs, and other conditions.
+        """
+        # Check hijack suppression
+        if self.is_hijack_suppression_active():
+            return True, "Recent hijack completion"
+            
+        # Import xbmc here to avoid circular imports
+        import xbmc
+        
+        # Check for active video info dialog
+        if xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)'):
+            return True, "Video info dialog active"
+            
+        # Check for any modal dialog
+        if xbmc.getCondVisibility('System.HasModalDialog'):
+            return True, "Modal dialog active"
+            
+        # Check for busy dialog
+        if xbmc.getCondVisibility('Window.IsActive(DialogBusy.xml)'):
+            return True, "Busy dialog active"
+            
+        return False, ""
 
 
 # Global session state instance
