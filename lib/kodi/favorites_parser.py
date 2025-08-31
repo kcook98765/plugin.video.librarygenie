@@ -248,6 +248,18 @@ class Phase4FavoritesParser:
             target_lower = target.lower().strip()
             self.logger.debug(f"Classifying target: '{target}'")
             
+            # First check for PlayMedia commands and extract the path
+            extracted_path = self._extract_path_from_command(target)
+            if extracted_path and extracted_path != target:
+                self.logger.info(f"Extracted path from command: '{extracted_path}'")
+                # Recursively classify the extracted path
+                return self._classify_favorite_target(extracted_path)
+            
+            # Check for plugin URLs (both direct and in commands)
+            if 'plugin://' in target_lower:
+                self.logger.debug("Classified as 'plugin_or_script' (contains plugin://)")
+                return 'plugin_or_script'
+            
             # File/URL schemes we can attempt to map
             mappable_schemes = [
                 'file://', 'smb://', 'nfs://', 'udf://', 
@@ -266,7 +278,7 @@ class Phase4FavoritesParser:
             
             # Unsupported for mapping (skip mapping, but may display)
             unsupported_schemes = [
-                'plugin://', 'script://', 'addon:'
+                'script://', 'addon:'
             ]
             
             for scheme in unsupported_schemes:
@@ -329,16 +341,48 @@ class Phase4FavoritesParser:
         except Exception:
             return False
     
+    def _extract_path_from_command(self, target: str) -> str:
+        """Extract file path from Kodi commands like PlayMedia()"""
+        try:
+            target_stripped = target.strip()
+            self.logger.debug(f"Extracting path from command: '{target_stripped}'")
+            
+            # Handle PlayMedia("path", options)
+            playmedia_match = re.match(r'PlayMedia\s*\(\s*"([^"]+)"(?:,.*?)?\s*\)', target_stripped, re.IGNORECASE)
+            if playmedia_match:
+                extracted = playmedia_match.group(1)
+                self.logger.info(f"Extracted from PlayMedia: '{extracted}'")
+                return extracted
+            
+            # Handle ActivateWindow commands that might contain paths
+            activatewindow_match = re.match(r'ActivateWindow\s*\([^,]+,\s*"([^"]+)"(?:,.*?)?\s*\)', target_stripped, re.IGNORECASE)
+            if activatewindow_match:
+                extracted = activatewindow_match.group(1)
+                self.logger.info(f"Extracted from ActivateWindow: '{extracted}'")
+                return extracted
+            
+            # If no command wrapper found, return original
+            self.logger.debug("No command wrapper found, using original target")
+            return target
+            
+        except Exception as e:
+            self.logger.warning(f"Error extracting path from command '{target}': {e}")
+            return target
+
     def _create_normalized_key(self, target: str, classification: str) -> str:
         """Create deterministic canonical key for mapping and uniqueness"""
         try:
+            # First extract the actual path from any command wrappers
+            extracted_path = self._extract_path_from_command(target)
+            self.logger.debug(f"Working with extracted path: '{extracted_path}'")
+            
             if classification == 'videodb':
-                normalized = self._normalize_videodb_key(target)
-                self.logger.debug(f"Normalized videodb key: '{target}' -> '{normalized}'")
+                normalized = self._normalize_videodb_key(extracted_path)
+                self.logger.debug(f"Normalized videodb key: '{extracted_path}' -> '{normalized}'")
                 return normalized
             elif classification in ['mappable_file']:
-                normalized = self._normalize_file_path_key(target)
-                self.logger.debug(f"Normalized file path key: '{target}' -> '{normalized}'")
+                normalized = self._normalize_file_path_key(extracted_path)
+                self.logger.debug(f"Normalized file path key: '{extracted_path}' -> '{normalized}'")
                 return normalized
             else:
                 # For non-mappable items, use a simple normalized form

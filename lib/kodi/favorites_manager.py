@@ -171,7 +171,7 @@ class Phase4FavoritesManager:
 
                         if library_movie_id:
                             self.logger.info(f"  ✓ MATCHED to library item ID {library_movie_id}")
-                            
+
                             # Add to the unified list_items table
                             conn.execute("""
                                 INSERT INTO list_items (list_id, media_item_id, position, created_at)
@@ -208,7 +208,7 @@ class Phase4FavoritesManager:
     def _find_library_match_enhanced(self, target_raw: str, classification: str, normalized_key: str) -> Optional[int]:
         """Phase 4: Enhanced library matching with multiple strategies"""
         self.logger.info(f"    Starting library match for classification '{classification}'")
-        
+
         try:
             # Strategy 1: videodb dbid matching
             if classification == 'videodb':
@@ -237,40 +237,48 @@ class Phase4FavoritesManager:
             elif classification == 'mappable_file':
                 self.logger.info("    Using file path matching strategy")
                 self.logger.info(f"    Looking for normalized_path: '{normalized_key}'")
-                
-                # Try exact normalized path match
-                with self.conn_manager.transaction() as conn:
-                    result = conn.execute("""
-                        SELECT id, title, file_path, normalized_path FROM media_items
-                        WHERE normalized_path = ? AND is_removed = 0
-                    """, [normalized_key]).fetchone()
 
-                    if result:
-                        self.logger.info(f"    Found exact path match: ID {result['id']} - '{result['title']}'")
-                        self.logger.info(f"    Matched file_path: {result['file_path']}")
-                        return result["id"]
-                    else:
-                        self.logger.info("    No exact path match found")
-                        
-                        # Show some sample normalized paths for debugging
-                        sample_paths = conn.execute("""
-                            SELECT normalized_path FROM media_items 
-                            WHERE is_removed = 0 
-                            LIMIT 5
-                        """).fetchall()
-                        
+                # Try exact normalized path match
+                result = conn.execute("""
+                    SELECT id, title, file_path, normalized_path FROM media_items
+                    WHERE normalized_path = ? AND is_removed = 0
+                """, [normalized_key]).fetchone()
+
+                if result:
+                    self.logger.info(f"    Found exact normalized path match: ID {result['id']} - '{result['title']}'")
+                    self.logger.info(f"    Matched file_path: {result['file_path']}")
+                    return result["id"]
+                else:
+                    self.logger.info("    No exact normalized path match found")
+
+                    # Show some sample normalized paths for debugging
+                    sample_paths = conn.execute("""
+                        SELECT normalized_path FROM media_items 
+                        WHERE is_removed = 0 AND normalized_path IS NOT NULL AND normalized_path != ''
+                        LIMIT 5
+                    """).fetchall()
+
+                    if sample_paths:
                         self.logger.info("    Sample normalized paths in database:")
                         for sample in sample_paths:
                             self.logger.info(f"      '{sample['normalized_path']}'")
-
-                    # Try fuzzy path matching for variations
-                    self.logger.info("    Attempting fuzzy path matching")
-                    result = self._fuzzy_path_match(normalized_key)
-                    if result:
-                        self.logger.info(f"    Fuzzy match found: ID {result}")
-                        return result
                     else:
-                        self.logger.info("    No fuzzy match found")
+                        self.logger.info("    No normalized paths found in database - trying file_path matching")
+
+                        # Fallback: try to match against file_path directly
+                        result = self._try_file_path_matching(normalized_key)
+                        if result:
+                            self.logger.info(f"    Found file_path match: ID {result}")
+                            return result
+
+                # Try fuzzy path matching for variations
+                self.logger.info("    Attempting fuzzy path matching")
+                result = self._fuzzy_path_match(normalized_key)
+                if result:
+                    self.logger.info(f"    Fuzzy match found: ID {result}")
+                    return result
+                else:
+                    self.logger.info("    No fuzzy match found")
             else:
                 self.logger.info(f"    Classification '{classification}' not supported for matching")
 
@@ -281,6 +289,38 @@ class Phase4FavoritesManager:
             self.logger.error(f"Error finding library match for '{target_raw}': {e}")
             import traceback
             self.logger.error(f"Traceback: {traceback.format_exc()}")
+            return None
+
+    def _try_file_path_matching(self, normalized_key: str) -> Optional[int]:
+        """Attempt to match using the raw file_path if normalized_key is empty or not found"""
+        self.logger.info(f"    Attempting file path matching for raw key: '{normalized_key}'")
+        try:
+            with self.conn_manager.transaction() as conn:
+                # Try exact file path match
+                result = conn.execute("""
+                    SELECT id, title, file_path FROM media_items
+                    WHERE file_path = ? AND is_removed = 0
+                """, [normalized_key]).fetchone()
+
+                if result:
+                    self.logger.info(f"    Found exact file_path match: ID {result['id']} - '{result['title']}'")
+                    return result["id"]
+                else:
+                    self.logger.info("    No exact file_path match found")
+
+                    # Try fuzzy path matching for variations
+                    self.logger.info("    Attempting fuzzy file_path matching")
+                    result = self._fuzzy_path_match(normalized_key)
+                    if result:
+                        self.logger.info(f"    Fuzzy file_path match found: ID {result}")
+                        return result
+                    else:
+                        self.logger.info("    No fuzzy file_path matches found")
+
+            return None
+
+        except Exception as e:
+            self.logger.error(f"Error in file path matching: {e}")
             return None
 
     def _fuzzy_path_match(self, normalized_key: str) -> Optional[int]:
@@ -304,7 +344,7 @@ class Phase4FavoritesManager:
                 """, [f"%{filename}%"]).fetchall()
 
                 self.logger.info(f"      Found {len(results)} potential fuzzy matches")
-                
+
                 for i, result in enumerate(results):
                     self.logger.info(f"        Match {i+1}: ID {result['id']} - '{result['title']}' - {result['file_path']}")
 
