@@ -1113,6 +1113,38 @@ action_handlers = {
 
 def main():
     """Main plugin entry point"""
+    
+    # Log complete plugin invocation details at entry
+    logger.info(f"=== PLUGIN INVOCATION ===")
+    logger.info(f"Full sys.argv: {sys.argv}")
+    
+    # Log current window and control state
+    try:
+        current_window = xbmc.getInfoLabel("System.CurrentWindow")
+        current_control = xbmc.getInfoLabel("System.CurrentControl")
+        container_path = xbmc.getInfoLabel("Container.FolderPath")
+        container_label = xbmc.getInfoLabel("Container.FolderName")
+        
+        logger.info(f"Window state at plugin entry:")
+        logger.info(f"  Current window: {current_window}")
+        logger.info(f"  Current control: {current_control}")
+        logger.info(f"  Container path: {container_path}")
+        logger.info(f"  Container label: {container_label}")
+        
+        # Check specific window visibility states
+        myvideo_nav_visible = xbmc.getCondVisibility("Window.IsVisible(MyVideoNav.xml)")
+        dialog_video_info_visible = xbmc.getCondVisibility("Window.IsVisible(DialogVideoInfo.xml)")
+        dialog_video_info_active = xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)")
+        keyboard_visible = xbmc.getCondVisibility("Window.IsVisible(DialogKeyboard.xml)")
+        
+        logger.info(f"  MyVideoNav.xml visible: {myvideo_nav_visible}")
+        logger.info(f"  DialogVideoInfo.xml visible: {dialog_video_info_visible}")
+        logger.info(f"  DialogVideoInfo.xml active: {dialog_video_info_active}")
+        logger.info(f"  DialogKeyboard.xml visible: {keyboard_visible}")
+        
+    except Exception as e:
+        logger.warning(f"Failed to log window state at plugin entry: {e}")
+    
     logger.debug(f"Plugin arguments: {sys.argv}")
 
     try:
