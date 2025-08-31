@@ -141,6 +141,13 @@ class SearchHandler:
             results = self._perform_search_with_type(query, search_type)
             self.logger.info(f"Search completed, got {len(results.get('items', []))} results")
 
+            # Cache search results in session state for potential restoration
+            from .session_state import get_session_state
+            session = get_session_state()
+            session.last_search_results = results
+            session.last_search_query = query
+            self.logger.debug(f"Cached search results in session state: {len(results.get('items', []))} items")
+
             # Create search history list if we have results
             if results.get('items'):
                 self._create_search_history_list(query, search_type, results)
