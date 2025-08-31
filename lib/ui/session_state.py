@@ -13,13 +13,14 @@ from ..utils.logger import get_logger
 
 
 class SessionState:
-    """Manages session-specific UI state"""
-
+    """
+    Manages ephemeral session state that doesn't need to persist between Kodi restarts.
+    Used for UI notifications, temporary flags, and other transient data.
+    """
     def __init__(self):
-        self.logger = get_logger(__name__)
-        self._notifications_shown = set()
-        self._last_notification_times = {}
-        self._session_start = time.time()
+        self._notification_timestamps: Dict[str, float] = {}
+        self._session_data: Dict[str, Any] = {}
+        self._hijack_suppression_end_time = 0
 
     def should_show_notification(self, notification_key: str, cooldown_seconds: int = 300) -> bool:
         """Check if a notification should be shown based on session state"""
@@ -46,6 +47,34 @@ class SessionState:
         """Clear all notification state"""
         self._notifications_shown.clear()
         self._last_notification_times.clear()
+
+    def clear_session_data(self):
+        """Clear all session data"""
+        self._session_data.clear()
+        self._notification_timestamps.clear()
+        self._hijack_suppression_end_time = 0
+
+    def activate_hijack_suppression(self, duration_seconds=2.0):
+        """
+        Activate search prompt suppression for specified duration.
+        Used to prevent unwanted keyboard overlay after info hijack operations.
+        """
+        self._hijack_suppression_end_time = time.time() + duration_seconds
+
+    def is_hijack_suppression_active(self):
+        """
+        Returns True if search prompts should be suppressed due to recent hijack.
+        """
+        if self._hijack_suppression_end_time == 0:
+            return False
+
+        current_time = time.time()
+        if current_time < self._hijack_suppression_end_time:
+            return True
+
+        # Clean up expired suppression
+        self._hijack_suppression_end_time = 0
+        return False
 
 
 # Global session state instance

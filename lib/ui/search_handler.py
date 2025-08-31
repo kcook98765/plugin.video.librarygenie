@@ -44,9 +44,10 @@ class SearchHandler:
             self.logger.warning("Search already in progress, ignoring duplicate prompt request")
             return
             
-        # Check if video info dialog is active - don't interrupt it
-        if xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)'):
-            self.logger.info("Video info dialog is active, skipping search prompt to avoid overlay")
+        # Check if we should suppress search due to recent hijack completion
+        session_state = get_session_state()
+        if session_state.is_hijack_suppression_active():
+            self.logger.info("Search suppressed due to recent info hijack completion")
             return
             
         self._search_in_progress = True

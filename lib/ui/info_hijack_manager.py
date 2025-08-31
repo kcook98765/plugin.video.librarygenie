@@ -4,6 +4,7 @@ from __future__ import annotations
 import xbmc
 
 from .info_hijack_helpers import open_native_info, _log
+from .session_state import get_session_state
 
 class InfoHijackManager:
     """
@@ -58,6 +59,10 @@ class InfoHijackManager:
             ok = open_native_info(dbtype, int(dbid), self._logger, orig_path)
             if ok:
                 self._logger.info(f"HIJACK: ✅ Successfully opened native info for {dbtype} {dbid}")
+                # Activate search suppression to prevent unwanted keyboard overlay
+                session_state = get_session_state()
+                session_state.activate_hijack_suppression(duration_seconds=2.0)
+                self._logger.debug("HIJACK: Activated search prompt suppression for 2 seconds")
             else:
                 self._logger.warning(f"HIJACK: ❌ Failed to open native info for {dbtype} {dbid}")
         except Exception as e:
