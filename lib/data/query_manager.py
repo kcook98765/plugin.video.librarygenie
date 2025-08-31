@@ -695,8 +695,6 @@ class QueryManager:
             if not kodi_ids:
                 return {}
 
-            self.logger.info(f"Batch enriching {len(kodi_ids)} episodes with JSON-RPC")
-
             # Build batch request array - multiple GetEpisodeDetails calls in one request
             batch_requests = []
             for i, kodi_id in enumerate(kodi_ids):
@@ -747,7 +745,7 @@ class QueryManager:
                     self.logger.error(f"Failed to process batch response for episode {kodi_id}: {e}")
                     continue
 
-            self.logger.info(f"Batch enriched {len(enrichment_data)} out of {len(kodi_ids)} episodes")
+            self.logger.debug(f"Batch enriched {len(enrichment_data)} out of {len(kodi_ids)} episodes")
             return enrichment_data
 
         except Exception as e:
@@ -830,8 +828,6 @@ class QueryManager:
             if not kodi_ids:
                 return {}
 
-            self.logger.info(f"Batch enriching {len(kodi_ids)} movies with JSON-RPC")
-
             # Build batch request array - multiple GetMovieDetails calls in one request
             batch_requests = []
             for i, kodi_id in enumerate(kodi_ids):
@@ -882,7 +878,7 @@ class QueryManager:
                     self.logger.error(f"Failed to process batch response for movie {kodi_id}: {e}")
                     continue
 
-            self.logger.info(f"Batch enriched {len(enrichment_data)} out of {len(kodi_ids)} movies")
+            self.logger.debug(f"Batch enriched {len(enrichment_data)} out of {len(kodi_ids)} movies")
             return enrichment_data
 
         except Exception as e:
