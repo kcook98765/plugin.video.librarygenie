@@ -280,11 +280,14 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
         target_file = None
         logger.info(f"HIJACK HELPER: Using videodb path for tvshow: {path_to_open}")
     elif dbtype == "movie":
-        # For movies, try the general movies videodb path instead of specific movie path
-        # This avoids the XSP intermediate step while still working with Kodi's navigation
-        path_to_open = "videodb://movies/titles/"
-        target_file = None
-        logger.info(f"HIJACK HELPER: Using general movies videodb path to avoid XSP: {path_to_open}")
+        # Movies need XSP to focus on the specific movie for native info
+        xsp = _create_xsp_for_file(dbtype, dbid)
+        if not xsp:
+            logger.warning(f"HIJACK HELPER: XSP creation failed for {dbtype} {dbid}")
+            return False
+        path_to_open = xsp
+        target_file = _get_file_for_dbitem(dbtype, dbid)
+        logger.info(f"HIJACK HELPER: Using XSP for movie: {path_to_open}")
     elif dbtype == "episode":
         # Episodes need special handling - try their direct path
         path_to_open = f"videodb://tvshows/titles/-1/-1/{int(dbid)}"
