@@ -1087,32 +1087,15 @@ def handle_on_select(params: dict, addon_handle: int):
 def is_fresh_addon_start(params: dict) -> bool:
     """
     Detect if this is a fresh addon start (user opened addon from main Kodi interface)
-    Returns True if user opened addon fresh, False if navigating within addon
+    Returns True only for truly fresh starts, False for normal navigation
     """
     # No action parameter means fresh start from main menu
     if not params.get('action'):
         return True
     
-    # If there's an action, check if it looks like Kodi remembered a deep navigation state
-    action = params.get('action', '')
-    
-    # These actions indicate deep navigation that Kodi might remember
-    deep_navigation_actions = [
-        'show_list', 'view_list', 'show_folder', 'on_select',
-        'remove_from_list', 'rename_list', 'delete_list'
-    ]
-    
-    # If it's a deep navigation action and we have navigation parameters,
-    # this is likely Kodi remembering position - force fresh start
-    if action in deep_navigation_actions:
-        nav_params = ['list_id', 'folder_id', 'item_id', 'dbid']
-        has_nav_params = any(param in params for param in nav_params)
-        
-        if has_nav_params:
-            logger.info(f"Detected Kodi navigation memory: action={action}, forcing fresh start")
-            return True
-    
-    # For other actions (like 'lists', 'search'), allow normal flow
+    # Allow all normal navigation actions to proceed
+    # Only block if this is truly a case where Kodi is restoring deep state
+    # For now, let's be conservative and only force fresh start for no-action calls
     return False
 
 
