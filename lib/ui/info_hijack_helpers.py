@@ -328,6 +328,8 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
     t_step1_start = time.perf_counter()
     logger.debug("HIJACK HELPER: Step 1 - Closing plugin Info dialog")
     xbmc.executebuiltin("Action(Back)")
+    # Brief delay to allow window state to stabilize
+    xbmc.sleep(25)
     closed = wait_until(lambda: not xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)"), 1200, 30)
     t_step1_end = time.perf_counter()
     if not closed:
@@ -362,6 +364,8 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
     t_step2_start = time.perf_counter()
     logger.info(f"HIJACK HELPER: Step 2 - Opening Videos window with path: {path_to_open}")
     xbmc.executebuiltin(f'ActivateWindow(Videos,"{path_to_open}",return)')
+    # Small delay to allow window activation to begin processing
+    xbmc.sleep(50)
     t_activate_end = time.perf_counter()
     logger.debug(f"HIJACK HELPER: ActivateWindow command sent (took {t_activate_end - t_step2_start:.3f}s)")
 
@@ -412,6 +416,8 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
     t_step4_start = time.perf_counter()
     logger.debug("HIJACK HELPER: Step 4 - Opening native Info dialog")
     xbmc.executebuiltin("Action(Info)")
+    # Brief delay to allow Info action to be processed
+    xbmc.sleep(25)
     t_info_cmd_end = time.perf_counter()
     logger.debug(f"HIJACK HELPER: Info command sent (took {t_info_cmd_end - t_step4_start:.3f}s)")
     
