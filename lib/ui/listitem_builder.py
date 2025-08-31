@@ -133,7 +133,7 @@ class ListItemBuilder:
 
             self.logger.debug(f"DIRECTORY BUILD: Calling endOfDirectory(handle={self.addon_handle}, succeeded=True)")
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True)
-            self.logger.info(f"DIRECTORY BUILD: Successfully completed directory with {ok} items")
+            self.logger.info(f"DIRECTORY BUILD: ✅ Successfully built directory with {ok} items ({fail} failed)")
             return True
         except Exception as e:
             self.logger.error(f"DIRECTORY BUILD: fatal error: {e}")
@@ -422,8 +422,6 @@ class ListItemBuilder:
             # Resume (always for library movies/episodes)
             self._set_resume_info_versioned(li, item)
 
-            # Single summary log for successful creation
-            self.logger.info(f"LIB ITEM: ✅ Created '{title}' (DBID={kodi_id}, type={media_type}) -> {videodb_url}")
             return videodb_url, li, is_folder
         except Exception as e:
             self.logger.error(f"LIB ITEM: failed for '{item.get('title','Unknown')}': {e}")
