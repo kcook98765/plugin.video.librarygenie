@@ -161,6 +161,12 @@ class BackgroundService:
             if current_time - self._last_token_check < self._token_check_interval:
                 return
 
+            # Skip token refresh if user is browsing lists (unless urgent)
+            time_since_last = current_time - self._last_token_check
+            if self._is_user_browsing_lists() and time_since_last < 1800:  # 30 min grace period
+                self.logger.debug("Deferring token refresh - user browsing lists")
+                return
+
             self._last_token_check = current_time
 
             success = maybe_refresh()
@@ -179,6 +185,11 @@ class BackgroundService:
             if xbmc.Player().isPlaying():
                 return
 
+            # Skip if user is browsing lists where info hijack might occur
+            if self._is_user_browsing_lists():
+                self.logger.debug("Skipping background sync - user browsing lists")
+                return
+
             # Use delta scan which should be cheap
             result = self._library_scanner.perform_delta_scan()
 
@@ -192,6 +203,39 @@ class BackgroundService:
         except Exception as e:
             self.logger.error(f"Library change detection failed: {e}")
             raise  # Re-raise to trigger backoff
+
+    def _is_user_browsing_lists(self) -> bool:
+        """Check if user is currently browsing LibraryGenie lists"""
+        try:
+            # Check if we're in our plugin context
+            container_path = xbmc.getInfoLabel('Container.FolderPath')
+            
+            # Our plugin paths start with plugin://plugin.video.librarygenie/
+            if 'plugin.video.librarygenie' not in container_path:
+                return False
+            
+            # Check for list-related paths where info hijack is likely
+            list_indicators = [
+                'action=view_list',
+                'action=search_movies', 
+                'action=search_results',
+                'mode=lists'
+            ]
+            
+            # If user is in any list view, consider them "browsing"
+            if any(indicator in container_path for indicator in list_indicators):
+                return True
+                
+            # Additional check: if Info dialog is currently open on our content
+            if (xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)') and 
+                xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)') == '1'):
+                return True
+                
+            return False
+            
+        except Exception as e:
+            self.logger.debug(f"Error checking list browsing state: {e}")
+            return False  # Fail safe - allow background operations
 
 
 def run():
