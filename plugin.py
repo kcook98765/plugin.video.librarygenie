@@ -38,7 +38,7 @@ def show_main_menu(handle):
     addon = xbmcaddon.Addon()
     
     # Set the main category to establish this as the root menu
-    xbmcplugin.setPluginCategory(handle, "")  # Empty category for root menu
+    xbmcplugin.setPluginCategory(handle, addon.getLocalizedString(35002))  # "LibraryGenie"
     
     # Set content type to ensure proper navigation
     xbmcplugin.setContent(handle, 'files')
@@ -190,9 +190,9 @@ def handle_lists(addon_handle, base_url):
     try:
         logger.info("Displaying lists menu")
         
-        # Set plugin category to help with navigation
+        # Set plugin category to help with navigation - use breadcrumb format
         addon = xbmcaddon.Addon()
-        xbmcplugin.setPluginCategory(addon_handle, addon.getLocalizedString(35016))  # "Lists"
+        xbmcplugin.setPluginCategory(addon_handle, f"{addon.getLocalizedString(35002)} / {addon.getLocalizedString(35016)}")  # "LibraryGenie / Lists"
         
         # Set content type to ensure proper navigation
         xbmcplugin.setContent(addon_handle, 'files')
@@ -448,8 +448,9 @@ def handle_view_list(addon_handle, base_url):
         from lib.ui.menu_builder import MenuBuilder
         menu_builder = MenuBuilder()
 
-        # Set category for better navigation
-        xbmcplugin.setPluginCategory(addon_handle, f"List: {list_info['name']}")
+        # Set breadcrumb-style category to maintain navigation hierarchy
+        addon = xbmcaddon.Addon()
+        xbmcplugin.setPluginCategory(addon_handle, f"{addon.getLocalizedString(35002)} / {addon.getLocalizedString(35016)} / {list_info['name']}")
 
         # Set content type for proper skin support
         xbmcplugin.setContent(addon_handle, content_type)
@@ -965,7 +966,9 @@ def handle_show_folder(addon_handle, base_url):
             )
             return
 
-        xbmcplugin.setPluginCategory(addon_handle, f"Folder: {folder_info['name']}")
+        # Set breadcrumb-style category to maintain navigation hierarchy
+        addon = xbmcaddon.Addon()
+        xbmcplugin.setPluginCategory(addon_handle, f"{addon.getLocalizedString(35002)} / {addon.getLocalizedString(35016)} / {folder_info['name']}")
 
         # Get all lists within this folder
         folder_lists = query_manager.get_lists_in_folder(folder_id)
