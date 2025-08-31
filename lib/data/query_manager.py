@@ -1470,42 +1470,7 @@ class QueryManager:
             self.logger.error(f"Failed to get all folders: {e}")
             return []
 
-    def get_search_history_lists(self):
-        """Get search history lists ordered by most recent first"""
-        try:
-            # Get the Search History folder ID
-            folder_id = self.get_or_create_search_history_folder()
-            if not folder_id:
-                self.logger.warning("No Search History folder found")
-                return []
-
-            # Get lists from Search History folder, ordered by most recent first
-            lists = self.connection_manager.execute_query("""
-                SELECT 
-                    l.id,
-                    l.name,
-                    l.created_at,
-                    (SELECT COUNT(*) FROM list_items WHERE list_id = l.id) as item_count
-                FROM lists l
-                WHERE l.folder_id = ?
-                ORDER BY l.created_at DESC
-            """, [folder_id])
-
-            result = []
-            for row in lists or []:
-                result.append({
-                    "id": str(row['id']),
-                    "name": row['name'],
-                    "created": row['created_at'][:10] if row['created_at'] else '',
-                    "item_count": row['item_count']
-                })
-
-            self.logger.debug(f"Retrieved {len(result)} search history lists")
-            return result
-
-        except Exception as e:
-            self.logger.error(f"Failed to get search history lists: {e}")
-            return []
+    
 
 
 # Global query manager instance

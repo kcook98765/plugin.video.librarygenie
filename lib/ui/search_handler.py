@@ -380,7 +380,7 @@ class SearchHandler:
                 return
 
             # Get the most recent search history list for this query
-            search_lists = self.query_manager.get_search_history_lists()
+            search_lists = self.query_manager.get_lists_in_folder(self.query_manager.get_or_create_search_history_folder())
             
             if search_lists:
                 # Use the most recent search list (first in the list)
