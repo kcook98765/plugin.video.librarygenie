@@ -47,10 +47,10 @@ class MenuBuilder:
         self.logger.info(f"MENU BUILD: Added {successful_items} menu items successfully, {failed_items} failed")
         self.logger.debug(f"MENU BUILD: Calling endOfDirectory(handle={addon_handle}, cacheToDisc=True)")
         
-        # For sub-menus, we need to ensure proper back navigation by not updating the listing
-        # and ensuring the directory is marked as succeeded so Kodi maintains the navigation stack
+        # Ensure proper navigation stack by setting succeeded=True and not updating listing
+        # This tells Kodi this is a valid directory that can be navigated back from
         xbmcplugin.endOfDirectory(addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
-        self.logger.debug(f"MENU BUILD: Completed endOfDirectory for menu with caching enabled")
+        self.logger.debug(f"MENU BUILD: Completed endOfDirectory for menu with navigation stack preserved")
 
     def _add_directory_item(self, item, addon_handle, base_url):
         """Add a single directory item with context menu support"""

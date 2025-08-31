@@ -39,6 +39,9 @@ def show_main_menu(handle):
     
     # Set the main category to establish this as the root menu
     xbmcplugin.setPluginCategory(handle, addon.getLocalizedString(35002))  # "LibraryGenie"
+    
+    # Set content type to ensure proper navigation
+    xbmcplugin.setContent(handle, 'files')
 
     # Search (always visible)
     search_item = xbmcgui.ListItem(label=addon.getLocalizedString(35014))  # "Search"
@@ -190,6 +193,9 @@ def handle_lists(addon_handle, base_url):
         # Set plugin category to help with navigation
         addon = xbmcaddon.Addon()
         xbmcplugin.setPluginCategory(addon_handle, addon.getLocalizedString(35016))  # "Lists"
+        
+        # Set content type to ensure proper navigation
+        xbmcplugin.setContent(addon_handle, 'files')
 
         # Initialize query manager
         query_manager = get_query_manager()
