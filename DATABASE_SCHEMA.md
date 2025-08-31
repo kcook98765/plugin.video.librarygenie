@@ -1,4 +1,3 @@
-
 # LibraryGenie Database Schema
 
 This document describes the SQLite database schema used by LibraryGenie for storing lists, folders, media references, and Kodi favorites.
@@ -48,41 +47,38 @@ Constraints:
 
 ---
 
-### `media_items`
-Core metadata entries for movies, episodes, music videos, or external items. For Kodi library items (`source='lib'`), only core identification fields are populated; rich metadata is fetched from JSON-RPC when needed. For external items (`source='ext'`), all fields may be populated.
+## Media Items (`media_items`)
 
-| Column       | Type    | Notes |
-|--------------|---------|-------|
-| `id`         | INTEGER | PRIMARY KEY AUTOINCREMENT |
-| `media_type` | TEXT    | `movie`, `episode`, `musicvideo`, `external` |
-| `title`      | TEXT    | |
-| `year`       | INTEGER | |
-| `imdbnumber` | TEXT    | IMDb ID if known |
-| `tmdb_id`    | TEXT    | Optional TMDb ID |
-| `kodi_id`    | INTEGER | Optional Kodi DBID |
-| `source`     | TEXT    | e.g. `lib`, `ext` |
-| `play`       | TEXT    | Playback URL or file |
-| `poster`     | TEXT    | Poster artwork (external items only) |
-| `fanart`     | TEXT    | Fanart artwork (external items only) |
-| `plot`       | TEXT    | Plot summary |
-| `rating`     | REAL    | Rating (external items only) |
-| `votes`      | INTEGER | Vote count (external items only) |
-| `duration`   | INTEGER | Duration in seconds (external items only) |
-| `mpaa`       | TEXT    | MPAA rating (external items only) |
-| `genre`      | TEXT    | Comma-separated genres (external items only) |
-| `director`   | TEXT    | Director (external items only) |
-| `studio`     | TEXT    | Studio (external items only) |
-| `country`    | TEXT    | Country (external items only) |
-| `writer`     | TEXT    | Writer (external items only) |
-| `cast`       | TEXT    | JSON cast data (external items only) |
-| `art`        | TEXT    | JSON art data (external items only) |
-| `created_at` | TEXT    | |
+The unified table for storing all media content metadata.
 
-Indexes:
-- INDEX on `imdbnumber`.
-- INDEX on `(media_type, kodi_id)`.
-- INDEX on `title COLLATE NOCASE`.
-- INDEX on `year`.
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INTEGER PK | Unique identifier |
+| `media_type` | TEXT | Type: 'movie', 'episode', 'season', 'tvshow' |
+| `title` | TEXT | Media title |
+| `year` | INTEGER | Release year |
+| `imdbnumber` | TEXT | IMDb identifier (primary for portability) |
+| `tmdb_id` | TEXT | TMDb identifier |
+| `kodi_id` | INTEGER | Kodi database ID (movieid, episodeid, etc.) |
+| `source` | TEXT | Source classification (e.g., 'library', 'external') |
+| `play` | TEXT | Play command or URL |
+| `poster` | TEXT | Poster artwork URL |
+| `fanart` | TEXT | Fanart artwork URL |
+| `plot` | TEXT | Plot/description |
+| `rating` | REAL | Rating score |
+| `votes` | INTEGER | Number of votes |
+| `duration` | INTEGER | Duration in minutes |
+| `mpaa` | TEXT | Content rating |
+| `genre` | TEXT | Genre information |
+| `director` | TEXT | Director name |
+| `studio` | TEXT | Studio/production company |
+| `country` | TEXT | Country of origin |
+| `writer` | TEXT | Writer information |
+| `cast` | TEXT | Cast information (JSON) |
+| `art` | TEXT | Additional artwork (JSON) |
+| `normalized_path` | TEXT | Normalized file path for matching |
+| `is_removed` | INTEGER | Flag indicating if item was removed (0/1) |
+| `created_at` | TEXT | Creation timestamp |
 
 ---
 
@@ -103,28 +99,29 @@ Constraints:
 
 ---
 
-### `kodi_favorite`
-Stores Kodi favorites with mapping to library movies.
+## Kodi Favorites (`kodi_favorite`)
 
-| Column                 | Type    | Notes |
-|------------------------|---------|-------|
-| `id`                   | INTEGER | PRIMARY KEY AUTOINCREMENT |
-| `name`                 | TEXT    | NOT NULL - favorite display name |
-| `normalized_path`      | TEXT    | Normalized path for matching |
-| `original_path`        | TEXT    | Original path from favorites |
-| `favorite_type`        | TEXT    | Type classification |
-| `target_raw`           | TEXT    | NOT NULL - raw target data |
-| `target_classification`| TEXT    | NOT NULL - classification result |
-| `normalized_key`       | TEXT    | NOT NULL UNIQUE - normalized identifier |
-| `library_movie_id`     | INTEGER | FK → media_items.id (nullable) |
-| `is_mapped`            | INTEGER | DEFAULT 0 - whether mapped to library |
-| `is_missing`           | INTEGER | DEFAULT 0 - whether target is missing |
-| `present`              | INTEGER | DEFAULT 1 - whether favorite is active |
-| `thumb_ref`            | TEXT    | Thumbnail reference |
-| `first_seen`           | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP |
-| `last_seen`            | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP |
-| `created_at`           | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP |
-| `updated_at`           | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP |
+Maps Kodi favorites to library items for integration.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INTEGER PK | Unique identifier |
+| `name` | TEXT | Favorite display name |
+| `normalized_path` | TEXT | Normalized path for matching |
+| `original_path` | TEXT | Original favorite path |
+| `favorite_type` | TEXT | Type of favorite |
+| `target_raw` | TEXT | Raw target command |
+| `target_classification` | TEXT | Classification of target |
+| `normalized_key` | TEXT UNIQUE | Unique key for deduplication |
+| `library_movie_id` | INTEGER FK | Reference to media_items.id |
+| `is_mapped` | INTEGER | Whether favorite is mapped (0/1) |
+| `is_missing` | INTEGER | Whether favorite target is missing (0/1) |
+| `present` | INTEGER | Whether favorite is present in current scan (0/1) |
+| `thumb_ref` | TEXT | Thumbnail reference |
+| `first_seen` | TEXT | When first detected |
+| `last_seen` | TEXT | When last seen |
+| `created_at` | TEXT | Creation timestamp |
+| `updated_at` | TEXT | Last update timestamp |
 
 Constraints:
 - FOREIGN KEY (library_movie_id) REFERENCES media_items (id)
