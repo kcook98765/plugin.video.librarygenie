@@ -21,8 +21,6 @@ class InfoHijackManager:
         if not dialog_active:
             if self._in_progress:
                 self._logger.debug("HIJACK: Info dialog closed, resetting state")
-                # Check if we need to restore navigation context
-                self._check_navigation_restoration()
             self._in_progress = False
             return
 
@@ -67,28 +65,3 @@ class InfoHijackManager:
         finally:
             # When native info is up, it won't be tagged; tick() will idle.
             self._in_progress = False
-
-    def _check_navigation_restoration(self):
-        """Check if we need to restore original navigation context after info dialog closes"""
-        try:
-            # Get stored original path
-            orig_path = xbmc.getInfoLabel('Window(Home).Property(LG.OriginalPath)')
-            if not orig_path:
-                return
-            
-            # Check current container path
-            current_path = xbmc.getInfoLabel('Container.FolderPath')
-            self._logger.debug(f"HIJACK: Navigation check - current: {current_path}, original: {orig_path}")
-            
-            # If we're still in an XSP or videodb context, user might want to go back further
-            if current_path and ('special://temp' in current_path or 'videodb://' in current_path):
-                # Set up a brief monitor to handle potential Back navigation
-                self._logger.debug("HIJACK: User may navigate back from XSP/videodb view")
-                # Store context for potential restoration
-                xbmc.executebuiltin(f'SetProperty(LG.BackupPath,{current_path},Home)')
-            
-            # Clear the stored original path
-            xbmc.executebuiltin('ClearProperty(LG.OriginalPath,Home)')
-            
-        except Exception as e:
-            self._logger.error(f"HIJACK: Error in navigation restoration check: {e}")
