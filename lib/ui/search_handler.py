@@ -69,6 +69,13 @@ class SearchHandler:
             self.logger.info(f"  Container label: {container_label}")
             self.logger.info(f"  DialogVideoInfo active: {dialog_video_info_active}")
             self.logger.info(f"  Keyboard dialog active: {keyboard_active}")
+            
+            # PROTECTION: Don't open search dialog if DialogVideoInfo is active
+            if dialog_video_info_active:
+                self.logger.warning("🚫 SEARCH BLOCKED: DialogVideoInfo is active, preventing search dialog overlay")
+                self.logger.warning(f"🚫 Container path during block: {container_path}")
+                return
+                
         except Exception as e:
             self.logger.warning(f"Failed to log window state: {e}")
 
