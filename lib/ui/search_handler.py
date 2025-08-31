@@ -371,10 +371,57 @@ class SearchHandler:
             )
 
     def _display_results(self, results, query):
-        """Display search results in Kodi"""
+        """Display search results by navigating to the saved list (V20+ behavior)"""
         try:
             items = results.get('items', [])
-            total = results.get('total_count', len(items))
+
+            if not items:
+                self._show_no_results_message(query)
+                return
+
+            # Get the most recent search history list for this query
+            search_lists = self.query_manager.get_search_history_lists()
+            
+            if search_lists:
+                # Use the most recent search list (first in the list)
+                latest_list = search_lists[0]
+                list_id = latest_list['id']
+                
+                self.logger.info(f"Navigating to saved search list {list_id} instead of showing inline results")
+                
+                # Navigate to the saved list using Container.Update (V20+ behavior)
+                import xbmc
+                list_url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
+                
+                self.logger.info(f"Using Container.Update to navigate to: {list_url}")
+                xbmc.executebuiltin(f'Container.Update("{list_url}")')
+                
+                # Also end the directory to complete the navigation
+                import xbmcplugin
+                xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=True)
+                
+                used_remote = results.get('used_remote', False)
+                source = "remote" if used_remote else "local"
+                self.logger.info(f"Redirected to saved list containing {len(items)} {source} search results for '{query}'")
+                
+            else:
+                # Fallback: display inline if no saved list found
+                self.logger.warning("No saved search list found, falling back to inline display")
+                self._display_results_inline(results, query)
+
+        except Exception as e:
+            import traceback
+            self.logger.error(f"Failed to navigate to search results: {e}")
+            self.logger.error(f"Display results traceback: {traceback.format_exc()}")
+            
+            # Fallback to inline display on error
+            self.logger.info("Falling back to inline display due to navigation error")
+            self._display_results_inline(results, query)
+
+    def _display_results_inline(self, results, query):
+        """Display search results inline (fallback method)"""
+        try:
+            items = results.get('items', [])
 
             if not items:
                 self._show_no_results_message(query)
@@ -409,12 +456,12 @@ class SearchHandler:
             # Log result summary
             used_remote = results.get('used_remote', False)
             source = "remote" if used_remote else "local"
-            self.logger.info(f"Displayed {len(normalized_items)} {source} search results for '{query}'")
+            self.logger.info(f"Displayed {len(normalized_items)} {source} search results inline for '{query}'")
 
         except Exception as e:
             import traceback
-            self.logger.error(f"Failed to display search results: {e}")
-            self.logger.error(f"Display results traceback: {traceback.format_exc()}")
+            self.logger.error(f"Failed to display search results inline: {e}")
+            self.logger.error(f"Inline display traceback: {traceback.format_exc()}")
             addon = xbmcaddon.Addon()
             xbmcgui.Dialog().notification(
                 addon.getLocalizedString(35002),
