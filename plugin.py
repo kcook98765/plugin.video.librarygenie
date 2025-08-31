@@ -36,6 +36,9 @@ base_url = ""
 def show_main_menu(handle):
     """Show main menu with auth-aware options"""
     addon = xbmcaddon.Addon()
+    
+    # Set the main category to establish this as the root menu
+    xbmcplugin.setPluginCategory(handle, addon.getLocalizedString(35002))  # "LibraryGenie"
 
     # Search (always visible)
     search_item = xbmcgui.ListItem(label=addon.getLocalizedString(35014))  # "Search"
@@ -183,6 +186,10 @@ def handle_lists(addon_handle, base_url):
     """Handle lists menu - Phase 5 implementation"""
     try:
         logger.info("Displaying lists menu")
+        
+        # Set plugin category to help with navigation
+        addon = xbmcaddon.Addon()
+        xbmcplugin.setPluginCategory(addon_handle, addon.getLocalizedString(35016))  # "Lists"
 
         # Initialize query manager
         query_manager = get_query_manager()
