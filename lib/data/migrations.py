@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 """
-LibraryGenie - Complete Database Schema Setup
-Creates the full database schema without incremental migrations
+LibraryGenie - Database Schema Setup
+Creates the complete database schema on first run
 """
 
 from .connection_manager import get_connection_manager
@@ -18,48 +18,28 @@ class MigrationManager:
         self.conn_manager = get_connection_manager()
 
     def ensure_initialized(self):
-        """Ensure database is initialized with complete schema (fresh install only)"""
+        """Ensure database is initialized with complete schema"""
         try:
-            current_version = self._get_schema_version()
-            self.logger.debug(f"Current schema version: {current_version}")
-
-            if current_version == 0:
-                self.logger.info("Initializing complete database schema (fresh install)")
+            if self._is_database_empty():
+                self.logger.info("Initializing complete database schema")
                 self._create_complete_schema()
-                self._set_schema_version(10)
-                self.logger.info("Database initialized with complete schema")
+                self.logger.info("Database initialized successfully")
             else:
-                # Check for specific migrations needed
-                if current_version < 10:
-                    self.logger.info("Applying favorites tables migration")
-                    self._migrate_add_favorites_tables()
-                    self._set_schema_version(10)
-                    self.logger.info("Favorites tables migration completed")
-                else:
-                    self.logger.debug(f"Database already initialized at version {current_version}")
+                self.logger.debug("Database already initialized")
 
         except Exception as e:
             self.logger.error(f"Database initialization failed: {e}")
             raise
 
-    def _get_schema_version(self):
-        """Get current schema version"""
+    def _is_database_empty(self):
+        """Check if database is empty (no tables exist)"""
         try:
             result = self.conn_manager.execute_single(
-                "SELECT version FROM schema_version ORDER BY version DESC LIMIT 1"
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
             )
-            return result['version'] if result else 0
+            return result is None
         except Exception:
-            # Schema version table doesn't exist yet
-            return 0
-
-    def _set_schema_version(self, version):
-        """Record schema version"""
-        with self.conn_manager.transaction() as conn:
-            conn.execute(
-                "INSERT INTO schema_version (version, applied_at) VALUES (?, datetime('now'))",
-                [version]
-            )
+            return True
 
     def _create_complete_schema(self):
         """Create complete database schema matching DATABASE_SCHEMA.md"""
@@ -71,6 +51,12 @@ class MigrationManager:
                     applied_at TEXT NOT NULL
                 )
             """)
+
+            # Set current schema version
+            conn.execute(
+                "INSERT INTO schema_version (version, applied_at) VALUES (?, datetime('now'))",
+                [1]
+            )
 
             # Folders table (must come before lists)
             conn.execute("""
@@ -255,8 +241,6 @@ class MigrationManager:
                 ON pending_operations (operation, created_at)
             """)
 
-            # No legacy compatibility tables - starting fresh with unified structure
-
             # Search and UI preferences tables
             conn.execute("""
                 CREATE TABLE search_history (
@@ -334,9 +318,9 @@ class MigrationManager:
                 VALUES ('Search History', NULL)
             """)
 
-            # Add favorites tables
+            # Kodi favorites tables
             conn.execute("""
-                CREATE TABLE IF NOT EXISTS kodi_favorite (
+                CREATE TABLE kodi_favorite (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT NOT NULL,
                     normalized_path TEXT,
@@ -355,11 +339,11 @@ class MigrationManager:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (library_movie_id) REFERENCES media_items (id)
-                );
+                )
             """)
 
             conn.execute("""
-                CREATE TABLE IF NOT EXISTS favorites_scan_log (
+                CREATE TABLE favorites_scan_log (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     scan_type TEXT NOT NULL,
                     file_path TEXT NOT NULL,
@@ -372,79 +356,16 @@ class MigrationManager:
                     success INTEGER DEFAULT 1,
                     error_message TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
+                )
             """)
 
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_kodi_favorite_normalized_key ON kodi_favorite(normalized_key);
-                CREATE INDEX IF NOT EXISTS idx_kodi_favorite_library_movie_id ON kodi_favorite(library_movie_id);
-                CREATE INDEX IF NOT EXISTS idx_kodi_favorite_is_mapped ON kodi_favorite(is_mapped);
-                CREATE INDEX IF NOT EXISTS idx_kodi_favorite_present ON kodi_favorite(present);
-                CREATE INDEX IF NOT EXISTS idx_favorites_scan_log_file_path ON favorites_scan_log(file_path);
-                CREATE INDEX IF NOT EXISTS idx_favorites_scan_log_created_at ON favorites_scan_log(created_at);
-            """)
-
-
-            # No default lists - users will create their own
-
-    def _migrate_add_favorites_tables(self):
-        """Add favorites tables to existing database"""
-        with self.conn_manager.transaction() as conn:
-            # Add kodi_favorite table
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS kodi_favorite (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    normalized_path TEXT,
-                    original_path TEXT,
-                    favorite_type TEXT,
-                    target_raw TEXT NOT NULL,
-                    target_classification TEXT NOT NULL,
-                    normalized_key TEXT NOT NULL UNIQUE,
-                    library_movie_id INTEGER,
-                    is_mapped INTEGER DEFAULT 0,
-                    is_missing INTEGER DEFAULT 0,
-                    present INTEGER DEFAULT 1,
-                    thumb_ref TEXT,
-                    first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (library_movie_id) REFERENCES media_items (id)
-                );
-            """)
-
-            # Add favorites_scan_log table
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS favorites_scan_log (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    scan_type TEXT NOT NULL,
-                    file_path TEXT NOT NULL,
-                    file_modified TEXT,
-                    items_found INTEGER DEFAULT 0,
-                    items_mapped INTEGER DEFAULT 0,
-                    items_added INTEGER DEFAULT 0,
-                    items_updated INTEGER DEFAULT 0,
-                    scan_duration_ms INTEGER DEFAULT 0,
-                    success INTEGER DEFAULT 1,
-                    error_message TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
-            """)
-
-            # Add indexes
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_kodi_favorite_normalized_key ON kodi_favorite(normalized_key);")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_kodi_favorite_library_movie_id ON kodi_favorite(library_movie_id);")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_kodi_favorite_is_mapped ON kodi_favorite(is_mapped);")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_kodi_favorite_present ON kodi_favorite(present);")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_favorites_scan_log_file_path ON favorites_scan_log(file_path);")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_favorites_scan_log_created_at ON favorites_scan_log(created_at);")
-
-    def _migrate_to_unified_lists(self):
-        """Future migration method - preserved for when migrations become needed"""
-        # This method preserved for future use when migrations are needed
-        # Currently not used since we're doing fresh installs only
-        pass
+            # Favorites indexes
+            conn.execute("CREATE INDEX idx_kodi_favorite_normalized_key ON kodi_favorite(normalized_key)")
+            conn.execute("CREATE INDEX idx_kodi_favorite_library_movie_id ON kodi_favorite(library_movie_id)")
+            conn.execute("CREATE INDEX idx_kodi_favorite_is_mapped ON kodi_favorite(is_mapped)")
+            conn.execute("CREATE INDEX idx_kodi_favorite_present ON kodi_favorite(present)")
+            conn.execute("CREATE INDEX idx_favorites_scan_log_file_path ON favorites_scan_log(file_path)")
+            conn.execute("CREATE INDEX idx_favorites_scan_log_created_at ON favorites_scan_log(created_at)")
 
 
 # Global migration manager instance

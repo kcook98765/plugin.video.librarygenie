@@ -390,4 +390,6 @@ The schema includes these default entries on initialization:
 - Schema designed for **resilience** (recovery after Kodi crash, portable export/import).
 - Kodi favorites are mapped to media_items via library_movie_id for integration with lists.
 - The main table for media storage is `media_items`, not `library_movie`.
-- Current implementation has SQL syntax issues that should be addressed in future migrations.
+- Database is created fresh on first startup with complete schema
+- Migration framework preserved for future incremental updates
+- No legacy migration compatibility - clean slate approachn future migrations.
