@@ -687,7 +687,7 @@ class QueryManager:
             return []
 
     def _get_kodi_episode_enrichment_data_batch(self, kodi_ids: List[int]) -> Dict[int, Dict[str, Any]]:
-        """Fetch lightweight episode metadata from Kodi JSON-RPC in batch"""
+        """Fetch lightweight episode metadata from Kodi JSON-RPC using individual calls"""
         try:
             import json
             import xbmc
@@ -695,45 +695,45 @@ class QueryManager:
             if not kodi_ids:
                 return {}
 
-            self.logger.info(f"Fetching episode JSON-RPC data for {len(kodi_ids)} episodes in batch")
-
-            # Use VideoLibrary.GetEpisodes with episodeid filter for batch fetching
-            request = {
-                "jsonrpc": "2.0",
-                "method": "VideoLibrary.GetEpisodes",
-                "params": {
-                    "properties": [
-                        'title', 'season', 'episode', 'showtitle', 'plot', 'runtime',
-                        'rating', 'votes', 'aired', 'art', 'playcount', 'lastplayed',
-                        'tvshowid', 'resume'
-                    ],
-                    "filter": {
-                        "field": "episodeid", 
-                        "operator": "in",
-                        "value": kodi_ids
-                    }
-                },
-                "id": 1
-            }
-
-            response_str = xbmc.executeJSONRPC(json.dumps(request))
-            response = json.loads(response_str)
-
-            if "error" in response:
-                self.logger.error(f"Batch episode JSON-RPC error: {response['error']}")
-                return {}
+            self.logger.info(f"Fetching episode JSON-RPC data for {len(kodi_ids)} episodes")
 
             enrichment_data = {}
-            episodes = response.get("result", {}).get("episodes", [])
+            
+            # Use individual GetEpisodeDetails calls for reliability
+            for kodi_id in kodi_ids:
+                try:
+                    request = {
+                        "jsonrpc": "2.0",
+                        "method": "VideoLibrary.GetEpisodeDetails",
+                        "params": {
+                            "episodeid": int(kodi_id),
+                            "properties": [
+                                'title', 'season', 'episode', 'showtitle', 'plot', 'runtime',
+                                'rating', 'votes', 'aired', 'art', 'playcount', 'lastplayed',
+                                'tvshowid', 'resume'
+                            ]
+                        },
+                        "id": 1
+                    }
 
-            for episode_details in episodes:
-                kodi_id = episode_details.get("episodeid")
-                if kodi_id:
-                    normalized = self._normalize_kodi_episode_details(episode_details)
-                    if normalized:
-                        enrichment_data[kodi_id] = normalized
+                    response_str = xbmc.executeJSONRPC(json.dumps(request))
+                    response = json.loads(response_str)
 
-            self.logger.info(f"Successfully enriched {len(enrichment_data)} out of {len(kodi_ids)} episodes in batch")
+                    if "error" in response:
+                        self.logger.warning(f"JSON-RPC error for episode {kodi_id}: {response['error']}")
+                        continue
+
+                    episode_details = response.get("result", {}).get("episodedetails")
+                    if episode_details:
+                        normalized = self._normalize_kodi_episode_details(episode_details)
+                        if normalized:
+                            enrichment_data[kodi_id] = normalized
+
+                except Exception as e:
+                    self.logger.error(f"Failed to fetch details for episode {kodi_id}: {e}")
+                    continue
+
+            self.logger.info(f"Successfully enriched {len(enrichment_data)} out of {len(kodi_ids)} episodes")
             return enrichment_data
 
         except Exception as e:
@@ -808,7 +808,7 @@ class QueryManager:
             return {}
 
     def _get_kodi_enrichment_data_batch(self, kodi_ids: List[int]) -> Dict[int, Dict[str, Any]]:
-        """Fetch rich metadata from Kodi JSON-RPC for multiple movies in a single call"""
+        """Fetch rich metadata from Kodi JSON-RPC for multiple movies using individual calls grouped efficiently"""
         try:
             import json
             import xbmc
@@ -818,44 +818,44 @@ class QueryManager:
 
             self.logger.info(f"Fetching JSON-RPC data for {len(kodi_ids)} movies in batch")
 
-            # Use VideoLibrary.GetMovies with movieid filter for batch fetching
-            request = {
-                "jsonrpc": "2.0",
-                "method": "VideoLibrary.GetMovies",
-                "params": {
-                    "properties": [
-                        'title', 'year', 'genre', 'plot', 'runtime', 'rating', 'votes', 
-                        'mpaa', 'studio', 'country', 'premiered', 'art', 'playcount', 
-                        'lastplayed', 'originaltitle', 'sorttitle', 'resume'
-                    ],
-                    "filter": {
-                        "field": "movieid",
-                        "operator": "in",
-                        "value": kodi_ids
-                    }
-                },
-                "id": 1
-            }
-
-            self.logger.debug(f"Batch JSON-RPC request for movies: {json.dumps(request)}")
-            response_str = xbmc.executeJSONRPC(json.dumps(request))
-            response = json.loads(response_str)
-
-            if "error" in response:
-                self.logger.error(f"Batch JSON-RPC error: {response['error']}")
-                return {}
-
             enrichment_data = {}
-            movies = response.get("result", {}).get("movies", [])
+            
+            # Kodi's filter API doesn't support "in" operator for arrays of IDs reliably
+            # Instead, we'll make individual calls but group them efficiently
+            for kodi_id in kodi_ids:
+                try:
+                    request = {
+                        "jsonrpc": "2.0",
+                        "method": "VideoLibrary.GetMovieDetails",
+                        "params": {
+                            "movieid": int(kodi_id),
+                            "properties": [
+                                'title', 'year', 'genre', 'plot', 'runtime', 'rating', 'votes', 
+                                'mpaa', 'studio', 'country', 'premiered', 'art', 'playcount', 
+                                'lastplayed', 'originaltitle', 'sorttitle', 'resume'
+                            ]
+                        },
+                        "id": 1
+                    }
 
-            for movie_details in movies:
-                kodi_id = movie_details.get("movieid")
-                if kodi_id:
-                    normalized = self._normalize_kodi_movie_details(movie_details)
-                    if normalized:
-                        enrichment_data[kodi_id] = normalized
+                    response_str = xbmc.executeJSONRPC(json.dumps(request))
+                    response = json.loads(response_str)
 
-            self.logger.info(f"Successfully enriched {len(enrichment_data)} out of {len(kodi_ids)} movies in batch")
+                    if "error" in response:
+                        self.logger.warning(f"JSON-RPC error for movie {kodi_id}: {response['error']}")
+                        continue
+
+                    movie_details = response.get("result", {}).get("moviedetails")
+                    if movie_details:
+                        normalized = self._normalize_kodi_movie_details(movie_details)
+                        if normalized:
+                            enrichment_data[kodi_id] = normalized
+
+                except Exception as e:
+                    self.logger.error(f"Failed to fetch details for movie {kodi_id}: {e}")
+                    continue
+
+            self.logger.info(f"Successfully enriched {len(enrichment_data)} out of {len(kodi_ids)} movies")
             return enrichment_data
 
         except Exception as e:
@@ -951,32 +951,31 @@ class QueryManager:
         if not items:
             return []
 
-        # Separate movie and episode IDs
-        movie_ids = [item['kodi_id'] for item in items if item.get('kodi_id') and item.get('media_type') == 'movie']
-        episode_ids = [item['kodi_id'] for item in items if item.get('kodi_id') and item.get('media_type') == 'episode']
+        # Separate movie and episode IDs, removing duplicates
+        movie_ids = list(set([item['kodi_id'] for item in items if item.get('kodi_id') and item.get('media_type') == 'movie']))
+        episode_ids = list(set([item['kodi_id'] for item in items if item.get('kodi_id') and item.get('media_type') == 'episode']))
 
         enriched_data = {}
 
-        # Fetch movie data in batch
+        # Only fetch if we have IDs to process
         if movie_ids:
-            self.logger.info(f"Fetching JSON-RPC data for {len(movie_ids)} movies in batch: {movie_ids}")
+            self.logger.info(f"Fetching JSON-RPC data for {len(movie_ids)} unique movies: {movie_ids}")
             movie_data = self._get_kodi_enrichment_data_batch(movie_ids)
             enriched_data.update(movie_data)
 
-        # Fetch episode data in batch
         if episode_ids:
-            self.logger.info(f"Fetching JSON-RPC data for {len(episode_ids)} episodes in batch: {episode_ids}")
+            self.logger.info(f"Fetching JSON-RPC data for {len(episode_ids)} unique episodes: {episode_ids}")
             episode_data = self._get_kodi_episode_enrichment_data_batch(episode_ids)
             enriched_data.update(episode_data)
 
+        # Apply enriched data to items
         enriched_items = []
         for item in items:
             kodi_id = item.get('kodi_id')
-            if kodi_id in enriched_data:
+            if kodi_id and kodi_id in enriched_data:
                 # Merge enriched data, prioritizing enriched fields
                 enriched_item = enriched_data[kodi_id].copy()
-                # Ensure we don't overwrite existing non-Kodi data unnecessarily
-                # Update item with enriched data, but keep original if not in enriched or if enriched is empty/default
+                # Update item with enriched data, but keep original if enriched value is empty/default
                 for key, value in enriched_item.items():
                     if value is not None and value != "" and value != 0 and value != 0.0:
                          item[key] = value
