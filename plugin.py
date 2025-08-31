@@ -64,7 +64,7 @@ def show_main_menu(handle):
         auth_url = f"{sys.argv[0]}?action=authorize"
         xbmcplugin.addDirectoryItem(handle, auth_url, auth_item, False)
 
-    xbmcplugin.endOfDirectory(handle)
+    xbmcplugin.endOfDirectory(handle, succeeded=True, updateListing=False, cacheToDisc=True)
 
 
 def show_search_menu(handle):
@@ -90,7 +90,7 @@ def show_remote_search_menu(handle):
     addon = xbmcaddon.Addon()
     list_item = xbmcgui.ListItem(label=addon.getLocalizedString(35115))
     xbmcplugin.addDirectoryItem(handle, "", list_item, False)
-    xbmcplugin.endOfDirectory(handle)
+    xbmcplugin.endOfDirectory(handle, succeeded=True, updateListing=False, cacheToDisc=True)
 
 
 def show_lists_menu(handle):
@@ -98,7 +98,7 @@ def show_lists_menu(handle):
     addon = xbmcaddon.Addon()
     list_item = xbmcgui.ListItem(label=addon.getLocalizedString(35116))
     xbmcplugin.addDirectoryItem(handle, "", list_item, False)
-    xbmcplugin.endOfDirectory(handle)
+    xbmcplugin.endOfDirectory(handle, succeeded=True, updateListing=False, cacheToDisc=True)
 
 
 def show_remote_lists_menu(handle):
@@ -106,7 +106,7 @@ def show_remote_lists_menu(handle):
     addon = xbmcaddon.Addon()
     list_item = xbmcgui.ListItem(label=addon.getLocalizedString(35117))
     xbmcplugin.addDirectoryItem(handle, "", list_item, False)
-    xbmcplugin.endOfDirectory(handle)
+    xbmcplugin.endOfDirectory(handle, succeeded=True, updateListing=False, cacheToDisc=True)
 
 
 def handle_authorize():
@@ -424,7 +424,7 @@ def handle_view_list(addon_handle, base_url):
                 f"List '{list_info['name']}' is empty"
             )
             # Ensure directory is ended if list is empty
-            xbmcplugin.endOfDirectory(addon_handle)
+            xbmcplugin.endOfDirectory(addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
             return
 
         # Detect content type based on list items
@@ -964,7 +964,7 @@ def handle_show_folder(addon_handle, base_url):
                 addon.getLocalizedString(35002),
                 f"Folder '{folder_info['name']}' is empty."
             )
-            xbmcplugin.endOfDirectory(addon_handle)
+            xbmcplugin.endOfDirectory(addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
             return
 
         menu_items = []
