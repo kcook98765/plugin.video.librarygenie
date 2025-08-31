@@ -71,13 +71,42 @@ class SearchHandler:
             self.logger.info(f"  Keyboard dialog active: {keyboard_active}")
 
             # PROTECTION: Don't open search dialog if DialogVideoInfo is active
+            # EXCEPT when we're restoring from a hijacked info dialog (detect by XSP path)
             if dialog_video_info_active:
-                self.logger.warning("🚫 SEARCH BLOCKED: DialogVideoInfo is active, preventing search dialog overlay")
-                self.logger.warning(f"🚫 Container path during block: {container_path}")
-                # Properly end directory to prevent Kodi errors
-                import xbmcplugin
-                xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
-                return
+                # Check if we're in a hijack restoration scenario
+                is_hijack_restoration = container_path and container_path.endswith("lg_hijack_debug.xsp")
+                
+                if is_hijack_restoration:
+                    self.logger.info("🔄 HIJACK RESTORATION: Restoring previous search results instead of prompting")
+                    
+                    # Try to restore cached search results from session state
+                    try:
+                        from .session_state import get_session_state
+                        session = get_session_state()
+                        
+                        if hasattr(session, 'last_search_results') and session.last_search_results:
+                            self.logger.info(f"Restoring cached search results for query: '{getattr(session, 'last_search_query', 'unknown')}'")
+                            self._display_results(session.last_search_results, getattr(session, 'last_search_query', ''))
+                            return
+                        else:
+                            self.logger.warning("No cached search results found, will show empty directory")
+                            # Show empty directory to maintain navigation flow
+                            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=False, cacheToDisc=False)
+                            return
+                            
+                    except Exception as e:
+                        self.logger.error(f"Failed to restore search results: {e}")
+                        # Fall back to empty directory
+                        xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=False, cacheToDisc=False)
+                        return
+                else:
+                    # Normal blocking for non-hijack scenarios
+                    self.logger.warning("🚫 SEARCH BLOCKED: DialogVideoInfo is active, preventing search dialog overlay")
+                    self.logger.warning(f"🚫 Container path during block: {container_path}")
+                    # Properly end directory to prevent Kodi errors
+                    import xbmcplugin
+                    xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
+                    return
 
         except Exception as e:
             self.logger.warning(f"Failed to log window state: {e}")
