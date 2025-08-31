@@ -306,9 +306,9 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
     # 2) Show the directory in Videos
     logger.info(f"HIJACK HELPER: Step 2 - Opening Videos window with path: {path_to_open}")
     if path_to_open.endswith(".xsp"):
-        # For XSP, use ReplaceWindow to avoid adding to navigation stack
-        xbmc.executebuiltin(f'ReplaceWindow(Videos,"{path_to_open}")')
-        logger.debug(f"HIJACK HELPER: Used ReplaceWindow for XSP to avoid navigation pollution")
+        # For XSP, use plain ActivateWindow without return to replace current context
+        xbmc.executebuiltin(f'ActivateWindow(Videos,"{path_to_open}")')
+        logger.debug(f"HIJACK HELPER: Used plain ActivateWindow for XSP to replace current context")
     else:
         # For direct videodb paths, use return to preserve navigation
         xbmc.executebuiltin(f'ActivateWindow(Videos,"{path_to_open}",return)')
