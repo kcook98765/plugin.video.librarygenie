@@ -186,6 +186,7 @@ class Phase4FavoritesParser:
         try:
             # Handle different element names
             if element.tag not in ['favourite', 'favorite']:
+                self.logger.debug(f"Skipping element with unexpected tag: {element.tag}")
                 return None
             
             # Extract display label
@@ -195,6 +196,7 @@ class Phase4FavoritesParser:
                 name = (element.text or '').strip()
             
             if not name:
+                self.logger.debug("Skipping favorite with no name")
                 return None
             
             # Extract target (URL or command)
@@ -219,11 +221,14 @@ class Phase4FavoritesParser:
                 thumb_ref = thumb_element.text.strip()
             
             if not target:
+                self.logger.debug(f"Skipping favorite '{name}' with no target")
                 return None
             
             # Phase 4: Classify and normalize
             classification = self._classify_favorite_target(target)
             normalized_key = self._create_normalized_key(target, classification)
+            
+            self.logger.debug(f"Parsed favorite '{name}': target='{target}', classification='{classification}', normalized='{normalized_key}'")
             
             return {
                 'name': name,
@@ -241,6 +246,7 @@ class Phase4FavoritesParser:
         """Classify favorite by target scheme - Phase 4 comprehensive classification"""
         try:
             target_lower = target.lower().strip()
+            self.logger.debug(f"Classifying target: '{target}'")
             
             # File/URL schemes we can attempt to map
             mappable_schemes = [
@@ -250,10 +256,12 @@ class Phase4FavoritesParser:
             
             for scheme in mappable_schemes:
                 if target_lower.startswith(scheme):
+                    self.logger.debug(f"Classified as 'mappable_file' (scheme: {scheme})")
                     return 'mappable_file'
             
             # Kodi video database references
             if target_lower.startswith('videodb://'):
+                self.logger.debug("Classified as 'videodb'")
                 return 'videodb'
             
             # Unsupported for mapping (skip mapping, but may display)
@@ -263,6 +271,7 @@ class Phase4FavoritesParser:
             
             for scheme in unsupported_schemes:
                 if target_lower.startswith(scheme):
+                    self.logger.debug(f"Classified as 'plugin_or_script' (scheme: {scheme})")
                     return 'plugin_or_script'
             
             # Kodi built-in commands
@@ -273,12 +282,15 @@ class Phase4FavoritesParser:
             
             for pattern in builtin_patterns:
                 if pattern in target_lower:
+                    self.logger.debug(f"Classified as 'builtin_command' (pattern: {pattern})")
                     return 'builtin_command'
             
             # Plain file paths (no scheme)
             if self._looks_like_file_path(target):
+                self.logger.debug("Classified as 'mappable_file' (plain file path)")
                 return 'mappable_file'
             
+            self.logger.debug("Classified as 'unknown'")
             return 'unknown'
             
         except Exception as e:
@@ -321,12 +333,18 @@ class Phase4FavoritesParser:
         """Create deterministic canonical key for mapping and uniqueness"""
         try:
             if classification == 'videodb':
-                return self._normalize_videodb_key(target)
+                normalized = self._normalize_videodb_key(target)
+                self.logger.debug(f"Normalized videodb key: '{target}' -> '{normalized}'")
+                return normalized
             elif classification in ['mappable_file']:
-                return self._normalize_file_path_key(target)
+                normalized = self._normalize_file_path_key(target)
+                self.logger.debug(f"Normalized file path key: '{target}' -> '{normalized}'")
+                return normalized
             else:
                 # For non-mappable items, use a simple normalized form
-                return target.lower().strip()
+                normalized = target.lower().strip()
+                self.logger.debug(f"Simple normalized key: '{target}' -> '{normalized}'")
+                return normalized
                 
         except Exception as e:
             self.logger.debug(f"Error creating normalized key for '{target}': {e}")

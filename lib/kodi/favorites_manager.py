@@ -124,6 +124,8 @@ class Phase4FavoritesManager:
         items_updated = 0
         items_mapped = 0
 
+        self.logger.info(f"Starting batch import of {len(favorites)} favorites")
+
         try:
             with self.conn_manager.transaction() as conn:
                 # Ensure 'Kodi Favorites' list exists in the unified lists table
@@ -141,12 +143,24 @@ class Phase4FavoritesManager:
                     self.logger.info("Created 'Kodi Favorites' list in unified lists table")
                 else:
                     kodi_list_id = kodi_list["id"]
+                    self.logger.info(f"Using existing 'Kodi Favorites' list with ID {kodi_list_id}")
 
                 # Clear existing items from the Kodi Favorites list
-                conn.execute("DELETE FROM list_items WHERE list_id = ?", [kodi_list_id])
+                deleted_count = conn.execute("DELETE FROM list_items WHERE list_id = ?", [kodi_list_id]).rowcount
+                self.logger.info(f"Cleared {deleted_count} existing items from Kodi Favorites list")
+
+                # Log database stats before processing
+                media_count = conn.execute("SELECT COUNT(*) as count FROM media_items WHERE is_removed = 0").fetchone()["count"]
+                self.logger.info(f"Database contains {media_count} active media items for matching")
 
                 # Process favorites and add mapped ones to the list
-                for favorite in favorites:
+                for i, favorite in enumerate(favorites):
+                    favorite_name = favorite.get('name', 'unknown')
+                    self.logger.info(f"Processing favorite {i+1}/{len(favorites)}: '{favorite_name}'")
+                    self.logger.info(f"  Raw target: {favorite['target_raw']}")
+                    self.logger.info(f"  Classification: {favorite['target_classification']}")
+                    self.logger.info(f"  Normalized key: {favorite['normalized_key']}")
+
                     try:
                         # Try to find library match
                         library_movie_id = self._find_library_match_enhanced(
@@ -156,6 +170,8 @@ class Phase4FavoritesManager:
                         )
 
                         if library_movie_id:
+                            self.logger.info(f"  ✓ MATCHED to library item ID {library_movie_id}")
+                            
                             # Add to the unified list_items table
                             conn.execute("""
                                 INSERT INTO list_items (list_id, media_item_id, position, created_at)
@@ -164,14 +180,16 @@ class Phase4FavoritesManager:
 
                             items_mapped += 1
                             items_added += 1
+                        else:
+                            self.logger.info(f"  ✗ NO MATCH found for '{favorite_name}'")
 
                     except Exception as e:
-                        self.logger.warning(f"Error processing favorite '{favorite.get('name', 'unknown')}': {e}")
+                        self.logger.warning(f"Error processing favorite '{favorite_name}': {e}")
                         continue
 
                 # Note: lists table doesn't have updated_at column in current schema
 
-            self.logger.info(f"Imported {items_mapped} Kodi favorites into unified list")
+            self.logger.info(f"Batch import complete: {items_mapped}/{len(favorites)} mapped, {items_added} added")
 
             return {
                 "items_added": items_added,
@@ -189,44 +207,80 @@ class Phase4FavoritesManager:
 
     def _find_library_match_enhanced(self, target_raw: str, classification: str, normalized_key: str) -> Optional[int]:
         """Phase 4: Enhanced library matching with multiple strategies"""
+        self.logger.info(f"    Starting library match for classification '{classification}'")
+        
         try:
             # Strategy 1: videodb dbid matching
             if classification == 'videodb':
+                self.logger.info("    Using videodb matching strategy")
                 match = re.search(r'videodb://movies/titles/(\d+)', target_raw.lower())
                 if match:
                     kodi_dbid = int(match.group(1))
+                    self.logger.info(f"    Extracted Kodi dbid: {kodi_dbid}")
 
                     # Find by Kodi dbid in media_items table
                     with self.conn_manager.transaction() as conn:
                         result = conn.execute("""
-                            SELECT id FROM media_items
+                            SELECT id, title FROM media_items
                             WHERE kodi_id = ? AND is_removed = 0
                         """, [kodi_dbid]).fetchone()
 
                         if result:
+                            self.logger.info(f"    Found videodb match: ID {result['id']} - '{result['title']}'")
                             return result["id"]
+                        else:
+                            self.logger.info(f"    No videodb match found for Kodi dbid {kodi_dbid}")
+                else:
+                    self.logger.info(f"    Could not extract dbid from videodb URL: {target_raw}")
 
             # Strategy 2: Normalized path matching
-            if classification == 'mappable_file':
+            elif classification == 'mappable_file':
+                self.logger.info("    Using file path matching strategy")
+                self.logger.info(f"    Looking for normalized_path: '{normalized_key}'")
+                
                 # Try exact normalized path match
                 with self.conn_manager.transaction() as conn:
                     result = conn.execute("""
-                        SELECT id FROM media_items
+                        SELECT id, title, file_path, normalized_path FROM media_items
                         WHERE normalized_path = ? AND is_removed = 0
                     """, [normalized_key]).fetchone()
 
                     if result:
+                        self.logger.info(f"    Found exact path match: ID {result['id']} - '{result['title']}'")
+                        self.logger.info(f"    Matched file_path: {result['file_path']}")
                         return result["id"]
+                    else:
+                        self.logger.info("    No exact path match found")
+                        
+                        # Show some sample normalized paths for debugging
+                        sample_paths = conn.execute("""
+                            SELECT normalized_path FROM media_items 
+                            WHERE is_removed = 0 
+                            LIMIT 5
+                        """).fetchall()
+                        
+                        self.logger.info("    Sample normalized paths in database:")
+                        for sample in sample_paths:
+                            self.logger.info(f"      '{sample['normalized_path']}'")
 
                     # Try fuzzy path matching for variations
+                    self.logger.info("    Attempting fuzzy path matching")
                     result = self._fuzzy_path_match(normalized_key)
                     if result:
+                        self.logger.info(f"    Fuzzy match found: ID {result}")
                         return result
+                    else:
+                        self.logger.info("    No fuzzy match found")
+            else:
+                self.logger.info(f"    Classification '{classification}' not supported for matching")
 
+            self.logger.info("    No library match found")
             return None
 
         except Exception as e:
-            self.logger.debug(f"Error finding library match for '{target_raw}': {e}")
+            self.logger.error(f"Error finding library match for '{target_raw}': {e}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
             return None
 
     def _fuzzy_path_match(self, normalized_key: str) -> Optional[int]:
@@ -234,28 +288,40 @@ class Phase4FavoritesManager:
         try:
             # Extract just the filename for fuzzy matching
             filename = normalized_key.split('/')[-1] if '/' in normalized_key else normalized_key
+            self.logger.info(f"      Fuzzy matching with filename: '{filename}'")
 
             if not filename or len(filename) < 3:
+                self.logger.info(f"      Filename too short for fuzzy matching: '{filename}'")
                 return None
 
             # Look for files with same filename but different paths
             with self.conn_manager.transaction() as conn:
                 results = conn.execute("""
-                    SELECT id, file_path FROM media_items
+                    SELECT id, title, file_path FROM media_items
                     WHERE is_removed = 0
                     AND file_path LIKE ?
                     LIMIT 5
                 """, [f"%{filename}%"]).fetchall()
 
+                self.logger.info(f"      Found {len(results)} potential fuzzy matches")
+                
+                for i, result in enumerate(results):
+                    self.logger.info(f"        Match {i+1}: ID {result['id']} - '{result['title']}' - {result['file_path']}")
+
                 if results and len(results) == 1:
                     # Exactly one match - probably correct
                     result = results[0]
+                    self.logger.info(f"      Single fuzzy match selected: ID {result['id']}")
                     return result["id"]
+                elif len(results) > 1:
+                    self.logger.info("      Multiple fuzzy matches found - skipping for reliability")
+                else:
+                    self.logger.info("      No fuzzy matches found")
 
-                # Multiple matches - too ambiguous, skip for reliability
                 return None
 
-        except Exception:
+        except Exception as e:
+            self.logger.error(f"Error in fuzzy path matching: {e}")
             return None
 
     def get_mapped_favorites(self, show_unmapped: bool = False) -> List[Dict]:
