@@ -351,9 +351,9 @@ class ListItemBuilder:
             li = xbmcgui.ListItem(label=display)
 
             # Build videodb:// URL for native library integration
-            url = self._build_videodb_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
-            li.setPath(url)
-            self.logger.info(f"LIB ITEM: Generated videodb URL for '{title}': {url}")
+            videodb_url = self._build_videodb_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
+            li.setPath(videodb_url)
+            self.logger.debug(f"LIB ITEM: Generated videodb URL for '{title}': {videodb_url}")
 
             # Do NOT set IsPlayable for videodb:// items - Kodi handles this natively
             # Setting IsPlayable can interfere with native library handling and skins
@@ -362,12 +362,12 @@ class ListItemBuilder:
             is_folder = False
 
             # ✨ ALWAYS set InfoHijack properties on library items first (before any metadata operations)
-            self.logger.info(f"LIB ITEM: Setting InfoHijack properties for '{title}' - DBID={kodi_id}, DBType={media_type}")
+            self.logger.debug(f"LIB ITEM: Setting InfoHijack properties for '{title}' - DBID={kodi_id}, DBType={media_type}")
             try:
                 li.setProperty("LG.InfoHijack.Armed", "1")
                 li.setProperty("LG.InfoHijack.DBID", str(kodi_id))
                 li.setProperty("LG.InfoHijack.DBType", media_type)
-                self.logger.info(f"LIB ITEM: ✅ InfoHijack properties SET for '{title}': Armed=1, DBID={kodi_id}, DBType={media_type}")
+                self.logger.debug(f"LIB ITEM: ✅ InfoHijack properties SET for '{title}': Armed=1, DBID={kodi_id}, DBType={media_type}")
             except Exception as e:
                 self.logger.error(f"LIB ITEM: ❌ Failed to set InfoHijack properties for '{title}': {e}")
 
@@ -439,8 +439,8 @@ class ListItemBuilder:
             # Resume (always for library movies/episodes)
             self._set_resume_info_versioned(li, item)
 
-            self.logger.info(f"LIB ITEM: Successfully created library ListItem '{title}' -> URL: {url}, isFolder: {is_folder}")
-            return url, li, is_folder
+            self.logger.debug(f"LIB ITEM: Successfully created library ListItem '{title}' -> URL: {videodb_url}, isFolder: {is_folder}")
+            return videodb_url, li, is_folder
         except Exception as e:
             self.logger.error(f"LIB ITEM: failed for '{item.get('title','Unknown')}': {e}")
             return None
