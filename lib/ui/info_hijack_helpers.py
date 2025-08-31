@@ -278,21 +278,10 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
         else:
             logger.debug("HIJACK HELPER: Already on content item, no navigation needed")
 
-    # 4) Pre-warm Kodi state and open native Info
-    logger.debug("HIJACK HELPER: Step 4 - Pre-warming and opening native Info dialog")
-    
-    # Clear any pending skin/dialog operations
-    xbmc.executebuiltin("Action(Noop)")  # Flush action queue
-    xbmc.sleep(25)  # Brief pause for state settling
-    
-    # Pre-warm by ensuring list item is properly focused and metadata loaded
-    current_label = xbmc.getInfoLabel('ListItem.Label')
-    current_dbid = xbmc.getInfoLabel('ListItem.DBID')
-    logger.debug(f"HIJACK HELPER: Pre-opening state - Label='{current_label}', DBID='{current_dbid}'")
-    
-    # Open native Info with extended timeout for second+ attempts
+    # 4) Open native Info
+    logger.debug("HIJACK HELPER: Step 4 - Opening native Info dialog")
     xbmc.executebuiltin("Action(Info)")
-    ok = wait_until(lambda: xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)"), timeout_ms=8000, step_ms=50)
+    ok = wait_until(lambda: xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)"), timeout_ms=1500, step_ms=50)
     if not ok:
         logger.warning("HIJACK HELPER: ❌ Native Info did not open")
         return False
