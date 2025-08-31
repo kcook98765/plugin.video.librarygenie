@@ -39,6 +39,39 @@ class SearchHandler:
         """Prompt user for search query and show results"""
         self.logger.info("Starting search prompt flow")
 
+        # Log call stack (filtered to addon paths)
+        import traceback
+        import os
+        
+        stack = traceback.extract_stack()
+        addon_stack = []
+        for frame in stack:
+            if any(path in frame.filename for path in ['lib/', 'plugin.py', 'service.py']):
+                # Show relative path for readability
+                rel_path = os.path.basename(frame.filename)
+                addon_stack.append(f"{rel_path}:{frame.lineno} in {frame.name}")
+        
+        if addon_stack:
+            self.logger.info(f"Call stack (addon only): {' -> '.join(addon_stack[-5:])}")  # Last 5 frames
+        
+        # Log current window state
+        try:
+            import xbmc
+            dialog_video_info_active = xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)")
+            keyboard_active = xbmc.getCondVisibility("Window.IsActive(DialogKeyboard.xml)")
+            current_window = xbmc.getInfoLabel("System.CurrentWindow")
+            container_path = xbmc.getInfoLabel("Container.FolderPath")
+            container_label = xbmc.getInfoLabel("Container.FolderName")
+            
+            self.logger.info(f"Window state at search entry:")
+            self.logger.info(f"  Current window: {current_window}")
+            self.logger.info(f"  Container path: {container_path}")
+            self.logger.info(f"  Container label: {container_label}")
+            self.logger.info(f"  DialogVideoInfo active: {dialog_video_info_active}")
+            self.logger.info(f"  Keyboard dialog active: {keyboard_active}")
+        except Exception as e:
+            self.logger.warning(f"Failed to log window state: {e}")
+
         try:
             # Get search query from user
             addon = xbmcaddon.Addon()
