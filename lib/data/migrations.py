@@ -230,7 +230,7 @@ class MigrationManager:
             # Auth state for remote services
             conn.execute("""
                 CREATE TABLE auth_state (
-                    id INTEGER PRIMARYKEY AUTOINCREMENT,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
                     access_token TEXT,
                     expires_at TEXT,
                     token_type TEXT,
@@ -260,7 +260,7 @@ class MigrationManager:
             # Search and UI preferences tables
             conn.execute("""
                 CREATE TABLE search_history (
-                    id INTEGER PRIMARYKEY AUTOINCREMENT,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
                     query_text TEXT NOT NULL,
                     scope_type TEXT NOT NULL DEFAULT 'library',
                     scope_id INTEGER,
@@ -275,7 +275,7 @@ class MigrationManager:
 
             conn.execute("""
                 CREATE TABLE search_preferences (
-                    id INTEGER PRIMARYKEY AUTOINCREMENT,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
                     preference_key TEXT NOT NULL UNIQUE,
                     preference_value TEXT NOT NULL,
                     created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -285,7 +285,7 @@ class MigrationManager:
 
             conn.execute("""
                 CREATE TABLE ui_preferences (
-                    id INTEGER PRIMARYKEY,
+                    id INTEGER PRIMARY KEY,
                     ui_density TEXT NOT NULL DEFAULT 'compact',
                     artwork_preference TEXT NOT NULL DEFAULT 'poster',
                     show_secondary_label INTEGER NOT NULL DEFAULT 1,
@@ -313,7 +313,7 @@ class MigrationManager:
             # Library scan log table
             conn.execute("""
                 CREATE TABLE library_scan_log (
-                    id INTEGER PRIMARYKEY AUTOINCREMENT,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
                     scan_type TEXT NOT NULL,
                     start_time TEXT NOT NULL,
                     end_time TEXT,
@@ -393,7 +393,7 @@ class MigrationManager:
             # Add kodi_favorite table
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS kodi_favorite (
-                    id INTEGER PRIMARYKEY AUTOINCREMENT,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT NOT NULL,
                     normalized_path TEXT,
                     original_path TEXT,

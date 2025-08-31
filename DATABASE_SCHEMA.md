@@ -45,12 +45,6 @@ Hierarchical folder structure for organizing lists.
 Constraints:
 - UNIQUE(name, parent_id).
 - Create reserved Search History folder
-            conn.execute("""
-                INSERT INTO folders (name, parent_id)
-                VALUES ('Search History', NULL)
-            """)
-
-            # No default lists - users will create their own
 
 ---
 
@@ -141,6 +135,8 @@ Indexes:
 - INDEX on `is_mapped`.
 - INDEX on `present`.
 
+**Note**: Kodi Favorites are also integrated into the unified lists system. A special list named "Kodi Favorites" is created in the `lists` table, and mapped favorites are added as `list_items` pointing to `media_items`.
+
 ---
 
 ### `favorites_scan_log`
@@ -219,13 +215,17 @@ Stores user search preferences.
 ### `ui_preferences`
 Stores UI-related user preferences.
 
-| Column             | Type    | Notes |
-|--------------------|---------|-------|
-| `id`               | INTEGER | PRIMARY KEY AUTOINCREMENT |
-| `preference_key`   | TEXT    | NOT NULL UNIQUE |
-| `preference_value` | TEXT    | NOT NULL |
-| `created_at`       | TEXT    | NOT NULL DEFAULT (datetime('now')) |
-| `updated_at`       | TEXT    | NOT NULL DEFAULT (datetime('now')) |
+| Column                   | Type    | Notes |
+|--------------------------|---------|-------|
+| `id`                     | INTEGER | PRIMARY KEY |
+| `ui_density`             | TEXT    | NOT NULL DEFAULT 'compact' |
+| `artwork_preference`     | TEXT    | NOT NULL DEFAULT 'poster' |
+| `show_secondary_label`   | INTEGER | NOT NULL DEFAULT 1 |
+| `show_plot_in_detailed`  | INTEGER | NOT NULL DEFAULT 1 |
+| `fallback_icon`          | TEXT    | DEFAULT 'DefaultVideo.png' |
+| `updated_at`             | TEXT    | NOT NULL DEFAULT (datetime('now')) |
+
+**Note**: This table uses a fixed ID of 1 for a single-row configuration pattern.
 
 ---
 
@@ -316,6 +316,8 @@ Stores authentication token and expiry information.
 | `token_type`   | TEXT    | Usually "Bearer" |
 | `scope`        | TEXT    | Token permissions |
 
+**Note**: There is a typo in the actual implementation where `PRIMARY KEY` is misspelled as `PRIMARYKEY`.
+
 ---
 
 ### `pending_operations` (CLIENT-KODI-SERVICE)
@@ -335,6 +337,41 @@ Indexes:
 
 ---
 
+### `schema_version`
+Tracks database schema version for migrations.
+
+| Column       | Type    | Notes |
+|--------------|---------|-------|
+| `version`    | INTEGER | PRIMARY KEY - schema version number |
+| `applied_at` | TEXT    | NOT NULL - when migration was applied |
+
+---
+
+## Implementation Notes
+
+### SQL Syntax Issues
+The current implementation has several SQL syntax errors that need to be addressed:
+
+1. **PRIMARY KEY Typos**: Several tables use `PRIMARYKEY` instead of `PRIMARY KEY AUTOINCREMENT`
+2. **Missing AUTOINCREMENT**: Some tables are missing the `AUTOINCREMENT` keyword
+
+These issues may prevent proper database initialization and should be fixed in the migration code.
+
+### Favorites Integration
+Kodi favorites are handled through a dual approach:
+1. **Direct Storage**: Favorites are stored in the `kodi_favorite` table with detailed metadata
+2. **List Integration**: Mapped favorites are also added to a special "Kodi Favorites" list in the unified `lists`/`list_items` system
+
+This allows favorites to be treated like any other list while maintaining the detailed favorite-specific metadata.
+
+### Default Data
+The schema includes these default entries on initialization:
+- A "Search History" folder in the `folders` table
+- Default search preferences in `search_preferences`
+- Default UI preferences in `ui_preferences` (single row with ID=1)
+
+---
+
 ## Relationships
 
 - One-to-many: folders → lists.  
@@ -342,6 +379,7 @@ Indexes:
 - One-to-one/many: media_items ↔ movie_heavy_meta.  
 - One-to-many: media_items ← kodi_favorite (via library_movie_id).
 - Many-to-many mapping: imdb_to_kodi.  
+- Special relationship: kodi_favorite entries can also appear as list_items in the "Kodi Favorites" list.
 
 ---
 
@@ -352,3 +390,4 @@ Indexes:
 - Schema designed for **resilience** (recovery after Kodi crash, portable export/import).
 - Kodi favorites are mapped to media_items via library_movie_id for integration with lists.
 - The main table for media storage is `media_items`, not `library_movie`.
+- Current implementation has SQL syntax issues that should be addressed in future migrations.
