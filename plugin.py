@@ -196,6 +196,10 @@ def handle_lists(addon_handle, base_url):
         
         # Set content type to ensure proper navigation
         xbmcplugin.setContent(addon_handle, 'files')
+        
+        # Set parent directory to main menu to ensure proper back navigation
+        main_menu_url = base_url  # This is the main plugin URL without parameters
+        xbmcplugin.addDirectoryItem(addon_handle, "..", xbmcgui.ListItem(".."), True)
 
         # Initialize query manager
         query_manager = get_query_manager()
