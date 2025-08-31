@@ -22,12 +22,22 @@ from ..utils.logger import get_logger
 class Phase4FavoritesParser:
     """Phase 4: Rock-solid favorites parser with robust XML handling and path normalization"""
     
-    def __init__(self):
+    def __init__(self, test_file_path: Optional[str] = None):
         self.logger = get_logger(__name__)
+        self.test_file_path = test_file_path
     
     def find_favorites_file(self) -> Optional[str]:
         """Find Kodi favourites.xml file using special://profile/ consistently"""
         try:
+            # If test file path is provided, use it directly
+            if self.test_file_path:
+                if os.path.isfile(self.test_file_path):
+                    self.logger.info(f"Using test favorites file: {self.test_file_path}")
+                    return self.test_file_path
+                else:
+                    self.logger.warning(f"Test favorites file not found: {self.test_file_path}")
+                    return None
+            
             profile_path = xbmcvfs.translatePath('special://profile/')
             favorites_path = os.path.join(profile_path, 'favourites.xml')
             
