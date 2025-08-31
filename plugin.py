@@ -389,7 +389,7 @@ def handle_view_list(addon_handle, base_url):
             )
             return
 
-        logger.info(f"Viewing list {list_id}")
+        logger.debug(f"Viewing list {list_id}")
 
         # Initialize query manager
         query_manager = get_query_manager()
@@ -415,7 +415,7 @@ def handle_view_list(addon_handle, base_url):
 
         # Get list items (already normalized by get_list_items)
         list_items = query_manager.get_list_items(list_id)
-        logger.info(f"Found {len(list_items)} items in list")
+        logger.debug(f"Found {len(list_items)} items in list")
 
         if not list_items:
             addon = xbmcaddon.Addon()
@@ -429,7 +429,7 @@ def handle_view_list(addon_handle, base_url):
 
         # Detect content type based on list items
         content_type = query_manager.detect_content_type(list_items)
-        logger.info(f"Detected content type '{content_type}' for list '{list_info['name']}'")
+        logger.debug(f"Detected content type '{content_type}' for list '{list_info['name']}'")
 
         # Use MenuBuilder instead of ListItemBuilder for list contents to avoid InfoHijack
         from lib.ui.menu_builder import MenuBuilder
@@ -1115,8 +1115,8 @@ def main():
     """Main plugin entry point"""
     
     # Log complete plugin invocation details at entry
-    logger.info(f"=== PLUGIN INVOCATION ===")
-    logger.info(f"Full sys.argv: {sys.argv}")
+    logger.debug(f"=== PLUGIN INVOCATION ===")
+    logger.debug(f"Full sys.argv: {sys.argv}")
     
     # Log current window and control state
     try:
@@ -1125,11 +1125,11 @@ def main():
         container_path = xbmc.getInfoLabel("Container.FolderPath")
         container_label = xbmc.getInfoLabel("Container.FolderName")
         
-        logger.info(f"Window state at plugin entry:")
-        logger.info(f"  Current window: {current_window}")
-        logger.info(f"  Current control: {current_control}")
-        logger.info(f"  Container path: {container_path}")
-        logger.info(f"  Container label: {container_label}")
+        logger.debug(f"Window state at plugin entry:")
+        logger.debug(f"  Current window: {current_window}")
+        logger.debug(f"  Current control: {current_control}")
+        logger.debug(f"  Container path: {container_path}")
+        logger.debug(f"  Container label: {container_label}")
         
         # Check specific window visibility states
         myvideo_nav_visible = xbmc.getCondVisibility("Window.IsVisible(MyVideoNav.xml)")
@@ -1137,10 +1137,10 @@ def main():
         dialog_video_info_active = xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)")
         keyboard_visible = xbmc.getCondVisibility("Window.IsVisible(DialogKeyboard.xml)")
         
-        logger.info(f"  MyVideoNav.xml visible: {myvideo_nav_visible}")
-        logger.info(f"  DialogVideoInfo.xml visible: {dialog_video_info_visible}")
-        logger.info(f"  DialogVideoInfo.xml active: {dialog_video_info_active}")
-        logger.info(f"  DialogKeyboard.xml visible: {keyboard_visible}")
+        logger.debug(f"  MyVideoNav.xml visible: {myvideo_nav_visible}")
+        logger.debug(f"  DialogVideoInfo.xml visible: {dialog_video_info_visible}")
+        logger.debug(f"  DialogVideoInfo.xml active: {dialog_video_info_active}")
+        logger.debug(f"  DialogKeyboard.xml visible: {keyboard_visible}")
         
     except Exception as e:
         logger.warning(f"Failed to log window state at plugin entry: {e}")
