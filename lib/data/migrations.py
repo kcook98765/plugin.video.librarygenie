@@ -354,7 +354,7 @@ class MigrationManager:
                     last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (library_movie_id) REFERENCES library_movie (id)
+                    FOREIGN KEY (library_movie_id) REFERENCES media_items (id)
                 );
             """)
 
@@ -409,7 +409,8 @@ class MigrationManager:
                     first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (library_movie_id) REFERENCES media_items (id)
                 );
             """)
 
