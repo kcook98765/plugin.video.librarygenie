@@ -184,22 +184,10 @@ class LocalSearchEngine:
                 self.logger.info("No movies found in SQLite database")
                 return []
 
-            # Debug logging
-            self.logger.info("=== DEBUGGING SQLITE MOVIE RESULTS ===")
-            print("=== DEBUGGING SQLITE MOVIE RESULTS ===")
-            for i, movie in enumerate(movies[:10]):
-                title = movie['title']
-                log_msg = f"SQLite Movie {i+1}: '{title}'"
-                self.logger.info(log_msg)
-                print(log_msg)
-
+            # Summary logging only
             witch_count = len([m for m in movies if 'witch' in m['title'].lower()])
             debug_msg = f"FOUND {witch_count} movies with 'witch' in title from SQLite"
             self.logger.info(debug_msg)
-            print(debug_msg)
-
-            self.logger.info("=== END DEBUGGING ===")
-            print("=== END DEBUGGING ===")
 
             results = []
             for movie in movies:
