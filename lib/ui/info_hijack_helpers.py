@@ -279,8 +279,18 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
         path_to_open = f"videodb://tvshows/titles/{int(dbid)}"
         target_file = None
         logger.info(f"HIJACK HELPER: Using videodb path for tvshow: {path_to_open}")
+    elif dbtype == "movie":
+        # Use direct videodb path for movies to avoid XSP intermediate navigation step
+        path_to_open = f"videodb://movies/titles/{int(dbid)}"
+        target_file = None
+        logger.info(f"HIJACK HELPER: Using direct videodb path for movie: {path_to_open}")
+    elif dbtype == "episode":
+        # Use direct videodb path for episodes 
+        path_to_open = f"videodb://episodes/{int(dbid)}"
+        target_file = None
+        logger.info(f"HIJACK HELPER: Using direct videodb path for episode: {path_to_open}")
     else:
-        # Use XSP for items with files (no fallbacks)
+        # Fallback to XSP for other types
         xsp = _create_xsp_for_file(dbtype, dbid)
         if not xsp:
             logger.warning(f"HIJACK HELPER: XSP creation failed for {dbtype} {dbid}")
@@ -306,7 +316,13 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
         logger.warning("HIJACK HELPER: Could not focus list control")
         return False
 
-    if path_to_open.endswith(".xsp"):
+    if path_to_open.startswith("videodb://"):
+        # For direct videodb paths: the item should be auto-focused
+        logger.debug("HIJACK HELPER: Direct videodb path opened, item should be auto-focused")
+        current_label = xbmc.getInfoLabel('ListItem.Label')
+        current_dbid = xbmc.getInfoLabel('ListItem.DBID')
+        logger.debug(f"HIJACK HELPER: Videodb focus - Label='{current_label}', DBID='{current_dbid}'")
+    elif path_to_open.endswith(".xsp"):
         # For XSP: check focused item and navigate only if needed
         logger.debug("HIJACK HELPER: XSP opened, checking focused item")
 
