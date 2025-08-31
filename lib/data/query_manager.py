@@ -686,6 +686,60 @@ class QueryManager:
             self.logger.error(f"Failed to get lists with folders: {e}")
             return []
 
+    def _get_kodi_episode_enrichment_data_batch(self, kodi_ids: List[int]) -> Dict[int, Dict[str, Any]]:
+        """Fetch lightweight episode metadata from Kodi JSON-RPC in batch"""
+        try:
+            import json
+            import xbmc
+
+            if not kodi_ids:
+                return {}
+
+            self.logger.info(f"Fetching episode JSON-RPC data for {len(kodi_ids)} episodes in batch")
+
+            # Use VideoLibrary.GetEpisodes with episodeid filter for batch fetching
+            request = {
+                "jsonrpc": "2.0",
+                "method": "VideoLibrary.GetEpisodes",
+                "params": {
+                    "properties": [
+                        'title', 'season', 'episode', 'showtitle', 'plot', 'runtime',
+                        'rating', 'votes', 'aired', 'art', 'playcount', 'lastplayed',
+                        'tvshowid', 'resume'
+                    ],
+                    "filter": {
+                        "field": "episodeid", 
+                        "operator": "in",
+                        "value": kodi_ids
+                    }
+                },
+                "id": 1
+            }
+
+            response_str = xbmc.executeJSONRPC(json.dumps(request))
+            response = json.loads(response_str)
+
+            if "error" in response:
+                self.logger.error(f"Batch episode JSON-RPC error: {response['error']}")
+                return {}
+
+            enrichment_data = {}
+            episodes = response.get("result", {}).get("episodes", [])
+
+            for episode_details in episodes:
+                kodi_id = episode_details.get("episodeid")
+                if kodi_id:
+                    normalized = self._normalize_kodi_episode_details(episode_details)
+                    if normalized:
+                        enrichment_data[kodi_id] = normalized
+
+            self.logger.info(f"Successfully enriched {len(enrichment_data)} out of {len(kodi_ids)} episodes in batch")
+            return enrichment_data
+
+        except Exception as e:
+            self.logger.error(f"Error fetching batch episode enrichment data: {e}")
+            return {}
+
     def _get_kodi_episode_enrichment_data(self, kodi_ids: List[int]) -> Dict[int, Dict[str, Any]]:
         """Fetch lightweight episode metadata from Kodi JSON-RPC"""
         try:
@@ -751,6 +805,63 @@ class QueryManager:
 
         except Exception as e:
             self.logger.error(f"Error fetching episode enrichment data: {e}")
+            return {}
+
+    def _get_kodi_enrichment_data_batch(self, kodi_ids: List[int]) -> Dict[int, Dict[str, Any]]:
+        """Fetch rich metadata from Kodi JSON-RPC for multiple movies in a single call"""
+        try:
+            import json
+            import xbmc
+
+            if not kodi_ids:
+                return {}
+
+            self.logger.info(f"Fetching JSON-RPC data for {len(kodi_ids)} movies in batch")
+
+            # Use VideoLibrary.GetMovies with movieid filter for batch fetching
+            request = {
+                "jsonrpc": "2.0",
+                "method": "VideoLibrary.GetMovies",
+                "params": {
+                    "properties": [
+                        'title', 'year', 'genre', 'plot', 'runtime', 'rating', 'votes', 
+                        'mpaa', 'studio', 'country', 'premiered', 'art', 'playcount', 
+                        'lastplayed', 'originaltitle', 'sorttitle', 'resume'
+                    ],
+                    "filter": {
+                        "field": "movieid",
+                        "operator": "in",
+                        "value": kodi_ids
+                    }
+                },
+                "id": 1
+            }
+
+            self.logger.debug(f"Batch JSON-RPC request for movies: {json.dumps(request)}")
+            response_str = xbmc.executeJSONRPC(json.dumps(request))
+            response = json.loads(response_str)
+
+            if "error" in response:
+                self.logger.error(f"Batch JSON-RPC error: {response['error']}")
+                return {}
+
+            enrichment_data = {}
+            movies = response.get("result", {}).get("movies", [])
+
+            for movie_details in movies:
+                kodi_id = movie_details.get("movieid")
+                if kodi_id:
+                    normalized = self._normalize_kodi_movie_details(movie_details)
+                    if normalized:
+                        enrichment_data[kodi_id] = normalized
+
+            self.logger.info(f"Successfully enriched {len(enrichment_data)} out of {len(kodi_ids)} movies in batch")
+            return enrichment_data
+
+        except Exception as e:
+            self.logger.error(f"Error fetching batch Kodi enrichment data: {e}")
+            import traceback
+            self.logger.error(f"Batch enrichment error traceback: {traceback.format_exc()}")
             return {}
 
     def _get_kodi_enrichment_data(self, kodi_ids: List[int]) -> Dict[int, Dict[str, Any]]:
@@ -846,14 +957,16 @@ class QueryManager:
 
         enriched_data = {}
 
-        # Fetch movie data
+        # Fetch movie data in batch
         if movie_ids:
-            movie_data = self._get_kodi_enrichment_data(movie_ids)
+            self.logger.info(f"Fetching JSON-RPC data for {len(movie_ids)} movies in batch: {movie_ids}")
+            movie_data = self._get_kodi_enrichment_data_batch(movie_ids)
             enriched_data.update(movie_data)
 
-        # Fetch episode data
+        # Fetch episode data in batch
         if episode_ids:
-            episode_data = self._get_kodi_episode_enrichment_data(episode_ids)
+            self.logger.info(f"Fetching JSON-RPC data for {len(episode_ids)} episodes in batch: {episode_ids}")
+            episode_data = self._get_kodi_episode_enrichment_data_batch(episode_ids)
             enriched_data.update(episode_data)
 
         enriched_items = []
