@@ -320,128 +320,65 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
     library context (XSP by file for items with a file; videodb node for tvshow),
     focus row, open Info, then immediately restore underlying container to orig_path.
     """
-    t_total_start = time.perf_counter()
-    logger.info(f"HIJACK HELPER: 🎬 Starting native info process for {dbtype} {dbid}")
-    logger.debug(f"HIJACK HELPER: Original path: {orig_path}")
-
     # 1) Close the plugin's Info dialog
-    t_step1_start = time.perf_counter()
-    logger.debug("HIJACK HELPER: Step 1 - Closing plugin Info dialog")
     xbmc.executebuiltin("Action(Back)")
     # Brief delay to allow window state to stabilize
     xbmc.sleep(25)
     closed = wait_until(lambda: not xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)"), 1200, 30)
-    t_step1_end = time.perf_counter()
     if not closed:
-        logger.warning(f"HIJACK HELPER: Failed to close plugin Info dialog (took {t_step1_end - t_step1_start:.3f}s)")
         return False
-    logger.debug(f"HIJACK HELPER: Plugin Info dialog closed (took {t_step1_end - t_step1_start:.3f}s)")
 
-    # Path preparation timing
-    t_path_start = time.perf_counter()
+    # Path preparation
     path_to_open = None
     focus_index = 0
 
     if dbtype == "tvshow":
         path_to_open = f"videodb://tvshows/titles/{int(dbid)}"
         target_file = None
-        logger.info(f"HIJACK HELPER: Using videodb path for tvshow: {path_to_open}")
     else:
         # Use XSP for items with files (no fallbacks)
         xsp = _create_xsp_for_file(dbtype, dbid)
         if not xsp:
-            logger.warning(f"HIJACK HELPER: XSP creation failed for {dbtype} {dbid}")
             return False
 
         path_to_open = xsp
         target_file = _get_file_for_dbitem(dbtype, dbid)
-        logger.info(f"HIJACK HELPER: Using XSP path: {path_to_open}")
-
-    t_path_end = time.perf_counter()
-    logger.debug(f"HIJACK HELPER: Path preparation took {t_path_end - t_path_start:.3f}s")
 
     # 2) Show the directory in Videos
-    t_step2_start = time.perf_counter()
-    logger.info(f"HIJACK HELPER: Step 2 - Opening Videos window with path: {path_to_open}")
     xbmc.executebuiltin(f'ActivateWindow(Videos,"{path_to_open}",return)')
     # Small delay to allow window activation to begin processing
     xbmc.sleep(50)
-    t_activate_end = time.perf_counter()
-    logger.debug(f"HIJACK HELPER: ActivateWindow command sent (took {t_activate_end - t_step2_start:.3f}s)")
 
-    t_wait_start = time.perf_counter()
     if not _wait_videos_on(path_to_open, timeout_ms=8000):
-        t_wait_end = time.perf_counter()
-        logger.warning(f"HIJACK HELPER: ⏰ Timed out opening native container (waited {t_wait_end - t_wait_start:.3f}s)")
         return False
-    t_step2_end = time.perf_counter()
-    logger.debug(f"HIJACK HELPER: Videos window opened successfully (activate: {t_activate_end - t_step2_start:.3f}s, wait: {t_step2_end - t_wait_start:.3f}s, total step2: {t_step2_end - t_step2_start:.3f}s)")
 
     # 3) Focus list, jump to the correct row if we can infer it
-    t_step3_start = time.perf_counter()
-    logger.debug("HIJACK HELPER: Step 3 - Focusing list and finding item")
     if not focus_list():  # Let focus_list determine the correct control ID
-        t_step3_end = time.perf_counter()
-        logger.warning(f"HIJACK HELPER: Could not focus list control (took {t_step3_end - t_step3_start:.3f}s)")
         return False
-    t_focus_end = time.perf_counter()
-    logger.debug(f"HIJACK HELPER: List focused successfully (took {t_focus_end - t_step3_start:.3f}s)")
 
-    t_nav_start = time.perf_counter()
     if path_to_open.endswith(".xsp"):
         # For XSP: check focused item and navigate only if needed
-        logger.debug("HIJACK HELPER: XSP opened, checking focused item")
-
         current_label = xbmc.getInfoLabel('ListItem.Label')
         current_dbid = xbmc.getInfoLabel('ListItem.DBID')
-        logger.debug(f"HIJACK HELPER: Initial focus - Label='{current_label}', DBID='{current_dbid}'")
 
         # Only navigate if we're on the parent ".." item
         if current_label == ".." or not current_dbid or current_dbid == "0":
-            logger.debug("HIJACK HELPER: On parent item, navigating down to content")
             xbmc.executebuiltin("Action(Down)")
             xbmc.sleep(50)  # Minimal delay
 
-            # Verify navigation result
-            final_label = xbmc.getInfoLabel('ListItem.Label')
-            final_dbid = xbmc.getInfoLabel('ListItem.DBID')
-            logger.debug(f"HIJACK HELPER: After navigation - Label='{final_label}', DBID='{final_dbid}'")
-        else:
-            logger.debug("HIJACK HELPER: Already on content item, no navigation needed")
-    
-    t_nav_end = time.perf_counter()
-    logger.debug(f"HIJACK HELPER: Navigation handling took {t_nav_end - t_nav_start:.3f}s (total step3: {t_nav_end - t_step3_start:.3f}s)")
-
     # 4) Open native Info
-    t_step4_start = time.perf_counter()
-    logger.debug("HIJACK HELPER: Step 4 - Opening native Info dialog")
     xbmc.executebuiltin("Action(Info)")
     # Brief delay to allow Info action to be processed
     xbmc.sleep(25)
-    t_info_cmd_end = time.perf_counter()
-    logger.debug(f"HIJACK HELPER: Info command sent (took {t_info_cmd_end - t_step4_start:.3f}s)")
     
-    t_info_wait_start = time.perf_counter()
     ok = wait_until(lambda: xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)"), timeout_ms=1500, step_ms=50)
-    t_step4_end = time.perf_counter()
     if not ok:
-        logger.warning(f"HIJACK HELPER: ❌ Native Info did not open (command: {t_info_cmd_end - t_step4_start:.3f}s, wait: {t_step4_end - t_info_wait_start:.3f}s, total: {t_step4_end - t_step4_start:.3f}s)")
         return False
-    logger.info(f"HIJACK HELPER: ✅ Native Info dialog opened (command: {t_info_cmd_end - t_step4_start:.3f}s, wait: {t_step4_end - t_info_wait_start:.3f}s, total: {t_step4_end - t_step4_start:.3f}s)")
 
     # 5) Replace underlying container back to the original path (so Back works)
-    t_step5_start = time.perf_counter()
     if orig_path:
-        logger.debug(f"HIJACK HELPER: Step 5 - Restoring original container: {orig_path}")
         xbmc.executebuiltin(f'Container.Update("{orig_path}",replace)')
-    else:
-        logger.debug("HIJACK HELPER: No original path to restore")
-    t_step5_end = time.perf_counter()
     
-    t_total_end = time.perf_counter()
-    logger.debug(f"HIJACK HELPER: Container restore took {t_step5_end - t_step5_start:.3f}s")
-    logger.info(f"HIJACK HELPER: 🎉 Successfully completed hijack for {dbtype} {dbid} (total time: {t_total_end - t_total_start:.3f}s)")
-    logger.info(f"HIJACK HELPER: ⏱️ TIMING BREAKDOWN - Step1(close): {t_step1_end - t_step1_start:.3f}s, Path prep: {t_path_end - t_path_start:.3f}s, Step2(videos): {t_step2_end - t_step2_start:.3f}s, Step3(focus): {t_nav_end - t_step3_start:.3f}s, Step4(info): {t_step4_end - t_step4_start:.3f}s, Step5(restore): {t_step5_end - t_step5_start:.3f}s")
     return True
 
 def open_movie_info(dbid: int, movie_url: str = None, xsp_path: str = None) -> bool:
