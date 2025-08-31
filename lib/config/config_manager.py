@@ -243,6 +243,28 @@ class ConfigManager:
             # Ultimate fallback
             return "play"
 
+    def enable_favorites_integration(self) -> bool:
+        """Enable favorites integration and trigger immediate scan"""
+        try:
+            # Set the setting
+            success = self.set("favorites_integration_enabled", True)
+            
+            if success:
+                # Trigger immediate scan
+                try:
+                    from .favorites_helper import on_favorites_integration_enabled
+                    on_favorites_integration_enabled()
+                except Exception as e:
+                    # Log but don't fail the setting change
+                    from ..utils.logger import get_logger
+                    logger = get_logger(__name__)
+                    logger.warning(f"Failed to trigger immediate favorites scan: {e}")
+            
+            return success
+            
+        except Exception:
+            return False
+
 
 # Global config instance
 _CFG: Optional[ConfigManager] = None
