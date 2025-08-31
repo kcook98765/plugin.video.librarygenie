@@ -7,13 +7,22 @@ import xbmc
 import xbmcgui
 import xbmcvfs
 
+from ..utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 LOG_PREFIX = "[LG.Hijack]"
 LIST_ID = 50
 VIDEOS_WINDOW = "MyVideoNav.xml"
 
 def _log(message: str, level: int = xbmc.LOGINFO) -> None:
     """Internal logging with consistent prefix"""
-    logger.log(f"[InfoHijack] {message}", level)
+    if level == xbmc.LOGWARNING:
+        logger.warning(f"[InfoHijack] {message}")
+    elif level == xbmc.LOGERROR:
+        logger.error(f"[InfoHijack] {message}")
+    else:
+        logger.info(f"[InfoHijack] {message}")
 
 def prewarm_smb(movie_url):
     """
