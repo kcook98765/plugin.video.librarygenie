@@ -360,7 +360,7 @@ class MigrationManager:
 
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS favorites_scan_log (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id INTEGER PRIMARYKEY AUTOINCREMENT,
                     scan_type TEXT NOT NULL,
                     file_path TEXT NOT NULL,
                     file_modified TEXT,

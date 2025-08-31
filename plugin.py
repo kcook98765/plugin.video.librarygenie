@@ -1146,19 +1146,19 @@ def handle_kodi_favorites(addon_handle, base_url):
         for favorite in favorites:
             is_mapped = favorite.get('is_mapped', 0)
             title = favorite.get('name', 'Unknown Favorite')
-            
+
             if is_mapped:
                 # Mapped favorite - can be played
                 display_title = f"[COLOR green]✓[/COLOR] {title}"
                 library_title = favorite.get('library_title', '')
                 year = favorite.get('year', '')
                 description = f"Maps to: {library_title} ({year})" if library_title else "Mapped to library"
-                
+
                 # Create context menu for mapped favorites
                 context_menu = [
                     (f"Add '{title}' to List...", f"RunPlugin(plugin://plugin.video.librarygenie/?action=add_favorite_to_list&favorite_id={favorite.get('id')})")
                 ]
-                
+
                 menu_item = {
                     "title": display_title,
                     "action": "on_select",
@@ -1178,7 +1178,7 @@ def handle_kodi_favorites(addon_handle, base_url):
                 display_title = f"[COLOR red]✗[/COLOR] {title}"
                 classification = favorite.get('target_classification', 'unknown')
                 description = f"Not in library ({classification})"
-                
+
                 menu_item = {
                     "title": display_title,
                     "action": "noop",
@@ -1225,7 +1225,7 @@ def handle_scan_favorites():
         if result.get("success"):
             items_found = result.get("items_found", 0)
             items_mapped = result.get("items_mapped", 0)
-            
+
             xbmcgui.Dialog().notification(
                 addon.getLocalizedString(35002),
                 f"Scanned: {items_mapped}/{items_found} favorites mapped",
@@ -1272,7 +1272,7 @@ def handle_add_favorite_to_list():
         # Get the favorite info
         from lib.kodi.favorites_manager import get_phase4_favorites_manager
         favorites_manager = get_phase4_favorites_manager()
-        
+
         # Get all favorites and find the one we want
         all_favorites = favorites_manager.get_mapped_favorites(show_unmapped=False)
         target_favorite = None
@@ -1308,7 +1308,7 @@ def handle_add_favorite_to_list():
 
         if selected_index >= 0:
             selected_list = available_lists[selected_index]
-            
+
             # Add to the selected list
             result = list_manager.add_library_movie_to_list(
                 selected_list['id'], 

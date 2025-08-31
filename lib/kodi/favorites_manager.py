@@ -119,109 +119,62 @@ class Phase4FavoritesManager:
             }
 
     def _import_favorites_batch(self, favorites: List[Dict]) -> Dict[str, int]:
-        """Import favorites with Phase 4 batch processing and reliable mapping"""
+        """Import favorites into unified lists table as 'Kodi Favorites' list"""
         items_added = 0
         items_updated = 0
         items_mapped = 0
 
         try:
-            # Process in batches for large favorites files
-            batch_size = 200
-            current_normalized_keys = set()
-
-            for i in range(0, len(favorites), batch_size):
-                batch = favorites[i:i + batch_size]
-
-                with self.conn_manager.transaction() as conn:
-                    for favorite in batch:
-                        try:
-                            normalized_key = favorite["normalized_key"]
-                            current_normalized_keys.add(normalized_key)
-
-                            # Check if favorite already exists
-                            existing = conn.execute("""
-                                SELECT id, library_movie_id, is_mapped, is_missing
-                                FROM kodi_favorite
-                                WHERE normalized_key = ?
-                            """, [normalized_key]).fetchone()
-
-                            # Phase 4: Reliable mapping with multiple strategies
-                            library_movie_id = self._find_library_match_enhanced(
-                                favorite["target_raw"],
-                                favorite["target_classification"],
-                                normalized_key
-                            )
-                            is_mapped = 1 if library_movie_id else 0
-
-                            if is_mapped:
-                                items_mapped += 1
-
-                            # Phase 4: Idempotent upsert with first_seen/last_seen/present
-                            if existing:
-                                # Update existing favorite
-                                conn.execute("""
-                                    UPDATE kodi_favorite
-                                    SET name = ?, target_raw = ?, target_classification = ?,
-                                        library_movie_id = ?, is_mapped = ?,
-                                        thumb_ref = ?, present = 1,
-                                        last_seen = datetime('now'),
-                                        updated_at = datetime('now'),
-                                        is_missing = 0
-                                    WHERE id = ?
-                                """, [
-                                    favorite["name"], favorite["target_raw"], favorite["target_classification"],
-                                    library_movie_id, is_mapped, favorite.get("thumb_ref", ""),
-                                    existing["id"]
-                                ])
-                                items_updated += 1
-
-                            else:
-                                # Insert new favorite with first_seen
-                                conn.execute("""
-                                    INSERT INTO kodi_favorite
-                                    (name, normalized_path, original_path, favorite_type,
-                                     target_raw, target_classification, normalized_key,
-                                     library_movie_id, is_mapped, thumb_ref, present,
-                                     first_seen, last_seen)
-                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1,
-                                            datetime('now'), datetime('now'))
-                                """, [
-                                    favorite["name"],
-                                    favorite["normalized_key"],  # Use as normalized_path for compatibility
-                                    favorite["target_raw"],      # Use as original_path for compatibility
-                                    favorite["target_classification"],  # Use as favorite_type for compatibility
-                                    favorite["target_raw"],
-                                    favorite["target_classification"],
-                                    favorite["normalized_key"],
-                                    library_movie_id,
-                                    is_mapped,
-                                    favorite.get("thumb_ref", "")
-                                ])
-                                items_added += 1
-
-                        except Exception as e:
-                            self.logger.warning(f"Error processing favorite '{favorite.get('name', 'unknown')}': {e}")
-                            continue
-
-            # Phase 4: Mark favorites as not present if they weren't seen in this scan
             with self.conn_manager.transaction() as conn:
-                if current_normalized_keys:
-                    # Build placeholders for IN clause
-                    placeholders = ','.join(['?'] * len(current_normalized_keys))
+                # Ensure 'Kodi Favorites' list exists in the unified lists table
+                kodi_list = conn.execute("""
+                    SELECT id FROM lists WHERE name = 'Kodi Favorites' AND type = 'kodi_favorites'
+                """).fetchone()
 
-                    conn.execute(f"""
-                        UPDATE kodi_favorite
-                        SET present = 0, last_seen = datetime('now')
-                        WHERE normalized_key NOT IN ({placeholders})
-                        AND present = 1
-                    """, list(current_normalized_keys))
-                else:
-                    # No favorites found - mark all as not present
-                    conn.execute("""
-                        UPDATE kodi_favorite
-                        SET present = 0, last_seen = datetime('now')
-                        WHERE present = 1
+                if not kodi_list:
+                    # Create the Kodi Favorites list
+                    cursor = conn.execute("""
+                        INSERT INTO lists (name, description, type, created_at)
+                        VALUES ('Kodi Favorites', 'Imported from Kodi favorites', 'kodi_favorites', datetime('now'))
                     """)
+                    kodi_list_id = cursor.lastrowid
+                    self.logger.info("Created 'Kodi Favorites' list in unified lists table")
+                else:
+                    kodi_list_id = kodi_list["id"]
+
+                # Clear existing items from the Kodi Favorites list
+                conn.execute("DELETE FROM list_items WHERE list_id = ?", [kodi_list_id])
+
+                # Process favorites and add mapped ones to the list
+                for favorite in favorites:
+                    try:
+                        # Try to find library match
+                        library_movie_id = self._find_library_match_enhanced(
+                            favorite["target_raw"],
+                            favorite["target_classification"],
+                            favorite["normalized_key"]
+                        )
+
+                        if library_movie_id:
+                            # Add to the unified list_items table
+                            conn.execute("""
+                                INSERT INTO list_items (list_id, media_item_id, position, created_at)
+                                VALUES (?, ?, ?, datetime('now'))
+                            """, [kodi_list_id, library_movie_id, items_mapped])
+
+                            items_mapped += 1
+                            items_added += 1
+
+                    except Exception as e:
+                        self.logger.warning(f"Error processing favorite '{favorite.get('name', 'unknown')}': {e}")
+                        continue
+
+                # Update the list's updated_at timestamp
+                conn.execute("""
+                    UPDATE lists SET updated_at = datetime('now') WHERE id = ?
+                """, [kodi_list_id])
+
+            self.logger.info(f"Imported {items_mapped} Kodi favorites into unified list")
 
             return {
                 "items_added": items_added,
@@ -310,26 +263,21 @@ class Phase4FavoritesManager:
             return None
 
     def get_mapped_favorites(self, show_unmapped: bool = False) -> List[Dict]:
-        """Get favorites with Phase 4 present/mapped filtering"""
+        """Get favorites from unified lists table"""
         try:
-            base_query = """
-                SELECT kf.id, kf.name, kf.normalized_path, kf.original_path,
-                       kf.favorite_type, kf.target_raw, kf.target_classification,
-                       kf.is_mapped, kf.is_missing, kf.present,
-                       kf.first_seen, kf.last_seen, kf.thumb_ref,
-                       mi.title as library_title, mi.year, mi.imdbnumber as imdb_id, mi.tmdb_id,
-                       kf.library_movie_id
-                FROM kodi_favorite kf
-                LEFT JOIN media_items mi ON kf.library_movie_id = mi.id
-                WHERE kf.present = 1
+            query = """
+                SELECT li.id, mi.title, mi.year, mi.imdbnumber as imdb_id, mi.tmdb_id,
+                       mi.kodi_id, mi.media_type, mi.poster, mi.fanart, mi.plot,
+                       mi.rating, mi.votes, mi.duration, mi.genre, mi.director,
+                       mi.studio, mi.country, mi.art, li.media_item_id as library_movie_id
+                FROM lists l
+                JOIN list_items li ON l.id = li.list_id
+                JOIN media_items mi ON li.media_item_id = mi.id
+                WHERE l.name = 'Kodi Favorites' AND l.type = 'kodi_favorites'
+                ORDER BY li.position, mi.title
             """
 
-            if not show_unmapped:
-                base_query += " AND kf.is_mapped = 1"
-
-            base_query += " ORDER BY kf.is_mapped DESC, kf.name"
-
-            favorites = self.conn_manager.execute_query(base_query)
+            favorites = self.conn_manager.execute_query(query)
 
             # Convert SQLite rows to dicts
             result = []
@@ -346,29 +294,23 @@ class Phase4FavoritesManager:
             return []
 
     def get_favorites_stats(self) -> Dict[str, int]:
-        """Get statistics about favorites with Phase 4 present flag"""
+        """Get statistics about favorites from unified lists table"""
         try:
             stats = self.conn_manager.execute_single("""
-                SELECT
-                    COUNT(*) as total,
-                    SUM(CASE WHEN is_mapped = 1 AND present = 1 THEN 1 ELSE 0 END) as mapped,
-                    SUM(CASE WHEN is_missing = 1 THEN 1 ELSE 0 END) as missing,
-                    SUM(CASE WHEN present = 1 THEN 1 ELSE 0 END) as present
-                FROM kodi_favorite
+                SELECT COUNT(*) as total
+                FROM lists l
+                JOIN list_items li ON l.id = li.list_id
+                WHERE l.name = 'Kodi Favorites' AND l.type = 'kodi_favorites'
             """)
 
-            if stats and hasattr(stats, 'keys'):
-                stats = dict(stats)
-
-            total_present = stats.get("present", 0) if stats else 0
-            mapped = stats.get("mapped", 0) if stats else 0
+            total = stats.get("total", 0) if stats else 0
 
             return {
-                "total": stats.get("total", 0) if stats else 0,
-                "present": total_present,
-                "mapped": mapped,
-                "unmapped": total_present - mapped,
-                "missing": stats.get("missing", 0) if stats else 0
+                "total": total,
+                "present": total,
+                "mapped": total,
+                "unmapped": 0,
+                "missing": 0
             }
 
         except Exception as e:
