@@ -199,34 +199,32 @@ class Phase4FavoritesManager:
                 if match:
                     kodi_dbid = int(match.group(1))
 
-                    # Find by Kodi dbid
-                    result = self.conn_manager.execute_single("""
-                        SELECT id FROM media_items
-                        WHERE kodi_id = ? AND is_removed = 0
-                    """, [kodi_dbid])
+                    # Find by Kodi dbid in media_items table
+                    with self.conn_manager.transaction() as conn:
+                        result = conn.execute("""
+                            SELECT id FROM media_items
+                            WHERE kodi_id = ? AND is_removed = 0
+                        """, [kodi_dbid]).fetchone()
 
-                    if result:
-                        return result["id"] if hasattr(result, 'keys') else result.get("id")
+                        if result:
+                            return result["id"]
 
             # Strategy 2: Normalized path matching
             if classification == 'mappable_file':
                 # Try exact normalized path match
-                result = self.conn_manager.execute_single("""
-                    SELECT id FROM media_items
-                    WHERE normalized_path = ? AND is_removed = 0
-                """, [normalized_key])
+                with self.conn_manager.transaction() as conn:
+                    result = conn.execute("""
+                        SELECT id FROM media_items
+                        WHERE normalized_path = ? AND is_removed = 0
+                    """, [normalized_key]).fetchone()
 
-                if result:
-                    return result["id"] if hasattr(result, 'keys') else result.get("id")
+                    if result:
+                        return result["id"]
 
-                # Try fuzzy path matching for variations
-                result = self._fuzzy_path_match(normalized_key)
-                if result:
-                    return result
-
-            # Strategy 3: External ID matching (fallback for Phase 4)
-            # This would be implemented if we stored external IDs in favorites
-            # For now, keep simple and reliable
+                    # Try fuzzy path matching for variations
+                    result = self._fuzzy_path_match(normalized_key)
+                    if result:
+                        return result
 
             return None
 
@@ -244,20 +242,21 @@ class Phase4FavoritesManager:
                 return None
 
             # Look for files with same filename but different paths
-            results = self.conn_manager.execute_query("""
-                SELECT id, file_path FROM media_items
-                WHERE is_removed = 0
-                AND file_path LIKE ?
-                LIMIT 5
-            """, [f"%{filename}%"])
+            with self.conn_manager.transaction() as conn:
+                results = conn.execute("""
+                    SELECT id, file_path FROM media_items
+                    WHERE is_removed = 0
+                    AND file_path LIKE ?
+                    LIMIT 5
+                """, [f"%{filename}%"]).fetchall()
 
-            if results and len(results) == 1:
-                # Exactly one match - probably correct
-                result = results[0]
-                return result["id"] if hasattr(result, 'keys') else result.get("id")
+                if results and len(results) == 1:
+                    # Exactly one match - probably correct
+                    result = results[0]
+                    return result["id"]
 
-            # Multiple matches - too ambiguous, skip for reliability
-            return None
+                # Multiple matches - too ambiguous, skip for reliability
+                return None
 
         except Exception:
             return None
@@ -265,29 +264,25 @@ class Phase4FavoritesManager:
     def get_mapped_favorites(self, show_unmapped: bool = False) -> List[Dict]:
         """Get favorites from unified lists table"""
         try:
-            query = """
-                SELECT li.id, mi.title, mi.year, mi.imdbnumber as imdb_id, mi.tmdb_id,
-                       mi.kodi_id, mi.media_type, mi.poster, mi.fanart, mi.plot,
-                       mi.rating, mi.votes, mi.duration, mi.genre, mi.director,
-                       mi.studio, mi.country, mi.art, li.media_item_id as library_movie_id
-                FROM lists l
-                JOIN list_items li ON l.id = li.list_id
-                JOIN media_items mi ON li.media_item_id = mi.id
-                WHERE l.name = 'Kodi Favorites'
-                ORDER BY li.position, mi.title
-            """
+            with self.conn_manager.transaction() as conn:
+                favorites = conn.execute("""
+                    SELECT li.id, mi.title, mi.year, mi.imdbnumber as imdb_id, mi.tmdb_id,
+                           mi.kodi_id, mi.media_type, mi.poster, mi.fanart, mi.plot,
+                           mi.rating, mi.votes, mi.duration, mi.genre, mi.director,
+                           mi.studio, mi.country, mi.art, li.media_item_id as library_movie_id
+                    FROM lists l
+                    JOIN list_items li ON l.id = li.list_id
+                    JOIN media_items mi ON li.media_item_id = mi.id
+                    WHERE l.name = 'Kodi Favorites'
+                    ORDER BY li.position, mi.title
+                """).fetchall()
 
-            favorites = self.conn_manager.execute_query(query)
-
-            # Convert SQLite rows to dicts
-            result = []
-            for fav in favorites or []:
-                if hasattr(fav, 'keys'):
+                # Convert SQLite rows to dicts
+                result = []
+                for fav in favorites or []:
                     result.append(dict(fav))
-                else:
-                    result.append(fav)
 
-            return result
+                return result
 
         except Exception as e:
             self.logger.error(f"Error getting mapped favorites: {e}")
@@ -296,22 +291,23 @@ class Phase4FavoritesManager:
     def get_favorites_stats(self) -> Dict[str, int]:
         """Get statistics about favorites from unified lists table"""
         try:
-            stats = self.conn_manager.execute_single("""
-                SELECT COUNT(*) as total
-                FROM lists l
-                JOIN list_items li ON l.id = li.list_id
-                WHERE l.name = 'Kodi Favorites'
-            """)
+            with self.conn_manager.transaction() as conn:
+                stats = conn.execute("""
+                    SELECT COUNT(*) as total
+                    FROM lists l
+                    JOIN list_items li ON l.id = li.list_id
+                    WHERE l.name = 'Kodi Favorites'
+                """).fetchone()
 
-            total = stats.get("total", 0) if stats else 0
+                total = stats["total"] if stats else 0
 
-            return {
-                "total": total,
-                "present": total,
-                "mapped": total,
-                "unmapped": 0,
-                "missing": 0
-            }
+                return {
+                    "total": total,
+                    "present": total,
+                    "mapped": total,
+                    "unmapped": 0,
+                    "missing": 0
+                }
 
         except Exception as e:
             self.logger.error(f"Error getting favorites stats: {e}")
@@ -378,15 +374,16 @@ class Phase4FavoritesManager:
     def _get_last_scan_info(self, file_path: str) -> Optional[Dict]:
         """Get last scan info for favorites file"""
         try:
-            result = self.conn_manager.execute_single("""
-                SELECT file_modified, items_found, items_mapped
-                FROM favorites_scan_log
-                WHERE file_path = ? AND success = 1
-                ORDER BY created_at DESC
-                LIMIT 1
-            """, [file_path])
+            with self.conn_manager.transaction() as conn:
+                result = conn.execute("""
+                    SELECT file_modified, items_found, items_mapped
+                    FROM favorites_scan_log
+                    WHERE file_path = ? AND success = 1
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                """, [file_path]).fetchone()
 
-            return dict(result) if result else None
+                return dict(result) if result else None
 
         except Exception as e:
             self.logger.debug(f"No previous scan info found: {e}")
