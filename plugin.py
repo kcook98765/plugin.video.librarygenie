@@ -496,7 +496,7 @@ def handle_view_list(addon_handle, base_url):
         success = True
 
         if success:
-            logger.info(f"Successfully built list directory with content_type='{content_type}'")
+            logger.debug(f"Successfully built list directory with content_type='{content_type}'")
         else:
             logger.error(f"Failed to build list directory")
 
@@ -1063,7 +1063,7 @@ def handle_on_select(params: dict, addon_handle: int):
                 logger.info("Opening DialogVideoInfo for videodb item (Matrix)")
                 xbmc.executebuiltin(f'ActivateWindow(DialogVideoInfo,"{vdb}",return)')
             else:
-                logger.info("Opening info dialog for focused item (Nexus+)")
+                logger.debug("Opening info dialog for focused item (Nexus+)")
                 xbmc.executebuiltin('Action(Info)')
                 # If you prefer forcing DB context on v20+ as well, use:
                 # xbmc.executebuiltin(f'ActivateWindow(VideoInformation,"{vdb}",return)')
