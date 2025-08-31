@@ -404,13 +404,8 @@ class ListItemRenderer:
                     self.logger.error(f"RENDERER DIRECTORY: Error building item #{idx} '{item.get('title', 'Unknown')}': {e}")
 
             self.logger.info(f"RENDERER DIRECTORY: Successfully added {success_count}/{len(items)} items to directory")
-            # End directory listing - preserve navigation stack for proper Back behavior
-            xbmcplugin.endOfDirectory(
-                self.addon_handle,
-                succeeded=True,
-                updateListing=False,  # Critical: prevents navigation stack flattening
-                cacheToDisc=True
-            )
+            self.logger.debug(f"RENDERER DIRECTORY: Calling endOfDirectory(handle={self.addon_handle}, succeeded=True, cacheToDisc=True)")
+            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
             return True
 
         except Exception as e:
