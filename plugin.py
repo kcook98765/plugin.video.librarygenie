@@ -1068,23 +1068,7 @@ def handle_on_select(params: dict, addon_handle: int):
                 # If you prefer forcing DB context on v20+ as well, use:
                 # xbmc.executebuiltin(f'ActivateWindow(VideoInformation,"{vdb}",return)')
 
-
-def is_fresh_addon_start(params: dict) -> bool:
-    """
-    Detect if this is a fresh addon start (no action, no deep link parameters)
-    Returns True if user opened addon from main Kodi interface
-    """
-    # No action parameter means fresh start
-    if not params.get('action'):
-        # Also check for absence of navigation parameters
-        nav_params = ['list_id', 'folder_id', 'item_id', 'search_query']
-        has_nav_params = any(param in params for param in nav_params)
-        return not has_nav_params
-    return False
-
-
-
-        # Don’t render a directory for this action
+        # Don't render a directory for this action
         try:
             xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
         except Exception:
@@ -1098,6 +1082,20 @@ def is_fresh_addon_start(params: dict) -> bool:
             xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
         except Exception:
             pass
+
+
+def is_fresh_addon_start(params: dict) -> bool:
+    """
+    Detect if this is a fresh addon start (no action, no deep link parameters)
+    Returns True if user opened addon from main Kodi interface
+    """
+    # No action parameter means fresh start
+    if not params.get('action'):
+        # Also check for absence of navigation parameters
+        nav_params = ['list_id', 'folder_id', 'item_id', 'search_query']
+        has_nav_params = any(param in params for param in nav_params)
+        return not has_nav_params
+    return False
 
 
 def handle_settings():
