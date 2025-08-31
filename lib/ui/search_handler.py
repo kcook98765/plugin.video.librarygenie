@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from typing import Dict, Any, List
 
-import xbmc
 import xbmcgui
 import xbmcaddon
 import xbmcplugin
@@ -35,23 +34,9 @@ class SearchHandler:
         self._remote_fallback_notified = False
         self.query_manager = get_query_manager()
         self.addon_id = xbmcaddon.Addon().getAddonInfo('id')
-        self._search_in_progress = False
 
     def prompt_and_show(self):
         """Prompt user for search query and show results"""
-        # Prevent overlapping search prompts (e.g., during info hijack operations)
-        if self._search_in_progress:
-            self.logger.warning("Search already in progress, ignoring duplicate prompt request")
-            return
-            
-        # Check if search should be suppressed due to hijack or dialog activity
-        session_state = get_session_state()
-        should_suppress, reason = session_state.should_suppress_search()
-        if should_suppress:
-            self.logger.info(f"Search suppressed: {reason}")
-            return
-            
-        self._search_in_progress = True
         self.logger.info("Starting search prompt flow")
 
         try:
@@ -101,8 +86,6 @@ class SearchHandler:
                 addon.getLocalizedString(35022),
                 xbmcgui.NOTIFICATION_ERROR
             )
-        finally:
-            self._search_in_progress = False
 
     def _get_search_type_preference(self):
         """
