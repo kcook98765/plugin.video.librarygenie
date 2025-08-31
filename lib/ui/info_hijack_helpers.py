@@ -258,16 +258,43 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
         return False
     
     if path_to_open.endswith(".xsp"):
-        # For XSP: assume movie is the only match, just navigate down once from parent
-        logger.debug("HIJACK HELPER: XSP opened, navigating to movie item")
+        # For XSP: find and focus the actual content item (not ".." parent)
+        logger.debug("HIJACK HELPER: XSP opened, finding correct item to focus")
         
-        # Simple approach: navigate down once to get from ".." to the movie
-        xbmc.executebuiltin("Action(Down)")
-        xbmc.sleep(150)  # Allow navigation to complete
-        
-        # Log what we landed on
+        # Get current item info
         current_label = xbmc.getInfoLabel('ListItem.Label')
-        logger.debug(f"HIJACK HELPER: After Down navigation - Label='{current_label}'")
+        current_dbid = xbmc.getInfoLabel('ListItem.DBID')
+        logger.debug(f"HIJACK HELPER: Initial focus - Label='{current_label}', DBID='{current_dbid}'")
+        
+        # If we're on ".." parent or item without DBID, navigate to find the real item
+        max_attempts = 5
+        for attempt in range(max_attempts):
+            current_label = xbmc.getInfoLabel('ListItem.Label')
+            current_dbid = xbmc.getInfoLabel('ListItem.DBID')
+            
+            # Check if we found a valid item (has DBID and isn't parent)
+            if current_dbid and current_dbid != "0" and current_label != "..":
+                logger.debug(f"HIJACK HELPER: Found target item - Label='{current_label}', DBID='{current_dbid}'")
+                break
+            
+            # Navigate down to next item
+            logger.debug(f"HIJACK HELPER: Attempt {attempt + 1} - navigating down from '{current_label}' (DBID='{current_dbid}')")
+            xbmc.executebuiltin("Action(Down)")
+            xbmc.sleep(100)  # Allow navigation to complete
+        else:
+            # If we exhausted attempts, try going back to start and down once
+            logger.warning("HIJACK HELPER: Exhausted navigation attempts, trying reset approach")
+            xbmc.executebuiltin("Action(FirstItem)")
+            xbmc.sleep(100)
+            current_label = xbmc.getInfoLabel('ListItem.Label')
+            if current_label == "..":
+                xbmc.executebuiltin("Action(Down)")
+                xbmc.sleep(100)
+        
+        # Final check
+        final_label = xbmc.getInfoLabel('ListItem.Label')
+        final_dbid = xbmc.getInfoLabel('ListItem.DBID')
+        logger.debug(f"HIJACK HELPER: Final focus - Label='{final_label}', DBID='{final_dbid}'")
 
     # 4) Open native Info
     logger.debug("HIJACK HELPER: Step 4 - Opening native Info dialog")
