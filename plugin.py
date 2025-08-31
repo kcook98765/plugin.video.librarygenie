@@ -1068,6 +1068,22 @@ def handle_on_select(params: dict, addon_handle: int):
                 # If you prefer forcing DB context on v20+ as well, use:
                 # xbmc.executebuiltin(f'ActivateWindow(VideoInformation,"{vdb}",return)')
 
+
+def is_fresh_addon_start(params: dict) -> bool:
+    """
+    Detect if this is a fresh addon start (no action, no deep link parameters)
+    Returns True if user opened addon from main Kodi interface
+    """
+    # No action parameter means fresh start
+    if not params.get('action'):
+        # Also check for absence of navigation parameters
+        nav_params = ['list_id', 'folder_id', 'item_id', 'search_query']
+        has_nav_params = any(param in params for param in nav_params)
+        return not has_nav_params
+    return False
+
+
+
         # Don’t render a directory for this action
         try:
             xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
@@ -1135,6 +1151,13 @@ def main():
 
         # Route based action parameter
         action = params.get('action', '')
+
+        # Force root menu on fresh addon start
+        # This ensures users always start at main menu when addon is opened fresh
+        if is_fresh_addon_start(params):
+            logger.info("Fresh addon start detected - showing main menu")
+            show_main_menu(addon_handle)
+            return
 
         # Log all routing for test harness tracking
         if action.startswith('test_') or action == 'noop':
