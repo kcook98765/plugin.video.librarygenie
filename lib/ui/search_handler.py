@@ -91,12 +91,14 @@ class SearchHandler:
                         else:
                             self.logger.warning("No cached search results found, will show empty directory")
                             # Show empty directory to maintain navigation flow
+                            import xbmcplugin
                             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=False, cacheToDisc=False)
                             return
                             
                     except Exception as e:
                         self.logger.error(f"Failed to restore search results: {e}")
                         # Fall back to empty directory
+                        import xbmcplugin
                         xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=False, cacheToDisc=False)
                         return
                 else:
