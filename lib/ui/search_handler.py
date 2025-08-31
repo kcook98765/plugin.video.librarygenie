@@ -387,7 +387,7 @@ class SearchHandler:
                 latest_list = search_lists[0]
                 list_id = latest_list['id']
 
-                self.logger.info(f"Navigating to saved search list {list_id} instead of showing inline results")
+                self.logger.debug(f"Navigating to saved search list {list_id} instead of showing inline results")
 
                 # Navigate to the saved list using Container.Update (V20+ behavior)
                 import xbmc
