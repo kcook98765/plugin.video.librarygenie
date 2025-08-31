@@ -128,14 +128,14 @@ class Phase4FavoritesManager:
             with self.conn_manager.transaction() as conn:
                 # Ensure 'Kodi Favorites' list exists in the unified lists table
                 kodi_list = conn.execute("""
-                    SELECT id FROM lists WHERE name = 'Kodi Favorites' AND type = 'kodi_favorites'
+                    SELECT id FROM lists WHERE name = 'Kodi Favorites'
                 """).fetchone()
 
                 if not kodi_list:
                     # Create the Kodi Favorites list
                     cursor = conn.execute("""
-                        INSERT INTO lists (name, description, type, created_at)
-                        VALUES ('Kodi Favorites', 'Imported from Kodi favorites', 'kodi_favorites', datetime('now'))
+                        INSERT INTO lists (name, created_at)
+                        VALUES ('Kodi Favorites', datetime('now'))
                     """)
                     kodi_list_id = cursor.lastrowid
                     self.logger.info("Created 'Kodi Favorites' list in unified lists table")
@@ -300,7 +300,7 @@ class Phase4FavoritesManager:
                 SELECT COUNT(*) as total
                 FROM lists l
                 JOIN list_items li ON l.id = li.list_id
-                WHERE l.name = 'Kodi Favorites' AND l.type = 'kodi_favorites'
+                WHERE l.name = 'Kodi Favorites'
             """)
 
             total = stats.get("total", 0) if stats else 0
