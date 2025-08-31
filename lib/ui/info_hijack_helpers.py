@@ -258,20 +258,25 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
         return False
     
     if path_to_open.endswith(".xsp"):
-        # For XSP: use efficient up-then-down strategy to ensure correct item focus
-        logger.debug("HIJACK HELPER: XSP opened, using up-then-down navigation strategy")
+        # For XSP: check focused item and navigate only if needed
+        logger.debug("HIJACK HELPER: XSP opened, checking focused item")
         
-        # Strategy: Go up first (which will either stay put or move to parent "..")
-        # then go down once. This always lands on the first non-parent item.
-        xbmc.executebuiltin("Action(Up)")
-        xbmc.sleep(50)  # Minimal delay
-        xbmc.executebuiltin("Action(Down)")
-        xbmc.sleep(50)  # Minimal delay
+        current_label = xbmc.getInfoLabel('ListItem.Label')
+        current_dbid = xbmc.getInfoLabel('ListItem.DBID')
+        logger.debug(f"HIJACK HELPER: Initial focus - Label='{current_label}', DBID='{current_dbid}'")
         
-        # Verify we landed on a valid item
-        final_label = xbmc.getInfoLabel('ListItem.Label')
-        final_dbid = xbmc.getInfoLabel('ListItem.DBID')
-        logger.debug(f"HIJACK HELPER: Up-then-down result - Label='{final_label}', DBID='{final_dbid}'")
+        # Only navigate if we're on the parent ".." item
+        if current_label == ".." or not current_dbid or current_dbid == "0":
+            logger.debug("HIJACK HELPER: On parent item, navigating down to content")
+            xbmc.executebuiltin("Action(Down)")
+            xbmc.sleep(50)  # Minimal delay
+            
+            # Verify navigation result
+            final_label = xbmc.getInfoLabel('ListItem.Label')
+            final_dbid = xbmc.getInfoLabel('ListItem.DBID')
+            logger.debug(f"HIJACK HELPER: After navigation - Label='{final_label}', DBID='{final_dbid}'")
+        else:
+            logger.debug("HIJACK HELPER: Already on content item, no navigation needed")
 
     # 4) Open native Info
     logger.debug("HIJACK HELPER: Step 4 - Opening native Info dialog")
