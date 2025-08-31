@@ -107,7 +107,7 @@ class QueryManager:
             return True
 
         try:
-            self.logger.info("Initializing SQLite data layer")
+            self.logger.debug("Initializing SQLite data layer")
 
             # Apply migrations to ensure schema is up to date
             self.migration_manager.ensure_initialized()
@@ -116,7 +116,7 @@ class QueryManager:
             self._ensure_default_list()
 
             self._initialized = True
-            self.logger.info("Data layer initialization complete")
+            self.logger.debug("Data layer initialization complete")
             return True
 
         except Exception as e:

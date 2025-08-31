@@ -29,7 +29,7 @@ class MigrationManager:
                 self._set_schema_version(9)
                 self.logger.info("Database initialized with complete schema")
             else:
-                self.logger.info(f"Database already initialized at version {current_version}")
+                self.logger.debug(f"Database already initialized at version {current_version}")
 
         except Exception as e:
             self.logger.error(f"Database initialization failed: {e}")

@@ -33,7 +33,7 @@ class StorageManager:
                     raise RuntimeError(f"Failed to create addon profile directory: {profile_dir}")
 
             db_path = os.path.join(profile_dir, 'librarygenie.db')
-            self.logger.info(f"Using Kodi addon profile database path: {db_path}")
+            self.logger.debug(f"Using Kodi addon profile database path: {db_path}")
             return db_path
 
         except Exception as e:
