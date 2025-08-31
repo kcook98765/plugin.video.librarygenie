@@ -116,9 +116,11 @@ class MigrationManager:
                     writer TEXT,
                     cast TEXT,
                     art TEXT,
+                    file_path TEXT,
                     normalized_path TEXT,
                     is_removed INTEGER DEFAULT 0,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
                 )
             """)
 
@@ -336,10 +338,10 @@ class MigrationManager:
                     is_missing INTEGER DEFAULT 0,
                     present INTEGER DEFAULT 1,
                     thumb_ref TEXT,
-                    first_seen TEXT DEFAULT (datetime('now')),
-                    last_seen TEXT DEFAULT (datetime('now')),
-                    created_at TEXT DEFAULT (datetime('now')),
-                    updated_at TEXT DEFAULT (datetime('now')),
+                    first_seen TEXT NOT NULL DEFAULT (datetime('now')),
+                    last_seen TEXT NOT NULL DEFAULT (datetime('now')),
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
                     FOREIGN KEY (library_movie_id) REFERENCES media_items (id)
                 )
             """)

@@ -76,9 +76,11 @@ The unified table for storing all media content metadata.
 | `writer` | TEXT | Writer information |
 | `cast` | TEXT | Cast information (JSON) |
 | `art` | TEXT | Additional artwork (JSON) |
+| `file_path` | TEXT | Original file path |
 | `normalized_path` | TEXT | Normalized file path for matching |
 | `is_removed` | INTEGER | Flag indicating if item was removed (0/1) |
 | `created_at` | TEXT | Creation timestamp |
+| `updated_at` | TEXT | Last update timestamp |
 
 ---
 
