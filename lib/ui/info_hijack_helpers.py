@@ -22,7 +22,7 @@ def _log(message: str, level: int = xbmc.LOGINFO) -> None:
     elif level == xbmc.LOGERROR:
         logger.error(f"[InfoHijack] {message}")
     else:
-        logger.info(f"[InfoHijack] {message}")
+        logger.debug(f"[InfoHijack] {message}")
 
 def prewarm_smb(movie_url):
     """
@@ -142,7 +142,7 @@ def focus_list(control_id: int = None, tries: int = 20, step_ms: int = 30) -> bo
         xbmc.executebuiltin(f"SetFocus({control_id})")
         if xbmc.getCondVisibility(f"Control.HasFocus({control_id})"):
             t_focus_end = time.perf_counter()
-            _log(f"Successfully focused control {control_id} on attempt {attempt + 1} (took {t_focus_end - t_focus_start:.3f}s)", xbmc.LOGINFO)
+            _log(f"Successfully focused control {control_id} on attempt {attempt + 1} (took {t_focus_end - t_focus_start:.3f}s)")
             return True
         xbmc.sleep(step_ms)
     
@@ -157,12 +157,12 @@ def focus_list(control_id: int = None, tries: int = 20, step_ms: int = 30) -> bo
 
     for alt_id in alternative_ids:
         t_alt_start = time.perf_counter()
-        _log(f"Trying alternative control ID {alt_id}", xbmc.LOGINFO)
+        _log(f"Trying alternative control ID {alt_id}")
         for attempt in range(5):  # Fewer tries per alternative
             xbmc.executebuiltin(f"SetFocus({alt_id})")
             if xbmc.getCondVisibility(f"Control.HasFocus({alt_id})"):
                 t_focus_end = time.perf_counter()
-                _log(f"Successfully focused alternative control {alt_id} on attempt {attempt + 1} (took {t_focus_end - t_focus_start:.3f}s total, {t_focus_end - t_alt_start:.3f}s for this alt)", xbmc.LOGINFO)
+                _log(f"Successfully focused alternative control {alt_id} on attempt {attempt + 1} (took {t_focus_end - t_focus_start:.3f}s total, {t_focus_end - t_alt_start:.3f}s for this alt)")
                 return True
             xbmc.sleep(step_ms)
         t_alt_end = time.perf_counter()
@@ -187,19 +187,19 @@ def _get_file_for_dbitem(dbtype: str, dbid: int) -> Optional[str]:
         data = jsonrpc("VideoLibrary.GetMovieDetails", {"movieid": int(dbid), "properties": ["file"]})
         md = (data.get("result") or {}).get("moviedetails") or {}
         file_path = md.get("file")
-        _log(f"Movie {dbid} file path: {file_path}", xbmc.LOGINFO)
+        _log(f"Movie {dbid} file path: {file_path}")
         return file_path
     elif dbtype == "episode":
         data = jsonrpc("VideoLibrary.GetEpisodeDetails", {"episodeid": int(dbid), "properties": ["file"]})
         md = (data.get("result") or {}).get("episodedetails") or {}
         file_path = md.get("file")
-        _log(f"Episode {dbid} file path: {file_path}", xbmc.LOGINFO)
+        _log(f"Episode {dbid} file path: {file_path}")
         return file_path
     elif dbtype == "musicvideo":
         data = jsonrpc("VideoLibrary.GetMusicVideoDetails", {"musicvideoid": int(dbid), "properties": ["file"]})
         md = (data.get("result") or {}).get("musicvideodetails") or {}
         file_path = md.get("file")
-        _log(f"MusicVideo {dbid} file path: {file_path}", xbmc.LOGINFO)
+        _log(f"MusicVideo {dbid} file path: {file_path}")
         return file_path
     elif dbtype == "tvshow":
         # tvshow has multiple files; we'll still open its videodb node below.
@@ -215,7 +215,7 @@ def _create_xsp_for_file(dbtype: str, dbid: int) -> Optional[str]:
     filename = os.path.basename(fp)
     # Remove file extension for XSP matching
     filename_no_ext = os.path.splitext(filename)[0]
-    _log(f"Creating XSP for {dbtype} {dbid}: filename='{filename}', no_ext='{filename_no_ext}', full_path='{fp}'", xbmc.LOGINFO)
+    _log(f"Creating XSP for {dbtype} {dbid}: filename='{filename}', no_ext='{filename_no_ext}', full_path='{fp}'")
 
     name = f"LG Native Info {dbtype} {dbid}"
 
@@ -239,7 +239,7 @@ def _create_xsp_for_file(dbtype: str, dbid: int) -> Optional[str]:
     # Ensure playlists directory exists
     try:
         if not xbmcvfs.exists(playlists_dir):
-            _log(f"Creating playlists directory: {playlists_dir}", xbmc.LOGINFO)
+            _log(f"Creating playlists directory: {playlists_dir}")
             xbmcvfs.mkdirs(playlists_dir)
     except Exception as e:
         _log(f"Failed to create playlists directory: {e}", xbmc.LOGWARNING)
@@ -247,10 +247,10 @@ def _create_xsp_for_file(dbtype: str, dbid: int) -> Optional[str]:
         path = f"special://temp/{xsp_filename}"
 
     # Log the raw XSP content for debugging
-    _log(f"XSP RAW CONTENT for {dbtype} {dbid}:\n{xsp}", xbmc.LOGINFO)
+    _log(f"XSP RAW CONTENT for {dbtype} {dbid}:\n{xsp}")
 
     if _write_text(path, xsp):
-        _log(f"XSP created successfully: {path} (filename='{filename}')", xbmc.LOGINFO)
+        _log(f"XSP created successfully: {path} (filename='{filename}')")
         return path
     else:
         _log(f"Failed to write XSP file: {path}", xbmc.LOGWARNING)
@@ -265,7 +265,7 @@ def _find_index_in_dir_by_file(directory: str, target_file: Optional[str]) -> in
         "properties": ["file", "title", "thumbnail"]
     })
     items = (data.get("result") or {}).get("files") or []
-    _log(f"XSP directory items count: {len(items)}", xbmc.LOGINFO)
+    _log(f"XSP directory items count: {len(items)}")
 
     if not items:
         _log("No items found in XSP directory", xbmc.LOGWARNING)
@@ -274,10 +274,10 @@ def _find_index_in_dir_by_file(directory: str, target_file: Optional[str]) -> in
     # Simple logic: if first item is ".." parent, use index 1 (the movie)
     # Otherwise use index 0
     if len(items) >= 2 and items[0].get("file", "").endswith(".."):
-        _log("XSP has parent item, using index 1 for movie", xbmc.LOGINFO)
+        _log("XSP has parent item, using index 1 for movie")
         return 1
     else:
-        _log("XSP has no parent item, using index 0 for movie", xbmc.LOGINFO)
+        _log("XSP has no parent item, using index 0 for movie")
         return 0
 
 def _wait_videos_on(path: str, timeout_ms=6000) -> bool:

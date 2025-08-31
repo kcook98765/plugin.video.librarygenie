@@ -42,14 +42,14 @@ class InfoHijackManager:
         dbid = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBID)') or xbmc.getInfoLabel('ListItem.DBID')
         dbtype = (xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBType)') or xbmc.getInfoLabel('ListItem.DBTYPE') or '').lower()
         
-        self._logger.info(f"HIJACK: 🎯 TRIGGERED for armed item - DBID={dbid}, DBType={dbtype}")
+        self._logger.debug(f"HIJACK: 🎯 TRIGGERED for armed item - DBID={dbid}, DBType={dbtype}")
         
         if not dbid or not dbtype:
             self._logger.warning(f"HIJACK: Missing data - DBID={dbid}, DBType={dbtype}")
             return
 
         self._in_progress = True
-        self._logger.info(f"HIJACK: 🚀 Starting hijack process for {dbtype} {dbid}")
+        self._logger.debug(f"HIJACK: 🚀 Starting hijack process for {dbtype} {dbid}")
         
         try:
             orig_path = xbmc.getInfoLabel('Container.FolderPath') or ''
@@ -57,7 +57,7 @@ class InfoHijackManager:
             
             ok = open_native_info(dbtype, int(dbid), self._logger, orig_path)
             if ok:
-                self._logger.info(f"HIJACK: ✅ Successfully opened native info for {dbtype} {dbid}")
+                self._logger.debug(f"HIJACK: ✅ Successfully opened native info for {dbtype} {dbid}")
             else:
                 self._logger.warning(f"HIJACK: ❌ Failed to open native info for {dbtype} {dbid}")
         except Exception as e:
