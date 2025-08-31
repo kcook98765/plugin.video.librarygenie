@@ -1,6 +1,7 @@
+
 # LibraryGenie Database Schema
 
-This document describes the SQLite database schema used by LibraryGenie for storing lists, folders, and media references.
+This document describes the SQLite database schema used by LibraryGenie for storing lists, folders, media references, and Kodi favorites.
 
 ---
 
@@ -86,6 +87,8 @@ Core metadata entries for movies, episodes, music videos, or external items. For
 Indexes:
 - INDEX on `imdbnumber`.
 - INDEX on `(media_type, kodi_id)`.
+- INDEX on `title COLLATE NOCASE`.
+- INDEX on `year`.
 
 ---
 
@@ -106,6 +109,64 @@ Constraints:
 
 ---
 
+### `kodi_favorite`
+Stores Kodi favorites with mapping to library movies.
+
+| Column                 | Type    | Notes |
+|------------------------|---------|-------|
+| `id`                   | INTEGER | PRIMARY KEY AUTOINCREMENT |
+| `name`                 | TEXT    | NOT NULL - favorite display name |
+| `normalized_path`      | TEXT    | Normalized path for matching |
+| `original_path`        | TEXT    | Original path from favorites |
+| `favorite_type`        | TEXT    | Type classification |
+| `target_raw`           | TEXT    | NOT NULL - raw target data |
+| `target_classification`| TEXT    | NOT NULL - classification result |
+| `normalized_key`       | TEXT    | NOT NULL UNIQUE - normalized identifier |
+| `library_movie_id`     | INTEGER | FK → media_items.id (nullable) |
+| `is_mapped`            | INTEGER | DEFAULT 0 - whether mapped to library |
+| `is_missing`           | INTEGER | DEFAULT 0 - whether target is missing |
+| `present`              | INTEGER | DEFAULT 1 - whether favorite is active |
+| `thumb_ref`            | TEXT    | Thumbnail reference |
+| `first_seen`           | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP |
+| `last_seen`            | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP |
+| `created_at`           | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP |
+| `updated_at`           | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP |
+
+Constraints:
+- FOREIGN KEY (library_movie_id) REFERENCES media_items (id)
+
+Indexes:
+- INDEX on `normalized_key`.
+- INDEX on `library_movie_id`.
+- INDEX on `is_mapped`.
+- INDEX on `present`.
+
+---
+
+### `favorites_scan_log`
+Records favorites scan operations and their results.
+
+| Column             | Type    | Notes |
+|--------------------|---------|-------|
+| `id`               | INTEGER | PRIMARY KEY AUTOINCREMENT |
+| `scan_type`        | TEXT    | NOT NULL - type of scan performed |
+| `file_path`        | TEXT    | NOT NULL - path to favorites file |
+| `file_modified`    | TEXT    | File modification timestamp |
+| `items_found`      | INTEGER | DEFAULT 0 - favorites found in file |
+| `items_mapped`     | INTEGER | DEFAULT 0 - favorites mapped to library |
+| `items_added`      | INTEGER | DEFAULT 0 - new favorites added |
+| `items_updated`    | INTEGER | DEFAULT 0 - existing favorites updated |
+| `scan_duration_ms` | INTEGER | DEFAULT 0 - scan duration in milliseconds |
+| `success`          | INTEGER | DEFAULT 1 - whether scan succeeded |
+| `error_message`    | TEXT    | Error message if scan failed |
+| `created_at`       | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP |
+
+Indexes:
+- INDEX on `file_path`.
+- INDEX on `created_at`.
+
+---
+
 ### `movie_heavy_meta`
 Extended metadata for movies/episodes.
 
@@ -121,6 +182,50 @@ Extended metadata for movies/episodes.
 | `uniqueid_json`| TEXT    | JSON |
 | `tags_json`    | TEXT    | JSON |
 | `updated_at`   | TEXT    | |
+
+---
+
+### `search_history`
+Stores search query history and performance metrics.
+
+| Column               | Type    | Notes |
+|----------------------|---------|-------|
+| `id`                 | INTEGER | PRIMARY KEY AUTOINCREMENT |
+| `query_text`         | TEXT    | NOT NULL - search query |
+| `scope_type`         | TEXT    | NOT NULL DEFAULT 'library' |
+| `scope_id`           | INTEGER | Scope identifier |
+| `year_filter`        | TEXT    | Year filter applied |
+| `sort_method`        | TEXT    | NOT NULL DEFAULT 'title_asc' |
+| `include_file_path`  | INTEGER | NOT NULL DEFAULT 0 |
+| `result_count`       | INTEGER | NOT NULL DEFAULT 0 |
+| `search_duration_ms` | INTEGER | NOT NULL DEFAULT 0 |
+| `created_at`         | TEXT    | NOT NULL DEFAULT (datetime('now')) |
+
+---
+
+### `search_preferences`
+Stores user search preferences.
+
+| Column             | Type    | Notes |
+|--------------------|---------|-------|
+| `id`               | INTEGER | PRIMARY KEY AUTOINCREMENT |
+| `preference_key`   | TEXT    | NOT NULL UNIQUE |
+| `preference_value` | TEXT    | NOT NULL |
+| `created_at`       | TEXT    | NOT NULL DEFAULT (datetime('now')) |
+| `updated_at`       | TEXT    | NOT NULL DEFAULT (datetime('now')) |
+
+---
+
+### `ui_preferences`
+Stores UI-related user preferences.
+
+| Column             | Type    | Notes |
+|--------------------|---------|-------|
+| `id`               | INTEGER | PRIMARY KEY AUTOINCREMENT |
+| `preference_key`   | TEXT    | NOT NULL UNIQUE |
+| `preference_value` | TEXT    | NOT NULL |
+| `created_at`       | TEXT    | NOT NULL DEFAULT (datetime('now')) |
+| `updated_at`       | TEXT    | NOT NULL DEFAULT (datetime('now')) |
 
 ---
 
@@ -235,6 +340,7 @@ Indexes:
 - One-to-many: folders → lists.  
 - One-to-many: lists → list_items → media_items.  
 - One-to-one/many: media_items ↔ movie_heavy_meta.  
+- One-to-many: media_items ← kodi_favorite (via library_movie_id).
 - Many-to-many mapping: imdb_to_kodi.  
 
 ---
@@ -244,3 +350,5 @@ Indexes:
 - IMDb is the primary identifier for portability.  
 - All fallbacks (TMDb, title/year, season/episode, artist/track) are secondary.  
 - Schema designed for **resilience** (recovery after Kodi crash, portable export/import).
+- Kodi favorites are mapped to media_items via library_movie_id for integration with lists.
+- The main table for media storage is `media_items`, not `library_movie`.
