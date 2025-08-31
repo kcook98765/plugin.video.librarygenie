@@ -2,7 +2,6 @@
 
 LibraryGenie is a Kodi addon that provides advanced, flexible list and folder management with disaster recovery, portability, and intelligent media matching. It supports mixed content types, portable exports, and optional integration with external services.
 
-
 ---
 
 ## Overview
