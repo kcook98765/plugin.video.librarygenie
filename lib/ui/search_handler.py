@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Dict, Any, List
 
+import xbmc
 import xbmcgui
 import xbmcaddon
 import xbmcplugin
@@ -34,9 +35,21 @@ class SearchHandler:
         self._remote_fallback_notified = False
         self.query_manager = get_query_manager()
         self.addon_id = xbmcaddon.Addon().getAddonInfo('id')
+        self._search_in_progress = False
 
     def prompt_and_show(self):
         """Prompt user for search query and show results"""
+        # Prevent overlapping search prompts (e.g., during info hijack operations)
+        if self._search_in_progress:
+            self.logger.warning("Search already in progress, ignoring duplicate prompt request")
+            return
+            
+        # Check if video info dialog is active - don't interrupt it
+        if xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)'):
+            self.logger.info("Video info dialog is active, skipping search prompt to avoid overlay")
+            return
+            
+        self._search_in_progress = True
         self.logger.info("Starting search prompt flow")
 
         try:
@@ -86,6 +99,8 @@ class SearchHandler:
                 addon.getLocalizedString(35022),
                 xbmcgui.NOTIFICATION_ERROR
             )
+        finally:
+            self._search_in_progress = False
 
     def _get_search_type_preference(self):
         """
