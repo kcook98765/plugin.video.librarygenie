@@ -377,7 +377,21 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
 
     # 5) Replace underlying container back to the original path (so Back works)
     if orig_path:
-        xbmc.executebuiltin(f'Container.Update("{orig_path}",replace)')
+        # If original path was a plugin path, restore to a safe library location instead
+        if orig_path.startswith('plugin://'):
+            # Restore to Movies library root to prevent plugin errors on back navigation
+            if dbtype == "movie":
+                safe_path = "videodb://movies/titles/"
+            elif dbtype == "episode":
+                safe_path = "videodb://tvshows/titles/"
+            else:
+                safe_path = "videodb://movies/titles/"
+            
+            _log(f"Replacing plugin path '{orig_path}' with safe library path '{safe_path}'")
+            xbmc.executebuiltin(f'Container.Update("{safe_path}",replace)')
+        else:
+            # Original path is already a library path, safe to restore
+            xbmc.executebuiltin(f'Container.Update("{orig_path}",replace)')
     
     return True
 
