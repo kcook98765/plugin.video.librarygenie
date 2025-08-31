@@ -327,6 +327,57 @@ class MigrationManager:
                 VALUES ('Search History', NULL)
             """)
 
+            # Add favorites tables
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS kodi_favorite (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    normalized_path TEXT,
+                    original_path TEXT,
+                    favorite_type TEXT,
+                    target_raw TEXT NOT NULL,
+                    target_classification TEXT NOT NULL,
+                    normalized_key TEXT NOT NULL UNIQUE,
+                    library_movie_id INTEGER,
+                    is_mapped INTEGER DEFAULT 0,
+                    is_missing INTEGER DEFAULT 0,
+                    present INTEGER DEFAULT 1,
+                    thumb_ref TEXT,
+                    first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (library_movie_id) REFERENCES library_movie (id)
+                );
+            """)
+
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS favorites_scan_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    scan_type TEXT NOT NULL,
+                    file_path TEXT NOT NULL,
+                    file_modified TEXT,
+                    items_found INTEGER DEFAULT 0,
+                    items_mapped INTEGER DEFAULT 0,
+                    items_added INTEGER DEFAULT 0,
+                    items_updated INTEGER DEFAULT 0,
+                    scan_duration_ms INTEGER DEFAULT 0,
+                    success INTEGER DEFAULT 1,
+                    error_message TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_kodi_favorite_normalized_key ON kodi_favorite(normalized_key);
+                CREATE INDEX IF NOT EXISTS idx_kodi_favorite_library_movie_id ON kodi_favorite(library_movie_id);
+                CREATE INDEX IF NOT EXISTS idx_kodi_favorite_is_mapped ON kodi_favorite(is_mapped);
+                CREATE INDEX IF NOT EXISTS idx_kodi_favorite_present ON kodi_favorite(present);
+                CREATE INDEX IF NOT EXISTS idx_favorites_scan_log_file_path ON favorites_scan_log(file_path);
+                CREATE INDEX IF NOT EXISTS idx_favorites_scan_log_created_at ON favorites_scan_log(created_at);
+            """)
+
+
             # No default lists - users will create their own
 
     def _migrate_to_unified_lists(self):
