@@ -279,8 +279,18 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
         path_to_open = f"videodb://tvshows/titles/{int(dbid)}"
         target_file = None
         logger.info(f"HIJACK HELPER: Using videodb path for tvshow: {path_to_open}")
+    elif dbtype == "movie":
+        # Try direct videodb path for movies first
+        path_to_open = f"videodb://movies/titles/{int(dbid)}"
+        target_file = None
+        logger.info(f"HIJACK HELPER: Attempting direct videodb path for movie: {path_to_open}")
+    elif dbtype == "episode":
+        # Episodes need special handling - try their direct path
+        path_to_open = f"videodb://tvshows/titles/-1/-1/{int(dbid)}"
+        target_file = None
+        logger.info(f"HIJACK HELPER: Using videodb path for episode: {path_to_open}")
     else:
-        # Use XSP for items with files (movies, episodes, musicvideos)
+        # Fallback to XSP for other types (musicvideos, etc.)
         xsp = _create_xsp_for_file(dbtype, dbid)
         if not xsp:
             logger.warning(f"HIJACK HELPER: XSP creation failed for {dbtype} {dbid}")
@@ -292,16 +302,8 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
 
     # 2) Show the directory in Videos
     logger.info(f"HIJACK HELPER: Step 2 - Opening Videos window with path: {path_to_open}")
-    
-    if path_to_open.endswith('.xsp'):
-        # For XSP files, use ReplaceWindow to avoid adding to navigation stack
-        # This prevents the XSP from showing when user presses Back from info dialog
-        xbmc.executebuiltin(f'ReplaceWindow(Videos,"{path_to_open}")')
-        logger.debug("HIJACK HELPER: Used ReplaceWindow for XSP to avoid navigation stack pollution")
-    else:
-        # For direct videodb paths, use ActivateWindow with return
-        xbmc.executebuiltin(f'ActivateWindow(Videos,"{path_to_open}",return)')
-        logger.debug("HIJACK HELPER: Used ActivateWindow with return for videodb path")
+    xbmc.executebuiltin(f'ActivateWindow(Videos,"{path_to_open}",return)')
+    logger.debug(f"HIJACK HELPER: Used ActivateWindow with return parameter")
 
     if not _wait_videos_on(path_to_open, timeout_ms=8000):
         logger.warning("HIJACK HELPER: ⏰ Timed out opening native container")
