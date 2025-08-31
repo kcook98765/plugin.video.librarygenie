@@ -253,10 +253,15 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
     """
     Close current dialog (already open on plugin item), navigate to a native
     library context (XSP by file for items with a file; videodb node for tvshow),
-    focus row, open Info, then immediately restore underlying container to orig_path.
+    focus row, open Info. Uses 'return' parameter to preserve navigation stack.
     """
     logger.info(f"HIJACK HELPER: 🎬 Starting native info process for {dbtype} {dbid}")
     logger.debug(f"HIJACK HELPER: Original path: {orig_path}")
+    
+    # Log current navigation state for debugging
+    current_window = xbmc.getInfoLabel("System.CurrentWindow")
+    current_container = xbmc.getInfoLabel("Container.FolderPath")
+    logger.debug(f"HIJACK HELPER: Pre-hijack state - Window: {current_window}, Container: {current_container}")
 
     # 1) Close the plugin's Info dialog
     logger.debug("HIJACK HELPER: Step 1 - Closing plugin Info dialog")
@@ -331,12 +336,10 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
         return False
     logger.info("HIJACK HELPER: ✅ Native Info dialog opened")
 
-    # 5) Replace underlying container back to the original path (so Back works)
-    if orig_path:
-        logger.debug(f"HIJACK HELPER: Step 5 - Restoring original container: {orig_path}")
-        xbmc.executebuiltin(f'Container.Update("{orig_path}",replace)')
-    else:
-        logger.debug("HIJACK HELPER: No original path to restore")
+    # 5) DO NOT replace container - let natural Back behavior work
+    # The "return" parameter in ActivateWindow ensures Back will pop the Videos window
+    # and return to the original plugin list naturally
+    logger.debug("HIJACK HELPER: Hijack complete - letting natural Back navigation work")
 
     logger.info(f"HIJACK HELPER: 🎉 Successfully completed hijack for {dbtype} {dbid}")
     return True
@@ -389,7 +392,7 @@ def open_movie_info(dbid: int, movie_url: str = None, xsp_path: str = None) -> b
             _log(f"✅ Native Info dialog opened "
                  f"(open_window {(t_focus0 - t1):.3f}s, focus {(t_focus1 - t_focus0):.3f}s, "
                  f"dialog_wait {(t_dialog1 - t_dialog0):.3f}s, total {(t_dialog1 - t_total0):.3f}s)")
-            _log(f"🎉 Successfully completed hijack for movie {dbid}")
+            _log(f"🎉 Successfully completed hijack for movie {dbid} - Back navigation preserved")
             return True
         else:
             _log(f"❌ Failed to open native info for movie {dbid} "
