@@ -280,22 +280,40 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
         target_file = None
         logger.info(f"HIJACK HELPER: Using videodb path for tvshow: {path_to_open}")
     elif dbtype == "movie":
-        # Try direct videodb path for movies first
-        path_to_open = f"videodb://movies/titles/{int(dbid)}"
-        target_file = None
-        logger.info(f"HIJACK HELPER: Attempting direct videodb path for movie: {path_to_open}")
+        # Try direct videodb path for movies - test if it works
+        test_path = f"videodb://movies/titles/{int(dbid)}"
+        logger.info(f"HIJACK HELPER: Testing direct videodb path for movie: {test_path}")
+        
+        # Test by trying to get directory info
+        data = jsonrpc("Files.GetDirectory", {"directory": test_path, "media": "video"})
+        items = (data.get("result") or {}).get("files") or []
+        
+        if items:
+            # Direct path works
+            path_to_open = test_path
+            target_file = None
+            logger.info(f"HIJACK HELPER: ✅ Direct videodb path works for movie {dbid}, using: {path_to_open}")
+        else:
+            # Direct path failed, use XSP fallback
+            logger.info(f"HIJACK HELPER: ❌ Direct videodb path failed for movie {dbid}, falling back to XSP")
+            xsp = _create_xsp_for_file(dbtype, dbid)
+            if not xsp:
+                logger.warning(f"HIJACK HELPER: XSP creation failed for {dbtype} {dbid}")
+                return False
+            path_to_open = xsp
+            target_file = _get_file_for_dbitem(dbtype, dbid)
+            logger.info(f"HIJACK HELPER: Using XSP fallback: {path_to_open}")
     elif dbtype == "episode":
         # Episodes need special handling - try their direct path
         path_to_open = f"videodb://tvshows/titles/-1/-1/{int(dbid)}"
         target_file = None
         logger.info(f"HIJACK HELPER: Using videodb path for episode: {path_to_open}")
     else:
-        # Fallback to XSP for other types (musicvideos, etc.)
+        # XSP for other types (musicvideos, etc.)
         xsp = _create_xsp_for_file(dbtype, dbid)
         if not xsp:
             logger.warning(f"HIJACK HELPER: XSP creation failed for {dbtype} {dbid}")
             return False
-
         path_to_open = xsp
         target_file = _get_file_for_dbitem(dbtype, dbid)
         logger.info(f"HIJACK HELPER: Using XSP path: {path_to_open}")
