@@ -273,7 +273,7 @@ class Phase4FavoritesManager:
                 FROM lists l
                 JOIN list_items li ON l.id = li.list_id
                 JOIN media_items mi ON li.media_item_id = mi.id
-                WHERE l.name = 'Kodi Favorites' AND l.type = 'kodi_favorites'
+                WHERE l.name = 'Kodi Favorites'
                 ORDER BY li.position, mi.title
             """
 
