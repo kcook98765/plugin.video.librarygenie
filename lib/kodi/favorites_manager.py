@@ -325,22 +325,24 @@ class Phase4FavoritesManager:
 
             with self.conn_manager.transaction() as conn:
                 for favorite_id in favorite_ids:
-                    # Get favorite and verify it's mapped
+                    # Get favorite from unified lists (Kodi Favorites list)
                     favorite = conn.execute("""
-                        SELECT kf.library_movie_id, kf.name, kf.is_mapped, kf.present
-                        FROM kodi_favorite kf
-                        WHERE kf.id = ? AND kf.is_mapped = 1 AND kf.present = 1
+                        SELECT li.media_item_id, mi.title
+                        FROM lists l
+                        JOIN list_items li ON l.id = li.list_id
+                        JOIN media_items mi ON li.media_item_id = mi.id
+                        WHERE l.name = 'Kodi Favorites' AND li.id = ?
                     """, [favorite_id]).fetchone()
 
-                    if not favorite or not favorite["library_movie_id"]:
+                    if not favorite or not favorite["media_item_id"]:
                         skipped_count += 1
                         continue
 
-                    # Check if already in list
+                    # Check if already in target list
                     existing = conn.execute("""
-                        SELECT id FROM list_item
-                        WHERE list_id = ? AND library_movie_id = ?
-                    """, [list_id, favorite["library_movie_id"]]).fetchone()
+                        SELECT id FROM list_items
+                        WHERE list_id = ? AND media_item_id = ?
+                    """, [list_id, favorite["media_item_id"]]).fetchone()
 
                     if existing:
                         skipped_count += 1
@@ -348,9 +350,9 @@ class Phase4FavoritesManager:
 
                     # Add to list
                     conn.execute("""
-                        INSERT INTO list_item (list_id, library_movie_id, title, created_at)
-                        VALUES (?, ?, ?, datetime('now'))
-                    """, [list_id, favorite["library_movie_id"], favorite["name"]])
+                        INSERT INTO list_items (list_id, media_item_id, created_at)
+                        VALUES (?, ?, datetime('now'))
+                    """, [list_id, favorite["media_item_id"]])
 
                     added_count += 1
 
