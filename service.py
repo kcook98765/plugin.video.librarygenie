@@ -171,6 +171,29 @@ class BackgroundService:
         except Exception as e:
             self.logger.error(f"Initial setup failed: {e}")
 
+    def _initial_favorites_scan(self):
+        """Perform initial favorites scan on service startup"""
+        try:
+            from lib.kodi.favorites_manager import get_phase4_favorites_manager
+
+            favorites_manager = get_phase4_favorites_manager()
+            result = favorites_manager.scan_favorites()
+
+            if result.get("success"):
+                items_found = result.get("items_found", 0)
+                items_mapped = result.get("items_mapped", 0)
+
+                if items_found > 0:
+                    self.logger.info(f"Initial favorites scan: {items_mapped}/{items_found} favorites mapped to library")
+                else:
+                    self.logger.debug("No favorites found during initial scan")
+            else:
+                self.logger.warning(f"Initial favorites scan failed: {result.get('message', 'Unknown error')}")
+
+        except Exception as e:
+            self.logger.debug(f"Favorites scan not available: {e}")
+
+
     def _check_and_refresh_token_throttled(self):
         """Check and refresh authentication token if needed (throttled)"""
         try:
