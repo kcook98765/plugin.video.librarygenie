@@ -317,7 +317,7 @@ class Phase4FavoritesManager:
                        kf.favorite_type, kf.target_raw, kf.target_classification,
                        kf.is_mapped, kf.is_missing, kf.present,
                        kf.first_seen, kf.last_seen, kf.thumb_ref,
-                       mi.title as library_title, mi.year, mi.imdb_id, mi.tmdb_id,
+                       mi.title as library_title, mi.year, mi.imdbnumber as imdb_id, mi.tmdb_id,
                        kf.library_movie_id
                 FROM kodi_favorite kf
                 LEFT JOIN media_items mi ON kf.library_movie_id = mi.id
