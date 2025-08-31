@@ -1028,9 +1028,9 @@ def handle_on_select(params: dict, addon_handle: int):
         from lib.config.config_manager import get_select_pref
         import re, xbmc, xbmcplugin
 
-        logger.info(f"=== ON_SELECT HANDLER CALLED ===")
-        logger.info(f"Handling on_select with params: {params}")
-        logger.info(f"Addon handle: {addon_handle}")
+        logger.debug(f"=== ON_SELECT HANDLER CALLED ===")
+        logger.debug(f"Handling on_select with params: {params}")
+        logger.debug(f"Addon handle: {addon_handle}")
 
         dbtype = params.get("dbtype", "movie")
         dbid = int(params.get("dbid", "0"))
@@ -1049,7 +1049,7 @@ def handle_on_select(params: dict, addon_handle: int):
         except Exception:
             kodi_major = 0
 
-        logger.info(f"on_select: dbtype={dbtype}, dbid={dbid}, videodb_path={vdb}, preference={pref}, kodi_major={kodi_major}")
+        logger.debug(f"on_select: dbtype={dbtype}, dbid={dbid}, videodb_path={vdb}, preference={pref}, kodi_major={kodi_major}")
 
         if pref == "play":
             logger.info(f"Playing media: {vdb}")
@@ -1113,38 +1113,38 @@ action_handlers = {
 
 def main():
     """Main plugin entry point"""
-    
+
     # Log complete plugin invocation details at entry
     logger.debug(f"=== PLUGIN INVOCATION ===")
     logger.debug(f"Full sys.argv: {sys.argv}")
-    
+
     # Log current window and control state
     try:
         current_window = xbmc.getInfoLabel("System.CurrentWindow")
         current_control = xbmc.getInfoLabel("System.CurrentControl")
         container_path = xbmc.getInfoLabel("Container.FolderPath")
         container_label = xbmc.getInfoLabel("Container.FolderName")
-        
+
         logger.debug(f"Window state at plugin entry:")
         logger.debug(f"  Current window: {current_window}")
         logger.debug(f"  Current control: {current_control}")
         logger.debug(f"  Container path: {container_path}")
         logger.debug(f"  Container label: {container_label}")
-        
+
         # Check specific window visibility states
         myvideo_nav_visible = xbmc.getCondVisibility("Window.IsVisible(MyVideoNav.xml)")
         dialog_video_info_visible = xbmc.getCondVisibility("Window.IsVisible(DialogVideoInfo.xml)")
         dialog_video_info_active = xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)")
         keyboard_visible = xbmc.getCondVisibility("Window.IsVisible(DialogKeyboard.xml)")
-        
+
         logger.debug(f"  MyVideoNav.xml visible: {myvideo_nav_visible}")
         logger.debug(f"  DialogVideoInfo.xml visible: {dialog_video_info_visible}")
         logger.debug(f"  DialogVideoInfo.xml active: {dialog_video_info_active}")
         logger.debug(f"  DialogKeyboard.xml visible: {keyboard_visible}")
-        
+
     except Exception as e:
         logger.warning(f"Failed to log window state at plugin entry: {e}")
-    
+
     logger.debug(f"Plugin arguments: {sys.argv}")
 
     try:

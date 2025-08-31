@@ -227,7 +227,7 @@ class QueryManager:
         name = name.strip()
 
         try:
-            self.logger.info(f"Creating list '{name}' in folder {folder_id}")
+            self.logger.debug(f"Creating list '{name}' in folder {folder_id}")
 
             with self.connection_manager.transaction() as conn:
                 cursor = conn.execute("""
@@ -254,7 +254,7 @@ class QueryManager:
     def add_item_to_list(self, list_id, title, year=None, imdb_id=None, tmdb_id=None, kodi_id=None):
         """Add an item to a list using unified tables structure"""
         try:
-            self.logger.info(f"Adding '{title}' to list {list_id}")
+            self.logger.debug(f"Adding '{title}' to list {list_id}")
 
             with self.connection_manager.transaction() as conn:
                 # Create media item data
@@ -330,7 +330,7 @@ class QueryManager:
     def delete_item_from_list(self, list_id, item_id):
         """Delete an item from a list using unified tables"""
         try:
-            self.logger.info(f"Deleting item {item_id} from list {list_id}")
+            self.logger.debug(f"Deleting item {item_id} from list {list_id}")
 
             with self.connection_manager.transaction() as conn:
                 # Delete from list_items (item_id is media_item_id in unified structure)
@@ -354,7 +354,7 @@ class QueryManager:
         new_name = new_name.strip()
 
         try:
-            self.logger.info(f"Renaming list {list_id} to '{new_name}'")
+            self.logger.debug(f"Renaming list {list_id} to '{new_name}'")
 
             with self.connection_manager.transaction() as conn:
                 # Check if list exists
@@ -386,7 +386,7 @@ class QueryManager:
     def delete_list(self, list_id):
         """Delete a list and cascade delete its items using unified tables"""
         try:
-            self.logger.info(f"Deleting list {list_id}")
+            self.logger.debug(f"Deleting list {list_id}")
 
             with self.connection_manager.transaction() as conn:
                 # Check if list exists
@@ -453,7 +453,7 @@ class QueryManager:
                 return folder['id']
 
             # Create Search History folder with INSERT OR IGNORE to handle duplicates
-            self.logger.info("Creating Search History folder")
+            self.logger.debug("Creating Search History folder")
             with self.connection_manager.transaction() as conn:
                 cursor = conn.execute("""
                     INSERT OR IGNORE INTO folders (name, parent_id)
@@ -472,7 +472,7 @@ class QueryManager:
                         return None
                 else:
                     folder_id = cursor.lastrowid
-                    self.logger.info(f"Created Search History folder with ID: {folder_id}")
+                    self.logger.debug(f"Created Search History folder with ID: {folder_id}")
                     return folder_id
 
         except Exception as e:
@@ -504,7 +504,7 @@ class QueryManager:
                 """, [list_name, folder_id])
                 list_id = cursor.lastrowid
 
-                self.logger.info(f"Created search history list '{list_name}' with ID: {list_id}")
+                self.logger.debug(f"Created search history list '{list_name}' with ID: {list_id}")
                 return list_id
 
         except Exception as e:
@@ -540,7 +540,7 @@ class QueryManager:
                         self.logger.error(f"Error adding search result item: {e}")
                         continue
 
-            self.logger.info(f"Added {added_count} items to search history list {list_id}")
+            self.logger.debug(f"Added {added_count} items to search history list {list_id}")
             return added_count
 
         except Exception as e:
@@ -559,7 +559,7 @@ class QueryManager:
                 removed_count = cursor.rowcount
 
                 if removed_count > 0:
-                    self.logger.info(f"Removed {removed_count} item(s) from list {list_id}")
+                    self.logger.debug(f"Removed {removed_count} item(s) from list {list_id}")
                     return {"success": True, "removed_count": removed_count}
                 else:
                     self.logger.warning(f"No items found to remove from list {list_id} with item_id {item_id}")
@@ -677,7 +677,7 @@ class QueryManager:
                     row_dict['description'] = f"{row_dict['item_count']} items{folder_context}"
                     formatted_results.append(row_dict)
 
-                self.logger.info(f"Retrieved {len(formatted_results)} lists with folders")
+                self.logger.debug(f"Retrieved {len(formatted_results)} lists with folders")
                 return formatted_results
 
             return []
@@ -719,7 +719,7 @@ class QueryManager:
 
             # Process batch responses
             enrichment_data = {}
-            
+
             # Handle single response (when only one item in batch) vs array of responses
             if not isinstance(responses, list):
                 responses = [responses]
@@ -727,9 +727,9 @@ class QueryManager:
             for i, response in enumerate(responses):
                 if i >= len(kodi_ids):  # Safety check
                     break
-                    
+
                 kodi_id = kodi_ids[i]
-                
+
                 try:
                     if "error" in response:
                         self.logger.warning(f"Batch enrichment error for episode {kodi_id}: {response['error']}")
@@ -852,7 +852,7 @@ class QueryManager:
 
             # Process batch responses
             enrichment_data = {}
-            
+
             # Handle single response (when only one item in batch) vs array of responses
             if not isinstance(responses, list):
                 responses = [responses]
@@ -860,9 +860,9 @@ class QueryManager:
             for i, response in enumerate(responses):
                 if i >= len(kodi_ids):  # Safety check
                     break
-                    
+
                 kodi_id = kodi_ids[i]
-                
+
                 try:
                     if "error" in response:
                         self.logger.warning(f"Batch enrichment error for movie {kodi_id}: {response['error']}")
@@ -1097,7 +1097,7 @@ class QueryManager:
                 'art': json.dumps(canonical_item.get('art', {}))
             }
 
-            self.logger.info(f"Adding library item '{canonical_item['title']}' to list {list_id}")
+            self.logger.debug(f"Adding library item '{canonical_item['title']}' to list {list_id}")
 
             with self.connection_manager.transaction() as conn:
                 # Insert or get media item
@@ -1263,7 +1263,7 @@ class QueryManager:
                 """, [name, parent_id])
                 folder_id = cursor.lastrowid
 
-            self.logger.info(f"Created folder '{name}' with ID: {folder_id}")
+            self.logger.debug(f"Created folder '{name}' with ID: {folder_id}")
             return {"success": True, "folder_id": folder_id}
 
         except Exception as e:
@@ -1309,7 +1309,7 @@ class QueryManager:
                     UPDATE folders SET name = ? WHERE id = ?
                 """, [new_name, folder_id])
 
-            self.logger.info(f"Renamed folder {folder_id} from '{folder['name']}' to '{new_name}'")
+            self.logger.debug(f"Renamed folder {folder_id} from '{folder['name']}' to '{new_name}'")
             return {"success": True}
 
         except Exception as e:
@@ -1351,7 +1351,7 @@ class QueryManager:
             with self.connection_manager.transaction() as conn:
                 conn.execute("DELETE FROM folders WHERE id = ?", [folder_id])
 
-            self.logger.info(f"Deleted folder '{folder['name']}' (ID: {folder_id})")
+            self.logger.debug(f"Deleted folder '{folder['name']}' (ID: {folder_id})")
             return {"success": True}
 
         except Exception as e:
@@ -1470,7 +1470,9 @@ class QueryManager:
             self.logger.error(f"Failed to get all folders: {e}")
             return []
 
-    
+    def close(self):
+        """Close database connections"""
+        self.connection_manager.close()
 
 
 # Global query manager instance

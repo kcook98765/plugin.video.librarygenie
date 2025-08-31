@@ -25,7 +25,7 @@ class MenuBuilder:
 
     def build_menu(self, items, addon_handle, base_url):
         """Build a directory menu from items"""
-        self.logger.info(f"MENU BUILD: Starting build_menu with {len(items)} items")
+        self.logger.debug(f"MENU BUILD: Starting build_menu with {len(items)} items")
         self.logger.debug(f"MENU BUILD: addon_handle={addon_handle}, base_url='{base_url}'")
 
         successful_items = 0
@@ -44,7 +44,7 @@ class MenuBuilder:
                 failed_items += 1
                 self.logger.error(f"MENU BUILD: Failed to add menu item {idx+1}: {e}")
 
-        self.logger.info(f"MENU BUILD: Added {successful_items} menu items successfully, {failed_items} failed")
+        self.logger.debug(f"MENU BUILD: Added {successful_items} menu items successfully, {failed_items} failed")
         self.logger.debug(f"MENU BUILD: Calling endOfDirectory(handle={addon_handle}, cacheToDisc=True)")
         xbmcplugin.endOfDirectory(addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
         self.logger.debug(f"MENU BUILD: Completed endOfDirectory for menu with caching enabled")
@@ -146,7 +146,7 @@ class MenuBuilder:
 
     def build_movie_menu(self, movies: List[Dict[str, Any]], addon_handle, base_url, **options):
         """Build a menu specifically for movie items with enhanced ListItems"""
-        self.logger.info(f"MOVIE MENU: Starting build_movie_menu with {len(movies)} movies")
+        self.logger.debug(f"MOVIE MENU: Starting build_movie_menu with {len(movies)} movies")
         self.logger.debug(f"MOVIE MENU: addon_handle={addon_handle}, base_url='{base_url}', options={list(options.keys())}")
 
         # Set content type for better skin support
@@ -180,7 +180,7 @@ class MenuBuilder:
                 failed_movies += 1
                 self.logger.error(f"MOVIE MENU: Failed to add movie {idx+1}: {e}")
 
-        self.logger.info(f"MOVIE MENU: Added {successful_movies} movies successfully, {failed_movies} failed")
+        self.logger.debug(f"MOVIE MENU: Added {successful_movies} movies successfully, {failed_movies} failed")
 
         # Set view mode if specified
         view_mode = options.get('view_mode')

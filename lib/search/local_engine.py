@@ -31,10 +31,10 @@ class LocalSearchEngine:
         Returns:
             dict: {'items': [...], 'total': int, 'used_remote': False}
         """
-        self.logger.info(f"LocalSearchEngine.search() called with query='{query}', limit={limit}, offset={offset}")
+        self.logger.debug(f"LocalSearchEngine.search() called with query='{query}', limit={limit}, offset={offset}")
 
         if not query or not query.strip():
-            self.logger.info("Empty query provided, returning empty results")
+            self.logger.debug("Empty query provided, returning empty results")
             return {'items': [], 'total': 0, 'used_remote': False}
 
         query_lower = query.strip().lower()
@@ -45,7 +45,7 @@ class LocalSearchEngine:
             # Search movies first
             self.logger.debug("Starting movie search")
             movie_results = self._search_movies(query_lower, limit)
-            self.logger.info(f"Movie search returned {len(movie_results)} results")
+            self.logger.debug(f"Movie search returned {len(movie_results)} results")
             results.extend(movie_results)
 
             # If we haven't hit the limit, search episodes
@@ -53,7 +53,7 @@ class LocalSearchEngine:
             if remaining_limit > 0:
                 self.logger.debug(f"Starting episode search with remaining limit: {remaining_limit}")
                 episode_results = self._search_episodes(query_lower, remaining_limit)
-                self.logger.info(f"Episode search returned {len(episode_results)} results")
+                self.logger.debug(f"Episode search returned {len(episode_results)} results")
                 results.extend(episode_results)
             else:
                 self.logger.debug("Skipping episode search - movie results filled the limit")
@@ -68,7 +68,8 @@ class LocalSearchEngine:
                 'used_remote': False
             }
 
-            self.logger.info(f"Local search for '{query}' completed: {len(paginated_results)} paginated results, {len(results)} total matches")
+            total_matches = len(results)
+            self.logger.debug(f"Local search for '{query}' completed: {len(paginated_results)} paginated results, {total_matches} total matches")
             return final_result
 
         except Exception as e:
@@ -91,9 +92,9 @@ class LocalSearchEngine:
 
             # Split query into individual words
             words = [word.strip() for word in query_lower.split() if word.strip()]
-            
+
             if not words:
-                self.logger.info("No valid words in query, returning empty results")
+                self.logger.debug("No valid words in query, returning empty results")
                 return []
 
             # Build SQL conditions for cross-field matching
@@ -101,62 +102,62 @@ class LocalSearchEngine:
             where_conditions = []
             params = []
             title_conditions = []  # For prioritization
-            
+
             for word in words:
                 word_pattern = f"%{word.lower()}%"
                 # Each word must exist in either title OR plot (both fields converted to lowercase)
                 where_conditions.append("(LOWER(title) LIKE ? OR LOWER(COALESCE(plot, '')) LIKE ?)")
                 params.extend([word_pattern, word_pattern])
-                
+
                 # Track title matches for prioritization
                 title_conditions.append(f"LOWER(title) LIKE ?")
                 params.append(word_pattern)
 
             # All words must match somewhere across title/plot fields (AND condition)
             where_clause = " AND ".join(where_conditions)
-            
+
             # Build prioritization - count how many words match in title
-            title_match_count = " + ".join([f"CASE WHEN {cond} THEN 1 ELSE 0 END" 
+            title_match_count = " + ".join([f"CASE WHEN {cond} THEN 1 ELSE 0 END"
                                           for cond in title_conditions])
 
             sql = f"""
-                SELECT 
+                SELECT
                     kodi_id, title, year, imdbnumber as imdb_id, tmdb_id, play as file_path,
-                    poster, fanart, poster as thumb, plot, duration as runtime, rating, 
+                    poster, fanart, poster as thumb, plot, duration as runtime, rating,
                     genre, mpaa, director, 0 as playcount
-                FROM media_items 
+                FROM media_items
                 WHERE media_type = 'movie'
                 AND {where_clause}
-                ORDER BY 
+                ORDER BY
                     ({title_match_count}) DESC,
                     title
                 LIMIT ?
             """
-            
+
             params.append(limit)
-            
+
             # Debug logging - show the actual SQL and parameters
             self.logger.debug(f"Executing SQL query: {sql}")
             self.logger.debug(f"Query parameters: {params}")
-            
+
             # Also check what's actually in the database
             count_sql = "SELECT COUNT(*) as count FROM media_items WHERE media_type = 'movie'"
             total_movies = conn_manager.execute_single(count_sql, [])
             if total_movies:
                 total_count = total_movies.get('count', 0) if hasattr(total_movies, 'get') else total_movies[0]
                 self.logger.debug(f"Total movies in database: {total_count}")
-            
+
             movies = conn_manager.execute_query(sql, params)
 
             # Debug: Test individual word searches to understand what's in the database
             for word in words:
                 test_sql = """
-                    SELECT title, 
+                    SELECT title,
                            SUBSTR(COALESCE(plot, ''), 1, 100) as plot_preview,
                            CASE WHEN LOWER(title) LIKE ? THEN 'TITLE' ELSE '' END as title_match,
                            CASE WHEN LOWER(COALESCE(plot, '')) LIKE ? THEN 'PLOT' ELSE '' END as plot_match
-                    FROM media_items 
-                    WHERE media_type = 'movie' 
+                    FROM media_items
+                    WHERE media_type = 'movie'
                     AND (LOWER(title) LIKE ? OR LOWER(COALESCE(plot, '')) LIKE ?)
                     LIMIT 5
                 """
@@ -171,30 +172,30 @@ class LocalSearchEngine:
                             result_dict = dict(result)
                         else:
                             result_dict = result
-                        
+
                         title = result_dict.get('title', 'Unknown')
                         plot_preview = result_dict.get('plot_preview', '')
                         title_match = result_dict.get('title_match', '')
                         plot_match = result_dict.get('plot_match', '')
                         self.logger.debug(f"  - '{title}' | {title_match}{plot_match} | Plot: '{plot_preview}'")
 
-            self.logger.info(f"SQLite search returned {len(movies)} movies from database")
+            self.logger.debug(f"SQLite search returned {len(movies)} movies from database")
 
             if not movies:
-                self.logger.info("No movies found in SQLite database")
+                self.logger.debug("No movies found in SQLite database")
                 return []
 
             # Summary logging only
             witch_count = len([m for m in movies if 'witch' in m['title'].lower()])
             debug_msg = f"FOUND {witch_count} movies with 'witch' in title from SQLite"
-            self.logger.info(debug_msg)
+            self.logger.debug(debug_msg)
 
             results = []
             for movie in movies:
                 result = self._format_sqlite_movie_result(movie)
                 results.append(result)
 
-            self.logger.info(f"SQLite movie search completed: {len(results)} results")
+            self.logger.debug(f"SQLite movie search completed: {len(results)} results")
             return results
 
         except Exception as e:
@@ -232,6 +233,8 @@ class LocalSearchEngine:
                     if len(results) >= limit:
                         break
 
+            self.logger.debug(f"JSON-RPC VideoLibrary.GetEpisodes returned {len(episodes)} episodes")
+            self.logger.debug(f"Episode search returned {len(results)} results")
             return results
 
         except Exception as e:
@@ -394,10 +397,10 @@ class LocalSearchEngine:
             result = response.get('result', {})
             if result and method == "VideoLibrary.GetMovies":
                 movie_count = len(result.get('movies', []))
-                self.logger.info(f"JSON-RPC {method} returned {movie_count} movies")
+                self.logger.debug(f"JSON-RPC {method} returned {movie_count} movies")
             elif result and method == "VideoLibrary.GetEpisodes":
                 episode_count = len(result.get('episodes', []))
-                self.logger.info(f"JSON-RPC {method} returned {episode_count} episodes")
+                self.logger.debug(f"JSON-RPC {method} returned {episode_count} episodes")
 
             return result
 
