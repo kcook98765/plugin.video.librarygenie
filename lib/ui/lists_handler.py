@@ -366,7 +366,7 @@ class ListsHandler:
                 if str(item.get('item_id', item.get('id'))) == str(item_id):
                     item_info = item
                     break
-            
+
             if not item_info:
                 return DialogResponse(
                     success=False,
@@ -641,13 +641,25 @@ class ListsHandler:
 
                 for item in list_items:
                     try:
-                        # Build context menu for list item
-                        context_menu = [
-                            (f"Remove from '{list_info['name']}'",
-                             f"RunPlugin({context.build_url('remove_from_list', list_id=list_id, item_id=item['id'])})")
-                        ]
+                        # Ensure item has required 'id' field - use item_id if available
+                        if 'id' not in item and 'item_id' in item:
+                            item['id'] = item['item_id']
+                        elif 'id' not in item:
+                            # Skip items without proper ID
+                            context.logger.warning(f"Skipping list item without ID: {item.get('title', 'Unknown')}")
+                            continue
 
-                        # Create list item
+                        # Build context menu for item
+                        context_menu = []
+
+                        # Add context menu items
+                        if item.get('imdb_id'):
+                            context_menu.append((
+                                "Remove from List",
+                                f"RunPlugin({context.build_url('remove_from_list', list_id=list_id, item_id=item.get('item_id', item.get('id')))})"
+                            ))
+
+                        # Create list item for display
                         list_item = builder._create_list_item_from_data(item, context_menu)
 
                         # Add to directory
