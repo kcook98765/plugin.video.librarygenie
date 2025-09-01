@@ -363,7 +363,8 @@ class ListsHandler:
             items = query_manager.get_list_items(list_id)
             item_info = None
             for item in items:
-                if str(item.get('media_item_id', item.get('item_id', item.get('id')))) == str(item_id):
+                # Match using the 'id' field returned by the query
+                if str(item.get('id')) == str(item_id):
                     item_info = item
                     break
 
@@ -641,25 +642,20 @@ class ListsHandler:
 
                 for item in list_items:
                     try:
-                        # Ensure item has required 'id' field - use media_item_id from database
-                        if 'id' not in item and 'media_item_id' in item:
-                            item['id'] = item['media_item_id']
-                        elif 'id' not in item and 'item_id' in item:
-                            item['id'] = item['item_id']
-                        elif 'id' not in item:
-                            # Skip items without proper ID
+                        # The query should return 'id' field from the database
+                        # If not present, skip the item entirely
+                        if 'id' not in item:
                             context.logger.warning(f"Skipping list item without ID: {item.get('title', 'Unknown')}")
                             continue
 
                         # Build context menu for item
                         context_menu = []
 
-                        # Add context menu items
-                        if item.get('imdb_id'):
-                            context_menu.append((
-                                "Remove from List",
-                                f"RunPlugin({context.build_url('remove_from_list', list_id=list_id, item_id=item.get('media_item_id', item.get('item_id', item.get('id'))))})"
-                            ))
+                        # Add context menu items - use the 'id' field directly from query
+                        context_menu.append((
+                            "Remove from List",
+                            f"RunPlugin({context.build_url('remove_from_list', list_id=list_id, item_id=item['id'])})"
+                        ))
 
                         # Create list item for display
                         list_item = builder._create_list_item_from_data(item, context_menu)
