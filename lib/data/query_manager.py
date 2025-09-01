@@ -27,7 +27,23 @@ class QueryManager:
 
     def _normalize_to_canonical(self, item: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize any media item to canonical format"""
+        self.logger.debug(f"NORMALIZE: Input item keys: {list(item.keys())}")
+        self.logger.debug(f"NORMALIZE: Input item ID fields: id={item.get('id')}, item_id={item.get('item_id')}, media_item_id={item.get('media_item_id')}")
+        
         canonical = {}
+
+        # CRITICAL: Preserve the ID field from the database query
+        if 'id' in item:
+            canonical["id"] = item["id"]
+            self.logger.debug(f"NORMALIZE: Preserved 'id' field: {canonical['id']}")
+        elif 'item_id' in item:
+            canonical["id"] = item["item_id"]
+            self.logger.debug(f"NORMALIZE: Used 'item_id' as 'id': {canonical['id']}")
+        elif 'media_item_id' in item:
+            canonical["id"] = item["media_item_id"]
+            self.logger.debug(f"NORMALIZE: Used 'media_item_id' as 'id': {canonical['id']}")
+        else:
+            self.logger.warning(f"NORMALIZE: No ID field found in item: {item}")
 
         # Common fields
         canonical["media_type"] = item.get("media_type", item.get("type", "movie"))
@@ -99,6 +115,9 @@ class QueryManager:
             canonical["playcount"] = int(item.get("playcount", 0))
             canonical["lastplayed"] = str(item.get("lastplayed", ""))
 
+        self.logger.debug(f"NORMALIZE: Output canonical keys: {list(canonical.keys())}")
+        self.logger.debug(f"NORMALIZE: Final canonical ID: {canonical.get('id')}")
+        
         return canonical
 
     def initialize(self):
@@ -167,11 +186,13 @@ class QueryManager:
     def get_list_items(self, list_id, limit=100, offset=0):
         """Get items from a specific list with paging, normalized to canonical format"""
         try:
+            self.logger.debug(f"Getting list items for list_id={list_id}, limit={limit}, offset={offset}")
+            
             connection = self.connection_manager.get_connection()
             cursor = connection.cursor()
 
             # Use unified lists/list_items structure
-            cursor.execute("""
+            query = """
                 SELECT 
                     li.media_item_id as id,
                     li.media_item_id as item_id,
@@ -187,36 +208,60 @@ class QueryManager:
                 WHERE li.list_id = ?
                 ORDER BY li.position ASC, mi.title ASC
                 LIMIT ? OFFSET ?
-            """, (list_id, limit, offset))
-
+            """
+            
+            self.logger.debug(f"Executing query: {query}")
+            self.logger.debug(f"Query parameters: list_id={list_id}, limit={limit}, offset={offset}")
+            
+            cursor.execute(query, (list_id, limit, offset))
             rows = cursor.fetchall()
+            
+            self.logger.debug(f"Query returned {len(rows)} rows")
+            if rows:
+                self.logger.debug(f"First raw row: {rows[0]}")
+                self.logger.debug(f"Cursor description: {cursor.description}")
+            
             items = []
 
-            for row in rows:
+            for row_idx, row in enumerate(rows):
+                self.logger.debug(f"Processing row {row_idx}: {row}")
+                
                 item = self._row_to_dict(cursor, row)
+                self.logger.debug(f"Row converted to dict: {item}")
+                self.logger.debug(f"Item ID field check: 'id' in item = {'id' in item}, item.get('id') = {item.get('id')}")
 
                 # Parse JSON data if present
                 if item.get('data_json'):
                     try:
                         json_data = json.loads(item['data_json'])
+                        self.logger.debug(f"Parsed JSON data: {json_data}")
                         item.update(json_data)
-                    except json.JSONDecodeError:
-                        pass
+                    except json.JSONDecodeError as e:
+                        self.logger.warning(f"Failed to parse JSON data: {e}")
 
                 # Enrich with Kodi data if available
                 if item.get('kodi_id') and item.get('media_type') in ['movie', 'episode']:
+                    self.logger.debug(f"Enriching item with kodi_id={item.get('kodi_id')}, media_type={item.get('media_type')}")
                     enriched = self._enrich_with_kodi_data([item])
                     if enriched:
                         item = enriched[0]
+                        self.logger.debug(f"Item after enrichment: {item}")
 
                 # Normalize to canonical format
+                self.logger.debug(f"Normalizing item before canonical conversion: {item}")
                 canonical_item = self._normalize_to_canonical(item)
+                self.logger.debug(f"Item after canonical normalization: {canonical_item}")
+                self.logger.debug(f"Canonical item ID check: 'id' in canonical_item = {'id' in canonical_item}, canonical_item.get('id') = {canonical_item.get('id')}")
+                
                 items.append(canonical_item)
 
+            self.logger.debug(f"Final items list: {items}")
             return items
 
         except Exception as e:
             self.logger.error(f"Error getting list items: {e}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
             return []
 
     def create_list(self, name, description="", folder_id=None):

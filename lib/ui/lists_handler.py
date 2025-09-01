@@ -621,9 +621,17 @@ class ListsHandler:
                 )
 
             # Get list items
+            context.logger.debug(f"Getting list items from query_manager for list_id={list_id}")
             list_items = query_manager.get_list_items(list_id)
+            context.logger.debug(f"Query manager returned {len(list_items)} items")
 
             context.logger.info(f"List '{list_info['name']}' has {len(list_items)} items")
+
+            # Debug each item structure
+            for idx, item in enumerate(list_items):
+                context.logger.debug(f"HANDLER: Item {idx}: keys={list(item.keys())}")
+                context.logger.debug(f"HANDLER: Item {idx}: full item={item}")
+                context.logger.debug(f"HANDLER: Item {idx}: has 'id' field={('id' in item)}, id_value={item.get('id')}")
 
             if not list_items:
                 # Empty list
@@ -640,13 +648,24 @@ class ListsHandler:
                 from lib.ui.listitem_builder import ListItemBuilder
                 builder = ListItemBuilder(context.addon_handle, context.addon.getAddonInfo('id'))
 
-                for item in list_items:
+                for item_idx, item in enumerate(list_items):
                     try:
+                        context.logger.debug(f"HANDLER: Processing item {item_idx}: {item.get('title', 'Unknown')}")
+                        context.logger.debug(f"HANDLER: Item {item_idx} keys: {list(item.keys())}")
+                        context.logger.debug(f"HANDLER: Item {item_idx} ID fields check:")
+                        context.logger.debug(f"HANDLER:   - 'id' in item: {'id' in item}")
+                        context.logger.debug(f"HANDLER:   - item.get('id'): {item.get('id')}")
+                        context.logger.debug(f"HANDLER:   - item.get('item_id'): {item.get('item_id')}")
+                        context.logger.debug(f"HANDLER:   - item.get('media_item_id'): {item.get('media_item_id')}")
+                        
                         # The query should return 'id' field from the database
                         # If not present, skip the item entirely
                         if 'id' not in item:
-                            context.logger.warning(f"Skipping list item without ID: {item.get('title', 'Unknown')}")
+                            context.logger.warning(f"HANDLER: Skipping list item without ID: {item.get('title', 'Unknown')}")
+                            context.logger.warning(f"HANDLER: Available keys in item: {list(item.keys())}")
                             continue
+
+                        context.logger.debug(f"HANDLER: Item {item_idx} has valid ID field: {item['id']}")
 
                         # Build context menu for item
                         context_menu = []
@@ -656,6 +675,8 @@ class ListsHandler:
                             "Remove from List",
                             f"RunPlugin({context.build_url('remove_from_list', list_id=list_id, item_id=item['id'])})"
                         ))
+
+                        context.logger.debug(f"HANDLER: Building list item for '{item.get('title')}' with ID={item['id']}")
 
                         # Create list item for display
                         list_item = builder._create_list_item_from_data(item, context_menu)
@@ -668,8 +689,12 @@ class ListsHandler:
                             list_item['is_folder']
                         )
 
+                        context.logger.debug(f"HANDLER: Successfully added item {item_idx} to directory")
+
                     except Exception as e:
-                        context.logger.error(f"Error building list item: {e}")
+                        context.logger.error(f"HANDLER: Error building list item {item_idx}: {e}")
+                        import traceback
+                        context.logger.error(f"HANDLER: Traceback: {traceback.format_exc()}")
                         continue
 
             # Set content type and finish directory
@@ -689,6 +714,8 @@ class ListsHandler:
 
         except Exception as e:
             context.logger.error(f"Error viewing list: {e}")
+            import traceback
+            context.logger.error(f"Traceback: {traceback.format_exc()}")
             return DirectoryResponse(
                 items=[],
                 success=False
