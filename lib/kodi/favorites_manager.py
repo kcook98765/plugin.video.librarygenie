@@ -407,7 +407,7 @@ class Phase4FavoritesManager:
         """Get favorites from unified lists table with full metadata like normal lists"""
         try:
             with self.conn_manager.transaction() as conn:
-                # Get full media item data just like normal lists do
+                # Get full media item data matching normal list view patterns
                 favorites = conn.execute("""
                     SELECT li.id, mi.title, mi.year, mi.imdbnumber as imdb_id, mi.tmdb_id,
                            mi.kodi_id, mi.media_type, mi.poster, mi.fanart, mi.plot,
@@ -415,17 +415,11 @@ class Phase4FavoritesManager:
                            mi.studio, mi.country, mi.art, mi.mpaa,
                            mi.dateadded, mi.playcount, mi.lastplayed,
                            mi.file_path, mi.normalized_path, mi.runtime,
+                           mi.resume_position, mi.resume_total,
+                           mi.play, mi.trailer, mi.set_name, mi.sorttitle,
                            li.media_item_id as library_movie_id,
                            mi.title as name,  -- Use the library title as the favorite name
-                           -- Resume info
-                           CASE 
-                               WHEN mi.resume_position > 0 AND mi.resume_total > 0 
-                               THEN json_object(
-                                   'position_seconds', mi.resume_position,
-                                   'total_seconds', mi.resume_total
-                               )
-                               ELSE json_object('position_seconds', 0, 'total_seconds', 0)
-                           END as resume
+                           li.position
                     FROM lists l
                     JOIN list_items li ON l.id = li.list_id
                     JOIN media_items mi ON li.media_item_id = mi.id
@@ -445,19 +439,26 @@ class Phase4FavoritesManager:
                     # Add mapped status for UI
                     fav_dict['is_mapped'] = 1  # All items in this query are mapped
                     
-                    # Parse resume JSON if present
-                    if fav_dict.get('resume'):
-                        try:
-                            import json
-                            fav_dict['resume'] = json.loads(fav_dict['resume'])
-                        except (json.JSONDecodeError, TypeError):
-                            fav_dict['resume'] = {'position_seconds': 0, 'total_seconds': 0}
-                    else:
-                        fav_dict['resume'] = {'position_seconds': 0, 'total_seconds': 0}
+                    # Handle resume info like normal lists (using separate columns)
+                    resume_position = fav_dict.get('resume_position', 0) or 0
+                    resume_total = fav_dict.get('resume_total', 0) or 0
+                    
+                    fav_dict['resume'] = {
+                        'position_seconds': resume_position,
+                        'total_seconds': resume_total
+                    }
                     
                     # Ensure kodi_id is available for library integration
                     if fav_dict.get('kodi_id'):
                         fav_dict['movieid'] = fav_dict['kodi_id']  # Alternative field name
+                    
+                    # Add standard fields that normal list views expect
+                    if not fav_dict.get('media_type'):
+                        fav_dict['media_type'] = 'movie'  # Default for favorites
+                    
+                    # Ensure consistent field naming with normal lists
+                    if fav_dict.get('library_movie_id'):
+                        fav_dict['id'] = fav_dict['library_movie_id']  # Some views expect 'id'
                     
                     result.append(fav_dict)
 
