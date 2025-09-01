@@ -1145,12 +1145,12 @@ def handle_kodi_favorites(addon_handle, base_url):
         # Add each favorite
         for favorite in favorites:
             is_mapped = favorite.get('is_mapped', 0)
-            title = favorite.get('name', 'Unknown Favorite')
+            title = favorite.get('name') or favorite.get('title', 'Unknown Favorite')
 
             if is_mapped:
                 # Mapped favorite - can be played
                 display_title = f"[COLOR green]✓[/COLOR] {title}"
-                library_title = favorite.get('library_title', '')
+                library_title = favorite.get('title', '')  # Use the actual library title
                 year = favorite.get('year', '')
                 description = f"Maps to: {library_title} ({year})" if library_title else "Mapped to library"
 

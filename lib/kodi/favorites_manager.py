@@ -404,14 +404,17 @@ class Phase4FavoritesManager:
             return None
 
     def get_mapped_favorites(self, show_unmapped: bool = False) -> List[Dict]:
-        """Get favorites from unified lists table"""
+        """Get favorites from unified lists table with proper name display"""
         try:
             with self.conn_manager.transaction() as conn:
+                # For now, we'll simulate the favorite names since they were successfully matched
+                # but aren't stored in the unified lists structure yet
                 favorites = conn.execute("""
                     SELECT li.id, mi.title, mi.year, mi.imdbnumber as imdb_id, mi.tmdb_id,
                            mi.kodi_id, mi.media_type, mi.poster, mi.fanart, mi.plot,
                            mi.rating, mi.votes, mi.duration, mi.genre, mi.director,
-                           mi.studio, mi.country, mi.art, li.media_item_id as library_movie_id
+                           mi.studio, mi.country, mi.art, li.media_item_id as library_movie_id,
+                           mi.title as name  -- Use the library title as the favorite name
                     FROM lists l
                     JOIN list_items li ON l.id = li.list_id
                     JOIN media_items mi ON li.media_item_id = mi.id
@@ -419,11 +422,18 @@ class Phase4FavoritesManager:
                     ORDER BY li.position, mi.title
                 """).fetchall()
 
-                # Convert SQLite rows to dicts
+                # Convert SQLite rows to dicts and ensure we have proper name field
                 result = []
                 for fav in favorites or []:
-                    result.append(dict(fav))
+                    fav_dict = dict(fav)
+                    # Ensure we have a name field for the UI
+                    if not fav_dict.get('name'):
+                        fav_dict['name'] = fav_dict.get('title', 'Unknown Favorite')
+                    # Add mapped status for UI
+                    fav_dict['is_mapped'] = 1  # All items in this query are mapped
+                    result.append(fav_dict)
 
+                self.logger.info(f"Retrieved {len(result)} mapped favorites from unified lists")
                 return result
 
         except Exception as e:
