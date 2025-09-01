@@ -49,7 +49,15 @@ class FavoritesHandler:
                 'description': "Scan Kodi favorites file for changes"
             })
 
-            if not favorites:
+            favorites_items = []
+            if favorites:
+                # Convert favorites to the format expected by ListItemRenderer
+                from .favorites_handler import FavoritesHandler
+                handler = FavoritesHandler() # Instantiate to use helper method
+                for fav in favorites:
+                    favorites_items.append(handler._convert_favorite_to_list_item_data(fav))
+
+            if not favorites_items:
                 # No favorites found
                 empty_item = xbmcgui.ListItem(label="[COLOR gray]No favorites found[/COLOR]")
                 empty_item.setInfo('video', {'plot': 'No Kodi favorites found or none mapped to library'})
@@ -59,34 +67,7 @@ class FavoritesHandler:
                     empty_item,
                     False
                 )
-            else:
-                # Use the exact same rendering logic as normal lists
-                from lib.ui.listitem_builder import ListItemBuilder
-                builder = ListItemBuilder(context.addon_handle, context.addon.getAddonInfo('id'))
-
-                # Define context menu callback for favorites
-                def add_favorites_context_menu(listitem, item):
-                    """Add context menu items specific to favorites"""
-                    context_menu = []
-                    addon_id = context.addon.getAddonInfo('id')
-                    
-                    context_menu.append((
-                        "Add to List",
-                        f"RunPlugin(plugin://{addon_id}/?action=add_to_list_menu&media_item_id={item['id']})"
-                    ))
-                    context_menu.append((
-                        "Remove from Favorites",
-                        f"RunPlugin(plugin://{addon_id}/?action=remove_from_kodi_favorites&favorite_id={item['id']})"
-                    ))
-                    
-                    listitem.addContextMenuItems(context_menu)
-
-                # Use the unified directory builder - identical to normal lists
-                builder.build_directory(favorites, "movies", add_favorites_context_menu)
-
-            # Only need to handle menu items if no favorites are being displayed
-            if not favorites:
-                # Build directory items for menu options
+                # Build directory items for menu options if no favorites are displayed
                 for item in menu_items:
                     list_item = xbmcgui.ListItem(label=item['label'])
 
@@ -111,13 +92,39 @@ class FavoritesHandler:
                     updateListing=False,
                     cacheToDisc=True
                 )
-            # Note: If favorites exist, the builder.build_directory() call above handles all directory setup
+            else:
+                # Use existing list building infrastructure
+                context.logger.info(f"Using ListItemRenderer to build {len(favorites_items)} favorites")
 
-            return DirectoryResponse(
-                items=favorites,
-                success=True,
-                content_type="movies"
-            )
+                # Add context menu callback for removing from favorites
+                def add_favorites_context_menu(listitem, item):
+                    """Add favorites-specific context menu items"""
+                    try:
+                        context_menu = []
+                        context_menu.append((
+                            "Remove from Favorites",
+                            f"RunPlugin({context.build_url('remove_from_favorites', item_id=item.get('id'))})"
+                        ))
+                        listitem.addContextMenuItems(context_menu)
+                    except Exception as e:
+                        context.logger.warning(f"Failed to add favorites context menu: {e}")
+
+                # Use the existing renderer with our context menu callback
+                from .listitem_renderer import get_listitem_renderer
+                renderer = get_listitem_renderer(context.addon_handle, context.addon.getAddonInfo('id'))
+
+                success = renderer.render_media_items(
+                    favorites_items,
+                    content_type="movies",
+                    context_menu_callback=add_favorites_context_menu
+                )
+
+                # Return based on renderer success
+                return DirectoryResponse(
+                    items=favorites_items,
+                    success=success,
+                    content_type="movies"
+                )
 
         except Exception as e:
             self.logger.error(f"Error in show_favorites_menu: {e}")
@@ -261,5 +268,12 @@ class FavoritesHandler:
             'imdb_id': favorite.get('imdb_id'),
             'is_mapped': favorite.get('is_mapped', False),
             'thumb_ref': favorite.get('thumb_ref'),
-            'description': f"Favorite: {favorite.get('original_path', '')}"
+            'description': f"Favorite: {favorite.get('original_path', '')}",
+            'media_type': favorite.get('media_type', 'movie'), # Added media_type
+            'kodi_id': favorite.get('kodi_id'), # Added kodi_id
+            'tvshowid': favorite.get('tvshowid'), # Added tvshowid
+            'season': favorite.get('season'), # Added season
+            'play': favorite.get('play'), # Added play
+            'poster': favorite.get('poster'), # Added poster
+            'fanart': favorite.get('fanart') # Added fanart
         }
