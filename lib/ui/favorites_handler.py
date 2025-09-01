@@ -60,77 +60,58 @@ class FavoritesHandler:
                     False
                 )
             else:
-                # Build favorites items
+                # Use the exact same rendering logic as normal lists
                 from lib.ui.listitem_builder import ListItemBuilder
                 builder = ListItemBuilder(context.addon_handle, context.addon.getAddonInfo('id'))
 
-                for favorite in favorites:
-                    try:
-                        # Build context menu for favorite
-                        context_menu = []
-                        addon_id = context.addon.getAddonInfo('id')
-                        context_menu.append((
-                            "Add to List",
-                            f"RunPlugin(plugin://{addon_id}/?action=add_to_list_menu&media_item_id={favorite['id']})"
-                        ))
-                        context_menu.append((
-                            "Remove from Favorites",
-                            f"RunPlugin(plugin://{addon_id}/?action=remove_from_kodi_favorites&favorite_id={favorite['id']})"
-                        ))
+                # Define context menu callback for favorites
+                def add_favorites_context_menu(listitem, item):
+                    """Add context menu items specific to favorites"""
+                    context_menu = []
+                    addon_id = context.addon.getAddonInfo('id')
+                    
+                    context_menu.append((
+                        "Add to List",
+                        f"RunPlugin(plugin://{addon_id}/?action=add_to_list_menu&media_item_id={item['id']})"
+                    ))
+                    context_menu.append((
+                        "Remove from Favorites",
+                        f"RunPlugin(plugin://{addon_id}/?action=remove_from_kodi_favorites&favorite_id={item['id']})"
+                    ))
+                    
+                    listitem.addContextMenuItems(context_menu)
 
-                        # Create list item for favorite
-                        result = builder._build_single_item(favorite)
+                # Use the unified directory builder - identical to normal lists
+                builder.build_directory(favorites, "movies", add_favorites_context_menu)
 
-                        if result:
-                            url, listitem, is_folder = result
+            # Only need to handle menu items if no favorites are being displayed
+            if not favorites:
+                # Build directory items for menu options
+                for item in menu_items:
+                    list_item = xbmcgui.ListItem(label=item['label'])
 
-                            # Add context menu if we have one
-                            if context_menu and listitem:
-                                try:
-                                    listitem.addContextMenuItems(context_menu)
-                                except Exception as e:
-                                    self.logger.warning(f"Failed to add context menu: {e}")
+                    if 'description' in item:
+                        list_item.setInfo('video', {'plot': item['description']})
 
-                            # Add to directory
-                            xbmcplugin.addDirectoryItem(
-                                context.addon_handle,
-                                url,
-                                listitem,
-                                is_folder
-                            )
-                        else:
-                            self.logger.error(f"Failed to build item for '{favorite.get('title')}'")
-                            continue
+                    if 'icon' in item:
+                        list_item.setArt({'icon': item['icon'], 'thumb': item['icon']})
 
-                    except Exception as e:
-                        self.logger.error(f"Error building favorite item: {e}")
-                        continue
+                    xbmcplugin.addDirectoryItem(
+                        context.addon_handle,
+                        item['url'],
+                        list_item,
+                        item['is_folder']
+                    )
 
-            # Build directory items for menu options
-            for item in menu_items:
-                list_item = xbmcgui.ListItem(label=item['label'])
-
-                if 'description' in item:
-                    list_item.setInfo('video', {'plot': item['description']})
-
-                if 'icon' in item:
-                    list_item.setArt({'icon': item['icon'], 'thumb': item['icon']})
-
-                xbmcplugin.addDirectoryItem(
+                # Set content type and finish directory
+                xbmcplugin.setContent(context.addon_handle, 'movies')
+                xbmcplugin.endOfDirectory(
                     context.addon_handle,
-                    item['url'],
-                    list_item,
-                    item['is_folder']
+                    succeeded=True,
+                    updateListing=False,
+                    cacheToDisc=True
                 )
-
-            # Set content type and finish directory
-            xbmcplugin.setContent(context.addon_handle, 'movies')
-            xbmcplugin.endOfDirectory(
-                context.addon_handle,
-                succeeded=True,
-                updateListing=False,
-                cacheToDisc=True
-            )
+            # Note: If favorites exist, the builder.build_directory() call above handles all directory setup
 
             return DirectoryResponse(
                 items=favorites,

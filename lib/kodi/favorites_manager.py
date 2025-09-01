@@ -420,9 +420,9 @@ class Phase4FavoritesManager:
                            mi.file_path as original_file_path,
                            mi.title as name,
                            li.position,
-                           -- Resume fields (assuming they might exist or be added later)
-                           (SELECT resume_position FROM resume_data rd WHERE rd.media_item_id = mi.id ORDER BY rd.timestamp DESC LIMIT 1) as resume_position,
-                           (SELECT resume_total FROM resume_data rd WHERE rd.media_item_id = mi.id ORDER BY rd.timestamp DESC LIMIT 1) as resume_total
+                           -- Resume fields (set defaults since no resume_data table exists yet)
+                           0 as resume_position,
+                           0 as resume_total
                     FROM lists l
                     JOIN list_items li ON l.id = li.list_id
                     JOIN media_items mi ON li.media_item_id = mi.id
