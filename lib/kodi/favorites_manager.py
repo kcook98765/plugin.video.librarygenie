@@ -412,7 +412,7 @@ class Phase4FavoritesManager:
                     SELECT li.id, mi.title, mi.year, mi.imdbnumber as imdb_id, mi.tmdb_id,
                            mi.kodi_id, mi.media_type, mi.poster, mi.fanart, mi.plot,
                            mi.rating, mi.votes, mi.duration, mi.genre, mi.director,
-                           mi.studio, mi.country, mi.art, mi.plotoutline, mi.mpaa,
+                           mi.studio, mi.country, mi.art, mi.mpaa,
                            mi.premiered, mi.dateadded, mi.playcount, mi.lastplayed,
                            mi.file_path, mi.normalized_path, mi.runtime,
                            li.media_item_id as library_movie_id,

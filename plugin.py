@@ -1158,26 +1158,17 @@ def handle_kodi_favorites(addon_handle, base_url):
             xbmcplugin.endOfDirectory(addon_handle, succeeded=True)
             return
 
-        # Use the same unified ListItem building as normal lists
-        from lib.ui import get_listitem_renderer
-
-        # Add favorites-specific context menu to each item
-        def add_favorites_context_menu(listitem, item):
-            """Add remove from favorites context menu"""
-            try:
-                with query_manager.connection_manager.transaction() as conn:
-                    kodi_list = conn.execute("SELECT id FROM lists WHERE name = 'Kodi Favorites'").fetchone()
-                    if kodi_list:
-                        context_menu = [
-                            (f"Remove from Favorites", f"RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={kodi_list['id']}&item_id={item.get('id')})")
-                        ]
-                        listitem.addContextMenuItems(context_menu)
-            except Exception as e:
-                logger.warning(f"Failed to add favorites context menu: {e}")
-
-        # Use unified renderer with custom context menu
+        # Use the exact same rendering system as normal lists - no special handling needed
+        from lib.ui.listitem_renderer import get_listitem_renderer
+        
+        # Set category for proper navigation breadcrumbs
+        xbmcplugin.setPluginCategory(addon_handle, "Kodi Favorites")
+        
+        # Use the unified renderer - same as normal lists
         renderer = get_listitem_renderer(addon_handle, xbmcaddon.Addon().getAddonInfo('id'))
-        renderer.builder.build_directory(favorites, content_type="movies", context_menu_callback=add_favorites_context_menu)
+        
+        # Render exactly like a normal list using the same method
+        renderer.render_media_items(favorites, content_type="movies")
 
     except Exception as e:
         logger.error(f"Error in handle_kodi_favorites: {e}")
