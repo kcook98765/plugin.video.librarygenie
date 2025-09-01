@@ -659,7 +659,8 @@ class QueryManager:
                 GROUP BY l.id, l.name, l.created_at, f.name, f.id
                 ORDER BY 
                     CASE WHEN f.name = 'Search History' THEN 0 ELSE 1 END,
-                    f.name NULLS LAST, 
+                    CASE WHEN f.name IS NULL THEN 1 ELSE 0 END,
+                    f.name, 
                     l.created_at DESC
             """
 
