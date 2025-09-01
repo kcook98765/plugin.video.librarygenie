@@ -366,37 +366,38 @@ class Phase4FavoritesManager:
                 return None
 
             # Look for files with same filename but different paths
-            backslash_filename = filename.replace('/', '\\')
-            results = conn.execute("""
-                SELECT id, title, file_path FROM media_items
-                WHERE is_removed = 0
-                AND (file_path LIKE ? OR file_path LIKE ?)
-                LIMIT 10
-            """, [f"%{filename}%", f"%{backslash_filename}%"]).fetchall()
+            with self.conn_manager.transaction() as conn:
+                backslash_filename = filename.replace('/', '\\')
+                results = conn.execute("""
+                    SELECT id, title, play as file_path FROM media_items
+                    WHERE is_removed = 0
+                    AND (play LIKE ? OR play LIKE ?)
+                    LIMIT 10
+                """, [f"%{filename}%", f"%{backslash_filename}%"]).fetchall()
 
-            self.logger.info(f"      Found {len(results)} potential fuzzy matches")
+                self.logger.info(f"      Found {len(results)} potential fuzzy matches")
 
-            for i, result in enumerate(results):
-                self.logger.info(f"        Match {i+1}: ID {result['id']} - '{result['title']}' - {result['file_path']}")
+                for i, result in enumerate(results):
+                    self.logger.info(f"        Match {i+1}: ID {result['id']} - '{result['title']}' - {result['file_path']}")
 
-            if results and len(results) == 1:
-                # Exactly one match - probably correct
-                result = results[0]
-                self.logger.info(f"      Single fuzzy match selected: ID {result['id']}")
-                return result["id"]
-            elif len(results) > 1:
-                # Try to find exact filename match (case insensitive)
-                for result in results:
-                    result_filename = result['file_path'].split('/')[-1].split('\\')[-1].lower()
-                    if result_filename == filename.lower():
-                        self.logger.info(f"      Exact filename match found: ID {result['id']} - '{result['title']}'")
-                        return result["id"]
+                if results and len(results) == 1:
+                    # Exactly one match - probably correct
+                    result = results[0]
+                    self.logger.info(f"      Single fuzzy match selected: ID {result['id']}")
+                    return result["id"]
+                elif len(results) > 1:
+                    # Try to find exact filename match (case insensitive)
+                    for result in results:
+                        result_filename = result['file_path'].split('/')[-1].split('\\')[-1].lower()
+                        if result_filename == filename.lower():
+                            self.logger.info(f"      Exact filename match found: ID {result['id']} - '{result['title']}'")
+                            return result["id"]
 
-                self.logger.info("      Multiple fuzzy matches found but no exact filename match - skipping for reliability")
-            else:
-                self.logger.info("      No fuzzy matches found")
+                    self.logger.info("      Multiple fuzzy matches found but no exact filename match - skipping for reliability")
+                else:
+                    self.logger.info("      No fuzzy matches found")
 
-            return None
+                return None
 
         except Exception as e:
             self.logger.error(f"Error in fuzzy path matching: {e}")
