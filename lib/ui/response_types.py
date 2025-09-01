@@ -1,0 +1,116 @@
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+LibraryGenie - Response Types
+Standardized response objects for UI handlers
+"""
+
+from typing import List, Dict, Any, Optional
+from dataclasses import dataclass
+
+
+@dataclass
+class DirectoryResponse:
+    """Response for directory listing handlers"""
+    items: List[Dict[str, Any]]
+    success: bool = True
+    cache_to_disc: bool = True
+    update_listing: bool = False
+    sort_methods: Optional[List[int]] = None
+    content_type: str = "movies"
+    
+    def to_kodi_params(self) -> Dict[str, Any]:
+        """Convert to parameters for xbmcplugin.endOfDirectory"""
+        params = {
+            'succeeded': self.success,
+            'cacheToDisc': self.cache_to_disc,
+            'updateListing': self.update_listing
+        }
+        if self.sort_methods:
+            params['sortMethod'] = self.sort_methods
+        return params
+
+
+@dataclass 
+class DialogResponse:
+    """Response for dialog-based handlers"""
+    success: bool
+    message: Optional[str] = None
+    refresh_needed: bool = False
+    
+    def show_notification(self, addon, default_title: str = "LibraryGenie"):
+        """Show notification to user if message is provided"""
+        if self.message:
+            try:
+                import xbmcgui
+                xbmcgui.Dialog().notification(
+                    default_title,
+                    self.message,
+                    xbmcgui.NOTIFICATION_INFO if self.success else xbmcgui.NOTIFICATION_ERROR
+                )
+            except Exception:
+                pass
+
+
+@dataclass
+class ActionResponse:
+    """Response for action handlers (play, add to list, etc.)"""
+    success: bool
+    action_performed: str
+    refresh_needed: bool = False
+    notification_message: Optional[str] = None
+    
+    def handle_result(self, context):
+        """Handle the action result with appropriate user feedback"""
+        if self.notification_message:
+            try:
+                import xbmcgui
+                xbmcgui.Dialog().notification(
+                    context.addon.getLocalizedString(32000),  # Addon name
+                    self.notification_message,
+                    xbmcgui.NOTIFICATION_INFO if self.success else xbmcgui.NOTIFICATION_ERROR
+                )
+            except Exception:
+                pass
+                
+        if self.refresh_needed and self.success:
+            try:
+                import xbmc
+                xbmc.executebuiltin("Container.Refresh")
+            except Exception:
+                pass
+
+
+@dataclass
+class ErrorResponse:
+    """Response for error conditions"""
+    error_message: str
+    error_code: Optional[str] = None
+    show_to_user: bool = True
+    
+    def handle_error(self, context):
+        """Handle error with appropriate user feedback"""
+        context.logger.error(f"Handler error: {self.error_message}")
+        
+        if self.show_to_user:
+            try:
+                import xbmcgui
+                xbmcgui.Dialog().notification(
+                    context.addon.getLocalizedString(35002),  # Error title
+                    self.error_message,
+                    xbmcgui.NOTIFICATION_ERROR
+                )
+            except Exception:
+                pass
+
+
+def create_empty_directory() -> DirectoryResponse:
+    """Create an empty directory response"""
+    return DirectoryResponse(items=[], success=True)
+
+
+def create_error_directory(error_msg: str) -> DirectoryResponse:
+    """Create an error directory response"""
+    return DirectoryResponse(items=[], success=False)
