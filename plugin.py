@@ -7,11 +7,11 @@ Handles plugin URL routing using new modular architecture
 """
 
 import sys
-from urllib.parse import parse_qsl
 
 import xbmcaddon
 import xbmcgui
 import xbmc
+import xbmcplugin
 
 # Import new modular components
 from lib.ui.plugin_context import PluginContext
@@ -24,7 +24,6 @@ from lib.utils.logger import get_logger
 
 # Import required functions
 from lib.auth.auth_helper import get_auth_helper
-from lib.data.query_manager import get_query_manager
 
 # Get logger instance
 logger = get_logger(__name__)
@@ -101,17 +100,6 @@ def _check_and_trigger_initial_scan():
         logger.error(f"Failed to check/trigger initial scan: {e}")
 
 
-def _videodb_path(dbtype: str, dbid: int, tvshowid=None, season=None) -> str:
-    """Build videodb:// path for Kodi library items"""
-    if dbtype == "movie":
-        return f'videodb://movies/titles/{dbid}'
-    if dbtype == "episode":
-        if isinstance(tvshowid, int) and isinstance(season, int):
-            return f'videodb://tvshows/titles/{tvshowid}/{season}/{dbid}'
-        return f'videodb://episodes/{dbid}'
-    return ""
-
-
 def handle_on_select(params: dict, addon_handle: int):
     """Handle library item selection - play or show info based on user preference"""
     try:
@@ -129,7 +117,16 @@ def handle_on_select(params: dict, addon_handle: int):
         tvshowid = int(tvshowid) if tvshowid and str(tvshowid).isdigit() else None
         season = int(season) if season and str(season).isdigit() else None
 
-        vdb = _videodb_path(dbtype, dbid, tvshowid, season)  # must be a videodb:// path
+        # Build videodb:// path for Kodi library items
+        if dbtype == "movie":
+            vdb = f'videodb://movies/titles/{dbid}'
+        elif dbtype == "episode":
+            if isinstance(tvshowid, int) and isinstance(season, int):
+                vdb = f'videodb://tvshows/titles/{tvshowid}/{season}/{dbid}'
+            else:
+                vdb = f'videodb://episodes/{dbid}'
+        else:
+            vdb = ""
         pref = get_select_pref()  # 'play' or 'info'
 
         # Parse major Kodi version (19, 20, 21, ...)
