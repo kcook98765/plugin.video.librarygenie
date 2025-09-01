@@ -363,7 +363,7 @@ class ListsHandler:
             items = query_manager.get_list_items(list_id)
             item_info = None
             for item in items:
-                if str(item.get('item_id', item.get('id'))) == str(item_id):
+                if str(item.get('media_item_id', item.get('item_id', item.get('id')))) == str(item_id):
                     item_info = item
                     break
 
@@ -641,8 +641,10 @@ class ListsHandler:
 
                 for item in list_items:
                     try:
-                        # Ensure item has required 'id' field - use item_id if available
-                        if 'id' not in item and 'item_id' in item:
+                        # Ensure item has required 'id' field - use media_item_id from database
+                        if 'id' not in item and 'media_item_id' in item:
+                            item['id'] = item['media_item_id']
+                        elif 'id' not in item and 'item_id' in item:
                             item['id'] = item['item_id']
                         elif 'id' not in item:
                             # Skip items without proper ID
@@ -656,7 +658,7 @@ class ListsHandler:
                         if item.get('imdb_id'):
                             context_menu.append((
                                 "Remove from List",
-                                f"RunPlugin({context.build_url('remove_from_list', list_id=list_id, item_id=item.get('item_id', item.get('id')))})"
+                                f"RunPlugin({context.build_url('remove_from_list', list_id=list_id, item_id=item.get('media_item_id', item.get('item_id', item.get('id'))))})"
                             ))
 
                         # Create list item for display
