@@ -1145,10 +1145,51 @@ def handle_kodi_favorites(addon_handle, base_url):
         # Set category for proper navigation breadcrumbs
         xbmcplugin.setPluginCategory(addon_handle, "Kodi Favorites")
 
-        # Set content type first
+        # Handle the case with NO mapped favorites first - show sync option only
+        if not list_items:
+            # Set content type for empty state
+            xbmcplugin.setContent(addon_handle, "files")  # Use 'files' for action-only content
+            
+            # Add "Sync Favorites" as the only item when no favorites exist
+            last_scan_info = favorites_manager._get_last_scan_info_for_display()
+            time_ago_text = ""
+            if last_scan_info:
+                last_scan_time = last_scan_info.get('created_at')
+                if last_scan_time:
+                    time_ago = _format_time_ago(last_scan_time)
+                    time_ago_text = f" (last scan: {time_ago})"
+
+            sync_label = f"[COLOR yellow]🔄 Sync Favorites[/COLOR]{time_ago_text}"
+            sync_item = xbmcgui.ListItem(label=sync_label)
+            sync_item.setProperty('IsPlayable', 'false')
+            plot_text = 'Scan Kodi favorites and update the list with any new favorites found.'
+            if last_scan_info:
+                items_found = last_scan_info.get('items_found', 0)
+                items_mapped = last_scan_info.get('items_mapped', 0)
+                plot_text += f' Last scan found {items_mapped}/{items_found} mapped favorites.'
+            sync_item.setInfo('video', {'plot': plot_text})
+            # NO artwork for action items to prevent URL construction issues
+            sync_url = f"RunPlugin({base_url}?action=scan_favorites)"
+            xbmcplugin.addDirectoryItem(addon_handle, sync_url, sync_item, False)
+            logger.debug(f"KODI FAVORITES: Added 'Sync Favorites' action item (empty state) with time info: {time_ago_text}")
+
+            # Add info item
+            no_items_item = xbmcgui.ListItem(label="[COLOR gray]No mapped favorites found[/COLOR]")
+            no_items_item.setProperty('IsPlayable', 'false')
+            no_items_item.setInfo('video', {
+                'plot': 'Use "Sync Favorites" above to scan for Kodi favorites that can be mapped to your library.'
+            })
+            xbmcplugin.addDirectoryItem(addon_handle, "", no_items_item, False)
+            logger.debug(f"KODI FAVORITES: Added 'no favorites' info item")
+
+            xbmcplugin.endOfDirectory(addon_handle, succeeded=True)
+            return
+
+        # When we have mapped favorites, use a MIXED approach:
+        # 1. Set proper content type for media items
         xbmcplugin.setContent(addon_handle, "movies")
 
-        # Add "Sync Favorites" as the first item - BEFORE any ListItemBuilder processing
+        # 2. Add Sync Favorites action item FIRST with minimal properties
         last_scan_info = favorites_manager._get_last_scan_info_for_display()
         time_ago_text = ""
         if last_scan_info:
@@ -1159,34 +1200,13 @@ def handle_kodi_favorites(addon_handle, base_url):
 
         sync_label = f"[COLOR yellow]🔄 Sync Favorites[/COLOR]{time_ago_text}"
         sync_item = xbmcgui.ListItem(label=sync_label)
+        # Minimal properties to avoid artwork URL construction
         sync_item.setProperty('IsPlayable', 'false')
-        plot_text = 'Scan Kodi favorites and update the list with any new favorites found.'
-        if last_scan_info:
-            items_found = last_scan_info.get('items_found', 0)
-            items_mapped = last_scan_info.get('items_mapped', 0)
-            plot_text += f' Last scan found {items_mapped}/{items_found} mapped favorites.'
-        sync_item.setInfo('video', {'plot': plot_text})
-        # Use static artwork that Kodi can resolve, not from URLs that cause artwork extraction
-        sync_item.setArt({'icon': 'DefaultAddonService.png', 'thumb': 'DefaultAddonService.png'})
         sync_url = f"RunPlugin({base_url}?action=scan_favorites)"
         xbmcplugin.addDirectoryItem(addon_handle, sync_url, sync_item, False)
         logger.debug(f"KODI FAVORITES: Added 'Sync Favorites' action item with time info: {time_ago_text}")
 
-        if not list_items:
-            no_items_item = xbmcgui.ListItem(label="[COLOR gray]No mapped favorites found[/COLOR]")
-            no_items_item.setProperty('IsPlayable', 'false')
-            no_items_item.setInfo('video', {
-                'plot': 'Use "Sync Favorites" above to scan for Kodi favorites that can be mapped to your library.'
-            })
-            # Use static artwork that Kodi can resolve
-            no_items_item.setArt({'icon': 'DefaultAddonNone.png', 'thumb': 'DefaultAddonNone.png'})
-            xbmcplugin.addDirectoryItem(addon_handle, "", no_items_item, False)
-            logger.debug(f"KODI FAVORITES: Added 'no favorites' info item")
-
-            xbmcplugin.endOfDirectory(addon_handle, succeeded=True)
-            return
-
-        # ONLY use ListItemBuilder for the actual favorite media items
+        # 3. THEN use ListItemBuilder for the actual favorite media items
         from lib.ui.listitem_builder import ListItemBuilder
 
         builder = ListItemBuilder(addon_handle, xbmcaddon.Addon().getAddonInfo('id'))
