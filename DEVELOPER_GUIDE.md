@@ -8,24 +8,30 @@ This document provides guidance for developers working on LibraryGenie. It outli
 
 LibraryGenie consists of three main layers:
 
-1. **UI Layer**
-   - Handles routing of Kodi plugin actions.
-   - Builds directory views, context menus, and dialogs.
-   - Provides context menu entries for list/folder management.
+1. **UI Layer** (`lib/ui/`)
+   - Plugin routing and action handling (`router.py`, `plugin_context.py`)
+   - Directory views and list building (`listitem_builder.py`, `listitem_renderer.py`, `menu_builder.py`)
+   - Handler modules for specific features (`lists_handler.py`, `search_handler.py`, `favorites_handler.py`, `main_menu_handler.py`)
+   - Context menu integration (`context_menu.py`)
+   - Playback actions and info dialog hijacking (`playback_actions.py`, `info_hijack_manager.py`)
+   - Session state management (`session_state.py`)
 
-2. **Data Layer**
-   - SQLite backend with connection management (`connection_manager.py`).
-   - Schema migrations (`migrations.py`).
-   - Query abstraction (`query_manager.py`).
-   - Schema includes `lists`, `folders`, `media_items`, `list_items`, `imdb_to_kodi`, `search_history`, `search_preferences`, `ui_preferences`, `library_scan_log`, and various cache/sync tables.
+2. **Data Layer** (`lib/data/`)
+   - SQLite backend with connection management (`connection_manager.py`)
+   - Schema migrations and versioning (`migrations.py`)
+   - Query abstraction and CRUD operations (`query_manager.py`)
+   - List and library management (`list_library_manager.py`)
+   - Storage utilities (`storage_manager.py`)
+   - Schema includes `lists`, `folders`, `media_items`, `list_items`, `kodi_favorite`, `search_history`, `search_preferences`, `ui_preferences`, `library_scan_log`, auth/sync tables, and various cache tables
 
 3. **Feature Layer**
-   - List/folder CRUD (`query_manager.py`).
-   - Export/import in NDJSON format (`export_engine.py`, `import_engine.py`).
-   - Directory building with batched JSON-RPC (`listitem_builder.py`, `menu_builder.py`).
-   - Library scanning and indexing (`scanner.py`).
-   - Search functionality (`local_engine.py`, `enhanced_search_engine.py`).
-   - External integrations (remote API, TMDb enrichment).
+   - **Import/Export** (`lib/import_export/`): NDJSON format engines, backup management, ShortList integration
+   - **Library Management** (`lib/library/`): Enhanced scanning with favorites integration (`enhanced_scanner.py`, `scanner.py`)
+   - **Search** (`lib/search/`): Local search engines, query interpretation, text normalization, year parsing
+   - **Kodi Integration** (`lib/kodi/`): JSON-RPC client, favorites parsing and management
+   - **Remote Services** (`lib/remote/`): External API clients, caching, search/similarity services
+   - **Authentication** (`lib/auth/`): Device code OAuth2 flow, token management, refresh handling
+   - **Configuration** (`lib/config/`): Settings management, favorites configuration helpers
 
 ---
 
@@ -50,6 +56,13 @@ LibraryGenie consists of three main layers:
 - Import: IMDb-first mapping; fallback to title/year or other identifiers.  
 - Placeholders: create when no match is found.
 
+### Favorites Integration
+- **Read-only access**: Never modify Kodi's `favourites.xml` file
+- **Smart parsing**: Handle various XML formats and edge cases gracefully
+- **Library mapping**: Map favorites to library items via normalized path matching
+- **Privacy protection**: Strip credentials from network paths during processing
+- **Incremental updates**: Track file modification times for efficient rescanning
+
 ### External Services
 - All integrations are **opt-in**.  
 - OTP-based pairing for server access.  
@@ -59,10 +72,13 @@ LibraryGenie consists of three main layers:
 - **State persistence**: Maintain local snapshots, server metadata, and pending queues.
 
 ### Performance
-- Batch DB writes in chunks.  
-- Cache lookups in memory where possible (e.g., IMDb→Kodi mapping).  
-- Avoid heavy operations in the UI thread.  
-- Use the background service for periodic tasks.
+- Batch DB writes in chunks using configurable batch sizes
+- Cache lookups in memory where possible (e.g., IMDb→Kodi mapping via `imdb_to_kodi` table)
+- Use SQLite prepared statements and connection pooling (`connection_manager.py`)
+- Avoid heavy operations in the UI thread - delegate to background service
+- Use the background service for periodic tasks (library scanning, favorites sync, token refresh)
+- Implement incremental scanning with delta detection for large libraries
+- Use chunked JSON-RPC requests with configurable page sizes (≤200 items per call)
 
 ### Background Service (CLIENT-KODI-SERVICE)
 - **Runtime constraints**: Never sync during video playback or pause; defer until idle.
@@ -79,13 +95,19 @@ LibraryGenie consists of three main layers:
 
 ## File Structure
 
-- `default.py`: entry point for addon (routes to `ui/entry.py`).  
-- `service.py`: background tasks (periodic mapping refresh, sync).  
-- `resources/lib/ui`: UI helpers, routes, dialogs.  
-- `resources/lib/data`: database, query manager, schema.  
-- `resources/lib/features`: list management, export/import, directory building, mapping, sync.  
-- `resources/lib/integrations`: remote API, TMDb.  
-- `resources/lib/utils`: logging, batching, helpers.
+- `plugin.py`: main plugin entry point (routes to `lib/ui/router.py`)
+- `service.py`: background service for periodic tasks (library scanning, favorites sync, token refresh)
+- `lib/ui/`: UI layer - routing, handlers, builders, context menus, session management
+- `lib/data/`: Data layer - database connection, queries, migrations, storage management
+- `lib/import_export/`: Import/export engines, backup management, format handling
+- `lib/library/`: Library scanning and indexing with favorites integration
+- `lib/search/`: Local search engines, query parsing, text normalization
+- `lib/kodi/`: Kodi-specific integration - JSON-RPC, favorites parsing
+- `lib/remote/`: External service integration - API clients, caching, search services
+- `lib/auth/`: Authentication flow - device code OAuth2, token management
+- `lib/config/`: Configuration management and settings helpers
+- `lib/utils/`: Shared utilities - logging, helpers
+- `resources/`: Kodi addon resources - language files, settings XML
 
 ---
 
