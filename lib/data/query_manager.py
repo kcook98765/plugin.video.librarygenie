@@ -411,14 +411,14 @@ class QueryManager:
         try:
             with self.connection_manager.transaction() as conn:
                 result = conn.execute("""
-                    SELECT l.id, l.name, l.description, l.folder_id, l.created_at,
+                    SELECT l.id, l.name, l.folder_id, l.created_at,
                            f.name as folder_name,
                            COUNT(li.id) as item_count
                     FROM lists l
                     LEFT JOIN folders f ON l.folder_id = f.id
                     LEFT JOIN list_items li ON l.id = li.list_id
                     WHERE l.id = ?
-                    GROUP BY l.id, l.name, l.description, l.folder_id, l.created_at, f.name
+                    GROUP BY l.id, l.name, l.folder_id, l.created_at, f.name
                 """, [int(list_id)]).fetchone()
 
                 if result:
@@ -429,7 +429,7 @@ class QueryManager:
                         "description": f"{result['item_count']} items{folder_context}",
                         "item_count": result['item_count'],
                         "created": result['created_at'][:10] if result['created_at'] else '',
-                        "modified": result['updated_at'][:10] if result['updated_at'] else '',
+                        "modified": result['created_at'][:10] if result['created_at'] else '',
                         "folder_name": result['folder_name']
                     }
                 return None
@@ -443,14 +443,14 @@ class QueryManager:
         try:
             with self.connection_manager.transaction() as conn:
                 result = conn.execute("""
-                    SELECT l.id, l.name, l.description, l.folder_id, l.created_at,
+                    SELECT l.id, l.name, l.folder_id, l.created_at,
                            f.name as folder_name,
                            COUNT(li.id) as item_count
                     FROM lists l
                     LEFT JOIN folders f ON l.folder_id = f.id
                     LEFT JOIN list_items li ON l.id = li.list_id
                     WHERE l.name = ?
-                    GROUP BY l.id, l.name, l.description, l.folder_id, l.created_at, f.name
+                    GROUP BY l.id, l.name, l.folder_id, l.created_at, f.name
                 """, [list_name]).fetchone()
 
                 if result:
@@ -461,7 +461,7 @@ class QueryManager:
                         "description": f"{result['item_count']} items{folder_context}",
                         "item_count": result['item_count'],
                         "created": result['created_at'][:10] if result['created_at'] else '',
-                        "modified": result['updated_at'][:10] if result['updated_at'] else '',
+                        "modified": result['created_at'][:10] if result['created_at'] else '',
                         "folder_name": result['folder_name']
                     }
                 return None
