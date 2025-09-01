@@ -220,25 +220,25 @@ Response JSON:
 
 ### 3.1 Replace library (authoritative)
 `POST /library/replace`  
-Headers: `Content-Type: application/x-ndjson` (preferred) or `application/json` with `{"imdb_ids":["tt..."]}`.
+Headers: `Content-Type: application/json`
 
-- NDJSON: one JSON object per line: `{ "imdb_id": "tt1234567" }`
-- Supports **chunked uploads** with headers:
-  - `X-Chunk-Index: 1`
-  - `X-Chunk-Total: 10`
-  - `X-Chunk-Id: "chunk-uuid"`
-- Idempotent via `Idempotency-Key`.
+Simple JSON body with array of IMDb IDs. Idempotent via `Idempotency-Key`.
+
+Request JSON:
+```json
+{
+  "imdb_ids": ["tt0111161", "tt0068646", "tt0468569"]
+}
+```
 
 Response JSON:
 ```json
 {
   "mode": "replace",
-  "accepted": 5000,
+  "accepted": 3,
   "duplicates": 0,
-  "invalid": 12,
-  "finalized": true,
-  "user_movie_count": 4988,
-  "warnings": ["12 invalid imdb ids dropped"]
+  "invalid": 0,
+  "user_movie_count": 3
 }
 ```
 
@@ -249,10 +249,10 @@ Response JSON:
 ```json
 {
   "mode": "merge",
-  "accepted": 120,
-  "duplicates": 87,
-  "invalid": 3,
-  "user_movie_count": 5123
+  "accepted": 2,
+  "duplicates": 1,
+  "invalid": 0,
+  "user_movie_count": 5
 }
 ```
 
@@ -275,134 +275,18 @@ Response JSON:
 }
 ```
 
-### 3.5 Batch history
-`GET /library/batches?cursor=&limit=50`
+### 3.5 Sync status
+`GET /library/sync-status`
 
-Response JSON (example):
-```json
-{
-  "batches": [
-    { "id":"b_1", "type":"replace", "started_at":"...", "successful_imports":4988, "invalid":12 },
-    { "id":"b_2", "type":"merge", "started_at":"...", "successful_imports":33, "duplicates":87 }
-  ],
-  "next_cursor": null
-}
-```
-
-### 3.6 Bulk upsert with versions
-`POST /v1/library/bulk-upsert`
-
-Upserts library records with IMDb IDs and optional version metadata. Supports idempotency via `Idempotency-Key` header.
-
-Request JSON:
-```json
-{
-  "records": [
-    {
-      "imdb_id": "tt1234567",
-      "versions": [
-        {
-          "movieid": "movie_123",
-          "file_hash": "sha256:abc123...",
-          "path_hash": "sha256:def456...",
-          "quality": "2160p",
-          "hdr": true,
-          "atmos": true
-        }
-      ]
-    }
-  ]
-}
-```
+Returns current sync state and statistics.
 
 Response JSON:
 ```json
 {
-  "processed": 1,
-  "upserted": 1,
-  "versions_merged": 1,
-  "errors": []
-}
-```
-
-### 3.7 Bulk delete
-`POST /v1/library/bulk-delete`
-
-Bulk delete IMDb entries with optional mode control. Supports tombstones for replication.
-
-Request JSON:
-```json
-{
-  "imdb_ids": ["tt1234567", "tt7654321"],
-  "mode": "remove_versions"
-}
-```
-
-Modes:
-- `remove_versions`: Remove specific versions but keep IMDb entry
-- `remove_all`: Remove entire IMDb entry and all versions
-
-Response JSON:
-```json
-{
-  "deleted_entries": 2,
-  "deleted_versions": 3,
-  "tombstones_created": 2
-}
-```
-
-### 3.8 Delta sync
-`GET /v1/library/delta?cursor=<token>`
-
-Returns incremental changes since the last cursor for efficient synchronization.
-
-Response JSON:
-```json
-{
-  "adds": [
-    { "imdb_id": "tt1234567", "versions": [...] }
-  ],
-  "updates": [
-    { "imdb_id": "tt7654321", "versions": [...] }
-  ],
-  "deletes": [
-    { "imdb_id": "tt9999999", "deleted_at": "2025-08-24T18:00:00Z" }
-  ],
-  "next_cursor": "cursor_token_456"
-}
-```
-
-### 3.9 Replace snapshot
-`POST /v1/library/replace-snapshot`
-
-Declares authoritative library state. Server computes diff and applies changes.
-
-Request JSON:
-```json
-{
-  "snapshot": [
-    {
-      "imdb_id": "tt1234567",
-      "versions": [
-        {
-          "movieid": "movie_123",
-          "quality": "2160p",
-          "hdr": true
-        }
-      ]
-    }
-  ]
-}
-```
-
-Response JSON:
-```json
-{
-  "diff_computed": true,
-  "added": 12,
-  "updated": 5,
-  "removed": 3,
-  "final_count": 1247
+  "user_movie_count": 1247,
+  "last_sync_at": "2025-08-24T18:00:00Z",
+  "server_version": "v1.2.347",
+  "pending_operations": 0
 }
 ```
 
@@ -513,40 +397,47 @@ Response JSON:
 
 ## 6. Lists Management
 
-### 6.1 Bulk upsert lists
-`POST /v1/lists/bulk-upsert`
+### 6.1 Create list
+`POST /v1/lists`
 
-Upsert or replace user lists by name or stable list_id. Items contain IMDb IDs with optional ordering.
+Create a new user list with IMDb IDs.
 
 Request JSON:
 ```json
 {
-  "lists": [
-    {
-      "list_id": "list_123",
-      "name": "My Favorites",
-      "items": [
-        {
-          "imdb_id": "tt1234567",
-          "order_score": 100
-        },
-        {
-          "imdb_id": "tt7654321",
-          "order_score": 95
-        }
-      ]
-    }
-  ]
+  "name": "My Favorites",
+  "imdb_ids": ["tt1234567", "tt7654321"]
 }
 ```
 
 Response JSON:
 ```json
 {
-  "processed_lists": 1,
-  "total_items": 2,
-  "upserted_lists": 1,
-  "updated_items": 2
+  "list_id": "list_123",
+  "name": "My Favorites",
+  "item_count": 2
+}
+```
+
+### 6.2 Update list
+`PUT /v1/lists/:list_id`
+
+Replace list contents with new IMDb IDs.
+
+Request JSON:
+```json
+{
+  "imdb_ids": ["tt1234567", "tt7654321", "tt9999999"]
+}
+```
+
+Response JSON:
+```json
+{
+  "list_id": "list_123",
+  "item_count": 3,
+  "added": 1,
+  "removed": 0
 }
 ```
 
@@ -602,12 +493,7 @@ Common errors:
 
 ## 10. Client Recommendations (Kodi Add-on)
 
-### 10.1 Bulk sync (original approach)
-- Use **NDJSON** uploads with chunks of ~5–10k IMDb IDs; include `Idempotency-Key` and chunk headers.
-- For **replace**: start a session, upload chunks, then send a **finalize** flag or allow server to auto-finalize on last chunk.
-- Poll `/library/status` for coverage as the backend ingests newly seen titles.
-
-### 10.2 Differential sync (CLIENT-KODI-SERVICE)
+### 10.1 Differential sync (CLIENT-KODI-SERVICE)
 - **Check version first**: Use `GET /v1/library/version` to avoid unnecessary full fetches.
 - **Compute diffs locally**: Compare current Kodi library with stored snapshot to identify adds/removes.
 - **Batch changes**: Group adds/removes into chunks (500-5k IDs) with `Idempotency-Key` headers.
@@ -616,20 +502,11 @@ Common errors:
 - **Avoid playback interference**: Skip sync during video playback or pause.
 - **Persist state**: Save local snapshots, server version/etag, and pending queues to disk.
 
-### 10.3 General recommendations
+### 10.2 General recommendations
 - For search/similarity UI: call with `in_library=true` to get only owned results.
 - Cache successful IMDb→Kodi DBID mappings locally; invalidate on library updates.
 - Implement retry with exponential backoff on `409`, `429`, `5xx`.
-
----
-
-## 11. Example NDJSON Lines
-
-```
-{ "imdb_id": "tt0111161" }
-{ "imdb_id": "tt0068646" }
-{ "imdb_id": "tt0468569" }
-```
+- Keep request sizes reasonable (≤1000 IMDb IDs per request).
 
 ---
 
