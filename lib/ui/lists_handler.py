@@ -678,16 +678,30 @@ class ListsHandler:
 
                         context.logger.debug(f"HANDLER: Building list item for '{item.get('title')}' with ID={item['id']}")
 
-                        # Create list item for display
-                        list_item = builder.create_list_item_from_data(item, context_menu)
-
-                        # Add to directory
-                        xbmcplugin.addDirectoryItem(
-                            context.addon_handle,
-                            list_item['url'],
-                            list_item['listitem'],
-                            list_item['is_folder']
-                        )
+                        # Create list item for display using existing builder method
+                        result = builder._build_single_item(item)
+                        
+                        if result:
+                            url, listitem, is_folder = result
+                            
+                            # Add context menu if we have one
+                            if context_menu and listitem:
+                                try:
+                                    listitem.addContextMenuItems(context_menu)
+                                    context.logger.debug(f"HANDLER: Added {len(context_menu)} context menu items")
+                                except Exception as e:
+                                    context.logger.warning(f"HANDLER: Failed to add context menu: {e}")
+                            
+                            # Add to directory
+                            xbmcplugin.addDirectoryItem(
+                                context.addon_handle,
+                                url,
+                                listitem,
+                                is_folder
+                            )
+                        else:
+                            context.logger.error(f"HANDLER: Failed to build item for '{item.get('title')}'")
+                            continue
 
                         context.logger.debug(f"HANDLER: Successfully added item {item_idx} to directory")
 
