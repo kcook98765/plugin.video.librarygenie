@@ -407,35 +407,69 @@ class QueryManager:
             return {"error": "database_error"}
 
     def get_list_by_id(self, list_id):
-        """Get a specific list by ID from unified lists table"""
+        """Get list information by ID"""
         try:
-            result = self.connection_manager.execute_single("""
-                SELECT 
-                    l.id, l.name, l.created_at, l.created_at as updated_at,
-                    (SELECT COUNT(*) FROM list_items WHERE list_id = l.id) as item_count,
-                    f.name as folder_name
-                FROM lists l
-                LEFT JOIN folders f ON l.folder_id = f.id
-                WHERE l.id = ?
-            """, [int(list_id)])
+            with self.connection_manager.transaction() as conn:
+                result = conn.execute("""
+                    SELECT l.id, l.name, l.description, l.folder_id, l.created_at,
+                           f.name as folder_name,
+                           COUNT(li.id) as item_count
+                    FROM lists l
+                    LEFT JOIN folders f ON l.folder_id = f.id
+                    LEFT JOIN list_items li ON l.id = li.list_id
+                    WHERE l.id = ?
+                    GROUP BY l.id, l.name, l.description, l.folder_id, l.created_at, f.name
+                """, [int(list_id)]).fetchone()
 
-            if result:
-                folder_context = f" ({result['folder_name']})" if result['folder_name'] else ""
-                return {
-                    "id": str(result['id']),
-                    "name": result['name'],
-                    "description": f"{result['item_count']} items{folder_context}",
-                    "item_count": result['item_count'],
-                    "created": result['created_at'][:10] if result['created_at'] else '',
-                    "modified": result['updated_at'][:10] if result['updated_at'] else '',
-                    "folder_name": result['folder_name']
-                }
-
-            return None
+                if result:
+                    folder_context = f" ({result['folder_name']})" if result['folder_name'] else ""
+                    return {
+                        "id": str(result['id']),
+                        "name": result['name'],
+                        "description": f"{result['item_count']} items{folder_context}",
+                        "item_count": result['item_count'],
+                        "created": result['created_at'][:10] if result['created_at'] else '',
+                        "modified": result['updated_at'][:10] if result['updated_at'] else '',
+                        "folder_name": result['folder_name']
+                    }
+                return None
 
         except Exception as e:
-            self.logger.error(f"Failed to get list {list_id}: {e}")
+            self.logger.error(f"Error getting list by ID {list_id}: {e}")
             return None
+
+    def get_list_by_name(self, list_name):
+        """Get list information by name"""
+        try:
+            with self.connection_manager.transaction() as conn:
+                result = conn.execute("""
+                    SELECT l.id, l.name, l.description, l.folder_id, l.created_at,
+                           f.name as folder_name,
+                           COUNT(li.id) as item_count
+                    FROM lists l
+                    LEFT JOIN folders f ON l.folder_id = f.id
+                    LEFT JOIN list_items li ON l.id = li.list_id
+                    WHERE l.name = ?
+                    GROUP BY l.id, l.name, l.description, l.folder_id, l.created_at, f.name
+                """, [list_name]).fetchone()
+
+                if result:
+                    folder_context = f" ({result['folder_name']})" if result['folder_name'] else ""
+                    return {
+                        "id": str(result['id']),
+                        "name": result['name'],
+                        "description": f"{result['item_count']} items{folder_context}",
+                        "item_count": result['item_count'],
+                        "created": result['created_at'][:10] if result['created_at'] else '',
+                        "modified": result['updated_at'][:10] if result['updated_at'] else '',
+                        "folder_name": result['folder_name']
+                    }
+                return None
+
+        except Exception as e:
+            self.logger.error(f"Error getting list by name '{list_name}': {e}")
+            return None
+
 
     def _ensure_default_list(self):
         """Default list creation disabled - users create their own lists"""

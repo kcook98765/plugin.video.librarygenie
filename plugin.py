@@ -202,8 +202,12 @@ def handle_lists(addon_handle, base_url):
             return
 
         # Get all user lists and folders
-        user_lists = query_manager.get_all_lists_with_folders()
-        logger.info(f"Found {len(user_lists)} user lists")
+        all_lists = query_manager.get_all_lists_with_folders()
+        logger.info(f"Found {len(all_lists)} total lists")
+
+        # Filter out the special "Kodi Favorites" list from the main Lists menu
+        user_lists = [item for item in all_lists if item.get('name') != 'Kodi Favorites']
+        logger.info(f"Found {len(user_lists)} user lists (excluding Kodi Favorites)")
 
         # Debug: Check for Search History folder specifically
         search_history_items = [item for item in user_lists if item.get('folder_name') == 'Search History']
@@ -1090,28 +1094,65 @@ def handle_on_select(params: dict, addon_handle: int):
 
 
 def handle_kodi_favorites(addon_handle, base_url):
-    """Handle Kodi favorites menu"""
+    """Handle Kodi favorites menu - show as unified list"""
     try:
-        logger.info("Displaying Kodi favorites")
+        logger.info("Displaying Kodi favorites as unified list")
 
-        # Initialize favorites manager
-        from lib.kodi.favorites_manager import get_phase4_favorites_manager
-        favorites_manager = get_phase4_favorites_manager()
-
-        # Get mapped favorites
-        favorites = favorites_manager.get_mapped_favorites(show_unmapped=True)
-        logger.info(f"Found {len(favorites)} favorites")
-
-        if not favorites:
+        # Initialize query manager to access the Kodi Favorites list
+        query_manager = get_query_manager()
+        if not query_manager.initialize():
+            logger.error("Failed to initialize query manager")
             addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().ok(
+            xbmcgui.Dialog().notification(
                 addon.getLocalizedString(35002),
-                "No Kodi favorites found or none are mapped to your library"
+                "Database error",
+                xbmcgui.NOTIFICATION_ERROR
             )
-            xbmcplugin.endOfDirectory(addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
             return
 
-        # Build menu items for favorites
+        # Get the Kodi Favorites list
+        kodi_list = query_manager.get_list_by_name('Kodi Favorites')
+        if not kodi_list:
+            # Show scan option if no Kodi Favorites list exists
+            addon = xbmcaddon.Addon()
+            if xbmcgui.Dialog().yesno(
+                addon.getLocalizedString(35002),
+                "No Kodi favorites found. Scan for favorites?"
+            ):
+                # Trigger scan
+                from lib.kodi.favorites_manager import get_phase4_favorites_manager
+                favorites_manager = get_phase4_favorites_manager()
+                result = favorites_manager.scan_favorites(force_refresh=True)
+                
+                if result.get("success"):
+                    items_found = result.get("items_found", 0)
+                    items_mapped = result.get("items_mapped", 0)
+                    
+                    xbmcgui.Dialog().notification(
+                        addon.getLocalizedString(35002),
+                        f"Scanned: {items_mapped}/{items_found} favorites mapped",
+                        xbmcgui.NOTIFICATION_INFO,
+                        3000
+                    )
+                    
+                    # Refresh and try again
+                    kodi_list = query_manager.get_list_by_name('Kodi Favorites')
+                else:
+                    xbmcgui.Dialog().notification(
+                        addon.getLocalizedString(35002),
+                        f"Scan failed: {result.get('message', 'Unknown error')}",
+                        xbmcgui.NOTIFICATION_ERROR
+                    )
+            
+            if not kodi_list:
+                xbmcplugin.endOfDirectory(addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
+                return
+
+        # Get list items (already normalized by get_list_items)
+        list_items = query_manager.get_list_items(kodi_list['id'])
+        logger.info(f"Found {len(list_items)} items in Kodi Favorites list")
+
+        # Build menu items for the list
         menu_items = []
 
         # Add scan favorites option at the top
@@ -1123,15 +1164,17 @@ def handle_kodi_favorites(addon_handle, base_url):
             "icon": "DefaultAddonService.png"
         })
 
-        # Add favorites stats
-        stats = favorites_manager.get_favorites_stats()
-        menu_items.append({
-            "title": f"[COLOR cyan]📊 Stats: {stats['mapped']}/{stats['present']} mapped[/COLOR]",
-            "action": "noop",
-            "description": f"Total: {stats['total']}, Present: {stats['present']}, Mapped: {stats['mapped']}",
-            "is_folder": False,
-            "icon": "DefaultAddonInfo.png"
-        })
+        if not list_items:
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().ok(
+                addon.getLocalizedString(35002),
+                "Kodi Favorites list is empty"
+            )
+            # Still show the scan option
+            from lib.ui.menu_builder import MenuBuilder
+            menu_builder = MenuBuilder()
+            menu_builder.build_menu(menu_items, addon_handle, base_url)
+            return
 
         # Add separator
         menu_items.append({
@@ -1142,55 +1185,59 @@ def handle_kodi_favorites(addon_handle, base_url):
             "icon": ""
         })
 
-        # Add each favorite
-        for favorite in favorites:
-            is_mapped = favorite.get('is_mapped', 0)
-            title = favorite.get('name') or favorite.get('title', 'Unknown Favorite')
+        # Convert list items to menu items format (same as handle_view_list)
+        for item in list_items:
+            # Build display title
+            title = item.get('title', 'Unknown')
+            year = item.get('year')
+            display_title = f"{title} ({year})" if year else title
 
-            if is_mapped:
-                # Mapped favorite - can be played
-                display_title = f"[COLOR green]✓[/COLOR] {title}"
-                library_title = favorite.get('title', '')  # Use the actual library title
-                year = favorite.get('year', '')
-                description = f"Maps to: {library_title} ({year})" if library_title else "Mapped to library"
+            # Create context menu for list item
+            context_menu = [
+                (f"Remove from Favorites", f"RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={kodi_list['id']}&item_id={item.get('id')})")
+            ]
 
-                # Create context menu for mapped favorites
-                context_menu = [
-                    (f"Add '{title}' to List...", f"RunPlugin(plugin://plugin.video.librarygenie/?action=add_favorite_to_list&favorite_id={favorite.get('id')})")
-                ]
-
+            # For library items, use on_select action to handle play/info preference
+            kodi_id = item.get('kodi_id') or item.get('movieid') or item.get('episodeid')
+            if kodi_id:
+                # Library item - use on_select action
                 menu_item = {
                     "title": display_title,
                     "action": "on_select",
-                    "dbtype": "movie",
-                    "dbid": favorite.get('library_movie_id'),
-                    "description": description,
+                    "dbtype": item.get('media_type', 'movie'),
+                    "dbid": kodi_id,
+                    "description": f"Rating: {item.get('rating', 'N/A')} | {item.get('plot', '')[:100]}...",
                     "is_folder": False,
+                    "icon": "DefaultMovies.png",
                     "context_menu": context_menu,
-                    "movie_data": {
-                        "title": library_title or title,
-                        "year": year,
-                        "kodi_id": favorite.get('library_movie_id')
-                    }
+                    "movie_data": item  # For enhanced rendering
                 }
-            else:
-                # Unmapped favorite
-                display_title = f"[COLOR red]✗[/COLOR] {title}"
-                classification = favorite.get('target_classification', 'unknown')
-                description = f"Not in library ({classification})"
 
+                # Add episode-specific data for videodb URL construction
+                if item.get('media_type') == 'episode':
+                    if item.get('tvshowid'):
+                        menu_item["tvshowid"] = item['tvshowid']
+                    if item.get('season'):
+                        menu_item["season"] = item['season']
+            else:
+                # External item - use plugin URL
                 menu_item = {
                     "title": display_title,
-                    "action": "noop",
-                    "description": description,
+                    "action": "play_external",
+                    "item_id": item.get('id', ''),
+                    "description": f"Rating: {item.get('rating', 'N/A')} | {item.get('plot', '')[:100]}...",
                     "is_folder": False,
-                    "icon": "DefaultAddonWarning.png"
+                    "icon": "DefaultMovies.png",
+                    "context_menu": context_menu,
+                    "movie_data": item  # For enhanced rendering
                 }
 
             menu_items.append(menu_item)
 
-        # Set category
+        # Set category and content type
         xbmcplugin.setPluginCategory(addon_handle, "Kodi Favorites")
+        content_type = query_manager.detect_content_type(list_items)
+        xbmcplugin.setContent(addon_handle, content_type)
 
         # Build and display the menu
         from lib.ui.menu_builder import MenuBuilder
