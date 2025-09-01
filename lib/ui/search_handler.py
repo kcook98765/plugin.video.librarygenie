@@ -29,8 +29,12 @@ from ..auth.state import is_authorized
 from ..auth.auth_helper import get_auth_helper
 from ..ui.session_state import get_session_state
 from ..data.query_manager import get_query_manager
-from ..ui.listitem_builder import ListItemBuilder
 from ..utils.logger import get_logger
+
+try:
+    from ..ui.listitem_builder import ListItemBuilder
+except ImportError:
+    ListItemBuilder = None
 
 # Newer arch types (kept optional so this file still imports without them)
 try:
@@ -246,6 +250,11 @@ class SearchHandler:
 
         # Detect content and build
         content_type = self.query_manager.detect_content_type(normalized)
+        if ListItemBuilder is None:
+            self._error("ListItemBuilder not available")
+            self._end_directory(succeeded=False, update=False)
+            return
+            
         builder = ListItemBuilder(self._require_handle(), self.addon_id)
         _ok = builder.build_directory(normalized, content_type)
 
