@@ -875,6 +875,45 @@ class ListItemBuilder:
         ))
         list_item.addContextMenuItems(cm)
 
+    def create_list_item_from_data(self, item: Dict[str, Any], context_menu: List[tuple] = None) -> Dict[str, Any]:
+        """
+        Create a list item from data with optional context menu.
+        Returns dict with 'url', 'listitem', and 'is_folder' keys.
+        """
+        try:
+            title = item.get('title', 'Unknown')
+            self.logger.debug(f"CREATE LISTITEM: Creating list item for '{title}' with data: {list(item.keys())}")
+            
+            # Normalize the item data
+            normalized_item = self._normalize_item(item)
+            
+            # Build the list item using existing methods
+            result = self._build_single_item(normalized_item)
+            
+            if not result:
+                self.logger.error(f"CREATE LISTITEM: Failed to build item for '{title}'")
+                return None
+                
+            url, listitem, is_folder = result
+            
+            # Add context menu if provided
+            if context_menu and listitem:
+                try:
+                    listitem.addContextMenuItems(context_menu)
+                    self.logger.debug(f"CREATE LISTITEM: Added {len(context_menu)} context menu items for '{title}'")
+                except Exception as e:
+                    self.logger.warning(f"CREATE LISTITEM: Failed to add context menu for '{title}': {e}")
+            
+            return {
+                'url': url,
+                'listitem': listitem,
+                'is_folder': is_folder
+            }
+            
+        except Exception as e:
+            self.logger.error(f"CREATE LISTITEM: Failed to create list item for '{item.get('title', 'Unknown')}': {e}")
+            return None
+
     def _set_infotag_metadata(self, video_info_tag, item: Dict[str, Any], title: str):
         """
         Set metadata via InfoTagVideo setters for v20+ library items.
