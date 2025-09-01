@@ -363,7 +363,9 @@ class ListsHandler:
             from lib.data.list_library_manager import get_list_library_manager
             list_manager = get_list_library_manager()
 
-            item_info = list_manager.get_list_item_by_id(item_id)
+            # Get the media item info
+            media_item = query_manager.get_media_item_by_id(item_id)
+            item_info = media_item
             if not item_info:
                 return DialogResponse(
                     success=False,
@@ -619,7 +621,7 @@ class ListsHandler:
             # Get list items
             from lib.data.list_library_manager import get_list_library_manager
             list_manager = get_list_library_manager()
-            list_items = list_manager.get_list_items(list_id)
+            list_items = list_manager.get_list_contents(list_id)
 
             context.logger.info(f"List '{list_info['name']}' has {len(list_items)} items")
 
