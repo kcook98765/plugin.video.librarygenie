@@ -310,7 +310,7 @@ class ListsHandler:
                 return DialogResponse(success=False)
 
             # Update the list name
-            result = query_manager.update_list_name(list_id, new_name.strip())
+            result = query_manager.rename_list(list_id, new_name.strip())
 
             if result.get("error"):
                 if result["error"] == "duplicate_name":
@@ -382,7 +382,7 @@ class ListsHandler:
                 return DialogResponse(success=False)
 
             # Remove the item
-            result = query_manager.remove_item_from_list(list_id, item_id)
+            result = query_manager.delete_item_from_list(list_id, item_id)
 
             if result.get("success"):
                 context.logger.info(f"Successfully removed item from list")
@@ -496,7 +496,7 @@ class ListsHandler:
                 return DialogResponse(success=False)
 
             # Update the folder name
-            result = query_manager.update_folder_name(folder_id, new_name.strip())
+            result = query_manager.rename_folder(folder_id, new_name.strip())
 
             if result.get("error"):
                 if result["error"] == "duplicate_name":
@@ -637,7 +637,7 @@ class ListsHandler:
             else:
                 # Build list items
                 from lib.ui.listitem_builder import ListItemBuilder
-                builder = ListItemBuilder(context.addon_handle, context.addon_id)
+                builder = ListItemBuilder(context.addon_handle, context.addon.getAddonInfo('id'))
 
                 for item in list_items:
                     try:
