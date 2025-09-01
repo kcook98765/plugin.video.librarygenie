@@ -30,9 +30,6 @@ from lib.data.query_manager import get_query_manager
 logger = get_logger(__name__)
 
 
-# Legacy handlers removed - functionality now handled by modular handlers
-
-
 def handle_authorize():
     """Handle device authorization"""
     auth_helper = get_auth_helper()
@@ -186,48 +183,6 @@ def handle_settings():
     xbmcaddon.Addon().openSettings()
 
 
-def _format_time_ago(timestamp_str):
-    """Format timestamp as human readable 'time ago' string"""
-    if not timestamp_str:
-        return "never"
-
-    try:
-        from datetime import datetime, timezone
-
-        # Parse the timestamp - handle both Z suffix and +00:00 formats
-        if timestamp_str.endswith('Z'):
-            normalized_timestamp = timestamp_str.replace('Z', '+00:00')
-        elif '+' not in timestamp_str and timestamp_str.count(':') >= 2:
-            normalized_timestamp = timestamp_str + '+00:00'
-        else:
-            normalized_timestamp = timestamp_str
-
-        scan_time = datetime.fromisoformat(normalized_timestamp)
-
-        if scan_time.tzinfo is None:
-            scan_time = scan_time.replace(tzinfo=timezone.utc)
-
-        now = datetime.now(timezone.utc)
-        diff = now - scan_time
-        total_seconds = int(diff.total_seconds())
-
-        if total_seconds < 60:
-            return "just now"
-        elif total_seconds < 3600:
-            minutes = total_seconds // 60
-            return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
-        elif total_seconds < 86400:
-            hours = total_seconds // 3600
-            return f"{hours} hour{'s' if hours != 1 else ''} ago"
-        else:
-            days = total_seconds // 86400
-            return f"{days} day{'s' if days != 1 else ''} ago"
-
-    except Exception as e:
-        logger.debug(f"Error formatting timestamp '{timestamp_str}': {e}")
-        return "unknown"
-
-
 def handle_shortlist_import():
     """Handle ShortList import action from settings"""
     import xbmcgui
@@ -319,11 +274,6 @@ def main():
         # Check if this is first run and trigger library scan if needed
         _check_and_trigger_initial_scan()
 
-        # Set up legacy global variables for backward compatibility
-        global args, base_url
-        args = context.params
-        base_url = context.base_url
-
         # Create router and register handlers
         router = Router()
         _register_all_handlers(router)
@@ -414,34 +364,15 @@ def _register_all_handlers(router: Router):
     router.register_handler('scan_favorites_execute', lambda ctx: _handle_dialog_response(ctx, favorites_handler.scan_favorites(ctx)))
     router.register_handler('add_favorite_to_list', lambda ctx: _handle_dialog_response(ctx, favorites_handler.add_favorite_to_list(ctx, ctx.get_param('imdb_id'))))
 
-    # Register legacy handlers with context wrapper
+    # Register remaining handlers
     router.register_handlers({
-        'authorize': _wrap_legacy_handler(handle_authorize),
-        'signout': _wrap_legacy_handler(handle_signout),
-        'on_select': _wrap_legacy_on_select_handler(handle_on_select),
-        'import_shortlist': _wrap_legacy_handler(handle_shortlist_import),
-        'noop': _wrap_legacy_handler(handle_noop),
+        'authorize': lambda ctx: handle_authorize(),
+        'signout': lambda ctx: handle_signout(),
+        'on_select': lambda ctx: handle_on_select(ctx.params, ctx.addon_handle),
+        'import_shortlist': lambda ctx: handle_shortlist_import(),
+        'noop': lambda ctx: handle_noop(),
+        'settings': lambda ctx: handle_settings(),
     })
-
-
-def _wrap_legacy_handler(handler_func):
-    """Wrap legacy handler functions to work with PluginContext"""
-    def wrapper(context: PluginContext):
-        # Set legacy globals for compatibility
-        global args, base_url
-        args = context.params
-        base_url = context.base_url
-
-        # Call legacy handler
-        return handler_func()
-    return wrapper
-
-
-def _wrap_legacy_on_select_handler(handler_func):
-    """Special wrapper for on_select handler"""
-    def wrapper(context: PluginContext):
-        return handler_func(context.params, context.addon_handle)
-    return wrapper
 
 
 def _handle_dialog_response(context: PluginContext, response):
