@@ -1148,7 +1148,7 @@ def handle_kodi_favorites(addon_handle, base_url):
         # Set content type first
         xbmcplugin.setContent(addon_handle, "movies")
 
-        # Add "Sync Favorites" as the first item (directly to directory, not through builder)
+        # Add "Sync Favorites" as the first item - BEFORE any ListItemBuilder processing
         last_scan_info = favorites_manager._get_last_scan_info_for_display()
         time_ago_text = ""
         if last_scan_info:
@@ -1166,7 +1166,8 @@ def handle_kodi_favorites(addon_handle, base_url):
             items_mapped = last_scan_info.get('items_mapped', 0)
             plot_text += f' Last scan found {items_mapped}/{items_found} mapped favorites.'
         sync_item.setInfo('video', {'plot': plot_text})
-        sync_item.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
+        # Use static artwork that Kodi can resolve, not from URLs that cause artwork extraction
+        sync_item.setArt({'icon': 'DefaultAddonService.png', 'thumb': 'DefaultAddonService.png'})
         sync_url = f"RunPlugin({base_url}?action=scan_favorites)"
         xbmcplugin.addDirectoryItem(addon_handle, sync_url, sync_item, False)
         logger.debug(f"KODI FAVORITES: Added 'Sync Favorites' action item with time info: {time_ago_text}")
@@ -1177,14 +1178,15 @@ def handle_kodi_favorites(addon_handle, base_url):
             no_items_item.setInfo('video', {
                 'plot': 'Use "Sync Favorites" above to scan for Kodi favorites that can be mapped to your library.'
             })
-            no_items_item.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
+            # Use static artwork that Kodi can resolve
+            no_items_item.setArt({'icon': 'DefaultAddonNone.png', 'thumb': 'DefaultAddonNone.png'})
             xbmcplugin.addDirectoryItem(addon_handle, "", no_items_item, False)
             logger.debug(f"KODI FAVORITES: Added 'no favorites' info item")
 
             xbmcplugin.endOfDirectory(addon_handle, succeeded=True)
             return
 
-        # Use ListItemBuilder for the actual favorite items with simplified context menu
+        # ONLY use ListItemBuilder for the actual favorite media items
         from lib.ui.listitem_builder import ListItemBuilder
 
         builder = ListItemBuilder(addon_handle, xbmcaddon.Addon().getAddonInfo('id'))
