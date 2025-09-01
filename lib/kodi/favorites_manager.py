@@ -253,7 +253,7 @@ class Phase4FavoritesManager:
 
                     # Show some sample normalized paths for debugging
                     sample_paths = self.conn_manager.execute_query("""
-                        SELECT normalized_path FROM media_items 
+                        SELECT normalized_path, file_path FROM media_items 
                         WHERE is_removed = 0 AND normalized_path IS NOT NULL AND normalized_path != ''
                         LIMIT 5
                     """)
@@ -261,15 +261,17 @@ class Phase4FavoritesManager:
                     if sample_paths:
                         self.logger.info("    Sample normalized paths in database:")
                         for sample in sample_paths:
-                            self.logger.info(f"      '{sample['normalized_path']}'")
+                            self.logger.info(f"      normalized: '{sample['normalized_path']}'")
+                            self.logger.info(f"      file_path:  '{sample['file_path']}'")
                     else:
-                        self.logger.info("    No normalized paths found in database - trying file_path matching")
+                        self.logger.info("    No normalized paths found in database")
 
-                        # Fallback: try to match against file_path directly
-                        result = self._try_file_path_matching(normalized_key)
-                        if result:
-                            self.logger.info(f"    Found file_path match: ID {result}")
-                            return result
+                    # Always try file_path matching as backup
+                    self.logger.info("    Trying file_path matching")
+                    result = self._try_file_path_matching(normalized_key)
+                    if result:
+                        self.logger.info(f"    Found file_path match: ID {result}")
+                        return result
 
                 # Try fuzzy path matching for variations
                 self.logger.info("    Attempting fuzzy path matching")
@@ -292,11 +294,11 @@ class Phase4FavoritesManager:
             return None
 
     def _try_file_path_matching(self, normalized_key: str) -> Optional[int]:
-        """Attempt to match using the raw file_path if normalized_key is empty or not found"""
-        self.logger.info(f"    Attempting file path matching for raw key: '{normalized_key}'")
+        """Attempt to match using the raw file_path with multiple strategies"""
+        self.logger.info(f"    Attempting file path matching for key: '{normalized_key}'")
         try:
             with self.conn_manager.transaction() as conn:
-                # Try exact file path match
+                # Strategy 1: Try exact file path match
                 result = conn.execute("""
                     SELECT id, title, file_path FROM media_items
                     WHERE file_path = ? AND is_removed = 0
@@ -305,19 +307,47 @@ class Phase4FavoritesManager:
                 if result:
                     self.logger.info(f"    Found exact file_path match: ID {result['id']} - '{result['title']}'")
                     return result["id"]
-                else:
-                    self.logger.info("    No exact file_path match found")
 
-                    # Try fuzzy path matching for variations
-                    self.logger.info("    Attempting fuzzy file_path matching")
-                    result = self._fuzzy_path_match(normalized_key)
-                    if result:
-                        self.logger.info(f"    Fuzzy file_path match found: ID {result}")
-                        return result
-                    else:
-                        self.logger.info("    No fuzzy file_path matches found")
+                # Strategy 2: Try case-insensitive file_path match
+                result = conn.execute("""
+                    SELECT id, title, file_path FROM media_items
+                    WHERE LOWER(file_path) = LOWER(?) AND is_removed = 0
+                """, [normalized_key]).fetchone()
 
-            return None
+                if result:
+                    self.logger.info(f"    Found case-insensitive file_path match: ID {result['id']} - '{result['title']}'")
+                    return result["id"]
+
+                # Strategy 3: Try normalized_path match (in case it exists but wasn't found earlier)
+                result = conn.execute("""
+                    SELECT id, title, file_path, normalized_path FROM media_items
+                    WHERE LOWER(normalized_path) = LOWER(?) AND is_removed = 0
+                """, [normalized_key]).fetchone()
+
+                if result:
+                    self.logger.info(f"    Found case-insensitive normalized_path match: ID {result['id']} - '{result['title']}'")
+                    return result["id"]
+
+                # Strategy 4: Try to match by converting backslashes to forward slashes in file_path
+                backslash_version = normalized_key.replace('/', '\\')
+                result = conn.execute("""
+                    SELECT id, title, file_path FROM media_items
+                    WHERE file_path = ? AND is_removed = 0
+                """, [backslash_version]).fetchone()
+
+                if result:
+                    self.logger.info(f"    Found backslash file_path match: ID {result['id']} - '{result['title']}'")
+                    return result["id"]
+
+                # Strategy 5: Try fuzzy path matching for variations
+                self.logger.info("    Attempting fuzzy file_path matching")
+                result = self._fuzzy_path_match(normalized_key)
+                if result:
+                    self.logger.info(f"    Fuzzy file_path match found: ID {result}")
+                    return result
+
+                self.logger.info("    No file_path matches found")
+                return None
 
         except Exception as e:
             self.logger.error(f"Error in file path matching: {e}")
@@ -328,6 +358,7 @@ class Phase4FavoritesManager:
         try:
             # Extract just the filename for fuzzy matching
             filename = normalized_key.split('/')[-1] if '/' in normalized_key else normalized_key
+            filename = filename.split('\\')[-1] if '\\' in filename else filename  # Handle backslashes too
             self.logger.info(f"      Fuzzy matching with filename: '{filename}'")
 
             if not filename or len(filename) < 3:
@@ -336,12 +367,13 @@ class Phase4FavoritesManager:
 
             # Look for files with same filename but different paths
             with self.conn_manager.transaction() as conn:
+                # Try filename matching in file_path
                 results = conn.execute("""
                     SELECT id, title, file_path FROM media_items
                     WHERE is_removed = 0
-                    AND file_path LIKE ?
-                    LIMIT 5
-                """, [f"%{filename}%"]).fetchall()
+                    AND (file_path LIKE ? OR file_path LIKE ?)
+                    LIMIT 10
+                """, [f"%{filename}%", f"%{filename.replace('/', '\\')}%"]).fetchall()
 
                 self.logger.info(f"      Found {len(results)} potential fuzzy matches")
 
@@ -354,7 +386,14 @@ class Phase4FavoritesManager:
                     self.logger.info(f"      Single fuzzy match selected: ID {result['id']}")
                     return result["id"]
                 elif len(results) > 1:
-                    self.logger.info("      Multiple fuzzy matches found - skipping for reliability")
+                    # Try to find exact filename match (case insensitive)
+                    for result in results:
+                        result_filename = result['file_path'].split('/')[-1].split('\\')[-1].lower()
+                        if result_filename == filename.lower():
+                            self.logger.info(f"      Exact filename match found: ID {result['id']} - '{result['title']}'")
+                            return result["id"]
+                    
+                    self.logger.info("      Multiple fuzzy matches found but no exact filename match - skipping for reliability")
                 else:
                     self.logger.info("      No fuzzy matches found")
 
