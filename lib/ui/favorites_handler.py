@@ -35,7 +35,7 @@ class FavoritesHandler:
                 )
 
             # Get favorites for display
-            favorites = favorites_manager.get_favorites_for_display(show_unmapped=True)
+            favorites = favorites_manager.get_mapped_favorites(show_unmapped=True)
             self.logger.info(f"Found {len(favorites)} favorites to display")
 
             menu_items = []
@@ -79,16 +79,28 @@ class FavoritesHandler:
                                 ))
 
                         # Create list item for favorite
-                        list_item_data = self._convert_favorite_to_list_item_data(favorite)
-                        list_item = builder._create_list_item_from_data(list_item_data, context_menu)
-
-                        # Add to directory
-                        xbmcplugin.addDirectoryItem(
-                            context.addon_handle,
-                            list_item['url'],
-                            list_item['listitem'],
-                            list_item['is_folder']
-                        )
+                        result = builder._build_single_item(favorite)
+                        
+                        if result:
+                            url, listitem, is_folder = result
+                            
+                            # Add context menu if we have one
+                            if context_menu and listitem:
+                                try:
+                                    listitem.addContextMenuItems(context_menu)
+                                except Exception as e:
+                                    self.logger.warning(f"Failed to add context menu: {e}")
+                            
+                            # Add to directory
+                            xbmcplugin.addDirectoryItem(
+                                context.addon_handle,
+                                url,
+                                listitem,
+                                is_folder
+                            )
+                        else:
+                            self.logger.error(f"Failed to build item for '{favorite.get('title')}'")
+                            continue
 
                     except Exception as e:
                         self.logger.error(f"Error building favorite item: {e}")
