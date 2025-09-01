@@ -414,18 +414,18 @@ Key scenarios to test:
 
 ### Planned Features
 
-1. **Fuzzy Matching**: Handle typos and approximations
+1. **Fuzzy Matching**: Handle typos and approximations **TODO: REMOVE - Resource intensive, requires external libraries**
 2. **Weighted Results**: Boost results by popularity/rating
 3. **Saved Searches**: Store and recall common queries
-4. **Search Suggestions**: Auto-complete based on library
+4. **Search Suggestions**: Auto-complete based on library **TODO: REMOVE - Resource intensive, complex UI integration**
 5. **Advanced Filters**: Genre, director, rating ranges
 
 ### Performance Improvements
 
-1. **Full-Text Search**: SQLite FTS5 integration
+1. **Full-Text Search**: SQLite FTS5 integration **TODO: REMOVE - May not be available in Kodi Python environment**
 2. **Search Indexes**: Optimized indexing strategies
 3. **Caching Layer**: In-memory result caching
-4. **Background Indexing**: Async index updates
+4. **Background Indexing**: Async index updates **TODO: REMOVE - Resource intensive, complex service management**
 
 ---
 
