@@ -413,7 +413,7 @@ class Phase4FavoritesManager:
                            mi.kodi_id, mi.media_type, mi.poster, mi.fanart, mi.plot,
                            mi.rating, mi.votes, mi.duration, mi.genre, mi.director,
                            mi.studio, mi.country, mi.art, mi.mpaa,
-                           mi.premiered, mi.dateadded, mi.playcount, mi.lastplayed,
+                           mi.dateadded, mi.playcount, mi.lastplayed,
                            mi.file_path, mi.normalized_path, mi.runtime,
                            li.media_item_id as library_movie_id,
                            mi.title as name,  -- Use the library title as the favorite name
