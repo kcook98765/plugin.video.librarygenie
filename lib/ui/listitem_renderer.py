@@ -79,18 +79,37 @@ class ListItemRenderer:
             return False
 
     def render_media_items(self, items: List[Dict[str, Any]], content_type: str = "movies", context_menu_callback=None) -> bool:
-        """Render a list of media items as Kodi ListItems"""
-        try:
-            if not items:
-                xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
-                return True
+        """
+        Render media items using the unified ListItemBuilder
 
-            # Use the builder's directory method for better handling
-            return self.builder.build_directory(items, content_type, context_menu_callback)
+        Args:
+            items: List of media item dictionaries
+            content_type: Content type for Kodi ("movies", "episodes", etc.)
+            context_menu_callback: Optional callback to add custom context menu items
+
+        Returns:
+            bool: Success status
+        """
+        try:
+            self.logger.info(f"RENDERER: Starting render_media_items with {len(items)} items (content_type='{content_type}')")
+            if context_menu_callback:
+                self.logger.info(f"RENDERER: Context menu callback provided - will apply to each item")
+
+            # Use the ListItemBuilder to handle the rendering
+            builder = ListItemBuilder(self.addon_handle, self.addon_id)
+            success = builder.build_directory(items, content_type, context_menu_callback)
+
+            if success:
+                self.logger.info(f"RENDERER: Successfully rendered {len(items)} items")
+            else:
+                self.logger.error(f"RENDERER: Failed to render items")
+
+            return success
 
         except Exception as e:
-            self.logger.error(f"Failed to render media items: {e}")
-            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False, updateListing=False, cacheToDisc=False)
+            self.logger.error(f"RENDERER: Error rendering media items: {e}")
+            import traceback
+            self.logger.error(f"RENDERER: Traceback: {traceback.format_exc()}")
             return False
 
 

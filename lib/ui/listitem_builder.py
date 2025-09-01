@@ -68,6 +68,7 @@ class ListItemBuilder:
         Args:
             items: list of (possibly mixed) media item dicts
             content_type: "movies", "tvshows", or "episodes"
+            context_menu_callback: Optional callback function to add custom context menu items
 
         Returns:
             bool: success
