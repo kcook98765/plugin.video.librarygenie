@@ -1162,13 +1162,8 @@ def handle_kodi_favorites(addon_handle, base_url):
             sync_label = f"[COLOR yellow]🔄 Sync Favorites[/COLOR]{time_ago_text}"
             sync_item = xbmcgui.ListItem(label=sync_label)
             sync_item.setProperty('IsPlayable', 'false')
-            plot_text = 'Scan Kodi favorites and update the list with any new favorites found.'
-            if last_scan_info:
-                items_found = last_scan_info.get('items_found', 0)
-                items_mapped = last_scan_info.get('items_mapped', 0)
-                plot_text += f' Last scan found {items_mapped}/{items_found} mapped favorites.'
-            sync_item.setInfo('video', {'plot': plot_text})
-            # NO artwork for action items to prevent URL construction issues
+            # NO setInfo() calls and explicitly set empty art to prevent artwork URL construction
+            sync_item.setArt({})
             sync_url = f"RunPlugin({base_url}?action=scan_favorites)"
             xbmcplugin.addDirectoryItem(addon_handle, sync_url, sync_item, False)
             logger.debug(f"KODI FAVORITES: Added 'Sync Favorites' action item (empty state) with time info: {time_ago_text}")
@@ -1200,8 +1195,10 @@ def handle_kodi_favorites(addon_handle, base_url):
 
         sync_label = f"[COLOR yellow]🔄 Sync Favorites[/COLOR]{time_ago_text}"
         sync_item = xbmcgui.ListItem(label=sync_label)
-        # Minimal properties to avoid artwork URL construction
+        # Minimal properties to avoid artwork URL construction - NO setInfo() calls
         sync_item.setProperty('IsPlayable', 'false')
+        # Explicitly set empty art to prevent Kodi from trying to construct artwork URLs
+        sync_item.setArt({})
         sync_url = f"RunPlugin({base_url}?action=scan_favorites)"
         xbmcplugin.addDirectoryItem(addon_handle, sync_url, sync_item, False)
         logger.debug(f"KODI FAVORITES: Added 'Sync Favorites' action item with time info: {time_ago_text}")
