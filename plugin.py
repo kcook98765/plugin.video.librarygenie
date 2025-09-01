@@ -1150,21 +1150,21 @@ def handle_kodi_favorites(addon_handle, base_url):
                 xbmcplugin.endOfDirectory(addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
                 return
 
-        # Get favorites from unified lists table
-        favorites = favorites_manager.get_mapped_favorites(show_unmapped=False)
+        # Get the Kodi Favorites list items using the exact same query as normal lists
+        list_items = query_manager.get_list_items(kodi_list['id'])
 
-        if not favorites:
+        if not list_items:
             xbmcgui.Dialog().notification("LibraryGenie", "No mapped favorites found", xbmcgui.NOTIFICATION_INFO, 5000)
             xbmcplugin.endOfDirectory(addon_handle, succeeded=True)
             return
 
-        # Use the exact same rendering system as normal lists - no special handling needed
+        # Use identical flow to normal lists - same renderer, same methods
         from lib.ui.listitem_renderer import get_listitem_renderer
         
         # Set category for proper navigation breadcrumbs
         xbmcplugin.setPluginCategory(addon_handle, "Kodi Favorites")
         
-        # Use the unified renderer - same as normal lists
+        # Use the unified renderer - identical to normal lists
         renderer = get_listitem_renderer(addon_handle, xbmcaddon.Addon().getAddonInfo('id'))
         
         # Define context menu callback to add sync favorites option
@@ -1189,7 +1189,7 @@ def handle_kodi_favorites(addon_handle, base_url):
                 listitem.addContextMenuItems(context_items)
         
         # Render exactly like a normal list using the same method with context menu
-        renderer.render_media_items(favorites, content_type="movies", context_menu_callback=favorites_context_menu)
+        renderer.render_media_items(list_items, content_type="movies", context_menu_callback=favorites_context_menu)
 
     except Exception as e:
         logger.error(f"Error in handle_kodi_favorites: {e}")

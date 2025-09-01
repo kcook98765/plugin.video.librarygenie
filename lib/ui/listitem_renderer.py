@@ -78,7 +78,7 @@ class ListItemRenderer:
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False, updateListing=False, cacheToDisc=False)
             return False
 
-    def render_media_items(self, items: List[Dict[str, Any]], content_type: str = "movies") -> bool:
+    def render_media_items(self, items: List[Dict[str, Any]], content_type: str = "movies", context_menu_callback=None) -> bool:
         """Render a list of media items as Kodi ListItems"""
         try:
             if not items:
@@ -86,7 +86,7 @@ class ListItemRenderer:
                 return True
 
             # Use the builder's directory method for better handling
-            return self.builder.build_directory(items, content_type)
+            return self.builder.build_directory(items, content_type, context_menu_callback)
 
         except Exception as e:
             self.logger.error(f"Failed to render media items: {e}")
