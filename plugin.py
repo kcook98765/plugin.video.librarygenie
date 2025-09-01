@@ -7,14 +7,13 @@ Handles plugin URL routing and main menu display
 """
 
 import sys
-import urllib.parse
 from urllib.parse import parse_qsl
 from typing import Dict, Any
 
 import xbmcaddon
 import xbmcplugin
 import xbmcgui
-import xbmc # Added for xbmc.executebuiltin
+import xbmc  # Added for xbmc.executebuiltin
 
 # Import our addon modules
 from lib.addon import AddonController
@@ -23,13 +22,13 @@ from lib.auth.auth_helper import get_auth_helper
 from lib.auth.state import is_authorized
 
 # Import query manager for list operations
-from lib.data.query_manager import get_query_manager # Assuming this path is correct
+from lib.data.query_manager import get_query_manager  # Assuming this path is correct
 
 # Get logger instance
 logger = get_logger(__name__)
 
 # Placeholder for global arguments if needed by multiple functions
-args = {}
+args: Dict[str, Any] = {}
 base_url = ""
 
 
@@ -296,7 +295,6 @@ def handle_lists(addon_handle, base_url):
                 ]
             })
 
-
         # Build and display the menu
         from lib.ui.menu_builder import MenuBuilder
         menu_builder = MenuBuilder()
@@ -371,9 +369,6 @@ def handle_view_list(addon_handle, base_url):
     """Handle viewing a specific list"""
     try:
         # Parse plugin arguments from sys.argv
-        # sys.argv[0] is the plugin path
-        # sys.argv[1] is the addon handle (integer)
-        # sys.argv[2] is the query string, starting with '?'
         if len(sys.argv) < 3 or not sys.argv[2].startswith('?'):
             logger.error("Invalid arguments received for handle_view_list")
             addon = xbmcaddon.Addon()
@@ -385,7 +380,7 @@ def handle_view_list(addon_handle, base_url):
             return
 
         query_string = sys.argv[2][1:]  # Remove leading '?'
-        params = dict(parse_qsl(query_string)) # Use parse_qsl for parsing
+        params = dict(parse_qsl(query_string))  # Use parse_qsl for parsing
 
         list_id = params.get('list_id')
         if not list_id:
@@ -510,8 +505,6 @@ def handle_view_list(addon_handle, base_url):
             logger.error(f"Failed to build list directory")
 
         return  # build_directory() already handles endOfDirectory()
-
-
 
     except Exception as e:
         logger.error(f"Error viewing list: {e}")
@@ -719,7 +712,7 @@ def handle_create_folder():
 def handle_rename_folder():
     """Handle renaming a folder"""
     try:
-        folder_id = args.get('folder_id') # Assuming folder_id is passed
+        folder_id = args.get('folder_id')  # Assuming folder_id is passed
         if not folder_id:
             logger.error("No folder_id provided for rename_folder")
             return
@@ -733,7 +726,7 @@ def handle_rename_folder():
             return
 
         # Get current folder info
-        folder_info = query_manager.get_folder_by_id(folder_id) # Assuming this method exists
+        folder_info = query_manager.get_folder_by_id(folder_id)  # Assuming this method exists
         if not folder_info:
             addon = xbmcaddon.Addon()
             xbmcgui.Dialog().ok(
@@ -764,7 +757,7 @@ def handle_rename_folder():
             return
 
         # Rename the folder
-        result = query_manager.rename_folder(folder_id, new_name.strip()) # Assuming this method exists
+        result = query_manager.rename_folder(folder_id, new_name.strip())  # Assuming this method exists
 
         if result.get("error"):
             if result["error"] == "duplicate_name":
@@ -797,7 +790,7 @@ def handle_rename_folder():
 def handle_delete_folder():
     """Handle deleting a folder"""
     try:
-        folder_id = args.get('folder_id') # Assuming folder_id is passed
+        folder_id = args.get('folder_id')  # Assuming folder_id is passed
         if not folder_id:
             logger.error("No folder_id provided for delete_folder")
             return
@@ -811,7 +804,7 @@ def handle_delete_folder():
             return
 
         # Get current folder info
-        folder_info = query_manager.get_folder_by_id(folder_id) # Assuming this method exists
+        folder_info = query_manager.get_folder_by_id(folder_id)  # Assuming this method exists
         if not folder_info:
             addon = xbmcaddon.Addon()
             xbmcgui.Dialog().ok(
@@ -834,13 +827,13 @@ def handle_delete_folder():
         if not xbmcgui.Dialog().yesno(
             addon.getLocalizedString(35002),
             f"Delete folder '{folder_info['name']}'?",
-            f"This will remove {folder_info['item_count']} items from the folder." # Assuming item_count exists
+            f"This will remove {folder_info['item_count']} items from the folder."
         ):
             logger.info("User cancelled folder deletion")
             return
 
         # Delete the folder
-        result = query_manager.delete_folder(folder_id) # Assuming this method exists
+        result = query_manager.delete_folder(folder_id)  # Assuming this method exists
 
         if result.get("error"):
             xbmcgui.Dialog().ok(
@@ -1035,7 +1028,7 @@ def handle_on_select(params: dict, addon_handle: int):
     """Handle library item selection - play or show info based on user preference"""
     try:
         from lib.config.config_manager import get_select_pref
-        import re, xbmc, xbmcplugin
+        import re
 
         logger.debug(f"=== ON_SELECT HANDLER CALLED ===")
         logger.debug(f"Handling on_select with params: {params}")
@@ -1045,8 +1038,8 @@ def handle_on_select(params: dict, addon_handle: int):
         dbid = int(params.get("dbid", "0"))
         tvshowid = params.get("tvshowid")
         season = params.get("season")
-        tvshowid = int(tvshowid) if tvshowid and tvshowid.isdigit() else None
-        season = int(season) if season and season.isdigit() else None
+        tvshowid = int(tvshowid) if tvshowid and str(tvshowid).isdigit() else None
+        season = int(season) if season and str(season).isdigit() else None
 
         vdb = _videodb_path(dbtype, dbid, tvshowid, season)  # must be a videodb:// path
         pref = get_select_pref()  # 'play' or 'info'
@@ -1064,17 +1057,13 @@ def handle_on_select(params: dict, addon_handle: int):
             logger.info(f"Playing media: {vdb}")
             xbmc.executebuiltin(f'PlayMedia("{vdb}")')
         else:
-            # IMPORTANT:
-            # - On v19, open the *library* item’s info dialog explicitly so Kodi fetches cast from DB.
-            # - On v20+, your existing indicators usually make Action(Info) fine; if you want to be
-            #   100% consistent, you can also open by videodb path here too.
             if kodi_major <= 19:
                 logger.info("Opening DialogVideoInfo for videodb item (Matrix)")
                 xbmc.executebuiltin(f'ActivateWindow(DialogVideoInfo,"{vdb}",return)')
             else:
                 logger.debug("Opening info dialog for focused item (Nexus+)")
                 xbmc.executebuiltin('Action(Info)')
-                # If you prefer forcing DB context on v20+ as well, use:
+                # Optionally force DB context on v20+:
                 # xbmc.executebuiltin(f'ActivateWindow(VideoInformation,"{vdb}",return)')
 
         # Don’t render a directory for this action
@@ -1156,8 +1145,7 @@ def handle_kodi_favorites(addon_handle, base_url):
         # Set category for proper navigation breadcrumbs
         xbmcplugin.setPluginCategory(addon_handle, "Kodi Favorites")
 
-        # Add "Sync Favorites" as the first item in the list for easy access
-        # Get last scan info for time display
+        # Add "Sync Favorites" as the first item
         last_scan_info = favorites_manager._get_last_scan_info_for_display()
         time_ago_text = ""
         if last_scan_info:
@@ -1169,21 +1157,17 @@ def handle_kodi_favorites(addon_handle, base_url):
         sync_label = f"[COLOR yellow]🔄 Sync Favorites[/COLOR]{time_ago_text}"
         sync_item = xbmcgui.ListItem(label=sync_label)
         sync_item.setProperty('IsPlayable', 'false')
-
-        # Enhanced plot with scan statistics
         plot_text = 'Scan Kodi favorites and update the list with any new favorites found.'
         if last_scan_info:
             items_found = last_scan_info.get('items_found', 0)
             items_mapped = last_scan_info.get('items_mapped', 0)
             plot_text += f' Last scan found {items_mapped}/{items_found} mapped favorites.'
-
         sync_item.setInfo('video', {'plot': plot_text})
         sync_url = f"RunPlugin({base_url}?action=scan_favorites)"
         xbmcplugin.addDirectoryItem(addon_handle, sync_url, sync_item, False)
         logger.debug(f"KODI FAVORITES: Added 'Sync Favorites' action item with time info: {time_ago_text}")
 
         if not list_items:
-            # If no favorites found, show message but still allow sync
             no_items_item = xbmcgui.ListItem(label="[COLOR gray]No mapped favorites found[/COLOR]")
             no_items_item.setProperty('IsPlayable', 'false')
             no_items_item.setInfo('video', {
@@ -1198,13 +1182,10 @@ def handle_kodi_favorites(addon_handle, base_url):
         # Use ListItemBuilder for the actual favorite items with simplified context menu
         from lib.ui.listitem_builder import ListItemBuilder
 
-        # Set content type for the media items
         xbmcplugin.setContent(addon_handle, "movies")
 
-        # Initialize ListItemBuilder directly
         builder = ListItemBuilder(addon_handle, xbmcaddon.Addon().getAddonInfo('id'))
 
-        # Define context menu callback - only add standard list operations now
         def favorites_context_menu(listitem, item):
             """Add context menu items for favorite media items"""
             try:
@@ -1216,15 +1197,13 @@ def handle_kodi_favorites(addon_handle, base_url):
                 # Add standard context items for mapped favorites
                 kodi_id = item.get('kodi_id')
                 if kodi_id:
-                    add_url = f"RunPlugin({base_url}?action=add_to_list&favorite_id={kodi_id})" # Changed to favorite_id
+                    add_url = f"RunPlugin({base_url}?action=add_favorite_to_list&favorite_id={kodi_id})"
                     context_items.append(("Add to List", add_url))
                     logger.debug(f"FAVORITES CONTEXT: Added 'Add to List' -> {add_url}")
 
-                # Apply the context menu to the ListItem
                 if context_items:
-                    logger.debug(f"FAVORITES CONTEXT: Applying {len(context_items)} context menu items to ListItem for '{item_title}'")
                     listitem.addContextMenuItems(context_items)
-                    logger.debug(f"FAVORITES CONTEXT: ✅ Successfully added context menu items to '{item_title}': {[item[0] for item in context_items]}")
+                    logger.debug(f"FAVORITES CONTEXT: ✅ Added context menu for '{item_title}'")
                 else:
                     logger.warning(f"FAVORITES CONTEXT: No context items to add for '{item_title}'")
 
@@ -1233,7 +1212,6 @@ def handle_kodi_favorites(addon_handle, base_url):
                 import traceback
                 logger.error(f"FAVORITES CONTEXT: Traceback: {traceback.format_exc()}")
 
-        # Build directory for favorite items using ListItemBuilder with context menu
         success = builder.build_directory(list_items, content_type="movies", context_menu_callback=favorites_context_menu)
 
         if not success:
@@ -1298,7 +1276,7 @@ def handle_scan_favorites():
 def handle_add_favorite_to_list():
     """Handle adding a favorite to a user list"""
     try:
-        favorite_id = args.get('favorite_id') # Changed from 'kodi_id' to 'favorite_id'
+        favorite_id = args.get('favorite_id')  # Changed from 'kodi_id' to 'favorite_id'
         if not favorite_id:
             logger.error("No favorite_id provided for add_favorite_to_list")
             return
@@ -1306,7 +1284,6 @@ def handle_add_favorite_to_list():
         logger.info(f"Adding favorite {favorite_id} to list")
 
         # Get available lists
-        from lib.data.query_manager import get_query_manager
         query_manager = get_query_manager()
         if not query_manager.initialize():
             logger.error("Failed to initialize query manager")
@@ -1398,37 +1375,30 @@ def _format_time_ago(timestamp_str):
 
         # Parse the timestamp - handle both Z suffix and +00:00 formats
         if timestamp_str.endswith('Z'):
-            # Replace Z with +00:00 for proper parsing
             normalized_timestamp = timestamp_str.replace('Z', '+00:00')
         elif '+' not in timestamp_str and timestamp_str.count(':') >= 2:
-            # If no timezone info, assume UTC
             normalized_timestamp = timestamp_str + '+00:00'
         else:
             normalized_timestamp = timestamp_str
 
-        # Parse the timestamp
         scan_time = datetime.fromisoformat(normalized_timestamp)
 
-        # Ensure scan_time is timezone-aware (convert to UTC if naive)
         if scan_time.tzinfo is None:
             scan_time = scan_time.replace(tzinfo=timezone.utc)
 
-        # Get current time in UTC
         now = datetime.now(timezone.utc)
-
-        # Calculate time difference
         diff = now - scan_time
         total_seconds = int(diff.total_seconds())
 
         if total_seconds < 60:
             return "just now"
-        elif total_seconds < 3600:  # Less than 1 hour
+        elif total_seconds < 3600:
             minutes = total_seconds // 60
             return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
-        elif total_seconds < 86400:  # Less than 1 day
+        elif total_seconds < 86400:
             hours = total_seconds // 3600
             return f"{hours} hour{'s' if hours != 1 else ''} ago"
-        else:  # 1 day or more
+        else:
             days = total_seconds // 86400
             return f"{days} day{'s' if days != 1 else ''} ago"
 
@@ -1436,31 +1406,6 @@ def _format_time_ago(timestamp_str):
         logger.debug(f"Error formatting timestamp '{timestamp_str}': {e}")
         return "unknown"
 
-
-# Define the route mapping for actions
-action_handlers = {
-    'search': show_search_menu,
-    'lists': handle_lists,
-    'kodi_favorites': handle_kodi_favorites,
-    'scan_favorites': handle_scan_favorites,
-    'add_favorite_to_list': handle_add_favorite_to_list,
-    'create_list': handle_create_list,
-    'view_list': handle_view_list,
-    'rename_list': handle_rename_list,
-    'delete_list': handle_delete_list,
-    'remove_from_list': handle_remove_from_list,
-    'create_folder': handle_create_folder,
-    'rename_folder': handle_rename_folder,
-    'delete_folder': handle_delete_folder,
-    'show_folder': handle_show_folder, # Added handler for showing folder contents
-    'show_list': handle_view_list, # Route show_list to handle_view_list
-    'remote_lists': show_remote_lists_menu,
-    'authorize': handle_authorize,
-    'signout': handle_signout,
-    'on_select': handle_on_select, # This is handled differently in main now
-    'noop': lambda handle, base_url, params: xbmcplugin.endOfDirectory(handle, succeeded=False), # Dummy handler for noop
-    'import_shortlist': handle_shortlist_import # Added ShortList import handler
-}
 
 def handle_shortlist_import():
     """Handle ShortList import action from settings"""
@@ -1526,6 +1471,42 @@ def handle_shortlist_import():
         )
 
 
+def handle_noop():
+    """No-op handler that safely ends the directory without args mismatches"""
+    try:
+        addon_handle = int(sys.argv[1]) if len(sys.argv) > 1 else -1
+        if addon_handle >= 0:
+            xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
+    except Exception:
+        pass
+
+
+# Define the route mapping for actions
+action_handlers = {
+    'search': show_search_menu,
+    'lists': handle_lists,
+    'kodi_favorites': handle_kodi_favorites,
+    'scan_favorites': handle_scan_favorites,
+    'add_favorite_to_list': handle_add_favorite_to_list,
+    'create_list': handle_create_list,
+    'view_list': handle_view_list,
+    'rename_list': handle_rename_list,
+    'delete_list': handle_delete_list,
+    'remove_from_list': handle_remove_from_list,
+    'create_folder': handle_create_folder,
+    'rename_folder': handle_rename_folder,
+    'delete_folder': handle_delete_folder,
+    'show_folder': handle_show_folder,  # Added handler for showing folder contents
+    'show_list': handle_view_list,      # Route show_list to handle_view_list
+    'remote_lists': show_remote_lists_menu,
+    'authorize': handle_authorize,
+    'signout': handle_signout,
+    'on_select': handle_on_select,      # Special case handled in main
+    'noop': handle_noop,                # No-arg safe noop
+    'import_shortlist': handle_shortlist_import
+}
+
+
 def main():
     """Main plugin entry point"""
 
@@ -1565,13 +1546,14 @@ def main():
     try:
         # Parse plugin arguments
         addon_handle = int(sys.argv[1]) if len(sys.argv) > 1 else -1
-        base_url = sys.argv[0] if len(sys.argv) > 0 else ""
+        base = sys.argv[0] if len(sys.argv) > 0 else ""
         query_string = sys.argv[2][1:] if len(sys.argv) > 2 and len(sys.argv[2]) > 1 else ""
 
         # Parse query parameters
         params = dict(parse_qsl(query_string))
-        global args
-        args = params # Set global args for use in handler functions
+        global args, base_url
+        args = params  # Set global args for use in handler functions
+        base_url = base
 
         logger.debug(
             f"Plugin called with handle={addon_handle}, url={base_url}, params={params}"
@@ -1600,11 +1582,16 @@ def main():
             elif action == 'on_select':
                 # handle_on_select expects params and addon_handle
                 handler(params, addon_handle)
-            elif action == 'import_shortlist':
-                # import_shortlist is a manual setting, doesn't need handle or base_url in this context
+            elif action in ('import_shortlist', 'noop', 'create_list', 'authorize', 'signout',
+                            'rename_list', 'delete_list', 'remove_from_list',
+                            'create_folder', 'rename_folder', 'delete_folder',
+                            'scan_favorites', 'add_favorite_to_list', 'remote_lists',
+                            'show_remote_search', 'settings'):
+                # Zero-arg or internal handlers
                 handler()
             else:
-                handler() # For actions like create_list, authorize, signout, etc.
+                # Fallback: try zero-arg call
+                handler()
         else:
             # Show main menu by default if action is not recognized or is empty
             show_main_menu(addon_handle)
