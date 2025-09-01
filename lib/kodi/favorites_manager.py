@@ -230,6 +230,7 @@ class Phase4FavoritesManager:
                             return result["id"]
                         else:
                             self.logger.info(f"    No videodb match found for Kodi dbid {kodi_dbid}")
+
                 else:
                     self.logger.info(f"    Could not extract dbid from videodb URL: {target_raw}")
 
@@ -418,7 +419,10 @@ class Phase4FavoritesManager:
                            -- Essential fields for list rendering
                            mi.file_path as original_file_path,
                            mi.title as name,
-                           li.position
+                           li.position,
+                           -- Resume fields (assuming they might exist or be added later)
+                           (SELECT resume_position FROM resume_data rd WHERE rd.media_item_id = mi.id ORDER BY rd.timestamp DESC LIMIT 1) as resume_position,
+                           (SELECT resume_total FROM resume_data rd WHERE rd.media_item_id = mi.id ORDER BY rd.timestamp DESC LIMIT 1) as resume_total
                     FROM lists l
                     JOIN list_items li ON l.id = li.list_id
                     JOIN media_items mi ON li.media_item_id = mi.id
@@ -426,37 +430,24 @@ class Phase4FavoritesManager:
                     ORDER BY li.position, mi.title
                 """).fetchall()
 
-                # Convert SQLite rows to dicts with full normalization like regular lists
+                # Convert Row to dict and ensure all required fields are present
                 result = []
-                for fav in favorites or []:
-                    fav_dict = dict(fav)
-                    
-                    # Ensure we have a name field for the UI
-                    if not fav_dict.get('name'):
-                        fav_dict['name'] = fav_dict.get('title', 'Unknown Favorite')
-                    
-                    # Add mapped status for UI
-                    fav_dict['is_mapped'] = 1  # All items in this query are mapped
-                    
-                    # Set default resume info (resume columns don't exist in current schema)
-                    fav_dict['resume'] = {
-                        'position_seconds': 0,
-                        'total_seconds': 0
+                for row in favorites:
+                    # Convert Row to dict and ensure all required fields are present
+                    favorite_dict = dict(row)
+
+                    # Ensure required fields have default values
+                    favorite_dict.setdefault('id', None)
+                    favorite_dict.setdefault('kodi_id', None)
+                    favorite_dict.setdefault('media_type', 'movie')
+
+                    # Structure resume information for ListItemBuilder compatibility
+                    favorite_dict['resume'] = {
+                        'position_seconds': favorite_dict.get('resume_position', 0),
+                        'total_seconds': favorite_dict.get('resume_total', 0)
                     }
-                    
-                    # Ensure kodi_id is available for library integration
-                    if fav_dict.get('kodi_id'):
-                        fav_dict['movieid'] = fav_dict['kodi_id']  # Alternative field name
-                    
-                    # Add standard fields that normal list views expect
-                    if not fav_dict.get('media_type'):
-                        fav_dict['media_type'] = 'movie'  # Default for favorites
-                    
-                    # Ensure consistent field naming with normal lists
-                    if fav_dict.get('library_movie_id'):
-                        fav_dict['id'] = fav_dict['library_movie_id']  # Some views expect 'id'
-                    
-                    result.append(fav_dict)
+
+                    result.append(favorite_dict)
 
                 self.logger.info(f"Retrieved {len(result)} mapped favorites from unified lists with full metadata")
                 return result
