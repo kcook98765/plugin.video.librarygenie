@@ -1158,90 +1158,40 @@ def handle_kodi_favorites(addon_handle, base_url):
                 time_ago = _format_time_ago(last_scan_time)
                 time_ago_text = f" (last scan: {time_ago})"
 
-        # Handle empty favorites case with action items only
-        if not list_items:
-            # Set content type for action-only content
+        # Create a unified list of items: action item + media items
+        all_items = []
+        
+        # Add the Sync Favorites action item
+        sync_item = {
+            'title': f"[COLOR yellow]🔄 Sync Favorites[/COLOR]{time_ago_text}",
+            'media_type': 'none',  # Mark as non-media action item
+            'action': 'scan_favorites',
+            'description': 'Scan for Kodi favorites that can be mapped to your library',
+            'icon': 'DefaultAddonService.png'
+        }
+        all_items.append(sync_item)
+        
+        # Add all media items
+        all_items.extend(list_items)
+        
+        # Set content type based on what we have
+        if list_items:
+            # Mixed content: set to files to prevent video info dialogs on action items
+            xbmcplugin.setContent(addon_handle, "files")
+        else:
+            # Only action items: use files content type
             xbmcplugin.setContent(addon_handle, "files")
 
-            # Build menu items for empty state
-            menu_items = [
-                {
-                    "title": f"[COLOR yellow]🔄 Sync Favorites[/COLOR]{time_ago_text}",
-                    "action": "scan_favorites",
-                    "description": "Scan for Kodi favorites that can be mapped to your library",
-                    "is_folder": False,
-                    "icon": "DefaultAddonService.png"
-                },
-                {
-                    "title": "[COLOR gray]No mapped favorites found[/COLOR]",
-                    "action": "noop",
-                    "description": "Use 'Sync Favorites' above to scan for favorites",
-                    "is_folder": False,
-                    "icon": "DefaultAddonNone.png"
-                }
-            ]
-
-            # Use MenuBuilder for action items
-            menu_builder = MenuBuilder()
-            menu_builder.build_menu(menu_items, addon_handle, base_url)
-            return
-
-        # Handle case with mapped favorites: create a hybrid directory
-        # 1. Set content type for media items
-        xbmcplugin.setContent(addon_handle, "movies")
-
-        # 2. Manually add the action item FIRST using proper action item handling
-        sync_label = f"[COLOR yellow]🔄 Sync Favorites[/COLOR]{time_ago_text}"
-        sync_item = xbmcgui.ListItem(label=sync_label)
-        
-        # Create action item that won't trigger artwork URL construction
-        sync_item.setProperty('IsPlayable', 'false')
-        sync_item.setArt({
-            'icon': 'DefaultAddonService.png',
-            'thumb': 'DefaultAddonService.png'
-        })
-        
-        # Use simple setInfo that identifies this as a non-media action
-        from lib.ui.listitem_builder import get_kodi_major_version
-        if get_kodi_major_version() >= 20:
-            try:
-                video_info_tag = sync_item.getVideoInfoTag()
-                video_info_tag.setTitle(sync_label)
-                video_info_tag.setMediaType("none")  # Explicitly mark as non-media
-                video_info_tag.setPlot("Scan for Kodi favorites that can be mapped to your library")
-            except Exception:
-                # Fallback for any InfoTagVideo issues
-                sync_item.setInfo('video', {
-                    'title': sync_label,
-                    'plot': 'Scan for Kodi favorites that can be mapped to your library',
-                    'mediatype': 'none'
-                })
-        else:
-            sync_item.setInfo('video', {
-                'title': sync_label,
-                'plot': 'Scan for Kodi favorites that can be mapped to your library',
-                'mediatype': 'none'
-            })
-        
-        sync_url = f"RunPlugin({base_url}?action=scan_favorites)"
-        xbmcplugin.addDirectoryItem(addon_handle, sync_url, sync_item, False)
-        logger.debug(f"KODI FAVORITES: Added 'Sync Favorites' action item with time info: {time_ago_text}")
-
-        # 3. Add sort methods for the media items that will follow
-        sort_methods = [
-            xbmcplugin.SORT_METHOD_TITLE_IGNORE_THE,
-            xbmcplugin.SORT_METHOD_DATE,
-            xbmcplugin.SORT_METHOD_VIDEO_YEAR,
-        ]
-        for method in sort_methods:
-            xbmcplugin.addSortMethod(addon_handle, method)
-
-        # 4. Add media items using ListItemBuilder's internal methods
+        # Use ListItemBuilder to handle everything uniformly
         builder = ListItemBuilder(addon_handle, xbmcaddon.Addon().getAddonInfo('id'))
 
         def favorites_context_menu(listitem, item):
             """Add context menu items for favorite media items"""
             try:
+                # Skip context menu for action items
+                if item.get('media_type') == 'none':
+                    return
+                    
                 context_items = []
                 item_title = item.get('title', 'Unknown')
 
@@ -1257,46 +1207,15 @@ def handle_kodi_favorites(addon_handle, base_url):
                 if context_items:
                     listitem.addContextMenuItems(context_items)
                     logger.debug(f"FAVORITES CONTEXT: ✅ Added context menu for '{item_title}'")
-                else:
-                    logger.warning(f"FAVORITES CONTEXT: No context items to add for '{item_title}'")
 
             except Exception as e:
                 logger.error(f"FAVORITES CONTEXT: Failed to add context menu for '{item.get('title', 'Unknown')}': {e}")
 
-        # Process each media item individually and add to directory
-        success_count = 0
-        for idx, item in enumerate(list_items, start=1):
-            try:
-                title = item.get('title', 'Unknown')
-                logger.debug(f"KODI FAVORITES: Processing media item #{idx}/{len(list_items)}: '{title}'")
-
-                # Normalize and build the item
-                normalized_item = builder._normalize_item(item)
-                result = builder._build_single_item(normalized_item)
-                
-                if result:
-                    url, listitem, is_folder = result
-                    
-                    # Apply context menu
-                    try:
-                        favorites_context_menu(listitem, normalized_item)
-                    except Exception as e:
-                        logger.warning(f"KODI FAVORITES: Context menu failed for '{title}': {e}")
-                    
-                    # Add to directory
-                    xbmcplugin.addDirectoryItem(addon_handle, url, listitem, is_folder)
-                    success_count += 1
-                    logger.debug(f"KODI FAVORITES: Added media item #{idx} '{title}'")
-                else:
-                    logger.warning(f"KODI FAVORITES: Failed to build media item #{idx}: '{title}'")
-
-            except Exception as e:
-                logger.error(f"KODI FAVORITES: Error processing media item #{idx}: {e}")
-
-        # 5. End directory
-        logger.info(f"KODI FAVORITES: Successfully added {success_count}/{len(list_items)} media items plus 1 action item")
-        xbmcplugin.endOfDirectory(addon_handle, succeeded=True)
-        success = success_count > 0
+        # Build directory using the unified approach
+        success = builder.build_directory(all_items, "files", favorites_context_menu)
+        
+        logger.info(f"KODI FAVORITES: Built unified directory with {len(all_items)} total items (1 action + {len(list_items)} media)")
+        return
 
         if not success:
             logger.error("Failed to build favorites directory")

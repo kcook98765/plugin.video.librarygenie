@@ -148,17 +148,27 @@ class ListItemBuilder:
     # -------- internals --------
     def _build_single_item(self, item: Dict[str, Any]) -> Optional[tuple]:
         """
-        Decide whether to build a library-backed or external item.
+        Decide whether to build a library-backed, external, or action item.
         Returns (url, listitem, is_folder) or None on failure.
         """
         title = item.get('title', 'Unknown')
         media_type = item.get('media_type', 'movie')
         kodi_id = item.get('kodi_id')  # already normalized to int/None
-        self.logger.debug(f"ITEM BUILD: '{title}' type={media_type} kodi_id={kodi_id}")
+        
+        # Check if this is an action item (non-media)
+        is_action_item = (
+            media_type == 'none' or 
+            item.get('action') in ('scan_favorites', 'noop', 'create_list', 'create_folder') or
+            title.startswith('[COLOR yellow]🔄 Sync') or
+            'Sync Favorites' in title
+        )
+        
+        self.logger.debug(f"ITEM BUILD: '{title}' type={media_type} kodi_id={kodi_id} is_action={is_action_item}")
 
         try:
-            # Treat as library-backed ONLY if we truly have a library DB id for movies/episodes
-            if media_type in ('movie', 'episode') and isinstance(kodi_id, int):
+            if is_action_item:
+                return self._create_action_item(item)
+            elif media_type in ('movie', 'episode') and isinstance(kodi_id, int):
                 return self._create_library_listitem(item)
             else:
                 return self._create_external_item(item)
@@ -429,6 +439,44 @@ class ListItemBuilder:
             return videodb_url, li, is_folder
         except Exception as e:
             self.logger.error(f"LIB ITEM: failed for '{item.get('title','Unknown')}': {e}")
+            return None
+
+    def _create_action_item(self, item: Dict[str, Any]) -> Optional[tuple]:
+        """
+        Build action item (like Sync Favorites) as a simple non-media ListItem.
+        Returns (url, listitem, is_folder) or None on failure.
+        """
+        try:
+            title = item.get('title', 'Unknown')
+            description = item.get('description', '')
+            action = item.get('action', '')
+            
+            self.logger.debug(f"ACTION ITEM: Creating action ListItem for '{title}' (action={action})")
+
+            # Create simple ListItem with no media metadata
+            li = xbmcgui.ListItem(label=title)
+            
+            # Set basic properties only - no video metadata
+            li.setProperty('IsPlayable', 'false')
+            
+            # Set icon only (no artwork that could trigger video info)
+            icon = item.get('icon', 'DefaultAddonService.png')
+            li.setArt({'icon': icon})
+            
+            # Build plugin URL for the action
+            if action:
+                url = f"RunPlugin(plugin://{self.addon_id}/?action={action})"
+            else:
+                url = ""
+            
+            # Action items are never folders, never playable
+            is_folder = False
+            
+            self.logger.debug(f"ACTION ITEM: Created simple action item '{title}' -> URL: {url}")
+            return url, li, is_folder
+            
+        except Exception as e:
+            self.logger.error(f"ACTION ITEM: failed for '{item.get('title','Unknown')}': {e}")
             return None
 
     def _create_external_item(self, item: Dict[str, Any]) -> Optional[tuple]:
