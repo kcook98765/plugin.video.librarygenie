@@ -1098,6 +1098,10 @@ def handle_kodi_favorites(addon_handle, base_url):
     try:
         logger.info("Displaying Kodi favorites as unified list")
 
+        # Initialize favorites manager early to avoid UnboundLocalError
+        from lib.kodi.favorites_manager import get_phase4_favorites_manager
+        favorites_manager = get_phase4_favorites_manager()
+
         # Initialize query manager to access the Kodi Favorites list
         query_manager = get_query_manager()
         if not query_manager.initialize():
@@ -1120,8 +1124,6 @@ def handle_kodi_favorites(addon_handle, base_url):
                 "No Kodi favorites found. Scan for favorites?"
             ):
                 # Trigger scan
-                from lib.kodi.favorites_manager import get_phase4_favorites_manager
-                favorites_manager = get_phase4_favorites_manager()
                 result = favorites_manager.scan_favorites(force_refresh=True)
 
                 if result.get("success"):
@@ -1170,7 +1172,7 @@ def handle_kodi_favorites(addon_handle, base_url):
             "icon": "DefaultAddonService.png"
         })
 
-        if not list_items:
+        if not favorites:
             addon = xbmcaddon.Addon()
             xbmcgui.Dialog().ok(
                 addon.getLocalizedString(35002),
@@ -1191,8 +1193,8 @@ def handle_kodi_favorites(addon_handle, base_url):
             "icon": ""
         })
 
-        # Convert list items to menu items format (same as handle_view_list)
-        for item in list_items:
+        # Convert favorites to menu items format (same as handle_view_list)
+        for item in favorites:
             # Build display title
             title = item.get('title', 'Unknown')
             year = item.get('year')
@@ -1242,7 +1244,7 @@ def handle_kodi_favorites(addon_handle, base_url):
 
         # Set category and content type
         xbmcplugin.setPluginCategory(addon_handle, "Kodi Favorites")
-        content_type = query_manager.detect_content_type(list_items)
+        content_type = query_manager.detect_content_type(favorites)
         xbmcplugin.setContent(addon_handle, content_type)
 
         # Build and display the menu
