@@ -453,59 +453,61 @@ class ListItemBuilder:
 
     def _create_action_item(self, item: Dict[str, Any]) -> Optional[tuple]:
         """
-        Build action item (like Sync Favorites) as a simple non-media ListItem.
+        Build action item (like Sync Favorites) as a folder to prevent playlist warnings.
         Returns (url, listitem, is_folder) or None on failure.
         """
         try:
             title = item.get('title', 'Unknown')
             description = item.get('description', '')
-            # Get action from original item (not normalized, since normalize may have stripped it)
             action = item.get('action', '')
 
-            self.logger.debug(f"ACTION ITEM: Creating action ListItem for '{title}' (action={action})")
+            self.logger.debug(f"ACTION ITEM: Creating folder ListItem for '{title}' (action={action})")
 
-            # Create simple ListItem for action - no video info to avoid confusion
+            # Create folder ListItem - this prevents playlist warnings and artwork loading
             li = xbmcgui.ListItem(label=title)
 
-            # Set basic properties - mark as not playable and not a video
+            # Set basic properties for folder
             li.setProperty('IsPlayable', 'false')
             
-            # Set as 'executable' type to avoid video type assumptions
+            # Set folder-appropriate metadata 
             kodi_major = get_kodi_major_version()
             if kodi_major >= 20:
-                # v20+: Set as executable/addon type instead of video
+                # v20+: Use InfoTagVideo but set as folder content
                 try:
                     video_info_tag = li.getVideoInfoTag()
-                    video_info_tag.setMediaType('executable')  # Mark as executable, not video
                     video_info_tag.setTitle(title)
                     if description:
                         video_info_tag.setPlot(description)
-                    self.logger.debug(f"ACTION ITEM v20+: Set executable type for '{title}'")
+                    # Don't set mediatype for folders to avoid video assumptions
+                    self.logger.debug(f"ACTION ITEM v20+: Set folder metadata for '{title}'")
                 except Exception as e:
-                    # If executable type fails, try no info at all
-                    self.logger.debug(f"ACTION ITEM v20+: Executable type failed, using no info for '{title}': {e}")
+                    self.logger.debug(f"ACTION ITEM v20+: InfoTagVideo failed for folder '{title}': {e}")
             else:
-                # v19: Try to avoid setInfo() completely for action items
-                # Just rely on the RunPlugin URL and folder=False to handle it
-                self.logger.debug(f"ACTION ITEM v19: Using minimal setup (no setInfo) for '{title}'")
+                # v19: Set minimal folder info
+                if description:
+                    li.setInfo('video', {
+                        'title': title,
+                        'plot': description
+                    })
+                self.logger.debug(f"ACTION ITEM v19: Set folder info for '{title}'")
 
-            # Set icon only (no artwork that could trigger video info)
-            icon = item.get('icon', 'DefaultAddonService.png')
-            li.setArt({'icon': icon})
+            # Set folder icon - use folder icon to clearly indicate it's navigable
+            icon = 'DefaultFolder.png'  # Standard folder icon
+            li.setArt({'icon': icon, 'thumb': icon})
 
-            # Build plugin URL for the action - ensure we have a valid action
+            # Build plugin URL for folder navigation - use regular plugin URL not RunPlugin
             if action:
-                url = f"RunPlugin(plugin://{self.addon_id}/?action={action})"
-                self.logger.debug(f"ACTION ITEM: Built action URL: {url}")
+                url = f"plugin://{self.addon_id}/?action={action}"
+                self.logger.debug(f"ACTION ITEM: Built folder URL: {url}")
             else:
-                # Fallback to a no-op action to prevent empty URL issues
-                url = f"RunPlugin(plugin://{self.addon_id}/?action=noop)"
+                # Fallback for actions without specific action
+                url = f"plugin://{self.addon_id}/?action=noop"
                 self.logger.warning(f"ACTION ITEM: No action specified for '{title}', using noop fallback")
 
-            # Action items are never folders, never playable
-            is_folder = False
+            # Action items are now folders to prevent playlist issues
+            is_folder = True
 
-            self.logger.debug(f"ACTION ITEM: Created simple action item '{title}' -> URL: {url}")
+            self.logger.debug(f"ACTION ITEM: Created folder action item '{title}' -> URL: {url}")
             return url, li, is_folder
 
         except Exception as e:

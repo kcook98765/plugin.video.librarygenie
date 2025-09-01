@@ -1160,20 +1160,21 @@ def handle_kodi_favorites(addon_handle, base_url):
 
         # Create a unified list of items: action item + media items
         all_items = []
-        
-        # Add the Sync Favorites action item
+
+        # Add the Sync Favorites action item as a folder
         sync_item = {
-            'title': f"[COLOR yellow]🔄 Sync Favorites[/COLOR]{time_ago_text}",
+            'title': f"[COLOR yellow]📁 Sync Favorites[/COLOR]{time_ago_text}",
             'media_type': 'none',  # Mark as non-media action item
-            'action': 'scan_favorites',
+            'action': 'scan_favorites_execute', # Changed action to trigger the execute handler
             'description': 'Scan for Kodi favorites that can be mapped to your library',
+            'is_folder': True, # Set to True to make it a folder
             'icon': 'DefaultAddonService.png'
         }
         all_items.append(sync_item)
-        
+
         # Add all media items
         all_items.extend(list_items)
-        
+
         # Set content type based on what we have
         if list_items:
             # Mixed content: set to files to prevent video info dialogs on action items
@@ -1191,7 +1192,7 @@ def handle_kodi_favorites(addon_handle, base_url):
                 # Skip context menu for action items
                 if item.get('media_type') == 'none':
                     return
-                    
+
                 context_items = []
                 item_title = item.get('title', 'Unknown')
 
@@ -1213,7 +1214,7 @@ def handle_kodi_favorites(addon_handle, base_url):
 
         # Build directory using the unified approach
         success = builder.build_directory(all_items, "files", favorites_context_menu)
-        
+
         logger.info(f"KODI FAVORITES: Built unified directory with {len(all_items)} total items (1 action + {len(list_items)} media)")
         return
 
@@ -1271,6 +1272,48 @@ def handle_scan_favorites():
         xbmcgui.Dialog().notification(
             addon.getLocalizedString(35002),
             "Scan error",
+            xbmcgui.NOTIFICATION_ERROR
+        )
+
+
+def handle_scan_favorites_execute():
+    """Handle the execution of scanning favorites (called when folder is entered)"""
+    try:
+        logger.info("Executing Kodi favorites scan")
+
+        from lib.kodi.favorites_manager import get_phase4_favorites_manager
+        favorites_manager = get_phase4_favorites_manager()
+
+        # Perform scan
+        result = favorites_manager.scan_favorites(force_refresh=True)
+
+        addon = xbmcaddon.Addon()
+        if result.get("success"):
+            items_found = result.get("items_found", 0)
+            items_mapped = result.get("items_mapped", 0)
+
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),
+                f"Scanned: {items_mapped}/{items_found} favorites mapped",
+                xbmcgui.NOTIFICATION_INFO,
+                3000
+            )
+        else:
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),
+                f"Scan failed: {result.get('message', 'Unknown error')}",
+                xbmcgui.NOTIFICATION_ERROR
+            )
+
+        # Refresh the view to show updated scan info/media items
+        xbmc.executebuiltin('Container.Refresh')
+
+    except Exception as e:
+        logger.error(f"Error executing favorites scan: {e}")
+        addon = xbmcaddon.Addon()
+        xbmcgui.Dialog().notification(
+            addon.getLocalizedString(35002),
+            "Scan execution error",
             xbmcgui.NOTIFICATION_ERROR
         )
 
@@ -1489,6 +1532,7 @@ action_handlers = {
     'lists': handle_lists,
     'kodi_favorites': handle_kodi_favorites,
     'scan_favorites': handle_scan_favorites,
+    'scan_favorites_execute': handle_scan_favorites_execute,
     'add_favorite_to_list': handle_add_favorite_to_list,
     'create_list': handle_create_list,
     'view_list': handle_view_list,
@@ -1587,7 +1631,7 @@ def main():
             elif action in ('import_shortlist', 'noop', 'create_list', 'authorize', 'signout',
                             'rename_list', 'delete_list', 'remove_from_list',
                             'create_folder', 'rename_folder', 'delete_folder',
-                            'scan_favorites', 'add_favorite_to_list', 'remote_lists',
+                            'scan_favorites', 'scan_favorites_execute', 'add_favorite_to_list', 'remote_lists',
                             'show_remote_search', 'settings'):
                 # Zero-arg or internal handlers
                 handler()
