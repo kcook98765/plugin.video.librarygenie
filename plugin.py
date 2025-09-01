@@ -230,7 +230,7 @@ def handle_lists(addon_handle, base_url):
             "title": "[COLOR yellow]+ Create New List[/COLOR]",
             "action": "create_list_execute",
             "description": "Create a new list",
-            "is_folder": False,
+            "is_folder": True,
             "icon": "DefaultAddSource.png"
         })
 
@@ -239,7 +239,7 @@ def handle_lists(addon_handle, base_url):
             "title": "[COLOR cyan]+ Create New Folder[/COLOR]",
             "action": "create_folder_execute",
             "description": "Create a new folder",
-            "is_folder": False,
+            "is_folder": True,
             "icon": "DefaultFolder.png"
         })
 
