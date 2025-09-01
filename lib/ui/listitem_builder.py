@@ -105,16 +105,8 @@ class ListItemBuilder:
                     if built:
                         url, listitem, is_folder = built
 
-                        # Apply custom context menu if callback provided
-                        if context_menu_callback:
-                            try:
-                                context_menu_callback(listitem, item)
-                                self.logger.debug(f"DIRECTORY BUILD: Applied custom context menu for item #{idx}")
-                            except Exception as e:
-                                self.logger.warning(f"DIRECTORY BUILD: Custom context menu failed for item #{idx}: {e}")
-
                         self.logger.debug(f"DIRECTORY BUILD: Built item #{idx} - URL: '{url}', isFolder: {is_folder}")
-                        tuples.append(built)  # (url, listitem, is_folder)
+                        tuples.append((url, listitem, is_folder, item))  # Include item data for context menu
                         ok += 1
                     else:
                         fail += 1
@@ -126,7 +118,15 @@ class ListItemBuilder:
             self.logger.info(f"DIRECTORY BUILD: Processed {count} items - {ok} OK, {fail} failed")
 
             self.logger.debug(f"DIRECTORY BUILD: Adding {len(tuples)} directory items to Kodi")
-            for idx, (url, li, is_folder) in enumerate(tuples, start=1):
+            for idx, (url, li, is_folder, item) in enumerate(tuples, start=1):
+                # Apply custom context menu just before adding to directory
+                if context_menu_callback:
+                    try:
+                        context_menu_callback(li, item)
+                        self.logger.debug(f"DIRECTORY BUILD: Applied custom context menu for item #{idx} just before addDirectoryItem")
+                    except Exception as e:
+                        self.logger.warning(f"DIRECTORY BUILD: Custom context menu failed for item #{idx}: {e}")
+                
                 self.logger.debug(f"DIRECTORY BUILD: Adding item #{idx} - URL: '{url}', isFolder: {is_folder}")
                 xbmcplugin.addDirectoryItem(
                     handle=self.addon_handle, url=url, listitem=li, isFolder=is_folder
