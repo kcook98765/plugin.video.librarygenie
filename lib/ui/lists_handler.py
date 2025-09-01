@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -17,10 +16,10 @@ from ..data.query_manager import get_query_manager
 
 class ListsHandler:
     """Handles lists operations"""
-    
+
     def __init__(self):
         pass
-    
+
     def show_lists_menu(self, context: PluginContext) -> DirectoryResponse:
         """Show main lists menu with folders and lists"""
         try:
@@ -122,17 +121,17 @@ class ListsHandler:
             # Build directory items
             for item in menu_items:
                 list_item = xbmcgui.ListItem(label=item['label'])
-                
+
                 if 'description' in item:
                     list_item.setInfo('video', {'plot': item['description']})
-                
+
                 if 'icon' in item:
                     list_item.setArt({'icon': item['icon'], 'thumb': item['icon']})
-                
+
                 # Add context menu if present
                 if 'context_menu' in item:
                     list_item.addContextMenuItems(item['context_menu'])
-                
+
                 xbmcplugin.addDirectoryItem(
                     context.addon_handle,
                     item['url'],
@@ -161,7 +160,7 @@ class ListsHandler:
                 items=[],
                 success=False
             )
-    
+
     def _show_empty_lists_menu(self, context: PluginContext) -> DirectoryResponse:
         """Show menu when no lists exist"""
         if xbmcgui.Dialog().yesno(
@@ -169,9 +168,9 @@ class ListsHandler:
             "No lists found. Create your first list?"
         ):
             return self.create_list(context)
-        
+
         return DirectoryResponse(items=[], success=True)
-    
+
     def create_list(self, context: PluginContext) -> DialogResponse:
         """Handle creating a new list"""
         try:
@@ -203,7 +202,7 @@ class ListsHandler:
                     message = f"List '{list_name}' already exists"
                 else:
                     message = "Failed to create list"
-                
+
                 return DialogResponse(
                     success=False,
                     message=message
@@ -222,7 +221,7 @@ class ListsHandler:
                 success=False,
                 message="Error creating list"
             )
-    
+
     def delete_list(self, context: PluginContext, list_id: str) -> DialogResponse:
         """Handle deleting a list"""
         try:
@@ -276,7 +275,7 @@ class ListsHandler:
                 success=False,
                 message="Error deleting list"
             )
-    
+
     def rename_list(self, context: PluginContext, list_id: str) -> DialogResponse:
         """Handle renaming a list"""
         try:
@@ -318,7 +317,7 @@ class ListsHandler:
                     message = f"List '{new_name}' already exists"
                 else:
                     message = "Failed to rename list"
-                
+
                 return DialogResponse(
                     success=False,
                     message=message
@@ -337,7 +336,7 @@ class ListsHandler:
                 success=False,
                 message="Error renaming list"
             )
-    
+
     def remove_from_list(self, context: PluginContext, list_id: str, item_id: str) -> DialogResponse:
         """Handle removing an item from a list"""
         try:
@@ -363,7 +362,7 @@ class ListsHandler:
             # Get the item info for confirmation
             from lib.data.list_library_manager import get_list_library_manager
             list_manager = get_list_library_manager()
-            
+
             item_info = list_manager.get_list_item_by_id(item_id)
             if not item_info:
                 return DialogResponse(
@@ -401,7 +400,7 @@ class ListsHandler:
                 success=False,
                 message="Error removing from list"
             )
-    
+
     def create_folder(self, context: PluginContext) -> DialogResponse:
         """Handle creating a new folder"""
         try:
@@ -433,7 +432,7 @@ class ListsHandler:
                     message = f"Folder '{folder_name}' already exists"
                 else:
                     message = "Failed to create folder"
-                
+
                 return DialogResponse(
                     success=False,
                     message=message
@@ -452,7 +451,7 @@ class ListsHandler:
                 success=False,
                 message="Error creating folder"
             )
-    
+
     def rename_folder(self, context: PluginContext, folder_id: str) -> DialogResponse:
         """Handle renaming a folder"""
         try:
@@ -501,7 +500,7 @@ class ListsHandler:
                     message = f"Folder '{new_name}' already exists"
                 else:
                     message = "Failed to rename folder"
-                
+
                 return DialogResponse(
                     success=False,
                     message=message
@@ -520,7 +519,7 @@ class ListsHandler:
                 success=False,
                 message="Error renaming folder"
             )
-    
+
     def delete_folder(self, context: PluginContext, folder_id: str) -> DialogResponse:
         """Handle deleting a folder"""
         try:
@@ -552,7 +551,7 @@ class ListsHandler:
 
             # Check if folder has lists
             lists_in_folder = query_manager.get_lists_in_folder(folder_id)
-            
+
             # Confirm deletion
             if lists_in_folder:
                 if not xbmcgui.Dialog().yesno(
@@ -593,7 +592,7 @@ class ListsHandler:
                 success=False,
                 message="Error deleting folder"
             )
-    
+
     def view_list(self, context: PluginContext, list_id: str) -> DirectoryResponse:
         """Display contents of a specific list"""
         try:
@@ -638,18 +637,18 @@ class ListsHandler:
                 # Build list items
                 from lib.ui.listitem_builder import ListItemBuilder
                 builder = ListItemBuilder(context.addon_handle, context.addon_id)
-                
+
                 for item in list_items:
                     try:
                         # Build context menu for list item
                         context_menu = [
-                            (f"Remove from '{list_info['name']}'", 
+                            (f"Remove from '{list_info['name']}'",
                              f"RunPlugin({context.build_url('remove_from_list', list_id=list_id, item_id=item['id'])})")
                         ]
-                        
+
                         # Create list item
                         list_item = builder._create_list_item_from_data(item, context_menu)
-                        
+
                         # Add to directory
                         xbmcplugin.addDirectoryItem(
                             context.addon_handle,
@@ -657,7 +656,7 @@ class ListsHandler:
                             list_item['listitem'],
                             list_item['is_folder']
                         )
-                        
+
                     except Exception as e:
                         context.logger.error(f"Error building list item: {e}")
                         continue
@@ -683,7 +682,7 @@ class ListsHandler:
                 items=[],
                 success=False
             )
-    
+
     def show_folder(self, context: PluginContext, folder_id: str) -> DirectoryResponse:
         """Display contents of a specific folder"""
         try:
@@ -757,17 +756,17 @@ class ListsHandler:
             # Build directory items
             for item in menu_items:
                 list_item = xbmcgui.ListItem(label=item['label'])
-                
+
                 if 'description' in item:
                     list_item.setInfo('video', {'plot': item['description']})
-                
+
                 if 'icon' in item:
                     list_item.setArt({'icon': item['icon'], 'thumb': item['icon']})
-                
+
                 # Add context menu if present
                 if 'context_menu' in item:
                     list_item.addContextMenuItems(item['context_menu'])
-                
+
                 xbmcplugin.addDirectoryItem(
                     context.addon_handle,
                     item['url'],

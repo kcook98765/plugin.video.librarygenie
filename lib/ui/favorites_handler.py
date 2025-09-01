@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -17,10 +16,10 @@ from ..utils.logger import get_logger
 
 class FavoritesHandler:
     """Handles Kodi favorites operations"""
-    
+
     def __init__(self):
         self.logger = get_logger(__name__)
-    
+
     def show_favorites_menu(self, context: PluginContext) -> DirectoryResponse:
         """Show main Kodi favorites menu"""
         try:
@@ -64,12 +63,12 @@ class FavoritesHandler:
                 # Build favorites items
                 from lib.ui.listitem_builder import ListItemBuilder
                 builder = ListItemBuilder(context.addon_handle, context.addon_id)
-                
+
                 for favorite in favorites:
                     try:
                         # Build context menu for favorite
                         context_menu = []
-                        
+
                         if favorite.get('is_mapped'):
                             # Add to list option for mapped favorites
                             imdb_id = favorite.get('imdb_id')
@@ -78,11 +77,11 @@ class FavoritesHandler:
                                     "Add to List",
                                     f"RunPlugin({context.build_url('add_favorite_to_list', imdb_id=imdb_id)})"
                                 ))
-                        
+
                         # Create list item for favorite
                         list_item_data = self._convert_favorite_to_list_item_data(favorite)
                         list_item = builder._create_list_item_from_data(list_item_data, context_menu)
-                        
+
                         # Add to directory
                         xbmcplugin.addDirectoryItem(
                             context.addon_handle,
@@ -90,7 +89,7 @@ class FavoritesHandler:
                             list_item['listitem'],
                             list_item['is_folder']
                         )
-                        
+
                     except Exception as e:
                         self.logger.error(f"Error building favorite item: {e}")
                         continue
@@ -98,13 +97,13 @@ class FavoritesHandler:
             # Build directory items for menu options
             for item in menu_items:
                 list_item = xbmcgui.ListItem(label=item['label'])
-                
+
                 if 'description' in item:
                     list_item.setInfo('video', {'plot': item['description']})
-                
+
                 if 'icon' in item:
                     list_item.setArt({'icon': item['icon'], 'thumb': item['icon']})
-                
+
                 xbmcplugin.addDirectoryItem(
                     context.addon_handle,
                     item['url'],
@@ -133,7 +132,7 @@ class FavoritesHandler:
                 items=[],
                 success=False
             )
-    
+
     def scan_favorites(self, context: PluginContext) -> DialogResponse:
         """Handle scanning Kodi favorites"""
         try:
@@ -169,7 +168,7 @@ class FavoritesHandler:
                     f"Added: {result.get('items_added', 0)} new\n"
                     f"Updated: {result.get('items_updated', 0)} existing"
                 )
-                
+
                 return DialogResponse(
                     success=True,
                     message="Favorites scanned successfully",
@@ -188,7 +187,7 @@ class FavoritesHandler:
                 success=False,
                 message="Error scanning favorites"
             )
-    
+
     def add_favorite_to_list(self, context: PluginContext, imdb_id: str) -> DialogResponse:
         """Handle adding a favorite to a user list"""
         try:
@@ -203,10 +202,10 @@ class FavoritesHandler:
                 )
 
             all_lists = query_manager.get_all_lists()
-            
+
             # Filter out special lists like "Kodi Favorites"
             user_lists = [lst for lst in all_lists if lst.get('name') != 'Kodi Favorites']
-            
+
             if not user_lists:
                 # No lists available, offer to create one
                 if xbmcgui.Dialog().yesno(
@@ -223,19 +222,19 @@ class FavoritesHandler:
             # Show list selection dialog
             list_names = [lst['name'] for lst in user_lists]
             selected_index = xbmcgui.Dialog().select("Select list:", list_names)
-            
+
             if selected_index < 0:
                 self.logger.info("User cancelled list selection")
                 return DialogResponse(success=False)
 
             selected_list = user_lists[selected_index]
-            
+
             # Add item to the selected list
             from lib.data.list_library_manager import get_list_library_manager
             list_manager = get_list_library_manager()
-            
+
             result = list_manager.add_to_list_by_imdb(selected_list['id'], imdb_id)
-            
+
             if result.get("success"):
                 return DialogResponse(
                     success=True,
@@ -259,7 +258,7 @@ class FavoritesHandler:
                 success=False,
                 message="Error adding favorite to list"
             )
-    
+
     def _convert_favorite_to_list_item_data(self, favorite: Dict[str, Any]) -> Dict[str, Any]:
         """Convert favorite data to list item format"""
         return {
