@@ -159,7 +159,7 @@ class ShortListImporter:
         return lists
 
     def match_movie_to_library(self, item_data: Dict) -> Optional[int]:
-        """Match ShortList item to library movie"""
+        """Match ShortList item to library movie using media_items table"""
         try:
             title = item_data.get("title")
             year = item_data.get("year")
@@ -171,7 +171,7 @@ class ShortListImporter:
             # Method 1: Match by IMDb ID if available
             if imdbnumber:
                 result = self.conn_manager.execute_single(
-                    "SELECT id FROM library_movie WHERE imdb_id = ? AND is_removed = 0",
+                    "SELECT id FROM media_items WHERE imdbnumber = ? AND is_removed = 0",
                     [imdbnumber]
                 )
                 if result:
@@ -186,7 +186,7 @@ class ShortListImporter:
                 conditions.append("year = ?")
                 params.append(year)
 
-            query = f"SELECT id FROM library_movie WHERE {' AND '.join(conditions)}"
+            query = f"SELECT id FROM media_items WHERE {' AND '.join(conditions)}"
             result = self.conn_manager.execute_single(query, params)
 
             if result:
@@ -195,7 +195,7 @@ class ShortListImporter:
 
             # Method 3: Fuzzy title match without year
             result = self.conn_manager.execute_single(
-                "SELECT id FROM library_movie WHERE title = ? AND is_removed = 0",
+                "SELECT id FROM media_items WHERE title = ? AND is_removed = 0",
                 [title]
             )
 
@@ -214,7 +214,7 @@ class ShortListImporter:
         try:
             # Check if list already exists
             existing = self.conn_manager.execute_single(
-                "SELECT id FROM list WHERE name = ?", 
+                "SELECT id FROM lists WHERE name = ?", 
                 ["ShortList Import"]
             )
 
@@ -223,18 +223,16 @@ class ShortListImporter:
                 self.logger.info(f"Using existing ShortList Import list (ID: {list_id})")
                 return list_id
 
-            # Create new list
-            result = self.query_manager.create_list(
-                "ShortList Import", 
-                "Movies imported from ShortList addon"
-            )
+            # Create new list using query_manager
+            with self.conn_manager.transaction() as conn:
+                cursor = conn.execute("""
+                    INSERT INTO lists (name, folder_id)
+                    VALUES (?, NULL)
+                """, ["ShortList Import"])
+                list_id = cursor.lastrowid
 
-            if result and result.get("success"):
-                list_id = result.get("list_id")
-                self.logger.info(f"Created ShortList Import list (ID: {list_id})")
-                return list_id
-
-            return None
+            self.logger.info(f"Created ShortList Import list (ID: {list_id})")
+            return list_id
 
         except Exception as e:
             self.logger.error(f"Error creating ShortList Import list: {e}")
@@ -270,7 +268,7 @@ class ShortListImporter:
 
             # Clear existing items in the import list
             self.conn_manager.execute_single(
-                "DELETE FROM list_item WHERE list_id = ?",
+                "DELETE FROM list_items WHERE list_id = ?",
                 [import_list_id]
             )
 
@@ -295,10 +293,10 @@ class ShortListImporter:
                             if library_movie_id:
                                 # Add mapped item to list
                                 conn.execute("""
-                                    INSERT OR IGNORE INTO list_item 
-                                    (list_id, library_movie_id, created_at)
-                                    VALUES (?, ?, datetime('now'))
-                                """, [import_list_id, library_movie_id])
+                                    INSERT OR IGNORE INTO list_items 
+                                    (list_id, media_item_id, position)
+                                    VALUES (?, ?, ?)
+                                """, [import_list_id, library_movie_id, len(items)])
 
                                 items_matched += 1
                                 items_added += 1
