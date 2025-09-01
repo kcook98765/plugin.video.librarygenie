@@ -185,10 +185,8 @@ class KodiJsonRpcClient:
             resume_data = movie.get("resume", {})
             resume_time = resume_data.get("position", 0) if isinstance(resume_data, dict) else 0
             
-            # Extract plot data and log if present
+            # Extract plot data
             plot_data = movie.get("plot", "")
-            if plot_data:
-                self.logger.debug(f"JSON-RPC returned plot for '{movie.get('title', 'Unknown')}': {len(plot_data)} characters")
 
             # NOTE: Cast data is intentionally not processed here.
             # Cast information should not be requested in JSON-RPC calls for ListItems
