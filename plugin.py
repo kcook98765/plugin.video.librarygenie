@@ -197,174 +197,7 @@ def handle_on_select(params: dict, addon_handle: int):
 # Functionality moved to ListsHandler class
 
 
-def handle_scan_favorites():
-    """Handle scanning favorites"""
-    try:
-        logger.info("Scanning Kodi favorites")
-
-        from lib.kodi.favorites_manager import get_phase4_favorites_manager
-        favorites_manager = get_phase4_favorites_manager()
-
-        # Perform scan
-        result = favorites_manager.scan_favorites(force_refresh=True)
-
-        addon = xbmcaddon.Addon()
-        if result.get("success"):
-            items_found = result.get("items_found", 0)
-            items_mapped = result.get("items_mapped", 0)
-
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),
-                f"Scanned: {items_mapped}/{items_found} favorites mapped",
-                xbmcgui.NOTIFICATION_INFO,
-                3000
-            )
-        else:
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),
-                f"Scan failed: {result.get('message', 'Unknown error')}",
-                xbmcgui.NOTIFICATION_ERROR
-            )
-
-        # Refresh the view
-        xbmc.executebuiltin('Container.Refresh')
-
-    except Exception as e:
-        logger.error(f"Error scanning favorites: {e}")
-        addon = xbmcaddon.Addon()
-        xbmcgui.Dialog().notification(
-            addon.getLocalizedString(35002),
-            "Scan error",
-            xbmcgui.NOTIFICATION_ERROR
-        )
-
-
-def handle_scan_favorites_execute():
-    """Handle the execution of scanning favorites (called when folder is entered)"""
-    try:
-        logger.info("Executing Kodi favorites scan")
-
-        from lib.kodi.favorites_manager import get_phase4_favorites_manager
-        favorites_manager = get_phase4_favorites_manager()
-
-        # Perform scan
-        result = favorites_manager.scan_favorites(force_refresh=True)
-
-        addon = xbmcaddon.Addon()
-        if result.get("success"):
-            items_found = result.get("items_found", 0)
-            items_mapped = result.get("items_mapped", 0)
-
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),
-                f"Scanned: {items_mapped}/{items_found} favorites mapped",
-                xbmcgui.NOTIFICATION_INFO,
-                3000
-            )
-        else:
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),
-                f"Scan failed: {result.get('message', 'Unknown error')}",
-                xbmcgui.NOTIFICATION_ERROR
-            )
-
-        # Refresh the view to show updated scan info/media items
-        xbmc.executebuiltin('Container.Refresh')
-
-    except Exception as e:
-        logger.error(f"Error executing favorites scan: {e}")
-        addon = xbmcaddon.Addon()
-        xbmcgui.Dialog().notification(
-            addon.getLocalizedString(35002),
-            "Scan execution error",
-            xbmcgui.NOTIFICATION_ERROR
-        )
-
-
-def handle_add_favorite_to_list():
-    """Handle adding a favorite to a user list"""
-    try:
-        favorite_id = args.get('favorite_id')  # Changed from 'kodi_id' to 'favorite_id'
-        if not favorite_id:
-            logger.error("No favorite_id provided for add_favorite_to_list")
-            return
-
-        logger.info(f"Adding favorite {favorite_id} to list")
-
-        # Get available lists
-        query_manager = get_query_manager()
-        if not query_manager.initialize():
-            logger.error("Failed to initialize query manager")
-            return
-
-        # Get the favorite info
-        from lib.kodi.favorites_manager import get_phase4_favorites_manager
-        favorites_manager = get_phase4_favorites_manager()
-
-        # Get all favorites and find the one we want
-        all_favorites = favorites_manager.get_mapped_favorites(show_unmapped=False)
-        target_favorite = None
-        for fav in all_favorites:
-            if str(fav.get('id')) == str(favorite_id):
-                target_favorite = fav
-                break
-
-        if not target_favorite or not target_favorite.get('library_movie_id'):
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().ok(
-                addon.getLocalizedString(35002),
-                "Favorite not found or not mapped to library"
-            )
-            return
-
-        # Get available lists
-        from lib.data.list_library_manager import get_list_library_manager
-        list_manager = get_list_library_manager()
-        available_lists = list_manager.get_available_lists_for_movie(target_favorite['library_movie_id'])
-
-        if not available_lists:
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().ok(
-                addon.getLocalizedString(35002),
-                "No available lists or favorite already in all lists"
-            )
-            return
-
-        # Let user pick a list
-        list_names = [list_item['name'] for list_item in available_lists]
-        selected_index = xbmcgui.Dialog().select("Add to list:", list_names)
-
-        if selected_index >= 0:
-            selected_list = available_lists[selected_index]
-
-            # Add to the selected list
-            result = list_manager.add_library_movie_to_list(
-                selected_list['id'],
-                target_favorite['library_movie_id']
-            )
-
-            if result.get("success"):
-                xbmcgui.Dialog().notification(
-                    addon.getLocalizedString(35002),
-                    f"Added '{target_favorite['name']}' to '{selected_list['name']}'",
-                    xbmcgui.NOTIFICATION_INFO,
-                    3000
-                )
-            else:
-                xbmcgui.Dialog().notification(
-                    addon.getLocalizedString(35002),
-                    f"Failed to add to list: {result.get('message', 'Unknown error')}",
-                    xbmcgui.NOTIFICATION_ERROR
-                )
-
-    except Exception as e:
-        logger.error(f"Error adding favorite to list: {e}")
-        addon = xbmcaddon.Addon()
-        xbmcgui.Dialog().notification(
-            addon.getLocalizedString(35002),
-            "Add to list error",
-            xbmcgui.NOTIFICATION_ERROR
-        )
+# Legacy favorites handlers removed - functionality moved to FavoritesHandler class
 
 
 def handle_settings():
@@ -577,24 +410,25 @@ def _register_all_handlers(router: Router):
 
     # Register new modular handlers
     router.register_handler('search', search_handler.prompt_and_search)
-    router.register_handler('lists', lists_handler.handle_lists)
-    router.register_handler('kodi_favorites', lists_handler.handle_kodi_favorites)
+    router.register_handler('lists', lists_handler.show_lists_menu)
+    
+    # Register ListsHandler methods that expect specific parameters
+    router.register_handler('create_list_execute', lambda ctx: _handle_dialog_response(ctx, lists_handler.create_list(ctx)))
+    router.register_handler('create_folder_execute', lambda ctx: _handle_dialog_response(ctx, lists_handler.create_folder(ctx)))
+    
+    # Register parameter-based handlers
+    router.register_handler('delete_list', lambda ctx: _handle_dialog_response(ctx, lists_handler.delete_list(ctx, ctx.get_param('list_id'))))
+    router.register_handler('rename_list', lambda ctx: _handle_dialog_response(ctx, lists_handler.rename_list(ctx, ctx.get_param('list_id'))))
+    router.register_handler('remove_from_list', lambda ctx: _handle_dialog_response(ctx, lists_handler.remove_from_list(ctx, ctx.get_param('list_id'), ctx.get_param('item_id'))))
+    
+    router.register_handler('rename_folder', lambda ctx: _handle_dialog_response(ctx, lists_handler.rename_folder(ctx, ctx.get_param('folder_id'))))
+    router.register_handler('delete_folder', lambda ctx: _handle_dialog_response(ctx, lists_handler.delete_folder(ctx, ctx.get_param('folder_id'))))
 
     # Register legacy handlers with context wrapper
     router.register_handlers({
         'authorize': _wrap_legacy_handler(handle_authorize),
         'signout': _wrap_legacy_handler(handle_signout),
         'on_select': _wrap_legacy_on_select_handler(handle_on_select),
-        'scan_favorites': _wrap_legacy_handler(handle_scan_favorites),
-        'scan_favorites_execute': _wrap_legacy_handler(handle_scan_favorites_execute),
-        'add_favorite_to_list': _wrap_legacy_handler(handle_add_favorite_to_list),
-        
-        'rename_list': _wrap_legacy_handler(handle_rename_list),
-        'delete_list': _wrap_legacy_handler(handle_delete_list),
-        'remove_from_list': _wrap_legacy_handler(handle_remove_from_list),
-        
-        'rename_folder': _wrap_legacy_handler(handle_rename_folder),
-        'delete_folder': _wrap_legacy_handler(handle_delete_folder),
         'import_shortlist': _wrap_legacy_handler(handle_shortlist_import),
         'noop': _wrap_legacy_handler(handle_noop),
     })
@@ -618,6 +452,22 @@ def _wrap_legacy_on_select_handler(handler_func):
     def wrapper(context: PluginContext):
         return handler_func(context.params, context.addon_handle)
     return wrapper
+
+
+def _handle_dialog_response(context: PluginContext, response):
+    """Handle DialogResponse objects from handler methods"""
+    from lib.ui.response_types import DialogResponse
+    
+    if isinstance(response, DialogResponse):
+        # Show notification if there's a message
+        response.show_notification(context.addon)
+        
+        # Refresh if needed
+        if response.refresh_needed:
+            import xbmc
+            xbmc.executebuiltin('Container.Refresh')
+    
+    return response
 
 
 if __name__ == '__main__':

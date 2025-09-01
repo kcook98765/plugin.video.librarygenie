@@ -276,3 +276,320 @@ class ListsHandler:
                 success=False,
                 message="Error deleting list"
             )
+    
+    def rename_list(self, context: PluginContext, list_id: str) -> DialogResponse:
+        """Handle renaming a list"""
+        try:
+            context.logger.info(f"Renaming list {list_id}")
+
+            # Initialize query manager
+            query_manager = get_query_manager()
+            if not query_manager.initialize():
+                context.logger.error("Failed to initialize query manager")
+                return DialogResponse(
+                    success=False,
+                    message="Database error"
+                )
+
+            # Get current list info
+            list_info = query_manager.get_list_by_id(list_id)
+            if not list_info:
+                return DialogResponse(
+                    success=False,
+                    message="List not found"
+                )
+
+            # Get new name from user
+            new_name = xbmcgui.Dialog().input(
+                "Enter new list name:",
+                defaultt=list_info['name'],
+                type=xbmcgui.INPUT_ALPHANUM
+            )
+
+            if not new_name or not new_name.strip():
+                context.logger.info("User cancelled list rename or entered empty name")
+                return DialogResponse(success=False)
+
+            # Update the list name
+            result = query_manager.update_list_name(list_id, new_name.strip())
+
+            if result.get("error"):
+                if result["error"] == "duplicate_name":
+                    message = f"List '{new_name}' already exists"
+                else:
+                    message = "Failed to rename list"
+                
+                return DialogResponse(
+                    success=False,
+                    message=message
+                )
+            else:
+                context.logger.info(f"Successfully renamed list to: {new_name}")
+                return DialogResponse(
+                    success=True,
+                    message=f"Renamed list to: {new_name}",
+                    refresh_needed=True
+                )
+
+        except Exception as e:
+            context.logger.error(f"Error renaming list: {e}")
+            return DialogResponse(
+                success=False,
+                message="Error renaming list"
+            )
+    
+    def remove_from_list(self, context: PluginContext, list_id: str, item_id: str) -> DialogResponse:
+        """Handle removing an item from a list"""
+        try:
+            context.logger.info(f"Removing item {item_id} from list {list_id}")
+
+            # Initialize query manager
+            query_manager = get_query_manager()
+            if not query_manager.initialize():
+                context.logger.error("Failed to initialize query manager")
+                return DialogResponse(
+                    success=False,
+                    message="Database error"
+                )
+
+            # Get list and item info
+            list_info = query_manager.get_list_by_id(list_id)
+            if not list_info:
+                return DialogResponse(
+                    success=False,
+                    message="List not found"
+                )
+
+            # Get the item info for confirmation
+            from lib.data.list_library_manager import get_list_library_manager
+            list_manager = get_list_library_manager()
+            
+            item_info = list_manager.get_list_item_by_id(item_id)
+            if not item_info:
+                return DialogResponse(
+                    success=False,
+                    message="Item not found"
+                )
+
+            # Confirm removal
+            if not xbmcgui.Dialog().yesno(
+                context.addon.getLocalizedString(35002),
+                f"Remove '{item_info['title']}' from list '{list_info['name']}'?"
+            ):
+                context.logger.info("User cancelled item removal")
+                return DialogResponse(success=False)
+
+            # Remove the item
+            result = list_manager.remove_from_list(list_id, item_id)
+
+            if result.get("success"):
+                context.logger.info(f"Successfully removed item from list")
+                return DialogResponse(
+                    success=True,
+                    message=f"Removed '{item_info['title']}' from list",
+                    refresh_needed=True
+                )
+            else:
+                return DialogResponse(
+                    success=False,
+                    message="Failed to remove item from list"
+                )
+
+        except Exception as e:
+            context.logger.error(f"Error removing from list: {e}")
+            return DialogResponse(
+                success=False,
+                message="Error removing from list"
+            )
+    
+    def create_folder(self, context: PluginContext) -> DialogResponse:
+        """Handle creating a new folder"""
+        try:
+            context.logger.info("Handling create folder request")
+
+            # Get folder name from user
+            folder_name = xbmcgui.Dialog().input(
+                "Enter folder name:",
+                type=xbmcgui.INPUT_ALPHANUM
+            )
+
+            if not folder_name or not folder_name.strip():
+                context.logger.info("User cancelled folder creation or entered empty name")
+                return DialogResponse(success=False)
+
+            # Initialize query manager and create folder
+            query_manager = get_query_manager()
+            if not query_manager.initialize():
+                context.logger.error("Failed to initialize query manager")
+                return DialogResponse(
+                    success=False,
+                    message="Database error"
+                )
+
+            result = query_manager.create_folder(folder_name.strip())
+
+            if result.get("error"):
+                if result["error"] == "duplicate_name":
+                    message = f"Folder '{folder_name}' already exists"
+                else:
+                    message = "Failed to create folder"
+                
+                return DialogResponse(
+                    success=False,
+                    message=message
+                )
+            else:
+                context.logger.info(f"Successfully created folder: {folder_name}")
+                return DialogResponse(
+                    success=True,
+                    message=f"Created folder: {folder_name}",
+                    refresh_needed=True
+                )
+
+        except Exception as e:
+            context.logger.error(f"Error creating folder: {e}")
+            return DialogResponse(
+                success=False,
+                message="Error creating folder"
+            )
+    
+    def rename_folder(self, context: PluginContext, folder_id: str) -> DialogResponse:
+        """Handle renaming a folder"""
+        try:
+            context.logger.info(f"Renaming folder {folder_id}")
+
+            # Initialize query manager
+            query_manager = get_query_manager()
+            if not query_manager.initialize():
+                context.logger.error("Failed to initialize query manager")
+                return DialogResponse(
+                    success=False,
+                    message="Database error"
+                )
+
+            # Get current folder info
+            folder_info = query_manager.get_folder_by_id(folder_id)
+            if not folder_info:
+                return DialogResponse(
+                    success=False,
+                    message="Folder not found"
+                )
+
+            # Check if it's a reserved folder
+            if folder_info['name'] == 'Search History':
+                return DialogResponse(
+                    success=False,
+                    message="Cannot rename reserved folder"
+                )
+
+            # Get new name from user
+            new_name = xbmcgui.Dialog().input(
+                "Enter new folder name:",
+                defaultt=folder_info['name'],
+                type=xbmcgui.INPUT_ALPHANUM
+            )
+
+            if not new_name or not new_name.strip():
+                context.logger.info("User cancelled folder rename or entered empty name")
+                return DialogResponse(success=False)
+
+            # Update the folder name
+            result = query_manager.update_folder_name(folder_id, new_name.strip())
+
+            if result.get("error"):
+                if result["error"] == "duplicate_name":
+                    message = f"Folder '{new_name}' already exists"
+                else:
+                    message = "Failed to rename folder"
+                
+                return DialogResponse(
+                    success=False,
+                    message=message
+                )
+            else:
+                context.logger.info(f"Successfully renamed folder to: {new_name}")
+                return DialogResponse(
+                    success=True,
+                    message=f"Renamed folder to: {new_name}",
+                    refresh_needed=True
+                )
+
+        except Exception as e:
+            context.logger.error(f"Error renaming folder: {e}")
+            return DialogResponse(
+                success=False,
+                message="Error renaming folder"
+            )
+    
+    def delete_folder(self, context: PluginContext, folder_id: str) -> DialogResponse:
+        """Handle deleting a folder"""
+        try:
+            context.logger.info(f"Deleting folder {folder_id}")
+
+            # Initialize query manager
+            query_manager = get_query_manager()
+            if not query_manager.initialize():
+                context.logger.error("Failed to initialize query manager")
+                return DialogResponse(
+                    success=False,
+                    message="Database error"
+                )
+
+            # Get current folder info
+            folder_info = query_manager.get_folder_by_id(folder_id)
+            if not folder_info:
+                return DialogResponse(
+                    success=False,
+                    message="Folder not found"
+                )
+
+            # Check if it's a reserved folder
+            if folder_info['name'] == 'Search History':
+                return DialogResponse(
+                    success=False,
+                    message="Cannot delete reserved folder"
+                )
+
+            # Check if folder has lists
+            lists_in_folder = query_manager.get_lists_in_folder(folder_id)
+            
+            # Confirm deletion
+            if lists_in_folder:
+                if not xbmcgui.Dialog().yesno(
+                    context.addon.getLocalizedString(35002),
+                    f"Delete folder '{folder_info['name']}'?",
+                    f"This folder contains {len(lists_in_folder)} lists.",
+                    "All lists will be moved to the root level."
+                ):
+                    context.logger.info("User cancelled folder deletion")
+                    return DialogResponse(success=False)
+            else:
+                if not xbmcgui.Dialog().yesno(
+                    context.addon.getLocalizedString(35002),
+                    f"Delete empty folder '{folder_info['name']}'?"
+                ):
+                    context.logger.info("User cancelled folder deletion")
+                    return DialogResponse(success=False)
+
+            # Delete the folder
+            result = query_manager.delete_folder(folder_id)
+
+            if result.get("error"):
+                return DialogResponse(
+                    success=False,
+                    message="Failed to delete folder"
+                )
+            else:
+                context.logger.info(f"Successfully deleted folder: {folder_info['name']}")
+                return DialogResponse(
+                    success=True,
+                    message=f"Deleted folder: {folder_info['name']}",
+                    refresh_needed=True
+                )
+
+        except Exception as e:
+            context.logger.error(f"Error deleting folder: {e}")
+            return DialogResponse(
+                success=False,
+                message="Error deleting folder"
+            )
