@@ -453,11 +453,35 @@ class ListItemBuilder:
 
             self.logger.debug(f"ACTION ITEM: Creating action ListItem for '{title}' (action={action})")
 
-            # Create simple ListItem with no media metadata
+            # Create simple ListItem with minimal video info to satisfy Kodi requirements
             li = xbmcgui.ListItem(label=title)
 
-            # Set basic properties only - no video metadata
+            # Set basic properties - mark as not playable
             li.setProperty('IsPlayable', 'false')
+
+            # Set minimal video info to prevent "ListItem type must be audio or video" warning
+            kodi_major = get_kodi_major_version()
+            if kodi_major >= 20:
+                # v20+: Use InfoTagVideo to set minimal video type
+                try:
+                    video_info_tag = li.getVideoInfoTag()
+                    video_info_tag.setMediaType('video')  # Mark as video type
+                    video_info_tag.setTitle(title)
+                    if description:
+                        video_info_tag.setPlot(description)
+                    self.logger.debug(f"ACTION ITEM v20+: Set minimal video info for '{title}'")
+                except Exception as e:
+                    self.logger.warning(f"ACTION ITEM v20+: InfoTagVideo setup failed for '{title}': {e}")
+            else:
+                # v19: Use setInfo() with minimal video info
+                info = {
+                    'title': title,
+                    'mediatype': 'video'  # Mark as video type
+                }
+                if description:
+                    info['plot'] = description
+                li.setInfo('video', info)
+                self.logger.debug(f"ACTION ITEM v19: Set minimal video info for '{title}'")
 
             # Set icon only (no artwork that could trigger video info)
             icon = item.get('icon', 'DefaultAddonService.png')
