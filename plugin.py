@@ -8,6 +8,7 @@ Handles plugin URL routing and main menu display using new modular architecture
 
 import sys
 from typing import Dict, Any
+from urllib.parse import parse_qsl
 
 import xbmcaddon
 import xbmcplugin
@@ -21,6 +22,10 @@ from lib.ui.main_menu_handler import MainMenuHandler
 from lib.ui.search_handler import SearchHandler
 from lib.ui.lists_handler import ListsHandler
 from lib.utils.logger import get_logger
+
+# Import legacy functions for compatibility
+from lib.auth.auth_helper import get_auth_helper
+from lib.data.query_manager import get_query_manager
 
 # Get logger instance
 logger = get_logger(__name__)
@@ -61,15 +66,16 @@ def show_main_menu(handle):
 
 
 def show_search_menu(handle):
-    """Show search interface"""
+    """Legacy wrapper for search - delegates to new SearchHandler"""
     try:
-        from lib.ui.search_handler import SearchHandler
-
-        search_handler = SearchHandler(handle)
-        search_handler.prompt_and_show()
+        context = PluginContext()
+        context.addon_handle = handle
+        
+        search_handler = SearchHandler()
+        search_handler.prompt_and_search(context)
     except Exception as e:
         logger = get_logger(__name__)
-        logger.error(f"Error importing or using SearchHandler: {e}")
+        logger.error(f"Error in legacy show_search_menu: {e}")
         addon = xbmcaddon.Addon()
         xbmcgui.Dialog().notification(
             addon.getLocalizedString(35002),
@@ -1716,7 +1722,7 @@ def _register_all_handlers(router: Router):
     lists_handler = ListsHandler()
     
     # Register new modular handlers
-    router.register_handler('search', search_handler.handle_search)
+    router.register_handler('search', search_handler.prompt_and_search)
     router.register_handler('lists', lists_handler.handle_lists)
     router.register_handler('kodi_favorites', lists_handler.handle_kodi_favorites)
     
