@@ -158,9 +158,12 @@ class ListItemBuilder:
         # Check if this is an action item (non-media)
         is_action_item = (
             media_type == 'none' or
-            item.get('action') in ('scan_favorites', 'noop', 'create_list', 'create_folder') or
+            item.get('action') in ('scan_favorites', 'scan_favorites_execute', 'noop', 'create_list', 'create_list_execute', 'create_folder', 'create_folder_execute') or
             title.startswith('[COLOR yellow]🔄 Sync') or
-            'Sync Favorites' in title
+            title.startswith('[COLOR yellow]+ Create') or
+            title.startswith('[COLOR cyan]+ Create') or
+            'Sync Favorites' in title or
+            'Create New' in title
         )
 
         self.logger.debug(f"ITEM BUILD: '{title}' type={media_type} kodi_id={kodi_id} is_action={is_action_item}")

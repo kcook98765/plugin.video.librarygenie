@@ -228,7 +228,7 @@ def handle_lists(addon_handle, base_url):
         # Add "Create New List" option at the top
         menu_items.append({
             "title": "[COLOR yellow]+ Create New List[/COLOR]",
-            "action": "create_list",
+            "action": "create_list_execute",
             "description": "Create a new list",
             "is_folder": False,
             "icon": "DefaultAddSource.png"
@@ -237,7 +237,7 @@ def handle_lists(addon_handle, base_url):
         # Add "Create New Folder" option
         menu_items.append({
             "title": "[COLOR cyan]+ Create New Folder[/COLOR]",
-            "action": "create_folder",
+            "action": "create_folder_execute",
             "description": "Create a new folder",
             "is_folder": False,
             "icon": "DefaultFolder.png"
@@ -363,6 +363,178 @@ def handle_create_list():
         logger.error(f"Error creating list: {e}")
         import traceback
         logger.error(f"Create list error traceback: {traceback.format_exc()}")
+
+
+def handle_create_list_execute():
+    """Handle the execution of creating a new list (called when folder is entered)"""
+    try:
+        logger.info("Executing create new list")
+
+        # Get list name from user
+        addon = xbmcaddon.Addon()
+        list_name = xbmcgui.Dialog().input(
+            "Enter list name:",
+            type=xbmcgui.INPUT_ALPHANUM
+        )
+
+        if not list_name or not list_name.strip():
+            logger.info("User cancelled list creation or entered empty name")
+            return
+
+        # Initialize query manager and create list
+        query_manager = get_query_manager()
+        if not query_manager.initialize():
+            logger.error("Failed to initialize query manager")
+            return
+
+        result = query_manager.create_list(list_name.strip())
+
+        if result.get("error"):
+            if result["error"] == "duplicate_name":
+                xbmcgui.Dialog().ok(
+                    addon.getLocalizedString(35002),
+                    f"List '{list_name}' already exists"
+                )
+            else:
+                xbmcgui.Dialog().ok(
+                    addon.getLocalizedString(35002),
+                    "Failed to create list"
+                )
+        else:
+            logger.info(f"Successfully created list: {list_name}")
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),
+                f"Created list: {list_name}",
+                xbmcgui.NOTIFICATION_INFO,
+                3000
+            )
+            # Refresh the lists view
+            xbmc.executebuiltin('Container.Refresh')
+
+    except Exception as e:
+        logger.error(f"Error executing list creation: {e}")
+        import traceback
+        logger.error(f"Create list execution error traceback: {traceback.format_exc()}")
+
+
+def handle_create_folder():
+    """Handle creating a new folder"""
+    try:
+        logger.info("Handling create folder request")
+
+        # Get folder name from user
+        addon = xbmcaddon.Addon()
+        folder_name = xbmcgui.Dialog().input(
+            "Enter folder name:",
+            type=xbmcgui.INPUT_ALPHANUM
+        )
+
+        if not folder_name or not folder_name.strip():
+            logger.info("User cancelled folder creation or entered empty name")
+            return
+
+        # Initialize query manager and create folder
+        query_manager = get_query_manager()
+        if not query_manager.initialize():
+            logger.error("Failed to initialize query manager")
+            return
+
+        # Check if folder name is reserved
+        if folder_name.strip() == "Search History":
+            xbmcgui.Dialog().ok(
+                addon.getLocalizedString(35002),
+                "Cannot create 'Search History' folder. It is a reserved folder."
+            )
+            return
+
+        result = query_manager.create_folder(folder_name.strip())
+
+        if result.get("error"):
+            if result["error"] == "duplicate_name":
+                xbmcgui.Dialog().ok(
+                    addon.getLocalizedString(35002),
+                    f"Folder '{folder_name}' already exists"
+                )
+            else:
+                xbmcgui.Dialog().ok(
+                    addon.getLocalizedString(35002),
+                    "Failed to create folder"
+                )
+        else:
+            logger.info(f"Successfully created folder: {folder_name}")
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),
+                f"Created folder: {folder_name}",
+                xbmcgui.NOTIFICATION_INFO,
+                3000
+            )
+            # Refresh the lists view
+            xbmc.executebuiltin('Container.Refresh')
+
+    except Exception as e:
+        logger.error(f"Error creating folder: {e}")
+        import traceback
+        logger.error(f"Create folder error traceback: {traceback.format_exc()}")
+
+
+def handle_create_folder_execute():
+    """Handle the execution of creating a new folder (called when folder is entered)"""
+    try:
+        logger.info("Executing create new folder")
+
+        # Get folder name from user
+        addon = xbmcaddon.Addon()
+        folder_name = xbmcgui.Dialog().input(
+            "Enter folder name:",
+            type=xbmcgui.INPUT_ALPHANUM
+        )
+
+        if not folder_name or not folder_name.strip():
+            logger.info("User cancelled folder creation or entered empty name")
+            return
+
+        # Initialize query manager and create folder
+        query_manager = get_query_manager()
+        if not query_manager.initialize():
+            logger.error("Failed to initialize query manager")
+            return
+
+        # Check if folder name is reserved
+        if folder_name.strip() == "Search History":
+            xbmcgui.Dialog().ok(
+                addon.getLocalizedString(35002),
+                "Cannot create 'Search History' folder. It is a reserved folder."
+            )
+            return
+
+        result = query_manager.create_folder(folder_name.strip())
+
+        if result.get("error"):
+            if result["error"] == "duplicate_name":
+                xbmcgui.Dialog().ok(
+                    addon.getLocalizedString(35002),
+                    f"Folder '{folder_name}' already exists"
+                )
+            else:
+                xbmcgui.Dialog().ok(
+                    addon.getLocalizedString(35002),
+                    "Failed to create folder"
+                )
+        else:
+            logger.info(f"Successfully created folder: {folder_name}")
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),
+                f"Created folder: {folder_name}",
+                xbmcgui.NOTIFICATION_INFO,
+                3000
+            )
+            # Refresh the lists view
+            xbmc.executebuiltin('Container.Refresh')
+
+    except Exception as e:
+        logger.error(f"Error executing folder creation: {e}")
+        import traceback
+        logger.error(f"Create folder execution error traceback: {traceback.format_exc()}")
 
 
 def handle_view_list(addon_handle, base_url):
@@ -647,66 +819,6 @@ def handle_delete_list():
         logger.error(f"Error deleting list: {e}")
         import traceback
         logger.error(f"Delete list error traceback: {traceback.format_exc()}")
-
-
-def handle_create_folder():
-    """Handle creating a new folder"""
-    try:
-        logger.info("Handling create folder request")
-
-        # Get folder name from user
-        addon = xbmcaddon.Addon()
-        folder_name = xbmcgui.Dialog().input(
-            "Enter folder name:",
-            type=xbmcgui.INPUT_ALPHANUM
-        )
-
-        if not folder_name or not folder_name.strip():
-            logger.info("User cancelled folder creation or entered empty name")
-            return
-
-        # Initialize query manager and create folder
-        query_manager = get_query_manager()
-        if not query_manager.initialize():
-            logger.error("Failed to initialize query manager")
-            return
-
-        # Check if folder name is reserved
-        if folder_name.strip() == "Search History":
-            xbmcgui.Dialog().ok(
-                addon.getLocalizedString(35002),
-                "Cannot create 'Search History' folder. It is a reserved folder."
-            )
-            return
-
-        result = query_manager.create_folder(folder_name.strip())
-
-        if result.get("error"):
-            if result["error"] == "duplicate_name":
-                xbmcgui.Dialog().ok(
-                    addon.getLocalizedString(35002),
-                    f"Folder '{folder_name}' already exists"
-                )
-            else:
-                xbmcgui.Dialog().ok(
-                    addon.getLocalizedString(35002),
-                    "Failed to create folder"
-                )
-        else:
-            logger.info(f"Successfully created folder: {folder_name}")
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),
-                f"Created folder: {folder_name}",
-                xbmcgui.NOTIFICATION_INFO,
-                3000
-            )
-            # Refresh the lists view
-            xbmc.executebuiltin('Container.Refresh')
-
-    except Exception as e:
-        logger.error(f"Error creating folder: {e}")
-        import traceback
-        logger.error(f"Create folder error traceback: {traceback.format_exc()}")
 
 
 def handle_rename_folder():
@@ -1535,11 +1647,13 @@ action_handlers = {
     'scan_favorites_execute': handle_scan_favorites_execute,
     'add_favorite_to_list': handle_add_favorite_to_list,
     'create_list': handle_create_list,
+    'create_list_execute': handle_create_list_execute,
     'view_list': handle_view_list,
     'rename_list': handle_rename_list,
     'delete_list': handle_delete_list,
     'remove_from_list': handle_remove_from_list,
     'create_folder': handle_create_folder,
+    'create_folder_execute': handle_create_folder_execute,
     'rename_folder': handle_rename_folder,
     'delete_folder': handle_delete_folder,
     'show_folder': handle_show_folder,  # Added handler for showing folder contents
@@ -1632,7 +1746,7 @@ def main():
                             'rename_list', 'delete_list', 'remove_from_list',
                             'create_folder', 'rename_folder', 'delete_folder',
                             'scan_favorites', 'scan_favorites_execute', 'add_favorite_to_list', 'remote_lists',
-                            'show_remote_search', 'settings'):
+                            'show_remote_search', 'settings', 'create_list_execute', 'create_folder_execute'):
                 # Zero-arg or internal handlers
                 handler()
             else:
