@@ -103,27 +103,6 @@ def _check_and_trigger_initial_scan():
         logger.error(f"Failed to check/trigger initial scan: {e}")
 
 
-# Legacy handlers removed - functionality now handled by modular handlers
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 def _videodb_path(dbtype: str, dbid: int, tvshowid=None, season=None) -> str:
     """Build videodb:// path for Kodi library items"""
     if dbtype == "movie":
@@ -415,6 +394,10 @@ def _register_all_handlers(router: Router):
     # Register ListsHandler methods that expect specific parameters
     router.register_handler('create_list_execute', lambda ctx: _handle_dialog_response(ctx, lists_handler.create_list(ctx)))
     router.register_handler('create_folder_execute', lambda ctx: _handle_dialog_response(ctx, lists_handler.create_folder(ctx)))
+    
+    # Register list and folder view handlers
+    router.register_handler('show_list', lambda ctx: lists_handler.view_list(ctx, ctx.get_param('list_id')))
+    router.register_handler('show_folder', lambda ctx: lists_handler.show_folder(ctx, ctx.get_param('folder_id')))
     
     # Register parameter-based handlers
     router.register_handler('delete_list', lambda ctx: _handle_dialog_response(ctx, lists_handler.delete_list(ctx, ctx.get_param('list_id'))))

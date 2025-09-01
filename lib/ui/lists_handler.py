@@ -593,3 +593,206 @@ class ListsHandler:
                 success=False,
                 message="Error deleting folder"
             )
+    
+    def view_list(self, context: PluginContext, list_id: str) -> DirectoryResponse:
+        """Display contents of a specific list"""
+        try:
+            context.logger.info(f"Displaying list {list_id}")
+
+            # Initialize query manager
+            query_manager = get_query_manager()
+            if not query_manager.initialize():
+                context.logger.error("Failed to initialize query manager")
+                return DirectoryResponse(
+                    items=[],
+                    success=False
+                )
+
+            # Get list info
+            list_info = query_manager.get_list_by_id(list_id)
+            if not list_info:
+                context.logger.error(f"List {list_id} not found")
+                return DirectoryResponse(
+                    items=[],
+                    success=False
+                )
+
+            # Get list items
+            from lib.data.list_library_manager import get_list_library_manager
+            list_manager = get_list_library_manager()
+            list_items = list_manager.get_list_items(list_id)
+
+            context.logger.info(f"List '{list_info['name']}' has {len(list_items)} items")
+
+            if not list_items:
+                # Empty list
+                empty_item = xbmcgui.ListItem(label="[COLOR gray]List is empty[/COLOR]")
+                empty_item.setInfo('video', {'plot': 'This list contains no items'})
+                xbmcplugin.addDirectoryItem(
+                    context.addon_handle,
+                    context.build_url('noop'),
+                    empty_item,
+                    False
+                )
+            else:
+                # Build list items
+                from lib.ui.listitem_builder import ListItemBuilder
+                builder = ListItemBuilder(context.addon_handle, context.addon_id)
+                
+                for item in list_items:
+                    try:
+                        # Build context menu for list item
+                        context_menu = [
+                            (f"Remove from '{list_info['name']}'", 
+                             f"RunPlugin({context.build_url('remove_from_list', list_id=list_id, item_id=item['id'])})")
+                        ]
+                        
+                        # Create list item
+                        list_item = builder._create_list_item_from_data(item, context_menu)
+                        
+                        # Add to directory
+                        xbmcplugin.addDirectoryItem(
+                            context.addon_handle,
+                            list_item['url'],
+                            list_item['listitem'],
+                            list_item['is_folder']
+                        )
+                        
+                    except Exception as e:
+                        context.logger.error(f"Error building list item: {e}")
+                        continue
+
+            # Set content type and finish directory
+            xbmcplugin.setContent(context.addon_handle, 'movies')
+            xbmcplugin.endOfDirectory(
+                context.addon_handle,
+                succeeded=True,
+                updateListing=False,
+                cacheToDisc=True
+            )
+
+            return DirectoryResponse(
+                items=list_items,
+                success=True,
+                content_type="movies"
+            )
+
+        except Exception as e:
+            context.logger.error(f"Error viewing list: {e}")
+            return DirectoryResponse(
+                items=[],
+                success=False
+            )
+    
+    def show_folder(self, context: PluginContext, folder_id: str) -> DirectoryResponse:
+        """Display contents of a specific folder"""
+        try:
+            context.logger.info(f"Displaying folder {folder_id}")
+
+            # Initialize query manager
+            query_manager = get_query_manager()
+            if not query_manager.initialize():
+                context.logger.error("Failed to initialize query manager")
+                return DirectoryResponse(
+                    items=[],
+                    success=False
+                )
+
+            # Get folder info
+            folder_info = query_manager.get_folder_by_id(folder_id)
+            if not folder_info:
+                context.logger.error(f"Folder {folder_id} not found")
+                return DirectoryResponse(
+                    items=[],
+                    success=False
+                )
+
+            # Get lists in this folder
+            lists_in_folder = query_manager.get_lists_in_folder(folder_id)
+            context.logger.info(f"Folder '{folder_info['name']}' has {len(lists_in_folder)} lists")
+
+            menu_items = []
+
+            # Add "Create New List" option in this folder
+            menu_items.append({
+                'label': "[COLOR yellow]+ Create New List in this Folder[/COLOR]",
+                'url': context.build_url('create_list_in_folder', folder_id=folder_id),
+                'is_folder': True,
+                'icon': "DefaultAddSource.png",
+                'description': f"Create a new list in '{folder_info['name']}'"
+            })
+
+            # Add lists in this folder
+            for list_item in lists_in_folder:
+                list_id = list_item.get('id')
+                name = list_item.get('name', 'Unnamed List')
+                description = list_item.get('description', '')
+                item_count = list_item.get('item_count', 0)
+
+                context_menu = [
+                    (f"Rename List '{name}'", f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"),
+                    (f"Delete List '{name}'", f"RunPlugin({context.build_url('delete_list', list_id=list_id)})")
+                ]
+
+                menu_items.append({
+                    'label': f"[COLOR yellow]📋 {name}[/COLOR]",
+                    'url': context.build_url('show_list', list_id=list_id),
+                    'is_folder': True,
+                    'description': f"{item_count} items - {description}" if description else f"{item_count} items",
+                    'icon': "DefaultPlaylist.png",
+                    'context_menu': context_menu
+                })
+
+            # If folder is empty, show message
+            if not lists_in_folder:
+                empty_item = xbmcgui.ListItem(label="[COLOR gray]Folder is empty[/COLOR]")
+                empty_item.setInfo('video', {'plot': 'This folder contains no lists'})
+                xbmcplugin.addDirectoryItem(
+                    context.addon_handle,
+                    context.build_url('noop'),
+                    empty_item,
+                    False
+                )
+
+            # Build directory items
+            for item in menu_items:
+                list_item = xbmcgui.ListItem(label=item['label'])
+                
+                if 'description' in item:
+                    list_item.setInfo('video', {'plot': item['description']})
+                
+                if 'icon' in item:
+                    list_item.setArt({'icon': item['icon'], 'thumb': item['icon']})
+                
+                # Add context menu if present
+                if 'context_menu' in item:
+                    list_item.addContextMenuItems(item['context_menu'])
+                
+                xbmcplugin.addDirectoryItem(
+                    context.addon_handle,
+                    item['url'],
+                    list_item,
+                    item['is_folder']
+                )
+
+            # End directory
+            xbmcplugin.endOfDirectory(
+                context.addon_handle,
+                succeeded=True,
+                updateListing=False,
+                cacheToDisc=True
+            )
+
+            return DirectoryResponse(
+                items=menu_items,
+                success=True,
+                cache_to_disc=True,
+                content_type="files"
+            )
+
+        except Exception as e:
+            context.logger.error(f"Error showing folder: {e}")
+            return DirectoryResponse(
+                items=[],
+                success=False
+            )
