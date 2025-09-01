@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -30,15 +29,15 @@ class ShortListImporter:
     def is_shortlist_installed(self) -> bool:
         """Check if ShortList addon is installed and enabled"""
         try:
-            result = self.json_rpc.execute_rpc("Addons.GetAddonDetails", {
+            result = self.json_rpc.call("Addons.GetAddonDetails", {
                 "addonid": "plugin.program.shortlist",
                 "properties": ["enabled"]
             })
-            
+
             is_enabled = result.get("addon", {}).get("enabled", False)
             self.logger.info(f"ShortList addon enabled: {is_enabled}")
             return is_enabled
-            
+
         except Exception as e:
             self.logger.debug(f"ShortList addon not found: {e}")
             return False
@@ -54,7 +53,7 @@ class ShortListImporter:
                 "writer", "studio", "mpaa", "country", "imdbnumber"
             ]
 
-            result = self.json_rpc.execute_rpc("Files.GetDirectory", {
+            result = self.json_rpc.call("Files.GetDirectory", {
                 "directory": url,
                 "media": "files",
                 "properties": properties,
@@ -67,13 +66,13 @@ class ShortListImporter:
             # Paginate if needed
             while len(files) < total:
                 start = len(files)
-                chunk_result = self.json_rpc.execute_rpc("Files.GetDirectory", {
+                chunk_result = self.json_rpc.call("Files.GetDirectory", {
                     "directory": url,
                     "media": "files",
                     "properties": properties,
                     "limits": {"start": start, "end": start + 200}
                 })
-                
+
                 chunk = chunk_result.get("files", [])
                 if not chunk:
                     break
@@ -234,7 +233,7 @@ class ShortListImporter:
     def import_shortlist_items(self) -> Dict[str, Any]:
         """Import all ShortList items into LibraryGenie"""
         start_time = datetime.now()
-        
+
         try:
             # Check if ShortList is installed
             if not self.is_shortlist_installed():
@@ -290,7 +289,7 @@ class ShortListImporter:
                                     (list_id, library_movie_id, created_at)
                                     VALUES (?, ?, datetime('now'))
                                 """, [import_list_id, library_movie_id])
-                                
+
                                 items_matched += 1
                                 items_added += 1
                             else:
@@ -317,7 +316,7 @@ class ShortListImporter:
         except Exception as e:
             self.logger.error(f"ShortList import failed: {e}")
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
-            
+
             return {
                 "success": False,
                 "error": str(e),
