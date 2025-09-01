@@ -1408,8 +1408,24 @@ def _format_time_ago(timestamp_str):
     try:
         from datetime import datetime, timezone
 
-        # Parse the timestamp (assuming ISO format)
-        scan_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+        # Parse the timestamp - handle both Z suffix and +00:00 formats
+        if timestamp_str.endswith('Z'):
+            # Replace Z with +00:00 for proper parsing
+            normalized_timestamp = timestamp_str.replace('Z', '+00:00')
+        elif '+' not in timestamp_str and timestamp_str.count(':') >= 2:
+            # If no timezone info, assume UTC
+            normalized_timestamp = timestamp_str + '+00:00'
+        else:
+            normalized_timestamp = timestamp_str
+
+        # Parse the timestamp
+        scan_time = datetime.fromisoformat(normalized_timestamp)
+        
+        # Ensure scan_time is timezone-aware (convert to UTC if naive)
+        if scan_time.tzinfo is None:
+            scan_time = scan_time.replace(tzinfo=timezone.utc)
+        
+        # Get current time in UTC
         now = datetime.now(timezone.utc)
 
         # Calculate time difference
