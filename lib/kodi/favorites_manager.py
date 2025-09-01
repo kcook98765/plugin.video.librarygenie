@@ -407,16 +407,11 @@ class Phase4FavoritesManager:
         """Get favorites from unified lists table with full metadata like normal lists"""
         try:
             with self.conn_manager.transaction() as conn:
-                # Get full media item data matching normal list view patterns
+                # Get full media item data using only existing columns
                 favorites = conn.execute("""
                     SELECT li.id, mi.title, mi.year, mi.imdbnumber as imdb_id, mi.tmdb_id,
                            mi.kodi_id, mi.media_type, mi.poster, mi.fanart, mi.plot,
-                           mi.rating, mi.votes, mi.duration, mi.genre, mi.director,
-                           mi.studio, mi.country, mi.art, mi.mpaa,
-                           mi.dateadded, mi.playcount, mi.lastplayed,
-                           mi.file_path, mi.normalized_path, mi.runtime,
-                           mi.resume_position, mi.resume_total,
-                           mi.play, mi.trailer, mi.set_name, mi.sorttitle,
+                           mi.file_path, mi.normalized_path,
                            li.media_item_id as library_movie_id,
                            mi.title as name,  -- Use the library title as the favorite name
                            li.position
@@ -439,13 +434,10 @@ class Phase4FavoritesManager:
                     # Add mapped status for UI
                     fav_dict['is_mapped'] = 1  # All items in this query are mapped
                     
-                    # Handle resume info like normal lists (using separate columns)
-                    resume_position = fav_dict.get('resume_position', 0) or 0
-                    resume_total = fav_dict.get('resume_total', 0) or 0
-                    
+                    # Set default resume info (resume columns don't exist in current schema)
                     fav_dict['resume'] = {
-                        'position_seconds': resume_position,
-                        'total_seconds': resume_total
+                        'position_seconds': 0,
+                        'total_seconds': 0
                     }
                     
                     # Ensure kodi_id is available for library integration
