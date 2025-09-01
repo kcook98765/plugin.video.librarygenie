@@ -84,28 +84,7 @@ def show_search_menu(handle):
         )
 
 
-def show_remote_search_menu(handle):
-    """Show remote search interface"""
-    addon = xbmcaddon.Addon()
-    list_item = xbmcgui.ListItem(label=addon.getLocalizedString(35115))
-    xbmcplugin.addDirectoryItem(handle, "", list_item, False)
-    xbmcplugin.endOfDirectory(handle, succeeded=True, updateListing=False, cacheToDisc=True)
-
-
-def show_lists_menu(handle):
-    """Show lists management interface"""
-    addon = xbmcaddon.Addon()
-    list_item = xbmcgui.ListItem(label=addon.getLocalizedString(35116))
-    xbmcplugin.addDirectoryItem(handle, "", list_item, False)
-    xbmcplugin.endOfDirectory(handle, succeeded=True, updateListing=False, cacheToDisc=True)
-
-
-def show_remote_lists_menu(handle):
-    """Show remote lists interface"""
-    addon = xbmcaddon.Addon()
-    list_item = xbmcgui.ListItem(label=addon.getLocalizedString(35117))
-    xbmcplugin.addDirectoryItem(handle, "", list_item, False)
-    xbmcplugin.endOfDirectory(handle, succeeded=True, updateListing=False, cacheToDisc=True)
+# Legacy handlers removed - functionality now handled by modular handlers
 
 
 def handle_authorize():
@@ -1639,8 +1618,9 @@ def handle_noop():
 def main():
     """Main plugin entry point using new modular architecture"""
     
-    logger.debug(f"=== PLUGIN INVOCATION ===")
+    logger.debug(f"=== PLUGIN INVOCATION (REFACTORED) ===")
     logger.debug(f"Full sys.argv: {sys.argv}")
+    logger.debug(f"Using modular handler architecture")
     
     try:
         # Create plugin context from request
@@ -1731,7 +1711,6 @@ def _register_all_handlers(router: Router):
         'view_list': _wrap_legacy_handler(handle_view_list),
         'show_folder': _wrap_legacy_handler(handle_show_folder),
         'show_list': _wrap_legacy_handler(handle_view_list),
-        'remote_lists': _wrap_legacy_handler(show_remote_lists_menu),
         'authorize': _wrap_legacy_handler(handle_authorize),
         'signout': _wrap_legacy_handler(handle_signout),
         'on_select': _wrap_legacy_on_select_handler(handle_on_select),
