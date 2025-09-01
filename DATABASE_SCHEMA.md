@@ -1,3 +1,4 @@
+
 # LibraryGenie Database Schema
 
 This document describes the SQLite database schema used by LibraryGenie for storing lists, folders, media references, and Kodi favorites.
@@ -43,7 +44,7 @@ Hierarchical folder structure for organizing lists.
 
 Constraints:
 - UNIQUE(name, parent_id).
-- Create reserved Search History folder
+- Creates reserved "Search History" folder during initialization
 
 ---
 
@@ -315,8 +316,6 @@ Stores authentication token and expiry information.
 | `token_type`   | TEXT    | Usually "Bearer" |
 | `scope`        | TEXT    | Token permissions |
 
-**Note**: There is a typo in the actual implementation where `PRIMARY KEY` is misspelled as `PRIMARYKEY`.
-
 ---
 
 ### `pending_operations` (CLIENT-KODI-SERVICE)
@@ -348,13 +347,8 @@ Tracks database schema version for migrations.
 
 ## Implementation Notes
 
-### SQL Syntax Issues
-The current implementation has several SQL syntax errors that need to be addressed:
-
-1. **PRIMARY KEY Typos**: Several tables use `PRIMARYKEY` instead of `PRIMARY KEY AUTOINCREMENT`
-2. **Missing AUTOINCREMENT**: Some tables are missing the `AUTOINCREMENT` keyword
-
-These issues may prevent proper database initialization and should be fixed in the migration code.
+### Database Initialization
+The database is created with a complete schema on first startup. Migration framework is preserved for future incremental updates, but no legacy compatibility is maintained - this ensures a clean implementation without historical baggage.
 
 ### Favorites Integration
 Kodi favorites are handled through a dual approach:
@@ -368,6 +362,13 @@ The schema includes these default entries on initialization:
 - A "Search History" folder in the `folders` table
 - Default search preferences in `search_preferences`
 - Default UI preferences in `ui_preferences` (single row with ID=1)
+
+### Authentication and Sync
+The auth and sync tables support optional external service integration:
+- Device code OAuth2 flow for secure authorization
+- Differential sync with local snapshots and server ETags
+- Pending operations queue for offline resilience
+- Token refresh and expiry handling
 
 ---
 
@@ -384,11 +385,11 @@ The schema includes these default entries on initialization:
 
 ## Notes
 
-- IMDb is the primary identifier for portability.  
+- IMDb is the primary identifier for portability (`imdbnumber` field in `media_items`).  
 - All fallbacks (TMDb, title/year, season/episode, artist/track) are secondary.  
 - Schema designed for **resilience** (recovery after Kodi crash, portable export/import).
 - Kodi favorites are mapped to media_items via library_movie_id for integration with lists.
 - The main table for media storage is `media_items`, not `library_movie`.
-- Database is created fresh on first startup with complete schema
-- Migration framework preserved for future incremental updates
-- No legacy migration compatibility - clean slate approachn future migrations.
+- Database is created fresh on first startup with complete schema.
+- Migration framework preserved for future incremental updates.
+- No legacy migration compatibility - clean slate approach ensures reliable operation.
