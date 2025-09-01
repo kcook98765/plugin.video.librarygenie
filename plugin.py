@@ -3,72 +3,61 @@
 
 """
 LibraryGenie - Plugin Entry Point
-Handles plugin URL routing and main menu display
+Handles plugin URL routing and main menu display using new modular architecture
 """
 
 import sys
-from urllib.parse import parse_qsl
 from typing import Dict, Any
 
 import xbmcaddon
 import xbmcplugin
 import xbmcgui
-import xbmc  # Added for xbmc.executebuiltin
+import xbmc
 
-# Import our addon modules
-from lib.addon import AddonController
+# Import new modular components
+from lib.ui.plugin_context import PluginContext
+from lib.ui.router import Router
+from lib.ui.main_menu_handler import MainMenuHandler
+from lib.ui.search_handler import SearchHandler
+from lib.ui.lists_handler import ListsHandler
 from lib.utils.logger import get_logger
-from lib.auth.auth_helper import get_auth_helper
-from lib.auth.state import is_authorized
-
-# Import query manager for list operations
-from lib.data.query_manager import get_query_manager  # Assuming this path is correct
 
 # Get logger instance
 logger = get_logger(__name__)
 
-# Placeholder for global arguments if needed by multiple functions
+# Legacy global variables for backward compatibility
 args: Dict[str, Any] = {}
 base_url = ""
 
 
 def show_main_menu(handle):
-    """Show main menu with auth-aware options"""
-    addon = xbmcaddon.Addon()
+    """Legacy wrapper for showing main menu - delegates to new MainMenuHandler"""
+    from lib.ui.plugin_context import PluginContext
+    from lib.ui.main_menu_handler import MainMenuHandler
+    
+    try:
+        # Create a minimal context for legacy compatibility
+        context = PluginContext()
+        context.addon_handle = handle  # Override with legacy handle
+        
+        main_menu_handler = MainMenuHandler()
+        main_menu_handler.show_main_menu(context)
+    except Exception as e:
+        logger.error(f"Error in legacy show_main_menu: {e}")
+        # Fallback to original implementation
+        addon = xbmcaddon.Addon()
 
-    # Search (always visible)
-    search_item = xbmcgui.ListItem(label=addon.getLocalizedString(35014))  # "Search"
-    search_url = f"{sys.argv[0]}?action=search"
-    xbmcplugin.addDirectoryItem(handle, search_url, search_item, True)
+        # Search (always visible)
+        search_item = xbmcgui.ListItem(label=addon.getLocalizedString(35014))  # "Search"
+        search_url = f"{sys.argv[0]}?action=search"
+        xbmcplugin.addDirectoryItem(handle, search_url, search_item, True)
 
-    # Lists (always visible)
-    lists_item = xbmcgui.ListItem(label=addon.getLocalizedString(35016))  # "Lists"
-    lists_url = f"{sys.argv[0]}?action=lists"
-    xbmcplugin.addDirectoryItem(handle, lists_url, lists_item, True)
+        # Lists (always visible)
+        lists_item = xbmcgui.ListItem(label=addon.getLocalizedString(35016))  # "Lists"
+        lists_url = f"{sys.argv[0]}?action=lists"
+        xbmcplugin.addDirectoryItem(handle, lists_url, lists_item, True)
 
-    # Kodi Favorites (always visible)
-    favorites_item = xbmcgui.ListItem(label="Kodi Favorites")
-    favorites_url = f"{sys.argv[0]}?action=kodi_favorites"
-    xbmcplugin.addDirectoryItem(handle, favorites_url, favorites_item, True)
-
-    # Auth-dependent menu items
-    if is_authorized():
-        # Sign out (visible only when authorized)
-        signout_item = xbmcgui.ListItem(label=addon.getLocalizedString(35027))  # "Sign out"
-        signout_url = f"{sys.argv[0]}?action=signout"
-        xbmcplugin.addDirectoryItem(handle, signout_url, signout_item, False)
-
-        # Remote features (when authorized)
-        remote_lists_item = xbmcgui.ListItem(label=addon.getLocalizedString(35017))  # "Remote Lists"
-        remote_lists_url = f"{sys.argv[0]}?action=remote_lists"
-        xbmcplugin.addDirectoryItem(handle, remote_lists_url, remote_lists_item, True)
-    else:
-        # Authorize device (visible only when not authorized)
-        auth_item = xbmcgui.ListItem(label=addon.getLocalizedString(35028))  # "Authorize device"
-        auth_url = f"{sys.argv[0]}?action=authorize"
-        xbmcplugin.addDirectoryItem(handle, auth_url, auth_item, False)
-
-    xbmcplugin.endOfDirectory(handle, succeeded=True, updateListing=False, cacheToDisc=True)
+        xbmcplugin.endOfDirectory(handle, succeeded=True, updateListing=False, cacheToDisc=True)
 
 
 def show_search_menu(handle):
@@ -1638,126 +1627,45 @@ def handle_noop():
         pass
 
 
-# Define the route mapping for actions
-action_handlers = {
-    'search': show_search_menu,
-    'lists': handle_lists,
-    'kodi_favorites': handle_kodi_favorites,
-    'scan_favorites': handle_scan_favorites,
-    'scan_favorites_execute': handle_scan_favorites_execute,
-    'add_favorite_to_list': handle_add_favorite_to_list,
-    'create_list': handle_create_list,
-    'create_list_execute': handle_create_list_execute,
-    'view_list': handle_view_list,
-    'rename_list': handle_rename_list,
-    'delete_list': handle_delete_list,
-    'remove_from_list': handle_remove_from_list,
-    'create_folder': handle_create_folder,
-    'create_folder_execute': handle_create_folder_execute,
-    'rename_folder': handle_rename_folder,
-    'delete_folder': handle_delete_folder,
-    'show_folder': handle_show_folder,  # Added handler for showing folder contents
-    'show_list': handle_view_list,      # Route show_list to handle_view_list
-    'remote_lists': show_remote_lists_menu,
-    'authorize': handle_authorize,
-    'signout': handle_signout,
-    'on_select': handle_on_select,      # Special case handled in main
-    'noop': handle_noop,                # No-arg safe noop
-    'import_shortlist': handle_shortlist_import
-}
+# Legacy handlers - these will be gradually migrated to the new architecture
 
 
 def main():
-    """Main plugin entry point"""
-
-    # Log complete plugin invocation details at entry
+    """Main plugin entry point using new modular architecture"""
+    
     logger.debug(f"=== PLUGIN INVOCATION ===")
     logger.debug(f"Full sys.argv: {sys.argv}")
-
-    # Log current window and control state
+    
     try:
-        current_window = xbmc.getInfoLabel("System.CurrentWindow")
-        current_control = xbmc.getInfoLabel("System.CurrentControl")
-        container_path = xbmc.getInfoLabel("Container.FolderPath")
-        container_label = xbmc.getInfoLabel("Container.FolderName")
-
-        logger.debug(f"Window state at plugin entry:")
-        logger.debug(f"  Current window: {current_window}")
-        logger.debug(f"  Current control: {current_control}")
-        logger.debug(f"  Container path: {container_path}")
-        logger.debug(f"  Container label: {container_label}")
-
-        # Check specific window visibility states
-        myvideo_nav_visible = xbmc.getCondVisibility("Window.IsVisible(MyVideoNav.xml)")
-        dialog_video_info_visible = xbmc.getCondVisibility("Window.IsVisible(DialogVideoInfo.xml)")
-        dialog_video_info_active = xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)")
-        keyboard_visible = xbmc.getCondVisibility("Window.IsVisible(DialogKeyboard.xml)")
-
-        logger.debug(f"  MyVideoNav.xml visible: {myvideo_nav_visible}")
-        logger.debug(f"  DialogVideoInfo.xml visible: {dialog_video_info_visible}")
-        logger.debug(f"  DialogVideoInfo.xml active: {dialog_video_info_active}")
-        logger.debug(f"  DialogKeyboard.xml visible: {keyboard_visible}")
-
-    except Exception as e:
-        logger.warning(f"Failed to log window state at plugin entry: {e}")
-
-    logger.debug(f"Plugin arguments: {sys.argv}")
-
-    try:
-        # Parse plugin arguments
-        addon_handle = int(sys.argv[1]) if len(sys.argv) > 1 else -1
-        base = sys.argv[0] if len(sys.argv) > 0 else ""
-        query_string = sys.argv[2][1:] if len(sys.argv) > 2 and len(sys.argv[2]) > 1 else ""
-
-        # Parse query parameters
-        params = dict(parse_qsl(query_string))
-        global args, base_url
-        args = params  # Set global args for use in handler functions
-        base_url = base
-
-        logger.debug(
-            f"Plugin called with handle={addon_handle}, url={base_url}, params={params}"
-        )
-
+        # Create plugin context from request
+        context = PluginContext()
+        
+        # Log window state for debugging
+        _log_window_state(context)
+        
         # Check if this is first run and trigger library scan if needed
         _check_and_trigger_initial_scan()
-
-        # Route based action parameter
-        action = params.get('action', '')
-
-        # Log all routing for test harness tracking
-        if action.startswith('test_') or action == 'noop':
-            logger.info(f"[TEST-HARNESS] NAVIGATION: User triggered action '{action}'")
-            logger.info(f"[TEST-HARNESS] NAVIGATION: Full routing context - handle={addon_handle}, base_url={base_url}")
-
-        # Call the appropriate handler
-        handler = action_handlers.get(action)
-
-        if handler:
-            # Special handling for actions that require specific arguments or logic
-            if action == 'search':
-                handler(addon_handle)
-            elif action in ('lists', 'view_list', 'show_folder', 'show_list', 'kodi_favorites'):
-                handler(addon_handle, base_url)
-            elif action == 'on_select':
-                # handle_on_select expects params and addon_handle
-                handler(params, addon_handle)
-            elif action in ('import_shortlist', 'noop', 'create_list', 'authorize', 'signout',
-                            'rename_list', 'delete_list', 'remove_from_list',
-                            'create_folder', 'rename_folder', 'delete_folder',
-                            'scan_favorites', 'scan_favorites_execute', 'add_favorite_to_list', 'remote_lists',
-                            'show_remote_search', 'settings', 'create_list_execute', 'create_folder_execute'):
-                # Zero-arg or internal handlers
-                handler()
-            else:
-                # Fallback: try zero-arg call
-                handler()
-        else:
-            # Show main menu by default if action is not recognized or is empty
-            show_main_menu(addon_handle)
-
+        
+        # Set up legacy global variables for backward compatibility
+        global args, base_url
+        args = context.params
+        base_url = context.base_url
+        
+        # Create router and register handlers
+        router = Router()
+        _register_all_handlers(router)
+        
+        # Try to dispatch the request
+        if not router.dispatch(context):
+            # No handler found, show main menu
+            main_menu_handler = MainMenuHandler()
+            main_menu_handler.show_main_menu(context)
+            
     except Exception as e:
         logger.error(f"Fatal error in plugin main: {e}")
+        import traceback
+        logger.error(f"Main error traceback: {traceback.format_exc()}")
+        
         # Try to show error to user if possible
         try:
             addon = xbmcaddon.Addon()
@@ -1768,6 +1676,97 @@ def main():
             )
         except Exception:
             pass
+
+
+def _log_window_state(context: PluginContext):
+    """Log current window and control state for debugging"""
+    try:
+        current_window = xbmc.getInfoLabel("System.CurrentWindow")
+        current_control = xbmc.getInfoLabel("System.CurrentControl")
+        container_path = xbmc.getInfoLabel("Container.FolderPath")
+        container_label = xbmc.getInfoLabel("Container.FolderName")
+
+        context.logger.debug(f"Window state at plugin entry:")
+        context.logger.debug(f"  Current window: {current_window}")
+        context.logger.debug(f"  Current control: {current_control}")
+        context.logger.debug(f"  Container path: {container_path}")
+        context.logger.debug(f"  Container label: {container_label}")
+
+        # Check specific window visibility states
+        myvideo_nav_visible = xbmc.getCondVisibility("Window.IsVisible(MyVideoNav.xml)")
+        dialog_video_info_visible = xbmc.getCondVisibility("Window.IsVisible(DialogVideoInfo.xml)")
+        dialog_video_info_active = xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)")
+        keyboard_visible = xbmc.getCondVisibility("Window.IsVisible(DialogKeyboard.xml)")
+
+        context.logger.debug(f"  MyVideoNav.xml visible: {myvideo_nav_visible}")
+        context.logger.debug(f"  DialogVideoInfo.xml visible: {dialog_video_info_visible}")
+        context.logger.debug(f"  DialogVideoInfo.xml active: {dialog_video_info_active}")
+        context.logger.debug(f"  DialogKeyboard.xml visible: {keyboard_visible}")
+
+    except Exception as e:
+        context.logger.warning(f"Failed to log window state at plugin entry: {e}")
+
+
+def _register_all_handlers(router: Router):
+    """Register all action handlers with the router"""
+    
+    # Create handler instances
+    main_menu_handler = MainMenuHandler()
+    search_handler = SearchHandler()
+    lists_handler = ListsHandler()
+    
+    # Register new modular handlers
+    router.register_handler('search', search_handler.handle_search)
+    router.register_handler('lists', lists_handler.handle_lists)
+    router.register_handler('kodi_favorites', lists_handler.handle_kodi_favorites)
+    
+    # Register legacy handlers with context wrapper
+    router.register_handlers({
+        'view_list': _wrap_legacy_handler(handle_view_list),
+        'show_folder': _wrap_legacy_handler(handle_show_folder),
+        'show_list': _wrap_legacy_handler(handle_view_list),
+        'remote_lists': _wrap_legacy_handler(show_remote_lists_menu),
+        'authorize': _wrap_legacy_handler(handle_authorize),
+        'signout': _wrap_legacy_handler(handle_signout),
+        'on_select': _wrap_legacy_on_select_handler(handle_on_select),
+        'scan_favorites': _wrap_legacy_handler(handle_scan_favorites),
+        'scan_favorites_execute': _wrap_legacy_handler(handle_scan_favorites_execute),
+        'add_favorite_to_list': _wrap_legacy_handler(handle_add_favorite_to_list),
+        'create_list': _wrap_legacy_handler(handle_create_list),
+        'create_list_execute': _wrap_legacy_handler(handle_create_list_execute),
+        'rename_list': _wrap_legacy_handler(handle_rename_list),
+        'delete_list': _wrap_legacy_handler(handle_delete_list),
+        'remove_from_list': _wrap_legacy_handler(handle_remove_from_list),
+        'create_folder': _wrap_legacy_handler(handle_create_folder),
+        'create_folder_execute': _wrap_legacy_handler(handle_create_folder_execute),
+        'rename_folder': _wrap_legacy_handler(handle_rename_folder),
+        'delete_folder': _wrap_legacy_handler(handle_delete_folder),
+        'import_shortlist': _wrap_legacy_handler(handle_shortlist_import),
+        'noop': _wrap_legacy_handler(handle_noop),
+    })
+
+
+def _wrap_legacy_handler(handler_func):
+    """Wrap legacy handler functions to work with PluginContext"""
+    def wrapper(context: PluginContext):
+        # Set legacy globals for compatibility
+        global args, base_url
+        args = context.params
+        base_url = context.base_url
+        
+        # Call legacy handler with appropriate arguments
+        if handler_func.__name__ in ('handle_view_list', 'handle_show_folder'):
+            return handler_func(context.addon_handle, context.base_url)
+        else:
+            return handler_func()
+    return wrapper
+
+
+def _wrap_legacy_on_select_handler(handler_func):
+    """Special wrapper for on_select handler"""
+    def wrapper(context: PluginContext):
+        return handler_func(context.params, context.addon_handle)
+    return wrapper
 
 
 if __name__ == '__main__':
