@@ -21,10 +21,10 @@ LibraryGenie provides seamless integration with Kodi's built-in Favorites system
 
 ### 1. Favorites Parser (`lib/kodi/favorites_parser.py`)
 
-The `Phase4FavoritesParser` class handles robust XML parsing and path normalization:
+The `FavoritesParser` class handles robust XML parsing and path normalization:
 
 ```python
-class Phase4FavoritesParser:
+class FavoritesParser:
     def find_favorites_file(self) -> Optional[str]
     def parse_favorites_file(self, file_path: str) -> List[Dict]
     def get_file_modified_time(self, file_path: str) -> Optional[str]
@@ -38,10 +38,10 @@ class Phase4FavoritesParser:
 
 ### 2. Favorites Manager (`lib/kodi/favorites_manager.py`)
 
-The `Phase4FavoritesManager` class orchestrates the scanning and mapping process:
+The `FavoritesManager` class orchestrates the scanning and mapping process:
 
 ```python
-class Phase4FavoritesManager:
+class FavoritesManager:
     def scan_favorites(self, force_refresh: bool = False) -> Dict
     def get_favorites_for_display(self, show_unmapped: bool = True) -> List[Dict]
     def _import_favorites_batch(self, favorites: List[Dict]) -> Dict
@@ -299,9 +299,9 @@ When favorites integration is enabled:
 ```python
 def on_favorites_integration_enabled():
     """Called when favorites integration is enabled via settings"""
-    from ..kodi.favorites_manager import get_phase4_favorites_manager
+    from ..kodi.favorites_manager import get_favorites_manager
     
-    favorites_manager = get_phase4_favorites_manager()
+    favorites_manager = get_favorites_manager()
     result = favorites_manager.scan_favorites(force_refresh=True)
 ```
 
