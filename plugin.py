@@ -1216,7 +1216,7 @@ def handle_kodi_favorites(addon_handle, base_url):
                 # Add standard context items for mapped favorites
                 kodi_id = item.get('kodi_id')
                 if kodi_id:
-                    add_url = f"RunPlugin({base_url}?action=add_to_list&kodi_id={kodi_id})"
+                    add_url = f"RunPlugin({base_url}?action=add_to_list&favorite_id={kodi_id})" # Changed to favorite_id
                     context_items.append(("Add to List", add_url))
                     logger.debug(f"FAVORITES CONTEXT: Added 'Add to List' -> {add_url}")
 
@@ -1298,7 +1298,7 @@ def handle_scan_favorites():
 def handle_add_favorite_to_list():
     """Handle adding a favorite to a user list"""
     try:
-        favorite_id = args.get('favorite_id')
+        favorite_id = args.get('favorite_id') # Changed from 'kodi_id' to 'favorite_id'
         if not favorite_id:
             logger.error("No favorite_id provided for add_favorite_to_list")
             return
