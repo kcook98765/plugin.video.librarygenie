@@ -136,40 +136,36 @@ def focus_list(control_id: int = None, tries: int = 20, step_ms: int = 30) -> bo
 
     _log(f"focus_list: Starting with control_id={control_id}, tries={tries}")
 
-    # Try the specified control ID first
-    t_primary_start = time.perf_counter()
-    for attempt in range(tries // 2):
-        xbmc.executebuiltin(f"SetFocus({control_id})")
-        if xbmc.getCondVisibility(f"Control.HasFocus({control_id})"):
-            t_focus_end = time.perf_counter()
-            _log(f"Successfully focused control {control_id} on attempt {attempt + 1} (took {t_focus_end - t_focus_start:.3f}s)")
-            return True
-        xbmc.sleep(step_ms)
-    
-    t_primary_end = time.perf_counter()
-    _log(f"Primary control {control_id} failed after {tries // 2} attempts (took {t_primary_end - t_primary_start:.3f}s)")
-
-    # If that failed, try alternative control IDs
+    # Build list of control IDs to try in order
     # 55: v20/v21 Estuary default, 500: grid/panel views, 50/52: v19 compatibility
-    alternative_ids = [55, 500, 50, 52]  # Proper control IDs based on version/skin
-    if control_id in alternative_ids:
-        alternative_ids.remove(control_id)
+    all_control_ids = [control_id, 55, 500, 50, 52]
+    # Remove duplicates while preserving order
+    control_ids_to_try = []
+    for cid in all_control_ids:
+        if cid not in control_ids_to_try:
+            control_ids_to_try.append(cid)
 
-    for alt_id in alternative_ids:
-        t_alt_start = time.perf_counter()
-        _log(f"Trying alternative control ID {alt_id}")
-        for attempt in range(5):  # Fewer tries per alternative
-            xbmc.executebuiltin(f"SetFocus({alt_id})")
-            if xbmc.getCondVisibility(f"Control.HasFocus({alt_id})"):
+    # Calculate how many complete rounds we can do
+    max_rounds = max(1, tries // len(control_ids_to_try))
+    
+    _log(f"Will try control IDs {control_ids_to_try} for up to {max_rounds} rounds")
+
+    for round_num in range(max_rounds):
+        _log(f"Starting round {round_num + 1}/{max_rounds}")
+        
+        for cid in control_ids_to_try:
+            _log(f"Trying control ID {cid}")
+            xbmc.executebuiltin(f"SetFocus({cid})")
+            
+            if xbmc.getCondVisibility(f"Control.HasFocus({cid})"):
                 t_focus_end = time.perf_counter()
-                _log(f"Successfully focused alternative control {alt_id} on attempt {attempt + 1} (took {t_focus_end - t_focus_start:.3f}s total, {t_focus_end - t_alt_start:.3f}s for this alt)")
+                _log(f"Successfully focused control {cid} on round {round_num + 1} (took {t_focus_end - t_focus_start:.3f}s)")
                 return True
+            
             xbmc.sleep(step_ms)
-        t_alt_end = time.perf_counter()
-        _log(f"Alternative control {alt_id} failed after 5 attempts (took {t_alt_end - t_alt_start:.3f}s)")
-
+    
     t_focus_end = time.perf_counter()
-    _log(f"Failed to focus any control (tried {control_id}, {alternative_ids}) - total time: {t_focus_end - t_focus_start:.3f}s", xbmc.LOGWARNING)
+    _log(f"Failed to focus any control after {max_rounds} rounds (tried {control_ids_to_try}) - total time: {t_focus_end - t_focus_start:.3f}s", xbmc.LOGWARNING)
     return False
 
 def _write_text(path_special: str, text: str) -> bool:
