@@ -344,6 +344,10 @@ class ListItemBuilder:
         if src.get('source'):
             out['source'] = src['source']
 
+        # preserve action for action items
+        if src.get('action'):
+            out['action'] = src['action']
+
         return out
 
     # ----- library & external builders -----
@@ -449,6 +453,7 @@ class ListItemBuilder:
         try:
             title = item.get('title', 'Unknown')
             description = item.get('description', '')
+            # Get action from original item (not normalized, since normalize may have stripped it)
             action = item.get('action', '')
 
             self.logger.debug(f"ACTION ITEM: Creating action ListItem for '{title}' (action={action})")
@@ -487,11 +492,14 @@ class ListItemBuilder:
             icon = item.get('icon', 'DefaultAddonService.png')
             li.setArt({'icon': icon})
 
-            # Build plugin URL for the action
+            # Build plugin URL for the action - ensure we have a valid action
             if action:
                 url = f"RunPlugin(plugin://{self.addon_id}/?action={action})"
+                self.logger.debug(f"ACTION ITEM: Built action URL: {url}")
             else:
-                url = ""
+                # Fallback to a no-op action to prevent empty URL issues
+                url = f"RunPlugin(plugin://{self.addon_id}/?action=noop)"
+                self.logger.warning(f"ACTION ITEM: No action specified for '{title}', using noop fallback")
 
             # Action items are never folders, never playable
             is_folder = False
