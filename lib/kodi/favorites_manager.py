@@ -413,11 +413,10 @@ class Phase4FavoritesManager:
                            mi.kodi_id, mi.media_type, mi.poster, mi.fanart, mi.plot,
                            mi.file_path, mi.normalized_path, mi.art,
                            mi.director, mi.studio, mi.country, mi.genre,
-                           mi.mpaa, mi.runtime, mi.votes, mi.rating,
-                           mi.originaltitle, mi.sorttitle, mi.premiered,
-                           mi.playcount, mi.lastplayed, mi.dateadded,
+                           mi.mpaa, mi.duration, mi.votes, mi.rating,
+                           mi.play,
                            -- Essential fields for list rendering
-                           mi.file_path as play,
+                           mi.file_path as original_file_path,
                            mi.title as name,
                            li.position
                     FROM lists l
