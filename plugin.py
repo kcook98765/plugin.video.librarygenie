@@ -1149,7 +1149,7 @@ def handle_kodi_favorites(addon_handle, base_url):
         if not list_items:
             # Set content type for empty state
             xbmcplugin.setContent(addon_handle, "files")  # Use 'files' for action-only content
-            
+
             # Add "Sync Favorites" as the only item when no favorites exist
             last_scan_info = favorites_manager._get_last_scan_info_for_display()
             time_ago_text = ""
