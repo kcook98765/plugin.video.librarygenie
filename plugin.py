@@ -1157,14 +1157,30 @@ def handle_kodi_favorites(addon_handle, base_url):
         xbmcplugin.setPluginCategory(addon_handle, "Kodi Favorites")
         
         # Add "Sync Favorites" as the first item in the list for easy access
-        sync_item = xbmcgui.ListItem(label="[COLOR yellow]🔄 Sync Favorites[/COLOR]")
+        # Get last scan info for time display
+        last_scan_info = favorites_manager._get_last_scan_info_for_display()
+        time_ago_text = ""
+        if last_scan_info:
+            last_scan_time = last_scan_info.get('created_at')
+            if last_scan_time:
+                time_ago = _format_time_ago(last_scan_time)
+                time_ago_text = f" (last scan: {time_ago})"
+        
+        sync_label = f"[COLOR yellow]🔄 Sync Favorites[/COLOR]{time_ago_text}"
+        sync_item = xbmcgui.ListItem(label=sync_label)
         sync_item.setProperty('IsPlayable', 'false')
-        sync_item.setInfo('video', {
-            'plot': 'Scan Kodi favorites and update the list with any new favorites found.'
-        })
+        
+        # Enhanced plot with scan statistics
+        plot_text = 'Scan Kodi favorites and update the list with any new favorites found.'
+        if last_scan_info:
+            items_found = last_scan_info.get('items_found', 0)
+            items_mapped = last_scan_info.get('items_mapped', 0)
+            plot_text += f' Last scan found {items_mapped}/{items_found} mapped favorites.'
+        
+        sync_item.setInfo('video', {'plot': plot_text})
         sync_url = f"RunPlugin({base_url}?action=scan_favorites)"
         xbmcplugin.addDirectoryItem(addon_handle, sync_url, sync_item, False)
-        logger.debug(f"KODI FAVORITES: Added 'Sync Favorites' action item")
+        logger.debug(f"KODI FAVORITES: Added 'Sync Favorites' action item with time info: {time_ago_text}")
 
         if not list_items:
             # If no favorites found, show message but still allow sync
