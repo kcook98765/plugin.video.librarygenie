@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -17,10 +16,10 @@ from ..auth.state import is_authorized
 
 class SearchHandler:
     """Handles search operations"""
-    
+
     def __init__(self):
         self.local_engine = LocalSearchEngine()
-        
+
     def prompt_and_search(self, context: PluginContext) -> DirectoryResponse:
         """Prompt user for search query and display results"""
         # Get search query from user
@@ -28,7 +27,7 @@ class SearchHandler:
             context.addon.getLocalizedString(35018),  # "Search"
             type=xbmcgui.INPUT_ALPHANUM
         )
-        
+
         if not query or not query.strip():
             context.logger.info("Empty query - returning to menu")
             return DirectoryResponse(
@@ -36,10 +35,10 @@ class SearchHandler:
                 success=False,
                 message="No search query provided"
             )
-            
+
         query = query.strip()
         context.logger.debug(f"Processing search query: '{query}'")
-        
+
         # Determine search type based on authorization
         if context.is_authorized:
             # For authorized users, could offer remote search
@@ -48,16 +47,16 @@ class SearchHandler:
         else:
             # Non-authorized users use local search
             results = self._search_local(query, context)
-            
+
         # Display results
         return self._display_results(results, query, context)
-        
+
     def _search_local(self, query: str, context: PluginContext) -> dict:
         """Perform local search"""
         try:
             context.logger.debug(f"Starting local search for: '{query}'")
             results = self.local_engine.search(query, limit=200)
-            
+
             if results:
                 result_count = len(results.get('items', []))
                 context.logger.info(f"Local search completed: {result_count} items found")
@@ -66,15 +65,15 @@ class SearchHandler:
             else:
                 context.logger.warning("Local search returned empty results")
                 return {'items': [], 'total': 0, 'used_remote': False}
-                
+
         except Exception as e:
             context.logger.error(f"Local search failed: {e}")
             return {'items': [], 'total': 0, 'used_remote': False, 'error': str(e)}
-            
+
     def _display_results(self, results: dict, query: str, context: PluginContext) -> DirectoryResponse:
         """Display search results"""
         items = results.get('items', [])
-        
+
         if not items:
             # Show no results notification
             xbmcgui.Dialog().notification(
@@ -82,21 +81,21 @@ class SearchHandler:
                 context.addon.getLocalizedString(35020) % query,  # "No results for '%s'"
                 xbmcgui.NOTIFICATION_INFO
             )
-            
+
             # End directory
             xbmcplugin.endOfDirectory(
-                context.addon_handle, 
-                succeeded=True, 
-                updateListing=False, 
+                context.addon_handle,
+                succeeded=True,
+                updateListing=False,
                 cacheToDisc=False
             )
-            
+
             return DirectoryResponse(
                 items=[],
                 success=True,
                 message=f"No results found for '{query}'"
             )
-            
+
         # Build directory items for search results
         menu_items = []
         for item in items:
@@ -104,13 +103,13 @@ class SearchHandler:
             title = item.get('title', 'Unknown')
             year = item.get('year')
             display_title = f"{title} ({year})" if year else title
-            
+
             # Create context menu
             context_menu = []
             if item.get('kodi_id'):
                 add_url = f"RunPlugin({context.base_url}?action=add_to_list&kodi_id={item['kodi_id']})"
                 context_menu.append(("Add to List", add_url))
-            
+
             list_item = xbmcgui.ListItem(label=display_title)
             list_item.setInfo('video', {
                 'title': title,
@@ -118,15 +117,15 @@ class SearchHandler:
                 'plot': item.get('plot', ''),
                 'rating': item.get('rating', 0.0)
             })
-            
+
             # Set art if available
             if item.get('art'):
                 list_item.setArt(item['art'])
-                
+
             # Add context menu
             if context_menu:
                 list_item.addContextMenuItems(context_menu)
-            
+
             # Determine URL for playback
             if item.get('kodi_id'):
                 # Library item
@@ -136,40 +135,41 @@ class SearchHandler:
                 # External item - create plugin URL
                 url = context.build_url('play_external', item_id=item.get('id', ''))
                 is_folder = False
-                
+
             xbmcplugin.addDirectoryItem(
-                context.addon_handle, 
-                url, 
-                list_item, 
+                context.addon_handle,
+                url,
+                list_item,
                 is_folder
             )
-            
+
             menu_items.append({
                 'title': display_title,
                 'url': url,
                 'is_folder': is_folder,
                 'item_data': item
             })
-        
+
         # Set content type
         xbmcplugin.setContent(context.addon_handle, "movies")
-        
+
         # End directory
         xbmcplugin.endOfDirectory(
-            context.addon_handle, 
-            succeeded=True, 
-            updateListing=False, 
+            context.addon_handle,
+            succeeded=True,
+            updateListing=False,
             cacheToDisc=False
         )
-        
+
         context.logger.info(f"Displayed {len(menu_items)} search results for '{query}'")
-        
+
         return DirectoryResponse(
             items=menu_items,
             success=True,
             content_type="movies",
             message=f"Found {len(items)} results for '{query}'"
         )
+
 
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
