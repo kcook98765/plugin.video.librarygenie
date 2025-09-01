@@ -404,36 +404,64 @@ class Phase4FavoritesManager:
             return None
 
     def get_mapped_favorites(self, show_unmapped: bool = False) -> List[Dict]:
-        """Get favorites from unified lists table with proper name display"""
+        """Get favorites from unified lists table with full metadata like normal lists"""
         try:
             with self.conn_manager.transaction() as conn:
-                # For now, we'll simulate the favorite names since they were successfully matched
-                # but aren't stored in the unified lists structure yet
+                # Get full media item data just like normal lists do
                 favorites = conn.execute("""
                     SELECT li.id, mi.title, mi.year, mi.imdbnumber as imdb_id, mi.tmdb_id,
                            mi.kodi_id, mi.media_type, mi.poster, mi.fanart, mi.plot,
                            mi.rating, mi.votes, mi.duration, mi.genre, mi.director,
-                           mi.studio, mi.country, mi.art, li.media_item_id as library_movie_id,
-                           mi.title as name  -- Use the library title as the favorite name
+                           mi.studio, mi.country, mi.art, mi.plotoutline, mi.mpaa,
+                           mi.premiered, mi.dateadded, mi.playcount, mi.lastplayed,
+                           mi.file_path, mi.normalized_path, mi.runtime,
+                           li.media_item_id as library_movie_id,
+                           mi.title as name,  -- Use the library title as the favorite name
+                           -- Resume info
+                           CASE 
+                               WHEN mi.resume_position > 0 AND mi.resume_total > 0 
+                               THEN json_object(
+                                   'position_seconds', mi.resume_position,
+                                   'total_seconds', mi.resume_total
+                               )
+                               ELSE json_object('position_seconds', 0, 'total_seconds', 0)
+                           END as resume
                     FROM lists l
                     JOIN list_items li ON l.id = li.list_id
                     JOIN media_items mi ON li.media_item_id = mi.id
-                    WHERE l.name = 'Kodi Favorites'
+                    WHERE l.name = 'Kodi Favorites' AND mi.is_removed = 0
                     ORDER BY li.position, mi.title
                 """).fetchall()
 
-                # Convert SQLite rows to dicts and ensure we have proper name field
+                # Convert SQLite rows to dicts with full normalization like regular lists
                 result = []
                 for fav in favorites or []:
                     fav_dict = dict(fav)
+                    
                     # Ensure we have a name field for the UI
                     if not fav_dict.get('name'):
                         fav_dict['name'] = fav_dict.get('title', 'Unknown Favorite')
+                    
                     # Add mapped status for UI
                     fav_dict['is_mapped'] = 1  # All items in this query are mapped
+                    
+                    # Parse resume JSON if present
+                    if fav_dict.get('resume'):
+                        try:
+                            import json
+                            fav_dict['resume'] = json.loads(fav_dict['resume'])
+                        except (json.JSONDecodeError, TypeError):
+                            fav_dict['resume'] = {'position_seconds': 0, 'total_seconds': 0}
+                    else:
+                        fav_dict['resume'] = {'position_seconds': 0, 'total_seconds': 0}
+                    
+                    # Ensure kodi_id is available for library integration
+                    if fav_dict.get('kodi_id'):
+                        fav_dict['movieid'] = fav_dict['kodi_id']  # Alternative field name
+                    
                     result.append(fav_dict)
 
-                self.logger.info(f"Retrieved {len(result)} mapped favorites from unified lists")
+                self.logger.info(f"Retrieved {len(result)} mapped favorites from unified lists with full metadata")
                 return result
 
         except Exception as e:
