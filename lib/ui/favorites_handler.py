@@ -62,7 +62,7 @@ class FavoritesHandler:
             else:
                 # Build favorites items
                 from lib.ui.listitem_builder import ListItemBuilder
-                builder = ListItemBuilder(context.addon_handle, context.addon_id)
+                builder = ListItemBuilder(context.addon_handle, context.addon.getAddonInfo('id'))
 
                 for favorite in favorites:
                     try:
