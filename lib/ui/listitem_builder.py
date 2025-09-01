@@ -453,7 +453,7 @@ class ListItemBuilder:
 
     def _create_action_item(self, item: Dict[str, Any]) -> Optional[tuple]:
         """
-        Build action item (like Sync Favorites) as a folder to prevent playlist warnings.
+        Build action item (like Sync Favorites) as a navigable folder that triggers actions.
         Returns (url, listitem, is_folder) or None on failure.
         """
         try:
@@ -461,53 +461,55 @@ class ListItemBuilder:
             description = item.get('description', '')
             action = item.get('action', '')
 
-            self.logger.debug(f"ACTION ITEM: Creating folder ListItem for '{title}' (action={action})")
+            self.logger.debug(f"ACTION ITEM: Creating navigable folder for '{title}' (action={action})")
 
-            # Create folder ListItem - this prevents playlist warnings and artwork loading
+            # Create folder ListItem that Kodi will treat as a navigable directory
             li = xbmcgui.ListItem(label=title)
 
-            # Set basic properties for folder
+            # Ensure it's treated as a folder, not a playable item
             li.setProperty('IsPlayable', 'false')
             
-            # Set folder-appropriate metadata 
+            # Set folder-appropriate metadata without video assumptions
             kodi_major = get_kodi_major_version()
             if kodi_major >= 20:
-                # v20+: Use InfoTagVideo but set as folder content
+                # v20+: Minimal metadata to avoid video treatment
                 try:
                     video_info_tag = li.getVideoInfoTag()
                     video_info_tag.setTitle(title)
                     if description:
                         video_info_tag.setPlot(description)
-                    # Don't set mediatype for folders to avoid video assumptions
                     self.logger.debug(f"ACTION ITEM v20+: Set folder metadata for '{title}'")
                 except Exception as e:
                     self.logger.debug(f"ACTION ITEM v20+: InfoTagVideo failed for folder '{title}': {e}")
             else:
-                # v19: Set minimal folder info
+                # v19: Basic folder info
+                info_dict = {'title': title}
                 if description:
-                    li.setInfo('video', {
-                        'title': title,
-                        'plot': description
-                    })
+                    info_dict['plot'] = description
+                li.setInfo('video', info_dict)
                 self.logger.debug(f"ACTION ITEM v19: Set folder info for '{title}'")
 
-            # Set folder icon - use folder icon to clearly indicate it's navigable
-            icon = 'DefaultFolder.png'  # Standard folder icon
+            # Use service icon for sync operations, folder icon for others
+            if 'Sync' in title or action == 'scan_favorites_execute':
+                icon = 'DefaultAddonService.png'  # Service icon for sync operations
+            else:
+                icon = 'DefaultFolder.png'  # Standard folder icon for other actions
+            
             li.setArt({'icon': icon, 'thumb': icon})
 
-            # Build plugin URL for folder navigation - use regular plugin URL not RunPlugin
+            # Build plugin URL that will trigger the action when folder is navigated to
             if action:
                 url = f"plugin://{self.addon_id}/?action={action}"
-                self.logger.debug(f"ACTION ITEM: Built folder URL: {url}")
+                self.logger.debug(f"ACTION ITEM: Built navigable folder URL: {url}")
             else:
                 # Fallback for actions without specific action
                 url = f"plugin://{self.addon_id}/?action=noop"
                 self.logger.warning(f"ACTION ITEM: No action specified for '{title}', using noop fallback")
 
-            # Action items are now folders to prevent playlist issues
+            # Mark as folder so Kodi treats it as navigable directory
             is_folder = True
 
-            self.logger.debug(f"ACTION ITEM: Created folder action item '{title}' -> URL: {url}")
+            self.logger.debug(f"ACTION ITEM: Created navigable folder '{title}' -> URL: {url}")
             return url, li, is_folder
 
         except Exception as e:

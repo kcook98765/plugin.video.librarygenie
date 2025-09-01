@@ -1161,13 +1161,13 @@ def handle_kodi_favorites(addon_handle, base_url):
         # Create a unified list of items: action item + media items
         all_items = []
 
-        # Add the Sync Favorites action item as a folder
+        # Add the Sync Favorites action item as a navigable folder
         sync_item = {
-            'title': f"[COLOR yellow]📁 Sync Favorites[/COLOR]{time_ago_text}",
+            'title': f"[COLOR yellow]🔄 Sync Favorites[/COLOR]{time_ago_text}",
             'media_type': 'none',  # Mark as non-media action item
-            'action': 'scan_favorites_execute', # Changed action to trigger the execute handler
+            'action': 'scan_favorites_execute', # Triggers scan when folder is navigated to
             'description': 'Scan for Kodi favorites that can be mapped to your library',
-            'is_folder': True, # Set to True to make it a folder
+            'is_folder': True, # Navigable folder
             'icon': 'DefaultAddonService.png'
         }
         all_items.append(sync_item)
