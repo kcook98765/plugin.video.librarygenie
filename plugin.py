@@ -39,12 +39,12 @@ def show_main_menu(handle):
     """Legacy wrapper for showing main menu - delegates to new MainMenuHandler"""
     from lib.ui.plugin_context import PluginContext
     from lib.ui.main_menu_handler import MainMenuHandler
-    
+
     try:
         # Create a minimal context for legacy compatibility
         context = PluginContext()
         context.addon_handle = handle  # Override with legacy handle
-        
+
         main_menu_handler = MainMenuHandler()
         main_menu_handler.show_main_menu(context)
     except Exception as e:
@@ -70,7 +70,7 @@ def show_search_menu(handle):
     try:
         context = PluginContext()
         context.addon_handle = handle
-        
+
         search_handler = SearchHandler()
         search_handler.prompt_and_search(context)
     except Exception as e:
@@ -101,6 +101,7 @@ def handle_signout():
 
     # Confirm sign out
     if xbmcgui.Dialog().yesno(
+        addon.getLocalizedString(35002),  # "LibraryGenie"
         addon.getLocalizedString(35029),  # "Sign out"
         addon.getLocalizedString(35030)   # "Are you sure you want to sign out?"
     ):
@@ -157,134 +158,7 @@ def _check_and_trigger_initial_scan():
         logger.error(f"Failed to check/trigger initial scan: {e}")
 
 
-def handle_lists(addon_handle, base_url):
-    """Handle lists menu - Phase 5 implementation"""
-    try:
-        logger.info("Displaying lists menu")
-
-        # Initialize query manager
-        query_manager = get_query_manager()
-        if not query_manager.initialize():
-            logger.error("Failed to initialize query manager")
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),
-                "Database error",
-                xbmcgui.NOTIFICATION_ERROR
-            )
-            return
-
-        # Get all user lists and folders
-        all_lists = query_manager.get_all_lists_with_folders()
-        logger.info(f"Found {len(all_lists)} total lists")
-
-        # Filter out the special "Kodi Favorites" list from the main Lists menu
-        user_lists = [item for item in all_lists if item.get('name') != 'Kodi Favorites']
-        logger.info(f"Found {len(user_lists)} user lists (excluding Kodi Favorites)")
-
-        # Debug: Check for Search History folder specifically
-        search_history_items = [item for item in user_lists if item.get('folder_name') == 'Search History']
-        logger.info(f"Found {len(search_history_items)} Search History items: {search_history_items}")
-
-        if not user_lists:
-            # No lists exist, offer to create one
-            addon = xbmcaddon.Addon()
-            if xbmcgui.Dialog().yesno(
-                addon.getLocalizedString(35002),
-                "No lists found. Create your first list?"
-            ):
-                handle_create_list()
-            return
-
-        # Build menu items for lists and folders
-        menu_items = []
-
-        # Add "Create New List" option at the top
-        menu_items.append({
-            "title": "[COLOR yellow]+ Create New List[/COLOR]",
-            "action": "create_list_execute",
-            "description": "Create a new list",
-            "is_folder": True,
-            "icon": "DefaultAddSource.png"
-        })
-
-        # Add "Create New Folder" option
-        menu_items.append({
-            "title": "[COLOR cyan]+ Create New Folder[/COLOR]",
-            "action": "create_folder_execute",
-            "description": "Create a new folder",
-            "is_folder": True,
-            "icon": "DefaultFolder.png"
-        })
-
-        # Get all existing folders to display as navigable items
-        all_folders = query_manager.get_all_folders()
-
-        # Add folders as navigable items
-        for folder_info in all_folders:
-            folder_id = folder_info['id']
-            folder_name = folder_info['name']
-            list_count = folder_info['list_count']
-
-            # Check if it's the reserved "Search History" folder
-            is_reserved_folder = folder_name == 'Search History'
-            folder_context_menu = []
-
-            if not is_reserved_folder:
-                folder_context_menu = [
-                    (f"Rename Folder '{folder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_folder&folder_id={folder_id})"),
-                    (f"Delete Folder '{folder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_folder&folder_id={folder_id})")
-                ]
-
-            # Add the folder as a navigable item
-            menu_items.append({
-                "title": f"[COLOR cyan]📁 {folder_name}[/COLOR]",
-                "action": "show_folder",
-                "folder_id": folder_id,
-                "description": f"Folder with {list_count} lists",
-                "is_folder": True,
-                "context_menu": folder_context_menu
-            })
-
-        # Separate standalone lists (not in any folder)
-        standalone_lists = [item for item in user_lists if not item.get('folder_name') or item.get('folder_name') == 'Root']
-
-        # Add standalone lists (not in any folder)
-        for list_item in standalone_lists:
-            list_id = list_item.get('id')
-            name = list_item.get('name', 'Unnamed List')
-            description = list_item.get('description', '')
-            item_count = list_item.get('item_count', 0)
-
-            menu_items.append({
-                "title": f"[COLOR yellow]📋 {name}[/COLOR]",
-                "action": "show_list",
-                "list_id": list_id,
-                "description": description,
-                "is_folder": True,
-                "icon": "DefaultPlaylist.png",
-                "context_menu": [
-                    (f"Rename List '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={list_id})"),
-                    (f"Delete List '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_id})")
-                ]
-            })
-
-        # Build and display the menu
-        from lib.ui.menu_builder import MenuBuilder
-        menu_builder = MenuBuilder()
-        menu_builder.build_menu(menu_items, addon_handle, base_url)
-
-    except Exception as e:
-        logger.error(f"Error in handle_lists: {e}")
-        import traceback
-        logger.error(f"Lists error traceback: {traceback.format_exc()}")
-
-        addon = xbmcaddon.Addon()
-        xbmcgui.Dialog().notification(
-            addon.getLocalizedString(35002),
-            "Lists error",
-            xbmcgui.NOTIFICATION_ERROR
-        )
+# Legacy handlers removed - functionality now handled by modular handlers
 
 
 def handle_create_list():
@@ -1168,156 +1042,8 @@ def handle_on_select(params: dict, addon_handle: int):
             pass
 
 
-def handle_kodi_favorites(addon_handle, base_url):
-    """Handle Kodi favorites menu - show as unified list"""
-    try:
-        logger.info("Displaying Kodi favorites as unified list")
-
-        # Initialize favorites manager early to avoid UnboundLocalError
-        from lib.kodi.favorites_manager import get_phase4_favorites_manager
-        favorites_manager = get_phase4_favorites_manager()
-
-        # Initialize query manager to access the Kodi Favorites list
-        query_manager = get_query_manager()
-        if not query_manager.initialize():
-            logger.error("Failed to initialize query manager")
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),
-                "Database error",
-                xbmcgui.NOTIFICATION_ERROR
-            )
-            return
-
-        # Get the Kodi Favorites list
-        kodi_list = query_manager.get_list_by_name('Kodi Favorites')
-        if not kodi_list:
-            # Show scan option if no Kodi Favorites list exists
-            addon = xbmcaddon.Addon()
-            if xbmcgui.Dialog().yesno(
-                addon.getLocalizedString(35002),
-                "No Kodi favorites found. Scan for favorites?"
-            ):
-                # Trigger scan
-                result = favorites_manager.scan_favorites(force_refresh=True)
-
-                if result.get("success"):
-                    items_found = result.get("items_found", 0)
-                    items_mapped = result.get("items_mapped", 0)
-
-                    xbmcgui.Dialog().notification(
-                        addon.getLocalizedString(35002),
-                        f"Scanned: {items_mapped}/{items_found} favorites mapped",
-                        xbmcgui.NOTIFICATION_INFO,
-                        3000
-                    )
-
-                    # Refresh and try again
-                    kodi_list = query_manager.get_list_by_name('Kodi Favorites')
-                else:
-                    xbmcgui.Dialog().notification(
-                        addon.getLocalizedString(35002),
-                        f"Scan failed: {result.get('message', 'Unknown error')}",
-                        xbmcgui.NOTIFICATION_ERROR
-                    )
-
-            if not kodi_list:
-                xbmcplugin.endOfDirectory(addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
-                return
-
-        # Get the Kodi Favorites list items using the exact same query as normal lists
-        list_items = query_manager.get_list_items(kodi_list['id']) if kodi_list else []
-
-        # Set category for proper navigation breadcrumbs
-        xbmcplugin.setPluginCategory(addon_handle, "Kodi Favorites")
-
-        # Create a unified approach: use MenuBuilder for action items, ListItemBuilder for media items
-        from lib.ui.menu_builder import MenuBuilder
-        from lib.ui.listitem_builder import ListItemBuilder
-
-        # Get last scan info for display
-        last_scan_info = favorites_manager._get_last_scan_info_for_display()
-        time_ago_text = ""
-        if last_scan_info:
-            last_scan_time = last_scan_info.get('created_at')
-            if last_scan_time:
-                time_ago = _format_time_ago(last_scan_time)
-                time_ago_text = f" (last scan: {time_ago})"
-
-        # Create a unified list of items: action item + media items
-        all_items = []
-
-        # Add the Sync Favorites action item as a navigable folder
-        sync_item = {
-            'title': f"[COLOR yellow]🔄 Sync Favorites[/COLOR]{time_ago_text}",
-            'media_type': 'none',  # Mark as non-media action item
-            'action': 'scan_favorites_execute', # Triggers scan when folder is navigated to
-            'description': 'Scan for Kodi favorites that can be mapped to your library',
-            'is_folder': True, # Navigable folder
-            'icon': 'DefaultAddonService.png'
-        }
-        all_items.append(sync_item)
-
-        # Add all media items
-        all_items.extend(list_items)
-
-        # Set content type based on what we have
-        if list_items:
-            # Mixed content: set to files to prevent video info dialogs on action items
-            xbmcplugin.setContent(addon_handle, "files")
-        else:
-            # Only action items: use files content type
-            xbmcplugin.setContent(addon_handle, "files")
-
-        # Use ListItemBuilder to handle everything uniformly
-        builder = ListItemBuilder(addon_handle, xbmcaddon.Addon().getAddonInfo('id'))
-
-        def favorites_context_menu(listitem, item):
-            """Add context menu items for favorite media items"""
-            try:
-                # Skip context menu for action items
-                if item.get('media_type') == 'none':
-                    return
-
-                context_items = []
-                item_title = item.get('title', 'Unknown')
-
-                logger.debug(f"FAVORITES CONTEXT: Starting context menu setup for '{item_title}'")
-
-                # Add standard context items for mapped favorites
-                kodi_id = item.get('kodi_id')
-                if kodi_id:
-                    add_url = f"RunPlugin({base_url}?action=add_favorite_to_list&favorite_id={kodi_id})"
-                    context_items.append(("Add to List", add_url))
-                    logger.debug(f"FAVORITES CONTEXT: Added 'Add to List' -> {add_url}")
-
-                if context_items:
-                    listitem.addContextMenuItems(context_items)
-                    logger.debug(f"FAVORITES CONTEXT: ✅ Added context menu for '{item_title}'")
-
-            except Exception as e:
-                logger.error(f"FAVORITES CONTEXT: Failed to add context menu for '{item.get('title', 'Unknown')}': {e}")
-
-        # Build directory using the unified approach
-        success = builder.build_directory(all_items, "files", favorites_context_menu)
-
-        logger.info(f"KODI FAVORITES: Built unified directory with {len(all_items)} total items (1 action + {len(list_items)} media)")
-        return
-
-        if not success:
-            logger.error("Failed to build favorites directory")
-
-    except Exception as e:
-        logger.error(f"Error in handle_kodi_favorites: {e}")
-        import traceback
-        logger.error(f"Kodi favorites error traceback: {traceback.format_exc()}")
-
-        addon = xbmcaddon.Addon()
-        xbmcgui.Dialog().notification(
-            addon.getLocalizedString(35002),
-            "Favorites error",
-            xbmcgui.NOTIFICATION_ERROR
-        )
+# Legacy handle_lists and handle_kodi_favorites functions removed
+# Functionality moved to ListsHandler class
 
 
 def handle_scan_favorites():
@@ -1617,41 +1343,41 @@ def handle_noop():
 
 def main():
     """Main plugin entry point using new modular architecture"""
-    
+
     logger.debug(f"=== PLUGIN INVOCATION (REFACTORED) ===")
     logger.debug(f"Full sys.argv: {sys.argv}")
     logger.debug(f"Using modular handler architecture")
-    
+
     try:
         # Create plugin context from request
         context = PluginContext()
-        
+
         # Log window state for debugging
         _log_window_state(context)
-        
+
         # Check if this is first run and trigger library scan if needed
         _check_and_trigger_initial_scan()
-        
+
         # Set up legacy global variables for backward compatibility
         global args, base_url
         args = context.params
         base_url = context.base_url
-        
+
         # Create router and register handlers
         router = Router()
         _register_all_handlers(router)
-        
+
         # Try to dispatch the request
         if not router.dispatch(context):
             # No handler found, show main menu
             main_menu_handler = MainMenuHandler()
             main_menu_handler.show_main_menu(context)
-            
+
     except Exception as e:
         logger.error(f"Fatal error in plugin main: {e}")
         import traceback
         logger.error(f"Main error traceback: {traceback.format_exc()}")
-        
+
         # Try to show error to user if possible
         try:
             addon = xbmcaddon.Addon()
@@ -1695,17 +1421,17 @@ def _log_window_state(context: PluginContext):
 
 def _register_all_handlers(router: Router):
     """Register all action handlers with the router"""
-    
+
     # Create handler instances
     main_menu_handler = MainMenuHandler()
     search_handler = SearchHandler()
     lists_handler = ListsHandler()
-    
+
     # Register new modular handlers
     router.register_handler('search', search_handler.prompt_and_search)
     router.register_handler('lists', lists_handler.handle_lists)
     router.register_handler('kodi_favorites', lists_handler.handle_kodi_favorites)
-    
+
     # Register legacy handlers with context wrapper
     router.register_handlers({
         'view_list': _wrap_legacy_handler(handle_view_list),
@@ -1738,7 +1464,7 @@ def _wrap_legacy_handler(handler_func):
         global args, base_url
         args = context.params
         base_url = context.base_url
-        
+
         # Call legacy handler with appropriate arguments
         if handler_func.__name__ in ('handle_view_list', 'handle_show_folder'):
             return handler_func(context.addon_handle, context.base_url)
