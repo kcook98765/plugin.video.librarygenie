@@ -1151,38 +1151,51 @@ def handle_kodi_favorites(addon_handle, base_url):
                 return
 
         # Get the Kodi Favorites list items using the exact same query as normal lists
-        list_items = query_manager.get_list_items(kodi_list['id'])
+        list_items = query_manager.get_list_items(kodi_list['id']) if kodi_list else []
 
-        if not list_items:
-            xbmcgui.Dialog().notification("LibraryGenie", "No mapped favorites found", xbmcgui.NOTIFICATION_INFO, 5000)
-            xbmcplugin.endOfDirectory(addon_handle, succeeded=True)
-            return
-
-        # Use ListItemBuilder directly like other parts of the codebase for proper context menu support
-        from lib.ui.listitem_builder import ListItemBuilder
-        
         # Set category for proper navigation breadcrumbs
         xbmcplugin.setPluginCategory(addon_handle, "Kodi Favorites")
         
-        # Set content type
+        # Add "Sync Favorites" as the first item in the list for easy access
+        sync_item = xbmcgui.ListItem(label="[COLOR yellow]🔄 Sync Favorites[/COLOR]")
+        sync_item.setProperty('IsPlayable', 'false')
+        sync_item.setInfo('video', {
+            'plot': 'Scan Kodi favorites and update the list with any new favorites found.'
+        })
+        sync_url = f"RunPlugin({base_url}?action=scan_favorites)"
+        xbmcplugin.addDirectoryItem(addon_handle, sync_url, sync_item, False)
+        logger.debug(f"KODI FAVORITES: Added 'Sync Favorites' action item")
+
+        if not list_items:
+            # If no favorites found, show message but still allow sync
+            no_items_item = xbmcgui.ListItem(label="[COLOR gray]No mapped favorites found[/COLOR]")
+            no_items_item.setProperty('IsPlayable', 'false')
+            no_items_item.setInfo('video', {
+                'plot': 'Use "Sync Favorites" above to scan for Kodi favorites that can be mapped to your library.'
+            })
+            xbmcplugin.addDirectoryItem(addon_handle, "", no_items_item, False)
+            logger.debug(f"KODI FAVORITES: Added 'no favorites' info item")
+            
+            xbmcplugin.endOfDirectory(addon_handle, succeeded=True)
+            return
+
+        # Use ListItemBuilder for the actual favorite items with simplified context menu
+        from lib.ui.listitem_builder import ListItemBuilder
+        
+        # Set content type for the media items
         xbmcplugin.setContent(addon_handle, "movies")
         
         # Initialize ListItemBuilder directly
         builder = ListItemBuilder(addon_handle, xbmcaddon.Addon().getAddonInfo('id'))
         
-        # Define context menu callback to add sync favorites option
+        # Define context menu callback - only add standard list operations now
         def favorites_context_menu(listitem, item):
-            """Add context menu items specific to favorites"""
+            """Add context menu items for favorite media items"""
             try:
                 context_items = []
                 item_title = item.get('title', 'Unknown')
                 
                 logger.debug(f"FAVORITES CONTEXT: Starting context menu setup for '{item_title}'")
-                
-                # Add sync favorites option - always first
-                sync_url = f"RunPlugin({base_url}?action=scan_favorites)"
-                context_items.append(("Sync Favorites", sync_url))
-                logger.debug(f"FAVORITES CONTEXT: Added 'Sync Favorites' -> {sync_url}")
                 
                 # Add standard context items for mapped favorites
                 kodi_id = item.get('kodi_id')
@@ -1204,7 +1217,7 @@ def handle_kodi_favorites(addon_handle, base_url):
                 import traceback
                 logger.error(f"FAVORITES CONTEXT: Traceback: {traceback.format_exc()}")
         
-        # Build directory exactly like normal lists using ListItemBuilder with context menu
+        # Build directory for favorite items using ListItemBuilder with context menu
         success = builder.build_directory(list_items, content_type="movies", context_menu_callback=favorites_context_menu)
         
         if not success:
