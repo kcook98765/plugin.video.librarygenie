@@ -68,29 +68,29 @@ class FavoritesHandler:
                     try:
                         # Build context menu for favorite
                         context_menu = []
-
-                        if favorite.get('is_mapped'):
-                            # Add to list option for mapped favorites
-                            imdb_id = favorite.get('imdb_id')
-                            if imdb_id:
-                                context_menu.append((
-                                    "Add to List",
-                                    f"RunPlugin({context.build_url('add_favorite_to_list', imdb_id=imdb_id)})"
-                                ))
+                        addon_id = context.addon.getAddonInfo('id')
+                        context_menu.append((
+                            "Add to List",
+                            f"RunPlugin(plugin://{addon_id}/?action=add_to_list_menu&media_item_id={favorite['id']})"
+                        ))
+                        context_menu.append((
+                            "Remove from Favorites",
+                            f"RunPlugin(plugin://{addon_id}/?action=remove_from_kodi_favorites&favorite_id={favorite['id']})"
+                        ))
 
                         # Create list item for favorite
                         result = builder._build_single_item(favorite)
-                        
+
                         if result:
                             url, listitem, is_folder = result
-                            
+
                             # Add context menu if we have one
                             if context_menu and listitem:
                                 try:
                                     listitem.addContextMenuItems(context_menu)
                                 except Exception as e:
                                     self.logger.warning(f"Failed to add context menu: {e}")
-                            
+
                             # Add to directory
                             xbmcplugin.addDirectoryItem(
                                 context.addon_handle,
