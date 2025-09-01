@@ -424,7 +424,7 @@ class Phase4FavoritesManager:
                 kodi_list_id = kodi_list["id"]
             
             # Use the standard list items query - same as other lists use
-            favorites = query_manager.get_list_items_with_metadata(kodi_list_id)
+            favorites = query_manager.get_list_items(kodi_list_id)
             
             self.logger.info(f"Retrieved {len(favorites)} favorites using standard list query approach")
             return favorites
