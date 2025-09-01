@@ -679,7 +679,7 @@ class ListsHandler:
                         context.logger.debug(f"HANDLER: Building list item for '{item.get('title')}' with ID={item['id']}")
 
                         # Create list item for display
-                        list_item = builder._create_list_item_from_data(item, context_menu)
+                        list_item = builder.create_list_item_from_data(item, context_menu)
 
                         # Add to directory
                         xbmcplugin.addDirectoryItem(
