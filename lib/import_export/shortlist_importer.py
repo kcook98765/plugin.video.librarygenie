@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Any
 from ..data.connection_manager import get_connection_manager
 from ..data import QueryManager
 from ..data.list_library_manager import get_list_library_manager
-from ..kodi.json_rpc_client import get_json_rpc_client
+from ..kodi.json_rpc_helper import get_json_rpc_helper
 from ..utils.logger import get_logger
 
 
@@ -24,17 +24,20 @@ class ShortListImporter:
         self.conn_manager = get_connection_manager()
         self.query_manager = QueryManager()
         self.list_library_manager = get_list_library_manager()
-        self.json_rpc = get_json_rpc_client()
+        self.json_rpc = get_json_rpc_helper()
 
     def is_shortlist_installed(self) -> bool:
         """Check if ShortList addon is installed and enabled"""
         try:
-            result = self.json_rpc.call("Addons.GetAddonDetails", {
+            response = self.json_rpc.execute_request("Addons.GetAddonDetails", {
                 "addonid": "plugin.program.shortlist",
                 "properties": ["enabled"]
             })
 
-            is_enabled = result.get("addon", {}).get("enabled", False)
+            if not response.success:
+                return False
+
+            is_enabled = response.data.get("addon", {}).get("enabled", False)
             self.logger.info(f"ShortList addon enabled: {is_enabled}")
             return is_enabled
 
@@ -53,27 +56,34 @@ class ShortListImporter:
                 "writer", "studio", "mpaa", "country", "imdbnumber"
             ]
 
-            result = self.json_rpc.call("Files.GetDirectory", {
+            response = self.json_rpc.execute_request("Files.GetDirectory", {
                 "directory": url,
                 "media": "files",
                 "properties": properties,
                 "limits": {"start": start, "end": end}
             })
 
-            files = result.get("files", [])
-            total = result.get("limits", {}).get("total", len(files))
+            if not response.success:
+                self.logger.error(f"Failed to get directory {url}: {response.error.message if response.error else 'Unknown error'}")
+                return []
+
+            files = response.data.get("files", [])
+            total = response.data.get("limits", {}).get("total", len(files))
 
             # Paginate if needed
             while len(files) < total:
                 start = len(files)
-                chunk_result = self.json_rpc.call("Files.GetDirectory", {
+                chunk_response = self.json_rpc.execute_request("Files.GetDirectory", {
                     "directory": url,
                     "media": "files",
                     "properties": properties,
                     "limits": {"start": start, "end": start + 200}
                 })
 
-                chunk = chunk_result.get("files", [])
+                if not chunk_response.success:
+                    break
+
+                chunk = chunk_response.data.get("files", [])
                 if not chunk:
                     break
                 files.extend(chunk)
