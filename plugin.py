@@ -1123,18 +1123,18 @@ def handle_kodi_favorites(addon_handle, base_url):
                 from lib.kodi.favorites_manager import get_phase4_favorites_manager
                 favorites_manager = get_phase4_favorites_manager()
                 result = favorites_manager.scan_favorites(force_refresh=True)
-                
+
                 if result.get("success"):
                     items_found = result.get("items_found", 0)
                     items_mapped = result.get("items_mapped", 0)
-                    
+
                     xbmcgui.Dialog().notification(
                         addon.getLocalizedString(35002),
                         f"Scanned: {items_mapped}/{items_found} favorites mapped",
                         xbmcgui.NOTIFICATION_INFO,
                         3000
                     )
-                    
+
                     # Refresh and try again
                     kodi_list = query_manager.get_list_by_name('Kodi Favorites')
                 else:
@@ -1143,21 +1143,27 @@ def handle_kodi_favorites(addon_handle, base_url):
                         f"Scan failed: {result.get('message', 'Unknown error')}",
                         xbmcgui.NOTIFICATION_ERROR
                     )
-            
+
             if not kodi_list:
                 xbmcplugin.endOfDirectory(addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
                 return
 
-        # Get list items (already normalized by get_list_items)
-        list_items = query_manager.get_list_items(kodi_list['id'])
-        logger.info(f"Found {len(list_items)} items in Kodi Favorites list")
+        # Get favorites from unified lists
+        favorites = favorites_manager.get_mapped_favorites()
 
-        # Build menu items for the list
+        # Get last scan info for display
+        last_scan_info = favorites_manager._get_last_scan_info_for_display()
+        scan_subtitle = ""
+        if last_scan_info:
+            time_ago = _format_time_ago(last_scan_info.get("created_at"))
+            scan_subtitle = f" - Last scan: {time_ago}"
+
+        # Build menu items
         menu_items = []
 
-        # Add scan favorites option at the top
+        # Add scan action at top
         menu_items.append({
-            "title": "[COLOR yellow]🔄 Scan Favorites[/COLOR]",
+            "title": f"[COLOR yellow]🔄 Scan Favorites[/COLOR]{scan_subtitle}",
             "action": "scan_favorites",
             "description": "Scan and update Kodi favorites",
             "is_folder": True,
@@ -1358,7 +1364,7 @@ def handle_add_favorite_to_list():
 
             # Add to the selected list
             result = list_manager.add_library_movie_to_list(
-                selected_list['id'], 
+                selected_list['id'],
                 target_favorite['library_movie_id']
             )
 
@@ -1390,6 +1396,39 @@ def handle_settings():
     """Handle settings menu"""
     logger.info("Opening addon settings")
     xbmcaddon.Addon().openSettings()
+
+
+def _format_time_ago(timestamp_str):
+    """Format timestamp as human readable 'time ago' string"""
+    if not timestamp_str:
+        return "never"
+
+    try:
+        from datetime import datetime, timezone
+
+        # Parse the timestamp (assuming ISO format)
+        scan_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+        now = datetime.now(timezone.utc)
+
+        # Calculate time difference
+        diff = now - scan_time
+        total_seconds = int(diff.total_seconds())
+
+        if total_seconds < 60:
+            return "just now"
+        elif total_seconds < 3600:  # Less than 1 hour
+            minutes = total_seconds // 60
+            return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
+        elif total_seconds < 86400:  # Less than 1 day
+            hours = total_seconds // 3600
+            return f"{hours} hour{'s' if hours != 1 else ''} ago"
+        else:  # 1 day or more
+            days = total_seconds // 86400
+            return f"{days} day{'s' if days != 1 else ''} ago"
+
+    except Exception as e:
+        logger.debug(f"Error formatting timestamp '{timestamp_str}': {e}")
+        return "unknown"
 
 
 # Define the route mapping for actions

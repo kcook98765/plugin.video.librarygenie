@@ -541,6 +541,24 @@ class Phase4FavoritesManager:
             self.logger.debug(f"No previous scan info found: {e}")
             return None
 
+    def _get_last_scan_info_for_display(self) -> Optional[Dict]:
+        """Get last scan info for display purposes (any file path)"""
+        try:
+            with self.conn_manager.transaction() as conn:
+                result = conn.execute("""
+                    SELECT file_path, file_modified, items_found, items_mapped, created_at
+                    FROM favorites_scan_log
+                    WHERE success = 1
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                """).fetchone()
+
+                return dict(result) if result else None
+
+        except Exception as e:
+            self.logger.debug(f"No previous scan info found for display: {e}")
+            return None
+
     def _log_scan_result(self, scan_type: str, file_path: str, file_modified: str = None,
                         items_found: int = 0, items_mapped: int = 0, items_added: int = 0,
                         items_updated: int = 0, duration_ms: int = 0, success: bool = True,
