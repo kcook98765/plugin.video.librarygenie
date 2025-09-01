@@ -1145,7 +1145,10 @@ def handle_kodi_favorites(addon_handle, base_url):
         # Set category for proper navigation breadcrumbs
         xbmcplugin.setPluginCategory(addon_handle, "Kodi Favorites")
 
-        # Add "Sync Favorites" as the first item
+        # Set content type first
+        xbmcplugin.setContent(addon_handle, "movies")
+
+        # Add "Sync Favorites" as the first item (directly to directory, not through builder)
         last_scan_info = favorites_manager._get_last_scan_info_for_display()
         time_ago_text = ""
         if last_scan_info:
@@ -1163,6 +1166,7 @@ def handle_kodi_favorites(addon_handle, base_url):
             items_mapped = last_scan_info.get('items_mapped', 0)
             plot_text += f' Last scan found {items_mapped}/{items_found} mapped favorites.'
         sync_item.setInfo('video', {'plot': plot_text})
+        sync_item.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
         sync_url = f"RunPlugin({base_url}?action=scan_favorites)"
         xbmcplugin.addDirectoryItem(addon_handle, sync_url, sync_item, False)
         logger.debug(f"KODI FAVORITES: Added 'Sync Favorites' action item with time info: {time_ago_text}")
@@ -1173,6 +1177,7 @@ def handle_kodi_favorites(addon_handle, base_url):
             no_items_item.setInfo('video', {
                 'plot': 'Use "Sync Favorites" above to scan for Kodi favorites that can be mapped to your library.'
             })
+            no_items_item.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
             xbmcplugin.addDirectoryItem(addon_handle, "", no_items_item, False)
             logger.debug(f"KODI FAVORITES: Added 'no favorites' info item")
 
@@ -1181,8 +1186,6 @@ def handle_kodi_favorites(addon_handle, base_url):
 
         # Use ListItemBuilder for the actual favorite items with simplified context menu
         from lib.ui.listitem_builder import ListItemBuilder
-
-        xbmcplugin.setContent(addon_handle, "movies")
 
         builder = ListItemBuilder(addon_handle, xbmcaddon.Addon().getAddonInfo('id'))
 
