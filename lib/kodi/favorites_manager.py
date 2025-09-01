@@ -239,10 +239,10 @@ class Phase4FavoritesManager:
                 self.logger.info(f"    Looking for normalized_path: '{normalized_key}'")
 
                 # Try exact normalized path match
-                result = conn.execute("""
+                result = self.conn_manager.execute_single("""
                     SELECT id, title, file_path, normalized_path FROM media_items
                     WHERE normalized_path = ? AND is_removed = 0
-                """, [normalized_key]).fetchone()
+                """, [normalized_key])
 
                 if result:
                     self.logger.info(f"    Found exact normalized path match: ID {result['id']} - '{result['title']}'")
@@ -252,11 +252,11 @@ class Phase4FavoritesManager:
                     self.logger.info("    No exact normalized path match found")
 
                     # Show some sample normalized paths for debugging
-                    sample_paths = conn.execute("""
+                    sample_paths = self.conn_manager.execute_all("""
                         SELECT normalized_path FROM media_items 
                         WHERE is_removed = 0 AND normalized_path IS NOT NULL AND normalized_path != ''
                         LIMIT 5
-                    """).fetchall()
+                    """)
 
                     if sample_paths:
                         self.logger.info("    Sample normalized paths in database:")
