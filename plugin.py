@@ -3,15 +3,13 @@
 
 """
 LibraryGenie - Plugin Entry Point
-Handles plugin URL routing and main menu display using new modular architecture
+Handles plugin URL routing using new modular architecture
 """
 
 import sys
-from typing import Dict, Any
 from urllib.parse import parse_qsl
 
 import xbmcaddon
-import xbmcplugin
 import xbmcgui
 import xbmc
 
@@ -23,65 +21,12 @@ from lib.ui.search_handler import SearchHandler
 from lib.ui.lists_handler import ListsHandler
 from lib.utils.logger import get_logger
 
-# Import legacy functions for compatibility
+# Import required functions
 from lib.auth.auth_helper import get_auth_helper
 from lib.data.query_manager import get_query_manager
 
 # Get logger instance
 logger = get_logger(__name__)
-
-# Legacy global variables for backward compatibility
-args: Dict[str, Any] = {}
-base_url = ""
-
-
-def show_main_menu(handle):
-    """Legacy wrapper for showing main menu - delegates to new MainMenuHandler"""
-    from lib.ui.plugin_context import PluginContext
-    from lib.ui.main_menu_handler import MainMenuHandler
-
-    try:
-        # Create a minimal context for legacy compatibility
-        context = PluginContext()
-        context.addon_handle = handle  # Override with legacy handle
-
-        main_menu_handler = MainMenuHandler()
-        main_menu_handler.show_main_menu(context)
-    except Exception as e:
-        logger.error(f"Error in legacy show_main_menu: {e}")
-        # Fallback to original implementation
-        addon = xbmcaddon.Addon()
-
-        # Search (always visible)
-        search_item = xbmcgui.ListItem(label=addon.getLocalizedString(35014))  # "Search"
-        search_url = f"{sys.argv[0]}?action=search"
-        xbmcplugin.addDirectoryItem(handle, search_url, search_item, True)
-
-        # Lists (always visible)
-        lists_item = xbmcgui.ListItem(label=addon.getLocalizedString(35016))  # "Lists"
-        lists_url = f"{sys.argv[0]}?action=lists"
-        xbmcplugin.addDirectoryItem(handle, lists_url, lists_item, True)
-
-        xbmcplugin.endOfDirectory(handle, succeeded=True, updateListing=False, cacheToDisc=True)
-
-
-def show_search_menu(handle):
-    """Legacy wrapper for search - delegates to new SearchHandler"""
-    try:
-        context = PluginContext()
-        context.addon_handle = handle
-
-        search_handler = SearchHandler()
-        search_handler.prompt_and_search(context)
-    except Exception as e:
-        logger = get_logger(__name__)
-        logger.error(f"Error in legacy show_search_menu: {e}")
-        addon = xbmcaddon.Addon()
-        xbmcgui.Dialog().notification(
-            addon.getLocalizedString(35002),
-            f"Search error: {str(e)}",
-            xbmcgui.NOTIFICATION_ERROR
-        )
 
 
 # Legacy handlers removed - functionality now handled by modular handlers
