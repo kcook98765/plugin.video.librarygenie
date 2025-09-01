@@ -173,6 +173,7 @@ class QueryManager:
             # Use unified lists/list_items structure
             cursor.execute("""
                 SELECT 
+                    li.media_item_id as id,
                     li.media_item_id as item_id,
                     li.position as order_score,
                     mi.kodi_id,
