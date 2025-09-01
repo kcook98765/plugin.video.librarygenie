@@ -47,6 +47,10 @@ def get_import_export_settings() -> Dict[str, Any]:
         "background_interval_minutes": 5,  # Background service interval (minimum 1 minute)
         "track_library_changes": False,  # Monitor library for changes
         "background_token_refresh": True,  # Enable background token refresh
+
+        # ShortList Integration Settings
+        "shortlist_import_enabled": True,  # Enable ShortList import functionality
+        "shortlist_clear_before_import": True,  # Clear existing import list before new import
     }
 
 
@@ -145,6 +149,10 @@ def get_setting_descriptions() -> Dict[str, str]:
         "background_interval_minutes": "How often the background service runs (minimum 1 minute)",
         "track_library_changes": "Monitor Kodi library for changes in the background",
         "background_token_refresh": "Automatically refresh authentication tokens",
+
+        # ShortList Integration Descriptions
+        "shortlist_import_enabled": "Enable import functionality from ShortList addon",
+        "shortlist_clear_before_import": "Clear existing ShortList Import list before importing new data",
     }
 
 

@@ -1155,7 +1155,7 @@ def handle_kodi_favorites(addon_handle, base_url):
 
         # Set category for proper navigation breadcrumbs
         xbmcplugin.setPluginCategory(addon_handle, "Kodi Favorites")
-        
+
         # Add "Sync Favorites" as the first item in the list for easy access
         # Get last scan info for time display
         last_scan_info = favorites_manager._get_last_scan_info_for_display()
@@ -1165,18 +1165,18 @@ def handle_kodi_favorites(addon_handle, base_url):
             if last_scan_time:
                 time_ago = _format_time_ago(last_scan_time)
                 time_ago_text = f" (last scan: {time_ago})"
-        
+
         sync_label = f"[COLOR yellow]🔄 Sync Favorites[/COLOR]{time_ago_text}"
         sync_item = xbmcgui.ListItem(label=sync_label)
         sync_item.setProperty('IsPlayable', 'false')
-        
+
         # Enhanced plot with scan statistics
         plot_text = 'Scan Kodi favorites and update the list with any new favorites found.'
         if last_scan_info:
             items_found = last_scan_info.get('items_found', 0)
             items_mapped = last_scan_info.get('items_mapped', 0)
             plot_text += f' Last scan found {items_mapped}/{items_found} mapped favorites.'
-        
+
         sync_item.setInfo('video', {'plot': plot_text})
         sync_url = f"RunPlugin({base_url}?action=scan_favorites)"
         xbmcplugin.addDirectoryItem(addon_handle, sync_url, sync_item, False)
@@ -1191,35 +1191,35 @@ def handle_kodi_favorites(addon_handle, base_url):
             })
             xbmcplugin.addDirectoryItem(addon_handle, "", no_items_item, False)
             logger.debug(f"KODI FAVORITES: Added 'no favorites' info item")
-            
+
             xbmcplugin.endOfDirectory(addon_handle, succeeded=True)
             return
 
         # Use ListItemBuilder for the actual favorite items with simplified context menu
         from lib.ui.listitem_builder import ListItemBuilder
-        
+
         # Set content type for the media items
         xbmcplugin.setContent(addon_handle, "movies")
-        
+
         # Initialize ListItemBuilder directly
         builder = ListItemBuilder(addon_handle, xbmcaddon.Addon().getAddonInfo('id'))
-        
+
         # Define context menu callback - only add standard list operations now
         def favorites_context_menu(listitem, item):
             """Add context menu items for favorite media items"""
             try:
                 context_items = []
                 item_title = item.get('title', 'Unknown')
-                
+
                 logger.debug(f"FAVORITES CONTEXT: Starting context menu setup for '{item_title}'")
-                
+
                 # Add standard context items for mapped favorites
                 kodi_id = item.get('kodi_id')
                 if kodi_id:
                     add_url = f"RunPlugin({base_url}?action=add_to_list&kodi_id={kodi_id})"
                     context_items.append(("Add to List", add_url))
                     logger.debug(f"FAVORITES CONTEXT: Added 'Add to List' -> {add_url}")
-                
+
                 # Apply the context menu to the ListItem
                 if context_items:
                     logger.debug(f"FAVORITES CONTEXT: Applying {len(context_items)} context menu items to ListItem for '{item_title}'")
@@ -1227,15 +1227,15 @@ def handle_kodi_favorites(addon_handle, base_url):
                     logger.debug(f"FAVORITES CONTEXT: ✅ Successfully added context menu items to '{item_title}': {[item[0] for item in context_items]}")
                 else:
                     logger.warning(f"FAVORITES CONTEXT: No context items to add for '{item_title}'")
-                    
+
             except Exception as e:
                 logger.error(f"FAVORITES CONTEXT: Failed to add context menu for '{item.get('title', 'Unknown')}': {e}")
                 import traceback
                 logger.error(f"FAVORITES CONTEXT: Traceback: {traceback.format_exc()}")
-        
+
         # Build directory for favorite items using ListItemBuilder with context menu
         success = builder.build_directory(list_items, content_type="movies", context_menu_callback=favorites_context_menu)
-        
+
         if not success:
             logger.error("Failed to build favorites directory")
             xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
@@ -1458,8 +1458,73 @@ action_handlers = {
     'authorize': handle_authorize,
     'signout': handle_signout,
     'on_select': handle_on_select, # This is handled differently in main now
-    'noop': lambda handle, base_url, params: xbmcplugin.endOfDirectory(handle, succeeded=False) # Dummy handler for noop
+    'noop': lambda handle, base_url, params: xbmcplugin.endOfDirectory(handle, succeeded=False), # Dummy handler for noop
+    'import_shortlist': handle_shortlist_import # Added ShortList import handler
 }
+
+def handle_shortlist_import():
+    """Handle ShortList import action from settings"""
+    import xbmcgui
+    from lib.import_export.shortlist_importer import get_shortlist_importer
+
+    try:
+        # Show confirmation dialog
+        dialog = xbmcgui.Dialog()
+        if not dialog.yesno(
+            "ShortList Import",
+            "This will import all items from ShortList addon into a 'ShortList Import' list.",
+            "Only items that match movies in your Kodi library will be imported.",
+            "Continue?"
+        ):
+            return
+
+        # Show progress dialog
+        progress = xbmcgui.DialogProgress()
+        progress.create("ShortList Import", "Checking ShortList addon...")
+        progress.update(10)
+
+        importer = get_shortlist_importer()
+
+        # Check if ShortList is available
+        if not importer.is_shortlist_installed():
+            progress.close()
+            dialog.notification(
+                "LibraryGenie",
+                "ShortList addon not found or not enabled",
+                xbmcgui.NOTIFICATION_WARNING,
+                5000
+            )
+            return
+
+        progress.update(30, "Scanning ShortList data...")
+
+        # Perform the import
+        result = importer.import_shortlist_items()
+
+        progress.update(100, "Import complete!")
+        progress.close()
+
+        if result.get("success"):
+            message = (
+                f"Import completed!\n"
+                f"Processed: {result.get('total_items', 0)} items\n"
+                f"Added to list: {result.get('items_added', 0)} movies\n"
+                f"Unmapped: {result.get('items_unmapped', 0)} items"
+            )
+            dialog.ok("ShortList Import", message)
+        else:
+            error_msg = result.get("error", "Unknown error occurred")
+            dialog.ok("ShortList Import", f"Import failed: {error_msg}")
+
+    except Exception as e:
+        logger.error(f"ShortList import handler error: {e}")
+        xbmcgui.Dialog().notification(
+            "LibraryGenie",
+            "Import failed with error",
+            xbmcgui.NOTIFICATION_ERROR,
+            5000
+        )
+
 
 def main():
     """Main plugin entry point"""
@@ -1535,6 +1600,9 @@ def main():
             elif action == 'on_select':
                 # handle_on_select expects params and addon_handle
                 handler(params, addon_handle)
+            elif action == 'import_shortlist':
+                # import_shortlist is a manual setting, doesn't need handle or base_url in this context
+                handler()
             else:
                 handler() # For actions like create_list, authorize, signout, etc.
         else:
@@ -1555,5 +1623,5 @@ def main():
             pass
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

@@ -31,6 +31,8 @@
     <setting id="favorites_scan_interval_minutes" type="slider" label="30052" default="30" range="10,5,240" option="int"/>
     <setting id="show_unmapped_favorites" type="bool" label="30053" default="false"/>
     <setting id="favorites_batch_processing" type="bool" label="30054" default="true"/>
+    <setting label="30070" type="lsep"/>
+    <setting id="shortlist_import_action" type="action" label="30071" action="RunPlugin(plugin://plugin.video.library.genie/?action=import_shortlist)"/>
   </category>
 
   <!-- Background Settings -->
