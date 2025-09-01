@@ -87,6 +87,10 @@ class MenuBuilder:
             # Use simple renderer for menu items
             self.logger.debug(f"MENU ITEM: Using simple renderer for '{title}'")
             list_item = self.renderer.create_simple_listitem(title, description, action, icon=item.get("icon"))
+            
+            # Ensure non-folder action items are not marked as playable to prevent info dialog
+            if not is_folder and action:
+                list_item.setProperty('IsPlayable', 'false')
 
         # Add context menu if provided
         context_items_added = 0

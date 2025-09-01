@@ -1160,7 +1160,7 @@ def handle_kodi_favorites(addon_handle, base_url):
             "title": "[COLOR yellow]🔄 Scan Favorites[/COLOR]",
             "action": "scan_favorites",
             "description": "Scan and update Kodi favorites",
-            "is_folder": False,
+            "is_folder": True,
             "icon": "DefaultAddonService.png"
         })
 
