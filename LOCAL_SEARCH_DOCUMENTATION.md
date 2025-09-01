@@ -387,9 +387,10 @@ Key scenarios to test:
 
 1. **Unicode Handling**: Movies with accented characters
 2. **Year Parsing**: Complex year expressions
-3. **Large Libraries**: Performance with 10,000+ movies
+3. **Large Libraries**: Performance with 10,000+ movies **TODO: REMOVE - Resource intensive testing, requires large datasets**
 4. **Edge Cases**: Empty queries, special characters
 5. **Pagination**: Boundary conditions
+6. **Performance Monitoring Dashboard**: Visual metrics and analytics **TODO: REMOVE - Complex UI components, memory overhead for metrics**
 
 ---
 
@@ -418,12 +419,12 @@ Key scenarios to test:
 2. **Weighted Results**: Boost results by popularity/rating
 3. **Saved Searches**: Store and recall common queries
 4. **Search Suggestions**: Auto-complete based on library **TODO: REMOVE - Resource intensive, complex UI integration**
-5. **Advanced Filters**: Genre, director, rating ranges
+5. **Advanced Filters**: Genre, director, rating ranges **TODO: REMOVE - Complex UI, multiple database joins, filtering overhead**
 
 ### Performance Improvements
 
 1. **Full-Text Search**: SQLite FTS5 integration **TODO: REMOVE - May not be available in Kodi Python environment**
-2. **Search Indexes**: Optimized indexing strategies
+2. **Search Indexes**: Optimized indexing strategies **TODO: REMOVE - Complex index management, potential for lock contention**
 3. **Caching Layer**: In-memory result caching
 4. **Background Indexing**: Async index updates **TODO: REMOVE - Resource intensive, complex service management**
 
