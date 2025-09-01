@@ -1150,107 +1150,34 @@ def handle_kodi_favorites(addon_handle, base_url):
                 xbmcplugin.endOfDirectory(addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
                 return
 
-        # Get favorites from unified lists
-        favorites = favorites_manager.get_mapped_favorites()
-
-        # Get last scan info for display
-        last_scan_info = favorites_manager._get_last_scan_info_for_display()
-        scan_subtitle = ""
-        if last_scan_info:
-            time_ago = _format_time_ago(last_scan_info.get("created_at"))
-            scan_subtitle = f" - Last scan: {time_ago}"
-
-        # Build menu items
-        menu_items = []
-
-        # Add scan action at top
-        menu_items.append({
-            "title": f"[COLOR yellow]🔄 Scan Favorites[/COLOR]{scan_subtitle}",
-            "action": "scan_favorites",
-            "description": "Scan and update Kodi favorites",
-            "is_folder": True,
-            "icon": "DefaultAddonService.png"
-        })
+        # Get favorites from unified lists table
+        favorites = favorites_manager.get_mapped_favorites(show_unmapped=False)
 
         if not favorites:
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().ok(
-                addon.getLocalizedString(35002),
-                "Kodi Favorites list is empty"
-            )
-            # Still show the scan option
-            from lib.ui.menu_builder import MenuBuilder
-            menu_builder = MenuBuilder()
-            menu_builder.build_menu(menu_items, addon_handle, base_url)
+            xbmcgui.Dialog().notification("LibraryGenie", "No mapped favorites found", xbmcgui.NOTIFICATION_INFO, 5000)
+            xbmcplugin.endOfDirectory(addon_handle, succeeded=True)
             return
 
-        # Add separator
-        menu_items.append({
-            "title": "─────────────────────",
-            "action": "noop",
-            "description": "",
-            "is_folder": False,
-            "icon": ""
-        })
+        # Use the same unified ListItem building as normal lists
+        from lib.ui import get_listitem_renderer
 
-        # Convert favorites to menu items format (same as handle_view_list)
-        for item in favorites:
-            # Build display title
-            title = item.get('title', 'Unknown')
-            year = item.get('year')
-            display_title = f"{title} ({year})" if year else title
+        # Add favorites-specific context menu to each item
+        def add_favorites_context_menu(listitem, item):
+            """Add remove from favorites context menu"""
+            try:
+                with query_manager.connection_manager.transaction() as conn:
+                    kodi_list = conn.execute("SELECT id FROM lists WHERE name = 'Kodi Favorites'").fetchone()
+                    if kodi_list:
+                        context_menu = [
+                            (f"Remove from Favorites", f"RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={kodi_list['id']}&item_id={item.get('id')})")
+                        ]
+                        listitem.addContextMenuItems(context_menu)
+            except Exception as e:
+                logger.warning(f"Failed to add favorites context menu: {e}")
 
-            # Create context menu for list item
-            context_menu = [
-                (f"Remove from Favorites", f"RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={kodi_list['id']}&item_id={item.get('id')})")
-            ]
-
-            # For library items, use on_select action to handle play/info preference
-            kodi_id = item.get('kodi_id') or item.get('movieid') or item.get('episodeid')
-            if kodi_id:
-                # Library item - use on_select action
-                menu_item = {
-                    "title": display_title,
-                    "action": "on_select",
-                    "dbtype": item.get('media_type', 'movie'),
-                    "dbid": kodi_id,
-                    "description": f"Rating: {item.get('rating', 'N/A')} | {item.get('plot', '')[:100]}...",
-                    "is_folder": False,
-                    "icon": "DefaultMovies.png",
-                    "context_menu": context_menu,
-                    "movie_data": item  # For enhanced rendering
-                }
-
-                # Add episode-specific data for videodb URL construction
-                if item.get('media_type') == 'episode':
-                    if item.get('tvshowid'):
-                        menu_item["tvshowid"] = item['tvshowid']
-                    if item.get('season'):
-                        menu_item["season"] = item['season']
-            else:
-                # External item - use plugin URL
-                menu_item = {
-                    "title": display_title,
-                    "action": "play_external",
-                    "item_id": item.get('id', ''),
-                    "description": f"Rating: {item.get('rating', 'N/A')} | {item.get('plot', '')[:100]}...",
-                    "is_folder": False,
-                    "icon": "DefaultMovies.png",
-                    "context_menu": context_menu,
-                    "movie_data": item  # For enhanced rendering
-                }
-
-            menu_items.append(menu_item)
-
-        # Set category and content type
-        xbmcplugin.setPluginCategory(addon_handle, "Kodi Favorites")
-        content_type = query_manager.detect_content_type(favorites)
-        xbmcplugin.setContent(addon_handle, content_type)
-
-        # Build and display the menu
-        from lib.ui.menu_builder import MenuBuilder
-        menu_builder = MenuBuilder()
-        menu_builder.build_menu(menu_items, addon_handle, base_url)
+        # Use unified renderer with custom context menu
+        renderer = get_listitem_renderer(addon_handle, xbmcaddon.Addon().getAddonInfo('id'))
+        renderer.builder.build_directory(favorites, content_type="movies", context_menu_callback=add_favorites_context_menu)
 
     except Exception as e:
         logger.error(f"Error in handle_kodi_favorites: {e}")
@@ -1420,11 +1347,11 @@ def _format_time_ago(timestamp_str):
 
         # Parse the timestamp
         scan_time = datetime.fromisoformat(normalized_timestamp)
-        
+
         # Ensure scan_time is timezone-aware (convert to UTC if naive)
         if scan_time.tzinfo is None:
             scan_time = scan_time.replace(tzinfo=timezone.utc)
-        
+
         # Get current time in UTC
         now = datetime.now(timezone.utc)
 
