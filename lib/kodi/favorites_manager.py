@@ -252,7 +252,7 @@ class Phase4FavoritesManager:
                     self.logger.info("    No exact normalized path match found")
 
                     # Show some sample normalized paths for debugging
-                    sample_paths = self.conn_manager.execute_all("""
+                    sample_paths = self.conn_manager.execute_query("""
                         SELECT normalized_path FROM media_items 
                         WHERE is_removed = 0 AND normalized_path IS NOT NULL AND normalized_path != ''
                         LIMIT 5
