@@ -7,7 +7,7 @@ Builds ListItems with proper metadata and resume information
 """
 
 import json
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
 import xbmc
 import xbmcgui
@@ -120,7 +120,7 @@ class ListItemBuilder:
             self.logger.debug(f"DIRECTORY BUILD: Adding {len(tuples)} directory items to Kodi")
             for idx, (url, li, is_folder, item) in enumerate(tuples, start=1):
                 self.logger.debug(f"DIRECTORY BUILD: Adding item #{idx} - URL: '{url}', isFolder: {is_folder}")
-                
+
                 # Apply custom context menu immediately before addDirectoryItem for proper timing
                 if context_menu_callback:
                     try:
@@ -129,7 +129,7 @@ class ListItemBuilder:
                         self.logger.debug(f"DIRECTORY BUILD: Context menu callback completed for item #{idx}")
                     except Exception as e:
                         self.logger.warning(f"DIRECTORY BUILD: Context menu callback failed for item #{idx}: {e}")
-                
+
                 # Add to directory immediately after context menu is applied
                 xbmcplugin.addDirectoryItem(
                     handle=self.addon_handle, url=url, listitem=li, isFolder=is_folder
@@ -154,15 +154,15 @@ class ListItemBuilder:
         title = item.get('title', 'Unknown')
         media_type = item.get('media_type', 'movie')
         kodi_id = item.get('kodi_id')  # already normalized to int/None
-        
+
         # Check if this is an action item (non-media)
         is_action_item = (
-            media_type == 'none' or 
+            media_type == 'none' or
             item.get('action') in ('scan_favorites', 'noop', 'create_list', 'create_folder') or
             title.startswith('[COLOR yellow]🔄 Sync') or
             'Sync Favorites' in title
         )
-        
+
         self.logger.debug(f"ITEM BUILD: '{title}' type={media_type} kodi_id={kodi_id} is_action={is_action_item}")
 
         try:
@@ -450,31 +450,31 @@ class ListItemBuilder:
             title = item.get('title', 'Unknown')
             description = item.get('description', '')
             action = item.get('action', '')
-            
+
             self.logger.debug(f"ACTION ITEM: Creating action ListItem for '{title}' (action={action})")
 
             # Create simple ListItem with no media metadata
             li = xbmcgui.ListItem(label=title)
-            
+
             # Set basic properties only - no video metadata
             li.setProperty('IsPlayable', 'false')
-            
+
             # Set icon only (no artwork that could trigger video info)
             icon = item.get('icon', 'DefaultAddonService.png')
             li.setArt({'icon': icon})
-            
+
             # Build plugin URL for the action
             if action:
                 url = f"RunPlugin(plugin://{self.addon_id}/?action={action})"
             else:
                 url = ""
-            
+
             # Action items are never folders, never playable
             is_folder = False
-            
+
             self.logger.debug(f"ACTION ITEM: Created simple action item '{title}' -> URL: {url}")
             return url, li, is_folder
-            
+
         except Exception as e:
             self.logger.error(f"ACTION ITEM: failed for '{item.get('title','Unknown')}': {e}")
             return None
