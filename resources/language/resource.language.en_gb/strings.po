@@ -154,15 +154,15 @@ msgid "Page"
 msgstr ""
 
 msgctxt "#30070"
-msgid "Sorted by"
+msgid "ShortList Integration"
 msgstr ""
 
 msgctxt "#30071"
-msgid "Scope"
+msgid "Import from ShortList addon"
 msgstr ""
 
 msgctxt "#30072"
-msgid "Next page..."
+msgid "Clear list before importing new data"
 msgstr ""
 
 msgctxt "#30073"
