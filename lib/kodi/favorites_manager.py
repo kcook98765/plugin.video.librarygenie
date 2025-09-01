@@ -435,7 +435,7 @@ class Phase4FavoritesManager:
                     ORDER BY li.position, mi.title
                 """).fetchall()
 
-                # Convert Row to dict and ensure all required fields are present
+                # Convert Row to dict and enhance with artwork
                 result = []
                 for row in favorites:
                     # Convert Row to dict and ensure all required fields are present
@@ -452,9 +452,26 @@ class Phase4FavoritesManager:
                         'total_seconds': favorite_dict.get('resume_total', 0)
                     }
 
+                    # Enhance artwork if missing - fetch from Kodi JSON-RPC
+                    if not favorite_dict.get('art') and not favorite_dict.get('poster') and favorite_dict.get('kodi_id'):
+                        self.logger.debug(f"ARTWORK: Fetching artwork for '{favorite_dict['title']}' (kodi_id={favorite_dict['kodi_id']})")
+                        artwork = self._fetch_artwork_from_kodi(favorite_dict['kodi_id'], favorite_dict['media_type'])
+                        if artwork:
+                            self.logger.debug(f"ARTWORK: Retrieved artwork for '{favorite_dict['title']}': {list(artwork.keys())}")
+                            # Merge artwork into the item
+                            if 'poster' in artwork:
+                                favorite_dict['poster'] = artwork['poster']
+                            if 'fanart' in artwork:
+                                favorite_dict['fanart'] = artwork['fanart']
+                            # Store full art dict as JSON for _build_art_dict()
+                            import json
+                            favorite_dict['art'] = json.dumps(artwork)
+                        else:
+                            self.logger.debug(f"ARTWORK: No artwork found for '{favorite_dict['title']}'")
+
                     result.append(favorite_dict)
 
-                self.logger.info(f"Retrieved {len(result)} mapped favorites from unified lists with full metadata")
+                self.logger.info(f"Retrieved {len(result)} mapped favorites from unified lists with full metadata and artwork")
                 return result
 
         except Exception as e:
@@ -579,6 +596,75 @@ class Phase4FavoritesManager:
         except Exception as e:
             self.logger.debug(f"No previous scan info found for display: {e}")
             return None
+
+    def _fetch_artwork_from_kodi(self, kodi_id: int, media_type: str) -> Dict[str, str]:
+        """Fetch artwork for library item from Kodi JSON-RPC"""
+        try:
+            from .json_rpc_client import get_json_rpc_client
+            json_rpc = get_json_rpc_client()
+
+            if media_type == 'movie':
+                # Get movie details with artwork
+                response = json_rpc.call_method(
+                    "VideoLibrary.GetMovieDetails",
+                    {
+                        "movieid": kodi_id,
+                        "properties": ["art", "thumbnail", "fanart"]
+                    }
+                )
+                
+                if response and "moviedetails" in response:
+                    movie_details = response["moviedetails"]
+                    artwork = {}
+                    
+                    # Extract art dictionary
+                    if "art" in movie_details and isinstance(movie_details["art"], dict):
+                        artwork.update(movie_details["art"])
+                    
+                    # Add top-level fields
+                    if "thumbnail" in movie_details:
+                        artwork["thumb"] = movie_details["thumbnail"]
+                        artwork["poster"] = movie_details["thumbnail"]
+                    if "fanart" in movie_details:
+                        artwork["fanart"] = movie_details["fanart"]
+                    
+                    self.logger.debug(f"ARTWORK: Retrieved {len(artwork)} art items for movie {kodi_id}")
+                    return artwork
+
+            elif media_type == 'episode':
+                # Get episode details with artwork
+                response = json_rpc.call_method(
+                    "VideoLibrary.GetEpisodeDetails",
+                    {
+                        "episodeid": kodi_id,
+                        "properties": ["art", "thumbnail", "fanart"]
+                    }
+                )
+                
+                if response and "episodedetails" in response:
+                    episode_details = response["episodedetails"]
+                    artwork = {}
+                    
+                    # Extract art dictionary
+                    if "art" in episode_details and isinstance(episode_details["art"], dict):
+                        artwork.update(episode_details["art"])
+                    
+                    # Add top-level fields
+                    if "thumbnail" in episode_details:
+                        artwork["thumb"] = episode_details["thumbnail"]
+                        artwork["poster"] = episode_details["thumbnail"]
+                    if "fanart" in episode_details:
+                        artwork["fanart"] = episode_details["fanart"]
+                    
+                    self.logger.debug(f"ARTWORK: Retrieved {len(artwork)} art items for episode {kodi_id}")
+                    return artwork
+
+            self.logger.debug(f"ARTWORK: No artwork retrieved for {media_type} {kodi_id}")
+            return {}
+
+        except Exception as e:
+            self.logger.warning(f"ARTWORK: Failed to fetch artwork for {media_type} {kodi_id}: {e}")
+            return {}
 
     def _log_scan_result(self, scan_type: str, file_path: str, file_modified: str = None,
                         items_found: int = 0, items_mapped: int = 0, items_added: int = 0,
