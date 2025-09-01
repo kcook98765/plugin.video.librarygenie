@@ -49,16 +49,7 @@ class FavoritesHandler:
                 'description': "Scan Kodi favorites file for changes"
             })
 
-            favorites_items = []
-            if favorites:
-                # Convert favorites to the format expected by ListItemRenderer
-                for idx, fav in enumerate(favorites):
-                    self.logger.debug(f"FAVORITES: Processing favorite #{idx+1}: '{fav.get('title', fav.get('name', 'Unknown'))}'")
-                    self.logger.debug(f"FAVORITES: Raw favorite data: kodi_id={fav.get('kodi_id')}, poster={bool(fav.get('poster'))}, art={bool(fav.get('art'))}")
-                    
-                    converted_item = self._convert_favorite_to_list_item_data(fav)
-                    self.logger.debug(f"FAVORITES: Converted item artwork: poster={bool(converted_item.get('poster'))}, art={bool(converted_item.get('art'))}")
-                    favorites_items.append(converted_item)
+            favorites_items = favorites  # No conversion needed - data is already in standard list format
 
             if not favorites_items:
                 # No favorites found

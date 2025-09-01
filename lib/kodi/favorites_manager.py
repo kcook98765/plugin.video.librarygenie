@@ -405,74 +405,29 @@ class Phase4FavoritesManager:
             return None
 
     def get_mapped_favorites(self, show_unmapped: bool = False) -> List[Dict]:
-        """Get favorites from unified lists table with full metadata like normal lists"""
+        """Get favorites from unified lists table using standard list query approach"""
         try:
+            # Use the standard query manager to get list items - same as any other list
+            from ..data.query_manager import get_query_manager
+            query_manager = get_query_manager()
+            
+            # Get the Kodi Favorites list ID
             with self.conn_manager.transaction() as conn:
-                # Use identical query to normal lists - all metadata fields for proper display
-                favorites = conn.execute("""
-                    SELECT mi.id, mi.title, mi.year, mi.imdbnumber as imdb_id, mi.tmdb_id,
-                           mi.kodi_id, mi.media_type, mi.poster, mi.fanart, mi.plot,
-                           mi.file_path, mi.normalized_path, mi.art,
-                           mi.director, mi.studio, mi.country, mi.genre,
-                           mi.mpaa, mi.duration, mi.votes, mi.rating,
-                           mi.play, mi.source,
-                           -- Essential fields for list rendering
-                           mi.file_path as original_file_path,
-                           mi.title as name,
-                           li.position,
-                           -- Resume fields (set defaults since no resume_data table exists yet)
-                           0 as resume_position,
-                           0 as resume_total,
-                           -- Additional metadata for rich display
-                           mi.cast, mi.writer,
-                           -- Ensure consistent field naming with normal lists
-                           mi.id as media_item_id,
-                           mi.kodi_id as movieid
-                    FROM lists l
-                    JOIN list_items li ON l.id = li.list_id
-                    JOIN media_items mi ON li.media_item_id = mi.id
-                    WHERE l.name = 'Kodi Favorites' AND mi.is_removed = 0
-                    ORDER BY li.position, mi.title
-                """).fetchall()
-
-                # Convert Row to dict and enhance with artwork
-                result = []
-                for row in favorites:
-                    # Convert Row to dict and ensure all required fields are present
-                    favorite_dict = dict(row)
-
-                    # Ensure required fields have default values
-                    favorite_dict.setdefault('id', None)
-                    favorite_dict.setdefault('kodi_id', None)
-                    favorite_dict.setdefault('media_type', 'movie')
-
-                    # Structure resume information for ListItemBuilder compatibility
-                    favorite_dict['resume'] = {
-                        'position_seconds': favorite_dict.get('resume_position', 0),
-                        'total_seconds': favorite_dict.get('resume_total', 0)
-                    }
-
-                    # Enhance artwork if missing - fetch from Kodi JSON-RPC
-                    if not favorite_dict.get('art') and not favorite_dict.get('poster') and favorite_dict.get('kodi_id'):
-                        self.logger.debug(f"ARTWORK: Fetching artwork for '{favorite_dict['title']}' (kodi_id={favorite_dict['kodi_id']})")
-                        artwork = self._fetch_artwork_from_kodi(favorite_dict['kodi_id'], favorite_dict['media_type'])
-                        if artwork:
-                            self.logger.debug(f"ARTWORK: Retrieved artwork for '{favorite_dict['title']}': {list(artwork.keys())}")
-                            # Merge artwork into the item
-                            if 'poster' in artwork:
-                                favorite_dict['poster'] = artwork['poster']
-                            if 'fanart' in artwork:
-                                favorite_dict['fanart'] = artwork['fanart']
-                            # Store full art dict as JSON for _build_art_dict()
-                            import json
-                            favorite_dict['art'] = json.dumps(artwork)
-                        else:
-                            self.logger.debug(f"ARTWORK: No artwork found for '{favorite_dict['title']}'")
-
-                    result.append(favorite_dict)
-
-                self.logger.info(f"Retrieved {len(result)} mapped favorites from unified lists with full metadata and artwork")
-                return result
+                kodi_list = conn.execute("""
+                    SELECT id FROM lists WHERE name = 'Kodi Favorites'
+                """).fetchone()
+                
+                if not kodi_list:
+                    self.logger.info("No 'Kodi Favorites' list found")
+                    return []
+                
+                kodi_list_id = kodi_list["id"]
+            
+            # Use the standard list items query - same as other lists use
+            favorites = query_manager.get_list_items_with_metadata(kodi_list_id)
+            
+            self.logger.info(f"Retrieved {len(favorites)} favorites using standard list query approach")
+            return favorites
 
         except Exception as e:
             self.logger.error(f"Error getting mapped favorites: {e}")
