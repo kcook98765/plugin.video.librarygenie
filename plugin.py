@@ -1172,21 +1172,24 @@ def handle_kodi_favorites(addon_handle, base_url):
             """Add context menu items specific to favorites"""
             context_items = []
             
-            # Add sync favorites option
+            # Add sync favorites option - always first
             context_items.append((
                 "Sync Favorites",
                 f"RunPlugin({base_url}?action=scan_favorites)"
             ))
             
-            # Add standard context items
-            if item.get('imdb_id'):
+            # Add standard context items for mapped favorites
+            kodi_id = item.get('kodi_id')
+            if kodi_id:
                 context_items.append((
                     "Add to List",
-                    f"RunPlugin({base_url}?action=add_to_list&imdb_id={item.get('imdb_id')})"
+                    f"RunPlugin({base_url}?action=add_to_list&kodi_id={kodi_id})"
                 ))
             
+            # Apply the context menu to the ListItem
             if context_items:
                 listitem.addContextMenuItems(context_items)
+                logger.debug(f"FAVORITES: Added {len(context_items)} context menu items to '{item.get('title', 'Unknown')}'")
         
         # Render exactly like a normal list using the same method with context menu
         renderer.render_media_items(list_items, content_type="movies", context_menu_callback=favorites_context_menu)
