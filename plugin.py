@@ -106,158 +106,7 @@ def _check_and_trigger_initial_scan():
 # Legacy handlers removed - functionality now handled by modular handlers
 
 
-def handle_view_list(addon_handle, base_url):
-    """Handle viewing a specific list"""
-    try:
-        # Parse plugin arguments from sys.argv
-        if len(sys.argv) < 3 or not sys.argv[2].startswith('?'):
-            logger.error("Invalid arguments received for handle_view_list")
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),
-                "Invalid arguments",
-                xbmcgui.NOTIFICATION_ERROR
-            )
-            return
 
-        query_string = sys.argv[2][1:]  # Remove leading '?'
-        params = dict(parse_qsl(query_string))  # Use parse_qsl for parsing
-
-        list_id = params.get('list_id')
-        if not list_id:
-            logger.error("No list_id provided for view_list")
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),
-                "Invalid list ID",
-                xbmcgui.NOTIFICATION_ERROR
-            )
-            return
-
-        logger.debug(f"Viewing list {list_id}")
-
-        # Initialize query manager
-        query_manager = get_query_manager()
-        if not query_manager.initialize():
-            logger.error("Failed to initialize query manager")
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),
-                "Database error",
-                xbmcgui.NOTIFICATION_ERROR
-            )
-            return
-
-        # Get list info
-        list_info = query_manager.get_list_by_id(list_id)
-        if not list_info:
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().ok(
-                addon.getLocalizedString(35002),
-                "List not found"
-            )
-            return
-
-        # Get list items (already normalized by get_list_items)
-        list_items = query_manager.get_list_items(list_id)
-        logger.debug(f"Found {len(list_items)} items in list")
-
-        if not list_items:
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().ok(
-                addon.getLocalizedString(35002),
-                f"List '{list_info['name']}' is empty"
-            )
-            # Ensure directory is ended if list is empty
-            xbmcplugin.endOfDirectory(addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
-            return
-
-        # Detect content type based on list items
-        content_type = query_manager.detect_content_type(list_items)
-        logger.debug(f"Detected content type '{content_type}' for list '{list_info['name']}'")
-
-        # Use MenuBuilder instead of ListItemBuilder for list contents to avoid InfoHijack
-        from lib.ui.menu_builder import MenuBuilder
-        menu_builder = MenuBuilder()
-
-        # Set category for better navigation
-        xbmcplugin.setPluginCategory(addon_handle, f"List: {list_info['name']}")
-
-        # Set content type for proper skin support
-        xbmcplugin.setContent(addon_handle, content_type)
-
-        # Convert list items to menu items format
-        menu_items = []
-        for item in list_items:
-            # Build display title
-            title = item.get('title', 'Unknown')
-            year = item.get('year')
-            display_title = f"{title} ({year})" if year else title
-
-            # Create context menu for list item
-            context_menu = [
-                (f"Remove from '{list_info['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={list_id}&item_id={item.get('id')})")
-            ]
-
-            # For library items, use on_select action to handle play/info preference
-            kodi_id = item.get('kodi_id') or item.get('movieid') or item.get('episodeid')
-            if kodi_id:
-                # Library item - use on_select action
-                menu_item = {
-                    "title": display_title,
-                    "action": "on_select",
-                    "dbtype": item.get('media_type', 'movie'),
-                    "dbid": kodi_id,
-                    "description": f"Rating: {item.get('rating', 'N/A')} | {item.get('plot', '')[:100]}...",
-                    "is_folder": False,
-                    "icon": "DefaultMovies.png",
-                    "context_menu": context_menu,
-                    "movie_data": item  # For enhanced rendering
-                }
-
-                # Add episode-specific data for videodb URL construction
-                if item.get('media_type') == 'episode':
-                    if item.get('tvshowid'):
-                        menu_item["tvshowid"] = item['tvshowid']
-                    if item.get('season'):
-                        menu_item["season"] = item['season']
-            else:
-                # External item - use plugin URL
-                menu_item = {
-                    "title": display_title,
-                    "action": "play_external",
-                    "item_id": item.get('id', ''),
-                    "description": f"Rating: {item.get('rating', 'N/A')} | {item.get('plot', '')[:100]}...",
-                    "is_folder": False,
-                    "icon": "DefaultMovies.png",
-                    "context_menu": context_menu,
-                    "movie_data": item  # For enhanced rendering
-                }
-
-            menu_items.append(menu_item)
-
-        # Build menu using MenuBuilder
-        menu_builder.build_menu(menu_items, addon_handle, base_url)
-        success = True
-
-        if success:
-            logger.debug(f"Successfully built list directory with content_type='{content_type}'")
-        else:
-            logger.error(f"Failed to build list directory")
-
-        return  # build_directory() already handles endOfDirectory()
-
-    except Exception as e:
-        logger.error(f"Error viewing list: {e}")
-        import traceback
-        logger.error(f"View list error traceback: {traceback.format_exc()}")
-
-        addon = xbmcaddon.Addon()
-        xbmcgui.Dialog().notification(
-            addon.getLocalizedString(35002),
-            "Lists error",
-            xbmcgui.NOTIFICATION_ERROR
-        )
 
 
 def handle_rename_list():
@@ -583,115 +432,7 @@ def handle_remove_from_list():
         logger.error(f"Remove from list error traceback: {traceback.format_exc()}")
 
 
-def handle_show_folder(addon_handle, base_url):
-    """Handle showing the contents of a folder"""
-    try:
-        # Parse plugin arguments
-        if len(sys.argv) < 3 or not sys.argv[2].startswith('?'):
-            logger.error("Invalid arguments received for handle_show_folder")
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),
-                "Invalid arguments",
-                xbmcgui.NOTIFICATION_ERROR
-            )
-            return
 
-        query_string = sys.argv[2][1:]
-        params = dict(parse_qsl(query_string))
-        folder_id = params.get('folder_id')
-
-        if not folder_id:
-            logger.error("No folder_id provided for show_folder")
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),
-                "Invalid folder ID",
-                xbmcgui.NOTIFICATION_ERROR
-            )
-            return
-
-        logger.info(f"Showing contents of folder {folder_id}")
-
-        # Initialize query manager
-        query_manager = get_query_manager()
-        if not query_manager.initialize():
-            logger.error("Failed to initialize query manager")
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),
-                "Database error",
-                xbmcgui.NOTIFICATION_ERROR
-            )
-            return
-
-        # Get folder info to set category
-        folder_info = query_manager.get_folder_by_id(folder_id)
-        if not folder_info:
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().ok(
-                addon.getLocalizedString(35002),
-                "Folder not found"
-            )
-            return
-
-        xbmcplugin.setPluginCategory(addon_handle, f"Folder: {folder_info['name']}")
-
-        # Get all lists within this folder
-        folder_lists = query_manager.get_lists_in_folder(folder_id)
-        logger.info(f"Found {len(folder_lists)} lists in folder {folder_id}")
-
-        if not folder_lists:
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().ok(
-                addon.getLocalizedString(35002),
-                f"Folder '{folder_info['name']}' is empty."
-            )
-            xbmcplugin.endOfDirectory(addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
-            return
-
-        menu_items = []
-        # Build menu items for lists within the folder
-        for list_item in folder_lists:
-            list_id = list_item.get('id')
-            name = list_item.get('name', 'Unnamed List')
-            description = list_item.get('description', '')
-
-            # Check if it's in Search History folder to prevent deletion
-            is_search_history = folder_info['name'] == 'Search History'
-            context_menu = []
-
-            if not is_search_history:
-                context_menu = [
-                    (f"Rename List '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={list_id})"),
-                    (f"Delete List '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_id})")
-                ]
-
-            menu_items.append({
-                "title": f"[COLOR yellow]📋 {name}[/COLOR]",
-                "action": "show_list",
-                "list_id": list_id,
-                "description": description,
-                "is_folder": True,
-                "icon": "DefaultPlaylist.png",
-                "context_menu": context_menu
-            })
-
-        # Build and display the menu for the folder contents
-        from lib.ui.menu_builder import MenuBuilder
-        menu_builder = MenuBuilder()
-        menu_builder.build_menu(menu_items, addon_handle, base_url)
-
-    except Exception as e:
-        logger.error(f"Error showing folder contents: {e}")
-        import traceback
-        logger.error(f"Show folder error traceback: {traceback.format_exc()}")
-        addon = xbmcaddon.Addon()
-        xbmcgui.Dialog().notification(
-            addon.getLocalizedString(35002),
-            "Folder error",
-            xbmcgui.NOTIFICATION_ERROR
-        )
 
 
 def _videodb_path(dbtype: str, dbid: int, tvshowid=None, season=None) -> str:
@@ -1152,9 +893,6 @@ def _register_all_handlers(router: Router):
 
     # Register legacy handlers with context wrapper
     router.register_handlers({
-        'view_list': _wrap_legacy_handler(handle_view_list),
-        'show_folder': _wrap_legacy_handler(handle_show_folder),
-        'show_list': _wrap_legacy_handler(handle_view_list),
         'authorize': _wrap_legacy_handler(handle_authorize),
         'signout': _wrap_legacy_handler(handle_signout),
         'on_select': _wrap_legacy_on_select_handler(handle_on_select),
@@ -1181,11 +919,8 @@ def _wrap_legacy_handler(handler_func):
         args = context.params
         base_url = context.base_url
 
-        # Call legacy handler with appropriate arguments
-        if handler_func.__name__ in ('handle_view_list', 'handle_show_folder'):
-            return handler_func(context.addon_handle, context.base_url)
-        else:
-            return handler_func()
+        # Call legacy handler
+        return handler_func()
     return wrapper
 
 
