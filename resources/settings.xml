@@ -32,7 +32,7 @@
     <setting id="show_unmapped_favorites" type="bool" label="30053" default="false"/>
     <setting id="favorites_batch_processing" type="bool" label="30054" default="true"/>
     <setting label="30070" type="lsep"/>
-    <setting id="shortlist_import_action" type="action" label="30071" action="RunPlugin(plugin://plugin.video.library.genie/?action=import_shortlist)"/>
+    <setting id="shortlist_import_action" type="action" label="30071" action="RunPlugin(plugin://plugin.video.librarygenie/?action=import_shortlist)"/>
     <setting id="shortlist_clear_before_import" type="bool" label="30072" default="true"/>
   </category>
 
