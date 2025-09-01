@@ -52,10 +52,13 @@ class FavoritesHandler:
             favorites_items = []
             if favorites:
                 # Convert favorites to the format expected by ListItemRenderer
-                from .favorites_handler import FavoritesHandler
-                handler = FavoritesHandler() # Instantiate to use helper method
-                for fav in favorites:
-                    favorites_items.append(handler._convert_favorite_to_list_item_data(fav))
+                for idx, fav in enumerate(favorites):
+                    self.logger.debug(f"FAVORITES: Processing favorite #{idx+1}: '{fav.get('title', fav.get('name', 'Unknown'))}'")
+                    self.logger.debug(f"FAVORITES: Raw favorite data: kodi_id={fav.get('kodi_id')}, poster={bool(fav.get('poster'))}, art={bool(fav.get('art'))}")
+                    
+                    converted_item = self._convert_favorite_to_list_item_data(fav)
+                    self.logger.debug(f"FAVORITES: Converted item artwork: poster={bool(converted_item.get('poster'))}, art={bool(converted_item.get('art'))}")
+                    favorites_items.append(converted_item)
 
             if not favorites_items:
                 # No favorites found
@@ -101,10 +104,20 @@ class FavoritesHandler:
                     """Add favorites-specific context menu items"""
                     try:
                         context_menu = []
+                        # Use the correct ID field - favorites use 'id' or 'media_item_id'
+                        item_id = item.get('id') or item.get('media_item_id') or item.get('kodi_id', '')
                         context_menu.append((
                             "Remove from Favorites",
-                            f"RunPlugin({context.build_url('remove_from_favorites', item_id=item.get('id'))})"
+                            f"RunPlugin({context.build_url('remove_from_favorites', item_id=item_id)})"
                         ))
+                        
+                        # Also add "Add to List" option for favorites
+                        if item.get('imdb_id'):
+                            context_menu.append((
+                                "Add to List",
+                                f"RunPlugin({context.build_url('add_to_list_menu', media_item_id=item.get('media_item_id') or item.get('id'))})"
+                            ))
+                        
                         listitem.addContextMenuItems(context_menu)
                     except Exception as e:
                         context.logger.warning(f"Failed to add favorites context menu: {e}")
@@ -260,20 +273,62 @@ class FavoritesHandler:
             )
 
     def _convert_favorite_to_list_item_data(self, favorite: Dict[str, Any]) -> Dict[str, Any]:
-        """Convert favorite data to list item format"""
+        """Convert favorite data to list item format with complete metadata"""
         return {
             'id': favorite.get('id'),
-            'title': favorite.get('name', 'Unknown Favorite'),
+            'title': favorite.get('title') or favorite.get('name', 'Unknown Favorite'),
             'year': favorite.get('year'),
             'imdb_id': favorite.get('imdb_id'),
+            'tmdb_id': favorite.get('tmdb_id'),
+            'kodi_id': favorite.get('kodi_id'),
+            'media_type': favorite.get('media_type', 'movie'),
+            'plot': favorite.get('plot'),
+            'rating': favorite.get('rating'),
+            'votes': favorite.get('votes'),
+            'mpaa': favorite.get('mpaa'),
+            'genre': favorite.get('genre'),
+            'director': favorite.get('director'),
+            'studio': favorite.get('studio'),
+            'country': favorite.get('country'),
+            'writer': favorite.get('writer'),
+            'cast': favorite.get('cast'),
+            'duration': favorite.get('duration'),
+            'runtime': favorite.get('runtime'),
+            'duration_minutes': favorite.get('duration_minutes'),
+            'premiered': favorite.get('premiered'),
+            'dateadded': favorite.get('dateadded'),
+            'playcount': favorite.get('playcount'),
+            'lastplayed': favorite.get('lastplayed'),
+            'file_path': favorite.get('file_path'),
+            'play': favorite.get('play'),
+            'source': favorite.get('source', 'lib'),
             'is_mapped': favorite.get('is_mapped', False),
             'thumb_ref': favorite.get('thumb_ref'),
-            'description': f"Favorite: {favorite.get('original_path', '')}",
-            'media_type': favorite.get('media_type', 'movie'), # Added media_type
-            'kodi_id': favorite.get('kodi_id'), # Added kodi_id
-            'tvshowid': favorite.get('tvshowid'), # Added tvshowid
-            'season': favorite.get('season'), # Added season
-            'play': favorite.get('play'), # Added play
-            'poster': favorite.get('poster'), # Added poster
-            'fanart': favorite.get('fanart') # Added fanart
+            'description': favorite.get('plot') or f"Favorite: {favorite.get('original_path', '')}",
+            # Artwork - map all available art fields
+            'poster': favorite.get('poster'),
+            'fanart': favorite.get('fanart'),
+            'art': favorite.get('art'),  # JSON art dict
+            'thumb': favorite.get('thumb'),
+            'banner': favorite.get('banner'),
+            'landscape': favorite.get('landscape'),
+            'clearlogo': favorite.get('clearlogo'),
+            'clearart': favorite.get('clearart'),
+            'discart': favorite.get('discart'),
+            'icon': favorite.get('icon'),
+            # Episode-specific fields
+            'tvshowid': favorite.get('tvshowid'),
+            'tvshowtitle': favorite.get('tvshowtitle'),
+            'showtitle': favorite.get('showtitle'),
+            'season': favorite.get('season'),
+            'episode': favorite.get('episode'),
+            'aired': favorite.get('aired'),
+            # Resume information
+            'resume': favorite.get('resume', {'position_seconds': 0, 'total_seconds': 0}),
+            'resume_position': favorite.get('resume_position', 0),
+            'resume_total': favorite.get('resume_total', 0),
+            # Additional IDs for compatibility
+            'movieid': favorite.get('movieid') or favorite.get('kodi_id'),
+            'episodeid': favorite.get('episodeid'),
+            'media_item_id': favorite.get('media_item_id')
         }
