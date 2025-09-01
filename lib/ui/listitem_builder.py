@@ -187,15 +187,21 @@ class ListItemBuilder:
         # media type - be more specific for library items
         media_type = (src.get('media_type') or src.get('type') or 'movie').lower()
 
+        # Preserve 'none' media type for action items - don't force to 'movie'
+        if media_type == 'none':
+            out['media_type'] = 'none'
         # For library items with movieid, ensure it's identified as 'movie'
-        if src.get('movieid') or (src.get('kodi_id') and not src.get('episodeid')):
+        elif src.get('movieid') or (src.get('kodi_id') and not src.get('episodeid')):
             media_type = 'movie'
+            out['media_type'] = media_type
         elif src.get('episodeid') or src.get('episode') is not None:
             media_type = 'episode'
-        elif media_type not in ('movie', 'episode', 'tvshow', 'musicvideo'):
+            out['media_type'] = media_type
+        elif media_type not in ('movie', 'episode', 'tvshow', 'musicvideo', 'none'):
             media_type = 'movie'
-
-        out['media_type'] = media_type
+            out['media_type'] = media_type
+        else:
+            out['media_type'] = media_type
 
         # kodi id (only for movie/episode)
         kodi_id = None
@@ -458,35 +464,30 @@ class ListItemBuilder:
 
             self.logger.debug(f"ACTION ITEM: Creating action ListItem for '{title}' (action={action})")
 
-            # Create simple ListItem with minimal video info to satisfy Kodi requirements
+            # Create simple ListItem for action - no video info to avoid confusion
             li = xbmcgui.ListItem(label=title)
 
-            # Set basic properties - mark as not playable
+            # Set basic properties - mark as not playable and not a video
             li.setProperty('IsPlayable', 'false')
-
-            # Set minimal video info to prevent "ListItem type must be audio or video" warning
+            
+            # Set as 'executable' type to avoid video type assumptions
             kodi_major = get_kodi_major_version()
             if kodi_major >= 20:
-                # v20+: Use InfoTagVideo to set minimal video type
+                # v20+: Set as executable/addon type instead of video
                 try:
                     video_info_tag = li.getVideoInfoTag()
-                    video_info_tag.setMediaType('video')  # Mark as video type
+                    video_info_tag.setMediaType('executable')  # Mark as executable, not video
                     video_info_tag.setTitle(title)
                     if description:
                         video_info_tag.setPlot(description)
-                    self.logger.debug(f"ACTION ITEM v20+: Set minimal video info for '{title}'")
+                    self.logger.debug(f"ACTION ITEM v20+: Set executable type for '{title}'")
                 except Exception as e:
-                    self.logger.warning(f"ACTION ITEM v20+: InfoTagVideo setup failed for '{title}': {e}")
+                    # If executable type fails, try no info at all
+                    self.logger.debug(f"ACTION ITEM v20+: Executable type failed, using no info for '{title}': {e}")
             else:
-                # v19: Use setInfo() with minimal video info
-                info = {
-                    'title': title,
-                    'mediatype': 'video'  # Mark as video type
-                }
-                if description:
-                    info['plot'] = description
-                li.setInfo('video', info)
-                self.logger.debug(f"ACTION ITEM v19: Set minimal video info for '{title}'")
+                # v19: Try to avoid setInfo() completely for action items
+                # Just rely on the RunPlugin URL and folder=False to handle it
+                self.logger.debug(f"ACTION ITEM v19: Using minimal setup (no setInfo) for '{title}'")
 
             # Set icon only (no artwork that could trigger video info)
             icon = item.get('icon', 'DefaultAddonService.png')
