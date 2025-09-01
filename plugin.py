@@ -1173,26 +1173,36 @@ def handle_kodi_favorites(addon_handle, base_url):
         # Define context menu callback to add sync favorites option
         def favorites_context_menu(listitem, item):
             """Add context menu items specific to favorites"""
-            context_items = []
-            
-            # Add sync favorites option - always first
-            context_items.append((
-                "Sync Favorites",
-                f"RunPlugin({base_url}?action=scan_favorites)"
-            ))
-            
-            # Add standard context items for mapped favorites
-            kodi_id = item.get('kodi_id')
-            if kodi_id:
-                context_items.append((
-                    "Add to List",
-                    f"RunPlugin({base_url}?action=add_to_list&kodi_id={kodi_id})"
-                ))
-            
-            # Apply the context menu to the ListItem
-            if context_items:
-                listitem.addContextMenuItems(context_items)
-                logger.debug(f"FAVORITES: Added {len(context_items)} context menu items to '{item.get('title', 'Unknown')}'")
+            try:
+                context_items = []
+                item_title = item.get('title', 'Unknown')
+                
+                logger.debug(f"FAVORITES CONTEXT: Starting context menu setup for '{item_title}'")
+                
+                # Add sync favorites option - always first
+                sync_url = f"RunPlugin({base_url}?action=scan_favorites)"
+                context_items.append(("Sync Favorites", sync_url))
+                logger.debug(f"FAVORITES CONTEXT: Added 'Sync Favorites' -> {sync_url}")
+                
+                # Add standard context items for mapped favorites
+                kodi_id = item.get('kodi_id')
+                if kodi_id:
+                    add_url = f"RunPlugin({base_url}?action=add_to_list&kodi_id={kodi_id})"
+                    context_items.append(("Add to List", add_url))
+                    logger.debug(f"FAVORITES CONTEXT: Added 'Add to List' -> {add_url}")
+                
+                # Apply the context menu to the ListItem
+                if context_items:
+                    logger.debug(f"FAVORITES CONTEXT: Applying {len(context_items)} context menu items to ListItem for '{item_title}'")
+                    listitem.addContextMenuItems(context_items)
+                    logger.debug(f"FAVORITES CONTEXT: ✅ Successfully added context menu items to '{item_title}': {[item[0] for item in context_items]}")
+                else:
+                    logger.warning(f"FAVORITES CONTEXT: No context items to add for '{item_title}'")
+                    
+            except Exception as e:
+                logger.error(f"FAVORITES CONTEXT: Failed to add context menu for '{item.get('title', 'Unknown')}': {e}")
+                import traceback
+                logger.error(f"FAVORITES CONTEXT: Traceback: {traceback.format_exc()}")
         
         # Build directory exactly like normal lists using ListItemBuilder with context menu
         success = builder.build_directory(list_items, content_type="movies", context_menu_callback=favorites_context_menu)

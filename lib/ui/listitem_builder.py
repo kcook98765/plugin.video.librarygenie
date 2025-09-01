@@ -119,15 +119,18 @@ class ListItemBuilder:
 
             self.logger.debug(f"DIRECTORY BUILD: Adding {len(tuples)} directory items to Kodi")
             for idx, (url, li, is_folder, item) in enumerate(tuples, start=1):
-                # Apply custom context menu just before adding to directory
+                self.logger.debug(f"DIRECTORY BUILD: Adding item #{idx} - URL: '{url}', isFolder: {is_folder}")
+                
+                # Apply custom context menu immediately before addDirectoryItem for proper timing
                 if context_menu_callback:
                     try:
+                        self.logger.debug(f"DIRECTORY BUILD: Applying context menu callback for item #{idx} at optimal timing")
                         context_menu_callback(li, item)
-                        self.logger.debug(f"DIRECTORY BUILD: Applied custom context menu for item #{idx} just before addDirectoryItem")
+                        self.logger.debug(f"DIRECTORY BUILD: Context menu callback completed for item #{idx}")
                     except Exception as e:
-                        self.logger.warning(f"DIRECTORY BUILD: Custom context menu failed for item #{idx}: {e}")
+                        self.logger.warning(f"DIRECTORY BUILD: Context menu callback failed for item #{idx}: {e}")
                 
-                self.logger.debug(f"DIRECTORY BUILD: Adding item #{idx} - URL: '{url}', isFolder: {is_folder}")
+                # Add to directory immediately after context menu is applied
                 xbmcplugin.addDirectoryItem(
                     handle=self.addon_handle, url=url, listitem=li, isFolder=is_folder
                 )
