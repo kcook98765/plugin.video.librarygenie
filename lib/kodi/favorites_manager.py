@@ -407,14 +407,21 @@ class Phase4FavoritesManager:
         """Get favorites from unified lists table with full metadata like normal lists"""
         try:
             with self.conn_manager.transaction() as conn:
-                # Get full media item data using only existing columns
+                # Get full media item data with comprehensive metadata (same as normal lists)
                 favorites = conn.execute("""
                     SELECT li.id, mi.title, mi.year, mi.imdbnumber as imdb_id, mi.tmdb_id,
                            mi.kodi_id, mi.media_type, mi.poster, mi.fanart, mi.plot,
-                           mi.file_path, mi.normalized_path,
+                           mi.file_path, mi.normalized_path, mi.art,
                            li.media_item_id as library_movie_id,
                            mi.title as name,  -- Use the library title as the favorite name
-                           li.position
+                           li.position,
+                           -- Add all the missing metadata fields that normal lists have
+                           mi.director, mi.studio, mi.country, mi.genre,
+                           mi.mpaa, mi.tagline, mi.runtime, mi.votes, mi.rating,
+                           mi.originaltitle, mi.sorttitle, mi.premiered,
+                           mi.playcount, mi.lastplayed, mi.dateadded,
+                           -- Ensure we have the play field for playback
+                           mi.file_path as play
                     FROM lists l
                     JOIN list_items li ON l.id = li.list_id
                     JOIN media_items mi ON li.media_item_id = mi.id

@@ -1167,8 +1167,29 @@ def handle_kodi_favorites(addon_handle, base_url):
         # Use the unified renderer - same as normal lists
         renderer = get_listitem_renderer(addon_handle, xbmcaddon.Addon().getAddonInfo('id'))
         
-        # Render exactly like a normal list using the same method
-        renderer.render_media_items(favorites, content_type="movies")
+        # Define context menu callback to add sync favorites option
+        def favorites_context_menu(listitem, item):
+            """Add context menu items specific to favorites"""
+            context_items = []
+            
+            # Add sync favorites option
+            context_items.append((
+                "Sync Favorites",
+                f"RunPlugin({base_url}?action=scan_favorites)"
+            ))
+            
+            # Add standard context items
+            if item.get('imdb_id'):
+                context_items.append((
+                    "Add to List",
+                    f"RunPlugin({base_url}?action=add_to_list&imdb_id={item.get('imdb_id')})"
+                ))
+            
+            if context_items:
+                listitem.addContextMenuItems(context_items)
+        
+        # Render exactly like a normal list using the same method with context menu
+        renderer.render_media_items(favorites, content_type="movies", context_menu_callback=favorites_context_menu)
 
     except Exception as e:
         logger.error(f"Error in handle_kodi_favorites: {e}")
