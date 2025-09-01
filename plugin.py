@@ -1158,14 +1158,17 @@ def handle_kodi_favorites(addon_handle, base_url):
             xbmcplugin.endOfDirectory(addon_handle, succeeded=True)
             return
 
-        # Use identical flow to normal lists - same renderer, same methods
-        from lib.ui.listitem_renderer import get_listitem_renderer
+        # Use ListItemBuilder directly like other parts of the codebase for proper context menu support
+        from lib.ui.listitem_builder import ListItemBuilder
         
         # Set category for proper navigation breadcrumbs
         xbmcplugin.setPluginCategory(addon_handle, "Kodi Favorites")
         
-        # Use the unified renderer - identical to normal lists
-        renderer = get_listitem_renderer(addon_handle, xbmcaddon.Addon().getAddonInfo('id'))
+        # Set content type
+        xbmcplugin.setContent(addon_handle, "movies")
+        
+        # Initialize ListItemBuilder directly
+        builder = ListItemBuilder(addon_handle, xbmcaddon.Addon().getAddonInfo('id'))
         
         # Define context menu callback to add sync favorites option
         def favorites_context_menu(listitem, item):
@@ -1191,8 +1194,12 @@ def handle_kodi_favorites(addon_handle, base_url):
                 listitem.addContextMenuItems(context_items)
                 logger.debug(f"FAVORITES: Added {len(context_items)} context menu items to '{item.get('title', 'Unknown')}'")
         
-        # Render exactly like a normal list using the same method with context menu
-        renderer.render_media_items(list_items, content_type="movies", context_menu_callback=favorites_context_menu)
+        # Build directory exactly like normal lists using ListItemBuilder with context menu
+        success = builder.build_directory(list_items, content_type="movies", context_menu_callback=favorites_context_menu)
+        
+        if not success:
+            logger.error("Failed to build favorites directory")
+            xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
 
     except Exception as e:
         logger.error(f"Error in handle_kodi_favorites: {e}")
