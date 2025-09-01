@@ -359,13 +359,14 @@ class ListsHandler:
                     message="List not found"
                 )
 
-            # Get the item info for confirmation
-            from lib.data.list_library_manager import get_list_library_manager
-            list_manager = get_list_library_manager()
-
-            # Get the media item info
-            media_item = query_manager.get_media_item_by_id(item_id)
-            item_info = media_item
+            # Get the media item info for confirmation
+            items = query_manager.get_list_items(list_id)
+            item_info = None
+            for item in items:
+                if str(item.get('item_id', item.get('id'))) == str(item_id):
+                    item_info = item
+                    break
+            
             if not item_info:
                 return DialogResponse(
                     success=False,
@@ -381,7 +382,7 @@ class ListsHandler:
                 return DialogResponse(success=False)
 
             # Remove the item
-            result = list_manager.remove_from_list(list_id, item_id)
+            result = query_manager.remove_item_from_list(list_id, item_id)
 
             if result.get("success"):
                 context.logger.info(f"Successfully removed item from list")
@@ -619,9 +620,7 @@ class ListsHandler:
                 )
 
             # Get list items
-            from lib.data.list_library_manager import get_list_library_manager
-            list_manager = get_list_library_manager()
-            list_items = list_manager.get_list_contents(list_id)
+            list_items = query_manager.get_list_items(list_id)
 
             context.logger.info(f"List '{list_info['name']}' has {len(list_items)} items")
 
