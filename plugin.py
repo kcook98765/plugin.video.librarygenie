@@ -1059,9 +1059,6 @@ def handle_noop():
         pass
 
 
-# Legacy handlers - these will be gradually migrated to the new architecture
-
-
 def main():
     """Main plugin entry point using new modular architecture"""
 
@@ -1164,13 +1161,11 @@ def _register_all_handlers(router: Router):
         'scan_favorites': _wrap_legacy_handler(handle_scan_favorites),
         'scan_favorites_execute': _wrap_legacy_handler(handle_scan_favorites_execute),
         'add_favorite_to_list': _wrap_legacy_handler(handle_add_favorite_to_list),
-        'create_list': _wrap_legacy_handler(handle_create_list),
-        'create_list_execute': _wrap_legacy_handler(handle_create_list_execute),
+        
         'rename_list': _wrap_legacy_handler(handle_rename_list),
         'delete_list': _wrap_legacy_handler(handle_delete_list),
         'remove_from_list': _wrap_legacy_handler(handle_remove_from_list),
-        'create_folder': _wrap_legacy_handler(handle_create_folder),
-        'create_folder_execute': _wrap_legacy_handler(handle_create_folder_execute),
+        
         'rename_folder': _wrap_legacy_handler(handle_rename_folder),
         'delete_folder': _wrap_legacy_handler(handle_delete_folder),
         'import_shortlist': _wrap_legacy_handler(handle_shortlist_import),
