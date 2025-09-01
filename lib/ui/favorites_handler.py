@@ -87,7 +87,24 @@ class FavoritesHandler:
                     cacheToDisc=True
                 )
             else:
-                # Use existing list building infrastructure
+                # First add the Sync Favorites menu option at the top
+                for item in menu_items:
+                    list_item = xbmcgui.ListItem(label=item['label'])
+
+                    if 'description' in item:
+                        list_item.setInfo('video', {'plot': item['description']})
+
+                    if 'icon' in item:
+                        list_item.setArt({'icon': item['icon'], 'thumb': item['icon']})
+
+                    xbmcplugin.addDirectoryItem(
+                        context.addon_handle,
+                        item['url'],
+                        list_item,
+                        item['is_folder']
+                    )
+
+                # Then use existing list building infrastructure for favorites
                 context.logger.info(f"Using ListItemRenderer to build {len(favorites_items)} favorites")
 
                 # Add context menu callback for removing from favorites
