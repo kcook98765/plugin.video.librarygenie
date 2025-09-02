@@ -159,7 +159,7 @@ class ListItemBuilder:
         is_action_item = (
             media_type == 'none' or
             item.get('action') in ('scan_favorites', 'scan_favorites_execute', 'noop', 'create_list', 'create_list_execute', 'create_folder', 'create_folder_execute') or
-            title.startswith('[COLOR yellow]🔄 Sync') or
+            title.startswith('[COLOR yellow]Sync') or
             title.startswith('[COLOR yellow]+ Create') or
             title.startswith('[COLOR cyan]+ Create') or
             'Sync Favorites' in title or

@@ -165,7 +165,7 @@ class MenuBuilder:
 
     def _add_breadcrumb_item(self, breadcrumb_path, addon_handle, base_url):
         """Add a breadcrumb navigation item at the top of the directory"""
-        breadcrumb_label = f"[COLOR gray]📍 {breadcrumb_path}[/COLOR]"
+        breadcrumb_label = f"[COLOR gray]{breadcrumb_path}[/COLOR]"
 
         # Create a non-interactive list item
         list_item = xbmcgui.ListItem(label=breadcrumb_label)
