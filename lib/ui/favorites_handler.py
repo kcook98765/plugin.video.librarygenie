@@ -8,6 +8,7 @@ Handles Kodi favorites integration and management
 
 import xbmcplugin
 import xbmcgui
+from datetime import datetime
 from typing import List, Dict, Any
 from .plugin_context import PluginContext
 from .response_types import DirectoryResponse, DialogResponse
@@ -75,6 +76,15 @@ class FavoritesHandler:
                 'is_folder': True,
                 'icon': "DefaultAddSource.png",
                 'description': "Scan Kodi favorites file for changes"
+            })
+
+            # Add save as option
+            menu_items.append({
+                'label': "[COLOR cyan]💾 Save As...[/COLOR]",
+                'url': context.build_url('save_favorites_as'),
+                'is_folder': True,
+                'icon': "DefaultFile.png",
+                'description': "Save a copy of Kodi favorites as a new list"
             })
 
             favorites_items = favorites  # No conversion needed - data is already in standard list format
@@ -306,6 +316,111 @@ class FavoritesHandler:
             return DialogResponse(
                 success=False,
                 message="Error adding favorite to list"
+            )
+
+    def save_favorites_as(self, context: PluginContext) -> DialogResponse:
+        """Handle saving Kodi favorites as a new list"""
+        try:
+            self.logger.info("Handling save favorites as request")
+
+            # Get current favorites count
+            favorites_manager = context.favorites_manager
+            if not favorites_manager:
+                return DialogResponse(
+                    success=False,
+                    message="Failed to initialize favorites manager"
+                )
+
+            favorites = favorites_manager.get_mapped_favorites()
+            if not favorites:
+                return DialogResponse(
+                    success=False,
+                    message="No mapped favorites found to save"
+                )
+
+            # Prompt for new list name
+            dialog = xbmcgui.Dialog()
+            default_name = f"Kodi Favorites Copy - {datetime.now().strftime('%Y-%m-%d')}"
+            new_list_name = dialog.input("Enter name for new list:", default_name)
+            
+            if not new_list_name or not new_list_name.strip():
+                self.logger.info("User cancelled or entered empty list name")
+                return DialogResponse(success=False)
+
+            new_list_name = new_list_name.strip()
+
+            # Get available folders for organization
+            query_manager = context.query_manager
+            if not query_manager:
+                return DialogResponse(
+                    success=False,
+                    message="Database error"
+                )
+
+            all_folders = query_manager.get_all_folders()
+            
+            # Ask user if they want to place it in a folder
+            folder_options = ["[Root Level]"] + [f["name"] for f in all_folders]
+            selected_folder_index = dialog.select("Choose folder location:", folder_options)
+            
+            if selected_folder_index < 0:
+                self.logger.info("User cancelled folder selection")
+                return DialogResponse(success=False)
+
+            folder_id = None
+            if selected_folder_index > 0:  # Not root level
+                folder_id = all_folders[selected_folder_index - 1]["id"]
+
+            # Create the new list
+            from lib.data.list_library_manager import get_list_library_manager
+            list_manager = get_list_library_manager()
+
+            # Create the list
+            create_result = list_manager.create_list(new_list_name, folder_id)
+            
+            if not create_result.get("success"):
+                error_msg = create_result.get("message", "Failed to create list")
+                return DialogResponse(
+                    success=False,
+                    message=f"Failed to create list: {error_msg}"
+                )
+
+            new_list_id = create_result["list_id"]
+            self.logger.info(f"Created new list '{new_list_name}' with ID {new_list_id}")
+
+            # Add all favorites to the new list
+            added_count = 0
+            failed_count = 0
+
+            for favorite in favorites:
+                media_item_id = favorite.get('media_item_id') or favorite.get('id')
+                if media_item_id:
+                    add_result = list_manager.add_to_list(new_list_id, media_item_id)
+                    if add_result.get("success"):
+                        added_count += 1
+                    else:
+                        failed_count += 1
+                        self.logger.warning(f"Failed to add favorite '{favorite.get('title')}' to new list")
+                else:
+                    failed_count += 1
+                    self.logger.warning(f"No media_item_id found for favorite '{favorite.get('title')}'")
+
+            # Prepare result message
+            message = f"Created list '{new_list_name}' with {added_count} items"
+            if failed_count > 0:
+                message += f"\nFailed to add {failed_count} items"
+
+            return DialogResponse(
+                success=True,
+                message=message,
+                refresh_needed=False
+            )
+
+        except Exception as e:
+            self.logger.error(f"Error saving favorites as list: {e}")
+            return DialogResponse(
+                success=False,
+                message="Error saving favorites as list"
             )
 
     def _convert_favorite_to_list_item_data(self, favorite: Dict[str, Any]) -> Dict[str, Any]:
