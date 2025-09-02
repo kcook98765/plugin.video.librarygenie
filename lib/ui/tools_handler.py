@@ -184,19 +184,19 @@ class ToolsHandler:
                     from .lists_handler import ListsHandler
                     lists_handler = ListsHandler()
                     result = lists_handler.delete_list(context, list_id)
-                    
+
                     # For search history deletion, check if this was the last list in the folder
                     if result.success:
                         search_folder_id = query_manager.get_or_create_search_history_folder()
                         remaining_lists = query_manager.get_lists_in_folder(search_folder_id)
-                        
+
                         if remaining_lists:
                             # Still have search history lists, navigate back to folder
                             result.navigate_to_folder = search_folder_id
                         else:
                             # No more search history lists, navigate back to main menu
                             result.navigate_to_main = True
-                    
+
                     return result
             else:
                 # Standard list: Merge(0), Rename(1), Move(2), Export(3), Delete(4), Cancel(5)
@@ -214,11 +214,11 @@ class ToolsHandler:
                     from .lists_handler import ListsHandler
                     lists_handler = ListsHandler()
                     result = lists_handler.delete_list(context, list_id)
-                    
+
                     # For regular list deletion, set flag to navigate back to lists menu
                     if result.success:
                         result.navigate_to_lists = True
-                    
+
                     return result
 
             return DialogResponse(success=False)
@@ -315,11 +315,11 @@ class ToolsHandler:
                     from .lists_handler import ListsHandler
                     lists_handler = ListsHandler()
                     result = lists_handler.delete_folder(context, folder_id)
-                    
+
                     # For folder deletion, set flag to navigate back to lists menu
                     if result.success:
                         result.navigate_to_lists = True
-                    
+
                     return result
 
             return DialogResponse(success=False)
@@ -591,8 +591,7 @@ class ToolsHandler:
             dialog = xbmcgui.Dialog()
             if not dialog.yesno(
                 "Confirm Export",
-                f"Export all {list_count} lists from '{folder_info['name']}'?",
-                "This will include all list items and metadata."
+                f"Export all {list_count} lists from '{folder_info['name']}'?\n\nThis will include all list items and metadata."
             ):
                 return DialogResponse(success=False)
 
@@ -981,7 +980,7 @@ class ToolsHandler:
 
             # Get lists in search history folder
             search_lists = query_manager.get_lists_in_folder(folder_id)
-            
+
             if not search_lists:
                 return DialogResponse(
                     success=False,

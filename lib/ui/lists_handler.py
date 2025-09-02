@@ -300,8 +300,7 @@ class ListsHandler:
             # Confirm deletion
             if not xbmcgui.Dialog().yesno(
                 L(35002),
-                f"Delete list '{list_info['name']}'?",
-                f"This will remove {list_info['item_count']} items from the list."
+                f"Delete list '{list_info['name']}'?\n\nThis will remove {list_info['item_count']} items from the list."
             ):
                 context.logger.info("User cancelled list deletion")
                 return DialogResponse(success=False)
@@ -613,9 +612,7 @@ class ListsHandler:
             if lists_in_folder:
                 if not xbmcgui.Dialog().yesno(
                     L(35002),
-                    f"Delete folder '{folder_info['name']}'?",
-                    f"This folder contains {len(lists_in_folder)} lists.",
-                    "All lists will be moved to the root level."
+                    f"Delete folder '{folder_info['name']}'?\n\nThis folder contains {len(lists_in_folder)} lists.\nAll lists will be moved to the root level."
                 ):
                     context.logger.info("User cancelled folder deletion")
                     return DialogResponse(success=False)
