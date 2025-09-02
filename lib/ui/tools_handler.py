@@ -175,7 +175,15 @@ class ToolsHandler:
             elif selected_index == 4:  # Delete
                 from .lists_handler import ListsHandler
                 lists_handler = ListsHandler()
-                return lists_handler.delete_list(context, list_id)
+                result = lists_handler.delete_list(context, list_id)
+
+                # If deletion was successful, navigate back to lists menu
+                if result.success:
+                    import xbmc
+                    # Navigate back to the lists menu since the current list no longer exists
+                    xbmc.executebuiltin(f'Container.Update({context.build_url("lists")},replace)')
+
+                return result
 
             return DialogResponse(success=False)
 
@@ -266,7 +274,15 @@ class ToolsHandler:
                 elif selected_index == 5:  # Delete
                     from .lists_handler import ListsHandler
                     lists_handler = ListsHandler()
-                    return lists_handler.delete_folder(context, folder_id)
+                    result = lists_handler.delete_folder(context, folder_id)
+
+                    # If deletion was successful, navigate back to lists menu
+                    if result.success:
+                        import xbmc
+                        # Navigate back to the lists menu since the current folder no longer exists
+                        xbmc.executebuiltin(f'Container.Update({context.build_url("lists")},replace)')
+
+                    return result
 
             return DialogResponse(success=False)
 
@@ -886,7 +902,7 @@ class ToolsHandler:
             if query_manager:
                 all_lists = query_manager.get_all_lists_with_folders()
                 list_count = len(all_lists)
-                
+
                 # Confirm export
                 dialog = xbmcgui.Dialog()
                 if not dialog.yesno(
