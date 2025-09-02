@@ -105,8 +105,10 @@ class ListsHandler:
                 item_count = list_item.get('item_count', 0)
 
                 context_menu = [
-                    (f"Rename List '{name}'", f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"),
-                    (f"Delete List '{name}'", f"RunPlugin({context.build_url('delete_list', list_id=list_id)})")
+                    (f"Rename '{name}'", f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"),
+                    (f"Move '{name}' to Folder", f"RunPlugin({context.build_url('show_list_tools', list_type='user_list', list_id=list_id)})"),
+                    (f"Export '{name}'", f"RunPlugin({context.build_url('export_list', list_id=list_id)})"),
+                    (f"Delete '{name}'", f"RunPlugin({context.build_url('delete_list', list_id=list_id)})")
                 ]
 
                 menu_items.append({
@@ -668,7 +670,7 @@ class ListsHandler:
                         context.logger.debug(f"HANDLER:   - item.get('id'): {item.get('id')}")
                         context.logger.debug(f"HANDLER:   - item.get('item_id'): {item.get('item_id')}")
                         context.logger.debug(f"HANDLER:   - item.get('media_item_id'): {item.get('media_item_id')}")
-                        
+
                         # The query should return 'id' field from the database
                         # If not present, skip the item entirely
                         if 'id' not in item:
@@ -691,10 +693,10 @@ class ListsHandler:
 
                         # Create list item for display using existing builder method
                         result = builder._build_single_item(item)
-                        
+
                         if result:
                             url, listitem, is_folder = result
-                            
+
                             # Add context menu if we have one
                             if context_menu and listitem:
                                 try:
@@ -702,7 +704,7 @@ class ListsHandler:
                                     context.logger.debug(f"HANDLER: Added {len(context_menu)} context menu items")
                                 except Exception as e:
                                     context.logger.warning(f"HANDLER: Failed to add context menu: {e}")
-                            
+
                             # Add to directory
                             xbmcplugin.addDirectoryItem(
                                 context.addon_handle,
@@ -801,8 +803,10 @@ class ListsHandler:
                 item_count = list_item.get('item_count', 0)
 
                 context_menu = [
-                    (f"Rename List '{name}'", f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"),
-                    (f"Delete List '{name}'", f"RunPlugin({context.build_url('delete_list', list_id=list_id)})")
+                    (f"Rename '{name}'", f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"),
+                    (f"Move '{name}' to Folder", f"RunPlugin({context.build_url('show_list_tools', list_type='user_list', list_id=list_id)})"),
+                    (f"Export '{name}'", f"RunPlugin({context.build_url('export_list', list_id=list_id)})"),
+                    (f"Delete '{name}'", f"RunPlugin({context.build_url('delete_list', list_id=list_id)})")
                 ]
 
                 menu_items.append({
