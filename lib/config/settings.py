@@ -32,7 +32,7 @@ def get_import_export_settings() -> Dict[str, Any]:
         "backup_include_favorites": True,  # Include favorites in backups
         "backup_include_library": False,  # Include library snapshot in backups
         "backup_run_on_startup": False,  # Check for backup on addon startup
-        "backup_storage_type": "local",  # local, remote
+        "backup_storage_type": "local",  # Only local storage supported
 
         # File Management Settings
         "storage_cleanup_enabled": True,  # Enable automatic cleanup
@@ -135,7 +135,7 @@ def get_setting_descriptions() -> Dict[str, str]:
         "backup_include_favorites": "Include favorites data in automatic backups",
         "backup_include_library": "Include library snapshot in automatic backups",
         "backup_run_on_startup": "Check for scheduled backup when addon starts",
-        "backup_storage_type": "Type of storage to use for backups (local or remote)",
+        "backup_storage_type": "Type of storage to use for backups (local only)",
 
         # File Management Descriptions
         "storage_cleanup_enabled": "Automatically clean up old temporary files",
@@ -166,8 +166,8 @@ def validate_setting_value(setting_key: str, value: Any) -> Tuple[bool, str]:
                 return False, "Backup interval must be 'hourly', 'daily', 'weekly', or 'monthly'"
 
         elif setting_key == "backup_storage_type":
-            if value not in ["local", "remote"]:
-                return False, "Backup storage type must be 'local' or 'remote'"
+            if value != "local":
+                return False, "Backup storage type must be 'local'"
 
         elif setting_key == "backup_retention_count":
             if not isinstance(value, int) or value < 1 or value > 50:

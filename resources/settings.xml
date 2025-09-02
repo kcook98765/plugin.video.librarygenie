@@ -55,10 +55,8 @@
     <setting id="backup_include_library" type="bool" label="30522" default="false" enable="eq(-5,true)"/>
     <setting id="backup_include_folders" type="bool" label="30523" default="true" enable="eq(-6,true)"/>
     <setting label="30530" type="lsep"/>
-    <setting id="backup_storage_type" type="select" label="30531" default="local" values="local|remote" enable="eq(-8,true)"/>
-    <setting id="backup_local_path" type="folder" label="30532" default="" enable="eq(-1,local)" visible="eq(-1,local)"/>
-    <setting id="backup_remote_url" type="text" label="30533" default="" enable="eq(-2,remote)" visible="eq(-2,remote)"/>
-    <setting id="backup_remote_token" type="text" label="30534" default="" option="hidden" enable="eq(-3,remote)" visible="eq(-3,remote)"/>
+    <setting id="backup_storage_type" type="select" label="30531" default="local" values="local" enable="eq(-8,true)"/>
+    <setting id="backup_local_path" type="folder" label="30532" default="" enable="eq(-1,true)"/>
     <setting label="30540" type="lsep"/>
     <setting id="backup_test_action" type="action" label="30541" action="RunPlugin(plugin://plugin.video.library.genie/?action=test_backup)" enable="eq(-12,true)"/>
     <setting id="backup_manual_action" type="action" label="30542" action="RunPlugin(plugin://plugin.video.library.genie/?action=manual_backup)"/>
