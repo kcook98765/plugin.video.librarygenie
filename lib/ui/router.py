@@ -77,9 +77,22 @@ class Router:
                 if hasattr(result, 'message') and result.message:
                     notification_type = xbmcgui.NOTIFICATION_INFO if result.success else xbmcgui.NOTIFICATION_ERROR
                     xbmcgui.Dialog().notification("LibraryGenie", result.message, notification_type)
-                # Refresh directory if needed
-                if hasattr(result, 'refresh_needed') and result.refresh_needed:
-                    xbmc.executebuiltin('Container.Refresh')
+                
+                # Handle navigation flags for successful operations that require navigation
+                if hasattr(result, 'success') and result.success:
+                    if hasattr(result, 'navigate_to_folder'):
+                        # Navigate to specific folder (for search history deletion)
+                        import xbmc
+                        folder_id = result.navigate_to_folder
+                        xbmc.executebuiltin(f'Container.Update({context.build_url("show_folder", folder_id=folder_id)},replace)')
+                    elif hasattr(result, 'navigate_to_lists') and result.navigate_to_lists:
+                        # Navigate to main lists menu (for list/folder deletion)
+                        import xbmc
+                        xbmc.executebuiltin(f'Container.Update({context.build_url("lists")},replace)')
+                    elif hasattr(result, 'refresh_needed') and result.refresh_needed:
+                        # Just refresh the current directory
+                        xbmc.executebuiltin('Container.Refresh')
+                
                 return result.success if hasattr(result, 'success') else True
 
             elif action == "add_to_list":

@@ -184,13 +184,11 @@ class ToolsHandler:
                     from .lists_handler import ListsHandler
                     lists_handler = ListsHandler()
                     result = lists_handler.delete_list(context, list_id)
-
-                    # Navigate back to search history folder
+                    
+                    # For search history deletion, set a special flag to navigate back to folder
                     if result.success:
-                        import xbmc
-                        search_folder_id = query_manager.get_or_create_search_history_folder()
-                        xbmc.executebuiltin(f'Container.Update({context.build_url("show_folder", folder_id=search_folder_id)},replace)')
-
+                        result.navigate_to_folder = query_manager.get_or_create_search_history_folder()
+                    
                     return result
             else:
                 # Standard list: Merge(0), Rename(1), Move(2), Export(3), Delete(4), Cancel(5)
@@ -208,13 +206,11 @@ class ToolsHandler:
                     from .lists_handler import ListsHandler
                     lists_handler = ListsHandler()
                     result = lists_handler.delete_list(context, list_id)
-
-                    # If deletion was successful, navigate back to lists menu
+                    
+                    # For regular list deletion, set flag to navigate back to lists menu
                     if result.success:
-                        import xbmc
-                        # Navigate back to the lists menu since the current list no longer exists
-                        xbmc.executebuiltin(f'Container.Update({context.build_url("lists")},replace)')
-
+                        result.navigate_to_lists = True
+                    
                     return result
 
             return DialogResponse(success=False)
@@ -311,13 +307,11 @@ class ToolsHandler:
                     from .lists_handler import ListsHandler
                     lists_handler = ListsHandler()
                     result = lists_handler.delete_folder(context, folder_id)
-
-                    # If deletion was successful, navigate back to lists menu
+                    
+                    # For folder deletion, set flag to navigate back to lists menu
                     if result.success:
-                        import xbmc
-                        # Navigate back to the lists menu since the current folder no longer exists
-                        xbmc.executebuiltin(f'Container.Update({context.build_url("lists")},replace)')
-
+                        result.navigate_to_lists = True
+                    
                     return result
 
             return DialogResponse(success=False)

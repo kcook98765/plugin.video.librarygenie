@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -20,7 +19,7 @@ class DirectoryResponse:
     update_listing: bool = False
     sort_methods: Optional[List[int]] = None
     content_type: str = "movies"
-    
+
     def to_kodi_params(self) -> Dict[str, Any]:
         """Convert to parameters for xbmcplugin.endOfDirectory"""
         params = {
@@ -33,13 +32,17 @@ class DirectoryResponse:
         return params
 
 
-@dataclass 
+@dataclass
 class DialogResponse:
     """Response for dialog-based handlers"""
     success: bool
     message: Optional[str] = None
     refresh_needed: bool = False
-    
+
+    # Navigation flags for special cases
+    navigate_to_folder = None
+    navigate_to_lists = False
+
     def show_notification(self, addon, default_title: str = "LibraryGenie"):
         """Show notification to user if message is provided"""
         if self.message:
@@ -61,7 +64,7 @@ class ActionResponse:
     action_performed: str
     refresh_needed: bool = False
     notification_message: Optional[str] = None
-    
+
     def handle_result(self, context):
         """Handle the action result with appropriate user feedback"""
         if self.notification_message:
@@ -74,7 +77,7 @@ class ActionResponse:
                 )
             except Exception:
                 pass
-                
+
         if self.refresh_needed and self.success:
             try:
                 import xbmc
@@ -89,11 +92,11 @@ class ErrorResponse:
     error_message: str
     error_code: Optional[str] = None
     show_to_user: bool = True
-    
+
     def handle_error(self, context):
         """Handle error with appropriate user feedback"""
         context.logger.error(f"Handler error: {self.error_message}")
-        
+
         if self.show_to_user:
             try:
                 import xbmcgui
