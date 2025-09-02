@@ -644,7 +644,6 @@ class ListsHandler:
             if parent_path:
                 context.logger.debug(f"Setting custom parent path: {parent_path}")
                 # This will be used by Kodi for the ".." navigation
-                import xbmcplugin
                 xbmcplugin.setProperty(context.addon_handle, 'ParentDir', parent_path)
 
             # Initialize query manager
