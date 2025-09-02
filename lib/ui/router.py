@@ -86,6 +86,10 @@ class Router:
                 media_item_id = params.get('media_item_id')
                 return self._handle_add_to_list(context, media_item_id)
 
+            elif action == "favorites":
+                self._handle_favorites(context)
+                return True
+
             else:
                 # Check for registered handlers for other actions
                 handler = self._handlers.get(action)
