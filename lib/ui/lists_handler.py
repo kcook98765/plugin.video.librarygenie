@@ -57,7 +57,7 @@ class ListsHandler:
                 # No lists exist - show empty state instead of dialog
                 # This prevents confusing dialogs when navigating back from deletions
                 menu_items = []
-                
+
                 # Add "Tools & Options" even when empty
                 menu_items.append({
                     'label': f"[COLOR yellow]⚙️ {L(36000)}[/COLOR]",  # "Tools & Options"
@@ -66,7 +66,7 @@ class ListsHandler:
                     'icon': "DefaultAddonProgram.png",
                     'description': L(36018)  # "Access lists tools and options"
                 })
-                
+
                 # Add "Create First List" option
                 menu_items.append({
                     'label': "[COLOR lightgreen]+ Create Your First List[/COLOR]",
@@ -171,33 +171,14 @@ class ListsHandler:
                     'context_menu': context_menu
                 })
 
-            # Build directory items
-            for item in menu_items:
-                list_item = xbmcgui.ListItem(label=item['label'])
-
-                if 'description' in item:
-                    list_item.setInfo('video', {'plot': item['description']})
-
-                if 'icon' in item:
-                    list_item.setArt({'icon': item['icon'], 'thumb': item['icon']})
-
-                # Add context menu if present
-                if 'context_menu' in item:
-                    list_item.addContextMenuItems(item['context_menu'])
-
-                xbmcplugin.addDirectoryItem(
-                    context.addon_handle,
-                    item['url'],
-                    list_item,
-                    item['is_folder']
-                )
-
-            # End directory
-            xbmcplugin.endOfDirectory(
-                context.addon_handle,
-                succeeded=True,
-                updateListing=False,
-                cacheToDisc=True
+            # Use MenuBuilder with breadcrumb support
+            from .menu_builder import MenuBuilder
+            menu_builder = MenuBuilder()
+            menu_builder.build_menu(
+                menu_items, 
+                context.addon_handle, 
+                context.base_url,
+                breadcrumb_path=context.breadcrumb_path
             )
 
             return DirectoryResponse(
@@ -634,12 +615,12 @@ class ListsHandler:
                 )
             else:
                 context.logger.info(f"Successfully deleted folder: {folder_info['name']}")
-                
+
                 # If deletion was successful, navigate back to lists menu
                 # since the current folder no longer exists
                 import xbmc
                 xbmc.executebuiltin(f'Container.Update({context.build_url("lists")},replace)')
-                
+
                 return DialogResponse(
                     success=True,
                     message=f"Deleted folder: {folder_info['name']}",
@@ -884,33 +865,14 @@ class ListsHandler:
                     False
                 )
 
-            # Build directory items
-            for item in menu_items:
-                list_item = xbmcgui.ListItem(label=item['label'])
-
-                if 'description' in item:
-                    list_item.setInfo('video', {'plot': item['description']})
-
-                if 'icon' in item:
-                    list_item.setArt({'icon': item['icon'], 'thumb': item['icon']})
-
-                # Add context menu if present
-                if 'context_menu' in item:
-                    list_item.addContextMenuItems(item['context_menu'])
-
-                xbmcplugin.addDirectoryItem(
-                    context.addon_handle,
-                    item['url'],
-                    list_item,
-                    item['is_folder']
-                )
-
-            # End directory
-            xbmcplugin.endOfDirectory(
-                context.addon_handle,
-                succeeded=True,
-                updateListing=False,
-                cacheToDisc=True
+            # Use MenuBuilder with breadcrumb support
+            from .menu_builder import MenuBuilder
+            menu_builder = MenuBuilder()
+            menu_builder.build_menu(
+                menu_items, 
+                context.addon_handle, 
+                context.base_url,
+                breadcrumb_path=context.breadcrumb_path
             )
 
             return DirectoryResponse(

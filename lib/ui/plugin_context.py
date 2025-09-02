@@ -39,6 +39,9 @@ class PluginContext:
         self._query_manager = None
         self._favorites_manager = None
         
+        # Navigation context
+        self.breadcrumb_path = None
+        
         self.logger.debug(f"PluginContext created: handle={self.addon_handle}, base_url={self.base_url}, params={self.params}")
     
     @property

@@ -44,6 +44,14 @@ class Router:
         params = context.get_params() # Get all params for modular tools
         self.logger.debug(f"Router dispatching action: '{action}'")
 
+        # Generate breadcrumb context for navigation
+        from .breadcrumb_helper import get_breadcrumb_helper
+        breadcrumb_helper = get_breadcrumb_helper()
+        breadcrumb_path = breadcrumb_helper.get_breadcrumb_for_action(action, params, context.query_manager)
+        
+        # Add breadcrumb to context for handlers
+        context.breadcrumb_path = breadcrumb_path
+
         try:
             # Handle special cases first
             if action == "scan_favorites_execute":

@@ -73,22 +73,14 @@ class MainMenuHandler:
                 'is_folder': True
             })
 
-        # Build directory items
-        for item in menu_items:
-            list_item = xbmcgui.ListItem(label=item['label'])
-            xbmcplugin.addDirectoryItem(
-                context.addon_handle,
-                item['url'],
-                list_item,
-                item['is_folder']
-            )
-
-        # End directory
-        xbmcplugin.endOfDirectory(
-            context.addon_handle,
-            succeeded=True,
-            updateListing=False,
-            cacheToDisc=True
+        # Use MenuBuilder (no breadcrumb for main menu)
+        from .menu_builder import MenuBuilder
+        menu_builder = MenuBuilder()
+        menu_builder.build_menu(
+            menu_items, 
+            context.addon_handle, 
+            context.base_url,
+            breadcrumb_path=None  # No breadcrumb for root menu
         )
 
         return DirectoryResponse(

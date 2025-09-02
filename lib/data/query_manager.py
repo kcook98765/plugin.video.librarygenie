@@ -29,7 +29,7 @@ class QueryManager:
         """Normalize any media item to canonical format"""
         self.logger.debug(f"NORMALIZE: Input item keys: {list(item.keys())}")
         self.logger.debug(f"NORMALIZE: Input item ID fields: id={item.get('id')}, item_id={item.get('item_id')}, media_item_id={item.get('media_item_id')}")
-        
+
         canonical = {}
 
         # CRITICAL: Preserve the ID field from the database query
@@ -117,7 +117,7 @@ class QueryManager:
 
         self.logger.debug(f"NORMALIZE: Output canonical keys: {list(canonical.keys())}")
         self.logger.debug(f"NORMALIZE: Final canonical ID: {canonical.get('id')}")
-        
+
         return canonical
 
     def initialize(self):
@@ -187,7 +187,7 @@ class QueryManager:
         """Get items from a specific list with paging, normalized to canonical format"""
         try:
             self.logger.debug(f"Getting list items for list_id={list_id}, limit={limit}, offset={offset}")
-            
+
             connection = self.connection_manager.get_connection()
             cursor = connection.cursor()
 
@@ -209,23 +209,23 @@ class QueryManager:
                 ORDER BY li.position ASC, mi.title ASC
                 LIMIT ? OFFSET ?
             """
-            
+
             self.logger.debug(f"Executing query: {query}")
             self.logger.debug(f"Query parameters: list_id={list_id}, limit={limit}, offset={offset}")
-            
+
             cursor.execute(query, (list_id, limit, offset))
             rows = cursor.fetchall()
-            
+
             self.logger.debug(f"Query returned {len(rows)} rows")
             if rows:
                 self.logger.debug(f"First raw row: {rows[0]}")
                 self.logger.debug(f"Cursor description: {cursor.description}")
-            
+
             items = []
 
             for row_idx, row in enumerate(rows):
                 self.logger.debug(f"Processing row {row_idx}: {row}")
-                
+
                 item = self._row_to_dict(cursor, row)
                 self.logger.debug(f"Row converted to dict: {item}")
                 self.logger.debug(f"Item ID field check: 'id' in item = {'id' in item}, item.get('id') = {item.get('id')}")
@@ -252,7 +252,7 @@ class QueryManager:
                 canonical_item = self._normalize_to_canonical(item)
                 self.logger.debug(f"Item after canonical normalization: {canonical_item}")
                 self.logger.debug(f"Canonical item ID check: 'id' in canonical_item = {'id' in canonical_item}, canonical_item.get('id') = {canonical_item.get('id')}")
-                
+
                 items.append(canonical_item)
 
             self.logger.debug(f"Final items list: {items}")
@@ -537,8 +537,8 @@ class QueryManager:
             with self.connection_manager.transaction() as conn:
                 cursor = conn.execute("""
                     INSERT OR IGNORE INTO folders (name, parent_id)
-                    VALUES (?, NULL)
-                """, ["Search History"])
+                    VALUES (?, ?)
+                """, ["Search History", None])
 
                 # If no rows were inserted (folder already existed), get the existing ID
                 if cursor.rowcount == 0:
@@ -1554,6 +1554,65 @@ class QueryManager:
     def close(self):
         """Close database connections"""
         self.connection_manager.close()
+
+    def get_list_info(self, list_id: int) -> Optional[Dict[str, Any]]:
+        """Get information about a specific list"""
+        try:
+            with self.connection_manager.get_connection() as conn:
+                cursor = conn.execute("""
+                    SELECT l.id, l.name, l.folder_id, l.created_at,
+                           COUNT(li.id) as item_count
+                    FROM lists l
+                    LEFT JOIN list_items li ON l.id = li.list_id
+                    WHERE l.id = ?
+                    GROUP BY l.id, l.name, l.folder_id, l.created_at
+                """, (list_id,))
+
+                row = cursor.fetchone()
+                if row:
+                    return {
+                        'id': row[0],
+                        'name': row[1],
+                        'folder_id': row[2],
+                        'created_at': row[3],
+                        'item_count': row[4]
+                    }
+                return None
+
+        except Exception as e:
+            self.logger.error(f"Error getting list info for {list_id}: {e}")
+            return None
+
+    def get_folder_info(self, folder_id: int) -> Optional[Dict[str, Any]]:
+        """Get information about a specific folder"""
+        try:
+            with self.connection_manager.get_connection() as conn:
+                cursor = conn.execute("""
+                    SELECT f.id, f.name, f.parent_id, f.created_at,
+                           COUNT(DISTINCT l.id) as list_count,
+                           COUNT(DISTINCT sf.id) as subfolder_count
+                    FROM folders f
+                    LEFT JOIN lists l ON f.id = l.folder_id
+                    LEFT JOIN folders sf ON f.id = sf.parent_id
+                    WHERE f.id = ?
+                    GROUP BY f.id, f.name, f.parent_id, f.created_at
+                """, (folder_id,))
+
+                row = cursor.fetchone()
+                if row:
+                    return {
+                        'id': row[0],
+                        'name': row[1],
+                        'parent_id': row[2],
+                        'created_at': row[3],
+                        'list_count': row[4],
+                        'subfolder_count': row[5]
+                    }
+                return None
+
+        except Exception as e:
+            self.logger.error(f"Error getting folder info for {folder_id}: {e}")
+            return None
 
 
 # Global query manager instance

@@ -23,13 +23,21 @@ class MenuBuilder:
         self.logger = get_logger(__name__)
         self.renderer = get_listitem_renderer()
 
-    def build_menu(self, items, addon_handle, base_url):
-        """Build a directory menu from items"""
+    def build_menu(self, items, addon_handle, base_url, breadcrumb_path=None):
+        """Build a directory menu from items with optional breadcrumb"""
         self.logger.debug(f"MENU BUILD: Starting build_menu with {len(items)} items")
-        self.logger.debug(f"MENU BUILD: addon_handle={addon_handle}, base_url='{base_url}'")
+        self.logger.debug(f"MENU BUILD: addon_handle={addon_handle}, base_url='{base_url}', breadcrumb='{breadcrumb_path}'")
 
         successful_items = 0
         failed_items = 0
+
+        # Add breadcrumb at the top if provided (not for root level)
+        if breadcrumb_path:
+            try:
+                self._add_breadcrumb_item(breadcrumb_path, addon_handle, base_url)
+                self.logger.debug(f"MENU BUILD: Added breadcrumb: '{breadcrumb_path}'")
+            except Exception as e:
+                self.logger.error(f"MENU BUILD: Failed to add breadcrumb: {e}")
 
         for idx, item in enumerate(items):
             try:
@@ -148,6 +156,26 @@ class MenuBuilder:
         )
         self.logger.debug(f"MENU ITEM: Successfully added '{title}' to directory")
 
+    def _add_breadcrumb_item(self, breadcrumb_path, addon_handle, base_url):
+        """Add a breadcrumb navigation item at the top of the directory"""
+        breadcrumb_label = f"[COLOR gray]📍 {breadcrumb_path}[/COLOR]"
+        
+        # Create a non-interactive list item
+        list_item = xbmcgui.ListItem(label=breadcrumb_label)
+        list_item.setInfo('video', {'plot': f"Current location: {breadcrumb_path}"})
+        list_item.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
+        
+        # Make it non-playable and non-actionable
+        list_item.setProperty('IsPlayable', 'false')
+        
+        # Add as a non-folder item with empty URL to prevent interaction
+        xbmcplugin.addDirectoryItem(
+            handle=addon_handle, 
+            url="", 
+            listitem=list_item, 
+            isFolder=False
+        )
+
     def build_movie_menu(self, movies: List[Dict[str, Any]], addon_handle, base_url, **options):
         """Build a menu specifically for movie items with enhanced ListItems"""
         self.logger.debug(f"MOVIE MENU: Starting build_movie_menu with {len(movies)} movies")
@@ -157,6 +185,15 @@ class MenuBuilder:
         self.logger.debug(f"MOVIE MENU: Setting content type 'movies' for handle {addon_handle}")
         xbmcplugin.setContent(addon_handle, 'movies')
         self.logger.debug("MOVIE MENU: Successfully set content type to 'movies'")
+
+        # Add breadcrumb if provided
+        breadcrumb_path = options.get('breadcrumb_path')
+        if breadcrumb_path:
+            try:
+                self._add_breadcrumb_item(breadcrumb_path, addon_handle, base_url)
+                self.logger.debug(f"MOVIE MENU: Added breadcrumb: '{breadcrumb_path}'")
+            except Exception as e:
+                self.logger.error(f"MOVIE MENU: Failed to add breadcrumb: {e}")
 
         # Add sort methods for movie lists
         sort_methods = [
