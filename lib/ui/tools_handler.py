@@ -13,6 +13,7 @@ from typing import List, Dict, Any, Optional
 from .plugin_context import PluginContext
 from .response_types import DialogResponse
 from ..utils.logger import get_logger
+from ..import_export.export_engine import get_export_engine
 
 
 class ToolsHandler:
@@ -159,11 +160,7 @@ class ToolsHandler:
             elif selected_index == 2:  # Merge lists
                 return self._merge_lists(context, list_id)
             elif selected_index == 3:  # Export
-                # TODO: Implement export functionality
-                return DialogResponse(
-                    success=False,
-                    message="Export functionality coming soon"
-                )
+                return self._export_single_list(context, list_id)
             elif selected_index == 4:  # Delete
                 from .lists_handler import ListsHandler
                 lists_handler = ListsHandler()
@@ -235,11 +232,7 @@ class ToolsHandler:
                     lists_handler = ListsHandler()
                     return lists_handler.delete_folder(context, folder_id)
                 elif selected_index == 3:  # Export
-                    # TODO: Implement export functionality
-                    return DialogResponse(
-                        success=False,
-                        message="Export functionality coming soon"
-                    )
+                    return self._export_folder_lists(context, folder_id)
                 elif selected_index == 4:  # Create new list
                     return self._create_list_in_folder(context, folder_id)
                 elif selected_index == 5:  # Create subfolder
@@ -247,10 +240,7 @@ class ToolsHandler:
             else:
                 # Reserved folder options
                 if selected_index == 0:  # Export
-                    return DialogResponse(
-                        success=False,
-                        message="Export functionality coming soon"
-                    )
+                    return self._export_folder_lists(context, folder_id)
                 elif selected_index == 1:  # Create new list
                     return self._create_list_in_folder(context, folder_id)
                 elif selected_index == 2:  # Create subfolder
@@ -461,3 +451,96 @@ class ToolsHandler:
         except Exception as e:
             self.logger.error(f"Error creating subfolder: {e}")
             return DialogResponse(success=False, message="Error creating subfolder")
+
+    def _export_single_list(self, context: PluginContext, list_id: str) -> DialogResponse:
+        """Export a single list"""
+        try:
+            query_manager = context.query_manager
+            if not query_manager:
+                return DialogResponse(success=False, message="Database error")
+
+            # Get list info for confirmation
+            list_info = query_manager.get_list_by_id(list_id)
+            if not list_info:
+                return DialogResponse(success=False, message="List not found")
+
+            # Get export engine
+            export_engine = get_export_engine()
+
+            # Run export
+            result = export_engine.export_data(
+                export_types=["lists", "list_items"],
+                file_format="json"
+            )
+
+            if result.get("success"):
+                return DialogResponse(
+                    success=True,
+                    message=f"Exported '{list_info['name']}' to {result['filename']}",
+                    refresh_needed=False
+                )
+            else:
+                return DialogResponse(
+                    success=False,
+                    message=f"Export failed: {result.get('error', 'Unknown error')}"
+                )
+
+        except Exception as e:
+            self.logger.error(f"Error exporting single list: {e}")
+            return DialogResponse(success=False, message="Error exporting list")
+
+    def _export_folder_lists(self, context: PluginContext, folder_id: str) -> DialogResponse:
+        """Export all lists in a folder"""
+        try:
+            query_manager = context.query_manager
+            if not query_manager:
+                return DialogResponse(success=False, message="Database error")
+
+            # Get folder info for confirmation
+            folder_info = query_manager.get_folder_by_id(folder_id)
+            if not folder_info:
+                return DialogResponse(success=False, message="Folder not found")
+
+            # Get lists in folder count for user info
+            lists_in_folder = query_manager.get_lists_in_folder(folder_id)
+            list_count = len(lists_in_folder) if lists_in_folder else 0
+
+            if list_count == 0:
+                return DialogResponse(
+                    success=False,
+                    message=f"No lists found in folder '{folder_info['name']}'"
+                )
+
+            # Confirm export
+            dialog = xbmcgui.Dialog()
+            if not dialog.yesno(
+                "Confirm Export",
+                f"Export all {list_count} lists from '{folder_info['name']}'?",
+                "This will include all list items and metadata."
+            ):
+                return DialogResponse(success=False)
+
+            # Get export engine
+            export_engine = get_export_engine()
+
+            # Run export
+            result = export_engine.export_data(
+                export_types=["lists", "list_items"],
+                file_format="json"
+            )
+
+            if result.get("success"):
+                return DialogResponse(
+                    success=True,
+                    message=f"Exported {list_count} lists from '{folder_info['name']}' to {result['filename']}",
+                    refresh_needed=False
+                )
+            else:
+                return DialogResponse(
+                    success=False,
+                    message=f"Export failed: {result.get('error', 'Unknown error')}"
+                )
+
+        except Exception as e:
+            self.logger.error(f"Error exporting folder lists: {e}")
+            return DialogResponse(success=False, message="Error exporting folder lists")
