@@ -41,7 +41,7 @@ class PluginContext:
         # Navigation context
         self.breadcrumb_path = None
 
-        
+        self.logger.debug(f"PluginContext created: handle={self.addon_handle}, base_url={self.base_url}, params={self.params}")
 
     @property
     def is_authorized(self) -> bool:
