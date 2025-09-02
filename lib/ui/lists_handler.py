@@ -635,8 +635,8 @@ class ListsHandler:
                 context.logger.debug(f"HANDLER: Item {idx}: has 'id' field={('id' in item)}, id_value={item.get('id')}")
 
             # Add Tools & Options at the top of the list view
-            tools_item = xbmcgui.ListItem(label="[COLOR yellow]⚙️ Tools & Options[/COLOR]")
-            tools_item.setInfo('video', {'plot': 'Access list tools and options'})
+            tools_item = xbmcgui.ListItem(label=f"[COLOR yellow]⚙️ {context.addon.getLocalizedString(36000)}[/COLOR]")  # "Tools & Options"
+            tools_item.setInfo('video', {'plot': context.addon.getLocalizedString(36016)})  # "Access list tools and options"
             tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
             xbmcplugin.addDirectoryItem(
                 context.addon_handle,
@@ -778,11 +778,11 @@ class ListsHandler:
 
             # Add Tools & Options for this folder
             menu_items.append({
-                'label': "[COLOR yellow]⚙️ Tools & Options[/COLOR]",
+                'label': f"[COLOR yellow]⚙️ {context.addon.getLocalizedString(36000)}[/COLOR]",  # "Tools & Options"
                 'url': context.build_url('show_list_tools', list_type='folder', list_id=folder_id),
                 'is_folder': True,
                 'icon': "DefaultAddonProgram.png",
-                'description': f"Access tools and options for '{folder_info['name']}'"
+                'description': context.addon.getLocalizedString(36017) % folder_info['name']  # "Access tools and options for '%s'"
             })
 
             # Add "Create New List" option in this folder

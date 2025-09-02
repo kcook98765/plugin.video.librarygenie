@@ -36,14 +36,14 @@ class ToolsHandler:
             else:
                 return DialogResponse(
                     success=False,
-                    message="Unknown list type"
+                    message=context.addon.getLocalizedString(30504)  # "Operation failed"
                 )
 
         except Exception as e:
             self.logger.error(f"Error showing list tools: {e}")
             return DialogResponse(
                 success=False,
-                message="Error showing tools & options"
+                message=context.addon.getLocalizedString(30504)  # "Operation failed"
             )
 
     def _show_favorites_tools(self, context: PluginContext) -> DialogResponse:
@@ -58,7 +58,7 @@ class ToolsHandler:
                 )
 
             last_scan_info = favorites_manager._get_last_scan_info_for_display()
-            scan_option = "[COLOR white]🔄 Scan Favorites[/COLOR]"
+            scan_option = f"[COLOR white]🔄 {context.addon.getLocalizedString(36001)}[/COLOR]"  # "Scan Favorites"
             
             if last_scan_info:
                 try:
@@ -78,7 +78,7 @@ class ToolsHandler:
                         days = int(time_diff.total_seconds() / 86400)
                         time_ago = f"{days} day{'s' if days != 1 else ''} ago"
                     
-                    scan_option = f"[COLOR white]🔄 Scan Favorites ({time_ago})[/COLOR]"
+                    scan_option = f"[COLOR white]🔄 {context.addon.getLocalizedString(36001)} ({time_ago})[/COLOR]"  # "Scan Favorites"
                 except Exception as e:
                     context.logger.debug(f"Could not parse last scan time: {e}")
 
@@ -87,14 +87,14 @@ class ToolsHandler:
                 # Refresh operations
                 scan_option,
                 # Additive operations  
-                "[COLOR lightgreen]💾 Save As New List[/COLOR]",
+                f"[COLOR lightgreen]💾 {context.addon.getLocalizedString(36002)}[/COLOR]",  # "Save As New List"
                 # Cancel
-                "[COLOR gray]❌ Cancel[/COLOR]"
+                f"[COLOR gray]❌ {context.addon.getLocalizedString(36003)}[/COLOR]"  # "Cancel"
             ]
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select("Favorites Tools & Options", options)
+            selected_index = dialog.select(context.addon.getLocalizedString(36013), options)  # "Favorites Tools & Options"
 
             if selected_index < 0 or selected_index == 2:  # Cancel
                 return DialogResponse(success=False)
@@ -139,21 +139,21 @@ class ToolsHandler:
             # Build comprehensive options for user lists - organized by operation type
             options = [
                 # Additive operations
-                f"[COLOR lightgreen]🔀 Merge Another List Into '{list_info['name']}'[/COLOR]",
+                f"[COLOR lightgreen]🔀 {context.addon.getLocalizedString(36004) % list_info['name']}[/COLOR]",  # "Merge Another List Into '%s'"
                 # Modify operations
-                f"[COLOR yellow]✏️ Rename '{list_info['name']}'[/COLOR]",
-                f"[COLOR yellow]📁 Move '{list_info['name']}' to Folder[/COLOR]",
+                f"[COLOR yellow]✏️ {context.addon.getLocalizedString(36005) % list_info['name']}[/COLOR]",  # "Rename '%s'"
+                f"[COLOR yellow]📁 {context.addon.getLocalizedString(36006) % list_info['name']}[/COLOR]",  # "Move '%s' to Folder"
                 # Export operations
-                f"[COLOR white]📤 Export '{list_info['name']}'[/COLOR]",
+                f"[COLOR white]📤 {context.addon.getLocalizedString(36007) % list_info['name']}[/COLOR]",  # "Export '%s'"
                 # Destructive operations
-                f"[COLOR red]🗑️ Delete '{list_info['name']}'[/COLOR]",
+                f"[COLOR red]🗑️ {context.addon.getLocalizedString(36008) % list_info['name']}[/COLOR]",  # "Delete '%s'"
                 # Cancel
-                "[COLOR gray]❌ Cancel[/COLOR]"
+                f"[COLOR gray]❌ {context.addon.getLocalizedString(36003)}[/COLOR]"  # "Cancel"
             ]
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select("List Tools & Options", options)
+            selected_index = dialog.select(context.addon.getLocalizedString(36014), options)  # "List Tools & Options"
 
             if selected_index < 0 or selected_index == 5:  # Cancel
                 return DialogResponse(success=False)
@@ -209,30 +209,30 @@ class ToolsHandler:
             
             # Additive operations (always available)
             options.extend([
-                f"[COLOR lightgreen]📋 Create New List in '{folder_info['name']}'[/COLOR]",
-                f"[COLOR lightgreen]📁 Create New Subfolder in '{folder_info['name']}'[/COLOR]"
+                f"[COLOR lightgreen]📋 {context.addon.getLocalizedString(36009) % folder_info['name']}[/COLOR]",  # "Create New List in '%s'"
+                f"[COLOR lightgreen]📁 {context.addon.getLocalizedString(36010) % folder_info['name']}[/COLOR]"  # "Create New Subfolder in '%s'"
             ])
             
             # Modify operations (not for reserved folders)
             if not is_reserved:
                 options.extend([
-                    f"[COLOR yellow]✏️ Rename '{folder_info['name']}'[/COLOR]",
-                    f"[COLOR yellow]📁 Move '{folder_info['name']}' to Parent Folder[/COLOR]"
+                    f"[COLOR yellow]✏️ {context.addon.getLocalizedString(36005) % folder_info['name']}[/COLOR]",  # "Rename '%s'"
+                    f"[COLOR yellow]📁 {context.addon.getLocalizedString(36011) % folder_info['name']}[/COLOR]"  # "Move '%s' to Parent Folder"
                 ])
             
             # Export operations
-            options.append(f"[COLOR white]📤 Export All Lists in '{folder_info['name']}'[/COLOR]")
+            options.append(f"[COLOR white]📤 {context.addon.getLocalizedString(36012) % folder_info['name']}[/COLOR]")  # "Export All Lists in '%s'"
             
             # Destructive operations (not for reserved folders)
             if not is_reserved:
-                options.append(f"[COLOR red]🗑️ Delete '{folder_info['name']}'[/COLOR]")
+                options.append(f"[COLOR red]🗑️ {context.addon.getLocalizedString(36008) % folder_info['name']}[/COLOR]")  # "Delete '%s'"
             
             # Cancel
-            options.append("[COLOR gray]❌ Cancel[/COLOR]")
+            options.append(f"[COLOR gray]❌ {context.addon.getLocalizedString(36003)}[/COLOR]")  # "Cancel"
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select("Folder Tools & Options", options)
+            selected_index = dialog.select(context.addon.getLocalizedString(36015), options)  # "Folder Tools & Options"
 
             if selected_index < 0 or selected_index == len(options) - 1:  # Cancel
                 return DialogResponse(success=False)
@@ -287,7 +287,7 @@ class ToolsHandler:
 
             # Show folder selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select("Select destination folder:", folder_options)
+            selected_index = dialog.select(context.addon.getLocalizedString(36029), folder_options)  # "Select destination folder:"
 
             if selected_index < 0:
                 return DialogResponse(success=False)
@@ -297,14 +297,14 @@ class ToolsHandler:
             result = query_manager.move_list_to_folder(list_id, target_folder_id)
 
             if result.get("success"):
-                folder_name = "root level" if target_folder_id is None else folder_options[selected_index]
+                folder_name = context.addon.getLocalizedString(36032) if target_folder_id is None else folder_options[selected_index]  # "root level"
                 return DialogResponse(
                     success=True,
-                    message=f"Moved list to {folder_name}",
+                    message=context.addon.getLocalizedString(36033) % folder_name,  # "Moved list to %s"
                     refresh_needed=True
                 )
             else:
-                return DialogResponse(success=False, message="Failed to move list")
+                return DialogResponse(success=False, message=context.addon.getLocalizedString(36035))  # "Failed to move list"
 
         except Exception as e:
             self.logger.error(f"Error moving list to folder: {e}")
@@ -329,7 +329,7 @@ class ToolsHandler:
 
             # Show list selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select("Select list to merge:", list_options)
+            selected_index = dialog.select(context.addon.getLocalizedString(36028), list_options)  # "Select list to merge:"
 
             if selected_index < 0:
                 return DialogResponse(success=False)
@@ -338,10 +338,10 @@ class ToolsHandler:
 
             # Confirm merge
             if not dialog.yesno(
-                "Confirm Merge",
-                f"Merge '{source_list['name']}' into target list?",
-                f"This will add {source_list['item_count']} items.",
-                "The source list will remain unchanged."
+                context.addon.getLocalizedString(36021),  # "Confirm Merge"
+                context.addon.getLocalizedString(36022) % source_list['name'],  # "Merge '%s' into target list?"
+                context.addon.getLocalizedString(36023) % source_list['item_count'],  # "This will add %d items."
+                context.addon.getLocalizedString(36024)  # "The source list will remain unchanged."
             ):
                 return DialogResponse(success=False)
 
@@ -351,11 +351,11 @@ class ToolsHandler:
             if result.get("success"):
                 return DialogResponse(
                     success=True,
-                    message=f"Merged {result.get('items_added', 0)} new items",
+                    message=context.addon.getLocalizedString(36025) % result.get('items_added', 0),  # "Merged %d new items"
                     refresh_needed=True
                 )
             else:
-                return DialogResponse(success=False, message="Failed to merge lists")
+                return DialogResponse(success=False, message=context.addon.getLocalizedString(36026))  # "Failed to merge lists"
 
         except Exception as e:
             self.logger.error(f"Error merging lists: {e}")

@@ -841,6 +841,215 @@ msgctxt "#35013"
 msgid "Plugin failed to start. Check logs."
 msgstr ""
 
+# Tools & Options Menu Items
+msgctxt "#36000"
+msgid "Tools & Options"
+msgstr ""
+
+msgctxt "#36001"
+msgid "Scan Favorites"
+msgstr ""
+
+msgctxt "#36002"
+msgid "Save As New List"
+msgstr ""
+
+msgctxt "#36003"
+msgid "Cancel"
+msgstr ""
+
+msgctxt "#36004"
+msgid "Merge Another List Into '%s'"
+msgstr ""
+
+msgctxt "#36005"
+msgid "Rename '%s'"
+msgstr ""
+
+msgctxt "#36006"
+msgid "Move '%s' to Folder"
+msgstr ""
+
+msgctxt "#36007"
+msgid "Export '%s'"
+msgstr ""
+
+msgctxt "#36008"
+msgid "Delete '%s'"
+msgstr ""
+
+msgctxt "#36009"
+msgid "Create New List in '%s'"
+msgstr ""
+
+msgctxt "#36010"
+msgid "Create New Subfolder in '%s'"
+msgstr ""
+
+msgctxt "#36011"
+msgid "Move '%s' to Parent Folder"
+msgstr ""
+
+msgctxt "#36012"
+msgid "Export All Lists in '%s'"
+msgstr ""
+
+msgctxt "#36013"
+msgid "Favorites Tools & Options"
+msgstr ""
+
+msgctxt "#36014"
+msgid "List Tools & Options"
+msgstr ""
+
+msgctxt "#36015"
+msgid "Folder Tools & Options"
+msgstr ""
+
+msgctxt "#36016"
+msgid "Access list tools and options"
+msgstr ""
+
+msgctxt "#36017"
+msgid "Access tools and options for '%s'"
+msgstr ""
+
+msgctxt "#36018"
+msgid "Create a new list"
+msgstr ""
+
+msgctxt "#36019"
+msgid "Create a new folder"
+msgstr ""
+
+msgctxt "#36020"
+msgid "Create a new list in '%s'"
+msgstr ""
+
+msgctxt "#36021"
+msgid "Confirm Merge"
+msgstr ""
+
+msgctxt "#36022"
+msgid "Merge '%s' into target list?"
+msgstr ""
+
+msgctxt "#36023"
+msgid "This will add %d items."
+msgstr ""
+
+msgctxt "#36024"
+msgid "The source list will remain unchanged."
+msgstr ""
+
+msgctxt "#36025"
+msgid "Merged %d new items"
+msgstr ""
+
+msgctxt "#36026"
+msgid "Failed to merge lists"
+msgstr ""
+
+msgctxt "#36027"
+msgid "No other lists available to merge"
+msgstr ""
+
+msgctxt "#36028"
+msgid "Select list to merge:"
+msgstr ""
+
+msgctxt "#36029"
+msgid "Select destination folder:"
+msgstr ""
+
+msgctxt "#36030"
+msgid "Select parent folder:"
+msgstr ""
+
+msgctxt "#36031"
+msgid "[Root Level]"
+msgstr ""
+
+msgctxt "#36032"
+msgid "root level"
+msgstr ""
+
+msgctxt "#36033"
+msgid "Moved list to %s"
+msgstr ""
+
+msgctxt "#36034"
+msgid "Moved folder to %s"
+msgstr ""
+
+msgctxt "#36035"
+msgid "Failed to move list"
+msgstr ""
+
+msgctxt "#36036"
+msgid "Failed to move folder"
+msgstr ""
+
+msgctxt "#36037"
+msgid "Confirm Export"
+msgstr ""
+
+msgctxt "#36038"
+msgid "Export all %d lists from '%s'?"
+msgstr ""
+
+msgctxt "#36039"
+msgid "This will include all list items and metadata."
+msgstr ""
+
+msgctxt "#36040"
+msgid "Exported %d lists from '%s' to %s"
+msgstr ""
+
+msgctxt "#36041"
+msgid "No lists found in folder '%s'"
+msgstr ""
+
+msgctxt "#36042"
+msgid "Exported '%s' to %s"
+msgstr ""
+
+msgctxt "#36043"
+msgid "Export failed: %s"
+msgstr ""
+
+msgctxt "#36044"
+msgid "Unknown error"
+msgstr ""
+
+msgctxt "#36045"
+msgid "Created list: %s"
+msgstr ""
+
+msgctxt "#36046"
+msgid "Created subfolder: %s"
+msgstr ""
+
+msgctxt "#36047"
+msgid "List '%s' already exists in this folder"
+msgstr ""
+
+msgctxt "#36048"
+msgid "Folder '%s' already exists in this location"
+msgstr ""
+
+msgctxt "#36049"
+msgid "Error creating list"
+msgstr ""
+
+msgctxt "#36050"
+msgid "Error creating subfolder"
+msgstr ""
+
+msgctxt "#36051"
+msgid "%s items"
+msgstr ""
+
 # Enum Setting Options
 msgctxt "#35100"
 msgid "Select Action"
