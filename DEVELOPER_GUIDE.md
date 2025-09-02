@@ -63,10 +63,11 @@ LibraryGenie consists of three main layers:
 
 ### Favorites Integration
 - **Read-only access**: Never modify Kodi's `favourites.xml` file
+- **Manual operation**: All scanning is user-initiated, no background processing
 - **Smart parsing**: Handle various XML formats and edge cases gracefully
 - **Library mapping**: Map favorites to library items via normalized path matching
 - **Privacy protection**: Strip credentials from network paths during processing
-- **Incremental updates**: Track file modification times for efficient rescanning
+- **Change detection**: Track file modification times to avoid unnecessary rescans
 
 ### External Services
 - All integrations are **opt-in**.  
@@ -92,6 +93,7 @@ LibraryGenie consists of three main layers:
 - **Triggers**: Run on addon start, library updates, periodic timer, manual force, and scheduled backups.
 - **Backup Management**: Automated timestamp-based backups with configurable scheduling.
 - **Guardrails**: Check auth state, playback status, and recent run timestamps before proceeding.
+- **No Favorites Processing**: Favorites scanning removed from background service for performance and user control.
 
 ### UI/UX Guidelines
 - **Tools & Options**: Use centralized tools menu for context-aware actions.

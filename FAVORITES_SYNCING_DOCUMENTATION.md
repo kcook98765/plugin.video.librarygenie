@@ -130,10 +130,10 @@ Mapped favorites are also integrated into the unified list system:
 
 Favorites scanning is triggered by:
 
-- **Settings Change**: When favorites integration is enabled
-- **Manual Refresh**: User-initiated scan via context menu
-- **Background Service**: Periodic checks (respects playback state)
-- **Addon Startup**: Initial scan on first run
+- **Manual Refresh**: User-initiated scan via context menu or Tools interface
+- **Settings Change**: Initial scan when favorites integration is first enabled
+
+**Note**: Automated background scanning has been removed. All favorites scanning is now manual-only, giving users full control over when their favorites are processed.
 
 ### 2. Scan Process Logic
 
@@ -409,20 +409,17 @@ def _strip_credentials_from_path(self, path: str) -> str:
 
 ## Integration Points
 
-### 1. Background Service Integration
+### 1. Manual Operation Design
 
-**Service Triggers:**
-```python
-# In service.py background loop
-def _check_favorites_integration():
-    if config.get_bool("favorites_integration_enabled"):
-        favorites_manager.scan_favorites(force_refresh=False)
-```
+**User-Controlled Scanning:**
+- **No Background Processing**: Favorites are never scanned automatically
+- **On-Demand Only**: Users initiate scans via context menus or Tools interface
+- **Immediate Feedback**: Scan results shown immediately after completion
 
-**Playback Respect:**
-- **Never During Playback**: Defers scan during video playback
-- **Idle Detection**: Waits for system idle state
-- **Rate Limiting**: Generous delays between operations
+**Benefits of Manual Operation:**
+- **Performance**: No background CPU usage for favorites processing
+- **Privacy**: Users decide when favorites are read and processed
+- **Predictability**: Scans only happen when explicitly requested
 
 ### 2. UI Integration
 

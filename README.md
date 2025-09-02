@@ -180,14 +180,17 @@ All changes must pass:
 - **Import Safety**: All modules import without Kodi runtime
 - **Smoke Tests**: Core functionality works in test environment
 
-## Favorites (Read-Only) Integration
+## Favorites (Manual) Integration
 
-LibraryGenie provides seamless integration with Kodi's built-in Favorites system, allowing you to:
+LibraryGenie provides manual integration with Kodi's built-in Favorites system, allowing you to:
 
-- **View Favorites**: Display favorites that map to your movie library
+- **Scan on Demand**: Manually scan favorites via Tools menu or context actions
+- **View Mapped Favorites**: Display favorites that map to your movie library
 - **Quick Add**: Add mapped favorites to your custom lists
 - **Smart Filtering**: Option to show/hide unmapped favorites
 - **Robust Parsing**: Handles various favorites.xml formats and edge cases
+
+**Manual Operation**: All favorites scanning is user-initiated. No background processing ensures optimal performance and gives you full control over when favorites are processed.
 
 ### Supported Target Types
 
