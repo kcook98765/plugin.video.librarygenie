@@ -2,12 +2,16 @@
 # -*- coding: utf-8 -*-
 
 """
-LibraryGenie - Settings Management
-Handles all addon settings and configuration
+LibraryGenie - Settings Manager
+Handles addon settings and preferences
 """
 
+from __future__ import annotations
+
 import xbmcaddon
-from typing import Optional, Union
+from typing import Any, Dict
+
+from .config_manager import get_config
 from ..utils.logger import get_logger
 from ..ui.localization import L
 
