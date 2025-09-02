@@ -93,10 +93,9 @@ class Router:
                         # Just refresh the current directory
                         xbmc.executebuiltin('Container.Refresh')
                 elif hasattr(result, 'success') and not result.success:
-                    # For failed/canceled operations, stay in current location by refreshing
-                    # This prevents Kodi from navigating away on dialog cancellation
-                    import xbmc
-                    xbmc.executebuiltin('Container.Refresh')
+                    # For failed/canceled operations, do nothing to stay in current location
+                    # Don't refresh as it can cause loops with action-based URLs
+                    pass
                 
                 return result.success if hasattr(result, 'success') else True
 
