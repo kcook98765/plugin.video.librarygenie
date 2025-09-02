@@ -71,6 +71,10 @@ class PluginContext:
         """Get parameter value with optional default"""
         return self.params.get(key, default)
     
+    def get_params(self) -> Dict[str, Any]:
+        """Get all parameters"""
+        return self.params
+    
     def require_param(self, key: str) -> Any:
         """Get required parameter, raises ValueError if missing"""
         value = self.params.get(key)
