@@ -9,6 +9,10 @@ Handles action routing and dispatch for plugin requests
 from typing import Dict, Callable, Any
 from .plugin_context import PluginContext
 import xbmcgui # Import xbmcgui for dialogs
+import xbmc # Import xbmc for executebuiltin
+import xbmcplugin # Import xbmcplugin for endOfDirectory
+from .response_types import DirectoryResponse, DialogResponse # Import response types
+from ..utils.logger import get_logger # Import logger
 
 
 class Router:
@@ -34,7 +38,6 @@ class Router:
         Returns True if handler was found and called, False otherwise
         """
         if self.logger is None:
-            from ..utils.logger import get_logger
             self.logger = get_logger(__name__)
 
         action = context.get_param('action', '')
@@ -42,9 +45,6 @@ class Router:
         self.logger.debug(f"Router dispatching action: '{action}'")
 
         try:
-            # Call handler with context
-            self.logger.debug(f"Calling handler for action '{action}'")
-            
             # Handle special cases first
             if action == "scan_favorites_execute":
                 # Assuming favorites_handler is initialized elsewhere or dynamically
@@ -75,12 +75,10 @@ class Router:
                 result = self.tools_handler.show_list_tools(context, list_type, list_id)
                 # Handle DialogResponse - show notification if there's a message
                 if hasattr(result, 'message') and result.message:
-                    import xbmcgui
                     notification_type = xbmcgui.NOTIFICATION_INFO if result.success else xbmcgui.NOTIFICATION_ERROR
                     xbmcgui.Dialog().notification("LibraryGenie", result.message, notification_type)
                 # Refresh directory if needed
                 if hasattr(result, 'refresh_needed') and result.refresh_needed:
-                    import xbmc
                     xbmc.executebuiltin('Container.Refresh')
                 return result.success if hasattr(result, 'success') else True
 
@@ -208,3 +206,104 @@ class Router:
         except Exception as e:
             context.logger.error(f"Error adding to list: {e}")
             return False
+
+    def _handle_favorites(self, context: PluginContext) -> None:
+        """Handle favorites menu action"""
+        try:
+            from .favorites_handler import FavoritesHandler
+            favorites_handler = FavoritesHandler()
+            response = favorites_handler.show_favorites_menu(context)
+
+            if isinstance(response, DirectoryResponse):
+                # Directory response is already handled by show_favorites_menu
+                return
+            else:
+                # Fallback if unexpected response type
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+
+        except Exception as e:
+            self.logger.error(f"Error in favorites handler: {e}")
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+
+    def _handle_scan_favorites(self, context: PluginContext) -> None:
+        """Handle scan favorites action"""
+        try:
+            from .favorites_handler import FavoritesHandler
+            favorites_handler = FavoritesHandler()
+            response = favorites_handler.scan_favorites(context)
+
+            if isinstance(response, DialogResponse) and response.success:
+                if response.refresh_needed:
+                    # Refresh the container to show updated favorites
+                    xbmc.executebuiltin('Container.Refresh')
+
+                if response.message:
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        response.message,
+                        xbmcgui.NOTIFICATION_INFO,
+                        5000
+                    )
+            elif isinstance(response, DialogResponse):
+                # Show error message
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    response.message or "Scan failed",
+                    xbmcgui.NOTIFICATION_ERROR,
+                    5000
+                )
+
+        except Exception as e:
+            self.logger.error(f"Error in scan favorites handler: {e}")
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Error scanning favorites",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
+
+    def _handle_save_favorites_as(self, context: PluginContext) -> None:
+        """Handle save favorites as action"""
+        try:
+            from .favorites_handler import FavoritesHandler
+            favorites_handler = FavoritesHandler()
+            response = favorites_handler.save_favorites_as(context)
+
+            if isinstance(response, DialogResponse) and response.success:
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    response.message or "Favorites saved as new list",
+                    xbmcgui.NOTIFICATION_INFO,
+                    5000
+                )
+
+                # Optionally refresh to show new list
+                if response.refresh_needed:
+                    xbmc.executebuiltin('Container.Refresh')
+
+            elif isinstance(response, DialogResponse):
+                if response.message:
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        response.message,
+                        xbmcgui.NOTIFICATION_ERROR,
+                        5000
+                    )
+
+        except Exception as e:
+            self.logger.error(f"Error in save favorites as handler: {e}")
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Error saving favorites",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
+
+    def _handle_noop(self, context: PluginContext) -> None:
+        """Handle no-op action"""
+        try:
+            # Just end the directory with no items
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+        except Exception as e:
+            self.logger.error(f"Error in noop handler: {e}")
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
