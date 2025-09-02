@@ -251,17 +251,18 @@ def run_authorize_flow():
 def test_authorization():
     """Test if the current authorization is working"""
     try:
+        from ..ui.localization import L
         from .state import get_access_token
         
         token = get_access_token()
         if not token:
-            return False, "No access token"
+            return False, L(34106)  # "Authentication required"
         
         cfg = get_config()
         base_url = cfg.get('remote_base_url', '').rstrip('/')
         
         if not base_url:
-            return False, "No server URL configured"
+            return False, L(30411)  # "Remote server URL"
         
         # Make a test request to verify the token
         req = urllib.request.Request(f"{base_url}/auth/test")
@@ -269,9 +270,9 @@ def test_authorization():
         
         with urllib.request.urlopen(req, timeout=10) as response:
             if response.getcode() == 200:
-                return True, "Authorization valid"
+                return True, L(34113)  # "Connection test successful"
             else:
-                return False, f"Server returned {response.getcode()}"
+                return False, f"{L(34114)}: {response.getcode()}"  # "Connection test failed"
                 
     except Exception as e:
         logger.error(f"Authorization test failed: {e}")

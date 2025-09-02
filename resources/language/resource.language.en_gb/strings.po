@@ -1366,3 +1366,139 @@ msgstr ""
 msgctxt "#34210"
 msgid "Cleanup failed"
 msgstr ""
+
+# Additional Error Messages
+msgctxt "#34300"
+msgid "Operation completed"
+msgstr ""
+
+msgctxt "#34301"
+msgid "Operation failed"
+msgstr ""
+
+msgctxt "#34302"
+msgid "Please try again"
+msgstr ""
+
+msgctxt "#34303"
+msgid "Network error"
+msgstr ""
+
+msgctxt "#34304"
+msgid "Timeout error"
+msgstr ""
+
+msgctxt "#34305"
+msgid "Configuration error"
+msgstr ""
+
+msgctxt "#34306"
+msgid "Database error"
+msgstr ""
+
+msgctxt "#34307"
+msgid "File not accessible"
+msgstr ""
+
+msgctxt "#34308"
+msgid "Permission denied"
+msgstr ""
+
+msgctxt "#34309"
+msgid "Invalid format"
+msgstr ""
+
+msgctxt "#34310"
+msgid "Service unavailable"
+msgstr ""
+
+# Progress and Status Messages
+msgctxt "#34400"
+msgid "Initializing..."
+msgstr ""
+
+msgctxt "#34401"
+msgid "Processing..."
+msgstr ""
+
+msgctxt "#34402"
+msgid "Finalizing..."
+msgstr ""
+
+msgctxt "#34403"
+msgid "Please wait..."
+msgstr ""
+
+msgctxt "#34404"
+msgid "Operation in progress"
+msgstr ""
+
+msgctxt "#34405"
+msgid "Scanning library..."
+msgstr ""
+
+msgctxt "#34406"
+msgid "Updating database..."
+msgstr ""
+
+msgctxt "#34407"
+msgid "Validating data..."
+msgstr ""
+
+msgctxt "#34408"
+msgid "Connecting to server..."
+msgstr ""
+
+msgctxt "#34409"
+msgid "Loading..."
+msgstr ""
+
+# Settings Validation Messages
+msgctxt "#34500"
+msgid "Invalid setting value"
+msgstr ""
+
+msgctxt "#34501"
+msgid "Setting saved successfully"
+msgstr ""
+
+msgctxt "#34502"
+msgid "Failed to save setting"
+msgstr ""
+
+msgctxt "#34503"
+msgid "Setting restored to default"
+msgstr ""
+
+msgctxt "#34504"
+msgid "Configuration validated"
+msgstr ""
+
+msgctxt "#34505"
+msgid "Configuration validation failed"
+msgstr ""
+
+# Confirmation Dialogs
+msgctxt "#34600"
+msgid "Confirm Action"
+msgstr ""
+
+msgctxt "#34601"
+msgid "Are you sure?"
+msgstr ""
+
+msgctxt "#34602"
+msgid "This action cannot be undone"
+msgstr ""
+
+msgctxt "#34603"
+msgid "Continue anyway?"
+msgstr ""
+
+msgctxt "#34604"
+msgid "Operation cancelled"
+msgstr ""
+
+msgctxt "#34605"
+msgid "Operation confirmed"
+msgstr ""

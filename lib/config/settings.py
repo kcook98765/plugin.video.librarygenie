@@ -157,6 +157,32 @@ def get_setting_descriptions() -> Dict[str, str]:
         "shortlist_clear_before_import": "Clear existing ShortList Import list before importing new data",
     }
 
+# Import localization for future settings validation
+try:
+    from ..ui.localization import L
+    _LOCALIZATION_AVAILABLE = True
+except ImportError:
+    _LOCALIZATION_AVAILABLE = False
+
+def get_localized_validation_message(key: str, fallback: str) -> str:
+    """Get localized validation message with fallback"""
+    if not _LOCALIZATION_AVAILABLE:
+        return fallback
+    
+    validation_map = {
+        'invalid_value': 34500,    # "Invalid setting value"
+        'saved': 34501,           # "Setting saved successfully"
+        'save_failed': 34502,     # "Failed to save setting"
+        'restored': 34503,        # "Setting restored to default"
+        'validated': 34504,       # "Configuration validated"
+        'validation_failed': 34505, # "Configuration validation failed"
+    }
+    
+    msg_id = validation_map.get(key)
+    if msg_id:
+        return L(msg_id)
+    return fallback
+
 
 def validate_setting_value(setting_key: str, value: Any) -> Tuple[bool, str]:
     """Validate a setting value, return (is_valid, error_message)"""
