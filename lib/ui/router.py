@@ -81,18 +81,21 @@ class Router:
 
                 # Handle navigation flags for successful operations that require navigation
                 if hasattr(result, 'success') and result.success:
-                    if hasattr(result, 'navigate_to_folder'):
+                    if hasattr(result, 'navigate_to_folder') and result.navigate_to_folder:
                         # Navigate to specific folder (for search history deletion)
                         import xbmc
                         folder_id = result.navigate_to_folder
                         xbmc.executebuiltin(f'Container.Update({context.build_url("show_folder", folder_id=folder_id)},replace)')
+                        return True  # Prevent further processing
                     elif hasattr(result, 'navigate_to_lists') and result.navigate_to_lists:
                         # Navigate to main lists menu (for list/folder deletion)
                         import xbmc
                         xbmc.executebuiltin(f'Container.Update({context.build_url("lists")},replace)')
+                        return True  # Prevent further processing
                     elif hasattr(result, 'refresh_needed') and result.refresh_needed:
                         # Just refresh the current directory
                         xbmc.executebuiltin('Container.Refresh')
+                        return True  # Prevent further processing
                 elif hasattr(result, 'success') and not result.success:
                     # For failed/canceled operations, navigate back to the appropriate view
                     import xbmc
