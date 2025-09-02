@@ -8,7 +8,7 @@ Handles context menus for library and list operations
 
 import xbmcgui
 from typing import Dict, Any, Optional, Callable, List
-
+from .localization import L
 from ..utils.logger import get_logger
 
 
@@ -24,11 +24,11 @@ class ContextMenuManager:
         try:
             context_menu = [
                 (
-                    f"[COLOR lightgreen]{self._get_string(31000)}[/COLOR]",  # "Add to List..."
+                    f"[COLOR lightgreen]{L(31000)}[/COLOR]",  # "Add to List..."
                     f"RunPlugin(plugin://plugin.video.library.genie?action=add_to_list&library_movie_id={library_movie_id})"
                 ),
                 (
-                    f"[COLOR lightgreen]{self._get_string(31001)}[/COLOR]",  # "Quick Add to Default"
+                    f"[COLOR lightgreen]{L(31001)}[/COLOR]",  # "Quick Add to Default"
                     f"RunPlugin(plugin://plugin.video.library.genie?action=quick_add&library_movie_id={library_movie_id})"
                 )
             ]
@@ -45,11 +45,11 @@ class ContextMenuManager:
         try:
             context_menu = [
                 (
-                    f"[COLOR red]{self._get_string(31010)}[/COLOR]",  # "Remove from List"
+                    f"[COLOR red]{L(31010)}[/COLOR]",  # "Remove from List"
                     f"RunPlugin(plugin://plugin.video.library.genie?action=remove_from_list&list_id={list_id}&list_item_id={list_item_id})"
                 ),
                 (
-                    f"[COLOR yellow]{self._get_string(31011)}[/COLOR]",  # "Move to Another List..."
+                    f"[COLOR yellow]{L(31011)}[/COLOR]",  # "Move to Another List..."
                     f"RunPlugin(plugin://plugin.video.library.genie?action=move_to_list&list_id={list_id}&list_item_id={list_item_id})"
                 )
             ]

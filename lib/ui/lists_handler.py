@@ -13,6 +13,17 @@ from .plugin_context import PluginContext
 from .response_types import DirectoryResponse, DialogResponse, ActionResponse
 from ..data.query_manager import get_query_manager
 
+# --- Localization Optimization ---
+from xbmcaddon import Addon
+from functools import lru_cache
+
+_addon = Addon()
+
+@lru_cache(maxsize=None)
+def L(msgid: int) -> str:
+    return _addon.getLocalizedString(msgid)
+# --- End Localization Optimization ---
+
 
 class ListsHandler:
     """Handles lists operations"""
@@ -44,7 +55,13 @@ class ListsHandler:
 
             if not user_lists:
                 # No lists exist, offer to create one
-                return self._show_empty_lists_menu(context)
+                if xbmcgui.Dialog().yesno(
+                    L(35002),
+                    "No lists found. Create your first list?"
+                ):
+                    return self.create_list(context)
+
+                return DirectoryResponse(items=[], success=True)
 
             # Build menu items for lists and folders
             menu_items = []
@@ -165,7 +182,7 @@ class ListsHandler:
     def _show_empty_lists_menu(self, context: PluginContext) -> DirectoryResponse:
         """Show menu when no lists exist"""
         if xbmcgui.Dialog().yesno(
-            context.addon.getLocalizedString(35002),
+            L(35002),
             "No lists found. Create your first list?"
         ):
             return self.create_list(context)
@@ -247,7 +264,7 @@ class ListsHandler:
 
             # Confirm deletion
             if not xbmcgui.Dialog().yesno(
-                context.addon.getLocalizedString(35002),
+                L(35002),
                 f"Delete list '{list_info['name']}'?",
                 f"This will remove {list_info['item_count']} items from the list."
             ):
@@ -377,7 +394,7 @@ class ListsHandler:
 
             # Confirm removal
             if not xbmcgui.Dialog().yesno(
-                context.addon.getLocalizedString(35002),
+                L(35002),
                 f"Remove '{item_info['title']}' from list '{list_info['name']}'?"
             ):
                 context.logger.info("User cancelled item removal")
@@ -560,7 +577,7 @@ class ListsHandler:
             # Confirm deletion
             if lists_in_folder:
                 if not xbmcgui.Dialog().yesno(
-                    context.addon.getLocalizedString(35002),
+                    L(35002),
                     f"Delete folder '{folder_info['name']}'?",
                     f"This folder contains {len(lists_in_folder)} lists.",
                     "All lists will be moved to the root level."
@@ -569,7 +586,7 @@ class ListsHandler:
                     return DialogResponse(success=False)
             else:
                 if not xbmcgui.Dialog().yesno(
-                    context.addon.getLocalizedString(35002),
+                    L(35002),
                     f"Delete empty folder '{folder_info['name']}'?"
                 ):
                     context.logger.info("User cancelled folder deletion")
@@ -635,8 +652,8 @@ class ListsHandler:
                 context.logger.debug(f"HANDLER: Item {idx}: has 'id' field={('id' in item)}, id_value={item.get('id')}")
 
             # Add Tools & Options at the top of the list view
-            tools_item = xbmcgui.ListItem(label=f"[COLOR yellow]⚙️ {context.addon.getLocalizedString(36000)}[/COLOR]")  # "Tools & Options"
-            tools_item.setInfo('video', {'plot': context.addon.getLocalizedString(36016)})  # "Access list tools and options"
+            tools_item = xbmcgui.ListItem(label=f"[COLOR yellow]⚙️ {L(36000)}[/COLOR]")  # "Tools & Options"
+            tools_item.setInfo('video', {'plot': L(36016)})  # "Access list tools and options"
             tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
             xbmcplugin.addDirectoryItem(
                 context.addon_handle,
@@ -778,11 +795,11 @@ class ListsHandler:
 
             # Add Tools & Options for this folder
             menu_items.append({
-                'label': f"[COLOR yellow]⚙️ {context.addon.getLocalizedString(36000)}[/COLOR]",  # "Tools & Options"
+                'label': f"[COLOR yellow]⚙️ {L(36000)}[/COLOR]",  # "Tools & Options"
                 'url': context.build_url('show_list_tools', list_type='folder', list_id=folder_id),
                 'is_folder': True,
                 'icon': "DefaultAddonProgram.png",
-                'description': context.addon.getLocalizedString(36017) % folder_info['name']  # "Access tools and options for '%s'"
+                'description': L(36017) % folder_info['name']  # "Access tools and options for '%s'"
             })
 
             # Add "Create New List" option in this folder
