@@ -96,6 +96,13 @@ class Router:
                         # End directory properly to prevent fallback navigation
                         xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
                         return True  # Prevent further processing
+                    elif hasattr(result, 'navigate_to_main') and result.navigate_to_main:
+                        # Navigate to main menu (for search history cleanup)
+                        import xbmc
+                        xbmc.executebuiltin(f'Container.Update({context.build_url()},replace)')
+                        # End directory properly to prevent fallback navigation
+                        xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+                        return True  # Prevent further processing
                     elif hasattr(result, 'refresh_needed') and result.refresh_needed:
                         # Just refresh the current directory
                         xbmc.executebuiltin('Container.Refresh')

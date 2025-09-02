@@ -194,8 +194,8 @@ class ToolsHandler:
                             # Still have search history lists, navigate back to folder
                             result.navigate_to_folder = search_folder_id
                         else:
-                            # No more search history lists, navigate back to main lists menu
-                            result.navigate_to_lists = True
+                            # No more search history lists, navigate back to main menu
+                            result.navigate_to_main = True
                     
                     return result
             else:
