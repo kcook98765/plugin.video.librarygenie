@@ -58,7 +58,7 @@ class ToolsHandler:
                 )
 
             last_scan_info = favorites_manager._get_last_scan_info_for_display()
-            scan_option = "🔄 Scan Favorites"
+            scan_option = "[COLOR white]🔄 Scan Favorites[/COLOR]"
             
             if last_scan_info:
                 try:
@@ -78,15 +78,18 @@ class ToolsHandler:
                         days = int(time_diff.total_seconds() / 86400)
                         time_ago = f"{days} day{'s' if days != 1 else ''} ago"
                     
-                    scan_option = f"🔄 Scan Favorites ({time_ago})"
+                    scan_option = f"[COLOR white]🔄 Scan Favorites ({time_ago})[/COLOR]"
                 except Exception as e:
                     context.logger.debug(f"Could not parse last scan time: {e}")
 
-            # Build options for favorites
+            # Build options for favorites - organized by type
             options = [
+                # Refresh operations
                 scan_option,
-                "💾 Save As New List",
-                "❌ Cancel"
+                # Additive operations  
+                "[COLOR lightgreen]💾 Save As New List[/COLOR]",
+                # Cancel
+                "[COLOR gray]❌ Cancel[/COLOR]"
             ]
 
             # Show selection dialog
@@ -133,14 +136,19 @@ class ToolsHandler:
                     message="List not found"
                 )
 
-            # Build comprehensive options for user lists
+            # Build comprehensive options for user lists - organized by operation type
             options = [
-                f"✏️ Rename '{list_info['name']}'",
-                f"📁 Move '{list_info['name']}' to Folder",
-                f"🔀 Merge Another List Into '{list_info['name']}'",
-                f"📤 Export '{list_info['name']}'",
-                f"🗑️ Delete '{list_info['name']}'",
-                "❌ Cancel"
+                # Additive operations
+                f"[COLOR lightgreen]🔀 Merge Another List Into '{list_info['name']}'[/COLOR]",
+                # Modify operations
+                f"[COLOR yellow]✏️ Rename '{list_info['name']}'[/COLOR]",
+                f"[COLOR yellow]📁 Move '{list_info['name']}' to Folder[/COLOR]",
+                # Export operations
+                f"[COLOR white]📤 Export '{list_info['name']}'[/COLOR]",
+                # Destructive operations
+                f"[COLOR red]🗑️ Delete '{list_info['name']}'[/COLOR]",
+                # Cancel
+                "[COLOR gray]❌ Cancel[/COLOR]"
             ]
 
             # Show selection dialog
@@ -151,14 +159,14 @@ class ToolsHandler:
                 return DialogResponse(success=False)
 
             # Handle selected option
-            if selected_index == 0:  # Rename
+            if selected_index == 0:  # Merge lists
+                return self._merge_lists(context, list_id)
+            elif selected_index == 1:  # Rename
                 from .lists_handler import ListsHandler
                 lists_handler = ListsHandler()
                 return lists_handler.rename_list(context, list_id)
-            elif selected_index == 1:  # Move to folder
+            elif selected_index == 2:  # Move to folder
                 return self._move_list_to_folder(context, list_id)
-            elif selected_index == 2:  # Merge lists
-                return self._merge_lists(context, list_id)
             elif selected_index == 3:  # Export
                 return self._export_single_list(context, list_id)
             elif selected_index == 4:  # Delete
@@ -196,21 +204,31 @@ class ToolsHandler:
             # Check if it's a reserved folder
             is_reserved = folder_info['name'] == 'Search History'
 
-            # Build comprehensive options for folders
+            # Build comprehensive options for folders - organized by operation type
             options = []
+            
+            # Additive operations (always available)
+            options.extend([
+                f"[COLOR lightgreen]📋 Create New List in '{folder_info['name']}'[/COLOR]",
+                f"[COLOR lightgreen]📁 Create New Subfolder in '{folder_info['name']}'[/COLOR]"
+            ])
+            
+            # Modify operations (not for reserved folders)
             if not is_reserved:
                 options.extend([
-                    f"✏️ Rename '{folder_info['name']}'",
-                    f"📁 Move '{folder_info['name']}' to Parent Folder",
-                    f"🗑️ Delete '{folder_info['name']}'"
+                    f"[COLOR yellow]✏️ Rename '{folder_info['name']}'[/COLOR]",
+                    f"[COLOR yellow]📁 Move '{folder_info['name']}' to Parent Folder[/COLOR]"
                 ])
             
-            options.extend([
-                f"📤 Export All Lists in '{folder_info['name']}'",
-                f"📋 Create New List in '{folder_info['name']}'",
-                f"📁 Create New Subfolder in '{folder_info['name']}'",
-                "❌ Cancel"
-            ])
+            # Export operations
+            options.append(f"[COLOR white]📤 Export All Lists in '{folder_info['name']}'[/COLOR]")
+            
+            # Destructive operations (not for reserved folders)
+            if not is_reserved:
+                options.append(f"[COLOR red]🗑️ Delete '{folder_info['name']}'[/COLOR]")
+            
+            # Cancel
+            options.append("[COLOR gray]❌ Cancel[/COLOR]")
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
@@ -219,32 +237,33 @@ class ToolsHandler:
             if selected_index < 0 or selected_index == len(options) - 1:  # Cancel
                 return DialogResponse(success=False)
 
-            # Handle selected option based on reserved status
-            if not is_reserved:
-                if selected_index == 0:  # Rename
+            # Handle selected option - calculate indices based on reserved status
+            if is_reserved:
+                # Reserved folder: Create List(0), Create Subfolder(1), Export(2), Cancel(3)
+                if selected_index == 0:  # Create new list
+                    return self._create_list_in_folder(context, folder_id)
+                elif selected_index == 1:  # Create subfolder
+                    return self._create_subfolder(context, folder_id)
+                elif selected_index == 2:  # Export
+                    return self._export_folder_lists(context, folder_id)
+            else:
+                # Regular folder: Create List(0), Create Subfolder(1), Rename(2), Move(3), Export(4), Delete(5), Cancel(6)
+                if selected_index == 0:  # Create new list
+                    return self._create_list_in_folder(context, folder_id)
+                elif selected_index == 1:  # Create subfolder
+                    return self._create_subfolder(context, folder_id)
+                elif selected_index == 2:  # Rename
                     from .lists_handler import ListsHandler
                     lists_handler = ListsHandler()
                     return lists_handler.rename_folder(context, folder_id)
-                elif selected_index == 1:  # Move folder
+                elif selected_index == 3:  # Move folder
                     return self._move_folder(context, folder_id)
-                elif selected_index == 2:  # Delete
+                elif selected_index == 4:  # Export
+                    return self._export_folder_lists(context, folder_id)
+                elif selected_index == 5:  # Delete
                     from .lists_handler import ListsHandler
                     lists_handler = ListsHandler()
                     return lists_handler.delete_folder(context, folder_id)
-                elif selected_index == 3:  # Export
-                    return self._export_folder_lists(context, folder_id)
-                elif selected_index == 4:  # Create new list
-                    return self._create_list_in_folder(context, folder_id)
-                elif selected_index == 5:  # Create subfolder
-                    return self._create_subfolder(context, folder_id)
-            else:
-                # Reserved folder options
-                if selected_index == 0:  # Export
-                    return self._export_folder_lists(context, folder_id)
-                elif selected_index == 1:  # Create new list
-                    return self._create_list_in_folder(context, folder_id)
-                elif selected_index == 2:  # Create subfolder
-                    return self._create_subfolder(context, folder_id)
 
             return DialogResponse(success=False)
 

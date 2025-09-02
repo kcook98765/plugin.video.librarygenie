@@ -51,7 +51,7 @@ class ListsHandler:
 
             # Add "Create New List" option at the top
             menu_items.append({
-                'label': "[COLOR yellow]+ Create New List[/COLOR]",
+                'label': "[COLOR lightgreen]+ Create New List[/COLOR]",
                 'url': context.build_url('create_list_execute'),
                 'is_folder': True,
                 'icon': "DefaultAddSource.png",
@@ -60,7 +60,7 @@ class ListsHandler:
 
             # Add "Create New Folder" option
             menu_items.append({
-                'label': "[COLOR cyan]+ Create New Folder[/COLOR]",
+                'label': "[COLOR lightgreen]+ Create New Folder[/COLOR]",
                 'url': context.build_url('create_folder_execute'),
                 'is_folder': True,
                 'icon': "DefaultFolder.png",
@@ -82,8 +82,7 @@ class ListsHandler:
 
                 if not is_reserved_folder:
                     context_menu = [
-                        (f"Rename Folder '{folder_name}'", f"RunPlugin({context.build_url('rename_folder', folder_id=folder_id)})"),
-                        (f"Delete Folder '{folder_name}'", f"RunPlugin({context.build_url('delete_folder', folder_id=folder_id)})")
+                        (f"Tools & Options for '{folder_name}'", f"RunPlugin({context.build_url('show_tools', list_type='folder', list_id=folder_id)})")
                     ]
 
                 menu_items.append({
