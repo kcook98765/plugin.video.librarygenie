@@ -372,16 +372,16 @@ class FavoritesHandler:
                 folder_id = all_folders[selected_folder_index - 1]["id"]
 
             # Create the list using QueryManager
-            create_result = query_manager.create_list(new_list_name, folder_id)
+            create_result = query_manager.create_list(new_list_name, "", folder_id)
 
-            if not create_result.get("success"):
-                error_msg = create_result.get("message", "Failed to create list")
+            if create_result.get("error"):
+                error_msg = create_result.get("error", "Failed to create list")
                 return DialogResponse(
                     success=False,
                     message=f"Failed to create list: {error_msg}"
                 )
 
-            new_list_id = create_result["list_id"]
+            new_list_id = create_result["id"]
             self.logger.info(f"Created new list '{new_list_name}' with ID {new_list_id}")
 
             # Add all favorites to the new list
@@ -391,8 +391,9 @@ class FavoritesHandler:
             for favorite in favorites:
                 media_item_id = favorite.get('media_item_id') or favorite.get('id')
                 if media_item_id:
-                    add_result = query_manager.add_to_list(new_list_id, media_item_id)
-                    if add_result.get("success"):
+                    # Use remove_item_from_list logic but in reverse - add to list
+                    result = query_manager.add_library_item_to_list(new_list_id, favorite)
+                    if result:
                         added_count += 1
                     else:
                         failed_count += 1
