@@ -73,12 +73,12 @@ class Router:
                 list_type = params.get('list_type', 'unknown')
                 list_id = params.get('list_id')
                 result = self.tools_handler.show_list_tools(context, list_type, list_id)
-                
+
                 # Handle DialogResponse - show notification if there's a message
                 if hasattr(result, 'message') and result.message:
                     notification_type = xbmcgui.NOTIFICATION_INFO if result.success else xbmcgui.NOTIFICATION_ERROR
                     xbmcgui.Dialog().notification("LibraryGenie", result.message, notification_type)
-                
+
                 # Handle navigation flags for successful operations that require navigation
                 if hasattr(result, 'success') and result.success:
                     if hasattr(result, 'navigate_to_folder'):
@@ -100,7 +100,7 @@ class Router:
                         # Navigate back to the folder view
                         xbmc.executebuiltin(f'Container.Update({context.build_url("show_folder", folder_id=list_id)},replace)')
                     elif list_type == 'user_list' and list_id:
-                        # Navigate back to the list view  
+                        # Navigate back to the list view
                         xbmc.executebuiltin(f'Container.Update({context.build_url("show_list", list_id=list_id)},replace)')
                     elif list_type == 'favorites':
                         # Navigate back to favorites view
@@ -108,7 +108,7 @@ class Router:
                     elif list_type == 'lists_main':
                         # Navigate back to main lists menu
                         xbmc.executebuiltin(f'Container.Update({context.build_url("lists")},replace)')
-                
+
                 return result.success if hasattr(result, 'success') else True
 
             elif action == "add_to_list":

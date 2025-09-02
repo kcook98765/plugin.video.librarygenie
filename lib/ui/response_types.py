@@ -34,14 +34,15 @@ class DirectoryResponse:
 
 @dataclass
 class DialogResponse:
-    """Response for dialog-based handlers"""
-    success: bool
-    message: Optional[str] = None
-    refresh_needed: bool = False
+    """Response from dialog operations"""
 
-    # Navigation flags for special cases
-    navigate_to_folder = None
-    navigate_to_lists = False
+    def __init__(self, success: bool, message: str = "", refresh_needed: bool = False, 
+                 navigate_to_lists: bool = False, navigate_to_folder: Optional[str] = None):
+        self.success = success
+        self.message = message
+        self.refresh_needed = refresh_needed
+        self.navigate_to_lists = navigate_to_lists
+        self.navigate_to_folder = navigate_to_folder
 
     def show_notification(self, addon, default_title: str = "LibraryGenie"):
         """Show notification to user if message is provided"""
