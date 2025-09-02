@@ -41,56 +41,19 @@ class FavoritesHandler:
 
             menu_items = []
 
-            # Get last scan info for display
-            last_scan_info = favorites_manager._get_last_scan_info_for_display()
-            scan_label = "[COLOR yellow]🔄 Scan Favorites[/COLOR]"
-
-            if last_scan_info:
-                # Calculate time since last scan
-                from datetime import datetime
-                try:
-                    last_scan_time = datetime.fromisoformat(last_scan_info['created_at'])
-                    current_time = datetime.now()
-                    time_diff = current_time - last_scan_time
-
-                    if time_diff.total_seconds() < 60:
-                        time_ago = "just now"
-                    elif time_diff.total_seconds() < 3600:  # Less than 1 hour
-                        minutes = int(time_diff.total_seconds() / 60)
-                        time_ago = f"{minutes} minute{'s' if minutes != 1 else ''} ago"
-                    elif time_diff.total_seconds() < 86400:  # Less than 1 day
-                        hours = int(time_diff.total_seconds() / 3600)
-                        time_ago = f"{hours} hour{'s' if hours != 1 else ''} ago"
-                    else:  # 1 or more days
-                        days = int(time_diff.total_seconds() / 86400)
-                        time_ago = f"{days} day{'s' if days != 1 else ''} ago"
-
-                    scan_label = f"[COLOR yellow]🔄 Scan Favorites[/COLOR] [COLOR gray]({time_ago})[/COLOR]"
-                except Exception as e:
-                    context.logger.debug(f"Could not parse last scan time: {e}")
-
-            # Add scan favorites option at the top
+            # Add "Tools & Options" at the top like other lists
             menu_items.append({
-                'label': scan_label,
-                'url': context.build_url('scan_favorites_execute'),
+                'label': f"[COLOR yellow]⚙️ Tools & Options[/COLOR]",
+                'url': context.build_url('show_list_tools', list_type='favorites'),
                 'is_folder': True,
-                'icon': "DefaultAddSource.png",
-                'description': "Scan Kodi favorites file for changes"
-            })
-
-            # Add save as option
-            menu_items.append({
-                'label': "[COLOR cyan]💾 Save As...[/COLOR]",
-                'url': context.build_url('save_favorites_as'),
-                'is_folder': True,
-                'icon': "DefaultFile.png",
-                'description': "Save a copy of Kodi favorites as a new list"
+                'icon': "DefaultAddonProgram.png",
+                'description': "Access favorites tools and options"
             })
 
             favorites_items = favorites  # No conversion needed - data is already in standard list format
 
             if not favorites_items:
-                # No favorites found - show menu options and empty message
+                # No favorites found - show Tools & Options and empty message
                 for item in menu_items:
                     list_item = xbmcgui.ListItem(label=item['label'])
 
@@ -109,7 +72,7 @@ class FavoritesHandler:
 
                 # Add empty state message
                 empty_item = xbmcgui.ListItem(label="[COLOR gray]No favorites found[/COLOR]")
-                empty_item.setInfo('video', {'plot': 'No Kodi favorites found or none mapped to library. Use "Scan Favorites" to import from favorites.xml'})
+                empty_item.setInfo('video', {'plot': 'No Kodi favorites found or none mapped to library. Use "Tools & Options" to scan favorites.xml'})
                 xbmcplugin.addDirectoryItem(
                     context.addon_handle,
                     context.build_url('noop'),
@@ -132,7 +95,7 @@ class FavoritesHandler:
                     content_type="movies"
                 )
             else:
-                # First add the Sync Favorites menu option at the top
+                # First add the Tools & Options menu at the top
                 for item in menu_items:
                     list_item = xbmcgui.ListItem(label=item['label'])
 
