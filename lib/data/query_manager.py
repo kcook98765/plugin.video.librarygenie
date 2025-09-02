@@ -206,9 +206,6 @@ class QueryManager:
             rows = cursor.fetchall()
 
             self.logger.debug(f"Query returned {len(rows)} rows")
-            if rows:
-                self.logger.debug(f"First raw row: {rows[0]}")
-                self.logger.debug(f"Cursor description: {cursor.description}")
 
             items = []
 
@@ -238,7 +235,6 @@ class QueryManager:
 
                 items.append(canonical_item)
 
-            self.logger.debug(f"Final items list: {items}")
             return items
 
         except Exception as e:

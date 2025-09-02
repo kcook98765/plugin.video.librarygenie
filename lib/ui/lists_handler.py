@@ -699,22 +699,12 @@ class ListsHandler:
 
                 for item_idx, item in enumerate(list_items):
                     try:
-                        context.logger.debug(f"HANDLER: Processing item {item_idx}: {item.get('title', 'Unknown')}")
-                        context.logger.debug(f"HANDLER: Item {item_idx} keys: {list(item.keys())}")
-                        context.logger.debug(f"HANDLER: Item {item_idx} ID fields check:")
-                        context.logger.debug(f"HANDLER:   - 'id' in item: {'id' in item}")
-                        context.logger.debug(f"HANDLER:   - item.get('id'): {item.get('id')}")
-                        context.logger.debug(f"HANDLER:   - item.get('item_id'): {item.get('item_id')}")
-                        context.logger.debug(f"HANDLER:   - item.get('media_item_id'): {item.get('media_item_id')}")
-
                         # The query should return 'id' field from the database
                         # If not present, skip the item entirely
                         if 'id' not in item:
                             context.logger.warning(f"HANDLER: Skipping list item without ID: {item.get('title', 'Unknown')}")
                             context.logger.warning(f"HANDLER: Available keys in item: {list(item.keys())}")
                             continue
-
-                        context.logger.debug(f"HANDLER: Item {item_idx} has valid ID field: {item['id']}")
 
                         # Build context menu for item
                         context_menu = []
@@ -724,8 +714,6 @@ class ListsHandler:
                             "Remove from List",
                             f"RunPlugin({context.build_url('remove_from_list', list_id=list_id, item_id=item['id'])})"
                         ))
-
-                        context.logger.debug(f"HANDLER: Building list item for '{item.get('title')}' with ID={item['id']}")
 
                         # Create list item for display using existing builder method
                         result = builder._build_single_item(item)
@@ -737,7 +725,7 @@ class ListsHandler:
                             if context_menu and listitem:
                                 try:
                                     listitem.addContextMenuItems(context_menu)
-                                    context.logger.debug(f"HANDLER: Added {len(context_menu)} context menu items")
+
                                 except Exception as e:
                                     context.logger.warning(f"HANDLER: Failed to add context menu: {e}")
 
@@ -751,8 +739,6 @@ class ListsHandler:
                         else:
                             context.logger.error(f"HANDLER: Failed to build item for '{item.get('title')}'")
                             continue
-
-                        context.logger.debug(f"HANDLER: Successfully added item {item_idx} to directory")
 
                     except Exception as e:
                         context.logger.error(f"HANDLER: Error building list item {item_idx}: {e}")
