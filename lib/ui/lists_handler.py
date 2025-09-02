@@ -671,6 +671,16 @@ class ListsHandler:
 
             context.logger.info(f"List '{list_info['name']}' has {len(list_items)} items")
 
+            # Add breadcrumb first if available
+            if context.breadcrumb_path:
+                from .menu_builder import MenuBuilder
+                menu_builder = MenuBuilder()
+                try:
+                    menu_builder._add_breadcrumb_item(context.breadcrumb_path, context.addon_handle, context.base_url)
+                    context.logger.debug(f"Added breadcrumb to list view: '{context.breadcrumb_path}'")
+                except Exception as e:
+                    context.logger.error(f"Failed to add breadcrumb to list view: {e}")
+
             # Add Tools & Options at the top of the list view
             tools_item = xbmcgui.ListItem(label=f"[COLOR yellow]⚙️ {L(36000)}[/COLOR]")  # "Tools & Options"
             tools_item.setInfo('video', {'plot': L(36016)})  # "Access list tools and options"
@@ -745,16 +755,6 @@ class ListsHandler:
                         import traceback
                         context.logger.error(f"HANDLER: Traceback: {traceback.format_exc()}")
                         continue
-
-            # Add breadcrumb if available
-            if context.breadcrumb_path:
-                from .menu_builder import MenuBuilder
-                menu_builder = MenuBuilder()
-                try:
-                    menu_builder._add_breadcrumb_item(context.breadcrumb_path, context.addon_handle, context.base_url)
-                    context.logger.debug(f"Added breadcrumb to list view: '{context.breadcrumb_path}'")
-                except Exception as e:
-                    context.logger.error(f"Failed to add breadcrumb to list view: {e}")
 
             # Set content type and finish directory
             xbmcplugin.setContent(context.addon_handle, 'movies')
