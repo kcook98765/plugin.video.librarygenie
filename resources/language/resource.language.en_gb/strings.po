@@ -1167,3 +1167,202 @@ msgstr ""
 msgctxt "#32088"
 msgid "Enable automatic token refresh in the background service"
 msgstr ""
+
+# Backup & Storage Management
+msgctxt "#34000"
+msgid "Backup & Storage"
+msgstr ""
+
+msgctxt "#34001"
+msgid "Backup Settings"
+msgstr ""
+
+msgctxt "#34002"
+msgid "Enable automatic backups"
+msgstr ""
+
+msgctxt "#34003"
+msgid "Backup interval"
+msgstr ""
+
+msgctxt "#34004"
+msgid "Backup storage location"
+msgstr ""
+
+msgctxt "#34005"
+msgid "Backup retention policy"
+msgstr ""
+
+msgctxt "#34006"
+msgid "Create Backup Now"
+msgstr ""
+
+msgctxt "#34007"
+msgid "Restore from Backup"
+msgstr ""
+
+msgctxt "#34008"
+msgid "Manage Backups"
+msgstr ""
+
+msgctxt "#34009"
+msgid "Backup created successfully"
+msgstr ""
+
+msgctxt "#34010"
+msgid "Backup failed"
+msgstr ""
+
+msgctxt "#34011"
+msgid "Restore completed successfully"
+msgstr ""
+
+msgctxt "#34012"
+msgid "Restore failed"
+msgstr ""
+
+msgctxt "#34013"
+msgid "Are you sure you want to restore from this backup?"
+msgstr ""
+
+msgctxt "#34014"
+msgid "This will replace all current lists and data."
+msgstr ""
+
+msgctxt "#34015"
+msgid "Backup in progress..."
+msgstr ""
+
+msgctxt "#34016"
+msgid "Restore in progress..."
+msgstr ""
+
+msgctxt "#34017"
+msgid "Select backup to restore"
+msgstr ""
+
+msgctxt "#34018"
+msgid "No backups found"
+msgstr ""
+
+msgctxt "#34019"
+msgid "Backup file not found"
+msgstr ""
+
+msgctxt "#34020"
+msgid "Invalid backup file"
+msgstr ""
+
+# Sync & Remote Services
+msgctxt "#34100"
+msgid "Sync Status"
+msgstr ""
+
+msgctxt "#34101"
+msgid "Last sync"
+msgstr ""
+
+msgctxt "#34102"
+msgid "Sync now"
+msgstr ""
+
+msgctxt "#34103"
+msgid "Sync in progress..."
+msgstr ""
+
+msgctxt "#34104"
+msgid "Sync completed successfully"
+msgstr ""
+
+msgctxt "#34105"
+msgid "Sync failed"
+msgstr ""
+
+msgctxt "#34106"
+msgid "Authentication required"
+msgstr ""
+
+msgctxt "#34107"
+msgid "Device authorization"
+msgstr ""
+
+msgctxt "#34108"
+msgid "Authorization pending"
+msgstr ""
+
+msgctxt "#34109"
+msgid "Authorization complete"
+msgstr ""
+
+msgctxt "#34110"
+msgid "Authorization failed"
+msgstr ""
+
+msgctxt "#34111"
+msgid "Token expired"
+msgstr ""
+
+msgctxt "#34112"
+msgid "Refreshing token..."
+msgstr ""
+
+msgctxt "#34113"
+msgid "Connection test successful"
+msgstr ""
+
+msgctxt "#34114"
+msgid "Connection test failed"
+msgstr ""
+
+msgctxt "#34115"
+msgid "Pending operations"
+msgstr ""
+
+msgctxt "#34116"
+msgid "Retry pending operations"
+msgstr ""
+
+# Storage & File Management
+msgctxt "#34200"
+msgid "Storage Management"
+msgstr ""
+
+msgctxt "#34201"
+msgid "Clear cache"
+msgstr ""
+
+msgctxt "#34202"
+msgid "Cache cleared successfully"
+msgstr ""
+
+msgctxt "#34203"
+msgid "Failed to clear cache"
+msgstr ""
+
+msgctxt "#34204"
+msgid "Validate storage paths"
+msgstr ""
+
+msgctxt "#34205"
+msgid "Storage path validation"
+msgstr ""
+
+msgctxt "#34206"
+msgid "All paths are valid"
+msgstr ""
+
+msgctxt "#34207"
+msgid "Some paths are invalid"
+msgstr ""
+
+msgctxt "#34208"
+msgid "Cleanup temporary files"
+msgstr ""
+
+msgctxt "#34209"
+msgid "Temporary files cleaned"
+msgstr ""
+
+msgctxt "#34210"
+msgid "Cleanup failed"
+msgstr ""
