@@ -86,15 +86,21 @@ class Router:
                         import xbmc
                         folder_id = result.navigate_to_folder
                         xbmc.executebuiltin(f'Container.Update({context.build_url("show_folder", folder_id=folder_id)},replace)')
+                        # End directory properly to prevent fallback navigation
+                        xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
                         return True  # Prevent further processing
                     elif hasattr(result, 'navigate_to_lists') and result.navigate_to_lists:
                         # Navigate to main lists menu (for list/folder deletion)
                         import xbmc
                         xbmc.executebuiltin(f'Container.Update({context.build_url("lists")},replace)')
+                        # End directory properly to prevent fallback navigation
+                        xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
                         return True  # Prevent further processing
                     elif hasattr(result, 'refresh_needed') and result.refresh_needed:
                         # Just refresh the current directory
                         xbmc.executebuiltin('Container.Refresh')
+                        # End directory properly
+                        xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
                         return True  # Prevent further processing
                 elif hasattr(result, 'success') and not result.success:
                     # For failed/canceled operations, navigate back to the appropriate view
