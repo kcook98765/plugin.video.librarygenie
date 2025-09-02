@@ -185,9 +185,17 @@ class ToolsHandler:
                     lists_handler = ListsHandler()
                     result = lists_handler.delete_list(context, list_id)
                     
-                    # For search history deletion, set a special flag to navigate back to folder
+                    # For search history deletion, check if this was the last list in the folder
                     if result.success:
-                        result.navigate_to_folder = query_manager.get_or_create_search_history_folder()
+                        search_folder_id = query_manager.get_or_create_search_history_folder()
+                        remaining_lists = query_manager.get_lists_in_folder(search_folder_id)
+                        
+                        if remaining_lists:
+                            # Still have search history lists, navigate back to folder
+                            result.navigate_to_folder = search_folder_id
+                        else:
+                            # No more search history lists, navigate back to main lists menu
+                            result.navigate_to_lists = True
                     
                     return result
             else:
