@@ -54,14 +54,59 @@ class ListsHandler:
             context.logger.info(f"Found {len(user_lists)} user lists (excluding Kodi Favorites)")
 
             if not user_lists:
-                # No lists exist, offer to create one
-                if xbmcgui.Dialog().yesno(
-                    L(35002),
-                    "No lists found. Create your first list?"
-                ):
-                    return self.create_list(context)
+                # No lists exist - show empty state instead of dialog
+                # This prevents confusing dialogs when navigating back from deletions
+                menu_items = []
+                
+                # Add "Tools & Options" even when empty
+                menu_items.append({
+                    'label': f"[COLOR yellow]⚙️ {L(36000)}[/COLOR]",  # "Tools & Options"
+                    'url': context.build_url('show_list_tools', list_type='lists_main'),
+                    'is_folder': True,
+                    'icon': "DefaultAddonProgram.png",
+                    'description': L(36018)  # "Access lists tools and options"
+                })
+                
+                # Add "Create First List" option
+                menu_items.append({
+                    'label': "[COLOR lightgreen]+ Create Your First List[/COLOR]",
+                    'url': context.build_url('create_list_execute'),
+                    'is_folder': True,
+                    'icon': "DefaultAddSource.png",
+                    'description': "Create your first list to get started"
+                })
 
-                return DirectoryResponse(items=[], success=True)
+                # Build directory items
+                for item in menu_items:
+                    list_item = xbmcgui.ListItem(label=item['label'])
+
+                    if 'description' in item:
+                        list_item.setInfo('video', {'plot': item['description']})
+
+                    if 'icon' in item:
+                        list_item.setArt({'icon': item['icon'], 'thumb': item['icon']})
+
+                    xbmcplugin.addDirectoryItem(
+                        context.addon_handle,
+                        item['url'],
+                        list_item,
+                        item['is_folder']
+                    )
+
+                # End directory
+                xbmcplugin.endOfDirectory(
+                    context.addon_handle,
+                    succeeded=True,
+                    updateListing=False,
+                    cacheToDisc=True
+                )
+
+                return DirectoryResponse(
+                    items=menu_items,
+                    success=True,
+                    cache_to_disc=True,
+                    content_type="files"
+                )
 
             # Build menu items for lists and folders
             menu_items = []
