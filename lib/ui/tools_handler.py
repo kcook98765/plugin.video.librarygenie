@@ -61,7 +61,7 @@ class ToolsHandler:
                 )
 
             last_scan_info = favorites_manager._get_last_scan_info_for_display()
-            scan_option = f"[COLOR white]🔄 {L(36001)}[/COLOR]"  # "Scan Favorites"
+            scan_option = f"[COLOR white]{L(36001)}[/COLOR]"  # "Scan Favorites"
 
             if last_scan_info:
                 try:
@@ -81,7 +81,7 @@ class ToolsHandler:
                         days = int(time_diff.total_seconds() / 86400)
                         time_ago = f"{days} day{'s' if days != 1 else ''} ago"
 
-                    scan_option = f"[COLOR white]🔄 {L(36001)} ({time_ago})[/COLOR]"  # "Scan Favorites"
+                    scan_option = f"[COLOR white]{L(36001)} ({time_ago})[/COLOR]"  # "Scan Favorites"
                 except Exception as e:
                     context.logger.debug(f"Could not parse last scan time: {e}")
 
@@ -90,9 +90,9 @@ class ToolsHandler:
                 # Refresh operations
                 scan_option,
                 # Additive operations
-                f"[COLOR lightgreen]💾 {L(36002)}[/COLOR]",  # "Save As New List"
+                f"[COLOR lightgreen]{L(36002)}[/COLOR]",  # "Save As New List"
                 # Cancel
-                f"[COLOR gray]❌ {L(36003)}[/COLOR]"  # "Cancel"
+                f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
             ]
 
             # Show selection dialog
@@ -146,24 +146,24 @@ class ToolsHandler:
                 # Special options for search history lists
                 options = [
                     f"[COLOR lightgreen]📋 Copy to New List[/COLOR]",
-                    f"[COLOR white]📤 {L(36007) % list_info['name']}[/COLOR]",  # "Export '%s'"
-                    f"[COLOR red]🗑️ {L(36008) % list_info['name']}[/COLOR]",  # "Delete '%s'"
-                    f"[COLOR gray]❌ {L(36003)}[/COLOR]"  # "Cancel"
+                    f"[COLOR white]{L(36007) % list_info['name']}[/COLOR]",  # "Export '%s'"
+                    f"[COLOR red]{L(36008) % list_info['name']}[/COLOR]",  # "Delete '%s'"
+                    f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
                 ]
             else:
                 # Standard list options
                 options = [
                     # Additive operations
-                    f"[COLOR lightgreen]🔀 {L(36004) % list_info['name']}[/COLOR]",  # "Merge Another List Into '%s'"
+                    f"[COLOR lightgreen]{L(36004) % list_info['name']}[/COLOR]",  # "Merge Another List Into '%s'"
                     # Modify operations
-                    f"[COLOR yellow]✏️ {L(36005) % list_info['name']}[/COLOR]",  # "Rename '%s'"
-                    f"[COLOR yellow]📁 {L(36006) % list_info['name']}[/COLOR]",  # "Move '%s' to Folder"
+                    f"[COLOR yellow]{L(36005) % list_info['name']}[/COLOR]",  # "Rename '%s'"
+                    f"[COLOR yellow]{L(36006) % list_info['name']}[/COLOR]",  # "Move '%s' to Folder"
                     # Export operations
-                    f"[COLOR white]📤 {L(36007) % list_info['name']}[/COLOR]",  # "Export '%s'"
+                    f"[COLOR white]{L(36007) % list_info['name']}[/COLOR]",  # "Export '%s'"
                     # Destructive operations
-                    f"[COLOR red]🗑️ {L(36008) % list_info['name']}[/COLOR]",  # "Delete '%s'"
+                    f"[COLOR red]{L(36008) % list_info['name']}[/COLOR]",  # "Delete '%s'"
                     # Cancel
-                    f"[COLOR gray]❌ {L(36003)}[/COLOR]"  # "Cancel"
+                    f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
                 ]
 
             # Show selection dialog
@@ -257,31 +257,31 @@ class ToolsHandler:
             if is_reserved:
                 # Special options for Search History folder
                 options.extend([
-                    f"[COLOR white]📤 {L(36012) % folder_info['name']}[/COLOR]",  # "Export All Lists in '%s'"
-                    f"[COLOR yellow]🗑️ Clear All Search History[/COLOR]"
+                    f"[COLOR white]{L(36012) % folder_info['name']}[/COLOR]",  # "Export All Lists in '%s'"
+                    f"[COLOR yellow]Clear All Search History[/COLOR]"
                 ])
             else:
                 # Standard folder options
                 # Additive operations
                 options.extend([
-                    f"[COLOR lightgreen]📋 {L(36009) % folder_info['name']}[/COLOR]",  # "Create New List in '%s'"
-                    f"[COLOR lightgreen]📁 {L(36010) % folder_info['name']}[/COLOR]"  # "Create New Subfolder in '%s'"
+                    f"[COLOR lightgreen]{L(36009) % folder_info['name']}[/COLOR]",  # "Create New List in '%s'"
+                    f"[COLOR lightgreen]{L(36010) % folder_info['name']}[/COLOR]"  # "Create New Subfolder in '%s'"
                 ])
 
                 # Modify operations
                 options.extend([
-                    f"[COLOR yellow]✏️ {L(36005) % folder_info['name']}[/COLOR]",  # "Rename '%s'"
-                    f"[COLOR yellow]📁 {L(36011) % folder_info['name']}[/COLOR]"  # "Move '%s' to Parent Folder"
+                    f"[COLOR yellow]{L(36005) % folder_info['name']}[/COLOR]",  # "Rename '%s'"
+                    f"[COLOR yellow]{L(36011) % folder_info['name']}[/COLOR]"  # "Move '%s' to Parent Folder"
                 ])
 
                 # Export operations
-                options.append(f"[COLOR white]📤 {L(36012) % folder_info['name']}[/COLOR]")  # "Export All Lists in '%s'"
+                options.append(f"[COLOR white]{L(36012) % folder_info['name']}[/COLOR]")  # "Export All Lists in '%s'"
 
                 # Destructive operations
-                options.append(f"[COLOR red]🗑️ {L(36008) % folder_info['name']}[/COLOR]")  # "Delete '%s'"
+                options.append(f"[COLOR red]{L(36008) % folder_info['name']}[/COLOR]")  # "Delete '%s'"
 
             # Cancel
-            options.append(f"[COLOR gray]❌ {L(36003)}[/COLOR]")  # "Cancel"
+            options.append(f"[COLOR gray]{L(36003)}[/COLOR]")  # "Cancel"
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
@@ -819,23 +819,23 @@ class ToolsHandler:
             # Build comprehensive options for main lists menu - organized by operation type
             options = [
                 # Creation operations
-                f"[COLOR lightgreen]📋 {L(36019)}[/COLOR]",  # "Create New List"
-                f"[COLOR lightgreen]📁 {L(36020)}[/COLOR]",  # "Create New Folder"
+                f"[COLOR lightgreen]{L(36019)}[/COLOR]",  # "Create New List"
+                f"[COLOR lightgreen]{L(36020)}[/COLOR]",  # "Create New Folder"
                 # Import operations
-                f"[COLOR white]📥 Import Lists[/COLOR]",
+                f"[COLOR white]Import Lists[/COLOR]",
                 # Export operations
-                f"[COLOR white]📤 Export All Lists[/COLOR]",
+                f"[COLOR white]Export All Lists[/COLOR]",
                 # Backup operations
-                f"[COLOR white]💾 Manual Backup[/COLOR]",
-                f"[COLOR white]📂 Backup Manager[/COLOR]",
-                f"[COLOR white]🧪 Test Backup Config[/COLOR]",
+                f"[COLOR white]Manual Backup[/COLOR]",
+                f"[COLOR white]Backup Manager[/COLOR]",
+                f"[COLOR white]Test Backup Config[/COLOR]",
                 # Management operations
-                f"[COLOR yellow]📊 Library Statistics[/COLOR]",
-                f"[COLOR yellow]🔄 Force Library Rescan[/COLOR]",
-                f"[COLOR yellow]🗑️ Clear Search History[/COLOR]",
-                f"[COLOR yellow]⚙️ Reset Preferences[/COLOR]",
+                f"[COLOR yellow]Library Statistics[/COLOR]",
+                f"[COLOR yellow]Force Library Rescan[/COLOR]",
+                f"[COLOR yellow]Clear Search History[/COLOR]",
+                f"[COLOR yellow]Reset Preferences[/COLOR]",
                 # Cancel
-                f"[COLOR gray]❌ {L(36003)}[/COLOR]"  # "Cancel"
+                f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
             ]
 
             # Show selection dialog
