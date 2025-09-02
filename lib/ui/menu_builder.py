@@ -164,24 +164,14 @@ class MenuBuilder:
         self.logger.debug(f"MENU ITEM: Successfully added '{title}' to directory")
 
     def _add_breadcrumb_item(self, breadcrumb_path, addon_handle, base_url):
-        """Add a breadcrumb navigation item at the top of the directory"""
-        breadcrumb_label = f"[COLOR gray]{breadcrumb_path}[/COLOR]"
+        """Add breadcrumb navigation item at the top of the menu"""
+        breadcrumb_item = xbmcgui.ListItem(label=f"[COLOR gray]> {breadcrumb_path}[/COLOR]")
+        breadcrumb_item.setInfo('video', {'plot': f'Current location: {breadcrumb_path}'})
+        breadcrumb_item.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
 
-        # Create a non-interactive list item
-        list_item = xbmcgui.ListItem(label=breadcrumb_label)
-        list_item.setInfo('video', {'plot': f"Current location: {breadcrumb_path}"})
-        list_item.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
-
-        # Make it non-playable and non-actionable
-        list_item.setProperty('IsPlayable', 'false')
-
-        # Add as a non-folder item with empty URL to prevent interaction
-        xbmcplugin.addDirectoryItem(
-            handle=addon_handle, 
-            url="", 
-            listitem=list_item, 
-            isFolder=False
-        )
+        # Make breadcrumb non-selectable by using a noop URL
+        noop_url = f"{base_url}?action=noop"
+        xbmcplugin.addDirectoryItem(addon_handle, noop_url, breadcrumb_item, False)
 
     def build_movie_menu(self, movies: List[Dict[str, Any]], addon_handle, base_url, **options):
         """Build a menu specifically for movie items with enhanced ListItems"""
