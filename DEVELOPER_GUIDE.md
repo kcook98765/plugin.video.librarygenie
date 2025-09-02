@@ -11,8 +11,9 @@ LibraryGenie consists of three main layers:
 1. **UI Layer** (`lib/ui/`)
    - Plugin routing and action handling (`router.py`, `plugin_context.py`)
    - Directory views and list building (`listitem_builder.py`, `listitem_renderer.py`, `menu_builder.py`)
-   - Handler modules for specific features (`lists_handler.py`, `search_handler.py`, `favorites_handler.py`, `main_menu_handler.py`)
+   - Handler modules for specific features (`lists_handler.py`, `search_handler.py`, `favorites_handler.py`, `main_menu_handler.py`, `tools_handler.py`)
    - Context menu integration (`context_menu.py`)
+   - Localization with caching (`localization.py`)
    - Playback actions and info dialog hijacking (`playback_actions.py`, `info_hijack_manager.py`)
    - Session state management (`session_state.py`)
 
@@ -86,6 +87,13 @@ LibraryGenie consists of three main layers:
 - **Rate limiting**: Sleep generously between steps; use jitter to avoid busy loops.
 - **Triggers**: Run on addon start, library updates, periodic timer, and manual force.
 - **Guardrails**: Check auth state, playback status, and recent run timestamps before proceeding.
+
+### UI/UX Guidelines
+- **Tools & Options**: Use centralized tools menu for context-aware actions.
+- **Color Coding**: Apply Kodi-style colors - yellow for tools, red for destructive actions, green for additive actions, white for modify actions.
+- **Localization**: Use cached localization helper (`L()` function) for all user-visible strings, especially in context menus.
+- **Context Awareness**: Tool options should adapt based on where they are opened from (lists vs favorites vs root).
+- **Performance**: Cache localized strings to reduce overhead in menus with many items.
 
 ### Compatibility
 - Support **Kodi 19 and newer**.  

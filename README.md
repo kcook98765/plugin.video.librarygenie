@@ -24,13 +24,16 @@ LibraryGenie is a Kodi addon that provides advanced, flexible list and folder ma
 
 ### Lists & Folders
 - Hierarchical folder structure with unlimited depth.
-- Create, rename, move, and delete lists and folders.
+- **Tools & Options Menu**: Context-aware tools for list and folder management.
+- Create, rename, move, and delete lists and folders with color-coded actions.
 - Add/remove items via context menus from anywhere in Kodi.
+- Export functionality integrated into tools menu.
 - Duplicate detection and unique constraint handling.
 - Transaction-safe modifications to prevent corruption.
 
 ### Import & Export
 - **NDJSON Export**: Primary format, newline-delimited JSON entries with all relevant fields.
+- **Tools Integration**: Export accessible via Tools & Options menu with context-aware options.
 - **IMDb-First Matching**: Highest-confidence mapping across systems.
 - **Fallbacks**: TMDb IDs, title/year, season/episode, or artist/track when IMDb is missing.
 - **Placeholder Creation**: Unmatched items preserved for later resolution.

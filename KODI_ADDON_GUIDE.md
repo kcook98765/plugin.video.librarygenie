@@ -53,6 +53,9 @@
 ## 6) Metadata & UX Quality
 - `addon.xml` must include: id, name, version, provider-name, summary, description, platform, license, and minimum xbmc.python import.
 - Provide **localization** for user-visible strings via `strings.po` files (at least English).
+- **Cache localized strings**: Use `@lru_cache` decorator for string lookups to improve performance in menus with many items.
+- **Color coding**: Use Kodi-style color codes for different action types (destructive, additive, modify).
+- **Context-aware menus**: Implement tools and options that adapt based on the current context.
 - Include **icon** and **fanart** that meet the size/format requirements and are your own or properly licensed.
 - Provide **clean UI/UX**: avoid modal spam, respect back/exit behaviors, and keep logs readable.
 - Follow **GUI guidelines**: set `IsPlayable` appropriately, use sort methods, and do not force skin-specific behaviors unless optional.
