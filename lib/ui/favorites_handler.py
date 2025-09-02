@@ -371,12 +371,8 @@ class FavoritesHandler:
             if selected_folder_index > 0:  # Not root level
                 folder_id = all_folders[selected_folder_index - 1]["id"]
 
-            # Create the new list
-            from lib.data.list_library_manager import get_list_library_manager
-            list_manager = get_list_library_manager()
-
-            # Create the list
-            create_result = list_manager.create_list(new_list_name, folder_id)
+            # Create the list using QueryManager
+            create_result = query_manager.create_list(new_list_name, folder_id)
 
             if not create_result.get("success"):
                 error_msg = create_result.get("message", "Failed to create list")
@@ -395,7 +391,7 @@ class FavoritesHandler:
             for favorite in favorites:
                 media_item_id = favorite.get('media_item_id') or favorite.get('id')
                 if media_item_id:
-                    add_result = list_manager.add_to_list(new_list_id, media_item_id)
+                    add_result = query_manager.add_to_list(new_list_id, media_item_id)
                     if add_result.get("success"):
                         added_count += 1
                     else:
