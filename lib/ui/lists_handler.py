@@ -746,6 +746,16 @@ class ListsHandler:
                         context.logger.error(f"HANDLER: Traceback: {traceback.format_exc()}")
                         continue
 
+            # Add breadcrumb if available
+            if context.breadcrumb_path:
+                from .menu_builder import MenuBuilder
+                menu_builder = MenuBuilder()
+                try:
+                    menu_builder._add_breadcrumb_item(context.breadcrumb_path, context.addon_handle, context.base_url)
+                    context.logger.debug(f"Added breadcrumb to list view: '{context.breadcrumb_path}'")
+                except Exception as e:
+                    context.logger.error(f"Failed to add breadcrumb to list view: {e}")
+
             # Set content type and finish directory
             xbmcplugin.setContent(context.addon_handle, 'movies')
             xbmcplugin.endOfDirectory(
