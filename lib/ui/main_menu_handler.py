@@ -23,21 +23,39 @@ class MainMenuHandler:
         """Show main menu with auth-aware options"""
         menu_items = []
 
-        # Search (always visible)
-        menu_items.append({
-            'label': context.addon.getLocalizedString(35014),  # "Search"
-            'url': context.build_url('search'),
-            'is_folder': True
-        })
-
-        # Lists (always visible)
+        # 1. Lists (always visible)
         menu_items.append({
             'label': context.addon.getLocalizedString(35016),  # "Lists"
             'url': context.build_url('lists'),
             'is_folder': True
         })
 
-        # Add Kodi Favorites if visibility is enabled in settings
+        # 2. Search (always visible)
+        menu_items.append({
+            'label': context.addon.getLocalizedString(35014),  # "Search"
+            'url': context.build_url('search'),
+            'is_folder': True
+        })
+
+        # 3. Search History (if exists)
+        try:
+            from ..data.query_manager import get_query_manager
+            query_manager = get_query_manager()
+            if query_manager.initialize():
+                search_folder_id = query_manager.get_or_create_search_history_folder()
+                search_lists = query_manager.get_lists_in_folder(search_folder_id)
+                if search_lists:
+                    menu_items.append({
+                        'label': "Search History",
+                        'url': context.build_url('show_folder', folder_id=search_folder_id),
+                        'is_folder': True,
+                        'icon': "DefaultAddonProgram.png",
+                        'description': f"Browse {len(search_lists)} saved searches"
+                    })
+        except Exception as e:
+            context.logger.debug(f"Could not check search history: {e}")
+
+        # 4. Kodi Favorites (if visibility is enabled in settings)
         if context.addon.getSettingBool("favorites_integration_enabled"):
             menu_items.append({
                 'label': context.addon.getLocalizedString(32000),  # "Kodi Favorites (read-only)"
@@ -47,27 +65,12 @@ class MainMenuHandler:
                 'description': context.addon.getLocalizedString(32001)  # "Browse Kodi Favorites"
             })
 
-        # Auth-dependent menu items
+        # Remote features (when authorized) - keeping this for functionality
         if context.is_authorized:
-            # Sign out (visible only when authorized)
-            menu_items.append({
-                'label': context.addon.getLocalizedString(35027),  # "Sign out"
-                'url': context.build_url('signout'),
-                'is_folder': False
-            })
-
-            # Remote features (when authorized)
             menu_items.append({
                 'label': context.addon.getLocalizedString(35017),  # "Remote Lists"
                 'url': context.build_url('remote_lists'),
                 'is_folder': True
-            })
-        else:
-            # Authorize device (visible only when not authorized)
-            menu_items.append({
-                'label': context.addon.getLocalizedString(35028),  # "Authorize device"
-                'url': context.build_url('authorize'),
-                'is_folder': False
             })
 
         # Build directory items

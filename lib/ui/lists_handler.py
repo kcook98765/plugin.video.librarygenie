@@ -78,20 +78,19 @@ class ListsHandler:
             # Get all existing folders to display as navigable items
             all_folders = query_manager.get_all_folders()
 
-            # Add folders as navigable items
+            # Add folders as navigable items (excluding Search History which is now at root level)
             for folder_info in all_folders:
                 folder_id = folder_info['id']
                 folder_name = folder_info['name']
                 list_count = folder_info['list_count']
 
-                # Check if it's the reserved "Search History" folder
-                is_reserved_folder = folder_name == 'Search History'
-                context_menu = []
+                # Skip the reserved "Search History" folder since it's now shown at root level
+                if folder_name == 'Search History':
+                    continue
 
-                if not is_reserved_folder:
-                    context_menu = [
-                        (f"Tools & Options for '{folder_name}'", f"RunPlugin({context.build_url('show_tools', list_type='folder', list_id=folder_id)})")
-                    ]
+                context_menu = [
+                    (f"Tools & Options for '{folder_name}'", f"RunPlugin({context.build_url('show_tools', list_type='folder', list_id=folder_id)})")
+                ]
 
                 menu_items.append({
                     'label': f"[COLOR cyan]📁 {folder_name}[/COLOR]",
