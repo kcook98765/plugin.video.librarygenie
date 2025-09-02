@@ -64,9 +64,19 @@ class ExportedListItem:
     title: str
     year: Optional[int]
     file_path: str
-    imdb_id: Optional[str]
+    imdbnumber: Optional[str]
     tmdb_id: Optional[str]
     external_ids: Dict[str, str]
+    backup_metadata: Optional[Dict[str, Any]] = None
+
+
+@dataclass
+class ExportedFolder:
+    """Exported folder data structure"""
+    id: int
+    name: str
+    parent_id: Optional[int]
+    created_at: str
 
 
 @dataclass
@@ -78,8 +88,9 @@ class ExportedFavorite:
     year: Optional[int]
     file_path: str
     normalized_path: str
-    imdb_id: Optional[str]
+    imdbnumber: Optional[str]
     tmdb_id: Optional[str]
+    backup_metadata: Optional[Dict[str, Any]] = None
 
 
 @dataclass
@@ -89,10 +100,11 @@ class ExportedLibraryItem:
     title: str
     year: Optional[int]
     file_path: str
-    imdb_id: Optional[str]
+    imdbnumber: Optional[str]
     tmdb_id: Optional[str]
     external_ids: Dict[str, str]
     added_at: str
+    backup_metadata: Optional[Dict[str, Any]] = None
 
 
 @dataclass
@@ -191,5 +203,12 @@ class ExportSchema:
                 for field in required_fields:
                     if field not in item:
                         errors.append(f"library_snapshot[{i}]: missing {field}")
+        
+        elif export_type == "folders":
+            for i, item in enumerate(data):
+                required_fields = ["id", "name", "created_at"]
+                for field in required_fields:
+                    if field not in item:
+                        errors.append(f"folders[{i}]: missing {field}")
         
         return errors

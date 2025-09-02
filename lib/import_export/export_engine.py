@@ -119,8 +119,9 @@ class ExportEngine:
             GROUP BY l.id, l.name, l.description, l.created_at, l.updated_at
             ORDER BY l.created_at
         """
+        params = () # Placeholder for potential future parameters
 
-        lists = self.conn_manager.execute_query(query)
+        lists = self.conn_manager.execute_query(query, params)
 
         for list_row in lists or []:
             if hasattr(list_row, 'keys'):
@@ -152,8 +153,9 @@ class ExportEngine:
             WHERE lm.is_removed = 0
             ORDER BY li.list_id, lm.title
         """
+        params = () # Placeholder for potential future parameters
 
-        items = self.conn_manager.execute_query(query)
+        items = self.conn_manager.execute_query(query, params)
 
         for item_row in items or []:
             if hasattr(item_row, 'keys'):
@@ -194,8 +196,9 @@ class ExportEngine:
             WHERE mi.is_removed = 0
             ORDER BY kf.name
         """
+        params = () # Placeholder for potential future parameters
 
-        favorites = self.conn_manager.execute_query(query)
+        favorites = self.conn_manager.execute_query(query, params)
 
         for fav_row in favorites or []:
             if hasattr(fav_row, 'keys'):
@@ -227,8 +230,9 @@ class ExportEngine:
             WHERE is_removed = 0 AND kodi_id IS NOT NULL
             ORDER BY title
         """
+        params = () # Placeholder for potential future parameters
 
-        movies = self.conn_manager.execute_query(query)
+        movies = self.conn_manager.execute_query(query, params)
 
         for movie_row in movies or []:
             if hasattr(movie_row, 'keys'):
