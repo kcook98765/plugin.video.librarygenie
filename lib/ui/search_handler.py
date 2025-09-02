@@ -61,6 +61,7 @@ class SearchHandler:
         self.query_manager = get_query_manager()
         self.addon = xbmcaddon.Addon()
         self.addon_id = self.addon.getAddonInfo('id')
+        self.base_url = f"plugin://{self.addon_id}" # Base URL for building plugin calls
 
     # ---------- PUBLIC ENTRYPOINTS (both preserved) ----------
 
@@ -86,7 +87,7 @@ class SearchHandler:
         self._maybe_persist_search_history(query, search_type, results)
 
         # Display: inline only to avoid parent navigation issues
-        # Redirect to saved search list disabled due to parent navigation problems
+        # Redirect to saved search list disabled due to parent navigation issues
 
         # Inline display (build directory now)
         self._display_results_inline(results, query)
@@ -246,13 +247,45 @@ class SearchHandler:
 
         # Detect content and build
         content_type = self.query_manager.detect_content_type(normalized)
+
         if ListItemBuilder is None:
             self._error("ListItemBuilder not available")
             self._end_directory(succeeded=False, update=False)
             return
-            
+
+        # Add breadcrumb for search results
+        breadcrumb_path = f"Search > \"{query}\" results"
+
+        # Display search results using ListItemBuilder with breadcrumb
         builder = ListItemBuilder(self._require_handle(), self.addon_id)
-        _ok = builder.build_directory(normalized, content_type)
+
+        # Add breadcrumb item at the top
+        import xbmcgui
+        import xbmcplugin
+        breadcrumb_item = xbmcgui.ListItem(label=f"[COLOR gray]> {breadcrumb_path}[/COLOR]")
+        breadcrumb_item.setInfo('video', {'plot': f'Current location: {breadcrumb_path}'})
+        breadcrumb_item.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
+
+        # Make breadcrumb non-selectable by using a noop URL
+        noop_url = f"{self.base_url}?action=noop"
+        xbmcplugin.addDirectoryItem(self.addon_handle, noop_url, breadcrumb_item, False)
+
+        # Add context menu for adding to lists
+        def add_search_context_menu(listitem, item):
+            """Add search-specific context menu items"""
+            try:
+                context_menu = []
+                media_item_id = item.get('media_item_id') or item.get('id') or item.get('kodi_id')
+                if media_item_id:
+                    context_menu.append((
+                        "Add to List",
+                        f"RunPlugin({self.build_url('add_to_list', media_item_id=media_item_id)})"
+                    ))
+                listitem.addContextMenuItems(context_menu)
+            except Exception as e:
+                self._warn(f"Failed to add search context menu: {e}")
+
+        success = builder.build_directory(normalized, content_type, add_search_context_menu)
 
         used_remote = results.get('used_remote', False)
         self._info(f"Displayed {len(normalized)} {'remote' if used_remote else 'local'} results inline for '{query}'")
@@ -406,3 +439,8 @@ class SearchHandler:
         results.setdefault('items', [])
         results.setdefault('total', len(results['items']))
         return results
+
+    # Helper to build plugin URLs, used for context menus
+    def build_url(self, action: str, **kwargs) -> str:
+        args = "&".join([f"{k}={v}" for k, v in kwargs.items()])
+        return f"{self.base_url}?action={action}&{args}"
