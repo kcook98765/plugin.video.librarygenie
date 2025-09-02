@@ -113,7 +113,7 @@ class ListsHandler:
 
             # Add "Tools & Options" at the top
             menu_items.append({
-                'label': f"[COLOR yellow]⚙️ {L(36000)}[/COLOR]",  # "Tools & Options"
+                'label': f"[COLOR yellow]{L(36000)}[/COLOR]",  # "Tools & Options"
                 'url': context.build_url('show_list_tools', list_type='lists_main'),
                 'is_folder': True,
                 'icon': "DefaultAddonProgram.png",
@@ -138,7 +138,7 @@ class ListsHandler:
                 ]
 
                 menu_items.append({
-                    'label': f"[COLOR cyan]📁 {folder_name}[/COLOR]",
+                    'label': f"[COLOR cyan]{folder_name}[/COLOR]",
                     'url': context.build_url('show_folder', folder_id=folder_id),
                     'is_folder': True,
                     'description': f"Folder with {list_count} lists",
@@ -163,7 +163,7 @@ class ListsHandler:
                 ]
 
                 menu_items.append({
-                    'label': f"[COLOR yellow]📋 {name}[/COLOR]",
+                    'label': f"[COLOR yellow]{name}[/COLOR]",
                     'url': context.build_url('show_list', list_id=list_id),
                     'is_folder': True,
                     'description': f"{item_count} items - {description}" if description else f"{item_count} items",
@@ -814,7 +814,7 @@ class ListsHandler:
 
             # Add Tools & Options for this folder
             menu_items.append({
-                'label': f"[COLOR yellow]⚙️ {L(36000)}[/COLOR]",  # "Tools & Options"
+                'label': f"[COLOR yellow]{L(36000)}[/COLOR]",  # "Tools & Options"
                 'url': context.build_url('show_list_tools', list_type='folder', list_id=folder_id),
                 'is_folder': True,
                 'icon': "DefaultAddonProgram.png",
@@ -846,7 +846,7 @@ class ListsHandler:
                 ]
 
                 menu_items.append({
-                    'label': f"[COLOR yellow]📋 {name}[/COLOR]",
+                    'label': f"[COLOR yellow]{name}[/COLOR]",
                     'url': context.build_url('show_list', list_id=list_id),
                     'is_folder': True,
                     'description': f"{item_count} items - {description}" if description else f"{item_count} items",
