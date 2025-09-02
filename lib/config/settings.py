@@ -255,3 +255,10 @@ class SettingsManager:
             'fallback_to_local': config.get_remote_fallback_to_local(),
             'cache_duration': config.get_remote_cache_duration()
         }
+
+
+# Module-level convenience functions
+def get_phase12_remote_settings() -> Dict[str, Any]:
+    """Module-level function to get remote service settings for Phase 1.2 integration"""
+    settings_manager = SettingsManager()
+    return settings_manager.get_phase12_remote_settings()
