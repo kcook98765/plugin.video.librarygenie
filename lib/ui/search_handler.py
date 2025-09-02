@@ -86,11 +86,10 @@ class SearchHandler:
         # Persist a Search History list if there are items
         self._maybe_persist_search_history(query, search_type, results)
 
-        # Display: inline only to avoid parent navigation issues
-        # Redirect to saved search list disabled due to parent navigation issues
-
-        # Inline display (build directory now)
-        self._display_results_inline(results, query)
+        # Display: Try to redirect to saved search list first (preferred UX)
+        if not self._try_redirect_to_saved_search_list():
+            # Fallback to inline display if redirect fails
+            self._display_results_inline(results, query)
         return self._maybe_dir_response(results.get('items', []), True, f"Found {len(results.get('items', []))} results for '{query}'", content_type="movies")
 
     def prompt_and_show(self):
@@ -109,8 +108,10 @@ class SearchHandler:
         self._cache_session_results(query, results)
         self._maybe_persist_search_history(query, search_type, results)
 
-        # Display inline only to avoid parent navigation issues
-        self._display_results_inline(results, query)
+        # Display: Try to redirect to saved search list first (preferred UX)
+        if not self._try_redirect_to_saved_search_list():
+            # Fallback to inline display if redirect fails
+            self._display_results_inline(results, query)
 
     # ---------- EXTERNAL CALLERS (kept for compatibility) ----------
 
