@@ -43,7 +43,7 @@ class FavoritesHandler:
 
             # Add "Tools & Options" at the top like other lists
             menu_items.append({
-                'label': f"[COLOR yellow]⚙️ Tools & Options[/COLOR]",
+                'label': f"[COLOR yellow]Tools & Options[/COLOR]",
                 'url': context.build_url('show_list_tools', list_type='favorites'),
                 'is_folder': True,
                 'icon': "DefaultAddonProgram.png",

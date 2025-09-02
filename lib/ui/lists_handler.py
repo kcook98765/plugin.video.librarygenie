@@ -60,7 +60,7 @@ class ListsHandler:
 
                 # Add "Tools & Options" even when empty
                 menu_items.append({
-                    'label': f"[COLOR yellow]⚙️ {L(36000)}[/COLOR]",  # "Tools & Options"
+                    'label': f"[COLOR yellow]{L(36000)}[/COLOR]",  # "Tools & Options"
                     'url': context.build_url('show_list_tools', list_type='lists_main'),
                     'is_folder': True,
                     'icon': "DefaultAddonProgram.png",
