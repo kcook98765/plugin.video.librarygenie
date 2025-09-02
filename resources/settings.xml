@@ -28,9 +28,8 @@
     <setting id="show_missing_indicators" type="bool" label="30043" default="true"/>
     <setting label="30050" type="lsep"/>
     <setting id="favorites_integration_enabled" type="bool" label="30051" default="false"/>
-    <setting id="favorites_scan_interval_minutes" type="slider" label="30052" default="30" range="10,5,240" option="int"/>
-    <setting id="show_unmapped_favorites" type="bool" label="30053" default="false"/>
-    <setting id="favorites_batch_processing" type="bool" label="30054" default="true"/>
+    <setting id="show_unmapped_favorites" type="bool" label="30053" default="false" enable="eq(-1,true)"/>
+    <setting id="favorites_batch_processing" type="bool" label="30054" default="true" enable="eq(-2,true)"/>
     <setting label="30070" type="lsep"/>
     <setting id="shortlist_import_action" type="action" label="30071" action="RunPlugin(plugin://plugin.video.librarygenie/?action=import_shortlist)"/>
     <setting id="shortlist_clear_before_import" type="bool" label="30072" default="true"/>

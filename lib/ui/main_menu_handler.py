@@ -15,14 +15,14 @@ from ..auth.state import is_authorized
 
 class MainMenuHandler:
     """Handles main menu display"""
-    
+
     def __init__(self):
         pass
-        
+
     def show_main_menu(self, context: PluginContext) -> DirectoryResponse:
         """Show main menu with auth-aware options"""
         menu_items = []
-        
+
         # Search (always visible)
         menu_items.append({
             'label': context.addon.getLocalizedString(35014),  # "Search"
@@ -37,12 +37,15 @@ class MainMenuHandler:
             'is_folder': True
         })
 
-        # Kodi Favorites (always visible)
-        menu_items.append({
-            'label': "Kodi Favorites",
-            'url': context.build_url('kodi_favorites'),
-            'is_folder': True
-        })
+        # Add Kodi Favorites if visibility is enabled in settings
+        if context.addon.getSettingBool("favorites_integration_enabled"):
+            menu_items.append({
+                'label': context.addon.getLocalizedString(32000),  # "Kodi Favorites (read-only)"
+                'url': context.build_url('favorites'),
+                'is_folder': True,
+                'icon': "DefaultFavourites.png",
+                'description': context.addon.getLocalizedString(32001)  # "Browse Kodi Favorites"
+            })
 
         # Auth-dependent menu items
         if context.is_authorized:
@@ -71,17 +74,17 @@ class MainMenuHandler:
         for item in menu_items:
             list_item = xbmcgui.ListItem(label=item['label'])
             xbmcplugin.addDirectoryItem(
-                context.addon_handle, 
-                item['url'], 
-                list_item, 
+                context.addon_handle,
+                item['url'],
+                list_item,
                 item['is_folder']
             )
 
         # End directory
         xbmcplugin.endOfDirectory(
-            context.addon_handle, 
-            succeeded=True, 
-            updateListing=False, 
+            context.addon_handle,
+            succeeded=True,
+            updateListing=False,
             cacheToDisc=True
         )
 

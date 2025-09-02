@@ -79,7 +79,7 @@ msgid "Kodi Favorites Integration"
 msgstr ""
 
 msgctxt "#30051"
-msgid "Enable Kodi Favorites integration (read-only)"
+msgid "Show Kodi Favorites folder"
 msgstr ""
 
 msgctxt "#30052"
