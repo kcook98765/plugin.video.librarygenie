@@ -593,6 +593,12 @@ class ListsHandler:
                 )
             else:
                 context.logger.info(f"Successfully deleted folder: {folder_info['name']}")
+                
+                # If deletion was successful, navigate back to lists menu
+                # since the current folder no longer exists
+                import xbmc
+                xbmc.executebuiltin(f'Container.Update({context.build_url("lists")},replace)')
+                
                 return DialogResponse(
                     success=True,
                     message=f"Deleted folder: {folder_info['name']}",
