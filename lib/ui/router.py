@@ -73,6 +73,7 @@ class Router:
                 list_type = params.get('list_type', 'unknown')
                 list_id = params.get('list_id')
                 result = self.tools_handler.show_list_tools(context, list_type, list_id)
+                
                 # Handle DialogResponse - show notification if there's a message
                 if hasattr(result, 'message') and result.message:
                     notification_type = xbmcgui.NOTIFICATION_INFO if result.success else xbmcgui.NOTIFICATION_ERROR
@@ -93,9 +94,20 @@ class Router:
                         # Just refresh the current directory
                         xbmc.executebuiltin('Container.Refresh')
                 elif hasattr(result, 'success') and not result.success:
-                    # For failed/canceled operations, do nothing to stay in current location
-                    # Don't refresh as it can cause loops with action-based URLs
-                    pass
+                    # For failed/canceled operations, navigate back to the appropriate view
+                    import xbmc
+                    if list_type == 'folder' and list_id:
+                        # Navigate back to the folder view
+                        xbmc.executebuiltin(f'Container.Update({context.build_url("show_folder", folder_id=list_id)},replace)')
+                    elif list_type == 'user_list' and list_id:
+                        # Navigate back to the list view  
+                        xbmc.executebuiltin(f'Container.Update({context.build_url("show_list", list_id=list_id)},replace)')
+                    elif list_type == 'favorites':
+                        # Navigate back to favorites view
+                        xbmc.executebuiltin(f'Container.Update({context.build_url("kodi_favorites")},replace)')
+                    elif list_type == 'lists_main':
+                        # Navigate back to main lists menu
+                        xbmc.executebuiltin(f'Container.Update({context.build_url("lists")},replace)')
                 
                 return result.success if hasattr(result, 'success') else True
 
