@@ -38,10 +38,12 @@ class PluginContext:
         self._query_manager = None
         self._favorites_manager = None
 
-        # Navigation context
-        self.breadcrumb_path = None
+        # Navigation context - generate breadcrumb automatically
+        self.breadcrumb_path = self._generate_breadcrumb()
 
         self.logger.debug(f"PluginContext created: handle={self.addon_handle}, base_url={self.base_url}, params={self.params}")
+        if self.breadcrumb_path:
+            self.logger.debug(f"Generated breadcrumb: {self.breadcrumb_path}")
 
     @property
     def is_authorized(self) -> bool:
@@ -93,3 +95,18 @@ class PluginContext:
 
         query = "&".join(params)
         return f"{self.base_url}?{query}"
+
+    def _generate_breadcrumb(self) -> Optional[str]:
+        """Generate breadcrumb path for current context"""
+        try:
+            action = self.params.get('action', '')
+            if not action:
+                return None
+            
+            # Import here to avoid circular imports
+            from .breadcrumb_helper import get_breadcrumb_helper
+            breadcrumb_helper = get_breadcrumb_helper()
+            return breadcrumb_helper.get_breadcrumb_for_action(action, self.params, self.query_manager)
+        except Exception as e:
+            self.logger.error(f"Error generating breadcrumb: {e}")
+            return None
