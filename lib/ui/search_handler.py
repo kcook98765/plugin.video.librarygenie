@@ -86,10 +86,12 @@ class SearchHandler:
         # Persist a Search History list if there are items
         self._maybe_persist_search_history(query, search_type, results)
 
-        # Display: Try to redirect to saved search list first (preferred UX)
+        # Display: Redirect to saved search list (required UX)
         if not self._try_redirect_to_saved_search_list():
-            # Fallback to inline display if redirect fails
-            self._display_results_inline(results, query)
+            # Log error if redirect fails - no fallback display
+            self._error(f"Failed to redirect to saved search list for query: '{query}'. Search results were saved but cannot be displayed.")
+            self._notify_error("Search completed but display failed. Check Search History.")
+            return self._maybe_dir_response([], False, f"Search display failed for '{query}'", content_type="movies")
         return self._maybe_dir_response(results.get('items', []), True, f"Found {len(results.get('items', []))} results for '{query}'", content_type="movies")
 
     def prompt_and_show(self):
@@ -108,10 +110,11 @@ class SearchHandler:
         self._cache_session_results(query, results)
         self._maybe_persist_search_history(query, search_type, results)
 
-        # Display: Try to redirect to saved search list first (preferred UX)
+        # Display: Redirect to saved search list (required UX)
         if not self._try_redirect_to_saved_search_list():
-            # Fallback to inline display if redirect fails
-            self._display_results_inline(results, query)
+            # Log error if redirect fails - no fallback display
+            self._error(f"Failed to redirect to saved search list for query: '{query}'. Search results were saved but cannot be displayed.")
+            self._notify_error("Search completed but display failed. Check Search History.")
 
     # ---------- EXTERNAL CALLERS (kept for compatibility) ----------
 
@@ -123,8 +126,8 @@ class SearchHandler:
 
         results = self.search_with_fallback(query)
         self._cache_session_results(query, results)
-        # Display inline only to avoid parent navigation issues
-        self._display_results_inline(results, query)
+        # No inline display - all results should go through standard list building
+        self._error(f"Legacy handle_search_request called for query: '{query}'. This method should not be used for display.")
         return results.get('items', [])
 
     def handle_remote_search_request(self, query: str) -> List[Dict[str, Any]]:
@@ -228,68 +231,7 @@ class SearchHandler:
 
     # ---------- DISPLAY ----------
 
-    def _display_results_inline(self, results: Dict[str, Any], query: str) -> None:
-        items = results.get('items', [])
-        if not items:
-            self._show_no_results_message(query)
-            self._end_directory(succeeded=True, update=False)
-            return
-
-        # Normalize items using QueryManager (ensures consistent fields for builder)
-        normalized = []
-        for item in items:
-            item = dict(item)  # shallow copy
-            item.setdefault('source', 'search')
-            item.setdefault('media_type', item.get('type', 'movie'))
-            if 'kodi_id' not in item and item.get('movieid'):
-                item['kodi_id'] = item['movieid']
-            canonical = self.query_manager._normalize_to_canonical(item)
-            normalized.append(canonical)
-
-        # Detect content and build
-        content_type = self.query_manager.detect_content_type(normalized)
-
-        if ListItemBuilder is None:
-            self._error("ListItemBuilder not available")
-            self._end_directory(succeeded=False, update=False)
-            return
-
-        # Add breadcrumb for search results
-        breadcrumb_path = f"Search > \"{query}\" results"
-
-        # Display search results using ListItemBuilder with breadcrumb
-        builder = ListItemBuilder(self._require_handle(), self.addon_id)
-
-        # Add breadcrumb item at the top
-        import xbmcgui
-        import xbmcplugin
-        breadcrumb_item = xbmcgui.ListItem(label=f"[COLOR gray]> {breadcrumb_path}[/COLOR]")
-        breadcrumb_item.setInfo('video', {'plot': f'Current location: {breadcrumb_path}'})
-        breadcrumb_item.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
-
-        # Make breadcrumb non-selectable by using a noop URL
-        noop_url = f"{self.base_url}?action=noop"
-        xbmcplugin.addDirectoryItem(self.addon_handle, noop_url, breadcrumb_item, False)
-
-        # Add context menu for adding to lists
-        def add_search_context_menu(listitem, item):
-            """Add search-specific context menu items"""
-            try:
-                context_menu = []
-                media_item_id = item.get('media_item_id') or item.get('id') or item.get('kodi_id')
-                if media_item_id:
-                    context_menu.append((
-                        "Add to List",
-                        f"RunPlugin({self.build_url('add_to_list', media_item_id=media_item_id)})"
-                    ))
-                listitem.addContextMenuItems(context_menu)
-            except Exception as e:
-                self._warn(f"Failed to add search context menu: {e}")
-
-        success = builder.build_directory(normalized, content_type, add_search_context_menu)
-
-        used_remote = results.get('used_remote', False)
-        self._info(f"Displayed {len(normalized)} {'remote' if used_remote else 'local'} results inline for '{query}'")
+    
 
     def _try_redirect_to_saved_search_list(self) -> bool:
         """
