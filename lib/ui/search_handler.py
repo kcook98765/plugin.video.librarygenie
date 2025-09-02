@@ -85,9 +85,8 @@ class SearchHandler:
         # Persist a Search History list if there are items
         self._maybe_persist_search_history(query, search_type, results)
 
-        # Display: prefer redirect to saved search list (V20+), else inline
-        if self._try_redirect_to_saved_search_list():
-            return self._maybe_dir_response([], True, f"Redirected to saved results for '{query}'", content_type="movies")
+        # Display: inline only to avoid parent navigation issues
+        # Redirect to saved search list disabled due to parent navigation problems
 
         # Inline display (build directory now)
         self._display_results_inline(results, query)
@@ -109,9 +108,7 @@ class SearchHandler:
         self._cache_session_results(query, results)
         self._maybe_persist_search_history(query, search_type, results)
 
-        if self._try_redirect_to_saved_search_list():
-            return
-
+        # Display inline only to avoid parent navigation issues
         self._display_results_inline(results, query)
 
     # ---------- EXTERNAL CALLERS (kept for compatibility) ----------
@@ -124,8 +121,7 @@ class SearchHandler:
 
         results = self.search_with_fallback(query)
         self._cache_session_results(query, results)
-        if self._try_redirect_to_saved_search_list():
-            return results.get('items', [])
+        # Display inline only to avoid parent navigation issues
         self._display_results_inline(results, query)
         return results.get('items', [])
 
@@ -277,8 +273,10 @@ class SearchHandler:
             if not list_id or not xbmc:
                 return False
 
+            # Set proper parent path to the search history folder instead of search action
+            search_folder_url = f"plugin://{self.addon_id}/?action=show_folder&folder_id={search_folder_id}"
             list_url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
-            xbmc.executebuiltin(f'Container.Update("{list_url}")')
+            xbmc.executebuiltin(f'Container.Update("{list_url}",replace)')
             self._end_directory(succeeded=True, update=True)
             return True
         except Exception as e:

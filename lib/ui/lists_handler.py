@@ -639,6 +639,14 @@ class ListsHandler:
         try:
             context.logger.info(f"Displaying list {list_id}")
 
+            # Check for custom parent path to fix navigation from search results
+            parent_path = context.get_param('parent_path')
+            if parent_path:
+                context.logger.debug(f"Setting custom parent path: {parent_path}")
+                # This will be used by Kodi for the ".." navigation
+                import xbmcplugin
+                xbmcplugin.setProperty(context.addon_handle, 'ParentDir', parent_path)
+
             # Initialize query manager
             query_manager = get_query_manager()
             if not query_manager.initialize():
