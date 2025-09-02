@@ -27,23 +27,15 @@ class QueryManager:
 
     def _normalize_to_canonical(self, item: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize any media item to canonical format"""
-        self.logger.debug(f"NORMALIZE: Input item keys: {list(item.keys())}")
-        self.logger.debug(f"NORMALIZE: Input item ID fields: id={item.get('id')}, item_id={item.get('item_id')}, media_item_id={item.get('media_item_id')}")
-
         canonical = {}
 
         # CRITICAL: Preserve the ID field from the database query
         if 'id' in item:
             canonical["id"] = item["id"]
-            self.logger.debug(f"NORMALIZE: Preserved 'id' field: {canonical['id']}")
         elif 'item_id' in item:
             canonical["id"] = item["item_id"]
-            self.logger.debug(f"NORMALIZE: Used 'item_id' as 'id': {canonical['id']}")
         elif 'media_item_id' in item:
             canonical["id"] = item["media_item_id"]
-            self.logger.debug(f"NORMALIZE: Used 'media_item_id' as 'id': {canonical['id']}")
-        else:
-            self.logger.warning(f"NORMALIZE: No ID field found in item: {item}")
 
         # Common fields
         canonical["media_type"] = item.get("media_type", item.get("type", "movie"))
@@ -114,9 +106,6 @@ class QueryManager:
             canonical["aired"] = str(item.get("aired", ""))
             canonical["playcount"] = int(item.get("playcount", 0))
             canonical["lastplayed"] = str(item.get("lastplayed", ""))
-
-        self.logger.debug(f"NORMALIZE: Output canonical keys: {list(canonical.keys())}")
-        self.logger.debug(f"NORMALIZE: Final canonical ID: {canonical.get('id')}")
 
         return canonical
 
