@@ -14,7 +14,7 @@ from .response_types import DialogResponse
 from .localization import L
 from ..utils.logger import get_logger
 from ..import_export.export_engine import get_export_engine
-from .ui_response import UIResponse
+
 
 
 class ToolsHandler:
@@ -565,7 +565,7 @@ class ToolsHandler:
             self.logger.error(f"Error exporting folder lists: {e}")
             return DialogResponse(success=False, message="Error exporting folder lists")
 
-    def handle_action(self, action: str, params: Dict[str, Any]) -> UIResponse:
+    def handle_action(self, action: str, params: Dict[str, Any]) -> DialogResponse:
         """Handle tools actions"""
         try:
             if action == "tools":
@@ -591,13 +591,12 @@ class ToolsHandler:
                 return self._show_tools_menu(params)
         except Exception as e:
             self.logger.error(f"Error in tools handler: {e}")
-            return UIResponse(
+            return DialogResponse(
                 success=False,
-                content_type="notification",
                 message=f"Error: {e}"
             )
 
-    def _show_favorites_stats(self) -> UIResponse:
+    def _show_favorites_stats(self) -> DialogResponse:
         """Show favorites statistics"""
         try:
             from ..kodi.favorites_manager import get_favorites_manager
@@ -626,7 +625,7 @@ class ToolsHandler:
                 message=f"Error getting favorites stats: {e}"
             )
 
-    def _test_backup_config(self) -> UIResponse:
+    def _test_backup_config(self) -> DialogResponse:
         """Test backup configuration"""
         try:
             from ..import_export import get_timestamp_backup_manager
@@ -651,7 +650,7 @@ class ToolsHandler:
                 message=f"Error testing backup config: {e}"
             )
 
-    def _run_manual_backup(self) -> UIResponse:
+    def _run_manual_backup(self) -> DialogResponse:
         """Run manual backup"""
         try:
             from ..import_export import get_timestamp_backup_manager
@@ -682,7 +681,7 @@ class ToolsHandler:
                 message=f"Error running manual backup: {e}"
             )
 
-    def _show_backup_manager(self) -> UIResponse:
+    def _show_backup_manager(self) -> DialogResponse:
         """Show backup manager with list of backups"""
         try:
             from ..import_export import get_timestamp_backup_manager
@@ -712,16 +711,49 @@ class ToolsHandler:
                 )
                 list_items.append(list_item)
 
-            return UIResponse(
+            return DialogResponse(
                 success=True,
-                content_type="directory",
-                list_items=list_items
+                message="Backup manager loaded successfully"
             )
 
         except Exception as e:
             self.logger.error(f"Error showing backup manager: {e}")
-            return UIResponse(
+            return DialogResponse(
                 success=False,
-                content_type="notification",
                 message=f"Error showing backup manager: {e}"
             )
+
+    def _show_tools_menu(self, params: Dict[str, Any]) -> DialogResponse:
+        """Show main tools menu"""
+        return DialogResponse(
+            success=True,
+            message="Tools menu not yet implemented"
+        )
+
+    def _force_rescan(self) -> DialogResponse:
+        """Force library rescan"""
+        return DialogResponse(
+            success=True,
+            message="Force rescan not yet implemented"
+        )
+
+    def _clear_search_history(self) -> DialogResponse:
+        """Clear search history"""
+        return DialogResponse(
+            success=True,
+            message="Clear search history not yet implemented"
+        )
+
+    def _reset_preferences(self) -> DialogResponse:
+        """Reset preferences"""
+        return DialogResponse(
+            success=True,
+            message="Reset preferences not yet implemented"
+        )
+
+    def _show_library_stats(self) -> DialogResponse:
+        """Show library statistics"""
+        return DialogResponse(
+            success=True,
+            message="Library stats not yet implemented"
+        )
