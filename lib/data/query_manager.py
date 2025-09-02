@@ -213,11 +213,8 @@ class QueryManager:
             items = []
 
             for row_idx, row in enumerate(rows):
-                self.logger.debug(f"Processing row {row_idx}: {row}")
-
-                item = self._row_to_dict(cursor, row)
-                self.logger.debug(f"Row converted to dict: {item}")
-                self.logger.debug(f"Item ID field check: 'id' in item = {'id' in item}, item.get('id') = {item.get('id')}")
+                # Convert row to dict
+                item = dict(row)
 
                 # Parse JSON data if present
                 if item.get('data_json'):
@@ -230,17 +227,14 @@ class QueryManager:
 
                 # Enrich with Kodi data if available
                 if item.get('kodi_id') and item.get('media_type') in ['movie', 'episode']:
-                    self.logger.debug(f"Enriching item with kodi_id={item.get('kodi_id')}, media_type={item.get('media_type')}")
-                    enriched = self._enrich_with_kodi_data([item])
-                    if enriched:
-                        item = enriched[0]
-                        self.logger.debug(f"Item after enrichment: {item}")
+                    # Enrich with Kodi data
+                    enriched_item = self._enrich_with_kodi_data([item])[0]
 
-                # Normalize to canonical format
-                self.logger.debug(f"Normalizing item before canonical conversion: {item}")
-                canonical_item = self._normalize_to_canonical(item)
-                self.logger.debug(f"Item after canonical normalization: {canonical_item}")
-                self.logger.debug(f"Canonical item ID check: 'id' in canonical_item = {'id' in canonical_item}, canonical_item.get('id') = {canonical_item.get('id')}")
+                    # Normalize to canonical format
+                    canonical_item = self._normalize_to_canonical(enriched_item)
+                else:
+                    # Normalize to canonical format
+                    canonical_item = self._normalize_to_canonical(item)
 
                 items.append(canonical_item)
 
