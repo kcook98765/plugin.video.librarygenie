@@ -139,51 +139,83 @@ class ToolsHandler:
                     message="List not found"
                 )
 
-            # Build comprehensive options for user lists - organized by operation type
-            options = [
-                # Additive operations
-                f"[COLOR lightgreen]🔀 {L(36004) % list_info['name']}[/COLOR]",  # "Merge Another List Into '%s'"
-                # Modify operations
-                f"[COLOR yellow]✏️ {L(36005) % list_info['name']}[/COLOR]",  # "Rename '%s'"
-                f"[COLOR yellow]📁 {L(36006) % list_info['name']}[/COLOR]",  # "Move '%s' to Folder"
-                # Export operations
-                f"[COLOR white]📤 {L(36007) % list_info['name']}[/COLOR]",  # "Export '%s'"
-                # Destructive operations
-                f"[COLOR red]🗑️ {L(36008) % list_info['name']}[/COLOR]",  # "Delete '%s'"
-                # Cancel
-                f"[COLOR gray]❌ {L(36003)}[/COLOR]"  # "Cancel"
-            ]
+            # Check if this is a search history list
+            is_search_history = list_info.get('folder_name') == 'Search History'
+
+            if is_search_history:
+                # Special options for search history lists
+                options = [
+                    f"[COLOR lightgreen]📋 Copy to New List[/COLOR]",
+                    f"[COLOR white]📤 {L(36007) % list_info['name']}[/COLOR]",  # "Export '%s'"
+                    f"[COLOR red]🗑️ {L(36008) % list_info['name']}[/COLOR]",  # "Delete '%s'"
+                    f"[COLOR gray]❌ {L(36003)}[/COLOR]"  # "Cancel"
+                ]
+            else:
+                # Standard list options
+                options = [
+                    # Additive operations
+                    f"[COLOR lightgreen]🔀 {L(36004) % list_info['name']}[/COLOR]",  # "Merge Another List Into '%s'"
+                    # Modify operations
+                    f"[COLOR yellow]✏️ {L(36005) % list_info['name']}[/COLOR]",  # "Rename '%s'"
+                    f"[COLOR yellow]📁 {L(36006) % list_info['name']}[/COLOR]",  # "Move '%s' to Folder"
+                    # Export operations
+                    f"[COLOR white]📤 {L(36007) % list_info['name']}[/COLOR]",  # "Export '%s'"
+                    # Destructive operations
+                    f"[COLOR red]🗑️ {L(36008) % list_info['name']}[/COLOR]",  # "Delete '%s'"
+                    # Cancel
+                    f"[COLOR gray]❌ {L(36003)}[/COLOR]"  # "Cancel"
+                ]
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
             selected_index = dialog.select(L(36014), options)  # "List Tools & Options"
 
-            if selected_index < 0 or selected_index == 5:  # Cancel
+            if selected_index < 0 or selected_index == len(options) - 1:  # Cancel
                 return DialogResponse(success=False)
 
             # Handle selected option
-            if selected_index == 0:  # Merge lists
-                return self._merge_lists(context, list_id)
-            elif selected_index == 1:  # Rename
-                from .lists_handler import ListsHandler
-                lists_handler = ListsHandler()
-                return lists_handler.rename_list(context, list_id)
-            elif selected_index == 2:  # Move to folder
-                return self._move_list_to_folder(context, list_id)
-            elif selected_index == 3:  # Export
-                return self._export_single_list(context, list_id)
-            elif selected_index == 4:  # Delete
-                from .lists_handler import ListsHandler
-                lists_handler = ListsHandler()
-                result = lists_handler.delete_list(context, list_id)
+            if is_search_history:
+                # Search history list: Copy(0), Export(1), Delete(2), Cancel(3)
+                if selected_index == 0:  # Copy to new list
+                    return self._copy_search_history_to_list(context, list_id)
+                elif selected_index == 1:  # Export
+                    return self._export_single_list(context, list_id)
+                elif selected_index == 2:  # Delete
+                    from .lists_handler import ListsHandler
+                    lists_handler = ListsHandler()
+                    result = lists_handler.delete_list(context, list_id)
 
-                # If deletion was successful, navigate back to lists menu
-                if result.success:
-                    import xbmc
-                    # Navigate back to the lists menu since the current list no longer exists
-                    xbmc.executebuiltin(f'Container.Update({context.build_url("lists")},replace)')
+                    # Navigate back to search history folder
+                    if result.success:
+                        import xbmc
+                        search_folder_id = query_manager.get_or_create_search_history_folder()
+                        xbmc.executebuiltin(f'Container.Update({context.build_url("show_folder", folder_id=search_folder_id)},replace)')
 
-                return result
+                    return result
+            else:
+                # Standard list: Merge(0), Rename(1), Move(2), Export(3), Delete(4), Cancel(5)
+                if selected_index == 0:  # Merge lists
+                    return self._merge_lists(context, list_id)
+                elif selected_index == 1:  # Rename
+                    from .lists_handler import ListsHandler
+                    lists_handler = ListsHandler()
+                    return lists_handler.rename_list(context, list_id)
+                elif selected_index == 2:  # Move to folder
+                    return self._move_list_to_folder(context, list_id)
+                elif selected_index == 3:  # Export
+                    return self._export_single_list(context, list_id)
+                elif selected_index == 4:  # Delete
+                    from .lists_handler import ListsHandler
+                    lists_handler = ListsHandler()
+                    result = lists_handler.delete_list(context, list_id)
+
+                    # If deletion was successful, navigate back to lists menu
+                    if result.success:
+                        import xbmc
+                        # Navigate back to the lists menu since the current list no longer exists
+                        xbmc.executebuiltin(f'Container.Update({context.build_url("lists")},replace)')
+
+                    return result
 
             return DialogResponse(success=False)
 
@@ -218,24 +250,30 @@ class ToolsHandler:
             # Build comprehensive options for folders - organized by operation type
             options = []
 
-            # Additive operations (always available)
-            options.extend([
-                f"[COLOR lightgreen]📋 {L(36009) % folder_info['name']}[/COLOR]",  # "Create New List in '%s'"
-                f"[COLOR lightgreen]📁 {L(36010) % folder_info['name']}[/COLOR]"  # "Create New Subfolder in '%s'"
-            ])
+            if is_reserved:
+                # Special options for Search History folder
+                options.extend([
+                    f"[COLOR white]📤 {L(36012) % folder_info['name']}[/COLOR]",  # "Export All Lists in '%s'"
+                    f"[COLOR yellow]🗑️ Clear All Search History[/COLOR]"
+                ])
+            else:
+                # Standard folder options
+                # Additive operations
+                options.extend([
+                    f"[COLOR lightgreen]📋 {L(36009) % folder_info['name']}[/COLOR]",  # "Create New List in '%s'"
+                    f"[COLOR lightgreen]📁 {L(36010) % folder_info['name']}[/COLOR]"  # "Create New Subfolder in '%s'"
+                ])
 
-            # Modify operations (not for reserved folders)
-            if not is_reserved:
+                # Modify operations
                 options.extend([
                     f"[COLOR yellow]✏️ {L(36005) % folder_info['name']}[/COLOR]",  # "Rename '%s'"
                     f"[COLOR yellow]📁 {L(36011) % folder_info['name']}[/COLOR]"  # "Move '%s' to Parent Folder"
                 ])
 
-            # Export operations
-            options.append(f"[COLOR white]📤 {L(36012) % folder_info['name']}[/COLOR]")  # "Export All Lists in '%s'"
+                # Export operations
+                options.append(f"[COLOR white]📤 {L(36012) % folder_info['name']}[/COLOR]")  # "Export All Lists in '%s'"
 
-            # Destructive operations (not for reserved folders)
-            if not is_reserved:
+                # Destructive operations
                 options.append(f"[COLOR red]🗑️ {L(36008) % folder_info['name']}[/COLOR]")  # "Delete '%s'"
 
             # Cancel
@@ -250,13 +288,11 @@ class ToolsHandler:
 
             # Handle selected option - calculate indices based on reserved status
             if is_reserved:
-                # Reserved folder: Create List(0), Create Subfolder(1), Export(2), Cancel(3)
-                if selected_index == 0:  # Create new list
-                    return self._create_list_in_folder(context, folder_id)
-                elif selected_index == 1:  # Create subfolder
-                    return self._create_subfolder(context, folder_id)
-                elif selected_index == 2:  # Export
+                # Search History folder: Export(0), Clear All(1), Cancel(2)
+                if selected_index == 0:  # Export
                     return self._export_folder_lists(context, folder_id)
+                elif selected_index == 1:  # Clear all search history
+                    return self._clear_search_history_folder(context, folder_id)
             else:
                 # Regular folder: Create List(0), Create Subfolder(1), Rename(2), Move(3), Export(4), Delete(5), Cancel(6)
                 if selected_index == 0:  # Create new list
@@ -933,3 +969,115 @@ class ToolsHandler:
         except Exception as e:
             self.logger.error(f"Error exporting all lists: {e}")
             return DialogResponse(success=False, message="Error exporting all lists")
+
+    def _clear_search_history_folder(self, context: PluginContext, folder_id: str) -> DialogResponse:
+        """Clear all search history lists"""
+        try:
+            query_manager = context.query_manager
+            if not query_manager:
+                return DialogResponse(success=False, message="Database error")
+
+            # Get lists in search history folder
+            search_lists = query_manager.get_lists_in_folder(folder_id)
+            
+            if not search_lists:
+                return DialogResponse(
+                    success=False,
+                    message="No search history to clear"
+                )
+
+            # Confirm deletion
+            dialog = xbmcgui.Dialog()
+            if not dialog.yesno(
+                "Clear Search History",
+                f"Delete all {len(search_lists)} search history lists?",
+                "This action cannot be undone."
+            ):
+                return DialogResponse(success=False)
+
+            # Delete all search history lists
+            deleted_count = 0
+            for search_list in search_lists:
+                result = query_manager.delete_list(search_list['id'])
+                if result.get("success"):
+                    deleted_count += 1
+
+            if deleted_count > 0:
+                return DialogResponse(
+                    success=True,
+                    message=f"Cleared {deleted_count} search history lists",
+                    refresh_needed=True
+                )
+            else:
+                return DialogResponse(
+                    success=False,
+                    message="Failed to clear search history"
+                )
+
+        except Exception as e:
+            self.logger.error(f"Error clearing search history folder: {e}")
+            return DialogResponse(success=False, message="Error clearing search history")
+
+    def _copy_search_history_to_list(self, context: PluginContext, search_list_id: str) -> DialogResponse:
+        """Copy a search history list to a new regular list"""
+        try:
+            query_manager = context.query_manager
+            if not query_manager:
+                return DialogResponse(success=False, message="Database error")
+
+            # Get search list info
+            search_list_info = query_manager.get_list_by_id(search_list_id)
+            if not search_list_info:
+                return DialogResponse(success=False, message="Search list not found")
+
+            # Get new list name from user
+            suggested_name = search_list_info['name'].replace('Search: ', '').split(' (')[0]
+            if suggested_name.startswith("'") and suggested_name.endswith("'"):
+                suggested_name = suggested_name[1:-1]
+
+            new_name = xbmcgui.Dialog().input(
+                "Enter name for new list:",
+                defaultt=suggested_name,
+                type=xbmcgui.INPUT_ALPHANUM
+            )
+
+            if not new_name or not new_name.strip():
+                return DialogResponse(success=False)
+
+            # Create new list
+            result = query_manager.create_list(new_name.strip())
+            if result.get("error"):
+                if result["error"] == "duplicate_name":
+                    message = f"List '{new_name}' already exists"
+                else:
+                    message = "Failed to create list"
+                return DialogResponse(success=False, message=message)
+
+            new_list_id = result['id']
+
+            # Copy all items from search history list to new list
+            search_items = query_manager.get_list_items(search_list_id)
+            copied_count = 0
+
+            for item in search_items:
+                copy_result = query_manager.add_library_item_to_list(new_list_id, item)
+                if copy_result:
+                    copied_count += 1
+
+            if copied_count > 0:
+                return DialogResponse(
+                    success=True,
+                    message=f"Copied {copied_count} items to new list '{new_name}'",
+                    refresh_needed=True
+                )
+            else:
+                # Clean up empty list if no items were copied
+                query_manager.delete_list(new_list_id)
+                return DialogResponse(
+                    success=False,
+                    message="No items could be copied to the new list"
+                )
+
+        except Exception as e:
+            self.logger.error(f"Error copying search history to list: {e}")
+            return DialogResponse(success=False, message="Error copying search history")
