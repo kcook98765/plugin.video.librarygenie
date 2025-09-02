@@ -224,3 +224,30 @@ class SettingsManager:
     def get_setting_save_message(self, success: bool) -> str:
         """Get localized setting save message"""
         return L(34501) if success else L(34502)  # "Setting saved successfully" or "Failed to save setting"
+
+    def get_backup_preferences(self) -> Dict[str, Any]:
+        """Get backup-related preferences with defaults"""
+        config = get_config()
+
+        return {
+            'enabled': config.get_backup_enabled(),
+            'schedule_interval': config.get_backup_schedule_interval(),
+            'retention_days': config.get_backup_retention_days(),
+            'storage_path': config.get_backup_storage_path(),
+            'storage_type': config.get_backup_storage_type(),
+            'include_settings': config.get_backup_include_settings(),
+            'include_favorites': config.get_backup_include_favorites()
+        }
+
+    def get_phase12_remote_settings(self) -> Dict[str, Any]:
+        """Get remote service settings for Phase 1.2 integration"""
+        config = get_config()
+
+        return {
+            'enabled': config.get_remote_enabled(),
+            'server_url': config.get_remote_server_url(),
+            'timeout': config.get_remote_timeout(),
+            'max_retries': config.get_remote_max_retries(),
+            'fallback_to_local': config.get_remote_fallback_to_local(),
+            'cache_duration': config.get_remote_cache_duration()
+        }
