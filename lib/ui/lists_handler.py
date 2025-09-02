@@ -633,6 +633,17 @@ class ListsHandler:
                 context.logger.debug(f"HANDLER: Item {idx}: full item={item}")
                 context.logger.debug(f"HANDLER: Item {idx}: has 'id' field={('id' in item)}, id_value={item.get('id')}")
 
+            # Add Tools & Options at the top of the list view
+            tools_item = xbmcgui.ListItem(label="[COLOR yellow]⚙️ Tools & Options[/COLOR]")
+            tools_item.setInfo('video', {'plot': 'Access list tools and options'})
+            tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
+            xbmcplugin.addDirectoryItem(
+                context.addon_handle,
+                context.build_url('show_list_tools', list_type='user_list', list_id=list_id),
+                tools_item,
+                True
+            )
+
             if not list_items:
                 # Empty list
                 empty_item = xbmcgui.ListItem(label="[COLOR gray]List is empty[/COLOR]")
@@ -763,6 +774,15 @@ class ListsHandler:
             context.logger.info(f"Folder '{folder_info['name']}' has {len(lists_in_folder)} lists")
 
             menu_items = []
+
+            # Add Tools & Options for this folder
+            menu_items.append({
+                'label': "[COLOR yellow]⚙️ Tools & Options[/COLOR]",
+                'url': context.build_url('show_list_tools', list_type='folder', list_id=folder_id),
+                'is_folder': True,
+                'icon': "DefaultAddonProgram.png",
+                'description': f"Access tools and options for '{folder_info['name']}'"
+            })
 
             # Add "Create New List" option in this folder
             menu_items.append({

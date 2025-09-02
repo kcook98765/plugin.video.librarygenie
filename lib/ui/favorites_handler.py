@@ -44,7 +44,7 @@ class FavoritesHandler:
             # Get last scan info for display
             last_scan_info = favorites_manager._get_last_scan_info_for_display()
             scan_label = "[COLOR yellow]🔄 Scan Favorites[/COLOR]"
-            
+
             if last_scan_info:
                 # Calculate time since last scan
                 from datetime import datetime
@@ -52,7 +52,7 @@ class FavoritesHandler:
                     last_scan_time = datetime.fromisoformat(last_scan_info['created_at'])
                     current_time = datetime.now()
                     time_diff = current_time - last_scan_time
-                    
+
                     if time_diff.total_seconds() < 60:
                         time_ago = "just now"
                     elif time_diff.total_seconds() < 3600:  # Less than 1 hour
@@ -64,7 +64,7 @@ class FavoritesHandler:
                     else:  # 1 or more days
                         days = int(time_diff.total_seconds() / 86400)
                         time_ago = f"{days} day{'s' if days != 1 else ''} ago"
-                    
+
                     scan_label = f"[COLOR yellow]🔄 Scan Favorites[/COLOR] [COLOR gray]({time_ago})[/COLOR]"
                 except Exception as e:
                     context.logger.debug(f"Could not parse last scan time: {e}")
@@ -156,14 +156,14 @@ class FavoritesHandler:
                             "Remove from Favorites",
                             f"RunPlugin({context.build_url('remove_from_favorites', item_id=item_id)})"
                         ))
-                        
+
                         # Also add "Add to List" option for favorites
                         if item.get('imdb_id'):
                             context_menu.append((
                                 "Add to List",
                                 f"RunPlugin({context.build_url('add_to_list_menu', media_item_id=item.get('media_item_id') or item.get('id'))})"
                             ))
-                        
+
                         listitem.addContextMenuItems(context_menu)
                     except Exception as e:
                         context.logger.warning(f"Failed to add favorites context menu: {e}")
@@ -342,7 +342,7 @@ class FavoritesHandler:
             dialog = xbmcgui.Dialog()
             default_name = f"Kodi Favorites Copy - {datetime.now().strftime('%Y-%m-%d')}"
             new_list_name = dialog.input("Enter name for new list:", default_name)
-            
+
             if not new_list_name or not new_list_name.strip():
                 self.logger.info("User cancelled or entered empty list name")
                 return DialogResponse(success=False)
@@ -358,11 +358,11 @@ class FavoritesHandler:
                 )
 
             all_folders = query_manager.get_all_folders()
-            
+
             # Ask user if they want to place it in a folder
             folder_options = ["[Root Level]"] + [f["name"] for f in all_folders]
             selected_folder_index = dialog.select("Choose folder location:", folder_options)
-            
+
             if selected_folder_index < 0:
                 self.logger.info("User cancelled folder selection")
                 return DialogResponse(success=False)
@@ -377,7 +377,7 @@ class FavoritesHandler:
 
             # Create the list
             create_result = list_manager.create_list(new_list_name, folder_id)
-            
+
             if not create_result.get("success"):
                 error_msg = create_result.get("message", "Failed to create list")
                 return DialogResponse(
@@ -421,6 +421,23 @@ class FavoritesHandler:
             return DialogResponse(
                 success=False,
                 message="Error saving favorites as list"
+            )
+
+    def show_favorites_tools(self, context: PluginContext) -> DialogResponse:
+        """Show Tools & Options modal for Kodi favorites"""
+        try:
+            self.logger.info("Showing favorites tools & options")
+
+            # Use the modular tools handler
+            from .tools_handler import ToolsHandler
+            tools_handler = ToolsHandler()
+            return tools_handler.show_list_tools(context, "favorites")
+
+        except Exception as e:
+            self.logger.error(f"Error showing favorites tools: {e}")
+            return DialogResponse(
+                success=False,
+                message="Error showing tools & options"
             )
 
     def _convert_favorite_to_list_item_data(self, favorite: Dict[str, Any]) -> Dict[str, Any]:

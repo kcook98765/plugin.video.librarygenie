@@ -34,6 +34,7 @@ class Router:
             self.logger = context.logger
 
         action = context.get_param('action', '')
+        params = context.get_params() # Get all params for modular tools
         self.logger.debug(f"Router dispatching action: '{action}'")
 
         handler = self._handlers.get(action)
@@ -44,7 +45,23 @@ class Router:
         try:
             # Call handler with context
             self.logger.debug(f"Calling handler for action '{action}'")
-            handler(context)
+            if action == "scan_favorites_execute":
+                return self.favorites_handler.scan_favorites(context)
+
+            elif action == "show_favorites_tools":
+                return self.favorites_handler.show_favorites_tools(context)
+
+            elif action == "save_favorites_as":
+                return self.favorites_handler.save_favorites_as(context)
+
+            elif action == "show_list_tools":
+                from .tools_handler import ToolsHandler
+                tools_handler = ToolsHandler()
+                list_type = params.get('list_type', 'unknown')
+                list_id = params.get('list_id')
+                return tools_handler.show_list_tools(context, list_type, list_id)
+            else:
+                handler(context)
             return True
 
         except Exception as e:
