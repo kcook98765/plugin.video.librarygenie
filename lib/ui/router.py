@@ -99,7 +99,7 @@ class Router:
                     elif hasattr(result, 'navigate_to_main') and result.navigate_to_main:
                         # Navigate to main menu (for search history cleanup)
                         import xbmc
-                        xbmc.executebuiltin(f'Container.Update({context.build_url()},replace)')
+                        xbmc.executebuiltin(f'Container.Update({context.build_url("main_menu")},replace)')
                         # End directory properly to prevent fallback navigation
                         xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
                         return True  # Prevent further processing
