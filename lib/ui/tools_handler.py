@@ -614,17 +614,15 @@ class ToolsHandler:
                 f"Last Scan: {stats.get('last_scan', 'Never')}"
             )
 
-            return UIResponse(
+            return DialogResponse(
                 success=True,
-                content_type="notification",
                 message=message
             )
 
         except Exception as e:
             self.logger.error(f"Error getting favorites stats: {e}")
-            return UIResponse(
+            return DialogResponse(
                 success=False,
-                content_type="notification",
                 message=f"Error getting favorites stats: {e}"
             )
 
@@ -641,17 +639,15 @@ class ToolsHandler:
             else:
                 message = f"Backup configuration test failed:\n{result['error']}"
 
-            return UIResponse(
+            return DialogResponse(
                 success=result["success"],
-                content_type="notification",
                 message=message
             )
 
         except Exception as e:
             self.logger.error(f"Error testing backup config: {e}")
-            return UIResponse(
+            return DialogResponse(
                 success=False,
-                content_type="notification",
                 message=f"Error testing backup config: {e}"
             )
 
@@ -674,17 +670,15 @@ class ToolsHandler:
             else:
                 message = f"Manual backup failed: {result['error']}"
 
-            return UIResponse(
+            return DialogResponse(
                 success=result["success"],
-                content_type="notification",
                 message=message
             )
 
         except Exception as e:
             self.logger.error(f"Error running manual backup: {e}")
-            return UIResponse(
+            return DialogResponse(
                 success=False,
-                content_type="notification",
                 message=f"Error running manual backup: {e}"
             )
 
