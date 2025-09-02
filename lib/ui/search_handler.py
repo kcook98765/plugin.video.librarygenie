@@ -376,7 +376,7 @@ class SearchHandler:
         """Return a DirectoryResponse if the newer response_types is available; otherwise None."""
         if DirectoryResponse is None:
             return None
-        return DirectoryResponse(items=items, success=success, message=message, content_type=content_type)
+        return DirectoryResponse(items=items, success=success, content_type=content_type)
 
     # ---------- Logging & notifications ----------
 
