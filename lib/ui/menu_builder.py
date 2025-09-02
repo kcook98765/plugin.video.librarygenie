@@ -72,6 +72,7 @@ class MenuBuilder:
         self.logger.debug(f"MENU ITEM: Available properties for '{title}': {item_keys}")
 
         # Build URL with parameters
+        param_keys = []
         if item.get("url"):
             # Use provided URL directly
             url = item["url"]
@@ -80,7 +81,6 @@ class MenuBuilder:
             params = {"action": action}
             excluded_keys = ["label", "title", "description", "action", "is_folder", "context_menu", "movie_data", "url"]
 
-            param_keys = []
             for key, value in item.items():
                 if key not in excluded_keys:
                     params[key] = value
