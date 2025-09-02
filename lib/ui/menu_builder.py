@@ -59,7 +59,7 @@ class MenuBuilder:
 
     def _add_directory_item(self, item, addon_handle, base_url):
         """Add a single directory item with context menu support"""
-        title = item.get("title", "Unknown")
+        title = item.get("label", item.get("title", "Unknown"))
         action = item.get("action", "")
         description = item.get("description", "")
         is_folder = item.get("is_folder", True)
@@ -72,16 +72,23 @@ class MenuBuilder:
         self.logger.debug(f"MENU ITEM: Available properties for '{title}': {item_keys}")
 
         # Build URL with parameters
-        params = {"action": action}
-        excluded_keys = ["title", "description", "action", "is_folder", "context_menu", "movie_data"]
+        if item.get("url"):
+            # Use provided URL directly
+            url = item["url"]
+        elif action:
+            # Build URL from action and other parameters
+            params = {"action": action}
+            excluded_keys = ["label", "title", "description", "action", "is_folder", "context_menu", "movie_data", "url"]
 
-        param_keys = []
-        for key, value in item.items():
-            if key not in excluded_keys:
-                params[key] = value
-                param_keys.append(key)
+            param_keys = []
+            for key, value in item.items():
+                if key not in excluded_keys:
+                    params[key] = value
+                    param_keys.append(key)
 
-        url = f"{base_url}?{urlencode(params)}" if action else ""
+            url = f"{base_url}?{urlencode(params)}"
+        else:
+            url = ""
         self.logger.debug(f"MENU ITEM: Built URL for '{title}': '{url}'")
         if param_keys:
             self.logger.debug(f"MENU ITEM: Added URL parameters for '{title}': {param_keys}")
