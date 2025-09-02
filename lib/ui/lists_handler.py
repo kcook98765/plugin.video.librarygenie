@@ -671,12 +671,6 @@ class ListsHandler:
 
             context.logger.info(f"List '{list_info['name']}' has {len(list_items)} items")
 
-            # Debug each item structure
-            for idx, item in enumerate(list_items):
-                context.logger.debug(f"HANDLER: Item {idx}: keys={list(item.keys())}")
-                context.logger.debug(f"HANDLER: Item {idx}: full item={item}")
-                context.logger.debug(f"HANDLER: Item {idx}: has 'id' field={('id' in item)}, id_value={item.get('id')}")
-
             # Add Tools & Options at the top of the list view
             tools_item = xbmcgui.ListItem(label=f"[COLOR yellow]⚙️ {L(36000)}[/COLOR]")  # "Tools & Options"
             tools_item.setInfo('video', {'plot': L(36016)})  # "Access list tools and options"
