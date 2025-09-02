@@ -763,11 +763,24 @@ class ToolsHandler:
     def _show_lists_main_tools(self, context: PluginContext) -> DialogResponse:
         """Show tools specific to the main Lists menu"""
         try:
-            # Build options for main lists menu - organized by operation type
+            # Build comprehensive options for main lists menu - organized by operation type
             options = [
                 # Creation operations
                 f"[COLOR lightgreen]📋 {L(36019)}[/COLOR]",  # "Create New List"
                 f"[COLOR lightgreen]📁 {L(36020)}[/COLOR]",  # "Create New Folder"
+                # Import operations
+                f"[COLOR white]📥 Import Lists[/COLOR]",
+                # Export operations
+                f"[COLOR white]📤 Export All Lists[/COLOR]",
+                # Backup operations
+                f"[COLOR white]💾 Manual Backup[/COLOR]",
+                f"[COLOR white]📂 Backup Manager[/COLOR]",
+                f"[COLOR white]🧪 Test Backup Config[/COLOR]",
+                # Management operations
+                f"[COLOR yellow]📊 Library Statistics[/COLOR]",
+                f"[COLOR yellow]🔄 Force Library Rescan[/COLOR]",
+                f"[COLOR yellow]🗑️ Clear Search History[/COLOR]",
+                f"[COLOR yellow]⚙️ Reset Preferences[/COLOR]",
                 # Cancel
                 f"[COLOR gray]❌ {L(36003)}[/COLOR]"  # "Cancel"
             ]
@@ -776,7 +789,7 @@ class ToolsHandler:
             dialog = xbmcgui.Dialog()
             selected_index = dialog.select(L(36021), options)  # "Lists Tools & Options"
 
-            if selected_index < 0 or selected_index == 2:  # Cancel
+            if selected_index < 0 or selected_index == 11:  # Cancel
                 return DialogResponse(success=False)
 
             # Handle selected option
@@ -788,6 +801,24 @@ class ToolsHandler:
                 from .lists_handler import ListsHandler
                 lists_handler = ListsHandler()
                 return lists_handler.create_folder(context)
+            elif selected_index == 2:  # Import Lists
+                return self._import_lists(context)
+            elif selected_index == 3:  # Export All Lists
+                return self._export_all_lists(context)
+            elif selected_index == 4:  # Manual Backup
+                return self._run_manual_backup()
+            elif selected_index == 5:  # Backup Manager
+                return self._show_backup_manager()
+            elif selected_index == 6:  # Test Backup Config
+                return self._test_backup_config()
+            elif selected_index == 7:  # Library Statistics
+                return self._show_library_stats()
+            elif selected_index == 8:  # Force Library Rescan
+                return self._force_rescan()
+            elif selected_index == 9:  # Clear Search History
+                return self._clear_search_history()
+            elif selected_index == 10:  # Reset Preferences
+                return self._reset_preferences()
 
             return DialogResponse(success=False)
 
@@ -797,3 +828,92 @@ class ToolsHandler:
                 success=False,
                 message="Error showing lists tools"
             )
+
+    def _import_lists(self, context: PluginContext) -> DialogResponse:
+        """Import lists from file"""
+        try:
+            from ..import_export.import_engine import get_import_engine
+            import_engine = get_import_engine()
+
+            # Show file browser for selection
+            dialog = xbmcgui.Dialog()
+            file_path = dialog.browse(
+                1,  # Type: ShowAndGetFile
+                "Select file to import",
+                "files",
+                ".json|.ndjson",
+                False,  # Use thumbs
+                False,  # Treat as folder
+                ""  # Default path
+            )
+
+            if not file_path:
+                return DialogResponse(success=False)
+
+            # Run import
+            result = import_engine.import_data(file_path)
+
+            if result.get("success"):
+                message = (
+                    f"Import completed:\n"
+                    f"Lists: {result.get('lists_imported', 0)}\n"
+                    f"Items: {result.get('items_imported', 0)}\n"
+                    f"Folders: {result.get('folders_imported', 0)}"
+                )
+                return DialogResponse(
+                    success=True,
+                    message=message,
+                    refresh_needed=True
+                )
+            else:
+                return DialogResponse(
+                    success=False,
+                    message=f"Import failed: {result.get('error', 'Unknown error')}"
+                )
+
+        except Exception as e:
+            self.logger.error(f"Error importing lists: {e}")
+            return DialogResponse(success=False, message="Error importing lists")
+
+    def _export_all_lists(self, context: PluginContext) -> DialogResponse:
+        """Export all lists and folders"""
+        try:
+            # Get export engine
+            export_engine = get_export_engine()
+
+            # Get total count for confirmation
+            query_manager = context.query_manager
+            if query_manager:
+                all_lists = query_manager.get_all_lists_with_folders()
+                list_count = len(all_lists)
+                
+                # Confirm export
+                dialog = xbmcgui.Dialog()
+                if not dialog.yesno(
+                    "Confirm Export",
+                    f"Export all {list_count} lists and folders?",
+                    "This will include all list items and metadata."
+                ):
+                    return DialogResponse(success=False)
+
+            # Run export
+            result = export_engine.export_data(
+                export_types=["lists", "list_items", "folders"],
+                file_format="json"
+            )
+
+            if result.get("success"):
+                return DialogResponse(
+                    success=True,
+                    message=f"Exported all lists to {result['filename']}",
+                    refresh_needed=False
+                )
+            else:
+                return DialogResponse(
+                    success=False,
+                    message=f"Export failed: {result.get('error', 'Unknown error')}"
+                )
+
+        except Exception as e:
+            self.logger.error(f"Error exporting all lists: {e}")
+            return DialogResponse(success=False, message="Error exporting all lists")
