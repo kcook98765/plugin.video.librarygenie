@@ -105,6 +105,7 @@ class Router:
                         return True  # Prevent further processing
                     elif hasattr(result, 'refresh_needed') and result.refresh_needed:
                         # Just refresh the current directory
+                        import xbmc
                         xbmc.executebuiltin('Container.Refresh')
                         # End directory properly
                         xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
