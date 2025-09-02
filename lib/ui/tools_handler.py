@@ -34,6 +34,8 @@ class ToolsHandler:
                 return self._show_user_list_tools(context, list_id)
             elif list_type == "folder" and list_id:
                 return self._show_folder_tools(context, list_id)
+            elif list_type == "lists_main":
+                return self._show_lists_main_tools(context)
             else:
                 return DialogResponse(
                     success=False,
@@ -757,3 +759,41 @@ class ToolsHandler:
             success=True,
             message="Library stats not yet implemented"
         )
+
+    def _show_lists_main_tools(self, context: PluginContext) -> DialogResponse:
+        """Show tools specific to the main Lists menu"""
+        try:
+            # Build options for main lists menu - organized by operation type
+            options = [
+                # Creation operations
+                f"[COLOR lightgreen]📋 {L(36019)}[/COLOR]",  # "Create New List"
+                f"[COLOR lightgreen]📁 {L(36020)}[/COLOR]",  # "Create New Folder"
+                # Cancel
+                f"[COLOR gray]❌ {L(36003)}[/COLOR]"  # "Cancel"
+            ]
+
+            # Show selection dialog
+            dialog = xbmcgui.Dialog()
+            selected_index = dialog.select(L(36021), options)  # "Lists Tools & Options"
+
+            if selected_index < 0 or selected_index == 2:  # Cancel
+                return DialogResponse(success=False)
+
+            # Handle selected option
+            if selected_index == 0:  # Create New List
+                from .lists_handler import ListsHandler
+                lists_handler = ListsHandler()
+                return lists_handler.create_list(context)
+            elif selected_index == 1:  # Create New Folder
+                from .lists_handler import ListsHandler
+                lists_handler = ListsHandler()
+                return lists_handler.create_folder(context)
+
+            return DialogResponse(success=False)
+
+        except Exception as e:
+            self.logger.error(f"Error showing lists main tools: {e}")
+            return DialogResponse(
+                success=False,
+                message="Error showing lists tools"
+            )

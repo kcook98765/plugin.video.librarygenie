@@ -66,22 +66,13 @@ class ListsHandler:
             # Build menu items for lists and folders
             menu_items = []
 
-            # Add "Create New List" option at the top
+            # Add "Tools & Options" at the top
             menu_items.append({
-                'label': "[COLOR lightgreen]+ Create New List[/COLOR]",
-                'url': context.build_url('create_list_execute'),
+                'label': f"[COLOR yellow]⚙️ {L(36000)}[/COLOR]",  # "Tools & Options"
+                'url': context.build_url('show_list_tools', list_type='lists_main'),
                 'is_folder': True,
-                'icon': "DefaultAddSource.png",
-                'description': "Create a new list"
-            })
-
-            # Add "Create New Folder" option
-            menu_items.append({
-                'label': "[COLOR lightgreen]+ Create New Folder[/COLOR]",
-                'url': context.build_url('create_folder_execute'),
-                'is_folder': True,
-                'icon': "DefaultFolder.png",
-                'description': "Create a new folder"
+                'icon': "DefaultAddonProgram.png",
+                'description': L(36018)  # "Access lists tools and options"
             })
 
             # Get all existing folders to display as navigable items
