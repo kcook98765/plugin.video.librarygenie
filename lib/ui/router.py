@@ -41,14 +41,11 @@ class Router:
         params = context.get_params() # Get all params for modular tools
         self.logger.debug(f"Router dispatching action: '{action}'")
 
-        handler = self._handlers.get(action)
-        if not handler:
-            self.logger.debug(f"No handler found for action '{action}', will show main menu")
-            return False
-
         try:
             # Call handler with context
             self.logger.debug(f"Calling handler for action '{action}'")
+            
+            # Handle special cases first
             if action == "scan_favorites_execute":
                 # Assuming favorites_handler is initialized elsewhere or dynamically
                 if not self.favorites_handler:
@@ -92,7 +89,12 @@ class Router:
                 return self._handle_add_to_list(context, media_item_id)
 
             else:
-                # Use the registered handler if not a specific case
+                # Check for registered handlers for other actions
+                handler = self._handlers.get(action)
+                if not handler:
+                    self.logger.debug(f"No handler found for action '{action}', will show main menu")
+                    return False
+                # Use the registered handler
                 handler(context)
             return True
 
