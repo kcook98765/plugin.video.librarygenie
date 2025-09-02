@@ -230,18 +230,23 @@ Stores UI-related user preferences.
 ---
 
 ### `imdb_exports`
-Lightweight table for export/import matching.
+Lightweight table for export/import/backup matching with enhanced metadata.
 
 | Column     | Type    | Notes |
 |------------|---------|-------|
 | `id`       | INTEGER | PRIMARY KEY AUTOINCREMENT |
-| `imdb_id`  | TEXT    | |
-| `title`    | TEXT    | |
-| `year`     | INTEGER | |
-| `created_at` | TEXT  | |
+| `imdb_id`  | TEXT    | Primary identifier |
+| `tmdb_id`  | TEXT    | TMDb identifier for fallback |
+| `kodi_id`  | INTEGER | Kodi database ID |
+| `title`    | TEXT    | Media title |
+| `year`     | INTEGER | Release year |
+| `file_path`| TEXT    | Original file path |
+| `created_at` | TEXT  | Creation timestamp |
 
 Indexes:
 - INDEX on `imdb_id`.
+- INDEX on `tmdb_id`.
+- INDEX on `kodi_id`.
 
 ---
 
@@ -335,6 +340,28 @@ Indexes:
 
 ---
 
+### `backup_history`
+Records backup operations and retention management.
+
+| Column              | Type    | Notes |
+|---------------------|---------|-------|
+| `id`                | INTEGER | PRIMARY KEY AUTOINCREMENT |
+| `backup_type`       | TEXT    | 'automatic' or 'manual' |
+| `filename`          | TEXT    | NOT NULL - backup filename |
+| `file_path`         | TEXT    | NOT NULL - full file path |
+| `storage_type`      | TEXT    | NOT NULL - 'local' |
+| `export_types`      | TEXT    | JSON array of included types |
+| `file_size`         | INTEGER | Backup file size in bytes |
+| `items_count`       | INTEGER | Total items in backup |
+| `success`           | INTEGER | DEFAULT 1 - whether backup succeeded |
+| `error_message`     | TEXT    | Error message if backup failed |
+| `created_at`        | TEXT    | NOT NULL DEFAULT (datetime('now')) |
+
+Indexes:
+- INDEX on `backup_type`.
+- INDEX on `created_at`.
+- INDEX on `storage_type`.
+
 ### `schema_version`
 Tracks database schema version for migrations.
 
@@ -362,6 +389,15 @@ The schema includes these default entries on initialization:
 - A "Search History" folder in the `folders` table
 - Default search preferences in `search_preferences`
 - Default UI preferences in `ui_preferences` (single row with ID=1)
+- Default backup preferences with weekly scheduling disabled
+
+### Backup System
+The backup system provides:
+- **Unified Format**: Uses the same NDJSON engine as export functionality
+- **Enhanced Metadata**: Includes additional identifiers for robust recovery
+- **Flexible Storage**: Local paths and network shares via Kodi file settings
+- **Automated Scheduling**: Configurable intervals with timestamp-based naming
+- **Retention Management**: Automatic cleanup of old backups based on policies
 
 ### Authentication and Sync
 The auth and sync tables support optional external service integration:

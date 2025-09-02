@@ -32,9 +32,12 @@ LibraryGenie is a Kodi addon that provides advanced, flexible list and folder ma
 - Transaction-safe modifications to prevent corruption.
 
 ### Import & Export
-- **NDJSON Export**: Primary format, newline-delimited JSON entries with all relevant fields.
-- **Tools Integration**: Export accessible via Tools & Options menu with context-aware options.
+- **Unified Format**: Backup and export use the same NDJSON format with enhanced metadata fields.
+- **Automated Backups**: Configurable timestamp-based backups (hourly, daily, weekly, monthly).
+- **Local & Network Storage**: Support for local paths and network shares configured in Kodi.
+- **Tools Integration**: Export and backup accessible via Tools & Options menu with context-aware options.
 - **IMDb-First Matching**: Highest-confidence mapping across systems.
+- **Enhanced Metadata**: Additional identifiers (TMDb, Kodi IDs, file paths) for robust fallback matching.
 - **Fallbacks**: TMDb IDs, title/year, season/episode, or artist/track when IMDb is missing.
 - **Placeholder Creation**: Unmatched items preserved for later resolution.
 - **Batch Operations**: Efficient chunked import/export of large lists.
@@ -44,6 +47,14 @@ LibraryGenie is a Kodi addon that provides advanced, flexible list and folder ma
 - **Episodes**: Episode IMDb → show IMDb + season/episode → show title fallback.
 - **Music Videos**: IMDb (rare) → artist+track(+year).
 - **External Items**: Plugin identifiers and routes.
+
+### Backup & Recovery
+- **Automated Backups**: Scheduled timestamp-based backups with configurable intervals.
+- **Manual Backups**: On-demand backup creation via Tools menu.
+- **Flexible Storage**: Local paths or network shares (SMB/NFS) configured in Kodi settings.
+- **Backup Management**: List, restore, and delete backups through the Tools interface.
+- **Comprehensive Coverage**: Backup lists, folders, favorites, and optionally library snapshots.
+- **Disaster Recovery**: Full system restore from unified backup files.
 
 ### Performance
 - Batched JSON-RPC requests (≤200 items per call).
@@ -96,7 +107,9 @@ Confidence scoring: 100% (IMDb) → 95% (TMDb) → 75–90% (title/year) → fal
 
 - **Set Default List**: Button-style action opens list picker when lists exist, shows helpful message when none available.
 - **Background Tasks**: Configurable interval (5-720 minutes) with safe defaults and clamping.
-- **Organized Categories**: Settings grouped into General, Lists, and Background sections.
+- **Backup Settings**: Automated backup scheduling, storage location, and retention policies.
+- **Storage Configuration**: Local paths and network share support via Kodi file settings.
+- **Organized Categories**: Settings grouped into General, Lists, Background, and Backup sections.
 - **Privacy-First**: External features disabled by default, require explicit user authorization.
 
 ## External Integration (Optional)

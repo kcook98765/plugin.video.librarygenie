@@ -52,7 +52,11 @@ LibraryGenie consists of three main layers:
 - Minimal fields for display (title, year, art, tmdb, other non heavy fields from JsonRPC).  
 - Always set `IsPlayable` where applicable.
 
-### Export/Import
+### Export/Import & Backup
+- **Unified System**: Backup and export use the same engine and NDJSON format.
+- **Enhanced Metadata**: Include additional identifiers (TMDb, Kodi IDs, file paths) for robust matching.
+- **Automated Backups**: Timestamp-based scheduling with configurable intervals and retention.
+- **Storage Flexibility**: Local paths and network shares (no HTTP/remote servers).
 - Export: NDJSON with universal and type-specific fields.  
 - Import: IMDb-first mapping; fallback to title/year or other identifiers.  
 - Placeholders: create when no match is found.
@@ -85,7 +89,8 @@ LibraryGenie consists of three main layers:
 - **Runtime constraints**: Never sync during video playback or pause; defer until idle.
 - **Graceful shutdown**: Abort immediately on Kodi shutdown signals.
 - **Rate limiting**: Sleep generously between steps; use jitter to avoid busy loops.
-- **Triggers**: Run on addon start, library updates, periodic timer, and manual force.
+- **Triggers**: Run on addon start, library updates, periodic timer, manual force, and scheduled backups.
+- **Backup Management**: Automated timestamp-based backups with configurable scheduling.
 - **Guardrails**: Check auth state, playback status, and recent run timestamps before proceeding.
 
 ### UI/UX Guidelines
@@ -107,7 +112,7 @@ LibraryGenie consists of three main layers:
 - `service.py`: background service for periodic tasks (library scanning, favorites sync, token refresh)
 - `lib/ui/`: UI layer - routing, handlers, builders, context menus, session management
 - `lib/data/`: Data layer - database connection, queries, migrations, storage management
-- `lib/import_export/`: Import/export engines, backup management, format handling
+- `lib/import_export/`: Unified import/export/backup engines, timestamp management, storage handling
 - `lib/library/`: Library scanning and indexing with favorites integration
 - `lib/search/`: Local search engines, query parsing, text normalization
 - `lib/kodi/`: Kodi-specific integration - JSON-RPC, favorites parsing
