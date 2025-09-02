@@ -1,0 +1,547 @@
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+LibraryGenie - Timestamp Backup Manager
+Enhanced backup manager with automated timestamps and flexible storage
+"""
+
+import os
+import json
+import requests
+from datetime import datetime, timedelta
+from typing import Dict, List, Any, Optional, Tuple
+from .export_engine import get_export_engine
+from .storage_manager import get_storage_manager
+from ..config import get_config
+from ..utils.logger import get_logger
+
+
+class TimestampBackupManager:
+    """Enhanced backup manager with timestamp automation and storage flexibility"""
+
+    def __init__(self):
+        self.logger = get_logger(__name__)
+        self.export_engine = get_export_engine()
+        self.storage_manager = get_storage_manager()
+        self.config = get_config()
+
+    def should_run_backup(self) -> bool:
+        """Check if backup should run based on schedule"""
+        try:
+            # Check if backups are enabled
+            if not self.config.get("backup_enabled", False):
+                return False
+
+            # Get backup interval
+            interval = self.config.get("backup_interval", "weekly")
+
+            # Get last backup time
+            last_backup = self._get_last_backup_time()
+            if not last_backup:
+                # No previous backup, should run
+                return True
+
+            # Calculate next backup time based on interval
+            now = datetime.now()
+            if interval == "hourly":
+                next_backup = last_backup + timedelta(hours=1)
+            elif interval == "daily":
+                next_backup = last_backup + timedelta(days=1)
+            elif interval == "weekly":
+                next_backup = last_backup + timedelta(days=7)
+            elif interval == "monthly":
+                next_backup = last_backup + timedelta(days=30)
+            else:
+                # Default to weekly if unknown interval
+                next_backup = last_backup + timedelta(days=7)
+
+            return now >= next_backup
+
+        except Exception as e:
+            self.logger.error(f"Error checking backup schedule: {e}")
+            return False
+
+    def run_automatic_backup(self) -> Dict[str, Any]:
+        """Run scheduled automatic backup with timestamp"""
+        try:
+            self.logger.info("Starting automatic timestamped backup")
+
+            # Generate timestamp
+            timestamp_format = self.config.get("backup_timestamp_format", "%Y%m%d-%H%M%S")
+            timestamp = datetime.now().strftime(timestamp_format)
+
+            # Determine what to backup based on settings
+            export_types = ["lists", "list_items"]
+
+            if self.config.get("backup_include_favorites", True):
+                export_types.append("favorites")
+
+            if self.config.get("backup_include_library", False):
+                export_types.append("library_snapshot")
+
+            if self.config.get("backup_include_folders", True):
+                export_types.append("folders")
+
+            # Generate filename with timestamp
+            prefix = self.config.get("backup_prefix", "librarygenie")
+            filename = f"{prefix}_backup_{timestamp}.json"
+
+            # Run export
+            result = self.export_engine.export_data(
+                export_types=export_types,
+                file_format="json",
+                custom_filename=filename
+            )
+
+            if result["success"]:
+                # Store backup based on storage type
+                storage_result = self._store_backup(result["file_path"], filename)
+                
+                if storage_result["success"]:
+                    # Update last backup time
+                    self._update_last_backup_time()
+
+                    # Clean up old backups
+                    self._cleanup_old_backups()
+
+                    self.logger.info(f"Automatic backup completed: {filename}")
+
+                    return {
+                        "success": True,
+                        "filename": filename,
+                        "timestamp": timestamp,
+                        "file_size": result["file_size"],
+                        "export_types": export_types,
+                        "total_items": result["total_items"],
+                        "storage_location": storage_result["location"]
+                    }
+                else:
+                    self.logger.error(f"Backup storage failed: {storage_result.get('error')}")
+                    return {"success": False, "error": f"Storage failed: {storage_result.get('error')}"}
+            else:
+                self.logger.error(f"Automatic backup failed: {result.get('error')}")
+                return {"success": False, "error": result.get("error")}
+
+        except Exception as e:
+            self.logger.error(f"Error in automatic backup: {e}")
+            return {"success": False, "error": str(e)}
+
+    def run_manual_backup(self) -> Dict[str, Any]:
+        """Run manual backup with timestamp"""
+        try:
+            self.logger.info("Starting manual timestamped backup")
+            
+            # Force run regardless of schedule
+            result = self.run_automatic_backup()
+            result["manual"] = True
+            
+            return result
+
+        except Exception as e:
+            self.logger.error(f"Error in manual backup: {e}")
+            return {"success": False, "error": str(e)}
+
+    def test_backup_configuration(self) -> Dict[str, Any]:
+        """Test backup configuration without creating actual backup"""
+        try:
+            storage_type = self.config.get("backup_storage_type", "local")
+            
+            if storage_type == "local":
+                return self._test_local_storage()
+            elif storage_type == "remote":
+                return self._test_remote_storage()
+            else:
+                return {"success": False, "error": "Unknown storage type"}
+
+        except Exception as e:
+            self.logger.error(f"Error testing backup configuration: {e}")
+            return {"success": False, "error": str(e)}
+
+    def list_backups(self) -> List[Dict[str, Any]]:
+        """List available backup files from all storage locations"""
+        try:
+            storage_type = self.config.get("backup_storage_type", "local")
+            
+            if storage_type == "local":
+                return self._list_local_backups()
+            elif storage_type == "remote":
+                return self._list_remote_backups()
+            else:
+                return []
+
+        except Exception as e:
+            self.logger.error(f"Error listing backups: {e}")
+            return []
+
+    def restore_backup(self, backup_info: Dict[str, Any]) -> Dict[str, Any]:
+        """Restore from a timestamped backup"""
+        try:
+            storage_type = self.config.get("backup_storage_type", "local")
+            
+            if storage_type == "local":
+                return self._restore_local_backup(backup_info)
+            elif storage_type == "remote":
+                return self._restore_remote_backup(backup_info)
+            else:
+                return {"success": False, "error": "Unknown storage type"}
+
+        except Exception as e:
+            self.logger.error(f"Error restoring backup: {e}")
+            return {"success": False, "error": str(e)}
+
+    def _store_backup(self, source_path: str, filename: str) -> Dict[str, Any]:
+        """Store backup based on configured storage type"""
+        try:
+            storage_type = self.config.get("backup_storage_type", "local")
+            
+            if storage_type == "local":
+                return self._store_local_backup(source_path, filename)
+            elif storage_type == "remote":
+                return self._store_remote_backup(source_path, filename)
+            else:
+                return {"success": False, "error": "Unknown storage type"}
+
+        except Exception as e:
+            self.logger.error(f"Error storing backup: {e}")
+            return {"success": False, "error": str(e)}
+
+    def _store_local_backup(self, source_path: str, filename: str) -> Dict[str, Any]:
+        """Store backup to local storage"""
+        try:
+            # Determine storage path
+            custom_path = self.config.get("backup_local_path", "")
+            if custom_path and os.path.exists(custom_path):
+                backup_dir = custom_path
+            else:
+                backup_dir = os.path.join(self.storage_manager.get_profile_path(), "backups")
+                os.makedirs(backup_dir, exist_ok=True)
+
+            # Copy to backup location
+            dest_path = os.path.join(backup_dir, filename)
+            
+            # Read source and write to destination
+            content = self.storage_manager.read_file_safe(source_path)
+            if content and self.storage_manager.write_file_atomic(dest_path, content):
+                return {
+                    "success": True,
+                    "location": dest_path,
+                    "storage_type": "local"
+                }
+            else:
+                return {"success": False, "error": "Failed to copy backup file"}
+
+        except Exception as e:
+            self.logger.error(f"Error storing local backup: {e}")
+            return {"success": False, "error": str(e)}
+
+    def _store_remote_backup(self, source_path: str, filename: str) -> Dict[str, Any]:
+        """Store backup to remote storage"""
+        try:
+            remote_url = self.config.get("backup_remote_url", "")
+            remote_token = self.config.get("backup_remote_token", "")
+
+            if not remote_url:
+                return {"success": False, "error": "Remote URL not configured"}
+
+            # Read backup content
+            content = self.storage_manager.read_file_safe(source_path)
+            if not content:
+                return {"success": False, "error": "Failed to read backup file"}
+
+            # Upload to remote storage
+            headers = {}
+            if remote_token:
+                headers["Authorization"] = f"Bearer {remote_token}"
+
+            response = requests.post(
+                f"{remote_url}/upload/{filename}",
+                data=content.encode('utf-8'),
+                headers=headers,
+                timeout=30
+            )
+
+            if response.status_code == 200:
+                return {
+                    "success": True,
+                    "location": f"{remote_url}/{filename}",
+                    "storage_type": "remote"
+                }
+            else:
+                return {"success": False, "error": f"Remote upload failed: {response.status_code}"}
+
+        except Exception as e:
+            self.logger.error(f"Error storing remote backup: {e}")
+            return {"success": False, "error": str(e)}
+
+    def _test_local_storage(self) -> Dict[str, Any]:
+        """Test local storage configuration"""
+        try:
+            custom_path = self.config.get("backup_local_path", "")
+            if custom_path:
+                if not os.path.exists(custom_path):
+                    return {"success": False, "error": f"Custom path does not exist: {custom_path}"}
+                if not os.access(custom_path, os.W_OK):
+                    return {"success": False, "error": f"No write permission: {custom_path}"}
+                test_path = custom_path
+            else:
+                test_path = os.path.join(self.storage_manager.get_profile_path(), "backups")
+                os.makedirs(test_path, exist_ok=True)
+
+            # Test write access
+            test_file = os.path.join(test_path, "test_backup.tmp")
+            if self.storage_manager.write_file_atomic(test_file, "test"):
+                os.remove(test_file)
+                return {
+                    "success": True,
+                    "message": f"Local storage ready: {test_path}",
+                    "path": test_path
+                }
+            else:
+                return {"success": False, "error": "Failed to write test file"}
+
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def _test_remote_storage(self) -> Dict[str, Any]:
+        """Test remote storage configuration"""
+        try:
+            remote_url = self.config.get("backup_remote_url", "")
+            remote_token = self.config.get("backup_remote_token", "")
+
+            if not remote_url:
+                return {"success": False, "error": "Remote URL not configured"}
+
+            # Test connection
+            headers = {}
+            if remote_token:
+                headers["Authorization"] = f"Bearer {remote_token}"
+
+            response = requests.get(f"{remote_url}/health", headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                return {
+                    "success": True,
+                    "message": f"Remote storage ready: {remote_url}",
+                    "url": remote_url
+                }
+            else:
+                return {"success": False, "error": f"Remote health check failed: {response.status_code}"}
+
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def _list_local_backups(self) -> List[Dict[str, Any]]:
+        """List local backup files"""
+        try:
+            custom_path = self.config.get("backup_local_path", "")
+            if custom_path and os.path.exists(custom_path):
+                backup_dir = custom_path
+            else:
+                backup_dir = os.path.join(self.storage_manager.get_profile_path(), "backups")
+
+            if not os.path.exists(backup_dir):
+                return []
+
+            backups = []
+            prefix = self.config.get("backup_prefix", "librarygenie")
+            
+            for filename in os.listdir(backup_dir):
+                if filename.startswith(f"{prefix}_backup_") and filename.endswith(".json"):
+                    file_path = os.path.join(backup_dir, filename)
+                    stat = os.stat(file_path)
+                    
+                    # Parse timestamp from filename
+                    timestamp_str = filename.replace(f"{prefix}_backup_", "").replace(".json", "")
+                    try:
+                        backup_time = datetime.strptime(timestamp_str, self.config.get("backup_timestamp_format", "%Y%m%d-%H%M%S"))
+                    except:
+                        backup_time = datetime.fromtimestamp(stat.st_mtime)
+
+                    backups.append({
+                        "filename": filename,
+                        "file_path": file_path,
+                        "backup_time": backup_time,
+                        "file_size": stat.st_size,
+                        "storage_type": "local",
+                        "age_days": (datetime.now() - backup_time).days
+                    })
+
+            # Sort by backup time, newest first
+            backups.sort(key=lambda x: x["backup_time"], reverse=True)
+            return backups
+
+        except Exception as e:
+            self.logger.error(f"Error listing local backups: {e}")
+            return []
+
+    def _list_remote_backups(self) -> List[Dict[str, Any]]:
+        """List remote backup files"""
+        try:
+            remote_url = self.config.get("backup_remote_url", "")
+            remote_token = self.config.get("backup_remote_token", "")
+
+            if not remote_url:
+                return []
+
+            headers = {}
+            if remote_token:
+                headers["Authorization"] = f"Bearer {remote_token}"
+
+            response = requests.get(f"{remote_url}/list", headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                remote_files = response.json()
+                backups = []
+                prefix = self.config.get("backup_prefix", "librarygenie")
+                
+                for file_info in remote_files:
+                    filename = file_info.get("name", "")
+                    if filename.startswith(f"{prefix}_backup_") and filename.endswith(".json"):
+                        # Parse timestamp from filename
+                        timestamp_str = filename.replace(f"{prefix}_backup_", "").replace(".json", "")
+                        try:
+                            backup_time = datetime.strptime(timestamp_str, self.config.get("backup_timestamp_format", "%Y%m%d-%H%M%S"))
+                        except:
+                            backup_time = datetime.now()
+
+                        backups.append({
+                            "filename": filename,
+                            "file_path": f"{remote_url}/{filename}",
+                            "backup_time": backup_time,
+                            "file_size": file_info.get("size", 0),
+                            "storage_type": "remote",
+                            "age_days": (datetime.now() - backup_time).days
+                        })
+
+                # Sort by backup time, newest first
+                backups.sort(key=lambda x: x["backup_time"], reverse=True)
+                return backups
+            else:
+                return []
+
+        except Exception as e:
+            self.logger.error(f"Error listing remote backups: {e}")
+            return []
+
+    def _restore_local_backup(self, backup_info: Dict[str, Any]) -> Dict[str, Any]:
+        """Restore from local backup"""
+        try:
+            file_path = backup_info["file_path"]
+            content = self.storage_manager.read_file_safe(file_path)
+            
+            if not content:
+                return {"success": False, "error": "Failed to read backup file"}
+
+            # Parse and import backup
+            from .import_engine import get_import_engine
+            import_engine = get_import_engine()
+            
+            result = import_engine.import_from_content(content, backup_info["filename"])
+            return result
+
+        except Exception as e:
+            self.logger.error(f"Error restoring local backup: {e}")
+            return {"success": False, "error": str(e)}
+
+    def _restore_remote_backup(self, backup_info: Dict[str, Any]) -> Dict[str, Any]:
+        """Restore from remote backup"""
+        try:
+            remote_token = self.config.get("backup_remote_token", "")
+            headers = {}
+            if remote_token:
+                headers["Authorization"] = f"Bearer {remote_token}"
+
+            response = requests.get(backup_info["file_path"], headers=headers, timeout=30)
+            
+            if response.status_code == 200:
+                content = response.text
+                
+                # Parse and import backup
+                from .import_engine import get_import_engine
+                import_engine = get_import_engine()
+                
+                result = import_engine.import_from_content(content, backup_info["filename"])
+                return result
+            else:
+                return {"success": False, "error": f"Failed to download backup: {response.status_code}"}
+
+        except Exception as e:
+            self.logger.error(f"Error restoring remote backup: {e}")
+            return {"success": False, "error": str(e)}
+
+    def _get_last_backup_time(self) -> Optional[datetime]:
+        """Get timestamp of last backup"""
+        try:
+            backups = self.list_backups()
+            if backups:
+                return backups[0]["backup_time"]  # Most recent backup
+            return None
+        except:
+            return None
+
+    def _update_last_backup_time(self):
+        """Update last backup timestamp"""
+        try:
+            now = datetime.now()
+            self.logger.debug(f"Backup completed at {now}")
+        except Exception as e:
+            self.logger.error(f"Error updating backup time: {e}")
+
+    def _cleanup_old_backups(self):
+        """Clean up old backup files based on retention policy"""
+        try:
+            retention_count = self.config.get("backup_retention_count", 5)
+            backups = self.list_backups()
+
+            if len(backups) <= retention_count:
+                return  # Nothing to clean up
+
+            # Delete oldest backups
+            backups_to_delete = backups[retention_count:]
+            deleted_count = 0
+
+            for backup in backups_to_delete:
+                if self.delete_backup(backup):
+                    deleted_count += 1
+
+            if deleted_count > 0:
+                self.logger.info(f"Cleaned up {deleted_count} old backup files")
+
+        except Exception as e:
+            self.logger.error(f"Error cleaning up backups: {e}")
+
+    def delete_backup(self, backup_info: Dict[str, Any]) -> bool:
+        """Delete specific backup file"""
+        try:
+            storage_type = backup_info.get("storage_type", "local")
+            
+            if storage_type == "local":
+                return self.storage_manager.delete_file_safe(backup_info["file_path"])
+            elif storage_type == "remote":
+                remote_token = self.config.get("backup_remote_token", "")
+                headers = {}
+                if remote_token:
+                    headers["Authorization"] = f"Bearer {remote_token}"
+
+                response = requests.delete(backup_info["file_path"], headers=headers, timeout=10)
+                return response.status_code == 200
+            else:
+                return False
+
+        except Exception as e:
+            self.logger.error(f"Error deleting backup: {e}")
+            return False
+
+
+# Global instance
+_timestamp_backup_manager_instance = None
+
+
+def get_timestamp_backup_manager():
+    """Get global timestamp backup manager instance"""
+    global _timestamp_backup_manager_instance
+    if _timestamp_backup_manager_instance is None:
+        _timestamp_backup_manager_instance = TimestampBackupManager()
+    return _timestamp_backup_manager_instance

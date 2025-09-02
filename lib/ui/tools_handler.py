@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -15,6 +14,7 @@ from .response_types import DialogResponse
 from .localization import L
 from ..utils.logger import get_logger
 from ..import_export.export_engine import get_export_engine
+from .ui_response import UIResponse
 
 
 class ToolsHandler:
@@ -60,13 +60,13 @@ class ToolsHandler:
 
             last_scan_info = favorites_manager._get_last_scan_info_for_display()
             scan_option = f"[COLOR white]🔄 {L(36001)}[/COLOR]"  # "Scan Favorites"
-            
+
             if last_scan_info:
                 try:
                     last_scan_time = datetime.fromisoformat(last_scan_info['created_at'])
                     current_time = datetime.now()
                     time_diff = current_time - last_scan_time
-                    
+
                     if time_diff.total_seconds() < 60:
                         time_ago = "just now"
                     elif time_diff.total_seconds() < 3600:
@@ -78,7 +78,7 @@ class ToolsHandler:
                     else:
                         days = int(time_diff.total_seconds() / 86400)
                         time_ago = f"{days} day{'s' if days != 1 else ''} ago"
-                    
+
                     scan_option = f"[COLOR white]🔄 {L(36001)} ({time_ago})[/COLOR]"  # "Scan Favorites"
                 except Exception as e:
                     context.logger.debug(f"Could not parse last scan time: {e}")
@@ -87,7 +87,7 @@ class ToolsHandler:
             options = [
                 # Refresh operations
                 scan_option,
-                # Additive operations  
+                # Additive operations
                 f"[COLOR lightgreen]💾 {L(36002)}[/COLOR]",  # "Save As New List"
                 # Cancel
                 f"[COLOR gray]❌ {L(36003)}[/COLOR]"  # "Cancel"
@@ -207,27 +207,27 @@ class ToolsHandler:
 
             # Build comprehensive options for folders - organized by operation type
             options = []
-            
+
             # Additive operations (always available)
             options.extend([
                 f"[COLOR lightgreen]📋 {L(36009) % folder_info['name']}[/COLOR]",  # "Create New List in '%s'"
                 f"[COLOR lightgreen]📁 {L(36010) % folder_info['name']}[/COLOR]"  # "Create New Subfolder in '%s'"
             ])
-            
+
             # Modify operations (not for reserved folders)
             if not is_reserved:
                 options.extend([
                     f"[COLOR yellow]✏️ {L(36005) % folder_info['name']}[/COLOR]",  # "Rename '%s'"
                     f"[COLOR yellow]📁 {L(36011) % folder_info['name']}[/COLOR]"  # "Move '%s' to Parent Folder"
                 ])
-            
+
             # Export operations
             options.append(f"[COLOR white]📤 {L(36012) % folder_info['name']}[/COLOR]")  # "Export All Lists in '%s'"
-            
+
             # Destructive operations (not for reserved folders)
             if not is_reserved:
                 options.append(f"[COLOR red]🗑️ {L(36008) % folder_info['name']}[/COLOR]")  # "Delete '%s'"
-            
+
             # Cancel
             options.append(f"[COLOR gray]❌ {L(36003)}[/COLOR]")  # "Cancel"
 
@@ -372,7 +372,7 @@ class ToolsHandler:
             # Get available parent folders (excluding self and children)
             all_folders = query_manager.get_all_folders()
             folder_options = ["[Root Level]"]
-            
+
             for f in all_folders:
                 if str(f['id']) != str(folder_id) and f['name'] != 'Search History':
                     folder_options.append(f['name'])
@@ -564,3 +564,170 @@ class ToolsHandler:
         except Exception as e:
             self.logger.error(f"Error exporting folder lists: {e}")
             return DialogResponse(success=False, message="Error exporting folder lists")
+
+    def handle_action(self, action: str, params: Dict[str, Any]) -> UIResponse:
+        """Handle tools actions"""
+        try:
+            if action == "tools":
+                return self._show_tools_menu(params)
+            elif action == "force_rescan":
+                return self._force_rescan()
+            elif action == "clear_search_history":
+                return self._clear_search_history()
+            elif action == "reset_preferences":
+                return self._reset_preferences()
+            elif action == "library_stats":
+                return self._show_library_stats()
+            elif action == "favorites_stats":
+                return self._show_favorites_stats()
+            elif action == "test_backup":
+                return self._test_backup_config()
+            elif action == "manual_backup":
+                return self._run_manual_backup()
+            elif action == "backup_manager":
+                return self._show_backup_manager()
+            else:
+                self.logger.warning(f"Unknown tools action: {action}")
+                return self._show_tools_menu(params)
+        except Exception as e:
+            self.logger.error(f"Error in tools handler: {e}")
+            return UIResponse(
+                success=False,
+                content_type="notification",
+                message=f"Error: {e}"
+            )
+
+    def _show_favorites_stats(self) -> UIResponse:
+        """Show favorites statistics"""
+        try:
+            from ..kodi.favorites_manager import get_favorites_manager
+            favorites_manager = get_favorites_manager()
+
+            stats = favorites_manager.get_statistics()
+
+            message = (
+                f"Favorites Stats:\n"
+                f"Total Favorites: {stats.get('total_favorites', 0)}\n"
+                f"Mapped to Library: {stats.get('mapped_favorites', 0)}\n"
+                f"Unmapped: {stats.get('unmapped_favorites', 0)}\n"
+                f"Missing Targets: {stats.get('missing_favorites', 0)}\n"
+                f"Last Scan: {stats.get('last_scan', 'Never')}"
+            )
+
+            return UIResponse(
+                success=True,
+                content_type="notification",
+                message=message
+            )
+
+        except Exception as e:
+            self.logger.error(f"Error getting favorites stats: {e}")
+            return UIResponse(
+                success=False,
+                content_type="notification",
+                message=f"Error getting favorites stats: {e}"
+            )
+
+    def _test_backup_config(self) -> UIResponse:
+        """Test backup configuration"""
+        try:
+            from ..import_export import get_timestamp_backup_manager
+            backup_manager = get_timestamp_backup_manager()
+
+            result = backup_manager.test_backup_configuration()
+
+            if result["success"]:
+                message = f"Backup configuration test successful:\n{result['message']}"
+            else:
+                message = f"Backup configuration test failed:\n{result['error']}"
+
+            return UIResponse(
+                success=result["success"],
+                content_type="notification",
+                message=message
+            )
+
+        except Exception as e:
+            self.logger.error(f"Error testing backup config: {e}")
+            return UIResponse(
+                success=False,
+                content_type="notification",
+                message=f"Error testing backup config: {e}"
+            )
+
+    def _run_manual_backup(self) -> UIResponse:
+        """Run manual backup"""
+        try:
+            from ..import_export import get_timestamp_backup_manager
+            backup_manager = get_timestamp_backup_manager()
+
+            result = backup_manager.run_manual_backup()
+
+            if result["success"]:
+                message = (
+                    f"Manual backup completed:\n"
+                    f"File: {result['filename']}\n"
+                    f"Size: {result['file_size']} bytes\n"
+                    f"Items: {result['total_items']}\n"
+                    f"Location: {result['storage_location']}"
+                )
+            else:
+                message = f"Manual backup failed: {result['error']}"
+
+            return UIResponse(
+                success=result["success"],
+                content_type="notification",
+                message=message
+            )
+
+        except Exception as e:
+            self.logger.error(f"Error running manual backup: {e}")
+            return UIResponse(
+                success=False,
+                content_type="notification",
+                message=f"Error running manual backup: {e}"
+            )
+
+    def _show_backup_manager(self) -> UIResponse:
+        """Show backup manager with list of backups"""
+        try:
+            from ..import_export import get_timestamp_backup_manager
+            backup_manager = get_timestamp_backup_manager()
+
+            backups = backup_manager.list_backups()
+
+            # Build list items for backup files
+            list_items = []
+
+            for backup in backups[:10]:  # Show last 10 backups
+                age_text = f"{backup['age_days']} days ago" if backup['age_days'] > 0 else "Today"
+                size_mb = round(backup['file_size'] / 1024 / 1024, 2)
+
+                list_item = self.listitem_builder.build_action_item(
+                    title=backup['filename'],
+                    action=f"restore_backup",
+                    action_params={"backup_info": backup},
+                    secondary_label=f"{age_text} • {size_mb} MB • {backup['storage_type']}"
+                )
+                list_items.append(list_item)
+
+            if not list_items:
+                list_item = self.listitem_builder.build_info_item(
+                    title="No backups found",
+                    description="Create a backup using the manual backup option"
+                )
+                list_items.append(list_item)
+
+            return UIResponse(
+                success=True,
+                content_type="directory",
+                list_items=list_items
+            )
+
+        except Exception as e:
+            self.logger.error(f"Error showing backup manager: {e}")
+            return UIResponse(
+                success=False,
+                content_type="notification",
+                message=f"Error showing backup manager: {e}"
+            )

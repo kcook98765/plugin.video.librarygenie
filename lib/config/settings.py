@@ -27,11 +27,12 @@ def get_import_export_settings() -> Dict[str, Any]:
 
         # Backup Settings
         "backup_enabled": False,  # Automatic backups disabled by default
-        "backup_interval": "weekly",  # daily, weekly
+        "backup_interval": "weekly",  # hourly, daily, weekly, monthly
         "backup_retention_count": 5,  # Keep last N backups
         "backup_include_favorites": True,  # Include favorites in backups
         "backup_include_library": False,  # Include library snapshot in backups
         "backup_run_on_startup": False,  # Check for backup on addon startup
+        "backup_storage_type": "local",  # local, remote
 
         # File Management Settings
         "storage_cleanup_enabled": True,  # Enable automatic cleanup
@@ -134,6 +135,7 @@ def get_setting_descriptions() -> Dict[str, str]:
         "backup_include_favorites": "Include favorites data in automatic backups",
         "backup_include_library": "Include library snapshot in automatic backups",
         "backup_run_on_startup": "Check for scheduled backup when addon starts",
+        "backup_storage_type": "Type of storage to use for backups (local or remote)",
 
         # File Management Descriptions
         "storage_cleanup_enabled": "Automatically clean up old temporary files",
@@ -160,8 +162,12 @@ def validate_setting_value(setting_key: str, value: Any) -> Tuple[bool, str]:
     """Validate a setting value, return (is_valid, error_message)"""
     try:
         if setting_key == "backup_interval":
-            if value not in ["daily", "weekly"]:
-                return False, "Backup interval must be 'daily' or 'weekly'"
+            if value not in ["hourly", "daily", "weekly", "monthly"]:
+                return False, "Backup interval must be 'hourly', 'daily', 'weekly', or 'monthly'"
+
+        elif setting_key == "backup_storage_type":
+            if value not in ["local", "remote"]:
+                return False, "Backup storage type must be 'local' or 'remote'"
 
         elif setting_key == "backup_retention_count":
             if not isinstance(value, int) or value < 1 or value > 50:
@@ -234,7 +240,8 @@ class ImportExportSettings:
             "retention_count": self.get("backup_retention_count", 5),
             "include_favorites": self.get("backup_include_favorites", True),
             "include_library": self.get("backup_include_library", False),
-            "run_on_startup": self.get("backup_run_on_startup", False)
+            "run_on_startup": self.get("backup_run_on_startup", False),
+            "storage_type": self.get("backup_storage_type", "local")
         }
 
     def get_import_config(self) -> Dict[str, Any]:

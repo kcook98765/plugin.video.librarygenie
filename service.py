@@ -8,6 +8,7 @@ Handles periodic tasks and library monitoring
 
 import time
 from typing import Dict, Any
+from datetime import datetime
 
 import xbmc
 import xbmcaddon
@@ -80,6 +81,10 @@ class BackgroundService:
         self._last_token_check = 0
         self._token_check_interval = 300  # Check tokens every 5 minutes minimum
 
+        # Scheduled tasks tracking
+        self.last_scheduled_check = None
+
+
     def run(self):
         """Main service loop"""
         self.logger.info("Background service started")
@@ -106,6 +111,9 @@ class BackgroundService:
                 # Favorites scanning (if enabled and due)
                 if self.favorites_integration_enabled and self._favorites_manager:
                     self._check_and_scan_favorites()
+
+                # Check and run any scheduled tasks
+                self.check_scheduled_tasks()
 
                 # Reset failure count on successful cycle
                 self.consecutive_failures = 0
@@ -265,6 +273,50 @@ class BackgroundService:
         except Exception as e:
             self.logger.error(f"Favorites scanning failed: {e}")
             raise  # Re-raise to trigger backoff
+
+    def check_scheduled_tasks(self):
+        """Check and run any scheduled tasks"""
+        try:
+            current_time = datetime.now()
+
+            # Only run scheduled tasks if enough time has passed
+            if self.last_scheduled_check:
+                time_since_last = (current_time - self.last_scheduled_check).total_seconds()
+                if time_since_last < 300:  # 5 minutes minimum between scheduled task checks
+                    return
+
+            self.last_scheduled_check = current_time
+
+            # Check for library changes if tracking is enabled
+            if self.config.get_bool("track_library_changes", False):
+                self.check_library_changes()
+
+            # Check for scheduled backups
+            self.check_scheduled_backups()
+
+            # TODO: Add other scheduled tasks here (token refresh, etc.)
+
+        except Exception as e:
+            self.logger.error(f"Error in scheduled tasks: {e}")
+
+    def check_scheduled_backups(self):
+        """Check if scheduled backup should run"""
+        try:
+            from lib.import_export import get_timestamp_backup_manager
+
+            backup_manager = get_timestamp_backup_manager()
+
+            if backup_manager.should_run_backup():
+                self.logger.info("Running scheduled backup")
+                result = backup_manager.run_automatic_backup()
+
+                if result["success"]:
+                    self.logger.info(f"Scheduled backup completed: {result['filename']}")
+                else:
+                    self.logger.error(f"Scheduled backup failed: {result.get('error')}")
+
+        except Exception as e:
+            self.logger.error(f"Error checking scheduled backups: {e}")
 
 
 def run():

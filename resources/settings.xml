@@ -44,6 +44,26 @@
              range="30,5,3600" option="int" enable="eq(-1,true)"/>
   </category>
 
+  <!-- Backup Settings -->
+  <category label="30500">
+    <setting label="30510" type="lsep"/>
+    <setting id="backup_enabled" type="bool" label="30511" default="false"/>
+    <setting id="backup_interval" type="select" label="30512" default="weekly" values="hourly|daily|weekly|monthly" enable="eq(-1,true)"/>
+    <setting id="backup_retention_count" type="slider" label="30513" default="5" range="1,1,50" option="int" enable="eq(-2,true)"/>
+    <setting label="30520" type="lsep"/>
+    <setting id="backup_include_favorites" type="bool" label="30521" default="true" enable="eq(-4,true)"/>
+    <setting id="backup_include_library" type="bool" label="30522" default="false" enable="eq(-5,true)"/>
+    <setting id="backup_include_folders" type="bool" label="30523" default="true" enable="eq(-6,true)"/>
+    <setting label="30530" type="lsep"/>
+    <setting id="backup_storage_type" type="select" label="30531" default="local" values="local|remote" enable="eq(-8,true)"/>
+    <setting id="backup_local_path" type="folder" label="30532" default="" enable="eq(-1,local)" visible="eq(-1,local)"/>
+    <setting id="backup_remote_url" type="text" label="30533" default="" enable="eq(-2,remote)" visible="eq(-2,remote)"/>
+    <setting id="backup_remote_token" type="text" label="30534" default="" option="hidden" enable="eq(-3,remote)" visible="eq(-3,remote)"/>
+    <setting label="30540" type="lsep"/>
+    <setting id="backup_test_action" type="action" label="30541" action="RunPlugin(plugin://plugin.video.library.genie/?action=test_backup)" enable="eq(-12,true)"/>
+    <setting id="backup_manual_action" type="action" label="30542" action="RunPlugin(plugin://plugin.video.library.genie/?action=manual_backup)"/>
+  </category>
+
   <!-- Advanced Settings (Phase 3) -->
   <category label="30300">
     <setting label="30310" type="lsep"/>
