@@ -95,7 +95,7 @@ class MenuBuilder:
             # Use simple renderer for menu items
             self.logger.debug(f"MENU ITEM: Using simple renderer for '{title}'")
             list_item = self.renderer.create_simple_listitem(title, description, action, icon=item.get("icon"))
-            
+
             # Ensure non-folder action items are not marked as playable to prevent info dialog
             if not is_folder and action:
                 list_item.setProperty('IsPlayable', 'false')
@@ -142,7 +142,7 @@ class MenuBuilder:
                 list_item = context_manager.add_list_item_context_menu(
                     list_item, item["list_id"], item["list_item_id"]
                 )
-                self.logger.debug(f"MENU ITEM: Added list item context menu for '{title}' (list_id: {item['list_id']}, item_id: {item['list_item_id']})")
+                self.logger.logger.debug(f"MENU ITEM: Added list item context menu for '{title}' (list_id: {item['list_id']}, item_id: {item['list_item_id']})")
                 context_items_added += 2  # Approximate
             except ImportError:
                 self.logger.warning(f"MENU ITEM: Failed to import context_menu for list item '{title}'")
@@ -159,15 +159,15 @@ class MenuBuilder:
     def _add_breadcrumb_item(self, breadcrumb_path, addon_handle, base_url):
         """Add a breadcrumb navigation item at the top of the directory"""
         breadcrumb_label = f"[COLOR gray]📍 {breadcrumb_path}[/COLOR]"
-        
+
         # Create a non-interactive list item
         list_item = xbmcgui.ListItem(label=breadcrumb_label)
         list_item.setInfo('video', {'plot': f"Current location: {breadcrumb_path}"})
         list_item.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
-        
+
         # Make it non-playable and non-actionable
         list_item.setProperty('IsPlayable', 'false')
-        
+
         # Add as a non-folder item with empty URL to prevent interaction
         xbmcplugin.addDirectoryItem(
             handle=addon_handle, 
