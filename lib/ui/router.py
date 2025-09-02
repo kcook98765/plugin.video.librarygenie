@@ -34,7 +34,8 @@ class Router:
         Returns True if handler was found and called, False otherwise
         """
         if self.logger is None:
-            self.logger = context.logger
+            from ..utils.logger import get_logger
+            self.logger = get_logger(__name__)
 
         action = context.get_param('action', '')
         params = context.get_params() # Get all params for modular tools
@@ -74,7 +75,17 @@ class Router:
                     self.tools_handler = ToolsHandler()
                 list_type = params.get('list_type', 'unknown')
                 list_id = params.get('list_id')
-                return self.tools_handler.show_list_tools(context, list_type, list_id)
+                result = self.tools_handler.show_list_tools(context, list_type, list_id)
+                # Handle DialogResponse - show notification if there's a message
+                if hasattr(result, 'message') and result.message:
+                    import xbmcgui
+                    notification_type = xbmcgui.NOTIFICATION_INFO if result.success else xbmcgui.NOTIFICATION_ERROR
+                    xbmcgui.Dialog().notification("LibraryGenie", result.message, notification_type)
+                # Refresh directory if needed
+                if hasattr(result, 'refresh_needed') and result.refresh_needed:
+                    import xbmc
+                    xbmc.executebuiltin('Container.Refresh')
+                return result.success if hasattr(result, 'success') else True
 
             elif action == "add_to_list":
                 media_item_id = params.get('media_item_id')
