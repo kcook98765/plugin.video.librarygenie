@@ -103,6 +103,13 @@ class Router:
                         # End directory properly to prevent fallback navigation
                         xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
                         return True  # Prevent further processing
+                    elif hasattr(result, 'navigate_to_favorites') and result.navigate_to_favorites:
+                        # Navigate back to favorites view after successful scan
+                        import xbmc
+                        xbmc.executebuiltin(f'Container.Update({context.build_url("kodi_favorites")},replace)')
+                        # End directory properly
+                        xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+                        return True  # Prevent further processing
                     elif hasattr(result, 'refresh_needed') and result.refresh_needed:
                         # Just refresh the current directory
                         import xbmc
