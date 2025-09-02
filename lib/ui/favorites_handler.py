@@ -90,16 +90,7 @@ class FavoritesHandler:
             favorites_items = favorites  # No conversion needed - data is already in standard list format
 
             if not favorites_items:
-                # No favorites found
-                empty_item = xbmcgui.ListItem(label="[COLOR gray]No favorites found[/COLOR]")
-                empty_item.setInfo('video', {'plot': 'No Kodi favorites found or none mapped to library'})
-                xbmcplugin.addDirectoryItem(
-                    context.addon_handle,
-                    context.build_url('noop'),
-                    empty_item,
-                    False
-                )
-                # Build directory items for menu options if no favorites are displayed
+                # No favorites found - show menu options and empty message
                 for item in menu_items:
                     list_item = xbmcgui.ListItem(label=item['label'])
 
@@ -116,6 +107,16 @@ class FavoritesHandler:
                         item['is_folder']
                     )
 
+                # Add empty state message
+                empty_item = xbmcgui.ListItem(label="[COLOR gray]No favorites found[/COLOR]")
+                empty_item.setInfo('video', {'plot': 'No Kodi favorites found or none mapped to library. Use "Scan Favorites" to import from favorites.xml'})
+                xbmcplugin.addDirectoryItem(
+                    context.addon_handle,
+                    context.build_url('noop'),
+                    empty_item,
+                    False
+                )
+
                 # Set content type and finish directory
                 xbmcplugin.setContent(context.addon_handle, 'movies')
                 xbmcplugin.endOfDirectory(
@@ -123,6 +124,12 @@ class FavoritesHandler:
                     succeeded=True,
                     updateListing=False,
                     cacheToDisc=True
+                )
+
+                return DirectoryResponse(
+                    items=[],
+                    success=True,
+                    content_type="movies"
                 )
             else:
                 # First add the Sync Favorites menu option at the top
