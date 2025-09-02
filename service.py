@@ -31,8 +31,6 @@ class BackgroundService:
         self.interval = max(60, self.config.get_background_interval_seconds())  # Minimum 60s
         self.track_library_changes = self.config.get_bool("track_library_changes", False)  # Default off
         self.token_refresh_enabled = self.config.get_bool("background_token_refresh", True)
-        self.favorites_integration_enabled = self.config.get_bool("favorites_integration_enabled", False)
-        self.favorites_scan_interval_minutes = self.config.get_int("favorites_scan_interval_minutes", 30)
 
         # ✨ Gate: user setting to enable the hijack behavior
         self.info_hijack_enabled = self.config.get_bool("info_hijack_enabled", True)
@@ -64,18 +62,7 @@ class BackgroundService:
         except Exception as e:
             self.logger.warning(f"Failed to initialize library scanner: {e}")
 
-        # Initialize favorites manager if enabled
-        self._favorites_manager = None
-        if self.favorites_integration_enabled:
-            try:
-                from lib.kodi.favorites_manager import get_phase4_favorites_manager
-                self._favorites_manager = get_phase4_favorites_manager()
-                self.logger.debug("Favorites manager initialized")
-            except Exception as e:
-                self.logger.warning(f"Failed to initialize favorites manager: {e}")
-
-        # Favorites scan tracking
-        self._last_favorites_scan = 0
+        
 
         # Token refresh tracking
         self._last_token_check = 0
@@ -108,9 +95,7 @@ class BackgroundService:
                 if self.track_library_changes and self._library_scanner:
                     self._check_library_changes()
 
-                # Favorites scanning (if enabled and due)
-                if self.favorites_integration_enabled and self._favorites_manager:
-                    self._check_and_scan_favorites()
+                
 
                 # Check and run any scheduled tasks
                 self.check_scheduled_tasks()
@@ -179,27 +164,7 @@ class BackgroundService:
         except Exception as e:
             self.logger.error(f"Initial setup failed: {e}")
 
-    def _initial_favorites_scan(self):
-        """Perform initial favorites scan on service startup"""
-        try:
-            from lib.kodi.favorites_manager import get_phase4_favorites_manager
-
-            favorites_manager = get_phase4_favorites_manager()
-            result = favorites_manager.scan_favorites()
-
-            if result.get("success"):
-                items_found = result.get("items_found", 0)
-                items_mapped = result.get("items_mapped", 0)
-
-                if items_found > 0:
-                    self.logger.info(f"Initial favorites scan: {items_mapped}/{items_found} favorites mapped to library")
-                else:
-                    self.logger.debug("No favorites found during initial scan")
-            else:
-                self.logger.warning(f"Initial favorites scan failed: {result.get('message', 'Unknown error')}")
-
-        except Exception as e:
-            self.logger.debug(f"Favorites scan not available: {e}")
+    
 
 
     def _check_and_refresh_token_throttled(self):
@@ -243,36 +208,7 @@ class BackgroundService:
             self.logger.error(f"Library change detection failed: {e}")
             raise  # Re-raise to trigger backoff
 
-    def _check_and_scan_favorites(self):
-        """Check and scan favorites if due"""
-        try:
-            # Skip during playback to avoid interruption
-            if xbmc.Player().isPlaying():
-                return
-
-            current_time = time.time()
-            scan_interval_seconds = self.favorites_scan_interval_minutes * 60
-
-            # Only scan if enough time has passed
-            if current_time - self._last_favorites_scan < scan_interval_seconds:
-                return
-
-            self._last_favorites_scan = current_time
-
-            # Perform favorites scan
-            result = self._favorites_manager.scan_favorites()
-
-            if result.get("success"):
-                if result.get("scan_type") == "full":
-                    mapped = result.get("items_mapped", 0)
-                    total = result.get("items_found", 0)
-                    self.logger.debug(f"Favorites scan completed: {mapped}/{total} mapped")
-            else:
-                self.logger.warning(f"Favorites scan failed: {result.get('message', 'Unknown error')}")
-
-        except Exception as e:
-            self.logger.error(f"Favorites scanning failed: {e}")
-            raise  # Re-raise to trigger backoff
+    
 
     def check_scheduled_tasks(self):
         """Check and run any scheduled tasks"""
