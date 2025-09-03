@@ -256,17 +256,22 @@ class MenuBuilder:
 
         # Add additional context menu items if specified
         extra_context = options.get('extra_context_menu', [])
-        if extra_context:
+        if extra_context and list_item is not None:
             current_context = list_item.getProperty('ContextMenuItems') or []
             if isinstance(current_context, str):
                 current_context = [current_context]
             current_context.extend(extra_context)
             list_item.addContextMenuItems(current_context)
 
-        # Set as playable item
-        list_item.setProperty('IsPlayable', 'true')
-
-        # Add to directory
-        xbmcplugin.addDirectoryItem(
-            handle=addon_handle, url=url, listitem=list_item, isFolder=False
-        )
+        # Set as playable item and add to directory only if list_item is valid
+        if list_item is not None:
+            list_item.setProperty('IsPlayable', 'true')
+            
+            # Add to directory
+            xbmcplugin.addDirectoryItem(
+                handle=addon_handle, url=url, listitem=list_item, isFolder=False
+            )
+        else:
+            # Log error if list_item creation failed
+            movie_title = movie_data.get('title', 'Unknown')
+            self.logger.error(f"MOVIE MENU: Failed to create list item for movie '{movie_title}' - skipping")
