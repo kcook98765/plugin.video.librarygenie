@@ -1329,7 +1329,8 @@ class ListsHandler:
             selected_list_name = list_options[selected_index]
 
             # Add the external item to the selected list
-            success = query_manager.add_external_item_to_list(selected_list_id, media_item)
+            result = query_manager.add_item_to_list(selected_list_id, media_item)
+            success = result is not None and result.get("success", False)
 
             if success:
                 xbmcgui.Dialog().notification(
