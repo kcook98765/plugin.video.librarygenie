@@ -136,8 +136,7 @@ def run_authorize_flow():
                 progress.update(
                     percent,
                     f"Waiting for authorization... (attempt {attempt}/{max_attempts})",
-                    f"Time remaining: {remaining} seconds",
-                    "Cancel to abort"
+                    f"Time remaining: {remaining} seconds"
                 )
 
                 # Check if user cancelled
