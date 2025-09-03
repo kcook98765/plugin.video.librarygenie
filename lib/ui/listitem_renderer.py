@@ -7,7 +7,6 @@ Renders list items with proper Kodi integration
 """
 
 from typing import List, Dict, Any, Optional
-import xbmc
 import xbmcgui
 import xbmcplugin
 from .listitem_builder import ListItemBuilder
@@ -93,7 +92,7 @@ class ListItemRenderer:
         try:
             self.logger.info(f"RENDERER: Starting render_media_items with {len(items)} items (content_type='{content_type}')")
             if context_menu_callback:
-                self.logger.info(f"RENDERER: Context menu callback provided - will apply to each item")
+                self.logger.info("RENDERER: Context menu callback provided - will apply to each item")
 
             # Use the ListItemBuilder to handle the rendering
             builder = ListItemBuilder(self.addon_handle, self.addon_id)
@@ -102,7 +101,7 @@ class ListItemRenderer:
             if success:
                 self.logger.info(f"RENDERER: Successfully rendered {len(items)} items")
             else:
-                self.logger.error(f"RENDERER: Failed to render items")
+                self.logger.error("RENDERER: Failed to render items")
 
             return success
 
