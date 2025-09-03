@@ -38,7 +38,8 @@ class DialogResponse:
 
     def __init__(self, success: bool = False, message: str = "", refresh_needed: bool = False,
                  navigate_to_lists: bool = False, navigate_to_folder: int = None,
-                 navigate_to_main: bool = False, navigate_to_favorites: bool = False):
+                 navigate_to_main: bool = False, navigate_to_favorites: bool = False,
+                 navigate_on_failure: str = None):
         self.success = success
         self.message = message
         self.refresh_needed = refresh_needed
@@ -46,6 +47,7 @@ class DialogResponse:
         self.navigate_to_folder = navigate_to_folder
         self.navigate_to_main = navigate_to_main
         self.navigate_to_favorites = navigate_to_favorites
+        self.navigate_on_failure = navigate_on_failure
 
     def show_notification(self, addon, default_title: str = "LibraryGenie"):
         """Show notification to user if message is provided"""
