@@ -9,7 +9,7 @@ Handles Kodi favorites integration and management
 import xbmcplugin
 import xbmcgui
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import Dict, Any
 from .plugin_context import PluginContext
 from .response_types import DirectoryResponse, DialogResponse
 from ..utils.logger import get_logger
@@ -53,7 +53,7 @@ class FavoritesHandler:
 
             # Add "Tools & Options" at the top like other lists
             menu_items.append({
-                'label': f"[COLOR yellow]Tools & Options[/COLOR]",
+                'label': "[COLOR yellow]Tools & Options[/COLOR]",
                 'url': context.build_url('show_list_tools', list_type='favorites'),
                 'is_folder': True,
                 'icon': "DefaultAddonProgram.png",
@@ -200,14 +200,6 @@ class FavoritesHandler:
             progress.close()
 
             if result.get("success"):
-                message = (
-                    f"Favorites scan completed!\n"
-                    f"Found: {result.get('items_found', 0)} favorites\n"
-                    f"Mapped: {result.get('items_mapped', 0)} to library\n"
-                    f"Added: {result.get('items_added', 0)} new\n"
-                    f"Updated: {result.get('items_updated', 0)} existing"
-                )
-
                 return DialogResponse(
                     success=True,
                     message="Favorites scanned successfully",
