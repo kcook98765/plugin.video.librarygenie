@@ -73,6 +73,10 @@ class Router:
                     self.favorites_handler = FavoritesHandler()
                 return self.favorites_handler.save_favorites_as(context)
 
+            elif action == "favorites":
+                # Handle main favorites menu
+                return self._handle_favorites(context)
+
             elif action == "show_list_tools":
                 from .tools_handler import ToolsHandler
                 # Instantiate ToolsHandler here if it's not a singleton or managed globally
