@@ -56,6 +56,8 @@
 - **Cache localized strings**: Use `@lru_cache` decorator for string lookups to improve performance in menus with many items.
 - **Color coding**: Use Kodi-style color codes for different action types (destructive, additive, modify).
 - **Context-aware menus**: Implement tools and options that adapt based on the current context.
+- **Universal context menus**: Support context menu integration for all media types including plugin content.
+- **Plugin compatibility**: Handle various plugin item formats and metadata extraction gracefully.
 - Include **icon** and **fanart** that meet the size/format requirements and are your own or properly licensed.
 - Provide **clean UI/UX**: avoid modal spam, respect back/exit behaviors, and keep logs readable.
 - Follow **GUI guidelines**: set `IsPlayable` appropriately, use sort methods, and do not force skin-specific behaviors unless optional.
@@ -113,6 +115,8 @@ lib/
 
 ## 10) Specific Tips for LibraryGenie
 - **Local-first**: Lists/folders and import/export work entirely offline. External search/similarity disabled until user authorizes (OTP workflow).
+- **Universal context menus**: Context menu script (`context.py`) handles all playable media types including plugin content from any addon.
+- **Plugin item support**: Gather appropriate metadata from focused plugin items for external type storage.
 - **Privacy**: Only IMDb IDs, minimal non private data (and user-entered search text) are sent during optional external operations.
 - **Compatibility**: Handle `uniqueid.imdb` vs `imdbnumber` differences in Kodi 19/20; guard property sets accordingly.
 - **NDJSON export**: Keep schema versioned; include a `schema_version` field and migration notes in the README.

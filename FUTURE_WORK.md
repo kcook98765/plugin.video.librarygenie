@@ -89,12 +89,12 @@ This document outlines potential future enhancements and features for LibraryGen
 
 ## Experimental / Research Items
 
-### 11. Plugin Ecosystem
-**Status**: Generic plugin handling exists  
-**Files**: External item support in database schema  
-**Description**: Deep integration with popular Kodi addons  
-**Benefits**: Broader content source support  
-**Effort**: High - Requires research into addon APIs and integration patterns  
+### 11. Enhanced Plugin Ecosystem
+**Status**: Basic plugin item context menu integration implemented  
+**Files**: `context.py`, external item support in database schema  
+**Description**: Deep integration with popular Kodi addons beyond basic context menu support  
+**Benefits**: Enhanced metadata extraction and plugin-specific features  
+**Effort**: Medium - Core integration complete, needs plugin-specific enhancements  
 
 ### 12. AI-Powered Features
 **Status**: Not implemented  

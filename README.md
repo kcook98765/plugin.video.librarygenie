@@ -20,13 +20,14 @@ LibraryGenie is a Kodi addon that provides advanced, flexible list and folder ma
 - **Movies**: Full Kodi movie library support.
 - **TV Episodes**: Episode-level handling with show/season/episode mapping.
 - **Music Videos**: Artist/track/album matching and metadata support.
-- **External Items**: Playable plugin items, with basic persistence and limited portability.
+- **External Items**: Playable plugin items from any addon, with context menu integration for easy list management.
 
 ### Lists & Folders
 - Hierarchical folder structure with unlimited depth.
 - **Tools & Options Menu**: Context-aware tools for list and folder management.
 - Create, rename, move, and delete lists and folders with color-coded actions.
 - Add/remove items via context menus from anywhere in Kodi.
+- **Universal Context Menu**: Add any playable media to lists - movies, episodes, music videos, and plugin content.
 - Export functionality integrated into tools menu.
 - Duplicate detection and unique constraint handling.
 - Transaction-safe modifications to prevent corruption.
