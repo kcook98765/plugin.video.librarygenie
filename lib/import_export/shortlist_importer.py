@@ -36,7 +36,7 @@ class ShortListImporter:
             if not response.success:
                 return False
 
-            is_enabled = response.data.get("addon", {}).get("enabled", False)
+            is_enabled = (response.data or {}).get("addon", {}).get("enabled", False)
             self.logger.info(f"ShortList addon enabled: {is_enabled}")
             return is_enabled
 
@@ -66,8 +66,8 @@ class ShortListImporter:
                 self.logger.error(f"Failed to get directory {url}: {response.error.message if response.error else 'Unknown error'}")
                 return []
 
-            files = response.data.get("files", [])
-            total = response.data.get("limits", {}).get("total", len(files))
+            files = (response.data or {}).get("files", [])
+            total = (response.data or {}).get("limits", {}).get("total", len(files))
 
             # Paginate if needed
             while len(files) < total:
@@ -82,7 +82,7 @@ class ShortListImporter:
                 if not chunk_response.success:
                     break
 
-                chunk = chunk_response.data.get("files", [])
+                chunk = (chunk_response.data or {}).get("files", [])
                 if not chunk:
                     break
                 files.extend(chunk)
