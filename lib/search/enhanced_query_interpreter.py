@@ -8,9 +8,7 @@ Enhanced search query parsing with robust year parsing and improved normalizatio
 
 from __future__ import annotations
 
-import re
-from typing import Dict, Any, List, Optional, Union, Tuple
-
+from typing import Dict, Any
 from .normalizer import get_text_normalizer
 from .year_parser import get_year_parser
 from ..utils.logger import get_logger
