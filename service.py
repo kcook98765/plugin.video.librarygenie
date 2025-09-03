@@ -293,7 +293,7 @@ class BackgroundService:
                 result = backup_manager.run_automatic_backup()
 
                 if result["success"]:
-                    self.logger.info(f"Scheduled backup completed: {result['filename']}")
+                    self.logger.info(f"Scheduled backup completed: {result.get('filename')} at {result.get('storage_location')}")
                 else:
                     self.logger.error(f"Scheduled backup failed: {result.get('error')}")
 

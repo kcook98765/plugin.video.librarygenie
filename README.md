@@ -20,27 +20,38 @@ LibraryGenie is a Kodi addon that provides advanced, flexible list and folder ma
 - **Movies**: Full Kodi movie library support.
 - **TV Episodes**: Episode-level handling with show/season/episode mapping.
 - **Music Videos**: Artist/track/album matching and metadata support.
-- **External Items**: Playable plugin items, with basic persistence and limited portability.
+- **External Items**: Playable plugin items from any addon, with context menu integration for easy list management.
 
 ### Lists & Folders
 - Hierarchical folder structure with unlimited depth.
 - **Tools & Options Menu**: Context-aware tools for list and folder management.
 - Create, rename, move, and delete lists and folders with color-coded actions.
 - Add/remove items via context menus from anywhere in Kodi.
+- **Universal Context Menu**: Add any playable media to lists - movies, episodes, music videos, and plugin content.
+- **Quick Save Feature**: Optional quick-add functionality to a configured default list with single-click access.
+- **Dual Context Options**: When quick save is enabled, context menu shows both "Quick Add to Default List" and "Add to List..." options.
 - Export functionality integrated into tools menu.
 - Duplicate detection and unique constraint handling.
 - Transaction-safe modifications to prevent corruption.
 
 ### Import & Export
-- **Unified Format**: Backup and export use the same NDJSON format with enhanced metadata fields.
+- **Unified Format**: Backup, export, and import all use the same JSON envelope format with versioned schemas.
+- **Universal Compatibility**: Single format supports manual export, automated backup, and restore operations.
 - **Automated Backups**: Configurable timestamp-based backups (hourly, daily, weekly, monthly).
 - **Local & Network Storage**: Support for local paths and network shares configured in Kodi.
 - **Tools Integration**: Export and backup accessible via Tools & Options menu with context-aware options.
-- **IMDb-First Matching**: Highest-confidence mapping across systems.
+- **IMDb-First Matching**: Highest-confidence mapping across systems for import/restore operations.
 - **Enhanced Metadata**: Additional identifiers (TMDb, Kodi IDs, file paths) for robust fallback matching.
 - **Fallbacks**: TMDb IDs, title/year, season/episode, or artist/track when IMDb is missing.
-- **Placeholder Creation**: Unmatched items preserved for later resolution.
+- **Safe Import**: Validation and preview before import, with duplicate detection and error handling.
 - **Batch Operations**: Efficient chunked import/export of large lists.
+
+#### Format Structure
+All export/backup files use a versioned JSON envelope containing:
+- **Metadata**: Addon version, schema version, generation timestamp
+- **Export Types**: Lists of included data types (lists, list_items, favorites, folders, library_snapshot)
+- **Payload**: Actual data organized by type with consistent field names
+- **Validation**: Required fields and format validation for safe import/restore
 
 ### Metadata Matching
 - **Movies**: IMDb → TMDb (optional) → title/year/runtime fallback.
@@ -54,7 +65,8 @@ LibraryGenie is a Kodi addon that provides advanced, flexible list and folder ma
 - **Flexible Storage**: Local paths or network shares (SMB/NFS) configured in Kodi settings.
 - **Backup Management**: List, restore, and delete backups through the Tools interface.
 - **Comprehensive Coverage**: Backup lists, folders, favorites, and optionally library snapshots.
-- **Disaster Recovery**: Full system restore from unified backup files.
+- **Disaster Recovery**: Full system restore from unified backup files using same format as exports.
+- **Cross-Compatible**: Backup files can be manually imported on other systems or after fresh installs.
 
 ### Performance
 - Batched JSON-RPC requests (≤200 items per call).
@@ -106,6 +118,7 @@ Confidence scoring: 100% (IMDb) → 95% (TMDb) → 75–90% (title/year) → fal
 ## Settings & Configuration
 
 - **Set Default List**: Button-style action opens list picker when lists exist, shows helpful message when none available.
+- **Quick Save**: Enable quick-add functionality to bypass list selection dialog and add directly to default list.
 - **Background Tasks**: Configurable interval (5-720 minutes) with safe defaults and clamping.
 - **Backup Settings**: Automated backup scheduling, storage location, and retention policies.
 - **Storage Configuration**: Local paths and network share support via Kodi file settings.

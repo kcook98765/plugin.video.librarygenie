@@ -210,6 +210,73 @@ def handle_settings():
     xbmcaddon.Addon().openSettings()
 
 
+def _handle_test_backup(context: PluginContext):
+    """Handle backup configuration test from settings"""
+    try:
+        logger.info("Testing backup configuration from settings")
+        
+        from lib.import_export import get_timestamp_backup_manager
+        backup_manager = get_timestamp_backup_manager()
+        
+        result = backup_manager.test_backup_configuration()
+        
+        if result["success"]:
+            message = f"Backup test successful:\n{result.get('message', '')}"
+            if 'path' in result:
+                message += f"\nStorage path: {result['path']}"
+            xbmcgui.Dialog().ok("Backup Test", message)
+        else:
+            error_msg = result.get("error", "Unknown error")
+            xbmcgui.Dialog().ok("Backup Test Failed", f"Test failed:\n{error_msg}")
+            
+    except Exception as e:
+        logger.error(f"Error in test backup handler: {e}")
+        xbmcgui.Dialog().ok("Backup Test Error", f"Test error: {str(e)}")
+    
+    # Don't render directory for settings actions
+    try:
+        if context.addon_handle >= 0:
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+    except Exception:
+        pass
+
+
+def _handle_manual_backup(context: PluginContext):
+    """Handle manual backup from settings"""
+    try:
+        logger.info("Running manual backup from settings")
+        
+        from lib.import_export import get_timestamp_backup_manager
+        backup_manager = get_timestamp_backup_manager()
+        
+        result = backup_manager.run_manual_backup()
+        
+        if result["success"]:
+            size_mb = round(result.get('file_size', 0) / 1024 / 1024, 2) if result.get('file_size') else 0
+            message = (
+                f"Manual backup completed successfully!\n\n"
+                f"Filename: {result.get('filename', 'Unknown')}\n"
+                f"Size: {size_mb} MB\n"
+                f"Items: {result.get('total_items', 0)}\n"
+                f"Location: {result.get('storage_location', 'Unknown')}"
+            )
+            xbmcgui.Dialog().ok("Manual Backup", message)
+        else:
+            error_msg = result.get("error", "Unknown error")
+            xbmcgui.Dialog().ok("Manual Backup Failed", f"Backup failed:\n{error_msg}")
+            
+    except Exception as e:
+        logger.error(f"Error in manual backup handler: {e}")
+        xbmcgui.Dialog().ok("Manual Backup Error", f"Backup error: {str(e)}")
+    
+    # Don't render directory for settings actions
+    try:
+        if context.addon_handle >= 0:
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+    except Exception:
+        pass
+
+
 def handle_shortlist_import():
     """Handle ShortList import action from settings"""
     import xbmcgui
@@ -388,7 +455,8 @@ def _register_all_handlers(router: Router):
     router.register_handler('delete_folder', lambda ctx: _handle_dialog_response(ctx, lists_handler.delete_folder(ctx, ctx.get_param('folder_id'))))
 
     # Register FavoritesHandler methods
-    router.register_handler('scan_favorites_execute', lambda ctx: _handle_dialog_response(ctx, favorites_handler.scan_favorites(ctx)))
+    router.register_handler('scan_favorites_execute', lambda ctx: favorites_handler.handle_scan_favorites(ctx))
+    router.register_handler('save_favorites_as', lambda ctx: favorites_handler.handle_save_favorites_as(ctx))
     router.register_handler('add_favorite_to_list', lambda ctx: _handle_dialog_response(ctx, favorites_handler.add_favorite_to_list(ctx, ctx.get_param('imdb_id'))))
 
     # Register remaining handlers
@@ -397,6 +465,8 @@ def _register_all_handlers(router: Router):
         'signout': lambda ctx: handle_signout(),
         'on_select': lambda ctx: handle_on_select(ctx.params, ctx.addon_handle),
         'import_shortlist': lambda ctx: handle_shortlist_import(),
+        'test_backup': lambda ctx: _handle_test_backup(ctx),
+        'manual_backup': lambda ctx: _handle_manual_backup(ctx),
         'noop': lambda ctx: handle_noop(),
         'settings': lambda ctx: handle_settings(),
     })
@@ -405,15 +475,11 @@ def _register_all_handlers(router: Router):
 def _handle_dialog_response(context: PluginContext, response):
     """Handle DialogResponse objects from handler methods"""
     from lib.ui.response_types import DialogResponse
+    from lib.ui.response_handler import get_response_handler
     
     if isinstance(response, DialogResponse):
-        # Show notification if there's a message
-        response.show_notification(context.addon)
-        
-        # Refresh if needed
-        if response.refresh_needed:
-            import xbmc
-            xbmc.executebuiltin('Container.Refresh')
+        response_handler = get_response_handler()
+        return response_handler.handle_dialog_response(response, context)
     
     return response
 

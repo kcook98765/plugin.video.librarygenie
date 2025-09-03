@@ -129,21 +129,9 @@ class FavoritesHandler:
                 def add_favorites_context_menu(listitem, item):
                     """Add favorites-specific context menu items"""
                     try:
-                        context_menu = []
-                        # Use the correct ID field - favorites use 'id' or 'media_item_id'
-                        item_id = item.get('id') or item.get('media_item_id') or item.get('kodi_id', '')
-                        context_menu.append((
-                            "Remove from Favorites",
-                            f"RunPlugin({context.build_url('remove_from_favorites', item_id=item_id)})"
-                        ))
-
-                        # Also add "Add to List" option for favorites
-                        if item.get('imdb_id'):
-                            context_menu.append((
-                                "Add to List",
-                                f"RunPlugin({context.build_url('add_to_list_menu', media_item_id=item.get('media_item_id') or item.get('id'))})"
-                            ))
-
+                        from .context_menu_factory import get_context_menu_factory
+                        factory = get_context_menu_factory()
+                        context_menu = factory.create_favorites_context_menu(item, context)
                         listitem.addContextMenuItems(context_menu)
                     except Exception as e:
                         context.logger.warning(f"Failed to add favorites context menu: {e}")
@@ -414,6 +402,93 @@ class FavoritesHandler:
             return DialogResponse(
                 success=False,
                 message="Error showing tools & options"
+            )
+
+    def handle_scan_favorites(self, context: PluginContext) -> None:
+        """Handle scan favorites action with navigation"""
+        try:
+            response = self.scan_favorites(context)
+
+            if isinstance(response, DialogResponse) and response.success:
+                if hasattr(response, 'navigate_to_favorites') and response.navigate_to_favorites:
+                    # Navigate back to favorites view after successful scan
+                    import xbmc
+                    xbmc.executebuiltin(f'Container.Update({context.build_url("kodi_favorites")},replace)')
+                    # End directory properly
+                    import xbmcplugin
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+                    return
+
+                if hasattr(response, 'refresh_needed') and response.refresh_needed:
+                    # Refresh the container to show updated favorites
+                    import xbmc
+                    xbmc.executebuiltin('Container.Refresh')
+
+                if response.message:
+                    import xbmcgui
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        response.message,
+                        xbmcgui.NOTIFICATION_INFO,
+                        5000
+                    )
+            elif isinstance(response, DialogResponse):
+                # Show error message
+                import xbmcgui
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    response.message or "Scan failed",
+                    xbmcgui.NOTIFICATION_ERROR,
+                    5000
+                )
+
+        except Exception as e:
+            self.logger.error(f"Error in scan favorites handler: {e}")
+            import xbmcgui
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Error scanning favorites",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
+
+    def handle_save_favorites_as(self, context: PluginContext) -> None:
+        """Handle save favorites as action with navigation"""
+        try:
+            response = self.save_favorites_as(context)
+
+            if isinstance(response, DialogResponse) and response.success:
+                import xbmcgui
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    response.message or "Favorites saved as new list",
+                    xbmcgui.NOTIFICATION_INFO,
+                    5000
+                )
+
+                # Optionally refresh to show new list
+                if hasattr(response, 'refresh_needed') and response.refresh_needed:
+                    import xbmc
+                    xbmc.executebuiltin('Container.Refresh')
+
+            elif isinstance(response, DialogResponse):
+                if response.message:
+                    import xbmcgui
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        response.message,
+                        xbmcgui.NOTIFICATION_ERROR,
+                        5000
+                    )
+
+        except Exception as e:
+            self.logger.error(f"Error in save favorites as handler: {e}")
+            import xbmcgui
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Error saving favorites",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
             )
 
     def _convert_favorite_to_list_item_data(self, favorite: Dict[str, Any]) -> Dict[str, Any]:

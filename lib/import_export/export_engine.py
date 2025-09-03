@@ -33,7 +33,7 @@ class ExportEngine:
             start_time = datetime.now()
 
             # Validate export types
-            valid_types = {"lists", "list_items", "favorites", "library_snapshot"}
+            valid_types = {"lists", "list_items", "favorites", "library_snapshot", "folders"}
             invalid_types = set(export_types) - valid_types
             if invalid_types:
                 return {"success": False, "error": f"Invalid export types: {invalid_types}"}
@@ -54,12 +54,17 @@ class ExportEngine:
 
             # Generate filename and path
             export_name = "-".join(export_types)
-            filename = self.storage_manager.generate_filename(export_name, file_format)
-
+            
+            # Use custom path if provided, otherwise use temporary directory
             if custom_path:
-                file_path = os.path.join(custom_path, filename)
+                file_path = custom_path
+                filename = os.path.basename(file_path)
             else:
-                file_path = os.path.join(self.storage_manager.get_profile_path(), filename)
+                # Use temporary directory to avoid conflicts with backup storage
+                import tempfile
+                temp_dir = tempfile.gettempdir()
+                filename = self.storage_manager.generate_filename(export_name, file_format)
+                file_path = os.path.join(temp_dir, filename)
 
             # Write file
             success = False
@@ -99,6 +104,8 @@ class ExportEngine:
                 return self._collect_favorites_data()
             elif export_type == "library_snapshot":
                 return self._collect_library_snapshot_data()
+            elif export_type == "folders":
+                return self._collect_folders_data()
             else:
                 return [], 0
 
@@ -111,13 +118,13 @@ class ExportEngine:
         lists_data = []
 
         query = """
-            SELECT l.id, l.name, l.description, l.created_at, l.updated_at,
-                   COUNT(li.id) as item_count
-            FROM list l
-            LEFT JOIN list_item li ON l.id = li.list_id AND li.library_movie_id IS NOT NULL
-            GROUP BY l.id, l.name, l.description, l.created_at, l.updated_at
-            ORDER BY l.created_at
-        """
+                SELECT l.id, l.name, l.created_at, '' as description,
+                       COUNT(li.id) as item_count
+                FROM lists l
+                LEFT JOIN list_items li ON l.id = li.list_id
+                GROUP BY l.id, l.name, l.created_at
+                ORDER BY l.created_at
+            """
         params = () # Placeholder for potential future parameters
 
         lists = self.conn_manager.execute_query(query, params)
@@ -130,10 +137,9 @@ class ExportEngine:
                 list_dict = {
                     'id': list_row[0],
                     'name': list_row[1],
-                    'description': list_row[2],
-                    'created_at': list_row[3],
-                    'updated_at': list_row[4],
-                    'item_count': list_row[5]
+                    'created_at': list_row[2],
+                    'description': list_row[3] or "",
+                    'item_count': list_row[4]
                 }
 
             lists_data.append(list_dict)
@@ -145,13 +151,13 @@ class ExportEngine:
         items_data = []
 
         query = """
-            SELECT li.list_id, lm.kodi_id, lm.title, lm.year, lm.file_path,
-                   lm.imdb_id, lm.tmdb_id
-            FROM list_item li
-            INNER JOIN library_movie lm ON li.library_movie_id = lm.id
-            WHERE lm.is_removed = 0
-            ORDER BY li.list_id, lm.title
-        """
+                SELECT li.list_id, mi.kodi_id, mi.title, mi.year, mi.file_path,
+                       mi.imdbnumber as imdb_id, mi.tmdb_id, mi.media_type
+                FROM list_items li
+                INNER JOIN media_items mi ON li.media_item_id = mi.id
+                WHERE mi.is_removed = 0
+                ORDER BY li.list_id, mi.title
+            """
         params = () # Placeholder for potential future parameters
 
         items = self.conn_manager.execute_query(query, params)
@@ -168,7 +174,8 @@ class ExportEngine:
                     'year': item_row[3],
                     'file_path': item_row[4],
                     'imdb_id': item_row[5],
-                    'tmdb_id': item_row[6]
+                    'tmdb_id': item_row[6],
+                    'media_type': item_row[7]
                 }
 
             # Add external IDs dictionary
@@ -188,13 +195,13 @@ class ExportEngine:
         favorites_data = []
 
         query = """
-            SELECT kf.name, mi.kodi_id, mi.title, mi.year, mi.file_path,
-                   kf.normalized_path, mi.imdb_id, mi.tmdb_id
-            FROM kodi_favorite kf
-            INNER JOIN media_items mi ON kf.library_movie_id = mi.id
-            WHERE mi.is_removed = 0
-            ORDER BY kf.name
-        """
+                SELECT name, normalized_path, original_path, favorite_type,
+                       target_raw, target_classification, library_movie_id,
+                       is_mapped, thumb_ref, created_at
+                FROM kodi_favorite
+                WHERE present = 1
+                ORDER BY name
+            """
         params = () # Placeholder for potential future parameters
 
         favorites = self.conn_manager.execute_query(query, params)
@@ -206,13 +213,15 @@ class ExportEngine:
                 # Handle tuple/list format
                 fav_dict = {
                     'name': fav_row[0],
-                    'kodi_id': fav_row[1],
-                    'title': fav_row[2],
-                    'year': fav_row[3],
-                    'file_path': fav_row[4],
-                    'normalized_path': fav_row[5],
-                    'imdb_id': fav_row[6],
-                    'tmdb_id': fav_row[7]
+                    'normalized_path': fav_row[1],
+                    'original_path': fav_row[2],
+                    'favorite_type': fav_row[3],
+                    'target_raw': fav_row[4],
+                    'target_classification': fav_row[5],
+                    'library_movie_id': fav_row[6],
+                    'is_mapped': fav_row[7],
+                    'thumb_ref': fav_row[8],
+                    'created_at': fav_row[9]
                 }
 
             favorites_data.append(fav_dict)
@@ -224,11 +233,12 @@ class ExportEngine:
         library_data = []
 
         query = """
-            SELECT kodi_id, title, year, file_path, imdb_id, tmdb_id, created_at
-            FROM library_movie
-            WHERE is_removed = 0 AND kodi_id IS NOT NULL
-            ORDER BY title
-        """
+                SELECT kodi_id, title, year, file_path, imdbnumber as imdb_id, tmdb_id,
+                       media_type, created_at, updated_at
+                FROM media_items
+                WHERE is_removed = 0
+                ORDER BY title
+            """
         params = () # Placeholder for potential future parameters
 
         movies = self.conn_manager.execute_query(query, params)
@@ -245,7 +255,9 @@ class ExportEngine:
                     'file_path': movie_row[3],
                     'imdb_id': movie_row[4],
                     'tmdb_id': movie_row[5],
-                    'added_at': movie_row[6]
+                    'media_type': movie_row[6],
+                    'added_at': movie_row[7],
+                    'updated_at': movie_row[8]
                 }
 
             # Add external IDs
@@ -259,6 +271,39 @@ class ExportEngine:
             library_data.append(movie_dict)
 
         return library_data, len(library_data)
+
+    def _collect_folders_data(self) -> Tuple[List[Dict], int]:
+        """Collect folders data"""
+        folders_data = []
+
+        query = """
+                SELECT f.id, f.name, f.created_at, '' as description,
+                       COUNT(l.id) as list_count
+                FROM folders f
+                LEFT JOIN lists l ON f.id = l.folder_id
+                GROUP BY f.id, f.name, f.created_at
+                ORDER BY f.created_at
+            """
+        params = ()
+
+        folders = self.conn_manager.execute_query(query, params)
+
+        for folder_row in folders or []:
+            if hasattr(folder_row, 'keys'):
+                folder_dict = dict(folder_row)
+            else:
+                # Handle tuple/list format
+                folder_dict = {
+                    'id': folder_row[0],
+                    'name': folder_row[1],
+                    'created_at': folder_row[2],
+                    'description': folder_row[3],
+                    'list_count': folder_row[4]
+                }
+
+            folders_data.append(folder_dict)
+
+        return folders_data, len(folders_data)
 
     def _write_json_export(self, envelope: ExportEnvelope, file_path: str) -> bool:
         """Write JSON export file"""

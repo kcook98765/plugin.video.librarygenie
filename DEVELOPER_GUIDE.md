@@ -12,7 +12,7 @@ LibraryGenie consists of three main layers:
    - Plugin routing and action handling (`router.py`, `plugin_context.py`)
    - Directory views and list building (`listitem_builder.py`, `listitem_renderer.py`, `menu_builder.py`)
    - Handler modules for specific features (`lists_handler.py`, `search_handler.py`, `favorites_handler.py`, `main_menu_handler.py`, `tools_handler.py`)
-   - Context menu integration (`context_menu.py`)
+   - Context menu integration (`context_menu.py`) with universal media type support and quick save functionality
    - Localization with caching (`localization.py`)
    - Playback actions and info dialog hijacking (`playback_actions.py`, `info_hijack_manager.py`)
    - Session state management (`session_state.py`)
@@ -98,8 +98,9 @@ LibraryGenie consists of three main layers:
 ### UI/UX Guidelines
 - **Tools & Options**: Use centralized tools menu for context-aware actions.
 - **Color Coding**: Apply Kodi-style colors - yellow for tools, red for destructive actions, green for additive actions, white for modify actions.
-- **Localization**: Use cached localization helper (`L()` function) for all user-visible strings, especially in context menus.
+- **Localization**: Use cached localized strings to reduce overhead in menus with many items.
 - **Context Awareness**: Tool options should adapt based on where they are opened from (lists vs favorites vs root).
+- **Universal Context Menus**: Context menu integration works for all playable media types including plugin content from any addon.
 - **Performance**: Cache localized strings to reduce overhead in menus with many items.
 
 ### Compatibility

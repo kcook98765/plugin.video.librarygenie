@@ -50,9 +50,13 @@ class SettingsManager:
         value = self.addon.getSetting('default_list_id')
         return value if value else None
 
+    def set_default_list_id(self, list_id: str) -> None:
+        """Set default list ID for quick-add"""
+        self.addon.setSetting('default_list_id', str(list_id) if list_id else "")
+
     def get_enable_quick_add(self) -> bool:
         """Get enable quick-add setting"""
-        return self.addon.getSettingBool('enable_quick_add')
+        return self.addon.getSettingBool('quick_add_enabled')
 
     def get_show_missing_indicators(self) -> bool:
         """Get show missing movie indicators setting"""
@@ -164,8 +168,20 @@ class SettingsManager:
 
     def get_backup_storage_location(self) -> str:
         """Get backup storage location"""
-        value = self.addon.getSetting('backup_storage_location')
-        return value if value else "special://userdata/addon_data/plugin.video.library.genie/backups/"
+        storage_type = self.addon.getSetting('backup_storage_type')
+        
+        if storage_type == "custom":
+            # Use custom path set by user
+            custom_path = self.addon.getSetting('backup_local_path')
+            if custom_path and custom_path.strip():
+                return custom_path.strip()
+        
+        # Default to addon data directory
+        return "special://userdata/addon_data/plugin.video.librarygenie/backups/"
+    
+    def get_backup_storage_type(self) -> str:
+        """Get backup storage type"""
+        return self.addon.getSetting('backup_storage_type')
 
     def get_backup_retention_policy(self) -> str:
         """Get backup retention policy"""

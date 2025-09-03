@@ -182,6 +182,9 @@ class ExportSchema:
                 for field in required_fields:
                     if field not in item:
                         errors.append(f"lists[{i}]: missing {field}")
+                # Description is optional but should be a string if present
+                if "description" in item and not isinstance(item["description"], (str, type(None))):
+                    errors.append(f"lists[{i}]: description must be a string")
         
         elif export_type == "list_items":
             for i, item in enumerate(data):
@@ -192,14 +195,14 @@ class ExportSchema:
         
         elif export_type == "favorites":
             for i, item in enumerate(data):
-                required_fields = ["name", "title", "normalized_path"]
+                required_fields = ["name", "normalized_path", "original_path"]
                 for field in required_fields:
                     if field not in item:
                         errors.append(f"favorites[{i}]: missing {field}")
         
         elif export_type == "library_snapshot":
             for i, item in enumerate(data):
-                required_fields = ["kodi_id", "title", "file_path"]
+                required_fields = ["kodi_id", "title", "file_path", "media_type"]
                 for field in required_fields:
                     if field not in item:
                         errors.append(f"library_snapshot[{i}]: missing {field}")
