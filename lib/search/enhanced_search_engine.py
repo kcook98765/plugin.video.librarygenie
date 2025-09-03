@@ -9,7 +9,7 @@ Enhanced SQL building, paging UI, and performance optimizations
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Dict, Any, List, Optional, Union, Tuple
+from typing import Dict, Any, List, Tuple
 
 from .enhanced_query_interpreter import SearchQuery
 from .normalizer import get_text_normalizer
@@ -294,7 +294,7 @@ class EnhancedSearchEngine:
         """Get human-readable scope description"""
         if query.scope_type == "list":
             # TODO: Get actual list name from database
-            return f"List"  # Could be enhanced to show list name
+            return "List"  # Could be enhanced to show list name
         else:
             return "All library"
 
