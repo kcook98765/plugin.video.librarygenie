@@ -113,11 +113,11 @@ class ExportEngine:
         lists_data = []
 
         query = """
-                SELECT l.id, l.name, l.created_at,
+                SELECT l.id, l.name, l.created_at, l.description,
                        COUNT(li.id) as item_count
                 FROM lists l
                 LEFT JOIN list_items li ON l.id = li.list_id
-                GROUP BY l.id, l.name, l.created_at
+                GROUP BY l.id, l.name, l.created_at, l.description
                 ORDER BY l.created_at
             """
         params = () # Placeholder for potential future parameters
@@ -133,7 +133,8 @@ class ExportEngine:
                     'id': list_row[0],
                     'name': list_row[1],
                     'created_at': list_row[2],
-                    'item_count': list_row[3]
+                    'description': list_row[3] or "",
+                    'item_count': list_row[4]
                 }
 
             lists_data.append(list_dict)

@@ -53,7 +53,7 @@ class DataMatcher:
     def _match_by_kodi_id(self, kodi_id: int) -> Optional[int]:
         """Match by Kodi database ID"""
         result = self.conn_manager.execute_single(
-            "SELECT id FROM library_movie WHERE kodi_id = ? AND is_removed = 0",
+            "SELECT id FROM media_items WHERE kodi_id = ? AND is_removed = 0",
             [kodi_id]
         )
 
@@ -77,7 +77,7 @@ class DataMatcher:
         if not conditions:
             return None
 
-        query = f"SELECT id FROM library_movie WHERE ({' OR '.join(conditions)}) AND is_removed = 0"
+        query = f"SELECT id FROM media_items WHERE ({' OR '.join(conditions)}) AND is_removed = 0"
         result = self.conn_manager.execute_single(query, params)
 
         if result:
@@ -105,7 +105,7 @@ class DataMatcher:
             conditions.append("file_path = ?")
             params.append(file_path)
 
-        query = f"SELECT id FROM library_movie WHERE {' AND '.join(conditions)}"
+        query = f"SELECT id FROM media_items WHERE {' AND '.join(conditions)}"
         result = self.conn_manager.execute_single(query, params)
 
         if result:
@@ -113,7 +113,7 @@ class DataMatcher:
 
         # If no exact match, try fuzzy title match without path
         if file_path:
-            fuzzy_query = "SELECT id FROM library_movie WHERE title = ? AND is_removed = 0"
+            fuzzy_query = "SELECT id FROM media_items WHERE title = ? AND is_removed = 0"
             fuzzy_params = [title]
             if year:
                 fuzzy_query += " AND year = ?"
@@ -374,7 +374,7 @@ class ImportEngine:
     def _get_existing_list_names(self) -> Set[str]:
         """Get set of existing list names"""
         try:
-            lists = self.conn_manager.execute_query("SELECT name FROM list")
+            lists = self.conn_manager.execute_query("SELECT name FROM lists")
             return {list_row[0] if hasattr(list_row, '__getitem__') else list_row.get('name') for list_row in lists or []}
         except:
             return set()
@@ -383,7 +383,7 @@ class ImportEngine:
         """Check if item is already in list"""
         try:
             result = self.conn_manager.execute_single(
-                "SELECT 1 FROM list_item WHERE library_movie_id = ? AND list_id = ?",
+                "SELECT 1 FROM list_items WHERE media_item_id = ? AND list_id = ?",
                 [library_movie_id, list_id]
             )
             return result is not None
@@ -407,13 +407,13 @@ class ImportEngine:
 
                 # Check if list exists
                 existing = self.conn_manager.execute_single(
-                    "SELECT id FROM list WHERE name = ?", [name]
+                    "SELECT id FROM lists WHERE name = ?", [name]
                 )
 
                 if existing:
                     # Update existing list description if different
                     self.conn_manager.execute_single(
-                        "UPDATE list SET description = ?, updated_at = datetime('now') WHERE name = ?",
+                        "UPDATE lists SET description = ?, updated_at = datetime('now') WHERE name = ?",
                         [description, name]
                     )
                     updated += 1
@@ -464,7 +464,7 @@ class ImportEngine:
 
                 # Add to list
                 success = self.conn_manager.execute_single(
-                    "INSERT OR IGNORE INTO list_item (list_id, library_movie_id, created_at) VALUES (?, ?, datetime('now'))",
+                    "INSERT OR IGNORE INTO list_items (list_id, media_item_id, created_at) VALUES (?, ?, datetime('now'))",
                     [list_id, movie_id]
                 )
 
@@ -477,6 +477,112 @@ class ImportEngine:
                 errors.append(f"Error importing item {item_data.get('title', 'unknown')}: {e}")
 
         return added, skipped, unmatched, unmatched_items, errors
+
+    def import_from_content(self, content: str, filename: str) -> Dict[str, Any]:
+        """Import data from file content string (used by backup restoration)"""
+        start_time = datetime.now()
+
+        try:
+            # Parse content
+            try:
+                data = json.loads(content)
+            except json.JSONDecodeError as e:
+                return {"success": False, "error": f"Invalid JSON in {filename}: {e}"}
+
+            # Validate envelope structure
+            envelope_errors = ExportSchema.validate_envelope(data)
+            if envelope_errors:
+                return {"success": False, "error": f"Invalid backup format: {envelope_errors[0]}"}
+
+            payload = data.get("payload", {})
+
+            # Initialize counters
+            lists_created = 0
+            lists_updated = 0
+            items_added = 0
+            items_skipped = 0
+            items_unmatched = 0
+            errors = []
+
+            # Initialize database
+            self.query_manager.initialize()
+
+            # Import lists first
+            if "lists" in payload:
+                created, updated, list_errors = self._import_lists(payload["lists"])
+                lists_created += created
+                lists_updated += updated
+                errors.extend(list_errors)
+
+            # Import list items
+            if "list_items" in payload:
+                added, skipped, unmatched, unmatch_data, item_errors = self._import_list_items(payload["list_items"])
+                items_added += added
+                items_skipped += skipped
+                items_unmatched += unmatched
+                errors.extend(item_errors)
+
+            # Import folders if present
+            if "folders" in payload:
+                folder_errors = self._import_folders(payload["folders"])
+                errors.extend(folder_errors)
+
+            duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+
+            success = len(errors) == 0 or (lists_created + items_added > 0)
+
+            self.logger.info(f"Backup restore completed: {lists_created} lists created, {items_added} items added")
+
+            return {
+                "success": success,
+                "lists_created": lists_created,
+                "lists_updated": lists_updated,
+                "items_added": items_added,
+                "items_skipped": items_skipped,
+                "items_unmatched": items_unmatched,
+                "errors": errors,
+                "duration_ms": duration_ms
+            }
+
+        except Exception as e:
+            self.logger.error(f"Error importing from content: {e}")
+            duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+
+            return {
+                "success": False,
+                "error": str(e),
+                "duration_ms": duration_ms
+            }
+
+    def _import_folders(self, folders_data: List[Dict]) -> List[str]:
+        """Import folders data"""
+        errors = []
+
+        for folder_data in folders_data:
+            try:
+                name = folder_data.get("name")
+                description = folder_data.get("description", "")
+
+                if not name:
+                    errors.append("Folder missing name, skipped")
+                    continue
+
+                # Check if folder exists
+                existing = self.conn_manager.execute_single(
+                    "SELECT id FROM folders WHERE name = ?", [name]
+                )
+
+                if not existing:
+                    # Create new folder
+                    self.conn_manager.execute_single(
+                        "INSERT INTO folders (name, description, created_at) VALUES (?, ?, datetime('now'))",
+                        [name, description]
+                    )
+
+            except Exception as e:
+                errors.append(f"Error importing folder {folder_data.get('name', 'unknown')}: {e}")
+
+        return errors
 
 
 # Global import engine instance
