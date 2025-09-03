@@ -13,36 +13,7 @@ import xbmc
 import xbmcgui
 import xbmcplugin
 from ..utils.logger import get_logger
-
-def is_kodi_v20_plus() -> bool:
-    """
-    Check if running Kodi version 20 or higher
-    Returns:
-        bool: True if Kodi major version >= 20, False otherwise
-    """
-    try:
-        build_version = xbmc.getInfoLabel("System.BuildVersion")
-        # "20.2 (20.2.0) Git:..." -> "20"
-        major = int(build_version.split('.')[0].split('-0')[0])
-        return major >= 20
-    except Exception:
-        # Safe fallback (Matrix behavior)
-        return False
-
-def get_kodi_major_version() -> int:
-    """
-    Get the major version number of Kodi.
-    Returns:
-        int: The major version number (e.g., 19, 20, 21).
-    """
-    try:
-        build_version = xbmc.getInfoLabel("System.BuildVersion")
-        # "20.2 (20.2.0) Git:..." -> "20"
-        major = int(build_version.split('.')[0].split('-0')[0])
-        return major
-    except Exception:
-        # Safe fallback (Matrix behavior)
-        return 19
+from ..utils.kodi_version import is_kodi_v20_plus, get_kodi_major_version
 
 
 class ListItemBuilder:

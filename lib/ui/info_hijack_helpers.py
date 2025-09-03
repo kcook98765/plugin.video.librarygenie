@@ -8,6 +8,7 @@ import xbmcgui
 import xbmcvfs
 
 from ..utils.logger import get_logger
+from ..utils.kodi_version import get_kodi_major_version, get_version_specific_control_id
 
 logger = get_logger(__name__)
 
@@ -48,27 +49,9 @@ def prewarm_smb(movie_url):
         _log(f"⏩ Prewarm SMB skipped due to error: {e!r}", xbmc.LOGWARNING)
         return 0.0
 
-def _get_list_control_id() -> int:
-    """Get the correct list control ID based on Kodi version"""
-    try:
-        build_version = xbmc.getInfoLabel("System.BuildVersion")
-        major = int(build_version.split('.')[0].split('-')[0])
 
-        if major >= 20:
-            # Kodi v20/v21 Estuary uses control ID 55 as default main list
-            return 55
-        else:
-            # Kodi v19 uses control ID 50
-            return 50
-    except Exception:
-        return 50  # Fallback to v19 behavior
 
-def kodi_major() -> int:
-    ver = xbmc.getInfoLabel('System.BuildVersion') or ''
-    try:
-        return int(ver.split('.')[0])
-    except Exception:
-        return 0
+
 
 def jsonrpc(method: str, params: dict | None = None) -> dict:
     payload = {"jsonrpc": "2.0", "id": 1, "method": method}
@@ -132,7 +115,7 @@ def focus_list(control_id: int = None, tries: int = 20, step_ms: int = 30) -> bo
     t_focus_start = time.perf_counter()
     
     if control_id is None:
-        control_id = _get_list_control_id()
+        control_id = get_version_specific_control_id()
 
     _log(f"focus_list: Starting with control_id={control_id}, tries={tries}")
 

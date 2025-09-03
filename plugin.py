@@ -159,12 +159,9 @@ def handle_on_select(params: dict, addon_handle: int):
             vdb = ""
         pref = get_select_pref()  # 'play' or 'info'
 
-        # Parse major Kodi version (19, 20, 21, ...)
-        ver_str = xbmc.getInfoLabel('System.BuildVersion')
-        try:
-            kodi_major = int(re.split(r'[^0-9]', ver_str, 1)[0])
-        except Exception:
-            kodi_major = 0
+        # Get Kodi version using centralized utility
+        from lib.utils.kodi_version import get_kodi_major_version
+        kodi_major = get_kodi_major_version()
 
         logger.debug(f"on_select: dbtype={dbtype}, dbid={dbid}, videodb_path={vdb}, preference={pref}, kodi_major={kodi_major}")
 
