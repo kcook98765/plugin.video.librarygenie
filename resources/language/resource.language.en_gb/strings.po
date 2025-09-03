@@ -662,6 +662,15 @@ msgctxt "#32020"
 msgid "Missing from library"
 msgstr ""
 
+msgctxt "#32181"
+msgstr "Integrate with Kodi's built-in favorites for seamless list management"
+
+msgctxt "#32200"
+msgstr "Add to LibraryGenie List..."
+
+msgctxt "#32201"
+msgstr "Add this item to a LibraryGenie list"
+
 # Search UI and Operations
 msgctxt "#33000"
 msgid "Search"

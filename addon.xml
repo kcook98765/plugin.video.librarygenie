@@ -10,6 +10,9 @@
     <provides>video</provides>
   </extension>
   <extension point="xbmc.service" library="service.py" start="login"/>
+  <extension point="xbmc.python.script" library="context.py">
+    <provides>executable</provides>
+  </extension>
   <extension point="xbmc.addon.metadata">
     <platform>all</platform>
     <license>GPL-2.0-or-later</license>
@@ -22,5 +25,12 @@
       <icon>icon.png</icon>
       <fanart>fanart.png</fanart>
     </assets>
+    <contextmenu>
+      <item library="context.py">
+        <label>32200</label>
+        <description>32201</description>
+        <visible>String.IsEqual(ListItem.DBTYPE,movie) | String.IsEqual(ListItem.DBTYPE,episode) | String.IsEqual(ListItem.DBTYPE,musicvideo)</visible>
+      </item>
+    </contextmenu>
   </extension>
 </addon>
