@@ -78,6 +78,15 @@ def _check_and_trigger_initial_scan():
         if not scanner.is_library_indexed():
             logger.info("Library not indexed - triggering initial scan")
 
+            # Show notification that initial scan is starting
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),  # "LibraryGenie"
+                "Initial library scan starting...",
+                xbmcgui.NOTIFICATION_INFO,
+                5000
+            )
+
             # Run scan in background thread to avoid blocking UI
             import threading
 
@@ -86,10 +95,31 @@ def _check_and_trigger_initial_scan():
                     result = scanner.perform_full_scan()
                     if result.get("success"):
                         logger.info(f"Initial library scan completed: {result.get('items_added', 0)} movies indexed")
+                        # Show completion notification
+                        xbmcgui.Dialog().notification(
+                            addon.getLocalizedString(35002),  # "LibraryGenie"
+                            f"Initial scan complete: {result.get('items_added', 0)} movies indexed",
+                            xbmcgui.NOTIFICATION_INFO,
+                            5000
+                        )
                     else:
                         logger.warning(f"Initial library scan failed: {result.get('error', 'Unknown error')}")
+                        # Show error notification
+                        xbmcgui.Dialog().notification(
+                            addon.getLocalizedString(35002),  # "LibraryGenie"
+                            "Initial library scan failed",
+                            xbmcgui.NOTIFICATION_ERROR,
+                            5000
+                        )
                 except Exception as e:
                     logger.error(f"Initial library scan thread failed: {e}")
+                    # Show error notification
+                    xbmcgui.Dialog().notification(
+                        addon.getLocalizedString(35002),  # "LibraryGenie"
+                        "Initial library scan failed",
+                        xbmcgui.NOTIFICATION_ERROR,
+                        5000
+                    )
 
             scan_thread = threading.Thread(target=run_initial_scan)
             scan_thread.daemon = True  # Don't block Kodi shutdown
