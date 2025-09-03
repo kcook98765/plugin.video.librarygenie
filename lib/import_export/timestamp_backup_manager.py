@@ -189,44 +189,57 @@ class TimestampBackupManager:
             self.logger.error(f"Error restoring backup: {e}")
             return {"success": False, "error": str(e)}
 
-    def _store_backup(self, source_path: str, filename: str) -> Dict[str, Any]:
-        """Store backup based on configured storage type"""
+    def _store_backup(self, source_file: str, filename: str) -> Dict[str, Any]:
+        """Store backup in configured location"""
         try:
             storage_type = self.config.get("backup_storage_type", "local")
 
             if storage_type == "local":
-                return self._store_local_backup(source_path, filename)
+                return self._store_local_backup(source_file, filename)
             else:
-                return {"success": False, "error": "Only local storage is supported"}
+                return {"success": False, "error": "Unknown storage type"}
 
         except Exception as e:
             self.logger.error(f"Error storing backup: {e}")
             return {"success": False, "error": str(e)}
 
-    def _store_local_backup(self, source_path: str, filename: str) -> Dict[str, Any]:
-        """Store backup to local storage"""
+    def _store_local_backup(self, source_file: str, filename: str) -> Dict[str, Any]:
+        """Store backup in settings-configured location"""
         try:
-            # Determine storage path
-            custom_path = self.config.get("backup_local_path", "")
-            if custom_path and os.path.exists(custom_path):
-                backup_dir = custom_path
-            else:
-                backup_dir = os.path.join(self.storage_manager.get_profile_path(), "backups")
-                os.makedirs(backup_dir, exist_ok=True)
+            # Get backup directory from settings
+            from ..config.settings import SettingsManager
+            settings = SettingsManager()
+            backup_dir = settings.get_backup_storage_location()
 
-            # Copy to backup location
+            # Handle special:// paths
+            if backup_dir.startswith("special://"):
+                import xbmcvfs
+                backup_dir = xbmcvfs.translatePath(backup_dir)
+
+            # Ensure directory exists
+            os.makedirs(backup_dir, exist_ok=True)
+
+            # Destination path
             dest_path = os.path.join(backup_dir, filename)
 
-            # Read source and write to destination
-            content = self.storage_manager.read_file_safe(source_path)
-            if content and self.storage_manager.write_file_atomic(dest_path, content):
-                return {
-                    "success": True,
-                    "location": dest_path,
-                    "storage_type": "local"
-                }
-            else:
-                return {"success": False, "error": "Failed to copy backup file"}
+            # Copy file to backup location
+            import shutil
+            shutil.copy2(source_file, dest_path)
+
+            # Clean up temporary file if different from destination
+            if os.path.abspath(source_file) != os.path.abspath(dest_path):
+                try:
+                    os.remove(source_file)
+                except Exception as cleanup_error:
+                    self.logger.warning(f"Failed to cleanup temp file {source_file}: {cleanup_error}")
+
+            self.logger.info(f"Backup stored in settings location: {dest_path}")
+
+            return {
+                "success": True,
+                "location": dest_path,
+                "storage_type": "local"
+            }
 
         except Exception as e:
             self.logger.error(f"Error storing local backup: {e}")
@@ -238,17 +251,17 @@ class TimestampBackupManager:
             from ..config.settings import SettingsManager
             settings = SettingsManager()
             storage_location = settings.get_backup_storage_location()
-            
+
             # Handle special:// paths
             if storage_location.startswith("special://"):
                 import xbmcvfs
                 test_path = xbmcvfs.translatePath(storage_location)
             else:
                 test_path = storage_location
-                
+
             # Ensure directory exists
             os.makedirs(test_path, exist_ok=True)
-            
+
             if not os.path.exists(test_path):
                 return {"success": False, "error": f"Storage path does not exist: {test_path}"}
             if not os.access(test_path, os.W_OK):
@@ -270,49 +283,75 @@ class TimestampBackupManager:
             return {"success": False, "error": str(e)}
 
     def _list_local_backups(self) -> List[Dict[str, Any]]:
-        """List local backup files"""
+        """List local backup files from settings-configured location"""
         try:
+            # Get backup directory from settings
             from ..config.settings import SettingsManager
             settings = SettingsManager()
-            storage_location = settings.get_backup_storage_location()
-            
+            backup_dir = settings.get_backup_storage_location()
+
             # Handle special:// paths
-            if storage_location.startswith("special://"):
+            if backup_dir.startswith("special://"):
                 import xbmcvfs
-                backup_dir = xbmcvfs.translatePath(storage_location)
-            else:
-                backup_dir = storage_location
+                backup_dir = xbmcvfs.translatePath(backup_dir)
 
             if not os.path.exists(backup_dir):
                 return []
 
+            # Look for backup files from both old and new naming schemes
             backups = []
-            prefix = "librarygenie"  # Use hardcoded prefix
+            patterns = [
+                "librarygenie_backup_*.json",  # New timestamp backup format
+                "plugin.video.librarygenie_*_*.json",  # Old backup format
+                "plugin.video.library.genie_*_*.json"  # Current export format
+            ]
 
-            for filename in os.listdir(backup_dir):
-                if filename.startswith(f"{prefix}_backup_") and filename.endswith(".json"):
-                    file_path = os.path.join(backup_dir, filename)
-                    stat = os.stat(file_path)
+            from pathlib import Path
+            for pattern in patterns:
+                for file_path in Path(backup_dir).glob(pattern):
+                    if file_path.is_file():
+                        # Parse filename to extract timestamp
+                        filename = file_path.name
 
-                    # Parse timestamp from filename
-                    timestamp_str = filename.replace(f"{prefix}_backup_", "").replace(".json", "")
-                    try:
-                        backup_time = datetime.strptime(timestamp_str, "%Y%m%d-%H%M%S")  # Use hardcoded format
-                    except:
-                        backup_time = datetime.fromtimestamp(stat.st_mtime)
+                        # Handle different naming formats
+                        if filename.startswith("librarygenie_backup_"):
+                            # New format: librarygenie_backup_TIMESTAMP.json
+                            timestamp_str = filename.replace("librarygenie_backup_", "").replace(".json", "")
+                        else:
+                            # Old format: plugin.video.librarygenie_TYPE_TIMESTAMP.json
+                            parts = filename.replace(".json", "").split("_")
+                            if len(parts) >= 2:
+                                timestamp_str = parts[-1]
+                            else:
+                                continue
 
-                    backups.append({
-                        "filename": filename,
-                        "file_path": file_path,
-                        "backup_time": backup_time,
-                        "file_size": stat.st_size,
-                        "storage_type": "local",
-                        "age_days": (datetime.now() - backup_time).days
-                    })
+                        try:
+                            # Parse timestamp
+                            backup_time = datetime.strptime(timestamp_str, "%Y%m%d-%H%M%S")
+                            stat = file_path.stat()
 
-            # Sort by backup time, newest first
-            backups.sort(key=lambda x: x["backup_time"], reverse=True)
-            return backups
+                            backups.append({
+                                "filename": filename,
+                                "file_path": str(file_path),
+                                "backup_time": backup_time,
+                                "file_size": int(stat.st_size),
+                                "age_days": (datetime.now() - backup_time).days,
+                                "storage_type": "local"
+                            })
+                        except ValueError:
+                            # Skip files with invalid timestamp format
+                            continue
+
+            # Remove duplicates (same timestamp) and sort by backup time, newest first
+            seen_timestamps = set()
+            unique_backups = []
+            for backup in sorted(backups, key=lambda x: x["backup_time"], reverse=True):
+                timestamp_key = backup["backup_time"].strftime("%Y%m%d-%H%M%S")
+                if timestamp_key not in seen_timestamps:
+                    seen_timestamps.add(timestamp_key)
+                    unique_backups.append(backup)
+
+            return unique_backups
 
         except Exception as e:
             self.logger.error(f"Error listing local backups: {e}")

@@ -55,86 +55,30 @@ class BackupManager:
             return False
 
     def run_automatic_backup(self) -> Dict[str, Any]:
-        """Run scheduled automatic backup"""
+        """Run scheduled automatic backup - DEPRECATED: Use TimestampBackupManager instead"""
         try:
-            self.logger.info("Starting automatic backup")
-
-            # Determine what to backup based on settings
-            export_types = ["lists", "list_items"]
-
-            # Add favorites if available
-            if self.config.get("backup_include_favorites", True):
-                export_types.append("favorites")
-
-            # Add library snapshot if requested
-            if self.config.get("backup_include_library", False):
-                export_types.append("library_snapshot")
-
-            # Run export
-            result = self.export_engine.export_data(
-                export_types=export_types,
-                file_format="json"
-            )
-
-            if result["success"]:
-                # Update last backup time
-                self._update_last_backup_time()
-
-                # Clean up old backups
-                self._cleanup_old_backups()
-
-                self.logger.info(f"Automatic backup completed: {result['filename']}")
-
-                return {
-                    "success": True,
-                    "filename": result["filename"],
-                    "file_size": result["file_size"],
-                    "export_types": export_types,
-                    "total_items": result["total_items"]
-                }
-            else:
-                self.logger.error(f"Automatic backup failed: {result.get('error')}")
-                return {"success": False, "error": result.get("error")}
+            self.logger.info("DEPRECATED: BackupManager.run_automatic_backup - redirecting to TimestampBackupManager")
+            
+            # Redirect to the new timestamp backup manager
+            from . import get_timestamp_backup_manager
+            timestamp_backup_manager = get_timestamp_backup_manager()
+            
+            return timestamp_backup_manager.run_automatic_backup()
 
         except Exception as e:
             self.logger.error(f"Error in automatic backup: {e}")
             return {"success": False, "error": str(e)}
 
     def list_backups(self) -> List[Dict[str, Any]]:
-        """List available backup files"""
+        """List available backup files - DEPRECATED: Use TimestampBackupManager instead"""
         try:
-            # Look for backup files in profile directory
-            files = self.storage_manager.list_export_files("plugin.video.librarygenie_*_*.json")
-
-            backups = []
-            for file_path, filename, file_size in files:
-                # Parse filename to extract metadata
-                parts = filename.replace(".json", "").split("_")
-
-                if len(parts) >= 4:
-                    export_type = "_".join(parts[3:-1])  # Everything between addon name and timestamp
-                    timestamp_str = parts[-1]
-
-                    try:
-                        # Parse timestamp
-                        backup_time = datetime.strptime(timestamp_str, "%Y%m%d-%H%M%S")
-
-                        backups.append({
-                            "filename": filename,
-                            "file_path": file_path,
-                            "export_type": export_type,
-                            "backup_time": backup_time,
-                            "file_size": file_size,
-                            "age_days": (datetime.now() - backup_time).days
-                        })
-                    except ValueError:
-                        # Skip files with invalid timestamp format
-                        continue
-
-            # Sort by backup time, newest first
-            backups.sort(key=lambda x: x["backup_time"], reverse=True)
-
-            return backups
+            self.logger.info("DEPRECATED: BackupManager.list_backups - redirecting to TimestampBackupManager")
+            
+            # Redirect to the new timestamp backup manager
+            from . import get_timestamp_backup_manager
+            timestamp_backup_manager = get_timestamp_backup_manager()
+            
+            return timestamp_backup_manager.list_backups()
 
         except Exception as e:
             self.logger.error(f"Error listing backups: {e}")
