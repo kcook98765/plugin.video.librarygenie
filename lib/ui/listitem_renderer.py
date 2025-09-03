@@ -275,7 +275,7 @@ class ListItemRenderer:
 
         list_item.addContextMenuItems(context_items)
 
-    def create_simple_listitem(self, title: str, description: str = None, action: str = None, icon: str = None) -> xbmcgui.ListItem:
+    def create_simple_listitem(self, title: str, description: Optional[str] = None, action: Optional[str] = None, icon: Optional[str] = None) -> xbmcgui.ListItem:
         """Create a simple ListItem for menu items (compatibility method for MenuBuilder)"""
         try:
             self.logger.debug(f"SIMPLE LISTITEM: Creating for '{title}'")
