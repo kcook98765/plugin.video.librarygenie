@@ -117,6 +117,8 @@ lib/
 - **Local-first**: Lists/folders and import/export work entirely offline. External search/similarity disabled until user authorizes (OTP workflow).
 - **Universal context menus**: Context menu script (`context.py`) handles all playable media types including plugin content from any addon.
 - **Plugin item support**: Gather appropriate metadata from focused plugin items for external type storage.
+- **Quick save functionality**: Optional streamlined workflow with dual context menu options when configured.
+- **Settings integration**: Context menu behavior adapts based on user settings (quick save enabled, default list configured).
 - **Privacy**: Only IMDb IDs, minimal non private data (and user-entered search text) are sent during optional external operations.
 - **Compatibility**: Handle `uniqueid.imdb` vs `imdbnumber` differences in Kodi 19/20; guard property sets accordingly.
 - **NDJSON export**: Keep schema versioned; include a `schema_version` field and migration notes in the README.

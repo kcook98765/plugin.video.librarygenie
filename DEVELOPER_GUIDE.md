@@ -12,7 +12,7 @@ LibraryGenie consists of three main layers:
    - Plugin routing and action handling (`router.py`, `plugin_context.py`)
    - Directory views and list building (`listitem_builder.py`, `listitem_renderer.py`, `menu_builder.py`)
    - Handler modules for specific features (`lists_handler.py`, `search_handler.py`, `favorites_handler.py`, `main_menu_handler.py`, `tools_handler.py`)
-   - Context menu integration (`context_menu.py`) with universal media type support
+   - Context menu integration (`context_menu.py`) with universal media type support and quick save functionality
    - Localization with caching (`localization.py`)
    - Playback actions and info dialog hijacking (`playback_actions.py`, `info_hijack_manager.py`)
    - Session state management (`session_state.py`)

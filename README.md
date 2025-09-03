@@ -28,6 +28,8 @@ LibraryGenie is a Kodi addon that provides advanced, flexible list and folder ma
 - Create, rename, move, and delete lists and folders with color-coded actions.
 - Add/remove items via context menus from anywhere in Kodi.
 - **Universal Context Menu**: Add any playable media to lists - movies, episodes, music videos, and plugin content.
+- **Quick Save Feature**: Optional quick-add functionality to a configured default list with single-click access.
+- **Dual Context Options**: When quick save is enabled, context menu shows both "Quick Add to Default List" and "Add to List..." options.
 - Export functionality integrated into tools menu.
 - Duplicate detection and unique constraint handling.
 - Transaction-safe modifications to prevent corruption.
@@ -107,6 +109,7 @@ Confidence scoring: 100% (IMDb) → 95% (TMDb) → 75–90% (title/year) → fal
 ## Settings & Configuration
 
 - **Set Default List**: Button-style action opens list picker when lists exist, shows helpful message when none available.
+- **Quick Save**: Enable quick-add functionality to bypass list selection dialog and add directly to default list.
 - **Background Tasks**: Configurable interval (5-720 minutes) with safe defaults and clamping.
 - **Backup Settings**: Automated backup scheduling, storage location, and retention policies.
 - **Storage Configuration**: Local paths and network share support via Kodi file settings.
