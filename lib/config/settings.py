@@ -234,13 +234,13 @@ class SettingsManager:
         config = get_config()
 
         return {
-            'enabled': config.get_backup_enabled(),
-            'schedule_interval': config.get_backup_schedule_interval(),
-            'retention_days': config.get_backup_retention_days(),
-            'storage_path': config.get_backup_storage_path(),
-            'storage_type': config.get_backup_storage_type(),
-            'include_settings': config.get_backup_include_settings(),
-            'include_favorites': config.get_backup_include_favorites()
+            'enabled': config.get_bool('backup_enabled', False),
+            'schedule_interval': config.get('backup_interval', 'weekly'),
+            'retention_days': config.get_int('backup_retention_count', 5),
+            'storage_path': config.get('backup_storage_location', ''),
+            'storage_type': config.get('backup_storage_type', 'local'),
+            'include_settings': config.get_bool('backup_include_settings', True),
+            'include_favorites': config.get_bool('backup_include_favorites', True)
         }
 
     def get_phase12_remote_settings(self) -> Dict[str, Any]:
