@@ -8,7 +8,6 @@ Handles file operations for import/export with atomic writes
 
 import os
 import shutil
-import tempfile
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, List, Tuple
