@@ -201,7 +201,12 @@ class ListsHandler:
             L(35002),
             "No lists found. Create your first list?"
         ):
-            return self.create_list(context)
+            create_response = self.create_list(context)
+            # Convert DialogResponse to DirectoryResponse
+            return DirectoryResponse(
+                items=[],
+                success=create_response.success
+            )
 
         return DirectoryResponse(items=[], success=True)
 
