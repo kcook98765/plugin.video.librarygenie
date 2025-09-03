@@ -7,9 +7,6 @@ Main service class for remote API integration
 """
 
 from typing import Dict, Any, List, Optional, Tuple
-
-import xbmc
-
 from ..utils.logger import get_logger
 from ..config.settings import get_phase12_remote_settings
 from .http_client import get_remote_client
