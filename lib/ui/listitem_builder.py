@@ -731,7 +731,6 @@ class ListItemBuilder:
             # Handle both dict and JSON string formats
             if isinstance(item_art, str):
                 try:
-                    import json
                     item_art = json.loads(item_art)
                 except (json.JSONDecodeError, ValueError):
                     item_art = {}
