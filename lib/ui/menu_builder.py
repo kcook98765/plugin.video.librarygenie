@@ -104,12 +104,17 @@ class MenuBuilder:
             list_item = self.renderer.create_simple_listitem(title, description, action, icon=item.get("icon"))
 
             # Ensure non-folder action items are not marked as playable to prevent info dialog
-            if not is_folder and action:
+            if not is_folder and action and list_item is not None:
                 list_item.setProperty('IsPlayable', 'false')
+
+        # Check if list_item was created successfully
+        if list_item is None:
+            self.logger.error(f"MENU ITEM: Failed to create list item for '{title}' - skipping")
+            return
 
         # Add context menu if provided
         context_items_added = 0
-        if context_menu:
+        if context_menu and list_item is not None:
             list_item.addContextMenuItems(context_menu)
             context_items_added += len(context_menu)
             self.logger.debug(f"MENU ITEM: Added {len(context_menu)} base context menu items for '{title}'")
