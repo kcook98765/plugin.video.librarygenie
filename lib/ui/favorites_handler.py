@@ -261,10 +261,11 @@ class FavoritesHandler:
             selected_list = user_lists[selected_index]
 
             # Add item to the selected list
-            from lib.data.list_library_manager import get_list_library_manager
-            list_manager = get_list_library_manager()
-
-            result = list_manager.add_to_list_by_imdb(selected_list['id'], imdb_id)
+            result = query_manager.add_item_to_list(
+                selected_list['id'], 
+                title="Unknown",  # Will be resolved by IMDb ID
+                imdb_id=imdb_id
+            )
 
             if result.get("success"):
                 return DialogResponse(
