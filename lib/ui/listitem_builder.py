@@ -7,18 +7,12 @@ Builds ListItems with proper metadata and resume information
 """
 
 import json
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional
 
 import xbmc
 import xbmcgui
 import xbmcplugin
-
 from ..utils.logger import get_logger
-# The original code had an incorrect import for get_select_pref.
-# It was defined in this file but intended to be imported from config_manager.
-# The fix involves changing the import path to the correct location.
-from ..config.config_manager import get_select_pref
-
 
 def is_kodi_v20_plus() -> bool:
     """
@@ -525,7 +519,6 @@ class ListItemBuilder:
         """
         try:
             title = item.get('title', 'Unknown')
-            media_type = item.get('media_type', 'movie')
 
             display_label = f"{title} ({item['year']})" if item.get('year') else title
             li = xbmcgui.ListItem(label=display_label)
@@ -599,7 +592,6 @@ class ListItemBuilder:
         This keeps list views snappy while providing native library behavior.
         """
         info: Dict[str, Any] = {}
-        title = item.get('title', 'Unknown')
 
         # Core identification fields
         if item.get('title'):
@@ -723,7 +715,6 @@ class ListItemBuilder:
     def _build_art_dict(self, item: Dict[str, Any]) -> Dict[str, str]:
         """Build artwork dictionary from item data"""
         art = {}
-        title = item.get('title', 'Unknown')
 
         # First check if we have a JSON-RPC art dict
         item_art = item.get('art')
