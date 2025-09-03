@@ -73,14 +73,20 @@ class TimestampBackupManager:
             # Determine what to backup based on settings
             export_types = ["lists", "list_items"]
 
-            if self.config.get("backup_include_favorites", True):
+            # Only add optional types if they're explicitly enabled or if config is unavailable
+            try:
+                if self.config.get("backup_include_favorites", True):
+                    export_types.append("favorites")
+
+                if self.config.get("backup_include_library", False):
+                    export_types.append("library_snapshot")
+
+                if self.config.get("backup_include_folders", False):  # Changed default to False for safety
+                    export_types.append("folders")
+            except Exception as e:
+                self.logger.warning(f"Error reading backup config, using defaults: {e}")
+                # Use minimal safe defaults if config fails
                 export_types.append("favorites")
-
-            if self.config.get("backup_include_library", False):
-                export_types.append("library_snapshot")
-
-            if self.config.get("backup_include_folders", True):
-                export_types.append("folders")
 
             # Generate filename with timestamp
             prefix = "librarygenie"  # Use hardcoded prefix since setting may not exist

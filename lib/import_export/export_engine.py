@@ -33,7 +33,7 @@ class ExportEngine:
             start_time = datetime.now()
 
             # Validate export types
-            valid_types = {"lists", "list_items", "favorites", "library_snapshot"}
+            valid_types = {"lists", "list_items", "favorites", "library_snapshot", "folders"}
             invalid_types = set(export_types) - valid_types
             if invalid_types:
                 return {"success": False, "error": f"Invalid export types: {invalid_types}"}
@@ -99,6 +99,8 @@ class ExportEngine:
                 return self._collect_favorites_data()
             elif export_type == "library_snapshot":
                 return self._collect_library_snapshot_data()
+            elif export_type == "folders":
+                return self._collect_folders_data()
             else:
                 return [], 0
 
@@ -263,6 +265,39 @@ class ExportEngine:
             library_data.append(movie_dict)
 
         return library_data, len(library_data)
+
+    def _collect_folders_data(self) -> Tuple[List[Dict], int]:
+        """Collect folders data"""
+        folders_data = []
+
+        query = """
+                SELECT f.id, f.name, f.created_at, f.description,
+                       COUNT(l.id) as list_count
+                FROM folders f
+                LEFT JOIN lists l ON f.id = l.folder_id
+                GROUP BY f.id, f.name, f.created_at, f.description
+                ORDER BY f.created_at
+            """
+        params = ()
+
+        folders = self.conn_manager.execute_query(query, params)
+
+        for folder_row in folders or []:
+            if hasattr(folder_row, 'keys'):
+                folder_dict = dict(folder_row)
+            else:
+                # Handle tuple/list format
+                folder_dict = {
+                    'id': folder_row[0],
+                    'name': folder_row[1],
+                    'created_at': folder_row[2],
+                    'description': folder_row[3],
+                    'list_count': folder_row[4]
+                }
+
+            folders_data.append(folder_dict)
+
+        return folders_data, len(folders_data)
 
     def _write_json_export(self, envelope: ExportEnvelope, file_path: str) -> bool:
         """Write JSON export file"""
