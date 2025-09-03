@@ -449,7 +449,7 @@ def get_listitem_renderer(addon_handle: Optional[int] = None, addon_id: Optional
                 addon = xbmcaddon.Addon()
                 addon_id = addon.getAddonInfo('id')
                 addon_handle = int(sys.argv[1]) if len(sys.argv) > 1 else 0
-            except:
+            except (ImportError, IndexError, ValueError):
                 addon_handle = 0
                 addon_id = 'plugin.video.librarygenie'
         _listitem_renderer_instance = ListItemRenderer(addon_handle, addon_id)
