@@ -10,9 +10,8 @@ and comprehensive classification system
 import os
 import re
 import xml.etree.ElementTree as ET
-from typing import List, Dict, Optional, Tuple
-from urllib.parse import unquote, quote
-from pathlib import Path
+from typing import List, Dict, Optional
+from urllib.parse import unquote
 
 import xbmcvfs
 
