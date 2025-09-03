@@ -885,3 +885,116 @@ class ListsHandler:
                 items=[],
                 success=False
             )
+
+    def set_default_list(self, context: PluginContext) -> DialogResponse:
+        """Handle setting the default list for quick-add functionality"""
+        try:
+            context.logger.info("Handling set default list request")
+
+            # Initialize query manager
+            query_manager = get_query_manager()
+            if not query_manager.initialize():
+                context.logger.error("Failed to initialize query manager for set_default_list")
+                return DialogResponse(
+                    success=False,
+                    message="Database error"
+                )
+
+            # Get all available lists
+            all_lists = query_manager.get_all_lists_with_folders()
+
+            if not all_lists:
+                # Offer to create a new list if none exist
+                if xbmcgui.Dialog().yesno("No Lists Found", "No lists available. Create a new list to set as default?"):
+                    result = self.create_list(context)
+                    if result.success:
+                        # Refresh the list of lists
+                        all_lists = query_manager.get_all_lists_with_folders()
+                    else:
+                        context.logger.warning("Failed to create a new list for default.")
+                        return DialogResponse(
+                            success=False,
+                            message="Failed to create new list"
+                        )
+                else:
+                    context.logger.info("User chose not to create a new list.")
+                    return DialogResponse(success=False)
+
+            if not all_lists:  # Still no lists
+                return DialogResponse(
+                    success=False,
+                    message="No lists available to set as default"
+                )
+
+            # Build list options for selection
+            list_options = []
+            list_ids = []
+            for lst in all_lists:
+                folder_name = lst.get('folder_name', 'Root')
+                if folder_name == 'Root' or not folder_name:
+                    display_name = lst['name']
+                else:
+                    display_name = f"{folder_name}/{lst['name']}"
+                list_options.append(f"{display_name} ({lst['item_count']} items)")
+                list_ids.append(lst['id'])
+
+            # Add option to create new list
+            list_options.append("[COLOR yellow]+ Create New List[/COLOR]")
+
+            # Show list selection dialog
+            dialog = xbmcgui.Dialog()
+            selected_index = dialog.select("Set Default Quick-Add List:", list_options)
+
+            if selected_index < 0:
+                context.logger.info("User cancelled setting default list.")
+                return DialogResponse(success=False)
+
+            target_list_id = None
+            if selected_index == len(list_options) - 1:  # User chose to create a new list
+                result = self.create_list(context)
+                if not result.success:
+                    context.logger.warning("Failed to create new list for default.")
+                    return DialogResponse(
+                        success=False,
+                        message="Failed to create new list"
+                    )
+                # Get the newly created list ID
+                all_lists = query_manager.get_all_lists_with_folders()  # Refresh lists
+                if all_lists:
+                    target_list_id = all_lists[-1]['id']  # Assume last created
+                else:
+                    context.logger.error("Could not retrieve newly created list ID.")
+                    return DialogResponse(
+                        success=False,
+                        message="Could not retrieve newly created list"
+                    )
+            else:
+                target_list_id = list_ids[selected_index]
+
+            if target_list_id is None:
+                context.logger.error("Target list ID is None.")
+                return DialogResponse(
+                    success=False,
+                    message="Invalid list selection"
+                )
+
+            # Set the default list ID in settings
+            from ..config.settings import SettingsManager
+            settings = SettingsManager()
+            settings.set_default_list_id(target_list_id)
+
+            # Get list name for confirmation message
+            selected_list_name = list_options[selected_index].split(' (')[0] if selected_index < len(list_options) - 1 else "newly created list"
+            
+            context.logger.info(f"Set default quick-add list to: {selected_list_name}")
+            return DialogResponse(
+                success=True,
+                message=f"Default quick-add list set to: '{selected_list_name}'"
+            )
+
+        except Exception as e:
+            context.logger.error(f"Error in set_default_list: {e}")
+            return DialogResponse(
+                success=False,
+                message="Failed to set default list"
+            )

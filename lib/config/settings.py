@@ -50,6 +50,10 @@ class SettingsManager:
         value = self.addon.getSetting('default_list_id')
         return value if value else None
 
+    def set_default_list_id(self, list_id: str) -> None:
+        """Set default list ID for quick-add"""
+        self.addon.setSetting('default_list_id', str(list_id) if list_id else "")
+
     def get_enable_quick_add(self) -> bool:
         """Get enable quick-add setting"""
         return self.addon.getSettingBool('quick_add_enabled')
