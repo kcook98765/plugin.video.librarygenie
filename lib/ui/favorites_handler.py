@@ -129,21 +129,9 @@ class FavoritesHandler:
                 def add_favorites_context_menu(listitem, item):
                     """Add favorites-specific context menu items"""
                     try:
-                        context_menu = []
-                        # Use the correct ID field - favorites use 'id' or 'media_item_id'
-                        item_id = item.get('id') or item.get('media_item_id') or item.get('kodi_id', '')
-                        context_menu.append((
-                            "Remove from Favorites",
-                            f"RunPlugin({context.build_url('remove_from_favorites', item_id=item_id)})"
-                        ))
-
-                        # Also add "Add to List" option for favorites
-                        if item.get('imdb_id'):
-                            context_menu.append((
-                                "Add to List",
-                                f"RunPlugin({context.build_url('add_to_list_menu', media_item_id=item.get('media_item_id') or item.get('id'))})"
-                            ))
-
+                        from .context_menu_factory import get_context_menu_factory
+                        factory = get_context_menu_factory()
+                        context_menu = factory.create_favorites_context_menu(item, context)
                         listitem.addContextMenuItems(context_menu)
                     except Exception as e:
                         context.logger.warning(f"Failed to add favorites context menu: {e}")
