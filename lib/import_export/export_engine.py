@@ -111,13 +111,13 @@ class ExportEngine:
         lists_data = []
 
         query = """
-            SELECT l.id, l.name, l.description, l.created_at, l.updated_at,
-                   COUNT(li.id) as item_count
-            FROM list l
-            LEFT JOIN list_item li ON l.id = li.list_id AND li.library_movie_id IS NOT NULL
-            GROUP BY l.id, l.name, l.description, l.created_at, l.updated_at
-            ORDER BY l.created_at
-        """
+                SELECT l.id, l.name, l.created_at,
+                       COUNT(li.id) as item_count
+                FROM lists l
+                LEFT JOIN list_items li ON l.id = li.list_id
+                GROUP BY l.id, l.name, l.created_at
+                ORDER BY l.created_at
+            """
         params = () # Placeholder for potential future parameters
 
         lists = self.conn_manager.execute_query(query, params)
@@ -130,10 +130,8 @@ class ExportEngine:
                 list_dict = {
                     'id': list_row[0],
                     'name': list_row[1],
-                    'description': list_row[2],
-                    'created_at': list_row[3],
-                    'updated_at': list_row[4],
-                    'item_count': list_row[5]
+                    'created_at': list_row[2],
+                    'item_count': list_row[3]
                 }
 
             lists_data.append(list_dict)
@@ -145,13 +143,13 @@ class ExportEngine:
         items_data = []
 
         query = """
-            SELECT li.list_id, lm.kodi_id, lm.title, lm.year, lm.file_path,
-                   lm.imdb_id, lm.tmdb_id
-            FROM list_item li
-            INNER JOIN library_movie lm ON li.library_movie_id = lm.id
-            WHERE lm.is_removed = 0
-            ORDER BY li.list_id, lm.title
-        """
+                SELECT li.list_id, mi.kodi_id, mi.title, mi.year, mi.file_path,
+                       mi.imdbnumber as imdb_id, mi.tmdb_id, mi.media_type
+                FROM list_items li
+                INNER JOIN media_items mi ON li.media_item_id = mi.id
+                WHERE mi.is_removed = 0
+                ORDER BY li.list_id, mi.title
+            """
         params = () # Placeholder for potential future parameters
 
         items = self.conn_manager.execute_query(query, params)
@@ -168,7 +166,8 @@ class ExportEngine:
                     'year': item_row[3],
                     'file_path': item_row[4],
                     'imdb_id': item_row[5],
-                    'tmdb_id': item_row[6]
+                    'tmdb_id': item_row[6],
+                    'media_type': item_row[7]
                 }
 
             # Add external IDs dictionary
@@ -188,13 +187,13 @@ class ExportEngine:
         favorites_data = []
 
         query = """
-            SELECT kf.name, mi.kodi_id, mi.title, mi.year, mi.file_path,
-                   kf.normalized_path, mi.imdb_id, mi.tmdb_id
-            FROM kodi_favorite kf
-            INNER JOIN media_items mi ON kf.library_movie_id = mi.id
-            WHERE mi.is_removed = 0
-            ORDER BY kf.name
-        """
+                SELECT name, normalized_path, original_path, favorite_type,
+                       target_raw, target_classification, library_movie_id,
+                       is_mapped, thumb_ref, created_at
+                FROM kodi_favorite
+                WHERE present = 1
+                ORDER BY name
+            """
         params = () # Placeholder for potential future parameters
 
         favorites = self.conn_manager.execute_query(query, params)
@@ -206,13 +205,15 @@ class ExportEngine:
                 # Handle tuple/list format
                 fav_dict = {
                     'name': fav_row[0],
-                    'kodi_id': fav_row[1],
-                    'title': fav_row[2],
-                    'year': fav_row[3],
-                    'file_path': fav_row[4],
-                    'normalized_path': fav_row[5],
-                    'imdb_id': fav_row[6],
-                    'tmdb_id': fav_row[7]
+                    'normalized_path': fav_row[1],
+                    'original_path': fav_row[2],
+                    'favorite_type': fav_row[3],
+                    'target_raw': fav_row[4],
+                    'target_classification': fav_row[5],
+                    'library_movie_id': fav_row[6],
+                    'is_mapped': fav_row[7],
+                    'thumb_ref': fav_row[8],
+                    'created_at': fav_row[9]
                 }
 
             favorites_data.append(fav_dict)
@@ -224,11 +225,12 @@ class ExportEngine:
         library_data = []
 
         query = """
-            SELECT kodi_id, title, year, file_path, imdb_id, tmdb_id, created_at
-            FROM library_movie
-            WHERE is_removed = 0 AND kodi_id IS NOT NULL
-            ORDER BY title
-        """
+                SELECT kodi_id, title, year, file_path, imdbnumber as imdb_id, tmdb_id,
+                       media_type, created_at, updated_at
+                FROM media_items
+                WHERE is_removed = 0
+                ORDER BY title
+            """
         params = () # Placeholder for potential future parameters
 
         movies = self.conn_manager.execute_query(query, params)
@@ -245,7 +247,9 @@ class ExportEngine:
                     'file_path': movie_row[3],
                     'imdb_id': movie_row[4],
                     'tmdb_id': movie_row[5],
-                    'added_at': movie_row[6]
+                    'media_type': movie_row[6],
+                    'added_at': movie_row[7],
+                    'updated_at': movie_row[8]
                 }
 
             # Add external IDs
