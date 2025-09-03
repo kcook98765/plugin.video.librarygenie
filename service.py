@@ -12,6 +12,7 @@ from datetime import datetime
 
 import xbmc
 import xbmcaddon
+import xbmcgui # Added for notifications
 
 from lib.config import get_config
 from lib.auth.refresh import maybe_refresh
@@ -62,7 +63,7 @@ class BackgroundService:
         except Exception as e:
             self.logger.warning(f"Failed to initialize library scanner: {e}")
 
-        
+
 
         # Token refresh tracking
         self._last_token_check = 0
@@ -95,7 +96,7 @@ class BackgroundService:
                 if self.track_library_changes and self._library_scanner:
                     self._check_library_changes()
 
-                
+
 
                 # Check and run any scheduled tasks
                 self.check_scheduled_tasks()
@@ -149,22 +150,67 @@ class BackgroundService:
     def _initial_setup(self):
         """Perform initial setup tasks"""
         try:
-            # Always check if library needs initial indexing on service start
-            if self._library_scanner and not self._library_scanner.is_library_indexed():
+            # Check if library needs initial indexing
+            if not self._library_scanner.is_library_indexed():
                 self.logger.info("Library not indexed, performing initial scan")
-                result = self._library_scanner.perform_full_scan()
 
-                if result.get("success"):
-                    self.logger.info(f"Initial scan complete: {result.get('items_added', 0)} movies indexed")
-                else:
-                    self.logger.warning(f"Initial scan failed: {result.get('error', 'Unknown error')}")
+                # Show notification that initial scan is starting
+                try:
+                    addon = xbmcaddon.Addon() # Ensure addon is initialized here
+                    xbmcgui.Dialog().notification(
+                        addon.getLocalizedString(35002),  # "LibraryGenie"
+                        "Initial library scan starting...",
+                        xbmcgui.NOTIFICATION_INFO,
+                        5000
+                    )
+                except Exception as e:
+                    self.logger.warning(f"Failed to show initial scan notification: {e}")
+
+                try:
+                    result = self._library_scanner.perform_full_scan()
+                    if result.get("success"):
+                        self.logger.info(f"Initial scan complete: {result.get('items_added', 0)} movies indexed")
+                        # Show completion notification
+                        try:
+                            xbmcgui.Dialog().notification(
+                                addon.getLocalizedString(35002),  # "LibraryGenie"
+                                f"Initial scan complete: {result.get('items_added', 0)} movies indexed",
+                                xbmcgui.NOTIFICATION_INFO,
+                                5000
+                            )
+                        except Exception as e:
+                            self.logger.warning(f"Failed to show completion notification: {e}")
+                    else:
+                        self.logger.warning(f"Initial scan failed: {result.get('error', 'Unknown error')}")
+                        # Show error notification
+                        try:
+                            xbmcgui.Dialog().notification(
+                                addon.getLocalizedString(35002),  # "LibraryGenie"
+                                "Initial library scan failed",
+                                xbmcgui.NOTIFICATION_ERROR,
+                                5000
+                            )
+                        except Exception as e:
+                            self.logger.warning(f"Failed to show error notification: {e}")
+                except Exception as e:
+                    self.logger.error(f"Initial scan failed with exception: {e}")
+                    # Show error notification on exception during scan
+                    try:
+                        xbmcgui.Dialog().notification(
+                            addon.getLocalizedString(35002),  # "LibraryGenie"
+                            "Initial library scan failed",
+                            xbmcgui.NOTIFICATION_ERROR,
+                            5000
+                        )
+                    except Exception as e:
+                        self.logger.warning(f"Failed to show error notification: {e}")
             else:
                 self.logger.debug("Library already indexed or scanner unavailable")
 
         except Exception as e:
             self.logger.error(f"Initial setup failed: {e}")
 
-    
+
 
 
     def _check_and_refresh_token_throttled(self):
@@ -208,7 +254,7 @@ class BackgroundService:
             self.logger.error(f"Library change detection failed: {e}")
             raise  # Re-raise to trigger backoff
 
-    
+
 
     def check_scheduled_tasks(self):
         """Check and run any scheduled tasks"""
