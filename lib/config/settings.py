@@ -164,8 +164,20 @@ class SettingsManager:
 
     def get_backup_storage_location(self) -> str:
         """Get backup storage location"""
-        value = self.addon.getSetting('backup_storage_location')
-        return value if value else "special://userdata/addon_data/plugin.video.library.genie/backups/"
+        storage_type = self.addon.getSetting('backup_storage_type')
+        
+        if storage_type == "custom":
+            # Use custom path set by user
+            custom_path = self.addon.getSetting('backup_local_path')
+            if custom_path and custom_path.strip():
+                return custom_path.strip()
+        
+        # Default to addon data directory
+        return "special://userdata/addon_data/plugin.video.librarygenie/backups/"
+    
+    def get_backup_storage_type(self) -> str:
+        """Get backup storage type"""
+        return self.addon.getSetting('backup_storage_type')
 
     def get_backup_retention_policy(self) -> str:
         """Get backup retention policy"""

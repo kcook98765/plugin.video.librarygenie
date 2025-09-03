@@ -229,16 +229,24 @@ class TimestampBackupManager:
     def _test_local_storage(self) -> Dict[str, Any]:
         """Test local storage configuration"""
         try:
-            custom_path = self.config.get("backup_local_path", "")
-            if custom_path:
-                if not os.path.exists(custom_path):
-                    return {"success": False, "error": f"Custom path does not exist: {custom_path}"}
-                if not os.access(custom_path, os.W_OK):
-                    return {"success": False, "error": f"No write permission: {custom_path}"}
-                test_path = custom_path
+            from ..config.settings import SettingsManager
+            settings = SettingsManager()
+            storage_location = settings.get_backup_storage_location()
+            
+            # Handle special:// paths
+            if storage_location.startswith("special://"):
+                import xbmcvfs
+                test_path = xbmcvfs.translatePath(storage_location)
             else:
-                test_path = os.path.join(self.storage_manager.get_profile_path(), "backups")
-                os.makedirs(test_path, exist_ok=True)
+                test_path = storage_location
+                
+            # Ensure directory exists
+            os.makedirs(test_path, exist_ok=True)
+            
+            if not os.path.exists(test_path):
+                return {"success": False, "error": f"Storage path does not exist: {test_path}"}
+            if not os.access(test_path, os.W_OK):
+                return {"success": False, "error": f"No write permission: {test_path}"}
 
             # Test write access
             test_file = os.path.join(test_path, "test_backup.tmp")
@@ -258,11 +266,16 @@ class TimestampBackupManager:
     def _list_local_backups(self) -> List[Dict[str, Any]]:
         """List local backup files"""
         try:
-            custom_path = self.config.get("backup_local_path", "")
-            if custom_path and os.path.exists(custom_path):
-                backup_dir = custom_path
+            from ..config.settings import SettingsManager
+            settings = SettingsManager()
+            storage_location = settings.get_backup_storage_location()
+            
+            # Handle special:// paths
+            if storage_location.startswith("special://"):
+                import xbmcvfs
+                backup_dir = xbmcvfs.translatePath(storage_location)
             else:
-                backup_dir = os.path.join(self.storage_manager.get_profile_path(), "backups")
+                backup_dir = storage_location
 
             if not os.path.exists(backup_dir):
                 return []

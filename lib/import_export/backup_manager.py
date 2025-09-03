@@ -13,6 +13,7 @@ from .export_engine import get_export_engine
 from .storage_manager import get_storage_manager
 from ..config import get_config
 from ..utils.logger import get_logger
+from ..config.settings import SettingsManager
 
 
 class BackupManager:
@@ -157,14 +158,19 @@ class BackupManager:
 
     def get_backup_settings(self) -> Dict[str, Any]:
         """Get current backup settings"""
-        return {
-            "enabled": self.config.get("backup_enabled", False),
-            "interval": self.config.get("backup_interval", "weekly"),
-            "retention_count": self.config.get("backup_retention_count", 5),
-            "include_favorites": self.config.get("backup_include_favorites", True),
-            "include_library": self.config.get("backup_include_library", False),
-            "last_backup": self._get_last_backup_time()
+        settings = SettingsManager()
+
+        backup_preferences = {
+            'enabled': self.config.get_bool('backup_enabled', False),
+            'schedule_interval': self.config.get('backup_interval', 'weekly'),
+            'retention_days': self.config.get_int('backup_retention_count', 5),
+            'storage_path': settings.get_backup_storage_location(),
+            'storage_type': settings.get_backup_storage_type(),
+            'include_settings': self.config.get_bool('backup_include_settings', True),
+            'include_favorites': self.config.get_bool('backup_include_favorites', True)
         }
+        return backup_preferences
+
 
     def _get_last_backup_time(self) -> Optional[datetime]:
         """Get timestamp of last backup"""

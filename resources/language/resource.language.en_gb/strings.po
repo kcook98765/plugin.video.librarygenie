@@ -1644,8 +1644,17 @@ msgid "Backup storage type"
 msgstr ""
 
 msgctxt "#30532"
-msgid "Local backup folder"
+msgid "Custom backup path"
 msgstr ""
+
+msgctxt "#30533"
+msgstr "Storage Location"
+
+msgctxt "#30534"
+msgstr "Default (Addon Data)"
+
+msgctxt "#30535"
+msgstr "Custom Location"
 
 msgctxt "#30540"
 msgid "Backup Actions"
