@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-import os, json, time, html
+import os
+import json
+import time
+import html
 from typing import Optional
 
 import xbmc
@@ -309,7 +312,6 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
 
     # Path preparation
     path_to_open = None
-    focus_index = 0
 
     if dbtype == "tvshow":
         path_to_open = f"videodb://tvshows/titles/{int(dbid)}"
@@ -385,7 +387,6 @@ def open_movie_info(dbid: int, movie_url: Optional[str] = None, xsp_path: Option
 
         # -------- precise timings --------
         t_total0 = time.perf_counter()
-        t0 = time.perf_counter()
         dt_prewarm = prewarm_smb(movie_url) if movie_url else 0.0
         t1 = time.perf_counter()
         _log(f"Opening Videos window with path: {xsp_path} "
