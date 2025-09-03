@@ -437,7 +437,7 @@ class ListItemRenderer:
 _listitem_renderer_instance = None
 
 
-def get_listitem_renderer(addon_handle: int = None, addon_id: str = None):
+def get_listitem_renderer(addon_handle: Optional[int] = None, addon_id: Optional[str] = None):
     """Get global listitem renderer instance"""
     global _listitem_renderer_instance
     if _listitem_renderer_instance is None:
