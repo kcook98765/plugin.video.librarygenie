@@ -17,7 +17,7 @@ class Router:
     """Routes actions to appropriate handler functions"""
 
     def __init__(self):
-        self.logger = None  # Will be set from context
+        self.logger = get_logger(__name__)
         self._handlers: Dict[str, Callable] = {}
 
     def register_handler(self, action: str, handler: Callable):
@@ -33,9 +33,6 @@ class Router:
         Dispatch request to appropriate handler based on context
         Returns True if handler was found and called, False otherwise
         """
-        if self.logger is None:
-            self.logger = get_logger(__name__)
-
         action = context.get_param('action', '')
         params = context.get_params() # Get all params for modular tools
         self.logger.debug(f"Router dispatching action: '{action}'")
