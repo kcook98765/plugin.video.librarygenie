@@ -14,6 +14,9 @@ from typing import Any
 from .plugin_context import PluginContext
 from .response_types import DirectoryResponse, DialogResponse
 from ..utils.logger import get_logger
+import xbmc
+import xbmcgui
+import xbmcplugin
 
 
 class ResponseHandler:
@@ -204,6 +207,18 @@ class ResponseHandler:
             success=False,
             **kwargs
         )
+
+
+# Factory function
+_response_handler_instance = None
+
+
+def get_response_handler() -> ResponseHandler:
+    """Get singleton ResponseHandler instance"""
+    global _response_handler_instance
+    if _response_handler_instance is None:
+        _response_handler_instance = ResponseHandler()
+    return _response_handler_instance
 
 
 # Global response handler instance

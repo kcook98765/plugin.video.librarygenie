@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 from .plugin_context import PluginContext
 from .response_types import DialogResponse
-from .localization import L
+from .localization_helper import L
 from ..utils.logger import get_logger
 from ..import_export.export_engine import get_export_engine
 

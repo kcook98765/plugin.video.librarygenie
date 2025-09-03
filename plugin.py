@@ -475,15 +475,11 @@ def _register_all_handlers(router: Router):
 def _handle_dialog_response(context: PluginContext, response):
     """Handle DialogResponse objects from handler methods"""
     from lib.ui.response_types import DialogResponse
+    from lib.ui.response_handler import get_response_handler
     
     if isinstance(response, DialogResponse):
-        # Show notification if there's a message
-        response.show_notification(context.addon)
-        
-        # Refresh if needed
-        if response.refresh_needed:
-            import xbmc
-            xbmc.executebuiltin('Container.Refresh')
+        response_handler = get_response_handler()
+        return response_handler.handle_dialog_response(response, context)
     
     return response
 

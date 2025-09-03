@@ -8,11 +8,9 @@ Handles action routing and dispatch for plugin requests
 
 from typing import Dict, Callable, Any
 from .plugin_context import PluginContext
-import xbmcgui # Import xbmcgui for dialogs
-import xbmc # Import xbmc for executebuiltin
-import xbmcplugin # Import xbmcplugin for endOfDirectory
-from .response_types import DirectoryResponse, DialogResponse # Import response types
-from ..utils.logger import get_logger # Import logger
+import xbmcgui
+import xbmcplugin
+from ..utils.logger import get_logger
 
 
 class Router:
