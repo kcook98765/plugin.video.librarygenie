@@ -8,9 +8,8 @@ Handles lists display, creation, deletion, and management
 
 import xbmcplugin
 import xbmcgui
-from typing import List, Dict, Any
 from .plugin_context import PluginContext
-from .response_types import DirectoryResponse, DialogResponse, ActionResponse
+from .response_types import DirectoryResponse, DialogResponse
 from ..data.query_manager import get_query_manager
 
 # --- Localization Optimization ---
@@ -424,7 +423,7 @@ class ListsHandler:
             result = query_manager.delete_item_from_list(list_id, item_id)
 
             if result:
-                context.logger.info(f"Successfully removed item from list")
+                context.logger.info("Successfully removed item from list")
                 return DialogResponse(
                     success=True,
                     message=f"Removed '{item_info['title']}' from list",
