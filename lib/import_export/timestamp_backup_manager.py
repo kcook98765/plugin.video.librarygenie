@@ -66,8 +66,8 @@ class TimestampBackupManager:
         try:
             self.logger.info("Starting automatic timestamped backup")
 
-            # Generate timestamp
-            timestamp_format = self.config.get("backup_timestamp_format", "%Y%m%d-%H%M%S")
+            # Generate timestamp with fallback
+            timestamp_format = "%Y%m%d-%H%M%S"  # Use hardcoded format since setting may not exist
             timestamp = datetime.now().strftime(timestamp_format)
 
             # Determine what to backup based on settings
@@ -83,19 +83,19 @@ class TimestampBackupManager:
                 export_types.append("folders")
 
             # Generate filename with timestamp
-            prefix = self.config.get("backup_prefix", "librarygenie")
+            prefix = "librarygenie"  # Use hardcoded prefix since setting may not exist
             filename = f"{prefix}_backup_{timestamp}.json"
 
             # Run export
             result = self.export_engine.export_data(
                 export_types=export_types,
-                file_format="json",
-                custom_filename=filename
+                file_format="json"
             )
 
             if result["success"]:
                 # Store backup based on storage type
-                storage_result = self._store_backup(result["file_path"], filename)
+                actual_filename = result.get("filename", filename)
+                storage_result = self._store_backup(result["file_path"], actual_filename)
 
                 if storage_result["success"]:
                     # Update last backup time
@@ -104,15 +104,15 @@ class TimestampBackupManager:
                     # Clean up old backups
                     self._cleanup_old_backups()
 
-                    self.logger.info(f"Automatic backup completed: {filename}")
+                    self.logger.info(f"Automatic backup completed: {result.get('filename', filename)}")
 
                     return {
                         "success": True,
-                        "filename": filename,
+                        "filename": result.get("filename", filename),
                         "timestamp": timestamp,
-                        "file_size": result["file_size"],
+                        "file_size": result.get("file_size", 0),
                         "export_types": export_types,
-                        "total_items": result["total_items"],
+                        "total_items": result.get("total_items", 0),
                         "storage_location": storage_result["location"]
                     }
                 else:
@@ -281,7 +281,7 @@ class TimestampBackupManager:
                 return []
 
             backups = []
-            prefix = self.config.get("backup_prefix", "librarygenie")
+            prefix = "librarygenie"  # Use hardcoded prefix
 
             for filename in os.listdir(backup_dir):
                 if filename.startswith(f"{prefix}_backup_") and filename.endswith(".json"):
@@ -291,7 +291,7 @@ class TimestampBackupManager:
                     # Parse timestamp from filename
                     timestamp_str = filename.replace(f"{prefix}_backup_", "").replace(".json", "")
                     try:
-                        backup_time = datetime.strptime(timestamp_str, self.config.get("backup_timestamp_format", "%Y%m%d-%H%M%S"))
+                        backup_time = datetime.strptime(timestamp_str, "%Y%m%d-%H%M%S")  # Use hardcoded format
                     except:
                         backup_time = datetime.fromtimestamp(stat.st_mtime)
 
