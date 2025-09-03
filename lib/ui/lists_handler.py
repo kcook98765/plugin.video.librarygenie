@@ -423,7 +423,7 @@ class ListsHandler:
             # Remove the item
             result = query_manager.delete_item_from_list(list_id, item_id)
 
-            if result.get("success"):
+            if result:
                 context.logger.info(f"Successfully removed item from list")
                 return DialogResponse(
                     success=True,
