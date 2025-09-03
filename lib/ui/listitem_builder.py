@@ -377,6 +377,9 @@ class ListItemBuilder:
             li = xbmcgui.ListItem(label=display_label)
 
             # Build videodb:// URL for native library integration
+            if kodi_id is None:
+                self.logger.error(f"LIB ITEM: Cannot build videodb URL - kodi_id is None for '{title}'")
+                return None
             videodb_url = self._build_videodb_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
             li.setPath(videodb_url)
 
@@ -388,7 +391,7 @@ class ListItemBuilder:
             # ✨ ALWAYS set InfoHijack properties on library items first (before any metadata operations)
             try:
                 li.setProperty("LG.InfoHijack.Armed", "1")
-                li.setProperty("LG.InfoHijack.DBID", str(kodi_id))
+                li.setProperty("LG.InfoHijack.DBID", str(kodi_id) if kodi_id is not None else "0")
                 li.setProperty("LG.InfoHijack.DBType", media_type)
             except Exception as e:
                 self.logger.error(f"LIB ITEM: ❌ Failed to set InfoHijack properties for '{title}': {e}")
@@ -403,19 +406,22 @@ class ListItemBuilder:
 
                     # setDbId() for library linking - use feature detection instead of version detection
                     dbid_success = False
-                    try:
-                        # Try v21+ signature first (2 args)
-                        video_info_tag.setDbId(int(kodi_id), media_type)
-                        dbid_success = True
-                    except TypeError:
-                        # Fallback to v19/v20 signature (1 arg)
+                    if kodi_id is not None:
                         try:
-                            video_info_tag.setDbId(int(kodi_id))
+                            # Try v21+ signature first (2 args)
+                            video_info_tag.setDbId(int(kodi_id), media_type)
                             dbid_success = True
+                        except TypeError:
+                            # Fallback to v19/v20 signature (1 arg)
+                            try:
+                                video_info_tag.setDbId(int(kodi_id))
+                                dbid_success = True
+                            except Exception as e:
+                                self.logger.warning(f"LIB ITEM: setDbId() 1-arg fallback failed for '{title}': {e}")
                         except Exception as e:
-                            self.logger.warning(f"LIB ITEM: setDbId() 1-arg fallback failed for '{title}': {e}")
-                    except Exception as e:
-                        self.logger.warning(f"LIB ITEM: setDbId() 2-arg failed for '{title}': {e}")
+                            self.logger.warning(f"LIB ITEM: setDbId() 2-arg failed for '{title}': {e}")
+                    else:
+                        self.logger.warning(f"LIB ITEM: Cannot set setDbId - kodi_id is None for '{title}'")
 
                     # Report dbid failure for diagnostics
                     if not dbid_success:
@@ -440,7 +446,7 @@ class ListItemBuilder:
             # These help when setDbId fails or on older versions
             try:
                 li.setProperty('dbtype', media_type)
-                li.setProperty('dbid', str(kodi_id))
+                li.setProperty('dbid', str(kodi_id) if kodi_id is not None else "0")
                 li.setProperty('mediatype', media_type)
             except Exception as e:
                 self.logger.warning(f"LIB ITEM: Property fallback setup failed for '{title}': {e}")
