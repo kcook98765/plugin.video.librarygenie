@@ -169,6 +169,26 @@ class Router:
                         3000
                     )
 
+            elif action == 'manual_backup':
+                # Handle manual backup
+                from .main_menu_handler import MainMenuHandler
+                main_handler = MainMenuHandler()
+                result = main_handler.handle_manual_backup(context)
+                if result.success:
+                    if result.message:
+                        xbmcgui.Dialog().ok("LibraryGenie", result.message)
+                else:
+                    if result.message:
+                        xbmcgui.Dialog().ok("Error", result.message)
+                return
+
+            elif action == 'set_default_list':
+                # Handle setting default list for quick-add
+                success = self._handle_set_default_list(context)
+                if not success:
+                    self.logger.info("User cancelled setting default list")
+                return
+
             else:
                 # Check for registered handlers for other actions
                 handler = self._handlers.get(action)
@@ -321,7 +341,7 @@ class Router:
             if not all_lists: # Still no lists after offering to create
                 xbmcgui.Dialog().notification("LibraryGenie", "No lists available to add to.", xbmcgui.NOTIFICATION_WARNING)
                 return False
-            
+
             # Build list options for selection
             list_options = []
             for lst in all_lists:
@@ -656,3 +676,104 @@ class Router:
         except Exception as e:
             self.logger.error(f"Error in noop handler: {e}")
             xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+
+    def _handle_set_default_list(self, context: PluginContext) -> bool:
+        """Handle setting the default list for quick-add functionality"""
+        try:
+            query_manager = context.query_manager
+            if not query_manager:
+                self.logger.error("Failed to get query manager for set_default_list")
+                return False
+
+            # Get all available lists
+            all_lists = query_manager.get_all_lists_with_folders()
+
+            if not all_lists:
+                # Offer to create a new list if none exist
+                if xbmcgui.Dialog().yesno("No Lists Found", "No lists available. Create a new list to set as default?"):
+                    from .lists_handler import ListsHandler
+                    lists_handler = ListsHandler()
+                    result = lists_handler.create_list(context)
+                    if result.success:
+                        # Refresh the list of lists
+                        all_lists = query_manager.get_all_lists_with_folders()
+                    else:
+                        self.logger.warning("Failed to create a new list for default.")
+                        return False # User cancelled or failed to create list
+                else:
+                    self.logger.info("User chose not to create a new list.")
+                    return False # User cancelled
+
+            if not all_lists: # Still no lists
+                xbmcgui.Dialog().notification("LibraryGenie", "No lists available to set as default.", xbmcgui.NOTIFICATION_WARNING)
+                return False
+
+            # Build list options for selection
+            list_options = []
+            list_ids = []
+            for lst in all_lists:
+                folder_name = lst.get('folder_name', 'Root')
+                if folder_name == 'Root' or not folder_name:
+                    display_name = lst['name']
+                else:
+                    display_name = f"{folder_name}/{lst['name']}"
+                list_options.append(f"{display_name} ({lst['item_count']} items)")
+                list_ids.append(lst['id'])
+
+            # Add option to create new list
+            list_options.append("[COLOR yellow]+ Create New List[/COLOR]")
+
+            # Show list selection dialog
+            dialog = xbmcgui.Dialog()
+            selected_index = dialog.select("Set Default Quick-Add List:", list_options)
+
+            if selected_index < 0:
+                self.logger.info("User cancelled setting default list.")
+                return False  # User cancelled
+
+            target_list_id = None
+            if selected_index == len(list_options) - 1:  # User chose to create a new list
+                from .lists_handler import ListsHandler
+                lists_handler = ListsHandler()
+                result = lists_handler.create_list(context)
+                if not result.success:
+                    self.logger.warning("Failed to create new list for default.")
+                    return False # Creation failed
+                # Get the newly created list ID
+                all_lists = query_manager.get_all_lists_with_folders() # Refresh lists
+                if all_lists:
+                    target_list_id = all_lists[-1]['id']  # Assume last created
+                else:
+                    self.logger.error("Could not retrieve newly created list ID.")
+                    return False
+            else:
+                target_list_id = list_ids[selected_index]
+
+            if target_list_id is None:
+                self.logger.error("Target list ID is None.")
+                return False
+
+            # Set the default list ID in settings
+            from ..config.settings import SettingsManager
+            settings = SettingsManager()
+            settings.set_default_list_id(target_list_id)
+
+            # Notify user
+            selected_list_name = list_options[selected_index].split(' (')[0] if selected_index < len(list_options) - 1 else "newly created list"
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                f"Default quick-add list set to: '{selected_list_name}'",
+                xbmcgui.NOTIFICATION_INFO,
+                3000
+            )
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Error in _handle_set_default_list: {e}")
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Failed to set default list",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
+            return False
