@@ -185,7 +185,7 @@ def _find_local_path(remote_item):
                 WHERE imdbnumber = ? AND source = 'lib'
                 LIMIT 1
             """
-            result = conn_manager.fetch_one(query, (imdb_id,))
+            result = conn_manager.execute_single(query, (imdb_id,))
             if result:
                 return result[0]
 
@@ -196,7 +196,7 @@ def _find_local_path(remote_item):
                 WHERE tmdb_id = ? AND source = 'lib'
                 LIMIT 1
             """
-            result = conn_manager.fetch_one(query, (tmdb_id,))
+            result = conn_manager.execute_single(query, (tmdb_id,))
             if result:
                 return result[0]
 
