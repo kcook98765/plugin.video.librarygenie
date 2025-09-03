@@ -9,7 +9,7 @@ Handles addon settings and preferences
 from __future__ import annotations
 
 import xbmcaddon
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Union
 
 from .config_manager import get_config
 from ..utils.logger import get_logger
@@ -234,26 +234,24 @@ class SettingsManager:
         config = get_config()
 
         return {
-            'enabled': config.get_backup_enabled(),
-            'schedule_interval': config.get_backup_schedule_interval(),
-            'retention_days': config.get_backup_retention_days(),
-            'storage_path': config.get_backup_storage_path(),
-            'storage_type': config.get_backup_storage_type(),
-            'include_settings': config.get_backup_include_settings(),
-            'include_favorites': config.get_backup_include_favorites()
+            'enabled': config.get_bool('backup_enabled', False),
+            'schedule_interval': config.get('backup_interval', 'weekly'),
+            'retention_days': config.get_int('backup_retention_count', 5),
+            'storage_path': config.get('backup_storage_location', ''),
+            'storage_type': config.get('backup_storage_type', 'local'),
+            'include_settings': config.get_bool('backup_include_settings', True),
+            'include_favorites': config.get_bool('backup_include_favorites', True)
         }
 
     def get_phase12_remote_settings(self) -> Dict[str, Any]:
         """Get remote service settings for Phase 1.2 integration"""
-        config = get_config()
-
         return {
-            'enabled': config.get_remote_enabled(),
-            'server_url': config.get_remote_server_url(),
-            'timeout': config.get_remote_timeout(),
-            'max_retries': config.get_remote_max_retries(),
-            'fallback_to_local': config.get_remote_fallback_to_local(),
-            'cache_duration': config.get_remote_cache_duration()
+            'enabled': self.addon.getSettingBool('remote_enabled'),
+            'server_url': self.get_remote_server_url(),
+            'timeout': self.addon.getSettingInt('remote_timeout'),
+            'max_retries': self.addon.getSettingInt('remote_max_retries'),
+            'fallback_to_local': self.addon.getSettingBool('remote_fallback_to_local'),
+            'cache_duration': self.addon.getSettingInt('remote_cache_duration')
         }
 
 
