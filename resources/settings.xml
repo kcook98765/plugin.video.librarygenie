@@ -26,7 +26,6 @@
     <setting id="set_default_list_action" type="action" label="30041" action="RunPlugin(plugin://plugin.video.librarygenie/?action=set_default_list)"/>
     <setting id="quick_add_enabled" type="bool" label="30042" default="false"/>
     <setting id="default_list_id" type="text" label="30044" default="" visible="false"/>
-    <setting id="show_missing_indicators" type="bool" label="30043" default="true"/>
     <setting label="30050" type="lsep"/>
     <setting id="favorites_integration_enabled" type="bool" label="30051" default="false"/>
     <setting id="show_unmapped_favorites" type="bool" label="30053" default="false" enable="eq(-1,true)"/>
@@ -40,8 +39,7 @@
   <category label="30100">
     <setting label="30110" type="lsep"/>
     <setting id="background_task_enabled" type="bool" label="30111" default="true"/>
-    <setting id="background_interval_seconds" type="slider" label="30112" default="60"
-             range="30,5,3600" option="int" enable="eq(-1,true)"/>
+    <setting id="background_interval_seconds" type="slider" label="30112" default="60" range="30,5,3600" option="int" enable="eq(-1,true)"/>
   </category>
 
   <!-- Backup Settings -->
@@ -56,24 +54,20 @@
     <setting id="backup_include_folders" type="bool" label="30523" default="true" enable="eq(-6,true)"/>
     <setting label="30530" type="lsep"/>
     <setting id="backup_storage_type" type="select" label="30531" default="local" values="local|custom" enable="eq(-8,true)"/>
-    <setting id="backup_local_path" type="folder" label="30532" default="" enable="eq(-1,true)+eq(-1,custom)"/>
+    <setting id="backup_local_path" type="folder" label="30532" default="" enable="eq(-9,true)+eq(-1,custom)"/>
     <setting label="30540" type="lsep"/>
-    <setting id="backup_test_action" type="action" label="30541" action="RunPlugin(plugin://plugin.video.librarygenie/?action=test_backup)" enable="eq(-10,true)" />
-    <setting id="backup_manual_action" type="action" label="30542" action="RunPlugin(plugin://plugin.video.librarygenie/?action=manual_backup)" enable="eq(-11,true)" />
+    <setting id="backup_test_action" type="action" label="30541" action="RunPlugin(plugin://plugin.video.librarygenie/?action=test_backup)" enable="eq(-11,true)"/>
+    <setting id="backup_manual_action" type="action" label="30542" action="RunPlugin(plugin://plugin.video.librarygenie/?action=manual_backup)" enable="eq(-12,true)"/>
   </category>
 
-  <!-- Advanced Settings (Phase 3) -->
+  <!-- Advanced Settings -->
   <category label="30300">
     <setting label="30310" type="lsep"/>
-    <setting id="jsonrpc_page_size" type="slider" label="30311" default="200"
-             range="50,10,500" option="int"/>
-    <setting id="jsonrpc_timeout_seconds" type="slider" label="30312" default="10"
-             range="5,1,30" option="int"/>
+    <setting id="jsonrpc_page_size" type="slider" label="30311" default="200" range="50,10,500" option="int"/>
+    <setting id="jsonrpc_timeout_seconds" type="slider" label="30312" default="10" range="5,1,30" option="int"/>
     <setting label="30320" type="lsep"/>
-    <setting id="db_batch_size" type="slider" label="30321" default="200"
-             range="50,10,500" option="int"/>
-    <setting id="db_busy_timeout_ms" type="slider" label="30322" default="3000"
-             range="1000,500,10000" option="int"/>
+    <setting id="db_batch_size" type="slider" label="30321" default="200" range="50,10,500" option="int"/>
+    <setting id="db_busy_timeout_ms" type="slider" label="30322" default="3000" range="1000,500,10000" option="int"/>
   </category>
 
   <!-- Remote Services Settings -->
@@ -81,20 +75,14 @@
     <setting label="30410" type="lsep"/>
     <setting id="remote_base_url" type="text" label="30411" default="https://YOUR-LIBRARYGENIE/api"/>
     <setting id="device_name" type="text" label="30412" default="Kodi"/>
-    <setting id="auth_poll_seconds" type="slider" label="30413" default="3"
-             range="1,1,10" option="int"/>
+    <setting id="auth_poll_seconds" type="slider" label="30413" default="3" range="1,1,10" option="int"/>
     <setting label="30420" type="lsep"/>
-    <setting id="track_library_changes" type="bool" label="30421" default="true"/>
+    <setting id="background_interval_minutes" type="number" label="30451" default="5" option="int" range="1,1440"/>
+    <setting id="background_token_refresh" type="bool" label="32086" default="true"/>
   </category>
 
-  <category label="30450">
-    <!-- Background Service -->
-    <setting id="background_interval_minutes" type="number" label="30451" help="30452" default="5" option="int" range="1,1440"/>
-    <setting id="track_library_changes" type="bool" label="30453" help="30454" default="false"/>
-    <setting id="background_token_refresh" type="bool" label="32086" help="32088" default="true"/>
-    </category>
-
-    <category id="ui" label="30020">
-        <setting id="info_hijack_enabled" type="bool" label="32087" default="true"/>
-    </category>
+  <!-- UI Settings -->
+  <category label="30020">
+    <setting id="info_hijack_enabled" type="bool" label="32087" default="true"/>
+  </category>
 </settings>
