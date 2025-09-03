@@ -199,6 +199,9 @@ class FavoritesHandler:
             progress.update(100, "Scan complete!")
             progress.close()
 
+            if result is None:
+                result = {"success": False, "message": "Scan returned no result"}
+
             if result.get("success"):
                 return DialogResponse(
                     success=True,
@@ -266,6 +269,9 @@ class FavoritesHandler:
                 title="Unknown",  # Will be resolved by IMDb ID
                 imdb_id=imdb_id
             )
+
+            if result is None:
+                result = {"success": False, "error": "Operation returned no result"}
 
             if result.get("success"):
                 return DialogResponse(
