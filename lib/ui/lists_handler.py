@@ -1227,8 +1227,8 @@ class ListsHandler:
             }
 
             # Add to default list
-            result = query_manager.add_external_item_to_list(default_list_id, external_item)
-            return result.get('success', False)
+            result = query_manager.add_library_item_to_list(default_list_id, external_item)
+            return result is not None
 
         except Exception as e:
             context.logger.error(f"Error quick adding to list from context: {e}")
