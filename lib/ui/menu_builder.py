@@ -55,7 +55,7 @@ class MenuBuilder:
         self.logger.debug(f"MENU BUILD: Added {successful_items} menu items successfully, {failed_items} failed")
         self.logger.debug(f"MENU BUILD: Calling endOfDirectory(handle={addon_handle}, cacheToDisc=True)")
         xbmcplugin.endOfDirectory(addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
-        self.logger.debug(f"MENU BUILD: Completed endOfDirectory for menu with caching enabled")
+        self.logger.debug("MENU BUILD: Completed endOfDirectory for menu with caching enabled")
 
     def _add_directory_item(self, item, addon_handle, base_url):
         """Add a single directory item with context menu support"""

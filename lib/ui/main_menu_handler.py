@@ -6,11 +6,8 @@ LibraryGenie - Main Menu Handler
 Handles the main menu display and navigation
 """
 
-import xbmcplugin
-import xbmcgui
 from .plugin_context import PluginContext
 from .response_types import DirectoryResponse
-from ..auth.state import is_authorized
 
 
 class MainMenuHandler:
