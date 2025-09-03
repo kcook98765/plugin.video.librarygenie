@@ -9,7 +9,7 @@ Handles addon settings and preferences
 from __future__ import annotations
 
 import xbmcaddon
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Union
 
 from .config_manager import get_config
 from ..utils.logger import get_logger
