@@ -154,7 +154,7 @@ class MenuBuilder:
                 list_item = context_manager.add_list_item_context_menu(
                     list_item, item["list_id"], item["list_item_id"]
                 )
-                self.logger.logger.debug(f"MENU ITEM: Added list item context menu for '{title}' (list_id: {item['list_id']}, item_id: {item['list_item_id']})")
+                self.logger.debug(f"MENU ITEM: Added list item context menu for '{title}' (list_id: {item['list_id']}, item_id: {item['list_item_id']})")
                 context_items_added += 2  # Approximate
             except ImportError:
                 self.logger.warning(f"MENU ITEM: Failed to import context_menu for list item '{title}'")
