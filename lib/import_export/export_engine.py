@@ -113,11 +113,11 @@ class ExportEngine:
         lists_data = []
 
         query = """
-                SELECT l.id, l.name, l.created_at, l.description,
+                SELECT l.id, l.name, l.created_at, '' as description,
                        COUNT(li.id) as item_count
                 FROM lists l
                 LEFT JOIN list_items li ON l.id = li.list_id
-                GROUP BY l.id, l.name, l.created_at, l.description
+                GROUP BY l.id, l.name, l.created_at
                 ORDER BY l.created_at
             """
         params = () # Placeholder for potential future parameters
@@ -272,11 +272,11 @@ class ExportEngine:
         folders_data = []
 
         query = """
-                SELECT f.id, f.name, f.created_at, f.description,
+                SELECT f.id, f.name, f.created_at, '' as description,
                        COUNT(l.id) as list_count
                 FROM folders f
                 LEFT JOIN lists l ON f.id = l.folder_id
-                GROUP BY f.id, f.name, f.created_at, f.description
+                GROUP BY f.id, f.name, f.created_at
                 ORDER BY f.created_at
             """
         params = ()
