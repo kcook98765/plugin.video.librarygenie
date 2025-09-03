@@ -23,8 +23,9 @@
   <!-- Lists Settings -->
   <category label="30200">
     <setting label="30040" type="lsep"/>
-    <setting id="set_default_list_action" type="action" label="30041" action="RunPlugin(plugin://plugin.video.library.genie/?action=set_default_list)"/>
+    <setting id="set_default_list_action" type="action" label="30041" action="RunPlugin(plugin://plugin.video.librarygenie/?action=set_default_list)"/>
     <setting id="quick_add_enabled" type="bool" label="30042" default="false"/>
+    <setting id="default_list_id" type="text" label="30044" default="" visible="false"/>
     <setting id="show_missing_indicators" type="bool" label="30043" default="true"/>
     <setting label="30050" type="lsep"/>
     <setting id="favorites_integration_enabled" type="bool" label="30051" default="false"/>

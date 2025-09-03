@@ -52,7 +52,7 @@ class SettingsManager:
 
     def get_enable_quick_add(self) -> bool:
         """Get enable quick-add setting"""
-        return self.addon.getSettingBool('enable_quick_add')
+        return self.addon.getSettingBool('quick_add_enabled')
 
     def get_show_missing_indicators(self) -> bool:
         """Get show missing movie indicators setting"""
