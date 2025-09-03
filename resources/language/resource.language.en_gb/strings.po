@@ -79,7 +79,7 @@ msgid "Kodi Favorites Integration"
 msgstr ""
 
 msgctxt "#30051"
-msgid "Enable Kodi Favorites integration (read-only)"
+msgid "Show Kodi Favorites folder"
 msgstr ""
 
 msgctxt "#30052"
@@ -154,15 +154,15 @@ msgid "Page"
 msgstr ""
 
 msgctxt "#30070"
-msgid "Sorted by"
+msgid "ShortList Integration"
 msgstr ""
 
 msgctxt "#30071"
-msgid "Scope"
+msgid "Import from ShortList addon"
 msgstr ""
 
 msgctxt "#30072"
-msgid "Next page..."
+msgid "Clear list before importing new data"
 msgstr ""
 
 msgctxt "#30073"
@@ -350,7 +350,7 @@ msgid "Track library changes"
 msgstr ""
 
 # Dialog Messages
-msgctxt "#30500"
+msgctxt "#30590"
 msgid "Enter list name"
 msgstr ""
 
@@ -841,6 +841,215 @@ msgctxt "#35013"
 msgid "Plugin failed to start. Check logs."
 msgstr ""
 
+# Tools & Options Menu Items
+msgctxt "#36000"
+msgid "Tools & Options"
+msgstr ""
+
+msgctxt "#36001"
+msgid "Scan Favorites"
+msgstr ""
+
+msgctxt "#36002"
+msgid "Save As New List"
+msgstr ""
+
+msgctxt "#36003"
+msgid "Cancel"
+msgstr ""
+
+msgctxt "#36004"
+msgid "Merge Another List Into '%s'"
+msgstr ""
+
+msgctxt "#36005"
+msgid "Rename '%s'"
+msgstr ""
+
+msgctxt "#36006"
+msgid "Move '%s' to Folder"
+msgstr ""
+
+msgctxt "#36007"
+msgid "Export '%s'"
+msgstr ""
+
+msgctxt "#36008"
+msgid "Delete '%s'"
+msgstr ""
+
+msgctxt "#36009"
+msgid "Create New List in '%s'"
+msgstr ""
+
+msgctxt "#36010"
+msgid "Create New Subfolder in '%s'"
+msgstr ""
+
+msgctxt "#36011"
+msgid "Move '%s' to Parent Folder"
+msgstr ""
+
+msgctxt "#36012"
+msgid "Export All Lists in '%s'"
+msgstr ""
+
+msgctxt "#36013"
+msgid "Favorites Tools & Options"
+msgstr ""
+
+msgctxt "#36014"
+msgid "List Tools & Options"
+msgstr ""
+
+msgctxt "#36015"
+msgid "Folder Tools & Options"
+msgstr ""
+
+msgctxt "#36016"
+msgid "Access list tools and options"
+msgstr ""
+
+msgctxt "#36017"
+msgid "Access tools and options for '%s'"
+msgstr ""
+
+msgctxt "#36018"
+msgid "Create a new list"
+msgstr ""
+
+msgctxt "#36019"
+msgid "Create a new folder"
+msgstr ""
+
+msgctxt "#36020"
+msgid "Create a new list in '%s'"
+msgstr ""
+
+msgctxt "#36021"
+msgid "Confirm Merge"
+msgstr ""
+
+msgctxt "#36022"
+msgid "Merge '%s' into target list?"
+msgstr ""
+
+msgctxt "#36023"
+msgid "This will add %d items."
+msgstr ""
+
+msgctxt "#36024"
+msgid "The source list will remain unchanged."
+msgstr ""
+
+msgctxt "#36025"
+msgid "Merged %d new items"
+msgstr ""
+
+msgctxt "#36026"
+msgid "Failed to merge lists"
+msgstr ""
+
+msgctxt "#36027"
+msgid "No other lists available to merge"
+msgstr ""
+
+msgctxt "#36028"
+msgid "Select list to merge:"
+msgstr ""
+
+msgctxt "#36029"
+msgid "Select destination folder:"
+msgstr ""
+
+msgctxt "#36030"
+msgid "Select parent folder:"
+msgstr ""
+
+msgctxt "#36031"
+msgid "[Root Level]"
+msgstr ""
+
+msgctxt "#36032"
+msgid "root level"
+msgstr ""
+
+msgctxt "#36033"
+msgid "Moved list to %s"
+msgstr ""
+
+msgctxt "#36034"
+msgid "Moved folder to %s"
+msgstr ""
+
+msgctxt "#36035"
+msgid "Failed to move list"
+msgstr ""
+
+msgctxt "#36036"
+msgid "Failed to move folder"
+msgstr ""
+
+msgctxt "#36037"
+msgid "Confirm Export"
+msgstr ""
+
+msgctxt "#36038"
+msgid "Export all %d lists from '%s'?"
+msgstr ""
+
+msgctxt "#36039"
+msgid "This will include all list items and metadata."
+msgstr ""
+
+msgctxt "#36040"
+msgid "Exported %d lists from '%s' to %s"
+msgstr ""
+
+msgctxt "#36041"
+msgid "No lists found in folder '%s'"
+msgstr ""
+
+msgctxt "#36042"
+msgid "Exported '%s' to %s"
+msgstr ""
+
+msgctxt "#36043"
+msgid "Export failed: %s"
+msgstr ""
+
+msgctxt "#36044"
+msgid "Unknown error"
+msgstr ""
+
+msgctxt "#36045"
+msgid "Created list: %s"
+msgstr ""
+
+msgctxt "#36046"
+msgid "Created subfolder: %s"
+msgstr ""
+
+msgctxt "#36047"
+msgid "List '%s' already exists in this folder"
+msgstr ""
+
+msgctxt "#36048"
+msgid "Folder '%s' already exists in this location"
+msgstr ""
+
+msgctxt "#36049"
+msgid "Error creating list"
+msgstr ""
+
+msgctxt "#36050"
+msgid "Error creating subfolder"
+msgstr ""
+
+msgctxt "#36051"
+msgid "%s items"
+msgstr ""
+
 # Enum Setting Options
 msgctxt "#35100"
 msgid "Select Action"
@@ -945,4 +1154,540 @@ msgstr ""
 
 msgctxt "#35032"
 msgid "Sign out failed"
+msgstr ""
+
+msgctxt "#32086"
+msgid "Automatically refresh authentication tokens"
+msgstr ""
+
+msgctxt "#32087"
+msgid "Use native Kodi Info for library items"
+msgstr ""
+
+msgctxt "#32088"
+msgid "Enable automatic token refresh in the background service"
+msgstr ""
+
+# Backup & Storage Management
+msgctxt "#34000"
+msgid "Backup & Storage"
+msgstr ""
+
+msgctxt "#34001"
+msgid "Backup Settings"
+msgstr ""
+
+msgctxt "#34002"
+msgid "Enable automatic backups"
+msgstr ""
+
+msgctxt "#34003"
+msgid "Backup interval"
+msgstr ""
+
+msgctxt "#34004"
+msgid "Backup storage location"
+msgstr ""
+
+msgctxt "#34005"
+msgid "Backup retention policy"
+msgstr ""
+
+msgctxt "#34006"
+msgid "Create Backup Now"
+msgstr ""
+
+msgctxt "#34007"
+msgid "Restore from Backup"
+msgstr ""
+
+msgctxt "#34008"
+msgid "Manage Backups"
+msgstr ""
+
+msgctxt "#34009"
+msgid "Backup created successfully"
+msgstr ""
+
+msgctxt "#34010"
+msgid "Backup failed"
+msgstr ""
+
+msgctxt "#34011"
+msgid "Restore completed successfully"
+msgstr ""
+
+msgctxt "#34012"
+msgid "Restore failed"
+msgstr ""
+
+msgctxt "#34013"
+msgid "Are you sure you want to restore from this backup?"
+msgstr ""
+
+msgctxt "#34014"
+msgid "This will replace all current lists and data."
+msgstr ""
+
+msgctxt "#34015"
+msgid "Backup in progress..."
+msgstr ""
+
+msgctxt "#34016"
+msgid "Restore in progress..."
+msgstr ""
+
+msgctxt "#34017"
+msgid "Select backup to restore"
+msgstr ""
+
+msgctxt "#34018"
+msgid "No backups found"
+msgstr ""
+
+msgctxt "#34019"
+msgid "Backup file not found"
+msgstr ""
+
+msgctxt "#34020"
+msgid "Invalid backup file"
+msgstr ""
+
+# Sync & Remote Services
+msgctxt "#34100"
+msgid "Sync Status"
+msgstr ""
+
+msgctxt "#34101"
+msgid "Last sync"
+msgstr ""
+
+msgctxt "#34102"
+msgid "Sync now"
+msgstr ""
+
+msgctxt "#34103"
+msgid "Sync in progress..."
+msgstr ""
+
+msgctxt "#34104"
+msgid "Sync completed successfully"
+msgstr ""
+
+msgctxt "#34105"
+msgid "Sync failed"
+msgstr ""
+
+msgctxt "#34106"
+msgid "Authentication required"
+msgstr ""
+
+msgctxt "#34107"
+msgid "Device authorization"
+msgstr ""
+
+msgctxt "#34108"
+msgid "Authorization pending"
+msgstr ""
+
+msgctxt "#34109"
+msgid "Authorization complete"
+msgstr ""
+
+msgctxt "#34110"
+msgid "Authorization failed"
+msgstr ""
+
+msgctxt "#34111"
+msgid "Token expired"
+msgstr ""
+
+msgctxt "#34112"
+msgid "Refreshing token..."
+msgstr ""
+
+msgctxt "#34113"
+msgid "Connection test successful"
+msgstr ""
+
+msgctxt "#34114"
+msgid "Connection test failed"
+msgstr ""
+
+msgctxt "#34115"
+msgid "Pending operations"
+msgstr ""
+
+msgctxt "#34116"
+msgid "Retry pending operations"
+msgstr ""
+
+# Storage & File Management
+msgctxt "#34200"
+msgid "Storage Management"
+msgstr ""
+
+msgctxt "#34201"
+msgid "Clear cache"
+msgstr ""
+
+msgctxt "#34202"
+msgid "Cache cleared successfully"
+msgstr ""
+
+msgctxt "#34203"
+msgid "Failed to clear cache"
+msgstr ""
+
+msgctxt "#34204"
+msgid "Validate storage paths"
+msgstr ""
+
+msgctxt "#34205"
+msgid "Storage path validation"
+msgstr ""
+
+msgctxt "#34206"
+msgid "All paths are valid"
+msgstr ""
+
+msgctxt "#34207"
+msgid "Some paths are invalid"
+msgstr ""
+
+msgctxt "#34208"
+msgid "Cleanup temporary files"
+msgstr ""
+
+msgctxt "#34209"
+msgid "Temporary files cleaned"
+msgstr ""
+
+msgctxt "#34210"
+msgid "Cleanup failed"
+msgstr ""
+
+# Common Operation Messages
+msgctxt "#34300"
+msgid "Operation completed"
+msgstr ""
+
+msgctxt "#34301"
+msgid "Operation failed"
+msgstr ""
+
+msgctxt "#34302"
+msgid "Please try again"
+msgstr ""
+
+msgctxt "#34303"
+msgid "Network error"
+msgstr ""
+
+msgctxt "#34304"
+msgid "Timeout error"
+msgstr ""
+
+msgctxt "#34305"
+msgid "Configuration error"
+msgstr ""
+
+msgctxt "#34306"
+msgid "Database error"
+msgstr ""
+
+msgctxt "#34307"
+msgid "File not accessible"
+msgstr ""
+
+msgctxt "#34308"
+msgid "Permission denied"
+msgstr ""
+
+msgctxt "#34309"
+msgid "Invalid format"
+msgstr ""
+
+msgctxt "#34310"
+msgid "Service unavailable"
+msgstr ""
+
+# Progress Messages
+msgctxt "#34400"
+msgid "Initializing..."
+msgstr ""
+
+msgctxt "#34401"
+msgid "Processing..."
+msgstr ""
+
+msgctxt "#34402"
+msgid "Finalizing..."
+msgstr ""
+
+msgctxt "#34403"
+msgid "Please wait..."
+msgstr ""
+
+msgctxt "#34404"
+msgid "Operation in progress"
+msgstr ""
+
+msgctxt "#34405"
+msgid "Scanning library..."
+msgstr ""
+
+msgctxt "#34406"
+msgid "Updating database..."
+msgstr ""
+
+msgctxt "#34407"
+msgid "Validating data..."
+msgstr ""
+
+msgctxt "#34408"
+msgid "Connecting to server..."
+msgstr ""
+
+msgctxt "#34409"
+msgid "Loading..."
+msgstr ""
+
+# Confirmation Dialog Messages
+msgctxt "#34600"
+msgid "Confirm Action"
+msgstr ""
+
+msgctxt "#34601"
+msgid "Are you sure?"
+msgstr ""
+
+msgctxt "#34602"
+msgid "This action cannot be undone"
+msgstr ""
+
+msgctxt "#34603"
+msgid "Continue anyway?"
+msgstr ""
+
+msgctxt "#34604"
+msgid "Operation cancelled"
+msgstr ""
+
+msgctxt "#34605"
+msgid "Operation confirmed"
+msgstr ""
+
+# Additional Error Messages
+msgctxt "#34300"
+msgid "Operation completed"
+msgstr ""
+
+msgctxt "#34301"
+msgid "Operation failed"
+msgstr ""
+
+msgctxt "#34302"
+msgid "Please try again"
+msgstr ""
+
+msgctxt "#34303"
+msgid "Network error"
+msgstr ""
+
+msgctxt "#34304"
+msgid "Timeout error"
+msgstr ""
+
+msgctxt "#34305"
+msgid "Configuration error"
+msgstr ""
+
+msgctxt "#34306"
+msgid "Database error"
+msgstr ""
+
+msgctxt "#34307"
+msgid "File not accessible"
+msgstr ""
+
+msgctxt "#34308"
+msgid "Permission denied"
+msgstr ""
+
+msgctxt "#34309"
+msgid "Invalid format"
+msgstr ""
+
+msgctxt "#34310"
+msgid "Service unavailable"
+msgstr ""
+
+# Progress and Status Messages
+msgctxt "#34400"
+msgid "Initializing..."
+msgstr ""
+
+msgctxt "#34401"
+msgid "Processing..."
+msgstr ""
+
+msgctxt "#34402"
+msgid "Finalizing..."
+msgstr ""
+
+msgctxt "#34403"
+msgid "Please wait..."
+msgstr ""
+
+msgctxt "#34404"
+msgid "Operation in progress"
+msgstr ""
+
+msgctxt "#34405"
+msgid "Scanning library..."
+msgstr ""
+
+msgctxt "#34406"
+msgid "Updating database..."
+msgstr ""
+
+msgctxt "#34407"
+msgid "Validating data..."
+msgstr ""
+
+msgctxt "#34408"
+msgid "Connecting to server..."
+msgstr ""
+
+msgctxt "#34409"
+msgid "Loading..."
+msgstr ""
+
+# Settings Validation Messages
+msgctxt "#34500"
+msgid "Invalid setting value"
+msgstr ""
+
+msgctxt "#34501"
+msgid "Setting saved successfully"
+msgstr ""
+
+msgctxt "#34502"
+msgid "Failed to save setting"
+msgstr ""
+
+msgctxt "#34503"
+msgid "Setting restored to default"
+msgstr ""
+
+msgctxt "#34504"
+msgid "Configuration validated"
+msgstr ""
+
+msgctxt "#34505"
+msgid "Configuration validation failed"
+msgstr ""
+
+# Backup Settings Category and Labels
+msgctxt "#30500"
+msgid "Backup & Storage"
+msgstr ""
+
+msgctxt "#30510"
+msgid "Automatic Backups"
+msgstr ""
+
+msgctxt "#30511"
+msgid "Enable automatic backups"
+msgstr ""
+
+msgctxt "#30512"
+msgid "Backup interval"
+msgstr ""
+
+msgctxt "#30513"
+msgid "Number of backups to keep"
+msgstr ""
+
+msgctxt "#30520"
+msgid "Backup Content"
+msgstr ""
+
+msgctxt "#30521"
+msgid "Include Kodi favorites"
+msgstr ""
+
+msgctxt "#30522"
+msgid "Include library metadata"
+msgstr ""
+
+msgctxt "#30523"
+msgid "Include folder structure"
+msgstr ""
+
+msgctxt "#30530"
+msgid "Storage Settings"
+msgstr ""
+
+msgctxt "#30531"
+msgid "Backup storage type"
+msgstr ""
+
+msgctxt "#30532"
+msgid "Local backup folder"
+msgstr ""
+
+msgctxt "#30540"
+msgid "Backup Actions"
+msgstr ""
+
+msgctxt "#30541"
+msgid "Test backup configuration"
+msgstr ""
+
+msgctxt "#30542"
+msgid "Create manual backup"
+msgstr ""
+
+# Background Service Settings
+msgctxt "#30451"
+msgid "Background check interval (minutes)"
+msgstr ""
+
+msgctxt "#30452"
+msgid "How often to check for background tasks"
+msgstr ""
+
+msgctxt "#30453"
+msgid "Track library changes in background"
+msgstr ""
+
+msgctxt "#30454"
+msgid "Monitor library for new or removed movies"
+msgstr ""
+
+# Confirmation Dialogs
+msgctxt "#34600"
+msgid "Confirm Action"
+msgstr ""
+
+msgctxt "#34601"
+msgid "Are you sure?"
+msgstr ""
+
+msgctxt "#34602"
+msgid "This action cannot be undone"
+msgstr ""
+
+msgctxt "#34603"
+msgid "Continue anyway?"
+msgstr ""
+
+msgctxt "#34604"
+msgid "Operation cancelled"
+msgstr ""
+
+msgctxt "#34605"
+msgid "Operation confirmed"
 msgstr ""

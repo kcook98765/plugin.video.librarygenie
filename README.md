@@ -6,47 +6,61 @@ LibraryGenie is a Kodi addon that provides advanced, flexible list and folder ma
 
 ## Overview
 
-- Mixed content lists (movies, TV episodes, music videos, external plugin items).  
-- IMDb-first architecture with multiple fallback strategies.  
-- Robust export/import system with disaster recovery support.  
-- SQLite backend with safe transaction handling and optimized indexing.  
-- Optional integration with external search/similarity services (requires explicit user authorization).  
+- Mixed content lists (movies, TV episodes, music videos, external plugin items).
+- IMDb-first architecture with multiple fallback strategies.
+- Robust export/import system with disaster recovery support.
+- SQLite backend with safe transaction handling and optimized indexing.
+- Optional integration with external search/similarity services (requires explicit user authorization).
 
 ---
 
 ## Key Features
 
 ### Media Types
-- **Movies**: Full Kodi movie library support.  
-- **TV Episodes**: Episode-level handling with show/season/episode mapping.  
-- **Music Videos**: Artist/track/album matching and metadata support.  
-- **External Items**: Playable plugin items, with basic persistence and limited portability.  
+- **Movies**: Full Kodi movie library support.
+- **TV Episodes**: Episode-level handling with show/season/episode mapping.
+- **Music Videos**: Artist/track/album matching and metadata support.
+- **External Items**: Playable plugin items, with basic persistence and limited portability.
 
 ### Lists & Folders
-- Hierarchical folder structure with unlimited depth.  
-- Create, rename, move, and delete lists and folders.  
-- Add/remove items via context menus from anywhere in Kodi.  
-- Duplicate detection and unique constraint handling.  
-- Transaction-safe modifications to prevent corruption.  
+- Hierarchical folder structure with unlimited depth.
+- **Tools & Options Menu**: Context-aware tools for list and folder management.
+- Create, rename, move, and delete lists and folders with color-coded actions.
+- Add/remove items via context menus from anywhere in Kodi.
+- Export functionality integrated into tools menu.
+- Duplicate detection and unique constraint handling.
+- Transaction-safe modifications to prevent corruption.
 
 ### Import & Export
-- **NDJSON Export**: Primary format, newline-delimited JSON entries with all relevant fields.  
-- **IMDb-First Matching**: Highest-confidence mapping across systems.  
-- **Fallbacks**: TMDb IDs, title/year, season/episode, or artist/track when IMDb is missing.  
-- **Placeholder Creation**: Unmatched items preserved for later resolution.  
-- **Batch Operations**: Efficient chunked import/export of large lists.  
+- **Unified Format**: Backup and export use the same NDJSON format with enhanced metadata fields.
+- **Automated Backups**: Configurable timestamp-based backups (hourly, daily, weekly, monthly).
+- **Local & Network Storage**: Support for local paths and network shares configured in Kodi.
+- **Tools Integration**: Export and backup accessible via Tools & Options menu with context-aware options.
+- **IMDb-First Matching**: Highest-confidence mapping across systems.
+- **Enhanced Metadata**: Additional identifiers (TMDb, Kodi IDs, file paths) for robust fallback matching.
+- **Fallbacks**: TMDb IDs, title/year, season/episode, or artist/track when IMDb is missing.
+- **Placeholder Creation**: Unmatched items preserved for later resolution.
+- **Batch Operations**: Efficient chunked import/export of large lists.
 
 ### Metadata Matching
-- **Movies**: IMDb → TMDb (optional) → title/year/runtime fallback.  
-- **Episodes**: Episode IMDb → show IMDb + season/episode → show title fallback.  
-- **Music Videos**: IMDb (rare) → artist+track(+year).  
-- **External Items**: Plugin identifiers and routes.  
+- **Movies**: IMDb → TMDb (optional) → title/year/runtime fallback.
+- **Episodes**: Episode IMDb → show IMDb + season/episode → show title fallback.
+- **Music Videos**: IMDb (rare) → artist+track(+year).
+- **External Items**: Plugin identifiers and routes.
+
+### Backup & Recovery
+- **Automated Backups**: Scheduled timestamp-based backups with configurable intervals.
+- **Manual Backups**: On-demand backup creation via Tools menu.
+- **Flexible Storage**: Local paths or network shares (SMB/NFS) configured in Kodi settings.
+- **Backup Management**: List, restore, and delete backups through the Tools interface.
+- **Comprehensive Coverage**: Backup lists, folders, favorites, and optionally library snapshots.
+- **Disaster Recovery**: Full system restore from unified backup files.
 
 ### Performance
-- Batched JSON-RPC requests (≤200 items per call).  
-- Deferred loading of heavy fields (cast, streamdetails, extra artwork).  
-- Cache-friendly schema and memory mappings (IMDb→Kodi DBIDs).  
-- Indexes optimized for large libraries (10k+ items).  
+- Batched JSON-RPC requests (≤200 items per call).
+- Deferred loading of heavy fields (cast, streamdetails, extra artwork).
+- Cache-friendly schema and memory mappings (IMDb→Kodi DBIDs).
+- Indexes optimized for large libraries (10k+ items).
 
 ---
 
@@ -78,14 +92,14 @@ Each line = one item. Universal fields:
 
 ### Import Matching
 Priority:
-1. IMDb ID.  
-2. TMDb ID.  
-3. Title+Year fuzzy match.  
-4. Plugin identifiers.  
-5. Placeholder creation.  
+1. IMDb ID.
+2. TMDb ID.
+3. Title+Year fuzzy match.
+4. Plugin identifiers.
+5. Placeholder creation.
 
-Normalization: case-folding, whitespace collapsing, article stripping.  
-Confidence scoring: 100% (IMDb) → 95% (TMDb) → 75–90% (title/year) → fallback placeholders.  
+Normalization: case-folding, whitespace collapsing, article stripping.
+Confidence scoring: 100% (IMDb) → 95% (TMDb) → 75–90% (title/year) → fallback placeholders.
 
 ---
 
@@ -93,26 +107,28 @@ Confidence scoring: 100% (IMDb) → 95% (TMDb) → 75–90% (title/year) → fal
 
 - **Set Default List**: Button-style action opens list picker when lists exist, shows helpful message when none available.
 - **Background Tasks**: Configurable interval (5-720 minutes) with safe defaults and clamping.
-- **Organized Categories**: Settings grouped into General, Lists, and Background sections.
+- **Backup Settings**: Automated backup scheduling, storage location, and retention policies.
+- **Storage Configuration**: Local paths and network share support via Kodi file settings.
+- **Organized Categories**: Settings grouped into General, Lists, Background, and Backup sections.
 - **Privacy-First**: External features disabled by default, require explicit user authorization.
 
 ## External Integration (Optional)
 
-- Disabled by default; requires user authorization.  
-- **Remote Search**: Free-text queries → IMDb ID lists returned.  
-- **Similarity**: Given IMDb, request server for similar items → IMDb IDs.  
-- **Sync**: Optional mirroring of user’s list with server (IMDb only).  
-- **Privacy**: Only IMDb IDs and user queries transmitted; no file paths or playback data.  
+- Disabled by default; requires user authorization.
+- **Remote Search**: Free-text queries → IMDb ID lists returned.
+- **Similarity**: Given IMDb, request server for similar items → IMDb IDs.
+- **Sync**: Optional mirroring of user’s list with server (IMDb only).
+- **Privacy**: Only IMDb IDs and user queries transmitted; no file paths or playback data.
 
 ---
 
 ## Technical Notes
 
-- Runs on Kodi 19+.  
-- Python 3.x, Kodi Python API.  
-- SQLite backend with WAL/PRAGMA tuning for low-power devices.  
-- JSON-RPC integration with batching and selective property fetching.  
-- Clear separation between UI (routes/dialogs), data (DB/mapping), and features (lists/export/import/sync).  
+- Runs on Kodi 19+.
+- Python 3.x, Kodi Python API.
+- SQLite backend with WAL/PRAGMA tuning for low-power devices.
+- JSON-RPC integration with batching and selective property fetching.
+- Clear separation between UI (routes/dialogs), data (DB/mapping), and features (lists/export/import/sync).
 
 ---
 
@@ -164,14 +180,17 @@ All changes must pass:
 - **Import Safety**: All modules import without Kodi runtime
 - **Smoke Tests**: Core functionality works in test environment
 
-## Favorites (Read-Only) Integration
+## Favorites (Manual) Integration
 
-LibraryGenie provides seamless integration with Kodi's built-in Favorites system, allowing you to:
+LibraryGenie provides manual integration with Kodi's built-in Favorites system, allowing you to:
 
-- **View Favorites**: Display favorites that map to your movie library
-- **Quick Add**: Add mapped favorites to your custom lists  
+- **Scan on Demand**: Manually scan favorites via Tools menu or context actions
+- **View Mapped Favorites**: Display favorites that map to your movie library
+- **Quick Add**: Add mapped favorites to your custom lists
 - **Smart Filtering**: Option to show/hide unmapped favorites
 - **Robust Parsing**: Handles various favorites.xml formats and edge cases
+
+**Manual Operation**: All favorites scanning is user-initiated. No background processing ensures optimal performance and gives you full control over when favorites are processed.
 
 ### Supported Target Types
 
@@ -183,7 +202,7 @@ LibraryGenie provides seamless integration with Kodi's built-in Favorites system
 
 - **Read-Only**: Never modifies your Kodi favorites file
 - **Local Processing**: All parsing and mapping happens locally
-- **No Data Collection**: No favorite names, paths, or metadata transmitted externally  
+- **No Data Collection**: No favorite names, paths, or metadata transmitted externally
 - **Path Privacy**: Credentials stripped from network paths during processing
 
 ### Unmapped Favorites
@@ -210,7 +229,7 @@ LibraryGenie provides powerful local search with precision and predictability:
 
 **Explicit Prefixes** (always treated as filters):
 - `y:1999` or `year:1999` - Movies from 1999
-- `year:1990-2000` - Movies from 1990 to 2000  
+- `year:1990-2000` - Movies from 1990 to 2000
 - `year>=2010` - Movies from 2010 onwards
 - `year<=2005` - Movies up to 2005
 
@@ -250,7 +269,7 @@ If you experience slow scans or timeouts with large movie libraries (1000+ movie
 1. **Adjust JSON-RPC Settings**: In addon settings → Advanced → JSON-RPC Performance:
    - Increase JSON-RPC timeout to 15-20 seconds for slower systems
    - Reduce JSON-RPC page size to 100-150 for very large libraries
-   
+
 2. **Database Optimization**: In addon settings → Advanced → Database Performance:
    - Increase database batch size to 300-400 for faster bulk operations
    - Increase database busy timeout to 5000-7000ms for busy systems
@@ -282,9 +301,10 @@ If you experience slow scans or timeouts with large movie libraries (1000+ movie
 Enable debug logging in addon settings → General → Debug & Logging to get detailed information for troubleshooting. Debug logs will show:
 
 - JSON-RPC request timing and paging details
-- Database operation performance metrics  
+- Database operation performance metrics
 - Library scan progress and error details
 - Configuration validation and fallback behavior
+
 
 ### Reset and Recovery
 
@@ -299,7 +319,7 @@ If the addon stops working correctly:
 Expected performance for reference systems:
 
 - **Small library** (< 500 movies): Full scan 30-60 seconds, Delta scan 5-10 seconds
-- **Medium library** (500-2000 movies): Full scan 2-5 minutes, Delta scan 10-30 seconds  
+- **Medium library** (500-2000 movies): Full scan 2-5 minutes, Delta scan 10-30 seconds
 - **Large library** (2000+ movies): Full scan 5-15 minutes, Delta scan 30-60 seconds
 
 Times may vary significantly based on network storage, system performance, and library metadata complexity.
@@ -312,6 +332,6 @@ Times may vary significantly based on network storage, system performance, and l
 
 **Phase 5 - Full List Management**: Complete local-only list management functionality with CRUD operations, user interface flows, and persistent SQLite storage. Create, rename, and delete lists with confirmation dialogs and item counts. All operations are fully localized and work both in Kodi and standalone testing environments. No external services yet.
 
-- **Stable Core**: Local lists, folders, import/export.  
-- **Alpha**: External server search/similarity/sync (invite-only, opt-in).  
-- **Optional**: TMDb enrichment with user-supplied API key.  
+- **Stable Core**: Local lists, folders, import/export.
+- **Alpha**: External server search/similarity/sync (invite-only, opt-in).
+- **Optional**: TMDb enrichment with user-supplied API key.

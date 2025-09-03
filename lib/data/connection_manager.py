@@ -10,17 +10,7 @@ import os
 import sqlite3
 import threading
 import atexit
-try:
-    from typing import Any, List, Dict, Optional, Union, Callable
-except ImportError:
-    # Python < 3.5 fallback
-    Any = object
-    List = list
-    Dict = dict
-    Optional = object
-    Union = object
-    Callable = object
-
+from typing import Any, List, Dict, Optional, Union, Callable
 from contextlib import contextmanager
 
 from ..utils.logger import get_logger
@@ -54,12 +44,12 @@ class ConnectionManager:
     def _create_connection(self):
         """Create and configure database connection"""
         db_path = self.storage_manager.get_database_path()
-        self.logger.info(f"Creating database connection to: {db_path}")
+        self.logger.debug(f"Creating database connection to: {db_path}")
         
         # Log the absolute path for debugging
         try:
             abs_path = os.path.abspath(db_path)
-            self.logger.info(f"Absolute database path: {abs_path}")
+            self.logger.debug(f"Absolute database path: {abs_path}")
         except Exception as e:
             self.logger.warning(f"Could not resolve absolute path: {e}")
 
@@ -97,7 +87,7 @@ class ConnectionManager:
             # Set row factory for easier data access
             conn.row_factory = sqlite3.Row  # Enable dict-like access
 
-            self.logger.info(f"Database connection established: {db_path} (busy_timeout: {busy_timeout_ms}ms)")
+            self.logger.debug(f"Database connection established: {db_path} (busy_timeout: {busy_timeout_ms}ms)")
             return conn
 
         except Exception as e:

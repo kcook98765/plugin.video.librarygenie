@@ -12,21 +12,21 @@ from typing import List, Dict, Set, Any, Optional
 
 from ..data import get_connection_manager
 from ..utils.logger import get_logger
-from .phase4_favorites_parser import get_phase4_favorites_parser
+from .favorites_parser import get_phase4_favorites_parser
 
 
 class Phase4FavoritesManager:
     """Phase 4: Enhanced favorites manager with reliable mapping and batch processing"""
-    
+
     def __init__(self):
         self.logger = get_logger(__name__)
         self.conn_manager = get_connection_manager()
         self.parser = get_phase4_favorites_parser()
-    
+
     def scan_favorites(self, file_path: str = None, force_refresh: bool = False) -> Dict[str, Any]:
         """Scan and import favorites with mtime checking and batch processing"""
         start_time = datetime.now()
-        
+
         try:
             # Find favorites file if not provided
             if not file_path:
@@ -40,10 +40,10 @@ class Phase4FavoritesManager:
                         "items_mapped": 0,
                         "message": "No favorites file found"
                     }
-            
+
             # Get file modification time
             file_modified = self.parser.get_file_modified_time(file_path)
-            
+
             # Phase 4: Check if we need to scan (mtime-based)
             if not force_refresh:
                 last_scan = self._get_last_scan_info(file_path)
@@ -56,16 +56,16 @@ class Phase4FavoritesManager:
                         "items_mapped": last_scan.get("items_mapped", 0),
                         "message": "No changes detected"
                     }
-            
+
             # Parse favorites file with enhanced parser
             favorites = self.parser.parse_favorites_file(file_path)
-            
+
             # Phase 4: Process in batches with reliable mapping
             result = self._import_favorites_batch(favorites)
-            
+
             # Calculate duration
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
-            
+
             # Log scan result
             self._log_scan_result(
                 scan_type="full",
@@ -78,23 +78,23 @@ class Phase4FavoritesManager:
                 duration_ms=duration_ms,
                 success=True
             )
-            
+
             self.logger.info(f"Favorites scan complete: {result['items_mapped']}/{len(favorites)} mapped, {result['items_added']} added, {result['items_updated']} updated")
-            
+
             return {
                 "success": True,
                 "scan_type": "full",
                 "items_found": len(favorites),
                 "items_mapped": result["items_mapped"],
-                "items_added": result["items_added"], 
+                "items_added": result["items_added"],
                 "items_updated": result["items_updated"],
                 "duration_ms": duration_ms,
                 "message": f"Processed {len(favorites)} favorites"
             }
-            
+
         except Exception as e:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
-            
+
             # Log error
             if file_path:
                 self._log_scan_result(
@@ -109,7 +109,7 @@ class Phase4FavoritesManager:
                     success=False,
                     error_message=str(e)
                 )
-            
+
             self.logger.error(f"Favorites scan failed: {e}")
             return {
                 "success": False,
@@ -117,118 +117,86 @@ class Phase4FavoritesManager:
                 "message": str(e),
                 "duration_ms": duration_ms
             }
-    
+
     def _import_favorites_batch(self, favorites: List[Dict]) -> Dict[str, int]:
-        """Import favorites with Phase 4 batch processing and reliable mapping"""
+        """Import favorites into unified lists table as 'Kodi Favorites' list"""
         items_added = 0
         items_updated = 0
         items_mapped = 0
-        
+
+        self.logger.info(f"Starting batch import of {len(favorites)} favorites")
+
         try:
-            # Process in batches for large favorites files
-            batch_size = 200
-            current_normalized_keys = set()
-            
-            for i in range(0, len(favorites), batch_size):
-                batch = favorites[i:i + batch_size]
-                
-                with self.conn_manager.transaction() as conn:
-                    for favorite in batch:
-                        try:
-                            normalized_key = favorite["normalized_key"]
-                            current_normalized_keys.add(normalized_key)
-                            
-                            # Check if favorite already exists
-                            existing = conn.execute("""
-                                SELECT id, library_movie_id, is_mapped, is_missing
-                                FROM kodi_favorite
-                                WHERE normalized_key = ?
-                            """, [normalized_key]).fetchone()
-                            
-                            # Phase 4: Reliable mapping with multiple strategies
-                            library_movie_id = self._find_library_match_enhanced(
-                                favorite["target_raw"], 
-                                favorite["target_classification"],
-                                normalized_key
-                            )
-                            is_mapped = 1 if library_movie_id else 0
-                            
-                            if is_mapped:
-                                items_mapped += 1
-                            
-                            # Phase 4: Idempotent upsert with first_seen/last_seen/present
-                            if existing:
-                                # Update existing favorite
-                                conn.execute("""
-                                    UPDATE kodi_favorite 
-                                    SET name = ?, target_raw = ?, target_classification = ?,
-                                        library_movie_id = ?, is_mapped = ?,
-                                        thumb_ref = ?, present = 1,
-                                        last_seen = datetime('now'), 
-                                        updated_at = datetime('now'),
-                                        is_missing = 0
-                                    WHERE id = ?
-                                """, [
-                                    favorite["name"], favorite["target_raw"], favorite["target_classification"],
-                                    library_movie_id, is_mapped, favorite.get("thumb_ref", ""),
-                                    existing["id"]
-                                ])
-                                items_updated += 1
-                                
-                            else:
-                                # Insert new favorite with first_seen
-                                conn.execute("""
-                                    INSERT INTO kodi_favorite 
-                                    (name, normalized_path, original_path, favorite_type,
-                                     target_raw, target_classification, normalized_key,
-                                     library_movie_id, is_mapped, thumb_ref, present,
-                                     first_seen, last_seen)
-                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1,
-                                            datetime('now'), datetime('now'))
-                                """, [
-                                    favorite["name"], 
-                                    favorite["normalized_key"],  # Use as normalized_path for compatibility
-                                    favorite["target_raw"],      # Use as original_path for compatibility
-                                    favorite["target_classification"],  # Use as favorite_type for compatibility
-                                    favorite["target_raw"], 
-                                    favorite["target_classification"],
-                                    favorite["normalized_key"],
-                                    library_movie_id, 
-                                    is_mapped,
-                                    favorite.get("thumb_ref", "")
-                                ])
-                                items_added += 1
-                                
-                        except Exception as e:
-                            self.logger.warning(f"Error processing favorite '{favorite.get('name', 'unknown')}': {e}")
-                            continue
-            
-            # Phase 4: Mark favorites as not present if they weren't seen in this scan
             with self.conn_manager.transaction() as conn:
-                if current_normalized_keys:
-                    # Build placeholders for IN clause
-                    placeholders = ','.join(['?'] * len(current_normalized_keys))
-                    
-                    conn.execute(f"""
-                        UPDATE kodi_favorite
-                        SET present = 0, last_seen = datetime('now')
-                        WHERE normalized_key NOT IN ({placeholders})
-                        AND present = 1
-                    """, list(current_normalized_keys))
-                else:
-                    # No favorites found - mark all as not present
-                    conn.execute("""
-                        UPDATE kodi_favorite
-                        SET present = 0, last_seen = datetime('now')
-                        WHERE present = 1
+                # Ensure 'Kodi Favorites' list exists in the unified lists table
+                kodi_list = conn.execute("""
+                    SELECT id FROM lists WHERE name = 'Kodi Favorites'
+                """).fetchone()
+
+                if not kodi_list:
+                    # Create the Kodi Favorites list
+                    cursor = conn.execute("""
+                        INSERT INTO lists (name, created_at)
+                        VALUES ('Kodi Favorites', datetime('now'))
                     """)
-            
+                    kodi_list_id = cursor.lastrowid
+                    self.logger.info("Created 'Kodi Favorites' list in unified lists table")
+                else:
+                    kodi_list_id = kodi_list["id"]
+                    self.logger.info(f"Using existing 'Kodi Favorites' list with ID {kodi_list_id}")
+
+                # Clear existing items from the Kodi Favorites list
+                deleted_count = conn.execute("DELETE FROM list_items WHERE list_id = ?", [kodi_list_id]).rowcount
+                self.logger.info(f"Cleared {deleted_count} existing items from Kodi Favorites list")
+
+                # Log database stats before processing
+                media_count = conn.execute("SELECT COUNT(*) as count FROM media_items WHERE is_removed = 0").fetchone()["count"]
+                self.logger.info(f"Database contains {media_count} active media items for matching")
+
+                # Process favorites and add mapped ones to the list
+                for i, favorite in enumerate(favorites):
+                    favorite_name = favorite.get('name', 'unknown')
+                    self.logger.info(f"Processing favorite {i+1}/{len(favorites)}: '{favorite_name}'")
+                    self.logger.info(f"  Raw target: {favorite['target_raw']}")
+                    self.logger.info(f"  Classification: {favorite['target_classification']}")
+                    self.logger.info(f"  Normalized key: {favorite['normalized_key']}")
+
+                    try:
+                        # Try to find library match
+                        library_movie_id = self._find_library_match_enhanced(
+                            favorite["target_raw"],
+                            favorite["target_classification"],
+                            favorite["normalized_key"]
+                        )
+
+                        if library_movie_id:
+                            self.logger.info(f"  ✓ MATCHED to library item ID {library_movie_id}")
+
+                            # Add to the unified list_items table
+                            conn.execute("""
+                                INSERT INTO list_items (list_id, media_item_id, position, created_at)
+                                VALUES (?, ?, ?, datetime('now'))
+                            """, [kodi_list_id, library_movie_id, items_mapped])
+
+                            items_mapped += 1
+                            items_added += 1
+                        else:
+                            self.logger.info(f"  ✗ NO MATCH found for '{favorite_name}'")
+
+                    except Exception as e:
+                        self.logger.warning(f"Error processing favorite '{favorite_name}': {e}")
+                        continue
+
+                # Note: lists table doesn't have updated_at column in current schema
+
+            self.logger.info(f"Batch import complete: {items_mapped}/{len(favorites)} mapped, {items_added} added")
+
             return {
                 "items_added": items_added,
                 "items_updated": items_updated,
                 "items_mapped": items_mapped
             }
-            
+
         except Exception as e:
             self.logger.error(f"Error in batch import: {e}")
             return {
@@ -236,193 +204,310 @@ class Phase4FavoritesManager:
                 "items_updated": 0,
                 "items_mapped": 0
             }
-    
+
     def _find_library_match_enhanced(self, target_raw: str, classification: str, normalized_key: str) -> Optional[int]:
         """Phase 4: Enhanced library matching with multiple strategies"""
+        self.logger.info(f"    Starting library match for classification '{classification}'")
+
         try:
             # Strategy 1: videodb dbid matching
             if classification == 'videodb':
+                self.logger.info("    Using videodb matching strategy")
                 match = re.search(r'videodb://movies/titles/(\d+)', target_raw.lower())
                 if match:
                     kodi_dbid = int(match.group(1))
-                    
-                    # Find by Kodi dbid
-                    result = self.conn_manager.execute_single("""
-                        SELECT id FROM library_movie 
-                        WHERE kodi_id = ? AND is_removed = 0
-                    """, [kodi_dbid])
-                    
-                    if result:
-                        return result["id"] if hasattr(result, 'keys') else result.get("id")
-            
+                    self.logger.info(f"    Extracted Kodi dbid: {kodi_dbid}")
+
+                    # Find by Kodi dbid in media_items table
+                    with self.conn_manager.transaction() as conn:
+                        result = conn.execute("""
+                            SELECT id, title FROM media_items
+                            WHERE kodi_id = ? AND is_removed = 0
+                        """, [kodi_dbid]).fetchone()
+
+                        if result:
+                            self.logger.info(f"    Found videodb match: ID {result['id']} - '{result['title']}'")
+                            return result["id"]
+                        else:
+                            self.logger.info(f"    No videodb match found for Kodi dbid {kodi_dbid}")
+
+                else:
+                    self.logger.info(f"    Could not extract dbid from videodb URL: {target_raw}")
+
             # Strategy 2: Normalized path matching
-            if classification == 'mappable_file':
+            elif classification == 'mappable_file':
+                self.logger.info("    Using file path matching strategy")
+                self.logger.info(f"    Looking for normalized_path: '{normalized_key}'")
+
                 # Try exact normalized path match
                 result = self.conn_manager.execute_single("""
-                    SELECT id FROM library_movie 
+                    SELECT id, title, file_path, normalized_path FROM media_items
                     WHERE normalized_path = ? AND is_removed = 0
                 """, [normalized_key])
-                
+
                 if result:
-                    return result["id"] if hasattr(result, 'keys') else result.get("id")
-                
+                    self.logger.info(f"    Found exact normalized path match: ID {result['id']} - '{result['title']}'")
+                    self.logger.info(f"    Matched file_path: {result['file_path']}")
+                    return result["id"]
+                else:
+                    self.logger.info("    No exact normalized path match found")
+
+                    # Show some sample normalized paths for debugging
+                    sample_paths = self.conn_manager.execute_query("""
+                        SELECT normalized_path, file_path FROM media_items 
+                        WHERE is_removed = 0 AND normalized_path IS NOT NULL AND normalized_path != ''
+                        LIMIT 5
+                    """)
+
+                    if sample_paths:
+                        self.logger.info("    Sample normalized paths in database:")
+                        for sample in sample_paths:
+                            self.logger.info(f"      normalized: '{sample['normalized_path']}'")
+                            self.logger.info(f"      file_path:  '{sample['file_path']}'")
+                    else:
+                        self.logger.info("    No normalized paths found in database")
+
+                    # Always try file_path matching as backup
+                    self.logger.info("    Trying file_path matching")
+                    result = self._try_file_path_matching(normalized_key)
+                    if result:
+                        self.logger.info(f"    Found file_path match: ID {result}")
+                        return result
+
                 # Try fuzzy path matching for variations
+                self.logger.info("    Attempting fuzzy path matching")
                 result = self._fuzzy_path_match(normalized_key)
                 if result:
+                    self.logger.info(f"    Fuzzy match found: ID {result}")
                     return result
-            
-            # Strategy 3: External ID matching (fallback for Phase 4)
-            # This would be implemented if we stored external IDs in favorites
-            # For now, keep simple and reliable
-            
+                else:
+                    self.logger.info("    No fuzzy match found")
+            else:
+                self.logger.info(f"    Classification '{classification}' not supported for matching")
+
+            self.logger.info("    No library match found")
             return None
-            
+
         except Exception as e:
-            self.logger.debug(f"Error finding library match for '{target_raw}': {e}")
+            self.logger.error(f"Error finding library match for '{target_raw}': {e}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
             return None
-    
+
+    def _try_file_path_matching(self, normalized_key: str) -> Optional[int]:
+        """Attempt to match using the raw file_path with multiple strategies"""
+        self.logger.info(f"    Attempting file path matching for key: '{normalized_key}'")
+        try:
+            with self.conn_manager.transaction() as conn:
+                # Strategy 1: Try exact file path match
+                result = conn.execute("""
+                    SELECT id, title, file_path FROM media_items
+                    WHERE file_path = ? AND is_removed = 0
+                """, [normalized_key]).fetchone()
+
+                if result:
+                    self.logger.info(f"    Found exact file_path match: ID {result['id']} - '{result['title']}'")
+                    return result["id"]
+
+                # Strategy 2: Try case-insensitive file_path match
+                result = conn.execute("""
+                    SELECT id, title, file_path FROM media_items
+                    WHERE LOWER(file_path) = LOWER(?) AND is_removed = 0
+                """, [normalized_key]).fetchone()
+
+                if result:
+                    self.logger.info(f"    Found case-insensitive file_path match: ID {result['id']} - '{result['title']}'")
+                    return result["id"]
+
+                # Strategy 3: Try normalized_path match (in case it exists but wasn't found earlier)
+                result = conn.execute("""
+                    SELECT id, title, file_path, normalized_path FROM media_items
+                    WHERE LOWER(normalized_path) = LOWER(?) AND is_removed = 0
+                """, [normalized_key]).fetchone()
+
+                if result:
+                    self.logger.info(f"    Found case-insensitive normalized_path match: ID {result['id']} - '{result['title']}'")
+                    return result["id"]
+
+                # Strategy 4: Try to match by converting backslashes to forward slashes in file_path
+                backslash_version = normalized_key.replace('/', '\\')
+                result = conn.execute("""
+                    SELECT id, title, file_path FROM media_items
+                    WHERE file_path = ? AND is_removed = 0
+                """, [backslash_version]).fetchone()
+
+                if result:
+                    self.logger.info(f"    Found backslash file_path match: ID {result['id']} - '{result['title']}'")
+                    return result["id"]
+
+                # Strategy 5: Try fuzzy path matching for variations
+                self.logger.info("    Attempting fuzzy file_path matching")
+                result = self._fuzzy_path_match(normalized_key)
+                if result:
+                    self.logger.info(f"    Fuzzy file_path match found: ID {result}")
+                    return result
+
+                self.logger.info("    No file_path matches found")
+                return None
+
+        except Exception as e:
+            self.logger.error(f"Error in file path matching: {e}")
+            return None
+
     def _fuzzy_path_match(self, normalized_key: str) -> Optional[int]:
         """Fuzzy path matching for path variations"""
         try:
             # Extract just the filename for fuzzy matching
             filename = normalized_key.split('/')[-1] if '/' in normalized_key else normalized_key
-            
+            filename = filename.split('\\')[-1] if '\\' in filename else filename  # Handle backslashes too
+            self.logger.info(f"      Fuzzy matching with filename: '{filename}'")
+
             if not filename or len(filename) < 3:
+                self.logger.info(f"      Filename too short for fuzzy matching: '{filename}'")
                 return None
-            
+
             # Look for files with same filename but different paths
-            results = self.conn_manager.execute_query("""
-                SELECT id, file_path FROM library_movie 
-                WHERE is_removed = 0 
-                AND file_path LIKE ?
-                LIMIT 5
-            """, [f"%{filename}%"])
-            
-            if results and len(results) == 1:
-                # Exactly one match - probably correct
-                result = results[0]
-                return result["id"] if hasattr(result, 'keys') else result.get("id")
-            
-            # Multiple matches - too ambiguous, skip for reliability
-            return None
-            
-        except Exception:
-            return None
-    
-    def get_mapped_favorites(self, show_unmapped: bool = False) -> List[Dict]:
-        """Get favorites with Phase 4 present/mapped filtering"""
-        try:
-            base_query = """
-                SELECT kf.id, kf.name, kf.normalized_path, kf.original_path,
-                       kf.favorite_type, kf.target_raw, kf.target_classification,
-                       kf.is_mapped, kf.is_missing, kf.present,
-                       kf.first_seen, kf.last_seen, kf.thumb_ref,
-                       lm.title as library_title, lm.year, lm.imdb_id, lm.tmdb_id,
-                       kf.library_movie_id
-                FROM kodi_favorite kf
-                LEFT JOIN library_movie lm ON kf.library_movie_id = lm.id
-                WHERE kf.present = 1
-            """
-            
-            if not show_unmapped:
-                base_query += " AND kf.is_mapped = 1"
-            
-            base_query += " ORDER BY kf.is_mapped DESC, kf.name"
-            
-            favorites = self.conn_manager.execute_query(base_query)
-            
-            # Convert SQLite rows to dicts
-            result = []
-            for fav in favorites or []:
-                if hasattr(fav, 'keys'):
-                    result.append(dict(fav))
+            with self.conn_manager.transaction() as conn:
+                backslash_filename = filename.replace('/', '\\')
+                results = conn.execute("""
+                    SELECT id, title, play as file_path FROM media_items
+                    WHERE is_removed = 0
+                    AND (play LIKE ? OR play LIKE ?)
+                    LIMIT 10
+                """, [f"%{filename}%", f"%{backslash_filename}%"]).fetchall()
+
+                self.logger.info(f"      Found {len(results)} potential fuzzy matches")
+
+                for i, result in enumerate(results):
+                    self.logger.info(f"        Match {i+1}: ID {result['id']} - '{result['title']}' - {result['file_path']}")
+
+                if results and len(results) == 1:
+                    # Exactly one match - probably correct
+                    result = results[0]
+                    self.logger.info(f"      Single fuzzy match selected: ID {result['id']}")
+                    return result["id"]
+                elif len(results) > 1:
+                    # Try to find exact filename match (case insensitive)
+                    for result in results:
+                        result_filename = result['file_path'].split('/')[-1].split('\\')[-1].lower()
+                        if result_filename == filename.lower():
+                            self.logger.info(f"      Exact filename match found: ID {result['id']} - '{result['title']}'")
+                            return result["id"]
+
+                    self.logger.info("      Multiple fuzzy matches found but no exact filename match - skipping for reliability")
                 else:
-                    result.append(fav)
+                    self.logger.info("      No fuzzy matches found")
+
+                return None
+
+        except Exception as e:
+            self.logger.error(f"Error in fuzzy path matching: {e}")
+            return None
+
+    def get_mapped_favorites(self, show_unmapped: bool = False) -> List[Dict]:
+        """Get favorites from unified lists table using standard list query approach"""
+        try:
+            # Use the standard query manager to get list items - same as any other list
+            from ..data.query_manager import get_query_manager
+            query_manager = get_query_manager()
             
-            return result
+            # Get the Kodi Favorites list ID
+            with self.conn_manager.transaction() as conn:
+                kodi_list = conn.execute("""
+                    SELECT id FROM lists WHERE name = 'Kodi Favorites'
+                """).fetchone()
+                
+                if not kodi_list:
+                    self.logger.info("No 'Kodi Favorites' list found")
+                    return []
+                
+                kodi_list_id = kodi_list["id"]
             
+            # Use the standard list items query - same as other lists use
+            favorites = query_manager.get_list_items(kodi_list_id)
+            
+            self.logger.info(f"Retrieved {len(favorites)} favorites using standard list query approach")
+            return favorites
+
         except Exception as e:
             self.logger.error(f"Error getting mapped favorites: {e}")
             return []
-    
+
     def get_favorites_stats(self) -> Dict[str, int]:
-        """Get statistics about favorites with Phase 4 present flag"""
+        """Get statistics about favorites from unified lists table"""
         try:
-            stats = self.conn_manager.execute_single("""
-                SELECT 
-                    COUNT(*) as total,
-                    SUM(CASE WHEN is_mapped = 1 AND present = 1 THEN 1 ELSE 0 END) as mapped,
-                    SUM(CASE WHEN is_missing = 1 THEN 1 ELSE 0 END) as missing,
-                    SUM(CASE WHEN present = 1 THEN 1 ELSE 0 END) as present
-                FROM kodi_favorite
-            """)
-            
-            if stats and hasattr(stats, 'keys'):
-                stats = dict(stats)
-            
-            total_present = stats.get("present", 0) if stats else 0
-            mapped = stats.get("mapped", 0) if stats else 0
-            
-            return {
-                "total": stats.get("total", 0) if stats else 0,
-                "present": total_present,
-                "mapped": mapped,
-                "unmapped": total_present - mapped,
-                "missing": stats.get("missing", 0) if stats else 0
-            }
-            
+            with self.conn_manager.transaction() as conn:
+                stats = conn.execute("""
+                    SELECT COUNT(*) as total
+                    FROM lists l
+                    JOIN list_items li ON l.id = li.list_id
+                    WHERE l.name = 'Kodi Favorites'
+                """).fetchone()
+
+                total = stats["total"] if stats else 0
+
+                return {
+                    "total": total,
+                    "present": total,
+                    "mapped": total,
+                    "unmapped": 0,
+                    "missing": 0
+                }
+
         except Exception as e:
             self.logger.error(f"Error getting favorites stats: {e}")
             return {"total": 0, "present": 0, "mapped": 0, "unmapped": 0, "missing": 0}
-    
+
     def add_favorites_to_list(self, list_id: int, favorite_ids: List[int]) -> Dict[str, Any]:
         """Add mapped favorites to a list with duplicate detection"""
         try:
             added_count = 0
             skipped_count = 0
-            
+
             with self.conn_manager.transaction() as conn:
                 for favorite_id in favorite_ids:
-                    # Get favorite and verify it's mapped
+                    # Get favorite from unified lists (Kodi Favorites list)
                     favorite = conn.execute("""
-                        SELECT kf.library_movie_id, kf.name, kf.is_mapped, kf.present
-                        FROM kodi_favorite kf
-                        WHERE kf.id = ? AND kf.is_mapped = 1 AND kf.present = 1
+                        SELECT li.media_item_id, mi.title
+                        FROM lists l
+                        JOIN list_items li ON l.id = li.list_id
+                        JOIN media_items mi ON li.media_item_id = mi.id
+                        WHERE l.name = 'Kodi Favorites' AND li.id = ?
                     """, [favorite_id]).fetchone()
-                    
-                    if not favorite or not favorite["library_movie_id"]:
+
+                    if not favorite or not favorite["media_item_id"]:
                         skipped_count += 1
                         continue
-                    
-                    # Check if already in list
+
+                    # Check if already in target list
                     existing = conn.execute("""
-                        SELECT id FROM list_item
-                        WHERE list_id = ? AND library_movie_id = ?
-                    """, [list_id, favorite["library_movie_id"]]).fetchone()
-                    
+                        SELECT id FROM list_items
+                        WHERE list_id = ? AND media_item_id = ?
+                    """, [list_id, favorite["media_item_id"]]).fetchone()
+
                     if existing:
                         skipped_count += 1
                         continue
-                    
+
                     # Add to list
                     conn.execute("""
-                        INSERT INTO list_item (list_id, library_movie_id, title, created_at)
-                        VALUES (?, ?, ?, datetime('now'))
-                    """, [list_id, favorite["library_movie_id"], favorite["name"]])
-                    
+                        INSERT INTO list_items (list_id, media_item_id, created_at)
+                        VALUES (?, ?, datetime('now'))
+                    """, [list_id, favorite["media_item_id"]])
+
                     added_count += 1
-            
+
             message = f"Added {added_count} favorites to list"
             if skipped_count > 0:
                 message += f", skipped {skipped_count} (duplicates or unmapped)"
-            
+
             return {
                 "success": True,
                 "added_count": added_count,
                 "skipped_count": skipped_count,
                 "message": message
             }
-            
+
         except Exception as e:
             self.logger.error(f"Error adding favorites to list: {e}")
             return {
@@ -430,26 +515,112 @@ class Phase4FavoritesManager:
                 "error": "operation_error",
                 "message": str(e)
             }
-    
+
     def _get_last_scan_info(self, file_path: str) -> Optional[Dict]:
-        """Get information about last scan"""
+        """Get last scan info for favorites file"""
         try:
-            last_scan = self.conn_manager.execute_single("""
-                SELECT file_modified, items_found, items_mapped
-                FROM favorites_scan_log
-                WHERE file_path = ? AND success = 1
-                ORDER BY created_at DESC
-                LIMIT 1
-            """, [file_path])
-            
-            if last_scan and hasattr(last_scan, 'keys'):
-                return dict(last_scan)
-            return last_scan
-            
+            with self.conn_manager.transaction() as conn:
+                result = conn.execute("""
+                    SELECT file_modified, items_found, items_mapped
+                    FROM favorites_scan_log
+                    WHERE file_path = ? AND success = 1
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                """, [file_path]).fetchone()
+
+                return dict(result) if result else None
+
         except Exception as e:
-            self.logger.error(f"Error getting last scan info: {e}")
+            self.logger.debug(f"No previous scan info found: {e}")
             return None
-    
+
+    def _get_last_scan_info_for_display(self) -> Optional[Dict]:
+        """Get last scan info for display purposes (any file path)"""
+        try:
+            with self.conn_manager.transaction() as conn:
+                result = conn.execute("""
+                    SELECT file_path, file_modified, items_found, items_mapped, created_at
+                    FROM favorites_scan_log
+                    WHERE success = 1
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                """).fetchone()
+
+                return dict(result) if result else None
+
+        except Exception as e:
+            self.logger.debug(f"No previous scan info found for display: {e}")
+            return None
+
+    def _fetch_artwork_from_kodi(self, kodi_id: int, media_type: str) -> Dict[str, str]:
+        """Fetch artwork for library item from Kodi JSON-RPC"""
+        try:
+            from .json_rpc_client import get_json_rpc_client
+            json_rpc = get_json_rpc_client()
+
+            if media_type == 'movie':
+                # Get movie details with artwork
+                response = json_rpc.call_method(
+                    "VideoLibrary.GetMovieDetails",
+                    {
+                        "movieid": kodi_id,
+                        "properties": ["art", "thumbnail", "fanart"]
+                    }
+                )
+                
+                if response and "moviedetails" in response:
+                    movie_details = response["moviedetails"]
+                    artwork = {}
+                    
+                    # Extract art dictionary
+                    if "art" in movie_details and isinstance(movie_details["art"], dict):
+                        artwork.update(movie_details["art"])
+                    
+                    # Add top-level fields
+                    if "thumbnail" in movie_details:
+                        artwork["thumb"] = movie_details["thumbnail"]
+                        artwork["poster"] = movie_details["thumbnail"]
+                    if "fanart" in movie_details:
+                        artwork["fanart"] = movie_details["fanart"]
+                    
+                    self.logger.debug(f"ARTWORK: Retrieved {len(artwork)} art items for movie {kodi_id}")
+                    return artwork
+
+            elif media_type == 'episode':
+                # Get episode details with artwork
+                response = json_rpc.call_method(
+                    "VideoLibrary.GetEpisodeDetails",
+                    {
+                        "episodeid": kodi_id,
+                        "properties": ["art", "thumbnail", "fanart"]
+                    }
+                )
+                
+                if response and "episodedetails" in response:
+                    episode_details = response["episodedetails"]
+                    artwork = {}
+                    
+                    # Extract art dictionary
+                    if "art" in episode_details and isinstance(episode_details["art"], dict):
+                        artwork.update(episode_details["art"])
+                    
+                    # Add top-level fields
+                    if "thumbnail" in episode_details:
+                        artwork["thumb"] = episode_details["thumbnail"]
+                        artwork["poster"] = episode_details["thumbnail"]
+                    if "fanart" in episode_details:
+                        artwork["fanart"] = episode_details["fanart"]
+                    
+                    self.logger.debug(f"ARTWORK: Retrieved {len(artwork)} art items for episode {kodi_id}")
+                    return artwork
+
+            self.logger.debug(f"ARTWORK: No artwork retrieved for {media_type} {kodi_id}")
+            return {}
+
+        except Exception as e:
+            self.logger.warning(f"ARTWORK: Failed to fetch artwork for {media_type} {kodi_id}: {e}")
+            return {}
+
     def _log_scan_result(self, scan_type: str, file_path: str, file_modified: str = None,
                         items_found: int = 0, items_mapped: int = 0, items_added: int = 0,
                         items_updated: int = 0, duration_ms: int = 0, success: bool = True,
@@ -466,7 +637,7 @@ class Phase4FavoritesManager:
                     scan_type, file_path, file_modified, items_found, items_mapped,
                     items_added, items_updated, duration_ms, 1 if success else 0, error_message
                 ])
-            
+
         except Exception as e:
             self.logger.error(f"Error logging scan result: {e}")
 

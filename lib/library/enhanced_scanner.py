@@ -247,11 +247,6 @@ class Phase3LibraryScanner:
         # Check manual abort request
         if self._abort_requested:
             return True
-
-        # Check Kodi monitor abort request
-        if 'KODI_AVAILABLE' in globals() and KODI_AVAILABLE and self._abort_monitor and self._abort_monitor.abortRequested():
-            return True
-
         return False
 
     def _get_current_movies_lightweight(self) -> Optional[List[Dict[str, Any]]]:

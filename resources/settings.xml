@@ -6,8 +6,8 @@
     <setting id="debug_logging" type="bool" label="30011" default="false"/>
     <setting label="30020" type="lsep"/>
     <setting id="confirm_destructive_actions" type="bool" label="30021" default="true"/>
-    <setting id="show_item_counts" type="bool" label="30022" default="true"/>
-    <setting id="select_action" type="enum" label="35100" values="35101|35102" default="0"/>
+    <setting id="show_missing_indicators" type="bool" label="30043" default="true"/>
+    <setting id="select_action" type="select" label="35100" lvalues="35101|35102" default="0"/>
     <setting label="30030" type="lsep"/>
     <setting id="track_library_changes" type="bool" label="30031" default="true"/>
     <setting id="soft_delete_removed_items" type="bool" label="30032" default="true"/>
@@ -28,9 +28,11 @@
     <setting id="show_missing_indicators" type="bool" label="30043" default="true"/>
     <setting label="30050" type="lsep"/>
     <setting id="favorites_integration_enabled" type="bool" label="30051" default="false"/>
-    <setting id="favorites_scan_interval_minutes" type="slider" label="30052" default="30" range="10,5,240" option="int"/>
-    <setting id="show_unmapped_favorites" type="bool" label="30053" default="false"/>
-    <setting id="favorites_batch_processing" type="bool" label="30054" default="true"/>
+    <setting id="show_unmapped_favorites" type="bool" label="30053" default="false" enable="eq(-1,true)"/>
+    <setting id="favorites_batch_processing" type="bool" label="30054" default="true" enable="eq(-2,true)"/>
+    <setting label="30070" type="lsep"/>
+    <setting id="shortlist_import_action" type="action" label="30071" action="RunPlugin(plugin://plugin.video.librarygenie/?action=import_shortlist)"/>
+    <setting id="shortlist_clear_before_import" type="bool" label="30072" default="true"/>
   </category>
 
   <!-- Background Settings -->
@@ -39,6 +41,24 @@
     <setting id="background_task_enabled" type="bool" label="30111" default="true"/>
     <setting id="background_interval_seconds" type="slider" label="30112" default="60"
              range="30,5,3600" option="int" enable="eq(-1,true)"/>
+  </category>
+
+  <!-- Backup Settings -->
+  <category label="30500">
+    <setting label="30510" type="lsep"/>
+    <setting id="backup_enabled" type="bool" label="30511" default="false"/>
+    <setting id="backup_interval" type="select" label="30512" default="weekly" values="hourly|daily|weekly|monthly" enable="eq(-1,true)"/>
+    <setting id="backup_retention_count" type="slider" label="30513" default="5" range="1,1,50" option="int" enable="eq(-2,true)"/>
+    <setting label="30520" type="lsep"/>
+    <setting id="backup_include_favorites" type="bool" label="30521" default="true" enable="eq(-4,true)"/>
+    <setting id="backup_include_library" type="bool" label="30522" default="false" enable="eq(-5,true)"/>
+    <setting id="backup_include_folders" type="bool" label="30523" default="true" enable="eq(-6,true)"/>
+    <setting label="30530" type="lsep"/>
+    <setting id="backup_storage_type" type="select" label="30531" default="local" values="local" enable="eq(-8,true)"/>
+    <setting id="backup_local_path" type="folder" label="30532" default="" enable="eq(-1,true)"/>
+    <setting label="30540" type="lsep"/>
+    <setting id="backup_test_action" type="action" label="30541" action="RunPlugin(plugin://plugin.video.librarygenie/?action=test_backup)" enable="eq(-12,true)" />
+    <setting id="backup_manual_action" type="action" label="30542" action="RunPlugin(plugin://plugin.video.librarygenie/?action=manual_backup)" enable="eq(-13,true)" />
   </category>
 
   <!-- Advanced Settings (Phase 3) -->
@@ -70,6 +90,10 @@
     <!-- Background Service -->
     <setting id="background_interval_minutes" type="number" label="30451" help="30452" default="5" option="int" range="1,1440"/>
     <setting id="track_library_changes" type="bool" label="30453" help="30454" default="false"/>
-    <setting id="background_token_refresh" type="bool" label="30455" help="30456" default="true"/>
-  </category>
+    <setting id="background_token_refresh" type="bool" label="32086" help="32088" default="true"/>
+    </category>
+
+    <category id="ui" label="30020">
+        <setting id="info_hijack_enabled" type="bool" label="32087" default="true"/>
+    </category>
 </settings>

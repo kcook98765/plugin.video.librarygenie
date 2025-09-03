@@ -10,6 +10,9 @@ from typing import Dict, Any, List, Optional
 
 import xbmcgui
 import xbmcaddon
+from ..utils.logger import get_logger
+from .state import is_authorized
+from .device_code import run_authorize_flow
 
 
 class AuthorizationHelper:
@@ -85,6 +88,28 @@ class AuthorizationHelper:
 
             if result:
                 self.check_authorization_or_prompt("remote services")
+
+    def start_device_authorization(self):
+        """Start the device authorization flow"""
+        try:
+            self.logger.info("Starting device authorization flow")
+            success = run_authorize_flow()
+            
+            if success:
+                self.logger.info("Device authorization completed successfully")
+                return True
+            else:
+                self.logger.info("Device authorization failed or was cancelled")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Error during device authorization: {e}")
+            xbmcgui.Dialog().notification(
+                "Authorization Error",
+                f"Failed to authorize device: {str(e)[:50]}...",
+                xbmcgui.NOTIFICATION_ERROR
+            )
+            return False
 
 
 # Global helper instance

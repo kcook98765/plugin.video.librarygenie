@@ -8,11 +8,7 @@ Kodi-specific logging implementation
 
 import logging
 import sys
-try:
-    from typing import Optional
-except ImportError:
-    # Python < 3.5 fallback
-    Optional = object
+from typing import Optional
 
 import xbmc
 
@@ -43,7 +39,7 @@ def get_logger(name):
     if not logger.handlers:
         handler = KodiLogHandler()
         formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            "%(name)s - %(levelname)s - %(message)s"
         )
         handler.setFormatter(formatter)
         logger.addHandler(handler)
@@ -71,8 +67,8 @@ def _update_logger_level(logger):
             logger.setLevel(logging.INFO)
             new_level = "INFO"
             
-        # Always log level changes at INFO so they're visible
-        if old_level != logger.level:
+        # Only log level changes when there's an actual change from a configured level (not NOTSET)
+        if old_level != logger.level and old_level != logging.NOTSET:
             logger.info(f"LOGGING: Logger level changed from {logging.getLevelName(old_level)} to {new_level} (debug_enabled: {debug_enabled})")
             
     except Exception as e:

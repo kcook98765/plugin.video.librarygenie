@@ -132,3 +132,18 @@ The builder includes a comprehensive `_normalize_item()` method that:
 
 
 To test the actual addon functionality, package and install it in a Kodi environment.
+
+Example structure:
+```
+lib/
+├── ui/           # UI layer - routing, handlers, builders
+├── data/         # Data layer - database, queries, migrations  
+├── kodi/         # Kodi-specific integration
+├── search/       # Search functionality
+├── import_export/ # Import/export engines
+├── library/      # Library scanning and indexing
+├── auth/         # Authentication and token management
+├── config/       # Configuration management
+├── remote/       # Remote service integration
+├── utils/        # Utility functions and helpers
+└── integrations/ # Third-party integrations

@@ -256,10 +256,6 @@ class LibraryScanner:
                         # Rich metadata will be fetched via JSON-RPC when needed
                         plot_data = movie.get("plot", "")
                         
-                        # Debug log to verify plot data
-                        if plot_data:
-                            self.logger.debug(f"Storing plot for '{movie['title']}': {len(plot_data)} characters")
-                        
                         conn.execute("""
                             INSERT INTO media_items 
                             (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, plot, source, created_at)

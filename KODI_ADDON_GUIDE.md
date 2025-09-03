@@ -53,23 +53,54 @@
 ## 6) Metadata & UX Quality
 - `addon.xml` must include: id, name, version, provider-name, summary, description, platform, license, and minimum xbmc.python import.
 - Provide **localization** for user-visible strings via `strings.po` files (at least English).
+- **Cache localized strings**: Use `@lru_cache` decorator for string lookups to improve performance in menus with many items.
+- **Color coding**: Use Kodi-style color codes for different action types (destructive, additive, modify).
+- **Context-aware menus**: Implement tools and options that adapt based on the current context.
 - Include **icon** and **fanart** that meet the size/format requirements and are your own or properly licensed.
 - Provide **clean UI/UX**: avoid modal spam, respect back/exit behaviors, and keep logs readable.
 - Follow **GUI guidelines**: set `IsPlayable` appropriately, use sort methods, and do not force skin-specific behaviors unless optional.
+- **Version compatibility**: Handle Kodi version differences gracefully (e.g., InfoTagVideo API changes between v19 and v20+).
 
 ---
 
 ## 7) Dependencies
 - Declare **all dependencies** in `addon.xml` under `<requires>`.
 - Prefer **script.module.* packages** provided by the Kodi repo. If a dependency is missing, consider **submitting it separately**.
+- **No bundled dependencies**: Avoid vendoring large libraries - use script.module packages instead.
 
 ---
 
-## 8) Performance & Resource Use
+## 8) File Structure & Organization
+- **Entry points**: `plugin.py` for main plugin functionality, `service.py` for background service.
+- **Modular architecture**: Organize code into logical modules (ui/, data/, kodi/, search/, etc.).
+- **Separation of concerns**: Keep UI logic, data access, and business logic in separate modules.
+- **Resource management**: Store language files, settings XML, and assets in `resources/` folder.
+
+Example structure:
+```
+lib/
+├── ui/           # UI layer - routing, handlers, builders
+├── data/         # Data layer - database, queries, migrations  
+├── kodi/         # Kodi-specific integration
+├── search/       # Search functionality
+├── import_export/ # Import/export engines
+├── library/      # Library scanning and indexing
+├── auth/         # Authentication and token management
+├── config/       # Configuration management
+└── utils/        # Shared utilities
+```
+
+---
+
+## 9) Performance & Resource Use
 - Use **incremental/batched** operations (e.g., JSON-RPC batching) and **deferred loading** for heavy metadata.
 - Keep memory footprint low; avoid caching megabyte-scale blobs in RAM when unnecessary.
 - Optimize SQLite via **parameterized queries, indexes, transactions, WAL**, and minimal schema migrations.
 - Avoid hot loops in the UI thread; throttle background services.
+- **Connection pooling**: Use singleton patterns for database connections and API clients.
+- **Chunked requests**: Limit JSON-RPC requests to reasonable page sizes (≤200 items).
+- **Delta scanning**: Implement incremental library updates to avoid full rescans.
+- **Background services**: Respect playback state - never perform heavy operations during video playback.
 
 ---
 
@@ -93,7 +124,7 @@
 
 ---
 
-## 11) Checklist Before PR
+## 12) Checklist Before PR
 - [ ] `addon.xml` complete, valid, and minimal Python version declared.  
 - [ ] License file included; third-party licenses accounted for.  
 - [ ] Icons/fanart meet size and licensing requirements.  
@@ -106,6 +137,12 @@
 - [ ] Tested on Kodi 19+ with small and large libraries.
 - [ ] Background service respects playback state and includes rate limiting.
 - [ ] Sync operations use idempotency keys and handle partial failures gracefully.
-- [ ] State persistence works correctly across addon restarts and crashes.  
+- [ ] State persistence works correctly across addon restarts and crashes.
+- [ ] Modular architecture with proper separation of concerns.
+- [ ] Router-based action handling for maintainable URL routing.
+- [ ] Favorites integration tested with various XML formats and edge cases.
+- [ ] Info hijack functionality (if enabled) tested across Kodi versions.
+- [ ] ListItem builder handles both library and external items correctly.
+- [ ] Authentication flow tested with proper token refresh handling.
 
 ---

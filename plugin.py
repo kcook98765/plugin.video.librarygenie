@@ -3,115 +3,30 @@
 
 """
 LibraryGenie - Plugin Entry Point
-Handles plugin URL routing and main menu display
+Handles plugin URL routing using new modular architecture
 """
 
 import sys
-import urllib.parse
-from urllib.parse import parse_qsl
-try:
-    from typing import Dict, Any
-except ImportError:
-    # Python < 3.5 fallback
-    Dict = dict
-    Any = object
 
 import xbmcaddon
-import xbmcplugin
 import xbmcgui
-import xbmc # Added for xbmc.executebuiltin
+import xbmc
+import xbmcplugin
 
-# Import our addon modules
-from lib.addon import AddonController
+# Import new modular components
+from lib.ui.plugin_context import PluginContext
+from lib.ui.router import Router
+from lib.ui.main_menu_handler import MainMenuHandler
+from lib.ui.search_handler import SearchHandler
+from lib.ui.lists_handler import ListsHandler
+from lib.ui.favorites_handler import FavoritesHandler
 from lib.utils.logger import get_logger
-from lib.auth.auth_helper import get_auth_helper
-from lib.auth.state import is_authorized
 
-# Import query manager for list operations
-from lib.data.query_manager import get_query_manager # Assuming this path is correct
+# Import required functions
+from lib.auth.auth_helper import get_auth_helper
 
 # Get logger instance
 logger = get_logger(__name__)
-
-# Placeholder for global arguments if needed by multiple functions
-args = {}
-base_url = ""
-
-
-def show_main_menu(handle):
-    """Show main menu with auth-aware options"""
-    addon = xbmcaddon.Addon()
-
-    # Search (always visible)
-    search_item = xbmcgui.ListItem(label=addon.getLocalizedString(35014))  # "Search"
-    search_url = f"{sys.argv[0]}?action=search"
-    xbmcplugin.addDirectoryItem(handle, search_url, search_item, True)
-
-    # Lists (always visible)
-    lists_item = xbmcgui.ListItem(label=addon.getLocalizedString(35016))  # "Lists"
-    lists_url = f"{sys.argv[0]}?action=lists"
-    xbmcplugin.addDirectoryItem(handle, lists_url, lists_item, True)
-
-    # Auth-dependent menu items
-    if is_authorized():
-        # Sign out (visible only when authorized)
-        signout_item = xbmcgui.ListItem(label=addon.getLocalizedString(35027))  # "Sign out"
-        signout_url = f"{sys.argv[0]}?action=signout"
-        xbmcplugin.addDirectoryItem(handle, signout_url, signout_item, False)
-
-        # Remote features (when authorized)
-        remote_lists_item = xbmcgui.ListItem(label=addon.getLocalizedString(35017))  # "Remote Lists"
-        remote_lists_url = f"{sys.argv[0]}?action=remote_lists"
-        xbmcplugin.addDirectoryItem(handle, remote_lists_url, remote_lists_item, True)
-    else:
-        # Authorize device (visible only when not authorized)
-        auth_item = xbmcgui.ListItem(label=addon.getLocalizedString(35028))  # "Authorize device"
-        auth_url = f"{sys.argv[0]}?action=authorize"
-        xbmcplugin.addDirectoryItem(handle, auth_url, auth_item, False)
-
-    xbmcplugin.endOfDirectory(handle)
-
-
-def show_search_menu(handle):
-    """Show search interface"""
-    try:
-        from lib.ui.search_handler import SearchHandler
-
-        search_handler = SearchHandler(handle)
-        search_handler.prompt_and_show()
-    except Exception as e:
-        logger = get_logger(__name__)
-        logger.error(f"Error importing or using SearchHandler: {e}")
-        addon = xbmcaddon.Addon()
-        xbmcgui.Dialog().notification(
-            addon.getLocalizedString(35002),
-            f"Search error: {str(e)}",
-            xbmcgui.NOTIFICATION_ERROR
-        )
-
-
-def show_remote_search_menu(handle):
-    """Show remote search interface"""
-    addon = xbmcaddon.Addon()
-    list_item = xbmcgui.ListItem(label=addon.getLocalizedString(35115))
-    xbmcplugin.addDirectoryItem(handle, "", list_item, False)
-    xbmcplugin.endOfDirectory(handle)
-
-
-def show_lists_menu(handle):
-    """Show lists management interface"""
-    addon = xbmcaddon.Addon()
-    list_item = xbmcgui.ListItem(label=addon.getLocalizedString(35116))
-    xbmcplugin.addDirectoryItem(handle, "", list_item, False)
-    xbmcplugin.endOfDirectory(handle)
-
-
-def show_remote_lists_menu(handle):
-    """Show remote lists interface"""
-    addon = xbmcaddon.Addon()
-    list_item = xbmcgui.ListItem(label=addon.getLocalizedString(35117))
-    xbmcplugin.addDirectoryItem(handle, "", list_item, False)
-    xbmcplugin.endOfDirectory(handle)
 
 
 def handle_authorize():
@@ -128,6 +43,7 @@ def handle_signout():
 
     # Confirm sign out
     if xbmcgui.Dialog().yesno(
+        addon.getLocalizedString(35002),  # "LibraryGenie"
         addon.getLocalizedString(35029),  # "Sign out"
         addon.getLocalizedString(35030)   # "Are you sure you want to sign out?"
     ):
@@ -162,6 +78,15 @@ def _check_and_trigger_initial_scan():
         if not scanner.is_library_indexed():
             logger.info("Library not indexed - triggering initial scan")
 
+            # Show notification that initial scan is starting
+            addon = xbmcaddon.Addon()
+            xbmcgui.Dialog().notification(
+                addon.getLocalizedString(35002),  # "LibraryGenie"
+                "Initial library scan starting...",
+                xbmcgui.NOTIFICATION_INFO,
+                5000
+            )
+
             # Run scan in background thread to avoid blocking UI
             import threading
 
@@ -170,10 +95,31 @@ def _check_and_trigger_initial_scan():
                     result = scanner.perform_full_scan()
                     if result.get("success"):
                         logger.info(f"Initial library scan completed: {result.get('items_added', 0)} movies indexed")
+                        # Show completion notification
+                        xbmcgui.Dialog().notification(
+                            addon.getLocalizedString(35002),  # "LibraryGenie"
+                            f"Initial scan complete: {result.get('items_added', 0)} movies indexed",
+                            xbmcgui.NOTIFICATION_INFO,
+                            5000
+                        )
                     else:
                         logger.warning(f"Initial library scan failed: {result.get('error', 'Unknown error')}")
+                        # Show error notification
+                        xbmcgui.Dialog().notification(
+                            addon.getLocalizedString(35002),  # "LibraryGenie"
+                            "Initial library scan failed",
+                            xbmcgui.NOTIFICATION_ERROR,
+                            5000
+                        )
                 except Exception as e:
                     logger.error(f"Initial library scan thread failed: {e}")
+                    # Show error notification
+                    xbmcgui.Dialog().notification(
+                        addon.getLocalizedString(35002),  # "LibraryGenie"
+                        "Initial library scan failed",
+                        xbmcgui.NOTIFICATION_ERROR,
+                        5000
+                    )
 
             scan_thread = threading.Thread(target=run_initial_scan)
             scan_thread.daemon = True  # Don't block Kodi shutdown
@@ -184,400 +130,78 @@ def _check_and_trigger_initial_scan():
         logger.error(f"Failed to check/trigger initial scan: {e}")
 
 
-def handle_lists(addon_handle, base_url):
-    """Handle lists menu - Phase 5 implementation"""
+def handle_on_select(params: dict, addon_handle: int):
+    """Handle library item selection - play or show info based on user preference"""
     try:
-        logger.info("Displaying lists menu")
+        from lib.config.config_manager import get_select_pref
+        import re
 
-        # Initialize query manager
-        query_manager = get_query_manager()
-        if not query_manager.initialize():
-            logger.error("Failed to initialize query manager")
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),
-                "Database error",
-                xbmcgui.NOTIFICATION_ERROR
-            )
-            return
+        logger.debug(f"=== ON_SELECT HANDLER CALLED ===")
+        logger.debug(f"Handling on_select with params: {params}")
+        logger.debug(f"Addon handle: {addon_handle}")
 
-        # Get all user lists and folders
-        user_lists = query_manager.get_all_lists_with_folders()
-        logger.info(f"Found {len(user_lists)} user lists")
+        dbtype = params.get("dbtype", "movie")
+        dbid = int(params.get("dbid", "0"))
+        tvshowid = params.get("tvshowid")
+        season = params.get("season")
+        tvshowid = int(tvshowid) if tvshowid and str(tvshowid).isdigit() else None
+        season = int(season) if season and str(season).isdigit() else None
 
-        # Debug: Check for Search History folder specifically
-        search_history_items = [item for item in user_lists if 'Search History' in str(item.get('name', ''))]
-        logger.info(f"Found {len(search_history_items)} Search History items: {search_history_items}")
-
-        if not user_lists:
-            # No lists exist, offer to create one
-            addon = xbmcaddon.Addon()
-            if xbmcgui.Dialog().yesno(
-                addon.getLocalizedString(35002),
-                "No lists found. Create your first list?"
-            ):
-                handle_create_list()
-            return
-
-        # Build menu items for lists
-        menu_items = []
-
-        # Add "Create New List" option at the top
-        menu_items.append({
-            "title": "[COLOR yellow]+ Create New List[/COLOR]",
-            "action": "create_list",
-            "description": "Create a new list",
-            "is_folder": False,
-            "icon": "DefaultAddSource.png"
-        })
-
-        # Add separator
-        menu_items.append({
-            "title": "─" * 30,
-            "action": "",
-            "description": "",
-            "is_folder": False
-        })
-
-        # Add each list/folder
-        for list_item in user_lists:
-            menu_items.append({
-                "title": f"{list_item['name']} ({list_item['item_count']} items)",
-                "action": "view_list",
-                "list_id": list_item['id'],
-                "description": f"Created: {list_item['created']}",
-                "is_folder": True,
-                "icon": "DefaultFolder.png",
-                "context_menu": [
-                    (f"Rename '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={list_item['id']})"),
-                    (f"Delete '{list_item['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_item['id']})")
-                ]
-            })
-
-        # Use menu builder to display
-        from lib.ui.menu_builder import MenuBuilder
-        menu_builder = MenuBuilder()
-        menu_builder.build_menu(menu_items, addon_handle, base_url)
-
-    except Exception as e:
-        logger.error(f"Error in handle_lists: {e}")
-        import traceback
-        logger.error(f"Lists error traceback: {traceback.format_exc()}")
-
-        addon = xbmcaddon.Addon()
-        xbmcgui.Dialog().notification(
-            addon.getLocalizedString(35002),
-            "Lists error",
-            xbmcgui.NOTIFICATION_ERROR
-        )
-
-
-def handle_create_list():
-    """Handle creating a new list"""
-    try:
-        logger.info("Handling create list request")
-
-        # Get list name from user
-        addon = xbmcaddon.Addon()
-        list_name = xbmcgui.Dialog().input(
-            "Enter list name:",
-            type=xbmcgui.INPUT_ALPHANUM
-        )
-
-        if not list_name or not list_name.strip():
-            logger.info("User cancelled list creation or entered empty name")
-            return
-
-        # Initialize query manager and create list
-        query_manager = get_query_manager()
-        if not query_manager.initialize():
-            logger.error("Failed to initialize query manager")
-            return
-
-        result = query_manager.create_list(list_name.strip())
-
-        if result.get("error"):
-            if result["error"] == "duplicate_name":
-                xbmcgui.Dialog().ok(
-                    addon.getLocalizedString(35002),
-                    f"List '{list_name}' already exists"
-                )
+        # Build videodb:// path for Kodi library items
+        if dbtype == "movie":
+            vdb = f'videodb://movies/titles/{dbid}'
+        elif dbtype == "episode":
+            if isinstance(tvshowid, int) and isinstance(season, int):
+                vdb = f'videodb://tvshows/titles/{tvshowid}/{season}/{dbid}'
             else:
-                xbmcgui.Dialog().ok(
-                    addon.getLocalizedString(35002),
-                    "Failed to create list"
-                )
+                vdb = f'videodb://episodes/{dbid}'
         else:
-            logger.info(f"Successfully created list: {list_name}")
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),
-                f"Created list: {list_name}",
-                xbmcgui.NOTIFICATION_INFO,
-                3000
-            )
-            # Refresh the lists view
-            xbmc.executebuiltin('Container.Refresh')
+            vdb = ""
+        pref = get_select_pref()  # 'play' or 'info'
 
-    except Exception as e:
-        logger.error(f"Error creating list: {e}")
-        import traceback
-        logger.error(f"Create list error traceback: {traceback.format_exc()}")
+        # Parse major Kodi version (19, 20, 21, ...)
+        ver_str = xbmc.getInfoLabel('System.BuildVersion')
+        try:
+            kodi_major = int(re.split(r'[^0-9]', ver_str, 1)[0])
+        except Exception:
+            kodi_major = 0
 
+        logger.debug(f"on_select: dbtype={dbtype}, dbid={dbid}, videodb_path={vdb}, preference={pref}, kodi_major={kodi_major}")
 
-def handle_view_list(addon_handle, base_url):
-    """Handle viewing a specific list"""
-    try:
-        # Parse plugin arguments from sys.argv
-        # sys.argv[0] is the plugin path
-        # sys.argv[1] is the addon handle (integer)
-        # sys.argv[2] is the query string, starting with '?'
-        if len(sys.argv) < 3 or not sys.argv[2].startswith('?'):
-            logger.error("Invalid arguments received for handle_view_list")
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),
-                "Invalid arguments",
-                xbmcgui.NOTIFICATION_ERROR
-            )
-            return
-
-        query_string = sys.argv[2][1:]  # Remove leading '?'
-        params = dict(parse_qsl(query_string)) # Use parse_qsl for parsing
-
-        list_id = params.get('list_id')
-        if not list_id:
-            logger.error("No list_id provided for view_list")
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),
-                "Invalid list ID",
-                xbmcgui.NOTIFICATION_ERROR
-            )
-            return
-
-        logger.info(f"Viewing list {list_id}")
-
-        # Initialize query manager
-        query_manager = get_query_manager()
-        if not query_manager.initialize():
-            logger.error("Failed to initialize query manager")
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),
-                "Database error",
-                xbmcgui.NOTIFICATION_ERROR
-            )
-            return
-
-        # Get list info
-        list_info = query_manager.get_list_by_id(list_id)
-        if not list_info:
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().ok(
-                addon.getLocalizedString(35002),
-                "List not found"
-            )
-            return
-
-        # Get list items (already normalized by get_list_items)
-        list_items = query_manager.get_list_items(list_id)
-        logger.info(f"Found {len(list_items)} items in list")
-
-        if not list_items:
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().ok(
-                addon.getLocalizedString(35002),
-                f"List '{list_info['name']}' is empty"
-            )
-            # Ensure directory is ended if list is empty
-            xbmcplugin.endOfDirectory(addon_handle)
-            return
-
-        # Items are already canonical from get_list_items normalization
-        # No additional normalization needed here
-
-        # Use ListItemRenderer for rich display
-        from lib.ui.listitem_renderer import get_listitem_renderer
-        renderer = get_listitem_renderer()
-
-        # Set category for better navigation
-        xbmcplugin.setPluginCategory(addon_handle, f"List: {list_info['name']}")
-
-        # Add each item using renderer
-        for item in list_items:
-            # Create rich ListItem using renderer
-            list_item = renderer.create_movie_listitem(item, base_url, "play_item")
-
-            # Skip if renderer failed to create ListItem
-            if not list_item:
-                logger.warning(f"Skipping item '{item.get('title', 'Unknown')}' - failed to create ListItem")
-                continue
-
-            # Build URL for this item
-            url = f"{base_url}?action=play_item&item_id={item.get('id')}&list_id={list_id}"
-
-            # Add context menu for removal
-            context_menu = [
-                (f"Remove from '{list_info['name']}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={list_id}&item_id={item.get('id')})")
-            ]
-            list_item.addContextMenuItems(context_menu)
-
-            # Set playable if we have a file path
-            is_playable = bool(item.get('file_path') or item.get('kodi_id'))
-            list_item.setProperty('IsPlayable', 'true' if is_playable else 'false')
-
-            # Add to directory
-            xbmcplugin.addDirectoryItem(
-                addon_handle,
-                url,
-                list_item,
-                isFolder=False
-            )
-
-        # Finish the directory
-        xbmcplugin.endOfDirectory(addon_handle)
-
-    except Exception as e:
-        logger.error(f"Error viewing list: {e}")
-        import traceback
-        logger.error(f"View list error traceback: {traceback.format_exc()}")
-
-        addon = xbmcaddon.Addon()
-        xbmcgui.Dialog().notification(
-            addon.getLocalizedString(35002),
-            "Lists error",
-            xbmcgui.NOTIFICATION_ERROR
-        )
-
-
-def handle_rename_list():
-    """Handle renaming a list"""
-    try:
-        list_id = args.get('list_id')
-        if not list_id:
-            logger.error("No list_id provided for rename_list")
-            return
-
-        logger.info(f"Renaming list {list_id}")
-
-        # Initialize query manager
-        query_manager = get_query_manager()
-        if not query_manager.initialize():
-            logger.error("Failed to initialize query manager")
-            return
-
-        # Get current list info
-        list_info = query_manager.get_list_by_id(list_id)
-        if not list_info:
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().ok(
-                addon.getLocalizedString(35002),
-                "List not found"
-            )
-            return
-
-        # Get new name from user
-        addon = xbmcaddon.Addon()
-        new_name = xbmcgui.Dialog().input(
-            "Enter new list name:",
-            defaultt=list_info['name'],
-            type=xbmcgui.INPUT_ALPHANUM
-        )
-
-        if not new_name or not new_name.strip():
-            logger.info("User cancelled rename or entered empty name")
-            return
-
-        # Rename the list
-        result = query_manager.rename_list(list_id, new_name.strip())
-
-        if result.get("error"):
-            if result["error"] == "duplicate_name":
-                xbmcgui.Dialog().ok(
-                    addon.getLocalizedString(35002),
-                    f"List '{new_name}' already exists"
-                )
+        if pref == "play":
+            logger.info(f"Playing media: {vdb}")
+            xbmc.executebuiltin(f'PlayMedia("{vdb}")')
+        else:
+            if kodi_major <= 19:
+                logger.info("Opening DialogVideoInfo for videodb item (Matrix)")
+                xbmc.executebuiltin(f'ActivateWindow(DialogVideoInfo,"{vdb}",return)')
             else:
-                xbmcgui.Dialog().ok(
-                    addon.getLocalizedString(35002),
-                    "Failed to rename list"
-                )
-        else:
-            logger.info(f"Successfully renamed list to: {new_name}")
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),
-                f"Renamed to: {new_name}",
-                xbmcgui.NOTIFICATION_INFO,
-                3000
-            )
-            # Refresh the lists view
-            xbmc.executebuiltin('Container.Refresh')
+                logger.debug("Opening info dialog for focused item (Nexus+)")
+                xbmc.executebuiltin('Action(Info)')
+                # Optionally force DB context on v20+:
+                # xbmc.executebuiltin(f'ActivateWindow(VideoInformation,"{vdb}",return)')
+
+        # Don’t render a directory for this action
+        try:
+            xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
+        except Exception:
+            pass
 
     except Exception as e:
-        logger.error(f"Error renaming list: {e}")
+        logger.error(f"Error in handle_on_select: {e}")
         import traceback
-        logger.error(f"Rename list error traceback: {traceback.format_exc()}")
+        logger.error(f"on_select error traceback: {traceback.format_exc()}")
+        try:
+            xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
+        except Exception:
+            pass
 
 
-def handle_delete_list():
-    """Handle deleting a list"""
-    try:
-        list_id = args.get('list_id')
-        if not list_id:
-            logger.error("No list_id provided for delete_list")
-            return
+# Legacy handle_lists and handle_kodi_favorites functions removed
+# Functionality moved to ListsHandler class
 
-        logger.info(f"Deleting list {list_id}")
 
-        # Initialize query manager
-        query_manager = get_query_manager()
-        if not query_manager.initialize():
-            logger.error("Failed to initialize query manager")
-            return
-
-        # Get current list info
-        list_info = query_manager.get_list_by_id(list_id)
-        if not list_info:
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().ok(
-                addon.getLocalizedString(35002),
-                "List not found"
-            )
-            return
-
-        # Confirm deletion
-        addon = xbmcaddon.Addon()
-        if not xbmcgui.Dialog().yesno(
-            addon.getLocalizedString(35002),
-            f"Delete list '{list_info['name']}'?",
-            f"This will remove {list_info['item_count']} items from the list."
-        ):
-            logger.info("User cancelled list deletion")
-            return
-
-        # Delete the list
-        result = query_manager.delete_list(list_id)
-
-        if result.get("error"):
-            xbmcgui.Dialog().ok(
-                addon.getLocalizedString(35002),
-                "Failed to delete list"
-            )
-        else:
-            logger.info(f"Successfully deleted list: {list_info['name']}")
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),
-                f"Deleted list: {list_info['name']}",
-                xbmcgui.NOTIFICATION_INFO,
-                3000
-            )
-            # Refresh the lists view
-            xbmc.executebuiltin('Container.Refresh')
-
-    except Exception as e:
-        logger.error(f"Error deleting list: {e}")
-        import traceback
-        logger.error(f"Delete list error traceback: {traceback.format_exc()}")
+# Legacy favorites handlers removed - functionality moved to FavoritesHandler class
 
 
 def handle_settings():
@@ -586,55 +210,112 @@ def handle_settings():
     xbmcaddon.Addon().openSettings()
 
 
-def main():
-    """Main plugin entry point"""
-    logger.debug(f"Plugin arguments: {sys.argv}")
+def handle_shortlist_import():
+    """Handle ShortList import action from settings"""
+    import xbmcgui
+    from lib.import_export.shortlist_importer import get_shortlist_importer
 
     try:
-        # Parse plugin arguments
-        addon_handle = int(sys.argv[1]) if len(sys.argv) > 1 else -1
-        base_url = sys.argv[0] if len(sys.argv) > 0 else ""
-        query_string = sys.argv[2][1:] if len(sys.argv) > 2 and len(sys.argv[2]) > 1 else ""
+        # Show confirmation dialog
+        dialog = xbmcgui.Dialog()
+        if not dialog.yesno(
+            "ShortList Import",
+            "This will import all items from ShortList addon into a 'ShortList Import' list.",
+            "Only items that match movies in your Kodi library will be imported.",
+            "Continue?"
+        ):
+            return
 
-        # Parse query parameters
-        params = dict(parse_qsl(query_string))
-        global args
-        args = params # Set global args for use in handler functions
+        # Show progress dialog
+        progress = xbmcgui.DialogProgress()
+        progress.create("ShortList Import", "Checking ShortList addon...")
+        progress.update(10)
 
-        logger.debug(
-            f"Plugin called with handle={addon_handle}, url={base_url}, params={params}"
+        importer = get_shortlist_importer()
+
+        # Check if ShortList is available
+        if not importer.is_shortlist_installed():
+            progress.close()
+            dialog.notification(
+                "LibraryGenie",
+                "ShortList addon not found or not enabled",
+                xbmcgui.NOTIFICATION_WARNING,
+                5000
+            )
+            return
+
+        progress.update(30, "Scanning ShortList data...")
+
+        # Perform the import
+        result = importer.import_shortlist_items()
+
+        progress.update(100, "Import complete!")
+        progress.close()
+
+        if result.get("success"):
+            message = (
+                f"Import completed!\n"
+                f"Processed: {result.get('total_items', 0)} items\n"
+                f"Added to list: {result.get('items_added', 0)} movies\n"
+                f"Unmapped: {result.get('items_unmapped', 0)} items"
+            )
+            dialog.ok("ShortList Import", message)
+        else:
+            error_msg = result.get("error", "Unknown error occurred")
+            dialog.ok("ShortList Import", f"Import failed: {error_msg}")
+
+    except Exception as e:
+        logger.error(f"ShortList import handler error: {e}")
+        xbmcgui.Dialog().notification(
+            "LibraryGenie",
+            "Import failed with error",
+            xbmcgui.NOTIFICATION_ERROR,
+            5000
         )
+
+
+def handle_noop():
+    """No-op handler that safely ends the directory without args mismatches"""
+    try:
+        addon_handle = int(sys.argv[1]) if len(sys.argv) > 1 else -1
+        if addon_handle >= 0:
+            xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
+    except Exception:
+        pass
+
+
+def main():
+    """Main plugin entry point using new modular architecture"""
+
+    logger.debug(f"=== PLUGIN INVOCATION (REFACTORED) ===")
+    logger.debug(f"Full sys.argv: {sys.argv}")
+    logger.debug(f"Using modular handler architecture")
+
+    try:
+        # Create plugin context from request
+        context = PluginContext()
+
+        # Log window state for debugging
+        _log_window_state(context)
 
         # Check if this is first run and trigger library scan if needed
         _check_and_trigger_initial_scan()
 
-        # Route based on action parameter
-        action = params.get('action', '')
+        # Create router and register handlers
+        router = Router()
+        _register_all_handlers(router)
 
-        if action == 'search':
-            show_search_menu(addon_handle)
-        elif action == 'lists':
-            handle_lists(addon_handle, base_url)
-        elif action == 'create_list':
-            handle_create_list()
-        elif action == 'view_list':
-            handle_view_list(addon_handle, base_url)
-        elif action == 'rename_list':
-            handle_rename_list()
-        elif action == 'delete_list':
-            handle_delete_list()
-        elif action == 'remote_lists':
-            show_remote_lists_menu(addon_handle)
-        elif action == 'authorize':
-            handle_authorize()
-        elif action == 'signout':
-            handle_signout()
-        else:
-            # Show main menu by default
-            show_main_menu(addon_handle)
+        # Try to dispatch the request
+        if not router.dispatch(context):
+            # No handler found, show main menu
+            main_menu_handler = MainMenuHandler()
+            main_menu_handler.show_main_menu(context)
 
     except Exception as e:
         logger.error(f"Fatal error in plugin main: {e}")
+        import traceback
+        logger.error(f"Main error traceback: {traceback.format_exc()}")
+
         # Try to show error to user if possible
         try:
             addon = xbmcaddon.Addon()
@@ -647,5 +328,95 @@ def main():
             pass
 
 
-if __name__ == "__main__":
+def _log_window_state(context: PluginContext):
+    """Log window state for debugging"""
+    try:
+        current_window = xbmc.getInfoLabel("System.CurrentWindow")
+        current_control = xbmc.getInfoLabel("System.CurrentControl")
+        container_path = xbmc.getInfoLabel("Container.FolderPath")
+        container_label = xbmc.getInfoLabel("Container.FolderName")
+
+        context.logger.debug(f"Window state at plugin entry:")
+        context.logger.debug(f"  Current window: {current_window}")
+        context.logger.debug(f"  Current control: {current_control}")
+        context.logger.debug(f"  Container path: {container_path}")
+        context.logger.debug(f"  Container label: {container_label}")
+
+        # Check specific window visibility states
+        myvideo_nav_visible = xbmc.getCondVisibility("Window.IsVisible(MyVideoNav.xml)")
+        dialog_video_info_visible = xbmc.getCondVisibility("Window.IsVisible(DialogVideoInfo.xml)")
+        dialog_video_info_active = xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)")
+        keyboard_visible = xbmc.getCondVisibility("Window.IsVisible(DialogKeyboard.xml)")
+
+        context.logger.debug(f"  MyVideoNav.xml visible: {myvideo_nav_visible}")
+        context.logger.debug(f"  DialogVideoInfo.xml visible: {dialog_video_info_visible}")
+        context.logger.debug(f"  DialogVideoInfo.xml active: {dialog_video_info_active}")
+        context.logger.debug(f"  DialogKeyboard.xml visible: {keyboard_visible}")
+
+    except Exception as e:
+        context.logger.warning(f"Failed to log window state at plugin entry: {e}")
+
+
+def _register_all_handlers(router: Router):
+    """Register all action handlers with the router"""
+
+    # Create handler instances
+    main_menu_handler = MainMenuHandler()
+    search_handler = SearchHandler()
+    lists_handler = ListsHandler()
+    favorites_handler = FavoritesHandler()
+
+    # Register new modular handlers
+    router.register_handler('search', search_handler.prompt_and_search)
+    router.register_handler('lists', lists_handler.show_lists_menu)
+    router.register_handler('kodi_favorites', favorites_handler.show_favorites_menu)
+    
+    # Register ListsHandler methods that expect specific parameters
+    router.register_handler('create_list_execute', lambda ctx: _handle_dialog_response(ctx, lists_handler.create_list(ctx)))
+    router.register_handler('create_folder_execute', lambda ctx: _handle_dialog_response(ctx, lists_handler.create_folder(ctx)))
+    
+    # Register list and folder view handlers
+    router.register_handler('show_list', lambda ctx: lists_handler.view_list(ctx, ctx.get_param('list_id')))
+    router.register_handler('show_folder', lambda ctx: lists_handler.show_folder(ctx, ctx.get_param('folder_id')))
+    
+    # Register parameter-based handlers
+    router.register_handler('delete_list', lambda ctx: _handle_dialog_response(ctx, lists_handler.delete_list(ctx, ctx.get_param('list_id'))))
+    router.register_handler('rename_list', lambda ctx: _handle_dialog_response(ctx, lists_handler.rename_list(ctx, ctx.get_param('list_id'))))
+    router.register_handler('remove_from_list', lambda ctx: _handle_dialog_response(ctx, lists_handler.remove_from_list(ctx, ctx.get_param('list_id'), ctx.get_param('item_id'))))
+    
+    router.register_handler('rename_folder', lambda ctx: _handle_dialog_response(ctx, lists_handler.rename_folder(ctx, ctx.get_param('folder_id'))))
+    router.register_handler('delete_folder', lambda ctx: _handle_dialog_response(ctx, lists_handler.delete_folder(ctx, ctx.get_param('folder_id'))))
+
+    # Register FavoritesHandler methods
+    router.register_handler('scan_favorites_execute', lambda ctx: _handle_dialog_response(ctx, favorites_handler.scan_favorites(ctx)))
+    router.register_handler('add_favorite_to_list', lambda ctx: _handle_dialog_response(ctx, favorites_handler.add_favorite_to_list(ctx, ctx.get_param('imdb_id'))))
+
+    # Register remaining handlers
+    router.register_handlers({
+        'authorize': lambda ctx: handle_authorize(),
+        'signout': lambda ctx: handle_signout(),
+        'on_select': lambda ctx: handle_on_select(ctx.params, ctx.addon_handle),
+        'import_shortlist': lambda ctx: handle_shortlist_import(),
+        'noop': lambda ctx: handle_noop(),
+        'settings': lambda ctx: handle_settings(),
+    })
+
+
+def _handle_dialog_response(context: PluginContext, response):
+    """Handle DialogResponse objects from handler methods"""
+    from lib.ui.response_types import DialogResponse
+    
+    if isinstance(response, DialogResponse):
+        # Show notification if there's a message
+        response.show_notification(context.addon)
+        
+        # Refresh if needed
+        if response.refresh_needed:
+            import xbmc
+            xbmc.executebuiltin('Container.Refresh')
+    
+    return response
+
+
+if __name__ == '__main__':
     main()

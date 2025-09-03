@@ -6,8 +6,7 @@ LibraryGenie - Authentication State Management
 Handles token storage and authorization status
 """
 
-from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 
 import json
 import os

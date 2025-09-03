@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 """
-LibraryGenie - Complete Database Schema Setup
-Creates the full database schema without incremental migrations
+LibraryGenie - Database Schema Setup
+Creates the complete database schema on first run
 """
 
 from .connection_manager import get_connection_manager
@@ -20,39 +20,26 @@ class MigrationManager:
     def ensure_initialized(self):
         """Ensure database is initialized with complete schema"""
         try:
-            current_version = self._get_schema_version()
-            self.logger.debug(f"Current schema version: {current_version}")
-
-            if current_version == 0:
+            if self._is_database_empty():
                 self.logger.info("Initializing complete database schema")
                 self._create_complete_schema()
-                self._set_schema_version(8)
-                self.logger.info("Database initialized with complete schema")
+                self.logger.info("Database initialized successfully")
             else:
-                self.logger.info(f"Database already initialized at version {current_version}")
+                self.logger.debug("Database already initialized")
 
         except Exception as e:
             self.logger.error(f"Database initialization failed: {e}")
             raise
 
-    def _get_schema_version(self):
-        """Get current schema version"""
+    def _is_database_empty(self):
+        """Check if database is empty (no tables exist)"""
         try:
             result = self.conn_manager.execute_single(
-                "SELECT version FROM schema_version ORDER BY version DESC LIMIT 1"
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
             )
-            return result['version'] if result else 0
+            return result is None
         except Exception:
-            # Schema version table doesn't exist yet
-            return 0
-
-    def _set_schema_version(self, version):
-        """Record schema version"""
-        with self.conn_manager.transaction() as conn:
-            conn.execute(
-                "INSERT INTO schema_version (version, applied_at) VALUES (?, datetime('now'))",
-                [version]
-            )
+            return True
 
     def _create_complete_schema(self):
         """Create complete database schema matching DATABASE_SCHEMA.md"""
@@ -64,6 +51,12 @@ class MigrationManager:
                     applied_at TEXT NOT NULL
                 )
             """)
+
+            # Set current schema version
+            conn.execute(
+                "INSERT INTO schema_version (version, applied_at) VALUES (?, datetime('now'))",
+                [1]
+            )
 
             # Folders table (must come before lists)
             conn.execute("""
@@ -81,7 +74,7 @@ class MigrationManager:
                 ON folders (name, parent_id)
             """)
 
-            # Lists table
+            # Lists table - unified structure for all lists
             conn.execute("""
                 CREATE TABLE lists (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -97,7 +90,7 @@ class MigrationManager:
                 ON lists (name, folder_id)
             """)
 
-            # Media items table - core metadata
+            # Media items table - core metadata for all media types
             conn.execute("""
                 CREATE TABLE media_items (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -123,7 +116,11 @@ class MigrationManager:
                     writer TEXT,
                     cast TEXT,
                     art TEXT,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                    file_path TEXT,
+                    normalized_path TEXT,
+                    is_removed INTEGER DEFAULT 0,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
                 )
             """)
 
@@ -248,81 +245,6 @@ class MigrationManager:
                 ON pending_operations (operation, created_at)
             """)
 
-            # Legacy compatibility tables for existing functionality
-
-            # User list table (legacy compatibility)
-            conn.execute("""
-                CREATE TABLE user_list (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL COLLATE NOCASE,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-                )
-            """)
-
-            conn.execute("""
-                CREATE UNIQUE INDEX idx_user_list_name_unique 
-                ON user_list (name COLLATE NOCASE)
-            """)
-
-            # Library movie table (legacy compatibility)
-            conn.execute("""
-                CREATE TABLE library_movie (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    kodi_id INTEGER NOT NULL UNIQUE,
-                    title TEXT NOT NULL,
-                    year INTEGER,
-                    imdb_id TEXT,
-                    tmdb_id TEXT,
-                    file_path TEXT NOT NULL,
-                    normalized_path TEXT DEFAULT '',
-                    normalized_title TEXT,
-                    date_added TEXT,
-                    last_seen TEXT NOT NULL DEFAULT (datetime('now')),
-                    is_removed BOOLEAN NOT NULL DEFAULT 0,
-                    poster TEXT DEFAULT '',
-                    fanart TEXT DEFAULT '',
-                    thumb TEXT DEFAULT '',
-                    plot TEXT DEFAULT '',
-                    plotoutline TEXT DEFAULT '',
-                    runtime INTEGER DEFAULT 0,
-                    rating REAL DEFAULT 0.0,
-                    genre TEXT DEFAULT '',
-                    mpaa TEXT DEFAULT '',
-                    director TEXT DEFAULT '',
-                    country TEXT DEFAULT '[]',
-                    studio TEXT DEFAULT '[]',
-                    playcount INTEGER DEFAULT 0,
-                    resume_time INTEGER DEFAULT 0,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-                )
-            """)
-
-            # Library movie indexes
-            conn.execute("CREATE INDEX idx_library_movie_kodi_id ON library_movie (kodi_id)")
-            conn.execute("CREATE INDEX idx_library_movie_imdb_id ON library_movie (imdb_id) WHERE imdb_id IS NOT NULL")
-            conn.execute("CREATE INDEX idx_library_movie_title_search ON library_movie (title COLLATE NOCASE) WHERE is_removed = 0")
-            conn.execute("CREATE INDEX idx_library_movie_year_search ON library_movie (year) WHERE is_removed = 0 AND year IS NOT NULL")
-
-            # List item table (legacy compatibility)
-            conn.execute("""
-                CREATE TABLE list_item (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    list_id INTEGER NOT NULL,
-                    title TEXT NOT NULL,
-                    year INTEGER,
-                    imdb_id TEXT,
-                    tmdb_id TEXT,
-                    library_movie_id INTEGER,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    FOREIGN KEY (list_id) REFERENCES user_list (id) ON DELETE CASCADE,
-                    FOREIGN KEY (library_movie_id) REFERENCES library_movie(id) ON DELETE SET NULL
-                )
-            """)
-
-            conn.execute("CREATE INDEX idx_list_item_list_id ON list_item (list_id)")
-            conn.execute("CREATE UNIQUE INDEX idx_list_item_unique_external ON list_item (list_id, imdb_id) WHERE imdb_id IS NOT NULL")
-
             # Search and UI preferences tables
             conn.execute("""
                 CREATE TABLE search_history (
@@ -394,14 +316,60 @@ class MigrationManager:
 
             conn.execute("CREATE INDEX idx_library_scan_log_type_time ON library_scan_log (scan_type, start_time)")
 
-            # Create a default list in both tables for compatibility
+            # Create reserved Search History folder
             conn.execute("""
-                INSERT INTO user_list (name) VALUES ('My Movies')
+                INSERT INTO folders (name, parent_id)
+                VALUES ('Search History', NULL)
+            """)
+
+            # Kodi favorites tables
+            conn.execute("""
+                CREATE TABLE kodi_favorite (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    normalized_path TEXT,
+                    original_path TEXT,
+                    favorite_type TEXT,
+                    target_raw TEXT NOT NULL,
+                    target_classification TEXT NOT NULL,
+                    normalized_key TEXT NOT NULL UNIQUE,
+                    library_movie_id INTEGER,
+                    is_mapped INTEGER DEFAULT 0,
+                    is_missing INTEGER DEFAULT 0,
+                    present INTEGER DEFAULT 1,
+                    thumb_ref TEXT,
+                    first_seen TEXT NOT NULL DEFAULT (datetime('now')),
+                    last_seen TEXT NOT NULL DEFAULT (datetime('now')),
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    FOREIGN KEY (library_movie_id) REFERENCES media_items (id)
+                )
             """)
 
             conn.execute("""
-                INSERT INTO lists (name) VALUES ('My Movies')
+                CREATE TABLE favorites_scan_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    scan_type TEXT NOT NULL,
+                    file_path TEXT NOT NULL,
+                    file_modified TEXT,
+                    items_found INTEGER DEFAULT 0,
+                    items_mapped INTEGER DEFAULT 0,
+                    items_added INTEGER DEFAULT 0,
+                    items_updated INTEGER DEFAULT 0,
+                    scan_duration_ms INTEGER DEFAULT 0,
+                    success INTEGER DEFAULT 1,
+                    error_message TEXT,
+                    created_at TEXT DEFAULT (datetime('now'))
+                )
             """)
+
+            # Favorites indexes
+            conn.execute("CREATE INDEX idx_kodi_favorite_normalized_key ON kodi_favorite(normalized_key)")
+            conn.execute("CREATE INDEX idx_kodi_favorite_library_movie_id ON kodi_favorite(library_movie_id)")
+            conn.execute("CREATE INDEX idx_kodi_favorite_is_mapped ON kodi_favorite(is_mapped)")
+            conn.execute("CREATE INDEX idx_kodi_favorite_present ON kodi_favorite(present)")
+            conn.execute("CREATE INDEX idx_favorites_scan_log_file_path ON favorites_scan_log(file_path)")
+            conn.execute("CREATE INDEX idx_favorites_scan_log_created_at ON favorites_scan_log(created_at)")
 
 
 # Global migration manager instance
