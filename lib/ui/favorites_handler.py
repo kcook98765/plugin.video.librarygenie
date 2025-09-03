@@ -327,8 +327,9 @@ class FavoritesHandler:
             all_folders = query_manager.get_all_folders()
 
             # Ask user if they want to place it in a folder
-            from typing import List, Union
-            folder_options: List[Union[str, xbmcgui.ListItem]] = ["[Root Level]"] + [str(f["name"]) for f in all_folders]
+            from typing import List, Union, cast
+            folder_names = ["[Root Level]"] + [str(f["name"]) for f in all_folders]
+            folder_options = cast(List[Union[str, xbmcgui.ListItem]], folder_names)
             selected_folder_index = dialog.select("Choose folder location:", folder_options)
 
             if selected_folder_index < 0:
