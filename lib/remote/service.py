@@ -9,7 +9,7 @@ Main service class for remote API integration
 from typing import Dict, Any, List, Optional, Tuple
 from ..utils.logger import get_logger
 from ..config.settings import get_phase12_remote_settings
-from .http_client import get_remote_client
+from .http_client import get_remote_client, RemoteHTTPClient
 from .mapper import RemoteMapper
 from .cache import RemoteCache
 
@@ -38,7 +38,7 @@ class RemoteService:
         settings = self.settings_getter()
         return bool(settings.get('remote_base_url')) and bool(settings.get('remote_api_key'))
 
-    def get_client(self) -> Optional:
+    def get_client(self) -> Optional[RemoteHTTPClient]:
         """Get configured HTTP client or None if not available"""
         if not self.is_configured():
             return None
