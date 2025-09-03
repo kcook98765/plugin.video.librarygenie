@@ -189,7 +189,7 @@ class BackupManager:
     def _cleanup_old_backups(self):
         """Clean up old backup files based on retention policy"""
         try:
-            retention_count = self.config.get("backup_retention_count", 5)
+            retention_count = int(self.config.get("backup_retention_count", 5))
 
             # Get all backup files
             backups = self.list_backups()

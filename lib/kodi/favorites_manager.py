@@ -8,7 +8,7 @@ Robust favorites integration with reliable mapping, idempotent updates, and batc
 
 import re
 from datetime import datetime
-from typing import List, Dict, Set, Any, Optional
+from typing import List, Dict, Any, Optional
 
 from ..data import get_connection_manager
 from ..utils.logger import get_logger
