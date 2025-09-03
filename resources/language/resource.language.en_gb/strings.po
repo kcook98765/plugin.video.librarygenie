@@ -1589,6 +1589,84 @@ msgctxt "#34505"
 msgid "Configuration validation failed"
 msgstr ""
 
+# Backup Settings Category and Labels
+msgctxt "#30500"
+msgid "Backup & Storage"
+msgstr ""
+
+msgctxt "#30510"
+msgid "Automatic Backups"
+msgstr ""
+
+msgctxt "#30511"
+msgid "Enable automatic backups"
+msgstr ""
+
+msgctxt "#30512"
+msgid "Backup interval"
+msgstr ""
+
+msgctxt "#30513"
+msgid "Number of backups to keep"
+msgstr ""
+
+msgctxt "#30520"
+msgid "Backup Content"
+msgstr ""
+
+msgctxt "#30521"
+msgid "Include Kodi favorites"
+msgstr ""
+
+msgctxt "#30522"
+msgid "Include library metadata"
+msgstr ""
+
+msgctxt "#30523"
+msgid "Include folder structure"
+msgstr ""
+
+msgctxt "#30530"
+msgid "Storage Settings"
+msgstr ""
+
+msgctxt "#30531"
+msgid "Backup storage type"
+msgstr ""
+
+msgctxt "#30532"
+msgid "Local backup folder"
+msgstr ""
+
+msgctxt "#30540"
+msgid "Backup Actions"
+msgstr ""
+
+msgctxt "#30541"
+msgid "Test backup configuration"
+msgstr ""
+
+msgctxt "#30542"
+msgid "Create manual backup"
+msgstr ""
+
+# Background Service Settings
+msgctxt "#30451"
+msgid "Background check interval (minutes)"
+msgstr ""
+
+msgctxt "#30452"
+msgid "How often to check for background tasks"
+msgstr ""
+
+msgctxt "#30453"
+msgid "Track library changes in background"
+msgstr ""
+
+msgctxt "#30454"
+msgid "Monitor library for new or removed movies"
+msgstr ""
+
 # Confirmation Dialogs
 msgctxt "#34600"
 msgid "Confirm Action"
