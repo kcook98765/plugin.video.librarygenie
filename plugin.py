@@ -455,7 +455,8 @@ def _register_all_handlers(router: Router):
     router.register_handler('delete_folder', lambda ctx: _handle_dialog_response(ctx, lists_handler.delete_folder(ctx, ctx.get_param('folder_id'))))
 
     # Register FavoritesHandler methods
-    router.register_handler('scan_favorites_execute', lambda ctx: _handle_dialog_response(ctx, favorites_handler.scan_favorites(ctx)))
+    router.register_handler('scan_favorites_execute', lambda ctx: favorites_handler.handle_scan_favorites(ctx))
+    router.register_handler('save_favorites_as', lambda ctx: favorites_handler.handle_save_favorites_as(ctx))
     router.register_handler('add_favorite_to_list', lambda ctx: _handle_dialog_response(ctx, favorites_handler.add_favorite_to_list(ctx, ctx.get_param('imdb_id'))))
 
     # Register remaining handlers

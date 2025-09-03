@@ -55,11 +55,11 @@ class Router:
         try:
             # Handle special cases first
             if action == "scan_favorites_execute":
-                # Assuming favorites_handler is initialized elsewhere or dynamically
                 if not self.favorites_handler:
                     from .favorites_handler import FavoritesHandler
                     self.favorites_handler = FavoritesHandler()
-                return self.favorites_handler.scan_favorites(context)
+                self.favorites_handler.handle_scan_favorites(context)
+                return True
 
             elif action == "show_favorites_tools":
                 if not self.favorites_handler:
@@ -71,7 +71,8 @@ class Router:
                 if not self.favorites_handler:
                     from .favorites_handler import FavoritesHandler
                     self.favorites_handler = FavoritesHandler()
-                return self.favorites_handler.save_favorites_as(context)
+                self.favorites_handler.handle_save_favorites_as(context)
+                return True
 
             elif action == "favorites":
                 # Handle main favorites menu
@@ -154,8 +155,8 @@ class Router:
                 success = lists_handler.add_to_list_context(context)
                 if success:
                     xbmcgui.Dialog().notification(
-                        "LibraryGenie", 
-                        "Added to list successfully", 
+                        "LibraryGenie",
+                        "Added to list successfully",
                         xbmcgui.NOTIFICATION_INFO,
                         3000
                     )
@@ -167,8 +168,8 @@ class Router:
                 success = lists_handler.quick_add_context(context)
                 if success:
                     xbmcgui.Dialog().notification(
-                        "LibraryGenie", 
-                        "Quick added to default list", 
+                        "LibraryGenie",
+                        "Quick added to default list",
                         xbmcgui.NOTIFICATION_INFO,
                         3000
                     )
@@ -191,7 +192,7 @@ class Router:
                 from .lists_handler import ListsHandler
                 lists_handler = ListsHandler()
                 result = lists_handler.set_default_list(context)
-                
+
                 # Show notification based on result
                 if result.success and result.message:
                     xbmcgui.Dialog().notification(
@@ -236,7 +237,7 @@ class Router:
 
             return False
 
-    
+
 
     def _handle_favorites(self, context: PluginContext) -> None:
         """Handle favorites menu action"""
@@ -338,5 +339,3 @@ class Router:
         except Exception as e:
             self.logger.error(f"Error in noop handler: {e}")
             xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
-
-    
