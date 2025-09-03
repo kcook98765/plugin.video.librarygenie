@@ -8,7 +8,7 @@ Enhanced search query parsing with robust year parsing and improved normalizatio
 
 from __future__ import annotations
 
-from typing import Dict, Any
+from typing import Dict, Any, Union, Tuple
 from .normalizer import get_text_normalizer
 from .year_parser import get_year_parser
 from ..utils.logger import get_logger
@@ -22,7 +22,7 @@ class SearchQuery:
         self.text = ""  # Normalized search text
         self.original_text = ""  # Original user input
         self.tokens = []  # Normalized search tokens
-        self.year_filter = None  # Exact year or (start, end) tuple
+        self.year_filter: Union[int, Tuple[int, int], None] = None  # Exact year or (start, end) tuple
         self.scope_type = "library"  # 'library' or 'list'
         self.scope_id = None  # list_id if scope_type = 'list'
         self.sort_method = "title_asc"  # 'title_asc', 'title_desc', 'year_desc', 'year_asc', 'added_desc'
