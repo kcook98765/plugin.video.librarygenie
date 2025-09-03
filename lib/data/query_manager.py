@@ -7,7 +7,7 @@ Real SQLite-based data layer for list and item management
 """
 
 import json
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional
 
 from .connection_manager import get_connection_manager
 from .migrations import get_migration_manager

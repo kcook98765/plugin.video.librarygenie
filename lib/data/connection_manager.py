@@ -10,7 +10,7 @@ import os
 import sqlite3
 import threading
 import atexit
-from typing import Any, List, Dict, Optional, Union, Callable
+from typing import Optional
 from contextlib import contextmanager
 
 from ..utils.logger import get_logger
@@ -149,8 +149,6 @@ class ConnectionManager:
         with self._lock:
             conn = self.get_connection()
             try:
-                operation_count = 0
-
                 class BatchedConnection:
                     def __init__(self, conn, batch_size, logger):
                         self.conn = conn
