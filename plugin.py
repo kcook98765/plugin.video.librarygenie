@@ -241,6 +241,42 @@ def _handle_test_backup(context: PluginContext):
         pass
 
 
+def _handle_manual_backup(context: PluginContext):
+    """Handle manual backup from settings"""
+    try:
+        logger.info("Running manual backup from settings")
+        
+        from lib.import_export import get_timestamp_backup_manager
+        backup_manager = get_timestamp_backup_manager()
+        
+        result = backup_manager.run_manual_backup()
+        
+        if result["success"]:
+            size_mb = round(result.get('file_size', 0) / 1024 / 1024, 2) if result.get('file_size') else 0
+            message = (
+                f"Manual backup completed successfully!\n\n"
+                f"Filename: {result.get('filename', 'Unknown')}\n"
+                f"Size: {size_mb} MB\n"
+                f"Items: {result.get('total_items', 0)}\n"
+                f"Location: {result.get('storage_location', 'Unknown')}"
+            )
+            xbmcgui.Dialog().ok("Manual Backup", message)
+        else:
+            error_msg = result.get("error", "Unknown error")
+            xbmcgui.Dialog().ok("Manual Backup Failed", f"Backup failed:\n{error_msg}")
+            
+    except Exception as e:
+        logger.error(f"Error in manual backup handler: {e}")
+        xbmcgui.Dialog().ok("Manual Backup Error", f"Backup error: {str(e)}")
+    
+    # Don't render directory for settings actions
+    try:
+        if context.addon_handle >= 0:
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+    except Exception:
+        pass
+
+
 def handle_shortlist_import():
     """Handle ShortList import action from settings"""
     import xbmcgui
@@ -429,6 +465,7 @@ def _register_all_handlers(router: Router):
         'on_select': lambda ctx: handle_on_select(ctx.params, ctx.addon_handle),
         'import_shortlist': lambda ctx: handle_shortlist_import(),
         'test_backup': lambda ctx: _handle_test_backup(ctx),
+        'manual_backup': lambda ctx: _handle_manual_backup(ctx),
         'noop': lambda ctx: handle_noop(),
         'settings': lambda ctx: handle_settings(),
     })
