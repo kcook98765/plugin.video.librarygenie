@@ -216,8 +216,9 @@ class ListItemBuilder:
 
         # year
         try:
-            out['year'] = int(src.get('year')) if src.get('year') is not None else None
-        except Exception:
+            year_value = src.get('year')
+            out['year'] = int(year_value) if year_value is not None else None
+        except (ValueError, TypeError):
             out['year'] = None
 
         # genre -> comma string
@@ -235,14 +236,16 @@ class ListItemBuilder:
 
         # rating/votes/mpaa
         try:
-            if src.get('rating') is not None:
-                out['rating'] = float(src['rating'])
-        except Exception:
+            rating_value = src.get('rating')
+            if rating_value is not None:
+                out['rating'] = float(rating_value)
+        except (ValueError, TypeError):
             pass
         try:
-            if src.get('votes') is not None:
-                out['votes'] = int(src['votes'])
-        except Exception:
+            votes_value = src.get('votes')
+            if votes_value is not None:
+                out['votes'] = int(votes_value)
+        except (ValueError, TypeError):
             pass
         if src.get('mpaa'):
             out['mpaa'] = src['mpaa']
@@ -252,21 +255,24 @@ class ListItemBuilder:
         if src.get('duration_minutes') is not None:
             # caller already provided minutes
             try:
-                minutes = int(src['duration_minutes'])
-            except Exception:
+                duration_minutes_value = src.get('duration_minutes')
+                minutes = int(duration_minutes_value) if duration_minutes_value is not None else None
+            except (ValueError, TypeError):
                 minutes = None
         elif src.get('runtime') is not None:
             # runtime commonly minutes
             try:
-                minutes = int(src['runtime'])
-            except Exception:
+                runtime_value = src.get('runtime')
+                minutes = int(runtime_value) if runtime_value is not None else None
+            except (ValueError, TypeError):
                 minutes = None
         elif src.get('duration') is not None:
             # 'duration' may be minutes or seconds; best effort:
             try:
-                d = int(src['duration'])
+                duration_value = src.get('duration')
+                d = int(duration_value) if duration_value is not None else 0
                 minutes = d // 60 if d > 300 else d
-            except Exception:
+            except (ValueError, TypeError):
                 minutes = None
         if minutes and minutes > 0:
             out['duration_minutes'] = minutes
@@ -287,23 +293,26 @@ class ListItemBuilder:
             for key in ('season', 'episode'):
                 if src.get(key) is not None:
                     try:
-                        out[key] = int(src[key])
-                    except Exception:
+                        key_value = src.get(key)
+                        out[key] = int(key_value) if key_value is not None else None
+                    except (ValueError, TypeError):
                         pass
             if src.get('aired'):
                 out['aired'] = src['aired']
             if src.get('playcount') is not None:
                 try:
-                    out['playcount'] = int(src['playcount'])
-                except Exception:
+                    playcount_value = src.get('playcount')
+                    out['playcount'] = int(playcount_value) if playcount_value is not None else None
+                except (ValueError, TypeError):
                     pass
             if src.get('lastplayed'):
                 out['lastplayed'] = src['lastplayed']
             # Helpful if present for videodb path construction
             if src.get('tvshowid') is not None:
                 try:
-                    out['tvshowid'] = int(src['tvshowid'])
-                except Exception:
+                    tvshowid_value = src.get('tvshowid')
+                    out['tvshowid'] = int(tvshowid_value) if tvshowid_value is not None else None
+                except (ValueError, TypeError):
                     pass
 
         # artwork (flatten)
@@ -329,15 +338,15 @@ class ListItemBuilder:
 
         # resume (seconds)
         resume = src.get('resume') or {}
-        pos = resume.get('position_seconds') or resume.get('position') or 0
-        tot = resume.get('total_seconds') or resume.get('total') or 0
+        pos_value = resume.get('position_seconds') or resume.get('position') or 0
+        tot_value = resume.get('total_seconds') or resume.get('total') or 0
         try:
-            pos = int(pos)
-        except Exception:
+            pos = int(pos_value) if pos_value is not None else 0
+        except (ValueError, TypeError):
             pos = 0
         try:
-            tot = int(tot)
-        except Exception:
+            tot = int(tot_value) if tot_value is not None else 0
+        except (ValueError, TypeError):
             tot = 0
         out['resume'] = {'position_seconds': pos, 'total_seconds': tot}
 
@@ -596,7 +605,11 @@ class ListItemBuilder:
 
         # Year and date fields
         if item.get('year') is not None:
-            info['year'] = int(item['year'])
+            try:
+                year_value = item.get('year')
+                info['year'] = int(year_value) if year_value is not None else None
+            except (ValueError, TypeError):
+                pass
         if item.get('premiered'):
             info['premiered'] = item['premiered']
 
@@ -608,9 +621,17 @@ class ListItemBuilder:
 
         # Ratings and content classification
         if item.get('rating') is not None:
-            info['rating'] = float(item['rating'])
+            try:
+                rating_value = item.get('rating')
+                info['rating'] = float(rating_value) if rating_value is not None else None
+            except (ValueError, TypeError):
+                pass
         if item.get('votes') is not None:
-            info['votes'] = int(item['votes'])
+            try:
+                votes_value = item.get('votes')
+                info['votes'] = int(votes_value) if votes_value is not None else None
+            except (ValueError, TypeError):
+                pass
         if item.get('mpaa'):
             info['mpaa'] = item['mpaa']
 
@@ -661,7 +682,11 @@ class ListItemBuilder:
 
         # Playback tracking
         if item.get('playcount') is not None:
-            info['playcount'] = int(item['playcount'])
+            try:
+                playcount_value = item.get('playcount')
+                info['playcount'] = int(playcount_value) if playcount_value is not None else None
+            except (ValueError, TypeError):
+                pass
         if item.get('lastplayed'):
             info['lastplayed'] = item['lastplayed']
 
@@ -670,9 +695,17 @@ class ListItemBuilder:
             if item.get('tvshowtitle'):
                 info['tvshowtitle'] = item['tvshowtitle']
             if item.get('season') is not None:
-                info['season'] = int(item['season'])
+                try:
+                    season_value = item.get('season')
+                    info['season'] = int(season_value) if season_value is not None else None
+                except (ValueError, TypeError):
+                    pass
             if item.get('episode') is not None:
-                info['episode'] = int(item['episode'])
+                try:
+                    episode_value = item.get('episode')
+                    info['episode'] = int(episode_value) if episode_value is not None else None
+                except (ValueError, TypeError):
+                    pass
             if item.get('aired'):
                 info['aired'] = item['aired']
 
@@ -815,7 +848,12 @@ class ListItemBuilder:
                 video_info_tag.setTitle(item['title'])
 
             if item.get('year'):
-                video_info_tag.setYear(int(item['year']))
+                try:
+                    year_value = item.get('year')
+                    if year_value is not None:
+                        video_info_tag.setYear(int(year_value))
+                except (ValueError, TypeError):
+                    pass
 
             if item.get('plot'):
                 video_info_tag.setPlot(item['plot'])
@@ -833,15 +871,30 @@ class ListItemBuilder:
 
             # Rating
             if item.get('rating'):
-                video_info_tag.setRating(float(item['rating']))
+                try:
+                    rating_value = item.get('rating')
+                    if rating_value is not None:
+                        video_info_tag.setRating(float(rating_value))
+                except (ValueError, TypeError):
+                    pass
 
             # Episode-specific fields
             if item.get('media_type') == 'episode':
                 if item.get('season') is not None:
-                    video_info_tag.setSeason(int(item['season']))
+                    try:
+                        season_value = item.get('season')
+                        if season_value is not None:
+                            video_info_tag.setSeason(int(season_value))
+                    except (ValueError, TypeError):
+                        pass
 
                 if item.get('episode') is not None:
-                    video_info_tag.setEpisode(int(item['episode']))
+                    try:
+                        episode_value = item.get('episode')
+                        if episode_value is not None:
+                            video_info_tag.setEpisode(int(episode_value))
+                    except (ValueError, TypeError):
+                        pass
 
                 if item.get('tvshowtitle'):
                     video_info_tag.setTvShowTitle(item['tvshowtitle'])
