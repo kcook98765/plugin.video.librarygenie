@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Dict, Any
 from .plugin_context import PluginContext
 from .response_types import DirectoryResponse, DialogResponse
+from .localization import L
 from ..utils.logger import get_logger
 
 
@@ -243,7 +244,7 @@ class FavoritesHandler:
 
             # Show list selection dialog
             list_names = [lst['name'] for lst in user_lists]
-            selected_index = xbmcgui.Dialog().select("Select list:", list_names)
+            selected_index = xbmcgui.Dialog().select(L(31100), list_names)  # "Select a list"
 
             if selected_index < 0:
                 self.logger.info("User cancelled list selection")
@@ -308,7 +309,7 @@ class FavoritesHandler:
             # Prompt for new list name
             dialog = xbmcgui.Dialog()
             default_name = f"Kodi Favorites Copy - {datetime.now().strftime('%Y-%m-%d')}"
-            new_list_name = dialog.input("Enter name for new list:", default_name)
+            new_list_name = dialog.input(L(30590), default_name)  # "Enter list name"
 
             if not new_list_name or not new_list_name.strip():
                 self.logger.info("User cancelled or entered empty list name")
@@ -328,9 +329,9 @@ class FavoritesHandler:
 
             # Ask user if they want to place it in a folder
             from typing import List, Union, cast
-            folder_names = ["[Root Level]"] + [str(f["name"]) for f in all_folders]
+            folder_names = [L(36031)] + [str(f["name"]) for f in all_folders]  # "[Root Level]"
             folder_options = cast(List[Union[str, xbmcgui.ListItem]], folder_names)
-            selected_folder_index = dialog.select("Choose folder location:", folder_options)
+            selected_folder_index = dialog.select(L(36029), folder_options)  # "Select destination folder:"
 
             if selected_folder_index < 0:
                 self.logger.info("User cancelled folder selection")
