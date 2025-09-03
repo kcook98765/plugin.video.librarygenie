@@ -23,7 +23,7 @@ class Phase4FavoritesManager:
         self.conn_manager = get_connection_manager()
         self.parser = get_phase4_favorites_parser()
 
-    def scan_favorites(self, file_path: str = None, force_refresh: bool = False) -> Dict[str, Any]:
+    def scan_favorites(self, file_path: Optional[str] = None, force_refresh: bool = False) -> Dict[str, Any]:
         """Scan and import favorites with mtime checking and batch processing"""
         start_time = datetime.now()
 
