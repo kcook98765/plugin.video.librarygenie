@@ -8,7 +8,7 @@ import xbmcgui
 import xbmcvfs
 
 from ..utils.logger import get_logger
-from ..utils.kodi_version import get_kodi_major_version, get_version_specific_control_id
+from ..utils.kodi_version import get_version_specific_control_id
 
 logger = get_logger(__name__)
 
