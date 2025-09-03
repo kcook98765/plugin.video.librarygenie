@@ -42,7 +42,7 @@ class JsonRpcHelper:
         self.config = get_config()
 
         # Phase 3 settings with safe defaults
-        self._timeout = self._clamp_timeout(self.config.get("jsonrpc_timeout_seconds", 10))
+        self._timeout = self._clamp_timeout(self.config.get_int("jsonrpc_timeout_seconds", 10))
         self._retry_count = 2  # Fixed retry count
         self._base_backoff = 0.5  # Base backoff delay in seconds
 
