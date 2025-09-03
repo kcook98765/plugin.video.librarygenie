@@ -990,7 +990,7 @@ class ListsHandler:
 
             # Get list name for confirmation message
             selected_list_name = list_options[selected_index].split(' (')[0] if selected_index < len(list_options) - 1 else "newly created list"
-            
+
             context.logger.info(f"Set default quick-add list to: {selected_list_name}")
             return DialogResponse(
                 success=True,
@@ -1066,7 +1066,7 @@ class ListsHandler:
             # Add item to selected list
             result = query_manager.add_item_to_list(target_list_id, media_item_id)
 
-            if result.get("success"):
+            if result is not None and result.get("success"):
                 list_name = all_lists[selected_index]['name'] if selected_index < len(all_lists) else "new list"
                 xbmcgui.Dialog().notification(
                     "LibraryGenie",
@@ -1075,7 +1075,7 @@ class ListsHandler:
                 )
                 return True
             else:
-                error_msg = result.get("error", "Unknown error")
+                error_msg = result.get("error", "Unknown error") if result else "Query manager returned None"
                 if error_msg == "duplicate":
                     xbmcgui.Dialog().notification(
                         "LibraryGenie",
@@ -1085,7 +1085,7 @@ class ListsHandler:
                 else:
                     xbmcgui.Dialog().notification(
                         "LibraryGenie",
-                        "Failed to add to list",
+                        f"Failed to add to list: {error_msg}",
                         xbmcgui.NOTIFICATION_ERROR
                     )
                 return False
@@ -1164,7 +1164,7 @@ class ListsHandler:
             # Add item to selected list
             result = query_manager.add_item_to_list(target_list_id, media_item_id)
 
-            if result.get("success"):
+            if result is not None and result.get("success"):
                 list_name = all_lists[selected_index]['name'] if selected_index < len(all_lists) else "new list"
                 xbmcgui.Dialog().notification(
                     "LibraryGenie",
@@ -1173,7 +1173,7 @@ class ListsHandler:
                 )
                 return True
             else:
-                error_msg = result.get("error", "Unknown error")
+                error_msg = result.get("error", "Unknown error") if result else "Query manager returned None"
                 if error_msg == "duplicate":
                     xbmcgui.Dialog().notification(
                         "LibraryGenie",
@@ -1183,7 +1183,7 @@ class ListsHandler:
                 else:
                     xbmcgui.Dialog().notification(
                         "LibraryGenie",
-                        "Failed to add to list",
+                        f"Failed to add to list: {error_msg}",
                         xbmcgui.NOTIFICATION_ERROR
                     )
                 return False
