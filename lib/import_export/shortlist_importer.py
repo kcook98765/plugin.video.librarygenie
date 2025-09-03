@@ -6,7 +6,6 @@ LibraryGenie - ShortList Addon Importer
 Imports lists from the ShortList addon into LibraryGenie
 """
 
-import json
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 from ..data.connection_manager import get_connection_manager

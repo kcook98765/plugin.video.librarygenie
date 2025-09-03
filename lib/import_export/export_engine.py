@@ -7,12 +7,11 @@ Creates JSON/CSV exports of lists, memberships, favorites, and library data
 """
 
 import csv
-import json
 import os
 from datetime import datetime
 from io import StringIO
-from typing import List, Dict, Any, Optional, Set, Tuple
-from .data_schemas import ExportEnvelope, ExportedList, ExportedListItem, ExportedFavorite, ExportedLibraryItem
+from typing import List, Dict, Any, Optional, Tuple
+from .data_schemas import ExportEnvelope
 from .storage_manager import get_storage_manager
 from ..data.connection_manager import get_connection_manager
 from ..utils.logger import get_logger
