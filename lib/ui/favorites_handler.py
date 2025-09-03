@@ -232,7 +232,7 @@ class FavoritesHandler:
                     message="Database error"
                 )
 
-            all_lists = query_manager.get_all_lists()
+            all_lists = query_manager.get_all_lists_with_folders()
 
             # Filter out special lists like "Kodi Favorites"
             user_lists = [lst for lst in all_lists if lst.get('name') != 'Kodi Favorites']
