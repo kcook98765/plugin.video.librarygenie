@@ -25,7 +25,7 @@ def _log(message: str, level: int = xbmc.LOGINFO) -> None:
     else:
         logger.debug(f"[InfoHijack] {message}")
 
-def prewarm_smb(movie_url):
+def prewarm_smb(movie_url: Optional[str]):
     """
     Cheaply 'touch' the movie's parent SMB folder to wake disks and warm
     directory metadata so Kodi's associated-items scan doesn't stall later.
@@ -110,7 +110,7 @@ def _wait_for_info_dialog(timeout=6.0):
     _log(f"_wait_for_info_dialog: TIMEOUT after {check_count} checks ({t_end - t_start:.3f}s) - final_dialog_id={final_dialog_id}", xbmc.LOGWARNING)
     return False
 
-def focus_list(control_id: int = None, tries: int = 20, step_ms: int = 30) -> bool:
+def focus_list(control_id: Optional[int] = None, tries: int = 20, step_ms: int = 30) -> bool:
     """Focus the main list control, trying version-specific control IDs"""
     t_focus_start = time.perf_counter()
     
@@ -363,7 +363,7 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
     
     return True
 
-def open_movie_info(dbid: int, movie_url: str = None, xsp_path: str = None) -> bool:
+def open_movie_info(dbid: int, movie_url: Optional[str] = None, xsp_path: Optional[str] = None) -> bool:
     """
     Open native Kodi movie info dialog for specified movie
 
