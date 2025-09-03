@@ -48,7 +48,7 @@ class Router:
         from .breadcrumb_helper import get_breadcrumb_helper
         breadcrumb_helper = get_breadcrumb_helper()
         breadcrumb_path = breadcrumb_helper.get_breadcrumb_for_action(action, params, context.query_manager)
-        
+
         # Add breadcrumb to context for handlers
         context.breadcrumb_path = breadcrumb_path
 
@@ -146,6 +146,9 @@ class Router:
             elif action == "add_to_list":
                 media_item_id = params.get('media_item_id')
                 return self._handle_add_to_list(context, media_item_id)
+
+            elif action == "add_external_item_to_list":
+                return self._handle_add_external_item_to_list(context)
 
             elif action == "favorites":
                 self._handle_favorites(context)
@@ -270,6 +273,128 @@ class Router:
 
         except Exception as e:
             context.logger.error(f"Error adding to list: {e}")
+            return False
+
+    def _handle_add_external_item_to_list(self, context: PluginContext) -> bool:
+        """Handle adding external/plugin item to a list"""
+        try:
+            # Extract external item data from URL parameters
+            external_data = {}
+            for key, value in context.get_params().items():
+                if key not in ('action', 'external_item'):
+                    external_data[key] = value
+
+            if not external_data.get('title'):
+                context.logger.error("No title found for external item")
+                return False
+
+            # Convert to format expected by add_to_list system
+            media_item = {
+                'id': f"external_{hash(external_data.get('file_path', external_data['title']))}",
+                'title': external_data['title'],
+                'media_type': external_data.get('media_type', 'movie'),
+                'source': 'external'
+            }
+
+            # Copy over all the gathered metadata
+            for key in ['originaltitle', 'year', 'plot', 'rating', 'votes', 'genre', 
+                       'director', 'studio', 'country', 'mpaa', 'runtime', 'premiered',
+                       'playcount', 'lastplayed', 'poster', 'fanart', 'thumb', 
+                       'banner', 'clearlogo', 'imdbnumber', 'file_path']:
+                if key in external_data:
+                    media_item[key] = external_data[key]
+
+            # Episode-specific fields
+            if external_data.get('media_type') == 'episode':
+                for key in ['tvshowtitle', 'season', 'episode', 'aired']:
+                    if key in external_data:
+                        media_item[key] = external_data[key]
+
+            # Music video-specific fields
+            elif external_data.get('media_type') == 'musicvideo':
+                for key in ['artist', 'album']:
+                    if key in external_data:
+                        media_item[key] = external_data[key]
+
+            context.logger.info(f"Processing external item: {media_item['title']} (type: {media_item['media_type']})")
+
+            # Use existing add_to_list flow with the external media item
+            query_manager = context.query_manager
+            if not query_manager:
+                context.logger.error("Failed to get query manager")
+                return False
+
+            # Get all available lists
+            all_lists = query_manager.get_all_lists_with_folders()
+            if not all_lists:
+                # Offer to create a new list
+                if xbmcgui.Dialog().yesno("No Lists Found", "No lists available. Create a new list?"):
+                    from .lists_handler import ListsHandler
+                    lists_handler = ListsHandler()
+                    result = lists_handler.create_list(context)
+                    if result.success:
+                        # Refresh lists and continue
+                        all_lists = query_manager.get_all_lists_with_folders()
+                    else:
+                        return False
+                else:
+                    return False
+
+            # Build list selection options
+            list_options = []
+            list_ids = []
+
+            for item in all_lists:
+                if item.get('type') == 'list':
+                    list_name = item['name']
+                    list_options.append(list_name)
+                    list_ids.append(item['id'])
+
+            if not list_options:
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie", 
+                    "No lists available", 
+                    xbmcgui.NOTIFICATION_WARNING,
+                    3000
+                )
+                return False
+
+            # Show list selection dialog
+            selected_index = xbmcgui.Dialog().select(
+                f"Add '{media_item['title']}' to list:",
+                list_options
+            )
+
+            if selected_index < 0:
+                return False  # User cancelled
+
+            selected_list_id = list_ids[selected_index]
+            selected_list_name = list_options[selected_index]
+
+            # Add the external item to the selected list
+            success = query_manager.add_external_item_to_list(selected_list_id, media_item)
+
+            if success:
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie", 
+                    f"Added '{media_item['title']}' to '{selected_list_name}'", 
+                    xbmcgui.NOTIFICATION_INFO,
+                    3000
+                )
+                # Refresh container to show changes
+                xbmc.executebuiltin('Container.Refresh')
+                return True
+            else:
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie", 
+                    "Failed to add item to list", 
+                    xbmcgui.NOTIFICATION_ERROR,
+                    3000
+                )
+                return False
+
+        except Exception as e:
+            context.logger.error(f"Error in _handle_add_external_item_to_list: {e}")
             return False
 
     def _handle_favorites(self, context: PluginContext) -> None:
