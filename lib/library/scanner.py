@@ -6,7 +6,6 @@ LibraryGenie - Library Scanner
 Handles full scans and delta detection of Kodi's video library
 """
 
-import time
 from datetime import datetime
 from typing import List, Dict, Set, Any, Optional
 
