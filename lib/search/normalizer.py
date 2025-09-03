@@ -7,11 +7,8 @@ Consistent text normalization for both indexing and querying
 """
 
 import re
-from typing import Dict, Optional, Set, List
+from typing import List
 import unicodedata
-
-from ..utils.logger import get_logger
-
 
 class TextNormalizer:
     """Unified text normalizer for consistent indexing and querying"""

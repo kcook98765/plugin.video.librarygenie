@@ -9,7 +9,7 @@ Handles Kodi favorites integration and management
 import xbmcplugin
 import xbmcgui
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import Dict, Any
 from .plugin_context import PluginContext
 from .response_types import DirectoryResponse, DialogResponse
 from ..utils.logger import get_logger
@@ -53,7 +53,7 @@ class FavoritesHandler:
 
             # Add "Tools & Options" at the top like other lists
             menu_items.append({
-                'label': f"[COLOR yellow]Tools & Options[/COLOR]",
+                'label': "[COLOR yellow]Tools & Options[/COLOR]",
                 'url': context.build_url('show_list_tools', list_type='favorites'),
                 'is_folder': True,
                 'icon': "DefaultAddonProgram.png",
@@ -199,15 +199,10 @@ class FavoritesHandler:
             progress.update(100, "Scan complete!")
             progress.close()
 
-            if result.get("success"):
-                message = (
-                    f"Favorites scan completed!\n"
-                    f"Found: {result.get('items_found', 0)} favorites\n"
-                    f"Mapped: {result.get('items_mapped', 0)} to library\n"
-                    f"Added: {result.get('items_added', 0)} new\n"
-                    f"Updated: {result.get('items_updated', 0)} existing"
-                )
+            if result is None:
+                result = {"success": False, "message": "Scan returned no result"}
 
+            if result.get("success"):
                 return DialogResponse(
                     success=True,
                     message="Favorites scanned successfully",
@@ -240,7 +235,7 @@ class FavoritesHandler:
                     message="Database error"
                 )
 
-            all_lists = query_manager.get_all_lists()
+            all_lists = query_manager.get_all_lists_with_folders()
 
             # Filter out special lists like "Kodi Favorites"
             user_lists = [lst for lst in all_lists if lst.get('name') != 'Kodi Favorites']
@@ -269,10 +264,14 @@ class FavoritesHandler:
             selected_list = user_lists[selected_index]
 
             # Add item to the selected list
-            from lib.data.list_library_manager import get_list_library_manager
-            list_manager = get_list_library_manager()
+            result = query_manager.add_item_to_list(
+                selected_list['id'], 
+                title="Unknown",  # Will be resolved by IMDb ID
+                imdb_id=imdb_id
+            )
 
-            result = list_manager.add_to_list_by_imdb(selected_list['id'], imdb_id)
+            if result is None:
+                result = {"success": False, "error": "Operation returned no result"}
 
             if result.get("success"):
                 return DialogResponse(

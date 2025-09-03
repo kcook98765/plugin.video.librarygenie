@@ -6,8 +6,6 @@ LibraryGenie - Context Menu System
 Handles context menus for library and list operations
 """
 
-import xbmcgui
-from typing import Dict, Any, Optional, Callable, List
 from .localization import L
 from ..utils.logger import get_logger
 

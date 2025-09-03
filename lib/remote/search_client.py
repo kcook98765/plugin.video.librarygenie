@@ -12,8 +12,6 @@ import json
 import urllib.request
 import urllib.parse
 import urllib.error
-from typing import Dict, Any, List, Optional
-
 from ..auth.state import is_authorized, get_access_token
 from ..config import get_config
 from ..utils.logger import get_logger
@@ -127,8 +125,6 @@ def search_remote(query, page=1, page_size=100):
 
 def _map_remote_item(remote_item):
     """Map remote item to uniform format with local file preference"""
-    logger = get_logger(__name__)
-
     # Try to map to local file if we have IMDB/TMDB IDs
     local_path = _find_local_path(remote_item)
 
@@ -189,7 +185,7 @@ def _find_local_path(remote_item):
                 WHERE imdbnumber = ? AND source = 'lib'
                 LIMIT 1
             """
-            result = conn_manager.fetch_one(query, (imdb_id,))
+            result = conn_manager.execute_single(query, (imdb_id,))
             if result:
                 return result[0]
 
@@ -200,7 +196,7 @@ def _find_local_path(remote_item):
                 WHERE tmdb_id = ? AND source = 'lib'
                 LIMIT 1
             """
-            result = conn_manager.fetch_one(query, (tmdb_id,))
+            result = conn_manager.execute_single(query, (tmdb_id,))
             if result:
                 return result[0]
 
