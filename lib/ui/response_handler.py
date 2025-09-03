@@ -136,7 +136,7 @@ class ResponseHandler:
             
             # If there are specific failure navigation flags, handle them here
             if hasattr(response, 'navigate_on_failure'):
-                navigation_target = response.navigate_on_failure
+                navigation_target = getattr(response, 'navigate_on_failure', None)
                 if navigation_target == 'lists':
                     xbmc.executebuiltin(f'Container.Update({context.build_url("lists")},replace)')
                 elif navigation_target == 'main':

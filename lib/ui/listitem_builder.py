@@ -7,48 +7,13 @@ Builds ListItems with proper metadata and resume information
 """
 
 import json
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional
 
 import xbmc
 import xbmcgui
 import xbmcplugin
-
 from ..utils.logger import get_logger
-# The original code had an incorrect import for get_select_pref.
-# It was defined in this file but intended to be imported from config_manager.
-# The fix involves changing the import path to the correct location.
-from ..config.config_manager import get_select_pref
-
-
-def is_kodi_v20_plus() -> bool:
-    """
-    Check if running Kodi version 20 or higher
-    Returns:
-        bool: True if Kodi major version >= 20, False otherwise
-    """
-    try:
-        build_version = xbmc.getInfoLabel("System.BuildVersion")
-        # "20.2 (20.2.0) Git:..." -> "20"
-        major = int(build_version.split('.')[0].split('-0')[0])
-        return major >= 20
-    except Exception:
-        # Safe fallback (Matrix behavior)
-        return False
-
-def get_kodi_major_version() -> int:
-    """
-    Get the major version number of Kodi.
-    Returns:
-        int: The major version number (e.g., 19, 20, 21).
-    """
-    try:
-        build_version = xbmc.getInfoLabel("System.BuildVersion")
-        # "20.2 (20.2.0) Git:..." -> "20"
-        major = int(build_version.split('.')[0].split('-0')[0])
-        return major
-    except Exception:
-        # Safe fallback (Matrix behavior)
-        return 19
+from ..utils.kodi_version import is_kodi_v20_plus, get_kodi_major_version
 
 
 class ListItemBuilder:
@@ -216,8 +181,9 @@ class ListItemBuilder:
 
         # year
         try:
-            out['year'] = int(src.get('year')) if src.get('year') is not None else None
-        except Exception:
+            year_value = src.get('year')
+            out['year'] = int(year_value) if year_value is not None else None
+        except (ValueError, TypeError):
             out['year'] = None
 
         # genre -> comma string
@@ -235,14 +201,16 @@ class ListItemBuilder:
 
         # rating/votes/mpaa
         try:
-            if src.get('rating') is not None:
-                out['rating'] = float(src['rating'])
-        except Exception:
+            rating_value = src.get('rating')
+            if rating_value is not None:
+                out['rating'] = float(rating_value)
+        except (ValueError, TypeError):
             pass
         try:
-            if src.get('votes') is not None:
-                out['votes'] = int(src['votes'])
-        except Exception:
+            votes_value = src.get('votes')
+            if votes_value is not None:
+                out['votes'] = int(votes_value)
+        except (ValueError, TypeError):
             pass
         if src.get('mpaa'):
             out['mpaa'] = src['mpaa']
@@ -252,21 +220,24 @@ class ListItemBuilder:
         if src.get('duration_minutes') is not None:
             # caller already provided minutes
             try:
-                minutes = int(src['duration_minutes'])
-            except Exception:
+                duration_minutes_value = src.get('duration_minutes')
+                minutes = int(duration_minutes_value) if duration_minutes_value is not None else None
+            except (ValueError, TypeError):
                 minutes = None
         elif src.get('runtime') is not None:
             # runtime commonly minutes
             try:
-                minutes = int(src['runtime'])
-            except Exception:
+                runtime_value = src.get('runtime')
+                minutes = int(runtime_value) if runtime_value is not None else None
+            except (ValueError, TypeError):
                 minutes = None
         elif src.get('duration') is not None:
             # 'duration' may be minutes or seconds; best effort:
             try:
-                d = int(src['duration'])
+                duration_value = src.get('duration')
+                d = int(duration_value) if duration_value is not None else 0
                 minutes = d // 60 if d > 300 else d
-            except Exception:
+            except (ValueError, TypeError):
                 minutes = None
         if minutes and minutes > 0:
             out['duration_minutes'] = minutes
@@ -287,23 +258,26 @@ class ListItemBuilder:
             for key in ('season', 'episode'):
                 if src.get(key) is not None:
                     try:
-                        out[key] = int(src[key])
-                    except Exception:
+                        key_value = src.get(key)
+                        out[key] = int(key_value) if key_value is not None else None
+                    except (ValueError, TypeError):
                         pass
             if src.get('aired'):
                 out['aired'] = src['aired']
             if src.get('playcount') is not None:
                 try:
-                    out['playcount'] = int(src['playcount'])
-                except Exception:
+                    playcount_value = src.get('playcount')
+                    out['playcount'] = int(playcount_value) if playcount_value is not None else None
+                except (ValueError, TypeError):
                     pass
             if src.get('lastplayed'):
                 out['lastplayed'] = src['lastplayed']
             # Helpful if present for videodb path construction
             if src.get('tvshowid') is not None:
                 try:
-                    out['tvshowid'] = int(src['tvshowid'])
-                except Exception:
+                    tvshowid_value = src.get('tvshowid')
+                    out['tvshowid'] = int(tvshowid_value) if tvshowid_value is not None else None
+                except (ValueError, TypeError):
                     pass
 
         # artwork (flatten)
@@ -329,15 +303,15 @@ class ListItemBuilder:
 
         # resume (seconds)
         resume = src.get('resume') or {}
-        pos = resume.get('position_seconds') or resume.get('position') or 0
-        tot = resume.get('total_seconds') or resume.get('total') or 0
+        pos_value = resume.get('position_seconds') or resume.get('position') or 0
+        tot_value = resume.get('total_seconds') or resume.get('total') or 0
         try:
-            pos = int(pos)
-        except Exception:
+            pos = int(pos_value) if pos_value is not None else 0
+        except (ValueError, TypeError):
             pos = 0
         try:
-            tot = int(tot)
-        except Exception:
+            tot = int(tot_value) if tot_value is not None else 0
+        except (ValueError, TypeError):
             tot = 0
         out['resume'] = {'position_seconds': pos, 'total_seconds': tot}
 
@@ -368,6 +342,9 @@ class ListItemBuilder:
             li = xbmcgui.ListItem(label=display_label)
 
             # Build videodb:// URL for native library integration
+            if kodi_id is None:
+                self.logger.error(f"LIB ITEM: Cannot build videodb URL - kodi_id is None for '{title}'")
+                return None
             videodb_url = self._build_videodb_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
             li.setPath(videodb_url)
 
@@ -379,7 +356,7 @@ class ListItemBuilder:
             # ✨ ALWAYS set InfoHijack properties on library items first (before any metadata operations)
             try:
                 li.setProperty("LG.InfoHijack.Armed", "1")
-                li.setProperty("LG.InfoHijack.DBID", str(kodi_id))
+                li.setProperty("LG.InfoHijack.DBID", str(kodi_id) if kodi_id is not None else "0")
                 li.setProperty("LG.InfoHijack.DBType", media_type)
             except Exception as e:
                 self.logger.error(f"LIB ITEM: ❌ Failed to set InfoHijack properties for '{title}': {e}")
@@ -394,19 +371,22 @@ class ListItemBuilder:
 
                     # setDbId() for library linking - use feature detection instead of version detection
                     dbid_success = False
-                    try:
-                        # Try v21+ signature first (2 args)
-                        video_info_tag.setDbId(int(kodi_id), media_type)
-                        dbid_success = True
-                    except TypeError:
-                        # Fallback to v19/v20 signature (1 arg)
+                    if kodi_id is not None:
                         try:
-                            video_info_tag.setDbId(int(kodi_id))
+                            # Try v21+ signature first (2 args)
+                            video_info_tag.setDbId(int(kodi_id), media_type)
                             dbid_success = True
+                        except TypeError:
+                            # Fallback to v19/v20 signature (1 arg)
+                            try:
+                                video_info_tag.setDbId(int(kodi_id))
+                                dbid_success = True
+                            except Exception as e:
+                                self.logger.warning(f"LIB ITEM: setDbId() 1-arg fallback failed for '{title}': {e}")
                         except Exception as e:
-                            self.logger.warning(f"LIB ITEM: setDbId() 1-arg fallback failed for '{title}': {e}")
-                    except Exception as e:
-                        self.logger.warning(f"LIB ITEM: setDbId() 2-arg failed for '{title}': {e}")
+                            self.logger.warning(f"LIB ITEM: setDbId() 2-arg failed for '{title}': {e}")
+                    else:
+                        self.logger.warning(f"LIB ITEM: Cannot set setDbId - kodi_id is None for '{title}'")
 
                     # Report dbid failure for diagnostics
                     if not dbid_success:
@@ -431,7 +411,7 @@ class ListItemBuilder:
             # These help when setDbId fails or on older versions
             try:
                 li.setProperty('dbtype', media_type)
-                li.setProperty('dbid', str(kodi_id))
+                li.setProperty('dbid', str(kodi_id) if kodi_id is not None else "0")
                 li.setProperty('mediatype', media_type)
             except Exception as e:
                 self.logger.warning(f"LIB ITEM: Property fallback setup failed for '{title}': {e}")
@@ -510,7 +490,6 @@ class ListItemBuilder:
         """
         try:
             title = item.get('title', 'Unknown')
-            media_type = item.get('media_type', 'movie')
 
             display_label = f"{title} ({item['year']})" if item.get('year') else title
             li = xbmcgui.ListItem(label=display_label)
@@ -584,7 +563,6 @@ class ListItemBuilder:
         This keeps list views snappy while providing native library behavior.
         """
         info: Dict[str, Any] = {}
-        title = item.get('title', 'Unknown')
 
         # Core identification fields
         if item.get('title'):
@@ -596,7 +574,11 @@ class ListItemBuilder:
 
         # Year and date fields
         if item.get('year') is not None:
-            info['year'] = int(item['year'])
+            try:
+                year_value = item.get('year')
+                info['year'] = int(year_value) if year_value is not None else None
+            except (ValueError, TypeError):
+                pass
         if item.get('premiered'):
             info['premiered'] = item['premiered']
 
@@ -608,9 +590,17 @@ class ListItemBuilder:
 
         # Ratings and content classification
         if item.get('rating') is not None:
-            info['rating'] = float(item['rating'])
+            try:
+                rating_value = item.get('rating')
+                info['rating'] = float(rating_value) if rating_value is not None else None
+            except (ValueError, TypeError):
+                pass
         if item.get('votes') is not None:
-            info['votes'] = int(item['votes'])
+            try:
+                votes_value = item.get('votes')
+                info['votes'] = int(votes_value) if votes_value is not None else None
+            except (ValueError, TypeError):
+                pass
         if item.get('mpaa'):
             info['mpaa'] = item['mpaa']
 
@@ -661,7 +651,11 @@ class ListItemBuilder:
 
         # Playback tracking
         if item.get('playcount') is not None:
-            info['playcount'] = int(item['playcount'])
+            try:
+                playcount_value = item.get('playcount')
+                info['playcount'] = int(playcount_value) if playcount_value is not None else None
+            except (ValueError, TypeError):
+                pass
         if item.get('lastplayed'):
             info['lastplayed'] = item['lastplayed']
 
@@ -670,9 +664,17 @@ class ListItemBuilder:
             if item.get('tvshowtitle'):
                 info['tvshowtitle'] = item['tvshowtitle']
             if item.get('season') is not None:
-                info['season'] = int(item['season'])
+                try:
+                    season_value = item.get('season')
+                    info['season'] = int(season_value) if season_value is not None else None
+                except (ValueError, TypeError):
+                    pass
             if item.get('episode') is not None:
-                info['episode'] = int(item['episode'])
+                try:
+                    episode_value = item.get('episode')
+                    info['episode'] = int(episode_value) if episode_value is not None else None
+                except (ValueError, TypeError):
+                    pass
             if item.get('aired'):
                 info['aired'] = item['aired']
 
@@ -684,7 +686,6 @@ class ListItemBuilder:
     def _build_art_dict(self, item: Dict[str, Any]) -> Dict[str, str]:
         """Build artwork dictionary from item data"""
         art = {}
-        title = item.get('title', 'Unknown')
 
         # First check if we have a JSON-RPC art dict
         item_art = item.get('art')
@@ -692,7 +693,6 @@ class ListItemBuilder:
             # Handle both dict and JSON string formats
             if isinstance(item_art, str):
                 try:
-                    import json
                     item_art = json.loads(item_art)
                 except (json.JSONDecodeError, ValueError):
                     item_art = {}
@@ -815,7 +815,12 @@ class ListItemBuilder:
                 video_info_tag.setTitle(item['title'])
 
             if item.get('year'):
-                video_info_tag.setYear(int(item['year']))
+                try:
+                    year_value = item.get('year')
+                    if year_value is not None:
+                        video_info_tag.setYear(int(year_value))
+                except (ValueError, TypeError):
+                    pass
 
             if item.get('plot'):
                 video_info_tag.setPlot(item['plot'])
@@ -833,15 +838,30 @@ class ListItemBuilder:
 
             # Rating
             if item.get('rating'):
-                video_info_tag.setRating(float(item['rating']))
+                try:
+                    rating_value = item.get('rating')
+                    if rating_value is not None:
+                        video_info_tag.setRating(float(rating_value))
+                except (ValueError, TypeError):
+                    pass
 
             # Episode-specific fields
             if item.get('media_type') == 'episode':
                 if item.get('season') is not None:
-                    video_info_tag.setSeason(int(item['season']))
+                    try:
+                        season_value = item.get('season')
+                        if season_value is not None:
+                            video_info_tag.setSeason(int(season_value))
+                    except (ValueError, TypeError):
+                        pass
 
                 if item.get('episode') is not None:
-                    video_info_tag.setEpisode(int(item['episode']))
+                    try:
+                        episode_value = item.get('episode')
+                        if episode_value is not None:
+                            video_info_tag.setEpisode(int(episode_value))
+                    except (ValueError, TypeError):
+                        pass
 
                 if item.get('tvshowtitle'):
                     video_info_tag.setTvShowTitle(item['tvshowtitle'])
