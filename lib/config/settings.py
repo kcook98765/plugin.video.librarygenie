@@ -245,15 +245,13 @@ class SettingsManager:
 
     def get_phase12_remote_settings(self) -> Dict[str, Any]:
         """Get remote service settings for Phase 1.2 integration"""
-        config = get_config()
-
         return {
-            'enabled': config.get_remote_enabled(),
-            'server_url': config.get_remote_server_url(),
-            'timeout': config.get_remote_timeout(),
-            'max_retries': config.get_remote_max_retries(),
-            'fallback_to_local': config.get_remote_fallback_to_local(),
-            'cache_duration': config.get_remote_cache_duration()
+            'enabled': self.addon.getSettingBool('remote_enabled'),
+            'server_url': self.get_remote_server_url(),
+            'timeout': self.addon.getSettingInt('remote_timeout'),
+            'max_retries': self.addon.getSettingInt('remote_max_retries'),
+            'fallback_to_local': self.addon.getSettingBool('remote_fallback_to_local'),
+            'cache_duration': self.addon.getSettingInt('remote_cache_duration')
         }
 
 
