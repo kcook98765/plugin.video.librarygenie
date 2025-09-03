@@ -222,16 +222,25 @@ class TimestampBackupManager:
             # Destination path
             dest_path = os.path.join(backup_dir, filename)
 
+            # Check if source and destination are the same
+            if os.path.abspath(source_file) == os.path.abspath(dest_path):
+                # File is already in the correct location
+                self.logger.info(f"Backup already in correct location: {dest_path}")
+                return {
+                    "success": True,
+                    "location": dest_path,
+                    "storage_type": "local"
+                }
+
             # Copy file to backup location
             import shutil
             shutil.copy2(source_file, dest_path)
 
-            # Clean up temporary file if different from destination
-            if os.path.abspath(source_file) != os.path.abspath(dest_path):
-                try:
-                    os.remove(source_file)
-                except Exception as cleanup_error:
-                    self.logger.warning(f"Failed to cleanup temp file {source_file}: {cleanup_error}")
+            # Clean up temporary file
+            try:
+                os.remove(source_file)
+            except Exception as cleanup_error:
+                self.logger.warning(f"Failed to cleanup temp file {source_file}: {cleanup_error}")
 
             self.logger.info(f"Backup stored in settings location: {dest_path}")
 

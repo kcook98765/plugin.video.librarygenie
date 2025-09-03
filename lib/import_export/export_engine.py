@@ -55,27 +55,16 @@ class ExportEngine:
             # Generate filename and path
             export_name = "-".join(export_types)
             
-            # Create output file path using settings-configured backup location
-            try:
-                from ..config.settings import SettingsManager
-                settings = SettingsManager()
-                backup_dir = settings.get_backup_storage_location()
-
-                # Handle special:// paths
-                if backup_dir.startswith("special://"):
-                    import xbmcvfs
-                    backup_dir = xbmcvfs.translatePath(backup_dir)
-
-                # Ensure directory exists
-                os.makedirs(backup_dir, exist_ok=True)
-
-            except Exception as settings_error:
-                self.logger.warning(f"Could not get settings backup location, using profile: {settings_error}")
-                # Fallback to profile directory
-                backup_dir = self.storage_manager.get_profile_path()
-
-            filename = self.storage_manager.generate_filename(export_name, file_format)
-            file_path = os.path.join(backup_dir, filename)
+            # Use custom path if provided, otherwise use temporary directory
+            if custom_path:
+                file_path = custom_path
+                filename = os.path.basename(file_path)
+            else:
+                # Use temporary directory to avoid conflicts with backup storage
+                import tempfile
+                temp_dir = tempfile.gettempdir()
+                filename = self.storage_manager.generate_filename(export_name, file_format)
+                file_path = os.path.join(temp_dir, filename)
 
             # Write file
             success = False
