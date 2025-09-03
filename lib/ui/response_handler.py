@@ -14,9 +14,6 @@ from typing import Any
 from .plugin_context import PluginContext
 from .response_types import DirectoryResponse, DialogResponse
 from ..utils.logger import get_logger
-import xbmc
-import xbmcgui
-import xbmcplugin
 
 
 class ResponseHandler:
