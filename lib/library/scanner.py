@@ -197,13 +197,13 @@ class LibraryScanner:
             where_clause = "" if include_removed else "WHERE is_removed = 0"
 
             movies = self.conn_manager.execute_query(f"""
-                SELECT kodi_id, title, year, imdb_id, tmdb_id, file_path,
-                       date_added, last_seen, is_removed, created_at,
-                       poster, fanart, thumb, plot, plotoutline, runtime,
+                SELECT kodi_id, title, year, imdbnumber as imdb_id, tmdb_id, play as file_path,
+                       created_at, updated_at, is_removed, created_at,
+                       poster, fanart, poster as thumb, plot, plot as plotoutline, duration as runtime,
                        rating, genre, mpaa, director, country, studio,
-                       playcount, resume_time
-                FROM library_movie
-                {where_clause}
+                       0 as playcount, 0 as resume_time
+                FROM media_items
+                WHERE media_type = 'movie' {where_clause.replace('WHERE', 'AND') if where_clause else ''}
                 ORDER BY title, year
                 LIMIT ? OFFSET ?
             """, [limit, offset])
