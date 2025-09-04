@@ -397,7 +397,7 @@ class ImportEngine:
         try:
             lists = self.conn_manager.execute_query("SELECT name FROM lists")
             return {list_row[0] if hasattr(list_row, '__getitem__') else list_row.get('name') for list_row in lists or []}
-        except:
+        except Exception:
             return set()
 
     def _is_item_in_list(self, library_movie_id: int, list_id: int) -> bool:
@@ -408,7 +408,7 @@ class ImportEngine:
                 [library_movie_id, list_id]
             )
             return result is not None
-        except:
+        except Exception:
             return False
 
     def _import_lists(self, lists_data: List[Dict]) -> Tuple[int, int, List[str]]:
