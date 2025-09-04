@@ -26,6 +26,7 @@ class Phase4FavoritesManager:
     def scan_favorites(self, file_path: Optional[str] = None, force_refresh: bool = False) -> Dict[str, Any]:
         """Scan and import favorites with mtime checking and batch processing"""
         start_time = datetime.now()
+        file_modified = None
 
         try:
             # Find favorites file if not provided
