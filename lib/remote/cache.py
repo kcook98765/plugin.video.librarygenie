@@ -7,8 +7,7 @@ Local caching for remote API results with TTL support
 """
 
 import json
-import time
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 
 from ..utils.logger import get_logger

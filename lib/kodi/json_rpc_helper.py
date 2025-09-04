@@ -213,7 +213,6 @@ class JsonRpcHelper:
 
             # Simulate pages
             total_movies = 250  # Mock total
-            page_size = end - start
 
             movies = []
             for i in range(start, min(end, total_movies)):

@@ -61,12 +61,18 @@ class Phase3LibraryScanner:
             # Get total count first
             count_response = self.json_rpc.get_movie_count()
             if not count_response.success:
-                error_msg = f"Failed to get movie count: {count_response.error.message}"
+                if count_response.error and hasattr(count_response.error, 'message'):
+                    error_msg = f"Failed to get movie count: {count_response.error.message}"
+                else:
+                    error_msg = "Failed to get movie count: Unknown error"
                 self.logger.error(error_msg)
                 self._log_scan_complete(scan_id, scan_start, 0, 0, 0, 0, error=error_msg)
                 return {"success": False, "error": error_msg}
 
-            total_movies = count_response.data.get("limits", {}).get("total", 0)
+            if count_response.data:
+                total_movies = count_response.data.get("limits", {}).get("total", 0)
+            else:
+                total_movies = 0
             self.logger.info(f"Full scan: {total_movies} movies to process")
 
             if total_movies == 0:
@@ -100,9 +106,14 @@ class Phase3LibraryScanner:
                 page_response = self.json_rpc.get_movies_page(offset, self.page_size)
 
                 if not page_response.success:
-                    error_msg = f"Failed to get movies page {page_num}: {page_response.error.message}"
+                    if page_response.error and hasattr(page_response.error, 'message'):
+                        error_msg = f"Failed to get movies page {page_num}: {page_response.error.message}"
+                        is_retryable = hasattr(page_response.error, 'retryable') and page_response.error.retryable
+                    else:
+                        error_msg = f"Failed to get movies page {page_num}: Unknown error"
+                        is_retryable = False
 
-                    if page_response.error.retryable:
+                    if is_retryable:
                         self.logger.warning(f"{error_msg} - stopping scan gracefully")
                     else:
                         self.logger.error(f"{error_msg} - stopping scan")
@@ -110,7 +121,7 @@ class Phase3LibraryScanner:
                     self._log_scan_complete(scan_id, scan_start, offset, total_added, 0, 0, error=error_msg)
                     return {"success": False, "error": error_msg, "items_added": total_added}
 
-                movies = page_response.data.get("movies", [])
+                movies = page_response.data.get("movies", []) if page_response.data else []
 
                 if not movies:
                     self.logger.warning(f"Page {page_num} returned no movies, stopping")
@@ -134,8 +145,7 @@ class Phase3LibraryScanner:
                         self.logger.warning(f"Progress callback error: {e}")
 
                 # Yield briefly to allow abort checking
-                if 'KODI_AVAILABLE' in globals() and KODI_AVAILABLE:
-                    time.sleep(0.1)
+                time.sleep(0.1)
 
             scan_end = datetime.now().isoformat()
             self._log_scan_complete(scan_id, scan_start, total_movies, total_added, 0, 0, scan_end)
@@ -264,9 +274,16 @@ class Phase3LibraryScanner:
             response = self.json_rpc.get_movies_lightweight(offset, self.page_size)
 
             if not response.success:
-                self.logger.error(f"Failed to get lightweight movies at offset {offset}: {response.error.message}")
+                if response.error and hasattr(response.error, 'message'):
+                    error_msg = f"Failed to get lightweight movies at offset {offset}: {response.error.message}"
+                else:
+                    error_msg = f"Failed to get lightweight movies at offset {offset}: Unknown error"
+                self.logger.error(error_msg)
                 return None
 
+            if not response.data:
+                break
+                
             movies = response.data.get("movies", [])
             if not movies:
                 break

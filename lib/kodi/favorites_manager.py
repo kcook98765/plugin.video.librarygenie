@@ -630,10 +630,10 @@ class Phase4FavoritesManager:
             self.logger.warning(f"ARTWORK: Failed to fetch artwork for {media_type} {kodi_id}: {e}")
             return {}
 
-    def _log_scan_result(self, scan_type: str, file_path: str, file_modified: str = None,
+    def _log_scan_result(self, scan_type: str, file_path: str, file_modified: Optional[str] = None,
                         items_found: int = 0, items_mapped: int = 0, items_added: int = 0,
                         items_updated: int = 0, duration_ms: int = 0, success: bool = True,
-                        error_message: str = None):
+                        error_message: Optional[str] = None):
         """Log scan result to database"""
         try:
             with self.conn_manager.transaction() as conn:
