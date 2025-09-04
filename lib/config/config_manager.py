@@ -79,6 +79,10 @@ class ConfigManager:
             logger = get_logger(__name__)
             logger.debug(f"CONFIG_DEBUG: Getting bool setting '{key}' (default: {default})")
             
+            # Check what type we think this setting should be
+            expected_type = self._get_setting_type(key)
+            logger.debug(f"CONFIG_DEBUG: Expected type for '{key}': {expected_type}")
+            
             # First try getSettingBool
             result = self._addon.getSettingBool(key)
             logger.debug(f"CONFIG_DEBUG: getSettingBool('{key}') returned: {result}")
@@ -86,7 +90,7 @@ class ConfigManager:
         except Exception as e:
             from ..utils.logger import get_logger
             logger = get_logger(__name__)
-            logger.warning(f"CONFIG_DEBUG: getSettingBool('{key}') failed: {e}")
+            logger.error(f"CONFIG_DEBUG: getSettingBool('{key}') failed with exception: {type(e).__name__}: {e}")
             
             try:
                 # Fallback to string and convert
@@ -107,7 +111,7 @@ class ConfigManager:
                 # Use defaults dict fallback if available, otherwise use provided default
                 from ..utils.logger import get_logger
                 logger = get_logger(__name__)
-                logger.error(f"CONFIG_DEBUG: String fallback also failed for '{key}': {e2}")
+                logger.error(f"CONFIG_DEBUG: String fallback also failed for '{key}': {type(e2).__name__}: {e2}")
                 fallback = self._defaults.get(key, default)
                 logger.debug(f"CONFIG_DEBUG: Final fallback for '{key}': {fallback}")
                 return fallback
@@ -192,6 +196,7 @@ class ConfigManager:
         from ..utils.logger import get_logger
         logger = get_logger(__name__)
         
+        # Comprehensive list of all backup-related settings
         bool_settings = [
             "debug_logging",
             "background_task_enabled",
@@ -203,10 +208,15 @@ class ConfigManager:
             "show_missing_indicators",
             "favorites_integration_enabled",
             "show_unmapped_favorites",
+            # Backup boolean settings
             "backup_enabled",
             "backup_include_settings",
             "backup_include_non_library",
             "backup_include_folders",
+            "favorites_batch_processing",
+            "shortlist_clear_before_import",
+            "background_token_refresh",
+            "info_hijack_enabled",
         ]
         int_settings = [
             "background_interval_seconds", "favorites_scan_interval_minutes",
@@ -216,9 +226,30 @@ class ConfigManager:
             "db_batch_size", "db_busy_timeout_ms",
             # Remote service settings
             "auth_poll_seconds",
+            # Backup integer settings
             "backup_retention_count",
+            "background_interval_minutes",
         ]
         float_settings = []
+
+        # Select settings (stored as integer indexes)
+        select_settings = [
+            "select_action",
+            "backup_storage_type",
+            "backup_interval"
+        ]
+
+        # String settings
+        string_settings = [
+            "default_list_id", "remote_base_url", "device_name",
+            "backup_storage_location", "last_backup_time"
+        ]
+
+        logger.debug(f"CONFIG_DEBUG: Analyzing setting type for '{key}'")
+        logger.debug(f"CONFIG_DEBUG: Is '{key}' in bool_settings? {key in bool_settings}")
+        logger.debug(f"CONFIG_DEBUG: Is '{key}' in int_settings? {key in int_settings}")
+        logger.debug(f"CONFIG_DEBUG: Is '{key}' in select_settings? {key in select_settings}")
+        logger.debug(f"CONFIG_DEBUG: Is '{key}' in string_settings? {key in string_settings}")
 
         if key in bool_settings:
             logger.debug(f"CONFIG_DEBUG: Setting '{key}' identified as bool type")
@@ -229,27 +260,14 @@ class ConfigManager:
         elif key in float_settings:
             logger.debug(f"CONFIG_DEBUG: Setting '{key}' identified as number type")
             return "number"
-            
-        # Select settings (stored as integer indexes)
-        select_settings = [
-            "select_action",
-            "backup_storage_type",
-            "backup_interval"
-        ]
-
-        # String settings
-        string_settings = [
-            "default_list_id", "remote_base_url", "device_name"
-        ]
-
-        if key in select_settings:
+        elif key in select_settings:
             logger.debug(f"CONFIG_DEBUG: Setting '{key}' identified as int type (select)")
             return "int"  # Select controls store integer indexes
         elif key in string_settings:
             logger.debug(f"CONFIG_DEBUG: Setting '{key}' identified as string type")
             return "string"
         else:
-            logger.debug(f"CONFIG_DEBUG: Setting '{key}' defaulting to string type")
+            logger.warning(f"CONFIG_DEBUG: Setting '{key}' not found in any type list, defaulting to string type")
             return "string"
 
     def get_background_interval_seconds(self) -> int:
@@ -383,19 +401,110 @@ class ConfigManager:
     def get_backup_storage_location(self) -> str:
         """Get backup storage location with proper fallback"""
         try:
+            from ..utils.logger import get_logger
+            logger = get_logger(__name__)
+            logger.debug("CONFIG_DEBUG: Getting backup storage location")
+            
             storage_type = self.get('backup_storage_type', 'local')
+            logger.debug(f"CONFIG_DEBUG: backup_storage_type = '{storage_type}'")
 
             if storage_type == "custom":
                 # Use custom path set by user
                 custom_path = self.get('backup_local_path', '')
+                logger.debug(f"CONFIG_DEBUG: custom backup path = '{custom_path}'")
                 if custom_path and custom_path.strip():
                     return custom_path.strip()
 
             # Default to addon data directory
-            return "special://userdata/addon_data/plugin.video.librarygenie/backups/"
-        except Exception:
+            default_path = "special://userdata/addon_data/plugin.video.librarygenie/backups/"
+            logger.debug(f"CONFIG_DEBUG: Using default backup path: {default_path}")
+            return default_path
+        except Exception as e:
+            from ..utils.logger import get_logger
+            logger = get_logger(__name__)
+            logger.error(f"CONFIG_DEBUG: Exception in get_backup_storage_location: {e}")
             # Ultimate fallback
             return "special://userdata/addon_data/plugin.video.librarygenie/backups/"
+
+    def get_backup_enabled(self) -> bool:
+        """Get backup enabled setting with detailed debugging"""
+        from ..utils.logger import get_logger
+        logger = get_logger(__name__)
+        logger.debug("CONFIG_DEBUG: Getting backup_enabled setting")
+        
+        try:
+            result = self.get_bool('backup_enabled', False)
+            logger.debug(f"CONFIG_DEBUG: backup_enabled = {result}")
+            return result
+        except Exception as e:
+            logger.error(f"CONFIG_DEBUG: Exception getting backup_enabled: {e}")
+            return False
+
+    def get_backup_include_non_library(self) -> bool:
+        """Get backup include non-library setting with detailed debugging"""
+        from ..utils.logger import get_logger
+        logger = get_logger(__name__)
+        logger.debug("CONFIG_DEBUG: Getting backup_include_non_library setting")
+        
+        try:
+            result = self.get_bool('backup_include_non_library', False)
+            logger.debug(f"CONFIG_DEBUG: backup_include_non_library = {result}")
+            return result
+        except Exception as e:
+            logger.error(f"CONFIG_DEBUG: Exception getting backup_include_non_library: {e}")
+            return False
+
+    def get_backup_include_folders(self) -> bool:
+        """Get backup include folders setting with detailed debugging"""
+        from ..utils.logger import get_logger
+        logger = get_logger(__name__)
+        logger.debug("CONFIG_DEBUG: Getting backup_include_folders setting")
+        
+        try:
+            result = self.get_bool('backup_include_folders', True)
+            logger.debug(f"CONFIG_DEBUG: backup_include_folders = {result}")
+            return result
+        except Exception as e:
+            logger.error(f"CONFIG_DEBUG: Exception getting backup_include_folders: {e}")
+            return True
+
+    def get_backup_retention_count(self) -> int:
+        """Get backup retention count with detailed debugging"""
+        from ..utils.logger import get_logger
+        logger = get_logger(__name__)
+        logger.debug("CONFIG_DEBUG: Getting backup_retention_count setting")
+        
+        try:
+            result = self.get_int('backup_retention_count', 5)
+            logger.debug(f"CONFIG_DEBUG: backup_retention_count = {result}")
+            return result
+        except Exception as e:
+            logger.error(f"CONFIG_DEBUG: Exception getting backup_retention_count: {e}")
+            return 5
+
+    def get_backup_storage_type(self) -> str:
+        """Get backup storage type with detailed debugging"""
+        from ..utils.logger import get_logger
+        logger = get_logger(__name__)
+        logger.debug("CONFIG_DEBUG: Getting backup_storage_type setting")
+        
+        try:
+            # This is a select setting, so get as int and map to string
+            index = self.get_int('backup_storage_type', 0)
+            logger.debug(f"CONFIG_DEBUG: backup_storage_type index = {index}")
+            
+            # Map index to storage type
+            storage_types = ['local']  # Only local supported for now
+            if 0 <= index < len(storage_types):
+                result = storage_types[index]
+            else:
+                result = 'local'
+            
+            logger.debug(f"CONFIG_DEBUG: backup_storage_type = '{result}'")
+            return result
+        except Exception as e:
+            logger.error(f"CONFIG_DEBUG: Exception getting backup_storage_type: {e}")
+            return 'local'
 
 
 # Global config instance

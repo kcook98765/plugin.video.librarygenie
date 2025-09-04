@@ -389,7 +389,7 @@ class TimestampBackupManager:
             import_engine = get_import_engine()
 
             filename = backup_info.get("filename", "backup")
-            
+
             # Create safety backup before replace mode
             if replace_mode:
                 try:
@@ -435,7 +435,7 @@ class TimestampBackupManager:
             except (ValueError, TypeError):
                 self.logger.warning(f"Invalid retention count: {retention_count}, defaulting to 5")
                 retention_count = 5
-            
+
             backups = self.list_backups()
 
             if len(backups) <= retention_count:
@@ -468,6 +468,46 @@ class TimestampBackupManager:
         except Exception as e:
             self.logger.error(f"Error deleting backup: {e}")
             return False
+
+    def _get_backup_preferences(self) -> Dict[str, Any]:
+        """Get backup preferences from config with detailed debugging"""
+        try:
+            self.logger.debug("BACKUP_DEBUG: Getting backup preferences from config")
+            config = get_config()
+
+            # Get each setting individually with debugging
+            self.logger.debug("BACKUP_DEBUG: Getting individual backup settings...")
+            enabled = config.get_backup_enabled()
+            storage_type = config.get_backup_storage_type()
+            include_non_library = config.get_backup_include_non_library()
+            include_folders = config.get_backup_include_folders()
+            retention_count = config.get_backup_retention_count()
+            storage_location = config.get_backup_storage_location()
+
+            self.logger.debug(f"BACKUP_DEBUG: Individual settings retrieved:")
+            self.logger.debug(f"BACKUP_DEBUG:   enabled = {enabled}")
+            self.logger.debug(f"BACKUP_DEBUG:   storage_type = {storage_type}")
+            self.logger.debug(f"BACKUP_DEBUG:   include_non_library = {include_non_library}")
+            self.logger.debug(f"BACKUP_DEBUG:   include_folders = {include_folders}")
+            self.logger.debug(f"BACKUP_DEBUG:   retention_count = {retention_count}")
+            self.logger.debug(f"BACKUP_DEBUG:   storage_location = {storage_location}")
+
+            # Now try the original method for comparison
+            self.logger.debug("BACKUP_DEBUG: Getting full backup preferences...")
+            full_prefs = config.get_backup_preferences()
+            self.logger.debug(f"BACKUP_DEBUG: Full preferences: {full_prefs}")
+
+            return full_prefs
+
+        except Exception as e:
+            self.logger.error(f"BACKUP_DEBUG: Error getting backup preferences: {type(e).__name__}: {e}")
+            return {
+                'enabled': False,
+                'storage_type': 'local',
+                'include_settings': True,
+                'include_non_library': False,
+                'retention_days': 5
+            }
 
 
 # Global instance
