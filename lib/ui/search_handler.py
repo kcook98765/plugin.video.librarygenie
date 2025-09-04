@@ -41,7 +41,7 @@ class SearchHandler:
         self.addon_id = self.addon.getAddonInfo('id')
 
     def prompt_and_search(self, context=None) -> Optional[Any]:
-        """Main entry point for simple search with dialog prompts"""
+        """Main entry point for simple search"""
         self._ensure_handle_from_context(context)
         
         # Step 1: Get search keywords
@@ -50,11 +50,8 @@ class SearchHandler:
             self._info("No search terms entered")
             return self._maybe_dir_response([], False, "No search terms provided", content_type="movies")
 
-        # Step 2: Get search options
-        search_options = self._prompt_for_search_options()
-        if search_options is None:
-            self._info("User cancelled search options")
-            return self._maybe_dir_response([], False, "Search cancelled", content_type="movies")
+        # Step 2: Use default search options (always search both title and plot)
+        search_options = {"search_scope": "both", "match_logic": "all"}
 
         # Step 3: Execute search
         results = self._execute_simple_search(search_terms, search_options, context)
@@ -83,40 +80,7 @@ class SearchHandler:
             self._warn(f"Search terms input failed: {e}")
             return None
 
-    def _prompt_for_search_options(self) -> Optional[Dict[str, str]]:
-        """Prompt user for search scope and match logic"""
-        try:
-            # Search scope options
-            scope_options = [
-                "Search movie titles and plots (recommended)",
-                "Search movie titles only", 
-                "Search plot descriptions only",
-                "Advanced: Find ANY keywords (more results)",
-                "Advanced: Find ALL keywords (precise results)"
-            ]
-            
-            selected = xbmcgui.Dialog().select("Search Options", list(scope_options))
-            if selected < 0:  # User cancelled
-                return None
-            
-            # Map selection to options
-            if selected == 0:  # titles and plots, all keywords
-                return {"search_scope": "both", "match_logic": "all"}
-            elif selected == 1:  # titles only, all keywords
-                return {"search_scope": "title", "match_logic": "all"}
-            elif selected == 2:  # plots only, all keywords
-                return {"search_scope": "plot", "match_logic": "all"}
-            elif selected == 3:  # any keywords, both fields
-                return {"search_scope": "both", "match_logic": "any"}
-            elif selected == 4:  # all keywords, both fields
-                return {"search_scope": "both", "match_logic": "all"}
-            
-            # Default fallback
-            return {"search_scope": "both", "match_logic": "all"}
-            
-        except Exception as e:
-            self._warn(f"Search options input failed: {e}")
-            return {"search_scope": "both", "match_logic": "all"}
+    
 
     def _execute_simple_search(self, search_terms: str, options: Dict[str, str], context=None):
         """Execute the simplified search"""
@@ -153,15 +117,8 @@ class SearchHandler:
             if results.total_count == 0:
                 return
                 
-            # Create search history list
-            scope_desc = {
-                "title": "titles", 
-                "plot": "plots", 
-                "both": "titles+plots"
-            }.get(options["search_scope"], "both")
-            
-            logic_desc = options["match_logic"].upper()
-            query_desc = f"{search_terms} ({logic_desc} in {scope_desc})"
+            # Create search history list with simplified description
+            query_desc = f"{search_terms}"
             
             list_id = self.query_manager.create_search_history_list(
                 query=query_desc, 
