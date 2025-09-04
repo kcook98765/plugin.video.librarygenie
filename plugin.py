@@ -275,69 +275,21 @@ def _handle_manual_backup(context: PluginContext):
 
 
 def _handle_restore_backup(context: PluginContext):
-    """Handle restore backup from settings"""
+    """Handle restore backup from settings - delegated to tools handler"""
     try:
-        logger.info("Handling restore backup from settings")
-
-        from lib.import_export import get_timestamp_backup_manager
-        backup_manager = get_timestamp_backup_manager()
-
-        # Prompt for replace or append
-        dialog = xbmcgui.Dialog()
-        options = ["Replace Existing", "Append to Existing"]
-        selected_option = dialog.select("Restore Backup Options", options)
-
-        if selected_option == -1:  # User cancelled
-            return
-
-        replace_mode = options[selected_option].startswith("Replace")
-
-        # Get list of available backups
-        available_backups = backup_manager.get_available_backups()
-
-        if not available_backups:
-            dialog.notification("LibraryGenie", "No backups found.", xbmcgui.NOTIFICATION_WARNING, 5000)
-            return
-
-        # Present backup selection dialog
-        backup_files = [backup['filename'] for backup in available_backups]
-        backup_index = dialog.select("Select Backup File", backup_files)
-
-        if backup_index == -1:  # User cancelled
-            return
-
-        selected_backup = available_backups[backup_index]
-
-        # Perform the restore operation
-        progress = xbmcgui.DialogProgress()
-        progress.create("Restoring Backup", f"Restoring from: {selected_backup['filename']}...")
-        progress.update(0)
-
-        try:
-            result = backup_manager.restore_backup(selected_backup['filepath'], replace_mode=replace_mode)
-
-            if result.get("success"):
-                message = (
-                    f"Restore completed successfully!\n\n"
-                    f"Filename: {selected_backup['filename']}\n"
-                    f"Items restored: {result.get('items_restored', 0)}\n"
-                    f"Items skipped: {result.get('items_skipped', 0)}\n"
-                    f"Error details: {result.get('error', 'None')}"
-                )
-                progress.update(100, "Restore complete!")
-                progress.close()
-                dialog.ok("Restore Backup", message)
-            else:
-                error_msg = result.get("error", "Unknown error")
-                progress.update(100, "Restore failed!")
-                progress.close()
-                dialog.ok("Restore Backup Failed", f"Restore failed:\n{error_msg}")
-
-        except Exception as e:
-            logger.error(f"Error during restore_backup execution: {e}")
-            progress.update(100, "Restore failed!")
-            progress.close()
-            dialog.ok("Restore Backup Error", f"An error occurred during restore: {str(e)}")
+        from lib.ui.tools_handler import ToolsHandler
+        tools_handler = ToolsHandler()
+        
+        # Call the restore backup method from tools handler
+        response = tools_handler.restore_backup_from_settings()
+        
+        # Handle the response appropriately
+        from lib.ui.response_types import DialogResponse
+        from lib.ui.response_handler import get_response_handler
+        
+        if isinstance(response, DialogResponse):
+            response_handler = get_response_handler()
+            response_handler.handle_dialog_response(response, context)
 
     except Exception as e:
         logger.error(f"Error in restore backup handler: {e}")

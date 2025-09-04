@@ -174,13 +174,26 @@ class TimestampBackupManager:
             self.logger.error(f"Error listing backups: {e}")
             return []
 
-    def restore_backup(self, backup_info: Dict[str, Any]) -> Dict[str, Any]:
+    def get_available_backups(self) -> List[Dict[str, Any]]:
+        """Get available backups - alias for list_backups for compatibility"""
+        return self.list_backups()
+
+    def restore_backup(self, backup_info, replace_mode: bool = True) -> Dict[str, Any]:
         """Restore from a timestamped backup"""
         try:
+            # Handle both string filepath and dict backup_info formats
+            if isinstance(backup_info, str):
+                # Legacy format - backup_info is filepath
+                filepath = backup_info
+                backup_dict = {"file_path": filepath}
+            else:
+                # New format - backup_info is dict
+                backup_dict = backup_info
+
             storage_type = self.config.get("backup_storage_type", "local")
 
             if storage_type == "local":
-                return self._restore_local_backup(backup_info)
+                return self._restore_local_backup(backup_dict, replace_mode)
             else:
                 return {"success": False, "error": "Unknown storage type"}
 
@@ -365,7 +378,7 @@ class TimestampBackupManager:
             self.logger.error(f"Error listing local backups: {e}")
             return []
 
-    def _restore_local_backup(self, backup_info: Dict[str, Any]) -> Dict[str, Any]:
+    def _restore_local_backup(self, backup_info: Dict[str, Any], replace_mode: bool = True) -> Dict[str, Any]:
         """Restore from local backup"""
         try:
             file_path = backup_info["file_path"]
@@ -378,7 +391,20 @@ class TimestampBackupManager:
             from .import_engine import get_import_engine
             import_engine = get_import_engine()
 
-            result = import_engine.import_from_content(content, backup_info["filename"])
+            filename = backup_info.get("filename", "backup")
+            
+            # Create safety backup before replace mode
+            if replace_mode:
+                try:
+                    safety_result = self.run_manual_backup()
+                    if safety_result.get("success"):
+                        self.logger.info(f"Created safety backup before restore: {safety_result.get('filename')}")
+                    else:
+                        self.logger.warning(f"Failed to create safety backup: {safety_result.get('error')}")
+                except Exception as e:
+                    self.logger.warning(f"Error creating safety backup: {e}")
+
+            result = import_engine.import_from_content(content, filename, replace_mode=replace_mode)
             return result
 
         except Exception as e:
