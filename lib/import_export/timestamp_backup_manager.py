@@ -215,10 +215,27 @@ class TimestampBackupManager:
     def _store_local_backup(self, source_file: str, filename: str) -> Dict[str, Any]:
         """Store backup in settings-configured location"""
         try:
-            # Get backup directory from settings
-            from ..config.settings import SettingsManager
-            settings = SettingsManager()
-            backup_dir = settings.get_backup_storage_location()
+            # Get backup directory from settings with fallback
+            backup_dir = None
+            try:
+                from ..config.settings import SettingsManager
+                settings = SettingsManager()
+                if settings:
+                    backup_dir = settings.get_backup_storage_location()
+            except Exception as settings_error:
+                self.logger.warning(f"Error getting backup directory from SettingsManager: {settings_error}")
+            
+            # Fallback to config manager if settings manager fails
+            if not backup_dir:
+                try:
+                    backup_dir = self.config.get_backup_storage_location()
+                except Exception as config_error:
+                    self.logger.warning(f"Error getting backup directory from config: {config_error}")
+            
+            # Ultimate fallback to default location
+            if not backup_dir:
+                backup_dir = "special://userdata/addon_data/plugin.video.librarygenie/backups/"
+                self.logger.info(f"Using fallback backup directory: {backup_dir}")
 
             # Handle special:// paths
             if backup_dir.startswith("special://"):
@@ -266,9 +283,27 @@ class TimestampBackupManager:
     def _test_local_storage(self) -> Dict[str, Any]:
         """Test local storage configuration"""
         try:
-            from ..config.settings import SettingsManager
-            settings = SettingsManager()
-            storage_location = settings.get_backup_storage_location()
+            # Get storage location with fallback
+            storage_location = None
+            try:
+                from ..config.settings import SettingsManager
+                settings = SettingsManager()
+                if settings:
+                    storage_location = settings.get_backup_storage_location()
+            except Exception as settings_error:
+                self.logger.warning(f"Error getting storage location from SettingsManager: {settings_error}")
+            
+            # Fallback to config manager if settings manager fails
+            if not storage_location:
+                try:
+                    storage_location = self.config.get_backup_storage_location()
+                except Exception as config_error:
+                    self.logger.warning(f"Error getting storage location from config: {config_error}")
+            
+            # Ultimate fallback to default location
+            if not storage_location:
+                storage_location = "special://userdata/addon_data/plugin.video.librarygenie/backups/"
+                self.logger.info(f"Using fallback storage location: {storage_location}")
 
             # Handle special:// paths
             if storage_location.startswith("special://"):
@@ -303,10 +338,27 @@ class TimestampBackupManager:
     def _list_local_backups(self) -> List[Dict[str, Any]]:
         """List local backup files from settings-configured location"""
         try:
-            # Get backup directory from settings
-            from ..config.settings import SettingsManager
-            settings = SettingsManager()
-            backup_dir = settings.get_backup_storage_location()
+            # Get backup directory from settings with fallback
+            backup_dir = None
+            try:
+                from ..config.settings import SettingsManager
+                settings = SettingsManager()
+                if settings:
+                    backup_dir = settings.get_backup_storage_location()
+            except Exception as settings_error:
+                self.logger.warning(f"Error getting backup directory from SettingsManager: {settings_error}")
+            
+            # Fallback to config manager if settings manager fails
+            if not backup_dir:
+                try:
+                    backup_dir = self.config.get_backup_storage_location()
+                except Exception as config_error:
+                    self.logger.warning(f"Error getting backup directory from config: {config_error}")
+            
+            # Ultimate fallback to default location
+            if not backup_dir:
+                backup_dir = "special://userdata/addon_data/plugin.video.librarygenie/backups/"
+                self.logger.info(f"Using fallback backup directory: {backup_dir}")
 
             # Handle special:// paths
             if backup_dir.startswith("special://"):
