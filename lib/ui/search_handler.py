@@ -8,6 +8,7 @@ LibraryGenie - Unified Search Handler (drop-in)
 - Consolidates remote/local/auto logic, history saving, and display paths
 """
 
+from __future__ import annotations
 from typing import Optional, Dict, Any, List, Union
 
 import xbmcgui
@@ -64,7 +65,7 @@ class SearchHandler:
 
     # ---------- PUBLIC ENTRYPOINTS (both preserved) ----------
 
-    def prompt_and_search(self, context: "PluginContext") -> Optional["DirectoryResponse"]:
+    def prompt_and_search(self, context: PluginContext) -> Optional[DirectoryResponse]:
         """
         Newer entrypoint (kept): uses PluginContext and returns DirectoryResponse when inline-rendered.
         If the V20+ redirect path is used, returns a success DirectoryResponse with zero items.
@@ -318,7 +319,7 @@ class SearchHandler:
 
     # ---------- Context/handle bridging ----------
 
-    def _ensure_handle_from_context(self, context: "PluginContext") -> None:
+    def _ensure_handle_from_context(self, context: PluginContext) -> None:
         """If called via context, copy out essentials we need while remaining drop-in friendly."""
         if context is None:
             return
@@ -345,7 +346,7 @@ class SearchHandler:
         success: bool,
         message: str,
         content_type: str = "movies",
-    ) -> Optional["DirectoryResponse"]:
+    ) -> Optional[DirectoryResponse]:
         """Return a DirectoryResponse if the newer response_types is available; otherwise None."""
         if DirectoryResponse is None:
             return None
