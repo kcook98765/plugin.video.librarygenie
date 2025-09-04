@@ -110,7 +110,7 @@ class LocalSearchEngine:
                 params.extend([word_pattern, word_pattern])
 
                 # Track title matches for prioritization
-                title_conditions.append(f"LOWER(title) LIKE ?")
+                title_conditions.append("LOWER(title) LIKE ?")
                 params.append(word_pattern)
 
             # All words must match somewhere across title/plot fields (AND condition)
