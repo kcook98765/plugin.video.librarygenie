@@ -144,21 +144,45 @@ class SettingsManager:
         return self.addon.getSetting('backup_interval')
 
     def get_backup_storage_location(self) -> str:
-        """Get backup storage location"""
-        storage_type = self.addon.getSetting('backup_storage_type')
-        
-        if storage_type == "custom":
-            # Use custom path set by user
-            custom_path = self.addon.getSetting('backup_local_path')
-            if custom_path and custom_path.strip():
-                return custom_path.strip()
-        
-        # Default to addon data directory
-        return "special://userdata/addon_data/plugin.video.librarygenie/backups/"
+        """Get backup storage location with safe fallbacks"""
+        try:
+            storage_type = self.addon.getSetting('backup_storage_type')
+            
+            if storage_type == "custom":
+                # Use custom path set by user
+                custom_path = self.addon.getSetting('backup_local_path')
+                if custom_path and custom_path.strip():
+                    return custom_path.strip()
+            
+            # Default to addon data directory
+            return "special://userdata/addon_data/plugin.video.librarygenie/backups/"
+        except Exception as e:
+            self.logger.warning(f"Error reading backup storage location: {e}")
+            return "special://userdata/addon_data/plugin.video.librarygenie/backups/"
     
     def get_backup_storage_type(self) -> str:
-        """Get backup storage type"""
-        return self.addon.getSetting('backup_storage_type')
+        """Get backup storage type with safe fallback"""
+        try:
+            return self.addon.getSetting('backup_storage_type') or 'local'
+        except Exception as e:
+            self.logger.warning(f"Error reading backup storage type: {e}")
+            return 'local'
+
+    def get_backup_enabled(self) -> bool:
+        """Get backup enabled setting with safe fallback"""
+        try:
+            return self.addon.getSettingBool('backup_enabled')
+        except Exception as e:
+            self.logger.warning(f"Error reading backup_enabled setting: {e}")
+            return False
+
+    def get_backup_retention_count(self) -> int:
+        """Get backup retention count with safe fallback"""
+        try:
+            return max(1, min(50, self.addon.getSettingInt('backup_retention_count')))
+        except Exception as e:
+            self.logger.warning(f"Error reading backup retention count: {e}")
+            return 5
 
     def get_backup_retention_policy(self) -> str:
         """Get backup retention policy"""

@@ -7,7 +7,7 @@ Reads Kodi settings and manages addon configuration
 """
 
 import xbmcaddon
-from typing import Optional
+from typing import Optional, Dict, Any
 
 
 class ConfigManager:
@@ -36,7 +36,7 @@ class ConfigManager:
             "favorites_integration_enabled": False,
             "favorites_scan_interval_minutes": 30,
             "show_unmapped_favorites": False,
-            
+
             # Remote service settings
             "remote_base_url": "",  # Blank by default for repo safety
             "device_name": "Kodi",
@@ -243,7 +243,7 @@ class ConfigManager:
         try:
             # Set the setting
             success = self.set("favorites_integration_enabled", True)
-            
+
             if success:
                 # Trigger immediate scan
                 try:
@@ -254,11 +254,40 @@ class ConfigManager:
                     from ..utils.logger import get_logger
                     logger = get_logger(__name__)
                     logger.warning(f"Failed to trigger immediate favorites scan: {e}")
-            
+
             return success
-            
+
         except Exception:
             return False
+
+    def get_backup_preferences(self) -> Dict[str, Any]:
+        """Get backup-related preferences with defaults"""
+        return {
+            'enabled': self.get_bool('backup_enabled', False),
+            'schedule_interval': self.get('backup_interval', 'weekly'),
+            'retention_days': self.get_int('backup_retention_count', 5),
+            'storage_path': self.get_backup_storage_location(),
+            'storage_type': self.get('backup_storage_type', 'local'),
+            'include_settings': self.get_bool('backup_include_settings', True),
+            'include_non_library': self.get_bool('backup_include_non_library', False)
+        }
+
+    def get_backup_storage_location(self) -> str:
+        """Get backup storage location with proper fallback"""
+        try:
+            storage_type = self.get('backup_storage_type', 'local')
+
+            if storage_type == "custom":
+                # Use custom path set by user
+                custom_path = self.get('backup_local_path', '')
+                if custom_path and custom_path.strip():
+                    return custom_path.strip()
+
+            # Default to addon data directory
+            return "special://userdata/addon_data/plugin.video.librarygenie/backups/"
+        except Exception:
+            # Ultimate fallback
+            return "special://userdata/addon_data/plugin.video.librarygenie/backups/"
 
 
 # Global config instance

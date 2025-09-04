@@ -102,17 +102,29 @@ class BackupManager:
 
     def get_backup_settings(self) -> Dict[str, Any]:
         """Get current backup settings"""
-        settings = SettingsManager()
+        try:
+            settings = SettingsManager()
 
-        backup_preferences = {
-            'enabled': self.config.get_bool('backup_enabled', False),
-            'schedule_interval': self.config.get('backup_interval', 'weekly'),
-            'retention_days': self.config.get_int('backup_retention_count', 5),
-            'storage_path': settings.get_backup_storage_location(),
-            'storage_type': settings.get_backup_storage_type(),
-            'include_settings': self.config.get_bool('backup_include_settings', True)
-        }
-        return backup_preferences
+            backup_preferences = {
+                'enabled': settings.get_backup_enabled(),
+                'schedule_interval': self.config.get('backup_interval', 'weekly'),
+                'retention_days': settings.get_backup_retention_count(),
+                'storage_path': settings.get_backup_storage_location(),
+                'storage_type': settings.get_backup_storage_type(),
+                'include_settings': self.config.get_bool('backup_include_settings', True)
+            }
+            return backup_preferences
+        except Exception as e:
+            self.logger.error(f"Error getting backup settings: {e}")
+            # Return safe defaults
+            return {
+                'enabled': False,
+                'schedule_interval': 'weekly',
+                'retention_days': 5,
+                'storage_path': "special://userdata/addon_data/plugin.video.librarygenie/backups/",
+                'storage_type': 'local',
+                'include_settings': True
+            }
 
 
     def _get_last_backup_time(self) -> Optional[datetime]:
