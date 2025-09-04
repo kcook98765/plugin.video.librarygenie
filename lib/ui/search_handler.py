@@ -65,7 +65,7 @@ class SearchHandler:
 
     # ---------- PUBLIC ENTRYPOINTS (both preserved) ----------
 
-    def prompt_and_search(self, context: PluginContext) -> Optional[DirectoryResponse]:
+    def prompt_and_search(self, context) -> Optional[DirectoryResponse]:  # type: ignore
         """
         Newer entrypoint (kept): uses PluginContext and returns DirectoryResponse when inline-rendered.
         If the V20+ redirect path is used, returns a success DirectoryResponse with zero items.
@@ -319,7 +319,7 @@ class SearchHandler:
 
     # ---------- Context/handle bridging ----------
 
-    def _ensure_handle_from_context(self, context: PluginContext) -> None:
+    def _ensure_handle_from_context(self, context) -> None:  # type: ignore
         """If called via context, copy out essentials we need while remaining drop-in friendly."""
         if context is None:
             return
@@ -346,7 +346,7 @@ class SearchHandler:
         success: bool,
         message: str,
         content_type: str = "movies",
-    ) -> Optional[DirectoryResponse]:
+    ) -> Optional[DirectoryResponse]:  # type: ignore
         """Return a DirectoryResponse if the newer response_types is available; otherwise None."""
         if DirectoryResponse is None:
             return None
