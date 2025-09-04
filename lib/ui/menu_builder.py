@@ -257,10 +257,22 @@ class MenuBuilder:
         # Add additional context menu items if specified
         extra_context = options.get('extra_context_menu', [])
         if extra_context and list_item is not None:
+            # Get existing context menu items (should be tuples)
             current_context = list_item.getProperty('ContextMenuItems') or []
             if isinstance(current_context, str):
-                current_context = [current_context]
-            current_context.extend(extra_context)
+                # Convert single string to tuple format
+                current_context = [(current_context, f'RunPlugin({current_context})')]
+            elif current_context and isinstance(current_context[0], str):
+                # Convert list of strings to list of tuples
+                current_context = [(item, f'RunPlugin({item})') for item in current_context]
+            
+            # Ensure extra_context is in tuple format
+            if extra_context:
+                if isinstance(extra_context[0], str):
+                    # Convert strings to tuples
+                    extra_context = [(item, f'RunPlugin({item})') for item in extra_context]
+                current_context.extend(extra_context)
+            
             list_item.addContextMenuItems(current_context)
 
         # Set as playable item and add to directory only if list_item is valid
