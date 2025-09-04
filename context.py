@@ -31,8 +31,8 @@ def main():
                 if quick_add_enabled and default_list_id:
                     # Show context menu with both quick-add and regular add options
                     options = [
-                        "Quick Add to Default List",
-                        "Add to List..."
+                        xbmcgui.ListItem(label="Quick Add to Default List"),
+                        xbmcgui.ListItem(label="Add to List...")
                     ]
 
                     dialog = xbmcgui.Dialog()
@@ -67,8 +67,8 @@ def main():
                 if quick_add_enabled and default_list_id:
                     # Show context menu with both quick-add and regular add options
                     options = [
-                        "Quick Add to Default List",
-                        "Add to List..."
+                        xbmcgui.ListItem(label="Quick Add to Default List"),
+                        xbmcgui.ListItem(label="Add to List...")
                     ]
 
                     dialog = xbmcgui.Dialog()
@@ -103,8 +103,8 @@ def main():
                 if quick_add_enabled and default_list_id:
                     # Show context menu with both quick-add and regular add options
                     options = [
-                        "Quick Add to Default List",
-                        "Add to List..."
+                        xbmcgui.ListItem(label="Quick Add to Default List"),
+                        xbmcgui.ListItem(label="Add to List...")
                     ]
 
                     dialog = xbmcgui.Dialog()
@@ -140,8 +140,8 @@ def main():
                     if quick_add_enabled and default_list_id:
                         # Show context menu with both quick-add and regular add options
                         options = [
-                            "Quick Add to Default List",
-                            "Add to List..."
+                            xbmcgui.ListItem(label="Quick Add to Default List"),
+                            xbmcgui.ListItem(label="Add to List...")
                         ]
 
                         dialog = xbmcgui.Dialog()
