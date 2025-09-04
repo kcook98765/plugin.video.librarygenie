@@ -110,6 +110,10 @@ class ShortListImporter:
                 list_name = entry.get("label") or entry.get("title") or "Unnamed List"
                 list_url = entry.get("file")
 
+                if not list_url:
+                    self.logger.warning(f"Skipping list '{list_name}' - no valid URL found")
+                    continue
+
                 self.logger.info(f"Processing ShortList: {list_name}")
 
                 # Get items in this list
