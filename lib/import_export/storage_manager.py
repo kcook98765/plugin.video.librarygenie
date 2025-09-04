@@ -132,9 +132,6 @@ class StorageManager:
             profile_path = self.get_profile_path()
             files = []
 
-            # Construct the full path pattern
-            full_pattern_path = os.path.join(profile_path, pattern)
-
             # Use Path.glob for pattern matching
             for file_path in Path(profile_path).glob(pattern):
                 if file_path.is_file():
