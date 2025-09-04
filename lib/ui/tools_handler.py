@@ -1067,6 +1067,24 @@ class ToolsHandler:
             self.logger.error(f"Error clearing search history folder: {e}")
             return DialogResponse(success=False, message="Error clearing search history")
 
+    def _format_file_size(self, size_bytes: int) -> str:
+        """Format file size to be human-readable"""
+        if size_bytes == 0:
+            return "0 B"
+        
+        size_names = ["B", "KB", "MB", "GB", "TB"]
+        i = 0
+        size = float(size_bytes)
+        
+        while size >= 1024.0 and i < len(size_names) - 1:
+            size /= 1024.0
+            i += 1
+        
+        if i == 0:
+            return f"{int(size)} {size_names[i]}"
+        else:
+            return f"{size:.1f} {size_names[i]}"
+
     def _copy_search_history_to_list(self, context: PluginContext, search_list_id: str) -> DialogResponse:
         """Copy a search history list to a new regular list"""
         try:
