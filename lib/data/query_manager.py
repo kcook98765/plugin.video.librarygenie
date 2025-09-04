@@ -46,8 +46,8 @@ class QueryManager:
         canonical["year"] = int(item.get("year", 0)) if item.get("year") else 0
         canonical["genre"] = str(item.get("genre", ""))
         canonical["plot"] = str(item.get("plot", item.get("plotoutline", "")))
-        canonical["rating"] = float(item.get("rating", 0.0))
-        canonical["votes"] = int(item.get("votes", 0))
+        canonical["rating"] = float(item.get("rating") or 0.0)
+        canonical["votes"] = int(item.get("votes") or 0)
         canonical["mpaa"] = str(item.get("mpaa", ""))
         canonical["studio"] = str(item.get("studio", ""))
         canonical["country"] = str(item.get("country", ""))
