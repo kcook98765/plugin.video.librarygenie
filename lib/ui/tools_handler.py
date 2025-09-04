@@ -197,7 +197,7 @@ class ToolsHandler:
                     result = lists_handler.delete_list(context, list_id)
 
                     # For search history deletion, check if this was the last list in the folder
-                    if result["success"]:
+                    if result.success:
                         search_folder_id = query_manager.get_or_create_search_history_folder()
                         remaining_lists = query_manager.get_lists_in_folder(search_folder_id)
 
@@ -227,7 +227,7 @@ class ToolsHandler:
                     result = lists_handler.delete_list(context, list_id)
 
                     # For regular list deletion, set flag to navigate back to lists menu
-                    if result["success"]:
+                    if result.success:
                         result.navigate_to_lists = True
 
                     return result
@@ -328,7 +328,7 @@ class ToolsHandler:
                     result = lists_handler.delete_folder(context, folder_id)
 
                     # For folder deletion, set flag to navigate back to lists menu
-                    if result["success"]:
+                    if result.success:
                         result.navigate_to_lists = True
 
                     return result
