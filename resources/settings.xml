@@ -49,9 +49,9 @@
     <setting id="backup_storage_type" type="select" label="30531" default="local" values="local|custom" enable="eq(-7,true)"/>
     <setting id="backup_local_path" type="folder" label="30532" default="" enable="eq(-1,custom)"/>
     <setting label="30540" type="lsep"/>
-    <setting id="backup_test_action" type="action" label="30541" action="RunPlugin(plugin://plugin.video.librarygenie/?action=test_backup)" enable="eq(-4,true)"/>
-    <setting id="backup_manual_action" type="action" label="30542" action="RunPlugin(plugin://plugin.video.librarygenie/?action=manual_backup)" enable="eq(-5,true)"/>
-    <setting id="backup_restore_action" type="action" label="30543" action="RunPlugin(plugin://plugin.video.librarygenie/?action=restore_backup)" enable="eq(-6,true)"/>
+    <setting id="backup_test_action" type="action" label="30541" action="RunPlugin(plugin://plugin.video.librarygenie/?action=test_backup)" enable="eq(-7,true)"/>
+    <setting id="backup_manual_action" type="action" label="30542" action="RunPlugin(plugin://plugin.video.librarygenie/?action=manual_backup)" enable="eq(-8,true)"/>
+    <setting id="backup_restore_action" type="action" label="30543" action="RunPlugin(plugin://plugin.video.librarygenie/?action=restore_backup)" enable="eq(-9,true)"/>
   </category>
 
   <!-- Advanced Settings -->
