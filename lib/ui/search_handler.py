@@ -13,14 +13,8 @@ from typing import Optional, Dict, Any, List, Union
 
 import xbmcgui
 import xbmcaddon
-
-# Optional imports guarded for drop-in flexibility
-try:
-    import xbmc
-    import xbmcplugin
-except Exception:  # pragma: no cover (Kodi runtime)
-    xbmc = None
-    xbmcplugin = None
+import xbmc
+import xbmcplugin
 
 # Shared libs
 from ..search.local_engine import LocalSearchEngine
@@ -34,15 +28,15 @@ from ..utils.logger import get_logger
 try:
     from ..ui.listitem_builder import ListItemBuilder
 except ImportError:
-    ListItemBuilder = None
+    ListItemBuilder = None  # type: ignore
 
 # Newer arch types (kept optional so this file still imports without them)
 try:
     from .plugin_context import PluginContext
     from .response_types import DirectoryResponse
 except Exception:  # pragma: no cover
-    PluginContext = Any = object  # type: ignore
-    DirectoryResponse = None       # type: ignore
+    PluginContext = Any  # type: ignore
+    DirectoryResponse = None  # type: ignore
 
 
 class SearchHandler:
@@ -65,7 +59,7 @@ class SearchHandler:
 
     # ---------- PUBLIC ENTRYPOINTS (both preserved) ----------
 
-    def prompt_and_search(self, context: PluginContext) -> Optional["DirectoryResponse"]:
+    def prompt_and_search(self, context) -> Optional[DirectoryResponse]:  # type: ignore
         """
         Newer entrypoint (kept): uses PluginContext and returns DirectoryResponse when inline-rendered.
         If the V20+ redirect path is used, returns a success DirectoryResponse with zero items.
@@ -231,7 +225,7 @@ class SearchHandler:
 
     # ---------- DISPLAY ----------
 
-    
+
 
     def _try_redirect_to_saved_search_list(self) -> bool:
         """
@@ -319,7 +313,7 @@ class SearchHandler:
 
     # ---------- Context/handle bridging ----------
 
-    def _ensure_handle_from_context(self, context: "PluginContext") -> None:
+    def _ensure_handle_from_context(self, context) -> None:  # type: ignore
         """If called via context, copy out essentials we need while remaining drop-in friendly."""
         if context is None:
             return
@@ -346,7 +340,7 @@ class SearchHandler:
         success: bool,
         message: str,
         content_type: str = "movies",
-    ) -> Optional["DirectoryResponse"]:
+    ) -> Optional[DirectoryResponse]:  # type: ignore
         """Return a DirectoryResponse if the newer response_types is available; otherwise None."""
         if DirectoryResponse is None:
             return None

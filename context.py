@@ -6,7 +6,6 @@ LibraryGenie - Context Menu Script
 Handles context menu actions for adding media to lists
 """
 
-import sys
 import xbmc
 import xbmcaddon
 import xbmcgui

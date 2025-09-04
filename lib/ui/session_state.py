@@ -20,6 +20,8 @@ class SessionState:
         self._notifications_shown = set()
         self._last_notification_times = {}
         self._session_start = time.time()
+        self.last_search_results: Optional[Dict[str, Any]] = None
+        self.last_search_query: Optional[str] = None
 
     def should_show_notification(self, notification_key: str, cooldown_seconds: int = 300) -> bool:
         """Check if a notification should be shown based on session state"""
