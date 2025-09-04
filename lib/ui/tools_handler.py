@@ -755,38 +755,43 @@ class ToolsHandler:
 
             backups = backup_manager.list_backups()
 
-            if not self.listitem_builder:
+            # Build backup list for display - return simple dialog with backup info
+            if not backups:
                 return DialogResponse(
-                    success=False,
-                    message="ListItemBuilder not available"
+                    success=True,
+                    message="No backups found. Create a backup using the manual backup option."
                 )
 
-            # Build list items for backup files
-            list_items = []
-
+            # Show backup selection dialog
+            backup_options = []
             for backup in backups[:10]:  # Show last 10 backups
                 age_text = f"{backup['age_days']} days ago" if backup['age_days'] > 0 else "Today"
                 size_mb = round(backup['file_size'] / 1024 / 1024, 2)
+                backup_options.append(f"{backup['filename']} - {age_text} • {size_mb} MB • {backup['storage_type']}")
 
-                list_item = self.listitem_builder.build_action_item(
-                    title=backup['filename'],
-                    action="restore_backup",
-                    action_params={"backup_info": backup},
-                    secondary_label=f"{age_text} • {size_mb} MB • {backup['storage_type']}"
+            import xbmcgui
+            dialog = xbmcgui.Dialog()
+            selected_index = dialog.select("Select backup to restore:", backup_options)
+
+            if selected_index < 0:
+                return DialogResponse(success=False, message="No backup selected")
+
+            selected_backup = backups[selected_index]
+            
+            # Confirm restore
+            if dialog.yesno(
+                "Confirm Restore",
+                f"Restore backup: {selected_backup['filename']}?",
+                f"This will restore data from {selected_backup['age_days']} days ago.",
+                "Current data will be backed up first."
+            ):
+                # TODO: Implement restore functionality
+                return DialogResponse(
+                    success=True,
+                    message=f"Restore functionality not yet implemented for {selected_backup['filename']}"
                 )
-                list_items.append(list_item)
-
-            if not list_items:
-                list_item = self.listitem_builder.build_info_item(
-                    title="No backups found",
-                    description="Create a backup using the manual backup option"
-                )
-                list_items.append(list_item)
-
-            return DialogResponse(
-                success=True,
-                message="Backup manager loaded successfully"
-            )
+            else:
+                return DialogResponse(success=False, message="Restore cancelled")
 
         except Exception as e:
             self.logger.error(f"Error showing backup manager: {e}")
