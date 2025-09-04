@@ -13,14 +13,8 @@ from typing import Optional, Dict, Any, List, Union
 
 import xbmcgui
 import xbmcaddon
-
-# Optional imports guarded for drop-in flexibility
-try:
-    import xbmc
-    import xbmcplugin
-except Exception:  # pragma: no cover (Kodi runtime)
-    xbmc = None  # type: ignore
-    xbmcplugin = None  # type: ignore
+import xbmc
+import xbmcplugin
 
 # Shared libs
 from ..search.local_engine import LocalSearchEngine
