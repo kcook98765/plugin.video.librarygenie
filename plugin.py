@@ -274,6 +274,83 @@ def _handle_manual_backup(context: PluginContext):
         pass
 
 
+def _handle_restore_backup(context: PluginContext):
+    """Handle restore backup from settings"""
+    try:
+        logger.info("Handling restore backup from settings")
+
+        from lib.import_export import get_timestamp_backup_manager
+        backup_manager = get_timestamp_backup_manager()
+
+        # Prompt for replace or append
+        dialog = xbmcgui.Dialog()
+        options = ["Replace Existing", "Append to Existing"]
+        selected_option = dialog.select("Restore Backup Options", options)
+
+        if selected_option == -1:  # User cancelled
+            return
+
+        replace_mode = options[selected_option].startswith("Replace")
+
+        # Get list of available backups
+        available_backups = backup_manager.get_available_backups()
+
+        if not available_backups:
+            dialog.notification("LibraryGenie", "No backups found.", xbmcgui.NOTIFICATION_WARNING, 5000)
+            return
+
+        # Present backup selection dialog
+        backup_files = [backup['filename'] for backup in available_backups]
+        backup_index = dialog.select("Select Backup File", backup_files)
+
+        if backup_index == -1:  # User cancelled
+            return
+
+        selected_backup = available_backups[backup_index]
+
+        # Perform the restore operation
+        progress = xbmcgui.DialogProgress()
+        progress.create("Restoring Backup", f"Restoring from: {selected_backup['filename']}...")
+        progress.update(0)
+
+        try:
+            result = backup_manager.restore_backup(selected_backup['filepath'], replace_mode=replace_mode)
+
+            if result.get("success"):
+                message = (
+                    f"Restore completed successfully!\n\n"
+                    f"Filename: {selected_backup['filename']}\n"
+                    f"Items restored: {result.get('items_restored', 0)}\n"
+                    f"Items skipped: {result.get('items_skipped', 0)}\n"
+                    f"Error details: {result.get('error', 'None')}"
+                )
+                progress.update(100, "Restore complete!")
+                progress.close()
+                dialog.ok("Restore Backup", message)
+            else:
+                error_msg = result.get("error", "Unknown error")
+                progress.update(100, "Restore failed!")
+                progress.close()
+                dialog.ok("Restore Backup Failed", f"Restore failed:\n{error_msg}")
+
+        except Exception as e:
+            logger.error(f"Error during restore_backup execution: {e}")
+            progress.update(100, "Restore failed!")
+            progress.close()
+            dialog.ok("Restore Backup Error", f"An error occurred during restore: {str(e)}")
+
+    except Exception as e:
+        logger.error(f"Error in restore backup handler: {e}")
+        xbmcgui.Dialog().ok("Restore Backup Error", f"An error occurred: {str(e)}")
+
+    # Don't render directory for settings actions
+    try:
+        if context.addon_handle >= 0:
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+    except Exception:
+        pass
+
+
 def handle_shortlist_import():
     """Handle ShortList import action from settings"""
     import xbmcgui
@@ -464,6 +541,7 @@ def _register_all_handlers(router: Router):
         'import_shortlist': lambda ctx: handle_shortlist_import(),
         'test_backup': lambda ctx: _handle_test_backup(ctx),
         'manual_backup': lambda ctx: _handle_manual_backup(ctx),
+        'restore_backup': lambda ctx: _handle_restore_backup(ctx),
         'noop': lambda ctx: handle_noop(),
         'settings': lambda ctx: handle_settings(),
     })

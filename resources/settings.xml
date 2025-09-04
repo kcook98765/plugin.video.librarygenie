@@ -52,6 +52,7 @@
     <setting label="30540" type="lsep"/>
     <setting id="backup_test_action" type="action" label="30541" action="RunPlugin(plugin://plugin.video.librarygenie/?action=test_backup)" enable="eq(-11,true)"/>
     <setting id="backup_manual_action" type="action" label="30542" action="RunPlugin(plugin://plugin.video.librarygenie/?action=manual_backup)" enable="eq(-12,true)"/>
+    <setting id="backup_restore_action" type="action" label="30543" action="RunPlugin(plugin://plugin.video.librarygenie/?action=restore_backup)" enable="eq(-13,true)"/>
   </category>
 
   <!-- Advanced Settings -->

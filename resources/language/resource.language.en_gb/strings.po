@@ -1596,7 +1596,11 @@ msgid "Test backup configuration"
 msgstr ""
 
 msgctxt "#30542"
-msgid "Create manual backup"
+msgid "Manual Backup"
+msgstr ""
+
+msgctxt "#30543"
+msgid "Restore Backup"
 msgstr ""
 
 # Background Service Settings
