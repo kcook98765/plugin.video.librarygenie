@@ -70,7 +70,7 @@ class Phase4FavoritesManager:
             self._log_scan_result(
                 scan_type="full",
                 file_path=file_path,
-                file_modified=file_modified,
+                file_modified=file_modified or "",
                 items_found=len(favorites),
                 items_mapped=result["items_mapped"],
                 items_added=result["items_added"],
@@ -100,7 +100,7 @@ class Phase4FavoritesManager:
                 self._log_scan_result(
                     scan_type="full",
                     file_path=file_path,
-                    file_modified=file_modified,
+                    file_modified=file_modified or "",
                     items_found=0,
                     items_mapped=0,
                     items_added=0,
