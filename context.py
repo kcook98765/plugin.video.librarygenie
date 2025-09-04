@@ -10,6 +10,7 @@ import xbmc
 import xbmcaddon
 import xbmcgui
 import urllib.parse
+from typing import List, Union
 
 
 def main():
@@ -29,7 +30,7 @@ def main():
 
                 if quick_add_enabled and default_list_id:
                     # Show context menu with both quick-add and regular add options
-                    options = [
+                    options: list[str] = [
                         "Quick Add to Default List",
                         "Add to List..."
                     ]
@@ -65,7 +66,7 @@ def main():
 
                 if quick_add_enabled and default_list_id:
                     # Show context menu with both quick-add and regular add options
-                    options = [
+                    options: list[str] = [
                         "Quick Add to Default List",
                         "Add to List..."
                     ]
@@ -101,7 +102,7 @@ def main():
 
                 if quick_add_enabled and default_list_id:
                     # Show context menu with both quick-add and regular add options
-                    options = [
+                    options: list[str] = [
                         "Quick Add to Default List",
                         "Add to List..."
                     ]
@@ -138,7 +139,7 @@ def main():
 
                     if quick_add_enabled and default_list_id:
                         # Show context menu with both quick-add and regular add options
-                        options = [
+                        options: list[str] = [
                             "Quick Add to Default List",
                             "Add to List..."
                         ]
