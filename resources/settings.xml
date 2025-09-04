@@ -49,13 +49,13 @@
     <setting id="backup_include_non_library" type="bool" label="30522" default="false" enable="eq(-5,true)"/>
     <setting id="backup_include_folders" type="bool" label="30523" default="true" enable="eq(-6,true)"/>
     <setting label="30530" type="lsep"/>
-    <setting id="backup_storage_type" type="select" label="30531" default="0" lvalues="30565" enable="eq(-7,true)"/>
-    <setting id="backup_storage_location" type="folder" label="30532" default="special://userdata/addon_data/plugin.video.librarygenie/backups/" enable="eq(-8,true)"/>
+    <setting id="backup_storage_type" type="select" label="30531" default="0" lvalues="30565"/>
+    <setting id="backup_storage_location" type="folder" label="30532" default="special://userdata/addon_data/plugin.video.librarygenie/backups/"/>
     <setting label="30540" type="lsep"/>
     <setting id="last_backup_time" type="text" label="" default="" visible="false"/>
-    <setting id="backup_test_action" type="action" label="30541" action="RunPlugin(plugin://plugin.video.librarygenie/?action=test_backup)" enable="eq(-11,true)"/>
-    <setting id="backup_manual_action" type="action" label="30542" action="RunPlugin(plugin://plugin.video.librarygenie/?action=manual_backup)" enable="eq(-12,true)"/>
-    <setting id="backup_restore_action" type="action" label="30543" action="RunPlugin(plugin://plugin.video.librarygenie/?action=restore_backup)" enable="eq(-13,true)"/>
+    <setting id="backup_test_action" type="action" label="30541" action="RunPlugin(plugin://plugin.video.librarygenie/?action=test_backup)"/>
+    <setting id="backup_manual_action" type="action" label="30542" action="RunPlugin(plugin://plugin.video.librarygenie/?action=manual_backup)"/>
+    <setting id="backup_restore_action" type="action" label="30543" action="RunPlugin(plugin://plugin.video.librarygenie/?action=restore_backup)"/>
   </category>
 
   <!-- Advanced Settings -->
