@@ -414,7 +414,7 @@ class FavoritesHandler:
                 if hasattr(response, 'navigate_to_favorites') and response.navigate_to_favorites:
                     # Navigate back to favorites view after successful scan
                     import xbmc
-                    xbmc.executebuiltin(f'Container.Update({context.build_url("kodi_favorites")},replace)')
+                    xbmc.executebuiltin(f'Container.Update({context.build_url("favorites")},replace)')
                     # End directory properly
                     import xbmcplugin
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
