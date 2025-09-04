@@ -130,7 +130,7 @@ class LibraryScanner:
 
             scan_end = datetime.now().isoformat()
             self._log_scan_complete(
-                scan_id, scan_start, len(current_movies), 
+                scan_id, scan_start, len(current_movies),
                 items_added, items_updated, items_removed, scan_end
             )
 
@@ -170,8 +170,8 @@ class LibraryScanner:
             # Last scan info
             last_scan = self.conn_manager.execute_single("""
                 SELECT scan_type, end_time, total_items, items_added, items_removed
-                FROM library_scan_log 
-                WHERE end_time IS NOT NULL 
+                FROM library_scan_log
+                WHERE end_time IS NOT NULL
                 ORDER BY id DESC LIMIT 1
             """)
 
@@ -197,12 +197,12 @@ class LibraryScanner:
             where_clause = "" if include_removed else "WHERE is_removed = 0"
 
             movies = self.conn_manager.execute_query(f"""
-                SELECT kodi_id, title, year, imdb_id, tmdb_id, file_path, 
+                SELECT kodi_id, title, year, imdb_id, tmdb_id, file_path,
                        date_added, last_seen, is_removed, created_at,
-                       poster, fanart, thumb, plot, plotoutline, runtime, 
-                       rating, genre, mpaa, director, country, studio, 
+                       poster, fanart, thumb, plot, plotoutline, runtime,
+                       rating, genre, mpaa, director, country, studio,
                        playcount, resume_time
-                FROM library_movie 
+                FROM library_movie
                 {where_clause}
                 ORDER BY title, year
                 LIMIT ? OFFSET ?
@@ -221,13 +221,13 @@ class LibraryScanner:
             if not self.query_manager.initialize():
                 self.logger.warning("Database not initialized, library not indexed")
                 return False
-                
+
             result = self.conn_manager.execute_single(
-                "SELECT COUNT(*) as count FROM media_items WHERE media_type = 'movie'"
+                "SELECT COUNT(*) as count FROM media_items WHERE media_type = 'movie' AND is_removed = 0"
             )
-            return (result["count"] if result else 0) > 0
+            return result and result.get('count', 0) > 0
         except Exception as e:
-            self.logger.debug(f"Error checking if library is indexed: {e}")
+            self.logger.warning(f"Failed to check if library is indexed: {e}")
             return False
 
     def _clear_library_index(self):
@@ -254,9 +254,9 @@ class LibraryScanner:
                         # For Kodi library items, store core identification fields plus plot
                         # Rich metadata will be fetched via JSON-RPC when needed
                         plot_data = movie.get("plot", "")
-                        
+
                         conn.execute("""
-                            INSERT INTO media_items 
+                            INSERT INTO media_items
                             (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, plot, source, created_at)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                         """, [
@@ -317,9 +317,9 @@ class LibraryScanner:
             with self.conn_manager.transaction() as conn:
                 for kodi_id in kodi_ids:
                     result = conn.execute("""
-                        UPDATE library_movie 
-                        SET is_removed = 1, last_seen = datetime('now')
-                        WHERE kodi_id = ? AND is_removed = 0
+                        UPDATE media_items
+                        SET is_removed = 1, updated_at = datetime('now')
+                        WHERE kodi_id = ? AND is_removed = 0 AND media_type = 'movie'
                     """, [kodi_id])
 
                     if result.rowcount > 0:
@@ -343,9 +343,9 @@ class LibraryScanner:
             with self.conn_manager.transaction() as conn:
                 for kodi_id in kodi_ids:
                     result = conn.execute("""
-                        UPDATE library_movie 
-                        SET last_seen = datetime('now')
-                        WHERE kodi_id = ? AND is_removed = 0
+                        UPDATE media_items
+                        SET updated_at = datetime('now')
+                        WHERE kodi_id = ? AND is_removed = 0 AND media_type = 'movie'
                     """, [kodi_id])
 
                     if result.rowcount > 0:
@@ -371,7 +371,7 @@ class LibraryScanner:
             self.logger.error(f"Failed to log scan start: {e}")
             return None
 
-    def _log_scan_complete(self, scan_id: Optional[int], started_at: str, 
+    def _log_scan_complete(self, scan_id: Optional[int], started_at: str,
                           items_found: int, items_added: int, items_updated: int, items_removed: int,
                           completed_at: Optional[str] = None, error: Optional[str] = None):
         """Log the completion of a scan"""
@@ -383,8 +383,8 @@ class LibraryScanner:
 
             with self.conn_manager.transaction() as conn:
                 conn.execute("""
-                    UPDATE library_scan_log 
-                    SET end_time = ?, total_items = ?, items_added = ?, 
+                    UPDATE library_scan_log
+                    SET end_time = ?, total_items = ?, items_added = ?,
                         items_updated = ?, items_removed = ?, error = ?
                     WHERE id = ?
                 """, [completed_at, items_found, items_added, items_updated, items_removed, error, scan_id])

@@ -382,3 +382,9 @@ def get_migration_manager():
     if _migration_instance is None:
         _migration_instance = MigrationManager()
     return _migration_instance
+
+
+def initialize_database():
+    """Initialize database - convenience function for service.py"""
+    manager = get_migration_manager()
+    manager.ensure_initialized()
