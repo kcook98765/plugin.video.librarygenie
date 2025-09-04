@@ -8,7 +8,7 @@ Modular tools and options handler for different list types
 
 import xbmcgui
 from datetime import datetime
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Sequence
 from .plugin_context import PluginContext
 from .response_types import DialogResponse
 from .localization_helper import L
@@ -108,7 +108,7 @@ class ToolsHandler:
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(L(36013), options)  # "Favorites Tools & Options"
+            selected_index = dialog.select(L(36013), list(options))  # "Favorites Tools & Options"
 
             if selected_index < 0 or selected_index == 2:  # Cancel
                 return DialogResponse(success=False)
@@ -179,7 +179,7 @@ class ToolsHandler:
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(L(36014), options)  # "List Tools & Options"
+            selected_index = dialog.select(L(36014), list(options))  # "List Tools & Options"
 
             if selected_index < 0 or selected_index == len(options) - 1:  # Cancel
                 return DialogResponse(success=False)
@@ -296,7 +296,7 @@ class ToolsHandler:
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(L(36015), options)  # "Folder Tools & Options"
+            selected_index = dialog.select(L(36015), list(options))  # "Folder Tools & Options"
 
             if selected_index < 0 or selected_index == len(options) - 1:  # Cancel
                 return DialogResponse(success=False)
@@ -355,7 +355,7 @@ class ToolsHandler:
 
             # Show folder selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(L(36029), folder_options)  # "Select destination folder:"
+            selected_index = dialog.select(L(36029), list(folder_options))  # "Select destination folder:"
 
             if selected_index < 0:
                 return DialogResponse(success=False)
@@ -397,7 +397,7 @@ class ToolsHandler:
 
             # Show list selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(L(36028), list_options)  # "Select list to merge:"
+            selected_index = dialog.select(L(36028), list(list_options))  # "Select list to merge:"
 
             if selected_index < 0:
                 return DialogResponse(success=False)
@@ -446,7 +446,7 @@ class ToolsHandler:
 
             # Show folder selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select("Select parent folder:", folder_options)
+            selected_index = dialog.select("Select parent folder:", list(folder_options))
 
             if selected_index < 0:
                 return DialogResponse(success=False)
@@ -857,7 +857,7 @@ class ToolsHandler:
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(L(36021), options)  # "Lists Tools & Options"
+            selected_index = dialog.select(L(36021), list(options))  # "Lists Tools & Options"
 
             if selected_index < 0 or selected_index == 11:  # Cancel
                 return DialogResponse(success=False)
