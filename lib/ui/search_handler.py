@@ -231,7 +231,7 @@ class SearchHandler:
 
     # ---------- DISPLAY ----------
 
-    
+
 
     def _try_redirect_to_saved_search_list(self) -> bool:
         """
