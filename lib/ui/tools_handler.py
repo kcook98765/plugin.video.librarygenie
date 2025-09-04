@@ -953,13 +953,12 @@ class ToolsHandler:
 
             # Run import
             result = import_engine.import_data(file_path)
-
-            if result["success"]:
+            if result.success:
                 message = (
                     f"Import completed:\n"
-                    f"Lists: {result.get('lists_created', 0)}\n"
-                    f"Items: {result.get('items_added', 0)}\n"
-                    f"Folders: {result.get('folders_imported', 0)}"
+                    f"Lists: {result.lists_created}\n"
+                    f"Items: {result.items_added}\n"
+                    f"Folders: {getattr(result, 'folders_imported', 0)}"
                 )
                 return DialogResponse(
                     success=True,
@@ -967,9 +966,10 @@ class ToolsHandler:
                     refresh_needed=True
                 )
             else:
+                error_message = result.errors[0] if result.errors else "Unknown error"
                 return DialogResponse(
                     success=False,
-                    message=f"Import failed: {result.get('error', 'Unknown error')}"
+                    message=f"Import failed: {error_message}"
                 )
 
         except Exception as e:
@@ -1071,15 +1071,15 @@ class ToolsHandler:
         """Format file size to be human-readable"""
         if size_bytes == 0:
             return "0 B"
-        
+
         size_names = ["B", "KB", "MB", "GB", "TB"]
         i = 0
         size = float(size_bytes)
-        
+
         while size >= 1024.0 and i < len(size_names) - 1:
             size /= 1024.0
             i += 1
-        
+
         if i == 0:
             return f"{int(size)} {size_names[i]}"
         else:
