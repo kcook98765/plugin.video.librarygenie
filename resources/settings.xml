@@ -11,13 +11,7 @@
     <setting label="30030" type="lsep"/>
     <setting id="track_library_changes" type="bool" label="30031" default="true"/>
     <setting id="soft_delete_removed_items" type="bool" label="30032" default="true"/>
-    <setting label="30060" type="lsep"/>
-    <setting id="search_match_mode" type="select" label="30061" default="contains" values="contains|starts_with"/>
-    <setting id="search_include_file_path" type="bool" label="30062" default="false"/>
-    <setting id="search_page_size" type="slider" label="30063" default="50" range="25,5,200" option="int"/>
-    <setting id="search_enable_decade_shorthand" type="bool" label="30064" default="false"/>
-    <setting id="search_remember_scope" type="bool" label="30065" default="true"/>
-    <setting id="search_history_days" type="slider" label="30066" default="30" range="7,7,365" option="int"/>
+    
   </category>
 
   <!-- Lists Settings -->

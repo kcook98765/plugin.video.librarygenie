@@ -36,8 +36,7 @@ class ConfigManager:
             "favorites_integration_enabled": False,
             "favorites_scan_interval_minutes": 30,
             "show_unmapped_favorites": False,
-            "search_page_size": 50,
-            "search_history_days": 30,
+            
             # Remote service settings
             "remote_base_url": "",  # Blank by default for repo safety
             "device_name": "Kodi",

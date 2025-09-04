@@ -88,30 +88,7 @@ class SettingsManager:
         """Get enable batch processing for large favorites files"""
         return self.addon.getSettingBool('enable_batch_processing')
 
-    # Search Settings
-    def get_search_match_mode(self) -> str:
-        """Get search match mode (contains/starts_with)"""
-        return self.addon.getSetting('search_match_mode')
-
-    def get_include_file_path_search(self) -> bool:
-        """Get include file path in search setting"""
-        return self.addon.getSettingBool('include_file_path_search')
-
-    def get_search_results_per_page(self) -> int:
-        """Get search results per page"""
-        return max(10, min(100, self.addon.getSettingInt('search_results_per_page')))
-
-    def get_enable_decade_shorthand(self) -> bool:
-        """Get enable decade shorthand setting"""
-        return self.addon.getSettingBool('enable_decade_shorthand')
-
-    def get_remember_last_search_scope(self) -> bool:
-        """Get remember last search scope setting"""
-        return self.addon.getSettingBool('remember_last_search_scope')
-
-    def get_search_history_days(self) -> int:
-        """Get search history retention in days"""
-        return max(0, min(365, self.addon.getSettingInt('search_history_days')))
+    
 
     # Advanced Settings
     def get_jsonrpc_page_size(self) -> int:
