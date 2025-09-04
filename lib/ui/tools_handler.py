@@ -417,7 +417,7 @@ class ToolsHandler:
             # Perform merge
             result = query_manager.merge_lists(source_list['id'], target_list_id)
 
-            if result.success:
+            if result.get("success"):
                 return DialogResponse(
                     success=True,
                     message=L(36025) % result.get('items_added', 0),  # "Merged %d new items"
@@ -456,7 +456,7 @@ class ToolsHandler:
             target_parent_id = None if selected_index == 0 else all_folders[selected_index - 1]['id']
             result = query_manager.move_folder(folder_id, target_parent_id)
 
-            if result.success:
+            if result.get("success"):
                 parent_name = "root level" if target_parent_id is None else folder_options[selected_index]
                 return DialogResponse(
                     success=True,
@@ -711,7 +711,7 @@ class ToolsHandler:
                 message = f"Backup configuration test failed:\n{result['error']}"
 
             return DialogResponse(
-                success=result.success,
+                success=result.get("success", False),
                 message=message
             )
 
@@ -742,7 +742,7 @@ class ToolsHandler:
                 message = f"Manual backup failed: {result['error']}"
 
             return DialogResponse(
-                success=result.success,
+                success=result.get("success", False),
                 message=message
             )
 
@@ -1048,7 +1048,7 @@ class ToolsHandler:
             deleted_count = 0
             for search_list in search_lists:
                 result = query_manager.delete_list(search_list['id'])
-                if result.success:
+                if result.get("success"):
                     deleted_count += 1
 
             if deleted_count > 0:
