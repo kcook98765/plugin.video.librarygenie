@@ -433,7 +433,7 @@ def _register_all_handlers(router: Router):
     # Register new modular handlers
     router.register_handler('search', search_handler.prompt_and_search)
     router.register_handler('lists', lists_handler.show_lists_menu)
-    router.register_handler('kodi_favorites', favorites_handler.show_favorites_menu)
+    router.register_handler('kodi_favorites', lambda ctx: _handle_directory_response(ctx, favorites_handler.show_favorites_menu(ctx)))
 
     # Register ListsHandler methods that expect specific parameters
     router.register_handler('create_list_execute', lambda ctx: _handle_dialog_response(ctx, lists_handler.create_list(ctx)))
@@ -477,6 +477,18 @@ def _handle_dialog_response(context: PluginContext, response):
     if isinstance(response, DialogResponse):
         response_handler = get_response_handler()
         return response_handler.handle_dialog_response(response, context)
+
+    return response
+
+
+def _handle_directory_response(context: PluginContext, response):
+    """Handle DirectoryResponse objects from handler methods"""
+    from lib.ui.response_types import DirectoryResponse
+    from lib.ui.response_handler import get_response_handler
+
+    if isinstance(response, DirectoryResponse):
+        response_handler = get_response_handler()
+        return response_handler.handle_directory_response(response, context)
 
     return response
 
