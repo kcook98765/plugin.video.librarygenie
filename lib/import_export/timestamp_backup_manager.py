@@ -187,7 +187,7 @@ class TimestampBackupManager:
                 # New format - backup_info is dict
                 backup_dict = backup_info
 
-            storage_type = self.config.get("backup_storage_type", "local")
+            storage_type = self.config.get_backup_storage_type()
 
             if storage_type == "local":
                 return self._restore_local_backup(backup_dict, replace_mode)
@@ -201,7 +201,7 @@ class TimestampBackupManager:
     def _store_backup(self, source_file: str, filename: str) -> Dict[str, Any]:
         """Store backup in configured location"""
         try:
-            storage_type = self.config.get("backup_storage_type", "local")
+            storage_type = self.config.get_backup_storage_type()
 
             if storage_type == "local":
                 return self._store_local_backup(source_file, filename)

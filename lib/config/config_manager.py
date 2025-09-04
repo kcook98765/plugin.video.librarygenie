@@ -52,6 +52,20 @@ class ConfigManager:
             logger = get_logger(__name__)
             logger.debug(f"CONFIG_DEBUG: Getting setting '{key}' (default: {default})")
             
+            # Use specific backup methods for backup settings to ensure proper type handling
+            if key == 'backup_enabled':
+                return self.get_backup_enabled()
+            elif key == 'backup_storage_type':
+                return self.get_backup_storage_type()
+            elif key == 'backup_interval':
+                return self.get_backup_interval()
+            elif key == 'backup_include_non_library':
+                return self.get_backup_include_non_library()
+            elif key == 'backup_include_folders':
+                return self.get_backup_include_folders()
+            elif key == 'backup_retention_count':
+                return self.get_backup_retention_count()
+            
             # Always try string first as it's most compatible
             value = self._addon.getSettingString(key)
             logger.debug(f"CONFIG_DEBUG: getSettingString('{key}') returned: '{value}' (type: {type(value)})")
@@ -505,6 +519,30 @@ class ConfigManager:
         except Exception as e:
             logger.error(f"CONFIG_DEBUG: Exception getting backup_storage_type: {e}")
             return 'local'
+
+    def get_backup_interval(self) -> str:
+        """Get backup interval with detailed debugging"""
+        from ..utils.logger import get_logger
+        logger = get_logger(__name__)
+        logger.debug("CONFIG_DEBUG: Getting backup_interval setting")
+        
+        try:
+            # This is a select setting, so get as int and map to string
+            index = self.get_int('backup_interval', 0)
+            logger.debug(f"CONFIG_DEBUG: backup_interval index = {index}")
+            
+            # Map index to interval string
+            intervals = ['weekly', 'daily', 'monthly']  # Based on settings.xml lvalues
+            if 0 <= index < len(intervals):
+                result = intervals[index]
+            else:
+                result = 'weekly'
+            
+            logger.debug(f"CONFIG_DEBUG: backup_interval = '{result}'")
+            return result
+        except Exception as e:
+            logger.error(f"CONFIG_DEBUG: Exception getting backup_interval: {e}")
+            return 'weekly'
 
 
 # Global config instance
