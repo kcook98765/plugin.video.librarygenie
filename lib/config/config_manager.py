@@ -203,6 +203,10 @@ class ConfigManager:
             "show_missing_indicators",
             "favorites_integration_enabled",
             "show_unmapped_favorites",
+            "backup_enabled",
+            "backup_include_settings",
+            "backup_include_non_library",
+            "backup_include_folders",
         ]
         int_settings = [
             "background_interval_seconds", "favorites_scan_interval_minutes",
@@ -212,6 +216,7 @@ class ConfigManager:
             "db_batch_size", "db_busy_timeout_ms",
             # Remote service settings
             "auth_poll_seconds",
+            "backup_retention_count",
         ]
         float_settings = []
 
@@ -227,7 +232,9 @@ class ConfigManager:
             
         # Select settings (stored as integer indexes)
         select_settings = [
-            "select_action"
+            "select_action",
+            "backup_storage_type",
+            "backup_interval"
         ]
 
         # String settings
