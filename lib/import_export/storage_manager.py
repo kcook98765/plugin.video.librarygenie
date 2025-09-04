@@ -104,7 +104,7 @@ class StorageManager:
             if os.path.exists(temp_path):
                 try:
                     os.remove(temp_path)
-                except:
+                except OSError:
                     pass
 
             return False
@@ -178,7 +178,7 @@ class StorageManager:
             else:
                 self.logger.warning(f"Attempted to get size of invalid file path: {file_path}")
                 return 0
-        except:
+        except OSError:
             return 0
 
     def cleanup_old_files(self, pattern: str, keep_count: int) -> int:
