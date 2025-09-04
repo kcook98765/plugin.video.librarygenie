@@ -173,16 +173,29 @@ class SettingsManager:
         try:
             return self.addon.getSettingBool('backup_enabled')
         except Exception as e:
-            self.logger.warning(f"Error reading backup_enabled setting: {e}")
-            return False
+            try:
+                # Try as string fallback
+                str_val = self.addon.getSettingString('backup_enabled')
+                return str_val.lower() in ('true', '1', 'yes')
+            except Exception:
+                self.logger.warning(f"Error reading backup_enabled setting: {e}")
+                return False
 
     def get_backup_retention_count(self) -> int:
         """Get backup retention count with safe fallback"""
         try:
             return max(1, min(50, self.addon.getSettingInt('backup_retention_count')))
         except Exception as e:
-            self.logger.warning(f"Error reading backup retention count: {e}")
-            return 5
+            try:
+                # Try as string fallback
+                str_val = self.addon.getSettingString('backup_retention_count')
+                if str_val and str_val.strip():
+                    return max(1, min(50, int(str_val.strip())))
+                else:
+                    return 5
+            except (ValueError, TypeError):
+                self.logger.warning(f"Error reading backup retention count: {e}")
+                return 5
 
     def get_backup_retention_policy(self) -> str:
         """Get backup retention policy"""
@@ -248,17 +261,29 @@ class SettingsManager:
 
     def get_backup_preferences(self) -> Dict[str, Any]:
         """Get backup-related preferences with defaults"""
-        config = get_config()
+        try:
+            config = get_config()
 
-        return {
-            'enabled': config.get_bool('backup_enabled', False),
-            'schedule_interval': config.get('backup_interval', 'weekly'),
-            'retention_days': config.get_int('backup_retention_count', 5),
-            'storage_path': config.get('backup_storage_location', ''),
-            'storage_type': config.get('backup_storage_type', 'local'),
-            'include_settings': config.get_bool('backup_include_settings', True),
-            'include_non_library': config.get_bool('backup_include_non_library', False)
-        }
+            return {
+                'enabled': config.get_bool('backup_enabled', False),
+                'schedule_interval': config.get('backup_interval', 'weekly'),
+                'retention_days': config.get_int('backup_retention_count', 5),
+                'storage_path': config.get('backup_storage_location', ''),
+                'storage_type': config.get('backup_storage_type', 'local'),
+                'include_settings': config.get_bool('backup_include_settings', True),
+                'include_non_library': config.get_bool('backup_include_non_library', False)
+            }
+        except Exception as e:
+            self.logger.warning(f"Error reading backup preferences: {e}")
+            return {
+                'enabled': False,
+                'schedule_interval': 'weekly',
+                'retention_days': 5,
+                'storage_path': "special://userdata/addon_data/plugin.video.librarygenie/backups/",
+                'storage_type': 'local',
+                'include_settings': True,
+                'include_non_library': False
+            }
 
     def get_phase12_remote_settings(self) -> Dict[str, Any]:
         """Get remote service settings for Phase 1.2 integration"""

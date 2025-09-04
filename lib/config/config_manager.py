@@ -61,18 +61,37 @@ class ConfigManager:
     def get_bool(self, key: str, default: bool = False) -> bool:
         """Get boolean configuration value"""
         try:
-            value = self._addon.getSettingBool(key)
-            return value
+            # First try getSettingBool
+            return self._addon.getSettingBool(key)
         except Exception:
-            # Use defaults dict fallback if available, otherwise use provided default
-            return self._defaults.get(key, default)
+            try:
+                # Fallback to string and convert
+                str_value = self._addon.getSettingString(key)
+                if str_value.lower() in ('true', '1', 'yes'):
+                    return True
+                elif str_value.lower() in ('false', '0', 'no', ''):
+                    return False
+                else:
+                    return self._defaults.get(key, default)
+            except Exception:
+                # Use defaults dict fallback if available, otherwise use provided default
+                return self._defaults.get(key, default)
 
     def get_int(self, key, default=0):
         """Get integer setting with safe fallback"""
         try:
+            # First try getSettingInt
             return self._addon.getSettingInt(key)
         except Exception:
-            return self._defaults.get(key, default)
+            try:
+                # Fallback to string and convert
+                str_value = self._addon.getSettingString(key)
+                if str_value and str_value.strip():
+                    return int(str_value.strip())
+                else:
+                    return self._defaults.get(key, default)
+            except (ValueError, TypeError):
+                return self._defaults.get(key, default)
 
     def get_float(self, key, default=0.0):
         """Get float setting with safe fallback"""
