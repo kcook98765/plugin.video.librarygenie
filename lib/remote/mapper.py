@@ -59,10 +59,10 @@ class RemoteMapper:
             imdb_id = self._extract_imdb_id(remote_item)
             if imdb_id:
                 result = self.conn_manager.execute_single("""
-                    SELECT kodi_id, title, year, imdb_id, tmdb_id, file_path,
-                           poster, fanart, plot, rating, genre, director, runtime
-                    FROM library_movie 
-                    WHERE imdb_id = ? AND is_removed = 0
+                    SELECT kodi_id, title, year, imdbnumber as imdb_id, tmdb_id, play as file_path,
+                           poster, fanart, plot, rating, genre, director, duration as runtime
+                    FROM media_items 
+                    WHERE imdbnumber = ? AND media_type = 'movie' AND is_removed = 0
                 """, [imdb_id])
                 
                 if result:
@@ -72,10 +72,10 @@ class RemoteMapper:
             tmdb_id = self._extract_tmdb_id(remote_item)
             if tmdb_id:
                 result = self.conn_manager.execute_single("""
-                    SELECT kodi_id, title, year, imdb_id, tmdb_id, file_path,
-                           poster, fanart, plot, rating, genre, director, runtime
-                    FROM library_movie 
-                    WHERE tmdb_id = ? AND is_removed = 0
+                    SELECT kodi_id, title, year, imdbnumber as imdb_id, tmdb_id, play as file_path,
+                           poster, fanart, plot, rating, genre, director, duration as runtime
+                    FROM media_items 
+                    WHERE tmdb_id = ? AND media_type = 'movie' AND is_removed = 0
                 """, [tmdb_id])
                 
                 if result:
@@ -99,10 +99,10 @@ class RemoteMapper:
             # Try exact match with year
             if year:
                 result = self.conn_manager.execute_single("""
-                    SELECT kodi_id, title, year, imdb_id, tmdb_id, file_path,
-                           poster, fanart, plot, rating, genre, director, runtime
-                    FROM library_movie 
-                    WHERE LOWER(title) = LOWER(?) AND year = ? AND is_removed = 0
+                    SELECT kodi_id, title, year, imdbnumber as imdb_id, tmdb_id, play as file_path,
+                           poster, fanart, plot, rating, genre, director, duration as runtime
+                    FROM media_items 
+                    WHERE LOWER(title) = LOWER(?) AND year = ? AND media_type = 'movie' AND is_removed = 0
                 """, [title, year])
                 
                 if result:
@@ -110,10 +110,10 @@ class RemoteMapper:
             
             # Try exact match without year
             result = self.conn_manager.execute_single("""
-                SELECT kodi_id, title, year, imdb_id, tmdb_id, file_path,
-                       poster, fanart, plot, rating, genre, director, runtime
-                FROM library_movie 
-                WHERE LOWER(title) = LOWER(?) AND is_removed = 0
+                SELECT kodi_id, title, year, imdbnumber as imdb_id, tmdb_id, play as file_path,
+                       poster, fanart, plot, rating, genre, director, duration as runtime
+                FROM media_items 
+                WHERE LOWER(title) = LOWER(?) AND media_type = 'movie' AND is_removed = 0
                 ORDER BY year DESC
                 LIMIT 1
             """, [title])
@@ -140,11 +140,11 @@ class RemoteMapper:
             
             # Search for files that might contain this title
             result = self.conn_manager.execute_single("""
-                SELECT kodi_id, title, year, imdb_id, tmdb_id, file_path,
-                       poster, fanart, plot, rating, genre, director, runtime
-                FROM library_movie 
-                WHERE LOWER(file_path) LIKE LOWER(?) AND is_removed = 0
-                ORDER BY LENGTH(file_path) ASC
+                SELECT kodi_id, title, year, imdbnumber as imdb_id, tmdb_id, play as file_path,
+                       poster, fanart, plot, rating, genre, director, duration as runtime
+                FROM media_items 
+                WHERE LOWER(play) LIKE LOWER(?) AND media_type = 'movie' AND is_removed = 0
+                ORDER BY LENGTH(play) ASC
                 LIMIT 1
             """, [f'%{clean_title}%'])
             
