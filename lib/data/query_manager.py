@@ -1628,6 +1628,94 @@ class QueryManager:
             self.logger.error(f"Failed to move list {list_id} to folder {target_folder_id}: {e}")
             return {"success": False, "error": "database_error"}
 
+    def merge_lists(self, source_list_id: str, target_list_id: str) -> Dict[str, Any]:
+        """Merge items from source list into target list"""
+        try:
+            self.logger.debug(f"Merging list {source_list_id} into list {target_list_id}")
+
+            # Check if both lists exist
+            source_list = self.connection_manager.execute_single("""
+                SELECT id, name FROM lists WHERE id = ?
+            """, [int(source_list_id)])
+
+            target_list = self.connection_manager.execute_single("""
+                SELECT id, name FROM lists WHERE id = ?
+            """, [int(target_list_id)])
+
+            if not source_list or not target_list:
+                return {"success": False, "error": "list_not_found"}
+
+            # Get items from source list that aren't already in target list
+            items_to_merge = self.connection_manager.execute_query("""
+                SELECT DISTINCT li1.library_movie_id, li1.title, li1.year, li1.imdb_id, li1.tmdb_id
+                FROM list_items li1
+                WHERE li1.list_id = ?
+                AND NOT EXISTS (
+                    SELECT 1 FROM list_items li2 
+                    WHERE li2.list_id = ? AND li2.library_movie_id = li1.library_movie_id
+                )
+            """, [int(source_list_id), int(target_list_id)])
+
+            if not items_to_merge:
+                return {"success": True, "items_added": 0}
+
+            # Add items to target list
+            items_added = 0
+            with self.connection_manager.transaction() as conn:
+                for item in items_to_merge:
+                    conn.execute("""
+                        INSERT INTO list_items (list_id, library_movie_id, title, year, imdb_id, tmdb_id, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+                    """, [int(target_list_id), item['library_movie_id'], item['title'], 
+                          item['year'], item['imdb_id'], item['tmdb_id']])
+                    items_added += 1
+
+            self.logger.debug(f"Successfully merged {items_added} items from list {source_list_id} to list {target_list_id}")
+            return {"success": True, "items_added": items_added}
+
+        except Exception as e:
+            self.logger.error(f"Failed to merge list {source_list_id} into list {target_list_id}: {e}")
+            return {"success": False, "error": "database_error"}
+
+    def move_folder(self, folder_id: str, target_parent_id: Optional[str]) -> Dict[str, Any]:
+        """Move a folder to a different parent folder"""
+        try:
+            self.logger.debug(f"Moving folder {folder_id} to parent {target_parent_id}")
+
+            # Check if folder exists
+            existing_folder = self.connection_manager.execute_single("""
+                SELECT id, name FROM folders WHERE id = ?
+            """, [int(folder_id)])
+
+            if not existing_folder:
+                return {"success": False, "error": "folder_not_found"}
+
+            # If target_parent_id is provided, verify the parent folder exists
+            if target_parent_id is not None:
+                parent_folder = self.connection_manager.execute_single("""
+                    SELECT id FROM folders WHERE id = ?
+                """, [int(target_parent_id)])
+
+                if not parent_folder:
+                    return {"success": False, "error": "parent_folder_not_found"}
+
+                # Check for circular reference (folder can't be moved into itself or its children)
+                if str(folder_id) == str(target_parent_id):
+                    return {"success": False, "error": "circular_reference"}
+
+            # Update the folder's parent_id
+            with self.connection_manager.transaction() as conn:
+                conn.execute("""
+                    UPDATE folders SET parent_id = ? WHERE id = ?
+                """, [int(target_parent_id) if target_parent_id is not None else None, int(folder_id)])
+
+            self.logger.debug(f"Successfully moved folder {folder_id} to parent {target_parent_id}")
+            return {"success": True}
+
+        except Exception as e:
+            self.logger.error(f"Failed to move folder {folder_id} to parent {target_parent_id}: {e}")
+            return {"success": False, "error": "database_error"}
+
 
 # Global query manager instance
 _query_manager_instance = None
