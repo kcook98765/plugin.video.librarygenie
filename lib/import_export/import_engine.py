@@ -216,6 +216,16 @@ class ImportEngine:
 
             # Load and parse file
             content = self.storage_manager.read_file_safe(file_path)
+            if content is None:
+                return ImportPreview(
+                    lists_to_create=[],
+                    lists_to_update=[],
+                    items_to_add=0,
+                    items_already_present=0,
+                    items_unmatched=0,
+                    total_operations=0,
+                    warnings=["Could not read file content"]
+                )
             data = json.loads(content)
             payload = data.get("payload", {})
 
@@ -305,6 +315,18 @@ class ImportEngine:
 
             # Load data
             content = self.storage_manager.read_file_safe(file_path)
+            if content is None:
+                return ImportResult(
+                    success=False,
+                    lists_created=0,
+                    lists_updated=0,
+                    items_added=0,
+                    items_skipped=0,
+                    items_unmatched=0,
+                    unmatched_items=[],
+                    errors=["Could not read file content"],
+                    duration_ms=int((datetime.now() - start_time).total_seconds() * 1000)
+                )
             data = json.loads(content)
             payload = data.get("payload", {})
 
