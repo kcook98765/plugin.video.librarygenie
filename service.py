@@ -281,7 +281,7 @@ class BackgroundService:
 
             # Check for library changes if tracking is enabled
             if self.config.get_bool("track_library_changes", False):
-                self.check_library_changes()
+                self._check_library_changes()
 
             # Check for scheduled backups
             self.check_scheduled_backups()
