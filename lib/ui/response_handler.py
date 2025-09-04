@@ -71,7 +71,7 @@ class ResponseHandler:
             
             # Handle sort methods separately if provided
             sort_methods = kodi_params.get('sortMethods')
-            if sort_methods and hasattr(sort_methods, '__iter__') and not isinstance(sort_methods, (str, bytes)):
+            if sort_methods and isinstance(sort_methods, (list, tuple)):
                 for sort_method in sort_methods:
                     xbmcplugin.addSortMethod(context.addon_handle, sort_method)
             
