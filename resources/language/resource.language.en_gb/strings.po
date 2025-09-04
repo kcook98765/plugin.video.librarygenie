@@ -73,48 +73,6 @@ msgctxt "#30043"
 msgid "Show missing movie indicators"
 msgstr ""
 
-# Kodi Favorites Integration
-msgctxt "#30050"
-msgid "Kodi Favorites Integration"
-msgstr ""
-
-msgctxt "#30051"
-msgid "Show Kodi Favorites folder"
-msgstr ""
-
-msgctxt "#30052"
-msgid "Favorites scan interval (minutes)"
-msgstr ""
-
-msgctxt "#30053"
-msgid "Show unmapped favorites"
-msgstr ""
-
-msgctxt "#30054"
-msgid "Enable batch processing for large favorites files"
-msgstr ""
-
-# Phase 4 Favorites Messages
-msgctxt "#30055"
-msgid "Favorites file not found"
-msgstr ""
-
-msgctxt "#30056"
-msgid "No favorites found"
-msgstr ""
-
-msgctxt "#30057"
-msgid "Not in library"
-msgstr ""
-
-msgctxt "#30058"
-msgid "Unmapped"
-msgstr ""
-
-msgctxt "#30059"
-msgid "Favorites (Unmapped)"
-msgstr ""
-
 # ShortList Integration
 msgctxt "#30070"
 msgid "ShortList Integration"
