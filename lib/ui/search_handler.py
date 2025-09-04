@@ -2,236 +2,185 @@
 # -*- coding: utf-8 -*-
 
 """
-LibraryGenie - Unified Search Handler (drop-in)
-- Backward compatible with both previous implementations
-- Supports PluginContext or bare addon_handle
-- Consolidates remote/local/auto logic, history saving, and display paths
+LibraryGenie - Simple Search Handler
+Simplified search interface with dialog-based options for keyword search across title and plot fields
 """
 
 from __future__ import annotations
-from typing import Optional, Dict, Any, List, Union
+from typing import Optional, Dict, Any, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .plugin_context import PluginContext
+    from .response_types import DirectoryResponse
 
 import xbmcgui
 import xbmcaddon
 import xbmc
 import xbmcplugin
 
-# Shared libs
-from ..search.local_engine import LocalSearchEngine
-from ..remote.search_client import search_remote, RemoteError
-from ..auth.state import is_authorized
-from ..auth.auth_helper import get_auth_helper
-from ..ui.session_state import get_session_state
+from ..search import get_simple_search_engine, get_simple_query_interpreter
 from ..data.query_manager import get_query_manager
 from ..utils.logger import get_logger
 
 try:
-    from ..ui.listitem_builder import ListItemBuilder
-except ImportError:
-    ListItemBuilder = None  # type: ignore
-
-# Newer arch types (kept optional so this file still imports without them)
-try:
-    from .plugin_context import PluginContext
     from .response_types import DirectoryResponse
-except Exception:  # pragma: no cover
-    PluginContext = Any  # type: ignore
-    DirectoryResponse = None  # type: ignore
+except Exception:
+    DirectoryResponse = None
 
 
 class SearchHandler:
-    """
-    Unified Search Handler
-    - Works with either PluginContext (preferred) or addon_handle
-    - Exposes both prompt entrypoints to remain drop-in compatible
-    """
+    """Simple search handler with dialog-based keyword search"""
 
     def __init__(self, addon_handle: Optional[int] = None):
-        # If called the "old" way, addon_handle comes in here; if using PluginContext,
-        # we'll extract addon_handle from the context later.
         self.addon_handle = addon_handle
         self.logger = get_logger(__name__)
-        self.local_engine = LocalSearchEngine()
+        self.search_engine = get_simple_search_engine()
+        self.query_interpreter = get_simple_query_interpreter()
         self.query_manager = get_query_manager()
         self.addon = xbmcaddon.Addon()
         self.addon_id = self.addon.getAddonInfo('id')
-        self.base_url = f"plugin://{self.addon_id}" # Base URL for building plugin calls
 
-    # ---------- PUBLIC ENTRYPOINTS (both preserved) ----------
-
-    def prompt_and_search(self, context) -> Optional[DirectoryResponse]:  # type: ignore
-        """
-        Newer entrypoint (kept): uses PluginContext and returns DirectoryResponse when inline-rendered.
-        If the V20+ redirect path is used, returns a success DirectoryResponse with zero items.
-        """
+    def prompt_and_search(self, context=None) -> Optional[Any]:
+        """Main entry point for simple search with dialog prompts"""
         self._ensure_handle_from_context(context)
-        query = self._prompt_for_query()
-        if not query:
-            self._info("Empty query - returning")
-            return self._maybe_dir_response([], False, "No search query provided", content_type="movies")
+        
+        # Step 1: Get search keywords
+        search_terms = self._prompt_for_search_terms()
+        if not search_terms:
+            self._info("No search terms entered")
+            return self._maybe_dir_response([], False, "No search terms provided", content_type="movies")
 
-        # Choose search mode (authorized users may choose; others are local)
-        search_type = self._get_search_type_preference()
-        results = self._perform_search_with_type(query, search_type)
+        # Step 2: Get search options
+        search_options = self._prompt_for_search_options()
+        if search_options is None:
+            self._info("User cancelled search options")
+            return self._maybe_dir_response([], False, "Search cancelled", content_type="movies")
 
-        # Cache results for hijack restoration / backstack UX
-        self._cache_session_results(query, results)
+        # Step 3: Execute search
+        results = self._execute_simple_search(search_terms, search_options, context)
+        
+        # Step 4: Save results and redirect
+        if results.total_count > 0:
+            self._save_search_history(search_terms, search_options, results)
+            if not self._try_redirect_to_saved_search_list():
+                self._error("Failed to redirect to saved search list")
+                return self._maybe_dir_response([], False, "Search display failed", content_type="movies")
+        else:
+            self._show_no_results_message(search_terms)
 
-        # Persist a Search History list if there are items
-        self._maybe_persist_search_history(query, search_type, results)
+        return self._maybe_dir_response(results.items, results.total_count > 0, 
+                                      results.query_summary, content_type="movies")
 
-        # Display: Redirect to saved search list (required UX)
-        if not self._try_redirect_to_saved_search_list():
-            # Log error if redirect fails - no fallback display
-            self._error(f"Failed to redirect to saved search list for query: '{query}'. Search results were saved but cannot be displayed.")
-            self._notify_error("Search completed but display failed. Check Search History.")
-            return self._maybe_dir_response([], False, f"Search display failed for '{query}'", content_type="movies")
-        return self._maybe_dir_response(results.get('items', []), True, f"Found {len(results.get('items', []))} results for '{query}'", content_type="movies")
-
-    def prompt_and_show(self):
-        """
-        Older entrypoint (kept): prompts, performs search, shows results.
-        Uses addon_handle given at __init__ time.
-        """
-        query = self._prompt_for_query()
-        if not query:
-            self._info("Empty query - returning")
-            return
-
-        search_type = self._get_search_type_preference()
-        results = self._perform_search_with_type(query, search_type)
-
-        self._cache_session_results(query, results)
-        self._maybe_persist_search_history(query, search_type, results)
-
-        # Display: Redirect to saved search list (required UX)
-        if not self._try_redirect_to_saved_search_list():
-            # Log error if redirect fails - no fallback display
-            self._error(f"Failed to redirect to saved search list for query: '{query}'. Search results were saved but cannot be displayed.")
-            self._notify_error("Search completed but display failed. Check Search History.")
-
-    # ---------- EXTERNAL CALLERS (kept for compatibility) ----------
-
-    def handle_search_request(self, query: str) -> List[Dict[str, Any]]:
-        """Legacy compatibility: perform search with fallback, display results, return items list."""
-        if not query or not query.strip():
-            return []
-        query = query.strip()
-
-        results = self.search_with_fallback(query)
-        self._cache_session_results(query, results)
-        # No inline display - all results should go through standard list building
-        self._error(f"Legacy handle_search_request called for query: '{query}'. This method should not be used for display.")
-        return results.get('items', [])
-
-    def handle_remote_search_request(self, query: str) -> List[Dict[str, Any]]:
-        """Legacy compatibility: remote-only with authorization prompt."""
-        if not query or not query.strip():
-            return []
-
-        auth_helper = get_auth_helper()
-        if not auth_helper.check_authorization_or_prompt("remote search"):
-            return []
-
+    def _prompt_for_search_terms(self) -> Optional[str]:
+        """Prompt user for search keywords"""
         try:
-            remote_results = search_remote(query.strip())
-            return remote_results.get('items', [])
+            terms = xbmcgui.Dialog().input(
+                "Enter keywords to search for:",
+                type=xbmcgui.INPUT_ALPHANUM
+            )
+            return terms.strip() if terms and terms.strip() else None
         except Exception as e:
-            self._error(f"Remote search failed: {e}")
-            self._notify_error(self.addon.getLocalizedString(35026))  # "Remote search failed"
-            return []
+            self._warn(f"Search terms input failed: {e}")
+            return None
 
-    def search_with_fallback(self, query: str, page: int = 1, page_size: int = 100) -> Dict[str, Any]:
-        """Legacy compatibility helper used by some callers."""
-        if not query or not query.strip():
-            return {'items': [], 'total': 0, 'used_remote': False}
-        query = query.strip()
-
-        if is_authorized():
-            try:
-                remote_results = search_remote(query, page, page_size)
-                if remote_results.get('items'):
-                    self._info(f"Remote search successful: {len(remote_results['items'])} results")
-                    self._maybe_persist_search_history(query, "remote", remote_results)
-                    return self._mark_used_remote(remote_results, True)
-            except Exception as e:
-                self._warn(f"Remote search error: {e}")
-                self._show_fallback_notification()
-
+    def _prompt_for_search_options(self) -> Optional[Dict[str, str]]:
+        """Prompt user for search scope and match logic"""
         try:
-            local_results = self.local_engine.search(query, limit=page_size, offset=(page - 1) * page_size)
-            if local_results.get('items'):
-                self._maybe_persist_search_history(query, "local", local_results)
-            return self._mark_used_remote(local_results, False)
+            # Search scope options
+            scope_options = [
+                "Search movie titles and plots (recommended)",
+                "Search movie titles only", 
+                "Search plot descriptions only",
+                "Advanced: Find ANY keywords (more results)",
+                "Advanced: Find ALL keywords (precise results)"
+            ]
+            
+            selected = xbmcgui.Dialog().select("Search Options", list(scope_options))
+            if selected < 0:  # User cancelled
+                return None
+            
+            # Map selection to options
+            if selected == 0:  # titles and plots, all keywords
+                return {"search_scope": "both", "match_logic": "all"}
+            elif selected == 1:  # titles only, all keywords
+                return {"search_scope": "title", "match_logic": "all"}
+            elif selected == 2:  # plots only, all keywords
+                return {"search_scope": "plot", "match_logic": "all"}
+            elif selected == 3:  # any keywords, both fields
+                return {"search_scope": "both", "match_logic": "any"}
+            elif selected == 4:  # all keywords, both fields
+                return {"search_scope": "both", "match_logic": "all"}
+            
+            # Default fallback
+            return {"search_scope": "both", "match_logic": "all"}
+            
         except Exception as e:
-            self._error(f"Local search failed: {e}")
-            self._notify_error(self.addon.getLocalizedString(35025))  # "Search failed"
-            return {'items': [], 'total': 0, 'used_remote': False}
+            self._warn(f"Search options input failed: {e}")
+            return {"search_scope": "both", "match_logic": "all"}
 
-    # ---------- CORE EXECUTION ----------
-
-    def _perform_search_with_type(self, query: str, search_type: str) -> Dict[str, Any]:
-        if search_type == 'local':
-            return self._search_local(query, limit=200)
-        if search_type == 'remote':
-            return self._search_remote_only(query)
-        # 'auto' fallback
-        return self._perform_search(query)
-
-    def _perform_search(self, query: str) -> Dict[str, Any]:
-        """Remote first (if authorized), else local, with notifications on fallback."""
-        if is_authorized():
-            try:
-                results = search_remote(query, page=1, page_size=100)
-                self._info(f"Remote search succeeded: {len(results.get('items', []))} results")
-                return self._mark_used_remote(results, True)
-            except RemoteError as e:
-                self._warn(f"Remote search RemoteError: {e}")
-                self._show_fallback_notification()
-            except Exception as e:
-                self._error(f"Remote search error: {e}")
-                self._show_fallback_notification()
-        # Fallback or not authorized
-        return self._search_local(query, limit=200)
-
-    def _search_remote_only(self, query: str) -> Dict[str, Any]:
-        """Remote-only without local fallback (but with user feedback)."""
-        if not is_authorized():
-            self._notify_error("Remote search requires authorization")
-            return {'items': [], 'total': 0, 'used_remote': False}
+    def _execute_simple_search(self, search_terms: str, options: Dict[str, str], context=None):
+        """Execute the simplified search"""
         try:
-            results = search_remote(query, page=1, page_size=100)
-            self._info(f"Remote-only search succeeded: {len(results.get('items', []))} results")
-            return self._mark_used_remote(results, True)
-        except RemoteError as e:
-            self._error(f"Remote-only search failed: {e}")
-            self._notify_error(f"Remote search failed: {str(e)[:50]}")
-            return {'items': [], 'total': 0, 'used_remote': False}
+            # Parse query
+            query_params = {
+                "search_scope": options["search_scope"],
+                "match_logic": options["match_logic"]
+            }
+            
+            # Add scope info if searching within a list
+            if context and hasattr(context, 'scope_type'):
+                query_params["scope_type"] = context.scope_type
+                query_params["scope_id"] = context.scope_id
+            
+            query = self.query_interpreter.parse_query(search_terms, **query_params)
+            
+            # Execute search
+            results = self.search_engine.search(query)
+            
+            self._info(f"Simple search completed: {results.total_count} results for '{search_terms}'")
+            return results
+            
         except Exception as e:
-            self._error(f"Remote-only search error: {e}")
-            self._notify_error(self.addon.getLocalizedString(35026))  # "Remote search failed"
-            return {'items': [], 'total': 0, 'used_remote': False}
+            self._error(f"Simple search execution failed: {e}")
+            from ..search.simple_search_engine import SimpleSearchResult
+            result = SimpleSearchResult()
+            result.query_summary = "Search error"
+            return result
 
-    def _search_local(self, query: str, limit: int = 200, offset: int = 0) -> Dict[str, Any]:
+    def _save_search_history(self, search_terms: str, options: Dict[str, str], results):
+        """Save search results to search history"""
         try:
-            results = self.local_engine.search(query, limit=limit, offset=offset)
-            items = results.get('items', []) if results else []
-            total = results.get('total', 0) if results else 0
-            self._info(f"Local search completed: {len(items)} items returned, {total} total")
-            return self._mark_used_remote(results or {'items': [], 'total': 0}, False)
+            if results.total_count == 0:
+                return
+                
+            # Create search history list
+            scope_desc = {
+                "title": "titles", 
+                "plot": "plots", 
+                "both": "titles+plots"
+            }.get(options["search_scope"], "both")
+            
+            logic_desc = options["match_logic"].upper()
+            query_desc = f"{search_terms} ({logic_desc} in {scope_desc})"
+            
+            list_id = self.query_manager.create_search_history_list(
+                query=query_desc, 
+                search_type="simple", 
+                result_count=results.total_count
+            )
+            
+            if list_id:
+                # Convert results to format expected by query manager
+                search_results = {"items": results.items}
+                added = self.query_manager.add_search_results_to_list(list_id, search_results)
+                if added > 0:
+                    self._notify_info(f"Search saved: {added} items", ms=3000)
+                    
         except Exception as e:
-            self._error(f"Local search failed: {e}")
-            return {'items': [], 'total': 0, 'used_remote': False}
-
-    # ---------- DISPLAY ----------
-
-
+            self._warn(f"Failed to save search history: {e}")
 
     def _try_redirect_to_saved_search_list(self) -> bool:
-        """
-        On Kodi v20+, redirect to the most recent search-history list using Container.Update,
-        if such a list exists. Returns True if redirected.
-        """
+        """Redirect to the most recent search history list"""
         try:
             search_folder_id = self.query_manager.get_or_create_search_history_folder()
             lists = self.query_manager.get_lists_in_folder(search_folder_id)
@@ -240,144 +189,52 @@ class SearchHandler:
 
             latest = lists[0]
             list_id = latest.get('id')
-            if not list_id or not xbmc:
+            if not list_id:
                 return False
 
-            # Set proper parent path to the search history folder instead of search action
-            search_folder_url = f"plugin://{self.addon_id}/?action=show_folder&folder_id={search_folder_id}"
             list_url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
             xbmc.executebuiltin(f'Container.Update("{list_url}",replace)')
             self._end_directory(succeeded=True, update=True)
             return True
+            
         except Exception as e:
             self._warn(f"Redirect to saved search list failed: {e}")
             return False
 
-    # ---------- UX helpers ----------
+    def _show_no_results_message(self, search_terms: str):
+        """Show message when no results found"""
+        self._notify_info(f"No results found for '{search_terms}'")
 
-    def _prompt_for_query(self) -> Optional[str]:
-        try:
-            q = xbmcgui.Dialog().input(self.addon.getLocalizedString(35018), type=xbmcgui.INPUT_ALPHANUM)
-            return q.strip() if q and q.strip() else None
-        except Exception as e:
-            self._warn(f"Search input failed: {e}")
-            return None
+    # Helper methods
+    def _ensure_handle_from_context(self, context):
+        """Extract addon handle from context if provided"""
+        if context and hasattr(context, 'addon_handle'):
+            self.addon_handle = context.addon_handle
 
-    def _get_search_type_preference(self) -> str:
-        """Returns 'local' for non-authorized users, or user selection among local/remote/auto."""
-        if not is_authorized():
-            return 'local'
-
-        options = ["Local Library Search", "Remote Search", "Remote with Local Fallback"]
-        idx = xbmcgui.Dialog().select("Choose Search Type", list(options))
-        if idx == 0:
-            return 'local'
-        if idx == 1:
-            return 'remote'
-        if idx == 2:
-            return 'auto'
-        # cancel → default to local
-        return 'local'
-
-    def _show_fallback_notification(self) -> None:
-        session = get_session_state()
-        if session.should_show_notification("remote_search_fallback", 600):
-            self._notify_warn(self.addon.getLocalizedString(35023))  # "Remote unavailable, using local"
-
-    def _show_no_results_message(self, query: str) -> None:
-        self._notify_info(self.addon.getLocalizedString(35020) % query)  # "No results for '%s'"
-
-    def _maybe_persist_search_history(self, query: str, search_type: str, results: Dict[str, Any]) -> None:
-        try:
-            if not results.get('items'):
-                return
-            list_id = self.query_manager.create_search_history_list(
-                query=query, search_type=search_type, result_count=len(results['items'])
-            )
-            if not list_id:
-                self._warn("Failed to create search history list")
-                return
-            added = self.query_manager.add_search_results_to_list(list_id, results)
-            if added > 0:
-                self._notify_info(f"Search saved: {added} items in Search History", ms=3000)
-        except Exception as e:
-            self._warn(f"Persisting search history failed: {e}")
-
-    def _cache_session_results(self, query: str, results: Dict[str, Any]) -> None:
-        try:
-            session = get_session_state()
-            session.last_search_results = results
-            session.last_search_query = query
-        except Exception as e:
-            self._warn(f"Session cache failed: {e}")
-
-    # ---------- Context/handle bridging ----------
-
-    def _ensure_handle_from_context(self, context) -> None:  # type: ignore
-        """If called via context, copy out essentials we need while remaining drop-in friendly."""
-        if context is None:
-            return
-        self.addon_handle = context.addon_handle
-        # prefer context.addon if present to stay consistent with localization/testing
-        try:
-            self.addon = context.addon or self.addon
-            self.addon_id = self.addon.getAddonInfo('id')
-        except Exception:
-            pass
-
-    def _require_handle(self) -> int:
-        if self.addon_handle is None:
-            raise RuntimeError("addon_handle is required but not set")
-        return self.addon_handle
-
-    def _end_directory(self, succeeded: bool, update: bool) -> None:
+    def _end_directory(self, succeeded: bool, update: bool):
+        """End directory listing"""
         if xbmcplugin and self.addon_handle is not None:
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=succeeded, updateListing=update)
 
-    def _maybe_dir_response(
-        self,
-        items: List[Dict[str, Any]],
-        success: bool,
-        message: str,
-        content_type: str = "movies",
-    ) -> Optional[DirectoryResponse]:  # type: ignore
-        """Return a DirectoryResponse if the newer response_types is available; otherwise None."""
+    def _maybe_dir_response(self, items: List[Dict[str, Any]], success: bool, 
+                           message: str, content_type: str = "movies") -> Optional[Any]:
+        """Return DirectoryResponse if available"""
         if DirectoryResponse is None:
             return None
         return DirectoryResponse(items=items, success=success, content_type=content_type)
 
-    # ---------- Logging & notifications ----------
-
-    def _info(self, msg: str) -> None:
+    # Logging methods
+    def _info(self, msg: str):
         self.logger.info(msg)
 
-    def _warn(self, msg: str) -> None:
+    def _warn(self, msg: str):
         self.logger.warning(msg)
 
-    def _error(self, msg: str) -> None:
+    def _error(self, msg: str):
         self.logger.error(msg)
 
-    def _notify_info(self, msg: str, ms: int = 4000) -> None:
-        xbmcgui.Dialog().notification(self.addon.getLocalizedString(35002), msg, xbmcgui.NOTIFICATION_INFO, ms)
+    def _notify_info(self, msg: str, ms: int = 4000):
+        xbmcgui.Dialog().notification("LibraryGenie", msg, xbmcgui.NOTIFICATION_INFO, ms)
 
-    def _notify_warn(self, msg: str, ms: int = 4000) -> None:
-        xbmcgui.Dialog().notification(self.addon.getLocalizedString(35002), msg, xbmcgui.NOTIFICATION_WARNING, ms)
-
-    def _notify_error(self, msg: str, ms: int = 4000) -> None:
-        xbmcgui.Dialog().notification(self.addon.getLocalizedString(35002), msg, xbmcgui.NOTIFICATION_ERROR, ms)
-
-    # ---------- Small helpers ----------
-
-    @staticmethod
-    def _mark_used_remote(results: Dict[str, Any], used_remote: bool) -> Dict[str, Any]:
-        if results is None:
-            results = {}
-        results['used_remote'] = used_remote
-        results.setdefault('items', [])
-        results.setdefault('total', len(results['items']))
-        return results
-
-    # Helper to build plugin URLs, used for context menus
-    def build_url(self, action: str, **kwargs) -> str:
-        args = "&".join([f"{k}={v}" for k, v in kwargs.items()])
-        return f"{self.base_url}?action={action}&{args}"
+    def _notify_error(self, msg: str, ms: int = 4000):
+        xbmcgui.Dialog().notification("LibraryGenie", msg, xbmcgui.NOTIFICATION_ERROR, ms)
