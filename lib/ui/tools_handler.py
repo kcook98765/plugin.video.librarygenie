@@ -8,7 +8,7 @@ Modular tools and options handler for different list types
 
 import xbmcgui
 from datetime import datetime
-from typing import List, Dict, Any, Optional, Union, Sequence
+from typing import Dict, Any, Optional
 from .plugin_context import PluginContext
 from .response_types import DialogResponse
 from .localization_helper import L
@@ -157,7 +157,7 @@ class ToolsHandler:
             if is_search_history:
                 # Special options for search history lists
                 options = [
-                    f"[COLOR lightgreen]📋 Copy to New List[/COLOR]",
+                    "[COLOR lightgreen]📋 Copy to New List[/COLOR]",
                     f"[COLOR white]{L(36007) % list_info['name']}[/COLOR]",  # "Export '%s'"
                     f"[COLOR red]{L(36008) % list_info['name']}[/COLOR]",  # "Delete '%s'"
                     f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
@@ -270,7 +270,7 @@ class ToolsHandler:
                 # Special options for Search History folder
                 options.extend([
                     f"[COLOR white]{L(36012) % folder_info['name']}[/COLOR]",  # "Export All Lists in '%s'"
-                    f"[COLOR yellow]Clear All Search History[/COLOR]"
+                    "[COLOR yellow]Clear All Search History[/COLOR]"
                 ])
             else:
                 # Standard folder options
@@ -864,20 +864,20 @@ class ToolsHandler:
                 f"[COLOR lightgreen]{L(36019)}[/COLOR]",  # "Create New List"
                 f"[COLOR lightgreen]{L(36020)}[/COLOR]",  # "Create New Folder"
                 # Import operations
-                f"[COLOR white]Import Lists[/COLOR]",
+                "[COLOR white]Import Lists[/COLOR]",
                 # Export operations
-                f"[COLOR white]Export All Lists[/COLOR]",
+                "[COLOR white]Export All Lists[/COLOR]",
                 # Backup operations
-                f"[COLOR white]Manual Backup[/COLOR]",
-                f"[COLOR white]Backup Manager[/COLOR]",
-                f"[COLOR white]Test Backup Config[/COLOR]",
+                "[COLOR white]Manual Backup[/COLOR]",
+                "[COLOR white]Backup Manager[/COLOR]",
+                "[COLOR white]Test Backup Config[/COLOR]",
                 # Management operations
-                f"[COLOR yellow]Library Statistics[/COLOR]",
-                f"[COLOR yellow]Force Library Rescan[/COLOR]",
-                f"[COLOR yellow]Clear Search History[/COLOR]",
-                f"[COLOR yellow]Reset Preferences[/COLOR]",
+                "[COLOR yellow]Library Statistics[/COLOR]",
+                "[COLOR yellow]Force Library Rescan[/COLOR]",
+                "[COLOR yellow]Clear Search History[/COLOR]",
+                "[COLOR yellow]Reset Preferences[/COLOR]",
                 # Cancel
-                f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
+                "[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
             ]
 
             # Show selection dialog
