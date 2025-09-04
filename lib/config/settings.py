@@ -88,7 +88,7 @@ class SettingsManager:
         """Get enable batch processing for large favorites files"""
         return self.addon.getSettingBool('enable_batch_processing')
 
-    
+
 
     # Advanced Settings
     def get_jsonrpc_page_size(self) -> int:
@@ -147,19 +147,19 @@ class SettingsManager:
         """Get backup storage location with safe fallbacks"""
         try:
             storage_type = self.addon.getSetting('backup_storage_type')
-            
+
             if storage_type == "custom":
                 # Use custom path set by user
                 custom_path = self.addon.getSetting('backup_local_path')
                 if custom_path and custom_path.strip():
                     return custom_path.strip()
-            
+
             # Default to addon data directory
             return "special://userdata/addon_data/plugin.video.librarygenie/backups/"
         except Exception as e:
             self.logger.warning(f"Error reading backup storage location: {e}")
             return "special://userdata/addon_data/plugin.video.librarygenie/backups/"
-    
+
     def get_backup_storage_type(self) -> str:
         """Get backup storage type with safe fallback"""
         try:
