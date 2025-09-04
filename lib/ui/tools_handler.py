@@ -925,6 +925,12 @@ class ToolsHandler:
             if not file_path:
                 return DialogResponse(success=False)
 
+            # Ensure file_path is a string (dialog.browse can return list in some cases)
+            if isinstance(file_path, list):
+                if not file_path:
+                    return DialogResponse(success=False)
+                file_path = file_path[0]  # Take the first file if multiple selected
+
             # Run import
             result = import_engine.import_data(file_path)
 
