@@ -69,13 +69,18 @@ class ResponseHandler:
             # Get all parameters from the response
             kodi_params = response.to_kodi_params()
             
+            # Handle sort methods separately if provided
+            sort_methods = kodi_params.get('sortMethods')
+            if sort_methods:
+                for sort_method in sort_methods:
+                    xbmcplugin.addSortMethod(context.addon_handle, sort_method)
+            
             # End directory with proper parameters
             xbmcplugin.endOfDirectory(
                 context.addon_handle,
                 succeeded=kodi_params.get('succeeded', True),
                 updateListing=kodi_params.get('updateListing', False),
-                cacheToDisc=kodi_params.get('cacheToDisc', True),
-                sortMethods=kodi_params.get('sortMethods', None)
+                cacheToDisc=kodi_params.get('cacheToDisc', True)
             )
 
             return response.success
