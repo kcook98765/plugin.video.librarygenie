@@ -36,11 +36,11 @@ This document outlines potential future enhancements and features for LibraryGen
 **Effort**: Medium - Auth system complete, needs service-specific clients  
 
 ### 5. Enhanced Favorites Features
-**Status**: Read-only scanning implemented  
-**Files**: `lib/kodi/favorites_manager.py`, `lib/kodi/favorites_parser.py`  
+**Status**: Read-only scanning implemented with router integration  
+**Files**: `lib/kodi/favorites_manager.py`, `lib/kodi/favorites_parser.py`, `lib/ui/favorites_handler.py`  
 **Description**: Favorite creation, editing, and organization  
 **Benefits**: Full favorites lifecycle management  
-**Effort**: Low-Medium - Core parsing done, needs creation/editing flows  
+**Effort**: Low-Medium - Core parsing done, router integration complete, needs creation/editing flows  
 
 ---
 

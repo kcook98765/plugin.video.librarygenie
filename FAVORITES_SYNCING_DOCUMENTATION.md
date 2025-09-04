@@ -427,7 +427,7 @@ def _strip_credentials_from_path(self, path: str) -> str:
 ```python
 # Add mapped favorites to custom lists
 context_items = [
-    ("Add to List", f"RunPlugin({base_url}?action=add_to_list&imdb_id={imdb_id})")
+    ("Add to List", f"RunPlugin({base_url}?action=add_favorite_to_list&imdb_id={imdb_id})")
 ]
 ```
 
