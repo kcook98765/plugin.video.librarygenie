@@ -72,7 +72,10 @@ class ResponseHandler:
             # End directory with proper parameters
             xbmcplugin.endOfDirectory(
                 context.addon_handle,
-                **kodi_params
+                succeeded=kodi_params.get('succeeded', True),
+                updateListing=kodi_params.get('updateListing', False),
+                cacheToDisc=kodi_params.get('cacheToDisc', True),
+                sortMethods=kodi_params.get('sortMethods', None)
             )
 
             return response.success
