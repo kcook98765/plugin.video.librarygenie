@@ -328,10 +328,8 @@ class FavoritesHandler:
             all_folders = query_manager.get_all_folders()
 
             # Ask user if they want to place it in a folder
-            from typing import List, Union, cast
             folder_names = [L(36031)] + [str(f["name"]) for f in all_folders]  # "[Root Level]"
-            folder_options = cast(List[Union[str, xbmcgui.ListItem]], folder_names)
-            selected_folder_index = dialog.select(L(36029), folder_options)  # "Select destination folder:"
+            selected_folder_index = dialog.select(L(36029), list(folder_names))  # "Select destination folder:"
 
             if selected_folder_index < 0:
                 self.logger.info("User cancelled folder selection")

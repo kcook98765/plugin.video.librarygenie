@@ -183,7 +183,15 @@ Files used only for development (excluded from addon package):
 - `requirements-dev.txt` - Development dependencies
 - `.flake8`, `mypy.ini`, `pyproject.toml` - Tool configurations
 - `Makefile` - Development task shortcuts
-- `tests/` - Test suite and Kodi stubs
+- `tests/` - Test suite with Kodi API stubs
+
+### Plugin Architecture
+
+The plugin uses a modular handler-based architecture:
+- **Router**: Central request dispatcher (`lib/ui/router.py`)
+- **Handlers**: Specialized UI handlers for different functionality
+- **Response Types**: Structured response objects for consistent UI handling
+- **Context**: Request context object for parameter accessts/` - Test suite and Kodi stubs
 
 ### Quality Gates
 
@@ -193,11 +201,11 @@ All changes must pass:
 - **Import Safety**: All modules import without Kodi runtime
 - **Smoke Tests**: Core functionality works in test environment
 
-## Favorites (Manual) Integration
+## Favorites Integration (Manual Operation)
 
 LibraryGenie provides manual integration with Kodi's built-in Favorites system, allowing you to:
 
-- **Scan on Demand**: Manually scan favorites via Tools menu or context actions
+- **Scan on Demand**: Manually scan favorites via Tools menu or context actions (registered as "favorites" action)
 - **View Mapped Favorites**: Display favorites that map to your movie library
 - **Quick Add**: Add mapped favorites to your custom lists
 - **Smart Filtering**: Option to show/hide unmapped favorites

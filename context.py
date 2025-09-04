@@ -10,6 +10,7 @@ import xbmc
 import xbmcaddon
 import xbmcgui
 import urllib.parse
+from typing import List, Union
 
 
 def main():
@@ -35,7 +36,7 @@ def main():
                     ]
 
                     dialog = xbmcgui.Dialog()
-                    selected = dialog.select("Add to List", options)
+                    selected = dialog.select("Add to List", list(options))
 
                     if selected == 0:  # Quick add
                         plugin_url = f"plugin://plugin.video.librarygenie/?action=quick_add&dbtype={dbtype}&dbid={dbid}"
@@ -71,7 +72,7 @@ def main():
                     ]
 
                     dialog = xbmcgui.Dialog()
-                    selected = dialog.select("Add to List", options)
+                    selected = dialog.select("Add to List", list(options))
 
                     if selected == 0:  # Quick add
                         plugin_url = f"plugin://plugin.video.librarygenie/?action=quick_add&dbtype={dbtype}&dbid={dbid}"
@@ -107,7 +108,7 @@ def main():
                     ]
 
                     dialog = xbmcgui.Dialog()
-                    selected = dialog.select("Add to List", options)
+                    selected = dialog.select("Add to List", list(options))
 
                     if selected == 0:  # Quick add
                         plugin_url = f"plugin://plugin.video.librarygenie/?action=quick_add&dbtype={dbtype}&dbid={dbid}"
@@ -144,7 +145,7 @@ def main():
                         ]
 
                         dialog = xbmcgui.Dialog()
-                        selected = dialog.select("Add to List", options)
+                        selected = dialog.select("Add to List", list(options))
 
                         if selected == 0:  # Quick add
                             plugin_url = f"plugin://plugin.video.librarygenie/?action=quick_add&dbtype={dbtype}&dbid={dbid}"

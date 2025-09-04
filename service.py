@@ -82,6 +82,9 @@ class BackgroundService:
 
         # Main loop using proper Monitor.waitForAbort
         while not self.monitor.abortRequested():
+            # Initialize current_interval with a default value before try block
+            current_interval = self.interval
+            
             try:
                 cycle_start = time.time()
 
@@ -151,14 +154,13 @@ class BackgroundService:
         """Perform initial setup tasks"""
         try:
             # Check if library needs initial indexing
-            if not self._library_scanner.is_library_indexed():
+            if self._library_scanner and not self._library_scanner.is_library_indexed():
                 self.logger.info("Library not indexed, performing initial scan")
 
                 # Show notification that initial scan is starting
                 try:
-                    addon = xbmcaddon.Addon() # Ensure addon is initialized here
                     xbmcgui.Dialog().notification(
-                        addon.getLocalizedString(35002),  # "LibraryGenie"
+                        self.addon.getLocalizedString(35002),  # "LibraryGenie"
                         "Initial library scan starting...",
                         xbmcgui.NOTIFICATION_INFO,
                         5000
@@ -173,7 +175,7 @@ class BackgroundService:
                         # Show completion notification
                         try:
                             xbmcgui.Dialog().notification(
-                                addon.getLocalizedString(35002),  # "LibraryGenie"
+                                self.addon.getLocalizedString(35002),  # "LibraryGenie"
                                 f"Initial scan complete: {result.get('items_added', 0)} movies indexed",
                                 xbmcgui.NOTIFICATION_INFO,
                                 5000
@@ -185,7 +187,7 @@ class BackgroundService:
                         # Show error notification
                         try:
                             xbmcgui.Dialog().notification(
-                                addon.getLocalizedString(35002),  # "LibraryGenie"
+                                self.addon.getLocalizedString(35002),  # "LibraryGenie"
                                 "Initial library scan failed",
                                 xbmcgui.NOTIFICATION_ERROR,
                                 5000
@@ -197,7 +199,7 @@ class BackgroundService:
                     # Show error notification on exception during scan
                     try:
                         xbmcgui.Dialog().notification(
-                            addon.getLocalizedString(35002),  # "LibraryGenie"
+                            self.addon.getLocalizedString(35002),  # "LibraryGenie"
                             "Initial library scan failed",
                             xbmcgui.NOTIFICATION_ERROR,
                             5000
@@ -205,7 +207,10 @@ class BackgroundService:
                     except Exception as e:
                         self.logger.warning(f"Failed to show error notification: {e}")
             else:
-                self.logger.debug("Library already indexed or scanner unavailable")
+                if self._library_scanner:
+                    self.logger.debug("Library already indexed")
+                else:
+                    self.logger.debug("Library scanner unavailable - skipping initial scan")
 
         except Exception as e:
             self.logger.error(f"Initial setup failed: {e}")
@@ -240,6 +245,11 @@ class BackgroundService:
             if xbmc.Player().isPlaying():
                 return
 
+            # Check if library scanner is available
+            if self._library_scanner is None:
+                self.logger.warning("Library scanner is not initialized")
+                return
+
             # Use delta scan which should be cheap
             result = self._library_scanner.perform_delta_scan()
 
@@ -271,7 +281,7 @@ class BackgroundService:
 
             # Check for library changes if tracking is enabled
             if self.config.get_bool("track_library_changes", False):
-                self.check_library_changes()
+                self._check_library_changes()
 
             # Check for scheduled backups
             self.check_scheduled_backups()

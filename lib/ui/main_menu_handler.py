@@ -56,7 +56,7 @@ class MainMenuHandler:
         if context.addon.getSettingBool("favorites_integration_enabled"):
             menu_items.append({
                 'label': context.addon.getLocalizedString(32000),  # "Kodi Favorites (read-only)"
-                'url': context.build_url('favorites'),
+                'url': context.build_url('kodi_favorites'),
                 'is_folder': True,
                 'icon': "DefaultFavourites.png",
                 'description': context.addon.getLocalizedString(32001)  # "Browse Kodi Favorites"
@@ -74,8 +74,8 @@ class MainMenuHandler:
         from .menu_builder import MenuBuilder
         menu_builder = MenuBuilder()
         menu_builder.build_menu(
-            menu_items, 
-            context.addon_handle, 
+            menu_items,
+            context.addon_handle,
             context.base_url,
             breadcrumb_path=None  # No breadcrumb for root menu
         )

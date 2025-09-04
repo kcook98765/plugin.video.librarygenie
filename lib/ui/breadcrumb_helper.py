@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -24,7 +23,7 @@ class BreadcrumbHelper:
                 return self._get_list_breadcrumb(context_params, query_manager)
             elif action == "show_folder":
                 return self._get_folder_breadcrumb(context_params, query_manager)
-            elif action == "kodi_favorites":
+            elif action == "favorites":
                 return "Favorites > Kodi Favorites"
             elif action == "search_results":
                 query = context_params.get('query', '')
