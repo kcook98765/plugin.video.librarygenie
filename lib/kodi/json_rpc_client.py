@@ -7,7 +7,7 @@ Safe, paginated communication with Kodi's video library
 """
 
 import json
-from typing import Dict, Any, Optional, Union, List
+from typing import Dict, Any, Optional, List
 
 import xbmc
 
@@ -185,9 +185,6 @@ class KodiJsonRpcClient:
             resume_data = movie.get("resume", {})
             resume_time = resume_data.get("position", 0) if isinstance(resume_data, dict) else 0
             
-            # Extract plot data
-            plot_data = movie.get("plot", "")
-
             # NOTE: Cast data is intentionally not processed here.
             # Cast information should not be requested in JSON-RPC calls for ListItems
             # as it causes performance issues. Kodi will handle cast population automatically
