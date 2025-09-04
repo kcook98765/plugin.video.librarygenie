@@ -154,7 +154,7 @@ class BackgroundService:
         """Perform initial setup tasks"""
         try:
             # Check if library needs initial indexing
-            if not self._library_scanner.is_library_indexed():
+            if self._library_scanner and not self._library_scanner.is_library_indexed():
                 self.logger.info("Library not indexed, performing initial scan")
 
                 # Show notification that initial scan is starting
@@ -207,7 +207,10 @@ class BackgroundService:
                     except Exception as e:
                         self.logger.warning(f"Failed to show error notification: {e}")
             else:
-                self.logger.debug("Library already indexed or scanner unavailable")
+                if self._library_scanner:
+                    self.logger.debug("Library already indexed")
+                else:
+                    self.logger.debug("Library scanner unavailable - skipping initial scan")
 
         except Exception as e:
             self.logger.error(f"Initial setup failed: {e}")
