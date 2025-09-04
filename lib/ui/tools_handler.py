@@ -20,11 +20,17 @@ from ..import_export.export_engine import get_export_engine
 class ToolsHandler:
     """Modular tools and options handler"""
 
-    def __init__(self):
+    def __init__(self, context: PluginContext = None):
         self.logger = get_logger(__name__)
         try:
             from .listitem_builder import ListItemBuilder
-            self.listitem_builder = ListItemBuilder()
+            if context:
+                self.listitem_builder = ListItemBuilder(
+                    addon_handle=context.addon_handle,
+                    addon_id=context.addon.getAddonInfo('id')
+                )
+            else:
+                self.listitem_builder = None
         except ImportError:
             self.listitem_builder = None
 
