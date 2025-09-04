@@ -561,16 +561,22 @@ class ToolsHandler:
                 file_format="json"
             )
 
-            if result.success:
+            if result["success"]:
+                message = (
+                    f"Export completed:\n"
+                    f"File: {result.get('filename', 'unknown')}\n"
+                    f"Items: {result.get('total_items', 0)}\n"
+                    f"Size: {self._format_file_size(result.get('file_size', 0))}"
+                )
                 return DialogResponse(
                     success=True,
-                    message=f"Exported '{list_info['name']}' to {result.get('filename', 'export file')}",
+                    message=message,
                     refresh_needed=False
                 )
             else:
                 return DialogResponse(
                     success=False,
-                    message=f"Export failed: {getattr(result, 'error', 'Unknown error')}"
+                    message=f"Export failed: {result.get('error', 'Unknown error')}"
                 )
 
         except Exception as e:
@@ -616,7 +622,7 @@ class ToolsHandler:
                 file_format="json"
             )
 
-            if result.success:
+            if result["success"]:
                 return DialogResponse(
                     success=True,
                     message=f"Exported {list_count} lists from '{folder_info['name']}' to {result.get('filename', 'export file')}",
@@ -699,7 +705,7 @@ class ToolsHandler:
 
             result = backup_manager.test_backup_configuration()
 
-            if result.success:
+            if result["success"]:
                 message = f"Backup configuration test successful:\n{result['message']}"
             else:
                 message = f"Backup configuration test failed:\n{result['error']}"
@@ -724,7 +730,7 @@ class ToolsHandler:
 
             result = backup_manager.run_manual_backup()
 
-            if result.success:
+            if result["success"]:
                 message = (
                     f"Manual backup completed:\n"
                     f"File: {result['filename']}\n"
@@ -785,11 +791,25 @@ class ToolsHandler:
                 f"This will restore data from {selected_backup['age_days']} days ago.",
                 "Current data will be backed up first."
             ):
-                # TODO: Implement restore functionality
-                return DialogResponse(
-                    success=True,
-                    message=f"Restore functionality not yet implemented for {selected_backup['filename']}"
-                )
+                # Restore backup
+                restore_result = backup_manager.restore_backup(selected_backup['filename'])
+
+                if restore_result["success"]:
+                    total_restored = sum([
+                        restore_result.get("lists_restored", 0),
+                        restore_result.get("items_restored", 0)
+                    ])
+
+                    message = (
+                        f"Backup restored successfully:\n"
+                        f"Lists: {restore_result.get('lists_restored', 0)}\n"
+                        f"Items: {restore_result.get('items_restored', 0)}\n"
+                        f"Total restored: {total_restored}"
+                    )
+                    return DialogResponse(success=True, message=message, refresh_needed=True)
+                else:
+                    message = f"Backup restore failed: {restore_result.get('error', 'Unknown error')}"
+                    return DialogResponse(success=False, message=message)
             else:
                 return DialogResponse(success=False, message="Restore cancelled")
 
@@ -934,11 +954,11 @@ class ToolsHandler:
             # Run import
             result = import_engine.import_data(file_path)
 
-            if result.success:
+            if result["success"]:
                 message = (
                     f"Import completed:\n"
-                    f"Lists: {result.get('lists_imported', 0)}\n"
-                    f"Items: {result.get('items_imported', 0)}\n"
+                    f"Lists: {result.get('lists_created', 0)}\n"
+                    f"Items: {result.get('items_added', 0)}\n"
                     f"Folders: {result.get('folders_imported', 0)}"
                 )
                 return DialogResponse(
@@ -983,7 +1003,7 @@ class ToolsHandler:
                 file_format="json"
             )
 
-            if result.success:
+            if result["success"]:
                 return DialogResponse(
                     success=True,
                     message=f"Exported all lists to {result.get('filename', 'export file')}",
