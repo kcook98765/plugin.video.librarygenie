@@ -409,7 +409,7 @@ class Phase3LibraryScanner:
         """Clear the existing library index (enhanced with batching)"""
         try:
             with self.conn_manager.transaction() as conn:
-                conn.execute("DELETE FROM library_movie")
+                conn.execute("DELETE FROM media_items WHERE media_type = 'movie'")
             self.logger.debug("Library index cleared for full scan")
         except Exception as e:
             self.logger.error(f"Failed to clear library index: {e}")
@@ -419,9 +419,9 @@ class Phase3LibraryScanner:
         """Get indexed movie IDs (lightweight query)"""
         try:
             movies = self.conn_manager.execute_query("""
-                SELECT kodi_id, title, file_path, is_removed
-                FROM library_movie
-                WHERE is_removed = 0
+                SELECT kodi_id, title, play as file_path, is_removed
+                FROM media_items
+                WHERE media_type = 'movie' AND is_removed = 0
             """)
             return movies or []
         except Exception as e:
