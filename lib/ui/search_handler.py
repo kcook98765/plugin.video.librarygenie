@@ -19,8 +19,8 @@ try:
     import xbmc
     import xbmcplugin
 except Exception:  # pragma: no cover (Kodi runtime)
-    xbmc = None
-    xbmcplugin = None
+    xbmc = None  # type: ignore
+    xbmcplugin = None  # type: ignore
 
 # Shared libs
 from ..search.local_engine import LocalSearchEngine
@@ -34,7 +34,7 @@ from ..utils.logger import get_logger
 try:
     from ..ui.listitem_builder import ListItemBuilder
 except ImportError:
-    ListItemBuilder = None
+    ListItemBuilder = None  # type: ignore
 
 # Newer arch types (kept optional so this file still imports without them)
 try:
