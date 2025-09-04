@@ -668,7 +668,7 @@ class ToolsHandler:
         try:
             favorites_manager = get_phase4_favorites_manager()
 
-            stats = favorites_manager.get_statistics()
+            stats = favorites_manager.get_favorites_stats()
 
             message = (
                 f"Favorites Stats:\n"
