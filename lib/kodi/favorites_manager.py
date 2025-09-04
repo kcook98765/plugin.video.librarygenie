@@ -13,7 +13,6 @@ from typing import List, Dict, Any, Optional
 from ..data import get_connection_manager
 from ..utils.logger import get_logger
 from .favorites_parser import get_phase4_favorites_parser
-from .json_rpc_client import get_kodi_client
 
 
 class Phase4FavoritesManager:
