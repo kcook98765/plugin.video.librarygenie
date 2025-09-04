@@ -66,15 +66,13 @@ class ResponseHandler:
             if hasattr(response, 'content_type') and response.content_type:
                 xbmcplugin.setContent(context.addon_handle, response.content_type)
 
-            # Handle caching
-            cache_to_disc = getattr(response, 'cache_to_disc', True)
-
-            # End directory
+            # Get all parameters from the response
+            kodi_params = response.to_kodi_params()
+            
+            # End directory with proper parameters
             xbmcplugin.endOfDirectory(
                 context.addon_handle,
-                succeeded=response.success,
-                updateListing=getattr(response, 'update_listing', False),
-                cacheToDisc=cache_to_disc
+                **kodi_params
             )
 
             return response.success
