@@ -217,9 +217,10 @@ class RemoteCache:
             expired_cleared = self.clear_expired()
 
             # Check if we still have too many entries
-            current_count = self.conn_manager.execute_single("""
+            current_result = self.conn_manager.execute_single("""
                 SELECT COUNT(*) as count FROM remote_cache
-            """)['count']
+            """)
+            current_count = current_result['count'] if current_result else 0
 
             if current_count <= max_entries:
                 return expired_cleared
