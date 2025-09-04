@@ -557,17 +557,22 @@ class Phase4FavoritesManager:
     def _fetch_artwork_from_kodi(self, kodi_id: int, media_type: str) -> Dict[str, str]:
         """Fetch artwork for library item from Kodi JSON-RPC"""
         try:
-            json_rpc = get_kodi_client()
+            import json
+            import xbmc
 
             if media_type == 'movie':
                 # Get movie details with artwork
-                response = json_rpc.call_method(
-                    "VideoLibrary.GetMovieDetails",
-                    {
+                request = {
+                    "jsonrpc": "2.0",
+                    "method": "VideoLibrary.GetMovieDetails",
+                    "params": {
                         "movieid": kodi_id,
                         "properties": ["art", "thumbnail", "fanart"]
-                    }
-                )
+                    },
+                    "id": 1
+                }
+                response_str = xbmc.executeJSONRPC(json.dumps(request))
+                response = json.loads(response_str)
                 
                 if response and "moviedetails" in response:
                     movie_details = response["moviedetails"]
@@ -589,13 +594,17 @@ class Phase4FavoritesManager:
 
             elif media_type == 'episode':
                 # Get episode details with artwork
-                response = json_rpc.call_method(
-                    "VideoLibrary.GetEpisodeDetails",
-                    {
+                request = {
+                    "jsonrpc": "2.0",
+                    "method": "VideoLibrary.GetEpisodeDetails",
+                    "params": {
                         "episodeid": kodi_id,
                         "properties": ["art", "thumbnail", "fanart"]
-                    }
-                )
+                    },
+                    "id": 1
+                }
+                response_str = xbmc.executeJSONRPC(json.dumps(request))
+                response = json.loads(response_str)
                 
                 if response and "episodedetails" in response:
                     episode_details = response["episodedetails"]
