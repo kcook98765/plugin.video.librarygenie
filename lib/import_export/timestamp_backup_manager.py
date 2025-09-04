@@ -65,6 +65,17 @@ class TimestampBackupManager:
         try:
             self.logger.info("Starting automatic timestamped backup")
 
+            # Check if there's meaningful data to backup
+            validation_result = self._validate_backup_worthiness()
+            if not validation_result["worthy"]:
+                self.logger.info(f"Skipping backup: {validation_result['reason']}")
+                return {
+                    "success": False,
+                    "skipped": True,
+                    "reason": validation_result["reason"],
+                    "message": "Backup skipped - no user data to backup"
+                }
+
             # Generate timestamp with fallback
             timestamp_format = "%Y%m%d-%H%M%S"  # Use hardcoded format since setting may not exist
             timestamp = datetime.now().strftime(timestamp_format)
@@ -128,16 +139,37 @@ class TimestampBackupManager:
             self.logger.error(f"Error in automatic backup: {e}")
             return {"success": False, "error": str(e)}
 
-    def run_manual_backup(self) -> Dict[str, Any]:
+    def run_manual_backup(self, force: bool = False) -> Dict[str, Any]:
         """Run manual backup with timestamp"""
         try:
             self.logger.info("Starting manual timestamped backup")
 
-            # Force run regardless of schedule
-            result = self.run_automatic_backup()
-            result["manual"] = True
+            # Check if there's meaningful data to backup (unless forced)
+            if not force:
+                validation_result = self._validate_backup_worthiness()
+                if not validation_result["worthy"]:
+                    self.logger.info(f"Manual backup validation failed: {validation_result['reason']}")
+                    return {
+                        "success": False,
+                        "skipped": True,
+                        "manual": True,
+                        "reason": validation_result["reason"],
+                        "message": "Manual backup skipped - no user data to backup. Use 'force' option to backup anyway."
+                    }
 
-            return result
+            # Force run regardless of schedule
+            # Temporarily bypass validation for the automatic backup call
+            original_method = self._validate_backup_worthiness
+            if force:
+                self._validate_backup_worthiness = lambda: {"worthy": True, "reason": "forced"}
+            
+            try:
+                result = self.run_automatic_backup()
+                result["manual"] = True
+                return result
+            finally:
+                if force:
+                    self._validate_backup_worthiness = original_method
 
         except Exception as e:
             self.logger.error(f"Error in manual backup: {e}")
@@ -520,6 +552,58 @@ class TimestampBackupManager:
         except Exception as e:
             self.logger.error(f"Error deleting backup: {e}")
             return False
+
+    def _validate_backup_worthiness(self) -> Dict[str, Any]:
+        """Check if there's meaningful user data worth backing up"""
+        try:
+            from ..data.query_manager import get_query_manager
+            
+            query_manager = get_query_manager()
+            if not query_manager.initialize():
+                return {"worthy": False, "reason": "Database not accessible"}
+
+            # Count user lists (excluding system folders)
+            lists_count = query_manager.conn_manager.execute_single("""
+                SELECT COUNT(*) as count FROM lists l
+                LEFT JOIN folders f ON l.folder_id = f.id
+                WHERE f.name != 'Search History' OR f.name IS NULL
+            """)
+            
+            user_lists = lists_count.get('count', 0) if lists_count else 0
+
+            # Count total list items
+            items_count = query_manager.conn_manager.execute_single("""
+                SELECT COUNT(*) as count FROM list_items
+            """)
+            
+            total_items = items_count.get('count', 0) if items_count else 0
+
+            # Count user-created folders (excluding Search History)
+            folders_count = query_manager.conn_manager.execute_single("""
+                SELECT COUNT(*) as count FROM folders 
+                WHERE name != 'Search History'
+            """)
+            
+            user_folders = folders_count.get('count', 0) if folders_count else 0
+
+            self.logger.debug(f"Backup worthiness check: {user_lists} lists, {total_items} items, {user_folders} folders")
+
+            # Backup is worthy if there are user lists, items, or folders
+            if user_lists > 0 or total_items > 0 or user_folders > 0:
+                return {
+                    "worthy": True, 
+                    "reason": f"Found {user_lists} lists, {total_items} items, {user_folders} folders"
+                }
+            else:
+                return {
+                    "worthy": False, 
+                    "reason": "No user lists, items, or folders found (only system data)"
+                }
+
+        except Exception as e:
+            self.logger.warning(f"Error validating backup worthiness: {e}")
+            # If we can't validate, err on the side of allowing backup
+            return {"worthy": True, "reason": "Validation failed, allowing backup"}
 
     def _get_backup_preferences(self) -> Dict[str, Any]:
         """Get backup preferences from config with detailed debugging"""
