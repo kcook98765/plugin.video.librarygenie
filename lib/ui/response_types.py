@@ -38,9 +38,9 @@ class DialogResponse:
     """Response type for dialog operations"""
 
     def __init__(self, success: bool = False, message: str = "", refresh_needed: bool = False,
-                 navigate_to_lists: bool = False, navigate_to_folder: int = None,
+                 navigate_to_lists: bool = False, navigate_to_folder: Optional[int] = None,
                  navigate_to_main: bool = False, navigate_to_favorites: bool = False,
-                 navigate_on_failure: str = None):
+                 navigate_on_failure: Optional[str] = None):
         self.success = success
         self.message = message
         self.refresh_needed = refresh_needed
