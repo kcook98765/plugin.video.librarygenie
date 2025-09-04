@@ -61,7 +61,10 @@ class Phase3LibraryScanner:
             # Get total count first
             count_response = self.json_rpc.get_movie_count()
             if not count_response.success:
-                error_msg = f"Failed to get movie count: {count_response.error.message}"
+                if count_response.error and hasattr(count_response.error, 'message'):
+                    error_msg = f"Failed to get movie count: {count_response.error.message}"
+                else:
+                    error_msg = "Failed to get movie count: Unknown error"
                 self.logger.error(error_msg)
                 self._log_scan_complete(scan_id, scan_start, 0, 0, 0, 0, error=error_msg)
                 return {"success": False, "error": error_msg}
@@ -100,9 +103,14 @@ class Phase3LibraryScanner:
                 page_response = self.json_rpc.get_movies_page(offset, self.page_size)
 
                 if not page_response.success:
-                    error_msg = f"Failed to get movies page {page_num}: {page_response.error.message}"
+                    if page_response.error and hasattr(page_response.error, 'message'):
+                        error_msg = f"Failed to get movies page {page_num}: {page_response.error.message}"
+                        is_retryable = hasattr(page_response.error, 'retryable') and page_response.error.retryable
+                    else:
+                        error_msg = f"Failed to get movies page {page_num}: Unknown error"
+                        is_retryable = False
 
-                    if page_response.error.retryable:
+                    if is_retryable:
                         self.logger.warning(f"{error_msg} - stopping scan gracefully")
                     else:
                         self.logger.error(f"{error_msg} - stopping scan")
@@ -264,7 +272,11 @@ class Phase3LibraryScanner:
             response = self.json_rpc.get_movies_lightweight(offset, self.page_size)
 
             if not response.success:
-                self.logger.error(f"Failed to get lightweight movies at offset {offset}: {response.error.message}")
+                if response.error and hasattr(response.error, 'message'):
+                    error_msg = f"Failed to get lightweight movies at offset {offset}: {response.error.message}"
+                else:
+                    error_msg = f"Failed to get lightweight movies at offset {offset}: Unknown error"
+                self.logger.error(error_msg)
                 return None
 
             movies = response.data.get("movies", [])
