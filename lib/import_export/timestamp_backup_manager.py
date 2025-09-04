@@ -70,7 +70,7 @@ class TimestampBackupManager:
             timestamp = datetime.now().strftime(timestamp_format)
 
             # Determine what to backup based on settings
-            export_types = ["lists", "list_items", "media_items"]  # Always include media_items with list_items
+            export_types = ["lists", "list_items"]  # Don't backup media_items - those are maintained by the addon
 
             # Only add optional types if they're explicitly enabled or if config is unavailable
             try:

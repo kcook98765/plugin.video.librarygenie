@@ -65,8 +65,9 @@ class DataMatcher:
         conditions = []
         params = []
 
+        # Primary match by IMDb ID (most reliable for backup/restore)
         if item_data.get("imdb_id"):
-            conditions.append("imdb_id = ?")
+            conditions.append("imdbnumber = ?")
             params.append(item_data["imdb_id"])
 
         if item_data.get("tmdb_id"):
@@ -548,17 +549,18 @@ class ImportEngine:
             # Initialize database
             self.query_manager.initialize()
 
-            # Handle replace mode - clear existing data first
+            # Handle replace mode - clear existing lists/folders but preserve media_items
             if replace_mode:
                 try:
-                    self.logger.info("Replace mode enabled - clearing existing data")
+                    self.logger.info("Replace mode enabled - clearing existing lists and folders only")
                     # Delete all list items first (foreign key constraints)
                     self.conn_manager.execute_single("DELETE FROM list_items")
-                    # Delete all lists except system folders
+                    # Delete all lists except those in system folders
                     self.conn_manager.execute_single("DELETE FROM lists WHERE folder_id IS NULL OR folder_id NOT IN (SELECT id FROM folders WHERE name = 'Search History')")
                     # Delete non-system folders
                     self.conn_manager.execute_single("DELETE FROM folders WHERE name != 'Search History'")
-                    self.logger.info("Existing data cleared for replace mode")
+                    # NOTE: media_items are preserved - they contain the addon's library index
+                    self.logger.info("Existing lists and folders cleared for replace mode (media_items preserved)")
                 except Exception as e:
                     self.logger.error(f"Error clearing data for replace mode: {e}")
                     errors.append(f"Failed to clear existing data: {e}")
