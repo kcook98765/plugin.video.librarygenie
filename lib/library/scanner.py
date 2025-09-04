@@ -225,7 +225,11 @@ class LibraryScanner:
             result = self.conn_manager.execute_single(
                 "SELECT COUNT(*) as count FROM media_items WHERE media_type = 'movie' AND is_removed = 0"
             )
-            return result and result.get('count', 0) > 0
+            if result:
+                # Handle both dict-like and sqlite3.Row objects
+                count = result['count'] if hasattr(result, '__getitem__') else getattr(result, 'count', 0)
+                return count > 0
+            return False
         except Exception as e:
             self.logger.warning(f"Failed to check if library is indexed: {e}")
             return False

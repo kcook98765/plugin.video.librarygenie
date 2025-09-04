@@ -12,7 +12,7 @@
     <setting label="30030" type="lsep"/>
     <setting id="track_library_changes" type="bool" label="30031" default="true"/>
     <setting id="soft_delete_removed_items" type="bool" label="30032" default="true"/>
-    
+
   </category>
 
   <!-- Lists Settings -->
@@ -49,9 +49,12 @@
     <setting id="backup_include_non_library" type="bool" label="30522" default="false" enable="eq(-5,true)"/>
     <setting id="backup_include_folders" type="bool" label="30523" default="true" enable="eq(-6,true)"/>
     <setting label="30530" type="lsep"/>
-    <setting id="backup_storage_type" type="select" label="30531" default="local" values="local|custom" enable="eq(-8,true)"/>
-    <setting id="backup_storage_location" type="text" label="30532" default="special://userdata/addon_data/plugin.video.librarygenie/backups/" enable="eq(-9,true)"/>
-    <setting id="backup_local_path" type="folder" label="30533" default="" enable="eq(-2,custom)"/>
+    <setting id="backup_storage_type" type="select" label="35051" values="local" default="local" visible="eq(-1,true)" />
+        <setting id="backup_storage_location" type="path" label="35052" default="special://userdata/addon_data/plugin.video.librarygenie/backups/" visible="eq(-2,true)" />
+        <setting id="backup_retention_count" type="number" label="35053" default="5" visible="eq(-3,true)" />
+        <setting id="backup_include_settings" type="bool" label="35054" default="true" visible="eq(-4,true)" />
+        <setting id="backup_include_non_library" type="bool" label="35055" default="false" visible="eq(-5,true)" />
+        <setting id="backup_include_folders" type="bool" label="35056" default="true" visible="eq(-6,true)" />
     <setting label="30540" type="lsep"/>
     <setting id="last_backup_time" type="text" label="" default="" visible="false"/>
     <setting id="backup_test_action" type="action" label="30541" action="RunPlugin(plugin://plugin.video.librarygenie/?action=test_backup)" enable="eq(-13,true)"/>

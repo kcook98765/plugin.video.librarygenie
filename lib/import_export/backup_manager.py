@@ -75,10 +75,17 @@ class BackupManager:
             self.logger.info("DEPRECATED: BackupManager.list_backups - redirecting to TimestampBackupManager")
 
             # Redirect to the new timestamp backup manager
-            from . import get_timestamp_backup_manager
-            timestamp_backup_manager = get_timestamp_backup_manager()
-
-            return timestamp_backup_manager.list_backups()
+            try:
+                from . import get_timestamp_backup_manager
+                timestamp_backup_manager = get_timestamp_backup_manager()
+                if timestamp_backup_manager and hasattr(timestamp_backup_manager, 'list_backups'):
+                    return timestamp_backup_manager.list_backups()
+                else:
+                    self.logger.warning("TimestampBackupManager not available or missing list_backups method")
+                    return []
+            except ImportError:
+                self.logger.warning("TimestampBackupManager not available, using fallback")
+                return []
 
         except Exception as e:
             self.logger.error(f"Error listing backups: {e}")
