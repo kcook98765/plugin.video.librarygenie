@@ -6,10 +6,7 @@ LibraryGenie - Authorization Helper
 Handles authorization prompts and user guidance
 """
 
-from typing import Dict, Any, List, Optional
-
 import xbmcgui
-import xbmcaddon
 from ..utils.logger import get_logger
 from .state import is_authorized
 from .device_code import run_authorize_flow
