@@ -8,20 +8,32 @@ Modular tools and options handler for different list types
 
 import xbmcgui
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import Dict, Any, Optional
 from .plugin_context import PluginContext
 from .response_types import DialogResponse
 from .localization_helper import L
 from ..utils.logger import get_logger
 from ..import_export.export_engine import get_export_engine
+from ..kodi.favorites_manager import get_phase4_favorites_manager
 
 
 
 class ToolsHandler:
     """Modular tools and options handler"""
 
-    def __init__(self):
+    def __init__(self, context: Optional[PluginContext] = None):
         self.logger = get_logger(__name__)
+        try:
+            from .listitem_builder import ListItemBuilder
+            if context:
+                self.listitem_builder = ListItemBuilder(
+                    addon_handle=context.addon_handle,
+                    addon_id=context.addon.getAddonInfo('id')
+                )
+            else:
+                self.listitem_builder = None
+        except ImportError:
+            self.listitem_builder = None
 
     def show_list_tools(self, context: PluginContext, list_type: str, list_id: Optional[str] = None) -> DialogResponse:
         """Show tools & options modal for different list types"""
@@ -97,7 +109,7 @@ class ToolsHandler:
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(L(36013), options)  # "Favorites Tools & Options"
+            selected_index = dialog.select(L(36013), list(options))  # "Favorites Tools & Options"
 
             if selected_index < 0 or selected_index == 2:  # Cancel
                 return DialogResponse(success=False)
@@ -145,7 +157,7 @@ class ToolsHandler:
             if is_search_history:
                 # Special options for search history lists
                 options = [
-                    f"[COLOR lightgreen]📋 Copy to New List[/COLOR]",
+                    "[COLOR lightgreen]📋 Copy to New List[/COLOR]",
                     f"[COLOR white]{L(36007) % list_info['name']}[/COLOR]",  # "Export '%s'"
                     f"[COLOR red]{L(36008) % list_info['name']}[/COLOR]",  # "Delete '%s'"
                     f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
@@ -168,7 +180,7 @@ class ToolsHandler:
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(L(36014), options)  # "List Tools & Options"
+            selected_index = dialog.select(L(36014), list(options))  # "List Tools & Options"
 
             if selected_index < 0 or selected_index == len(options) - 1:  # Cancel
                 return DialogResponse(success=False)
@@ -258,7 +270,7 @@ class ToolsHandler:
                 # Special options for Search History folder
                 options.extend([
                     f"[COLOR white]{L(36012) % folder_info['name']}[/COLOR]",  # "Export All Lists in '%s'"
-                    f"[COLOR yellow]Clear All Search History[/COLOR]"
+                    "[COLOR yellow]Clear All Search History[/COLOR]"
                 ])
             else:
                 # Standard folder options
@@ -285,7 +297,7 @@ class ToolsHandler:
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(L(36015), options)  # "Folder Tools & Options"
+            selected_index = dialog.select(L(36015), list(options))  # "Folder Tools & Options"
 
             if selected_index < 0 or selected_index == len(options) - 1:  # Cancel
                 return DialogResponse(success=False)
@@ -344,7 +356,7 @@ class ToolsHandler:
 
             # Show folder selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(L(36029), folder_options)  # "Select destination folder:"
+            selected_index = dialog.select(L(36029), list(folder_options))  # "Select destination folder:"
 
             if selected_index < 0:
                 return DialogResponse(success=False)
@@ -376,17 +388,17 @@ class ToolsHandler:
 
             # Get all lists except the target
             all_lists = query_manager.get_all_lists_with_folders()
-            source_lists = [l for l in all_lists if str(l['id']) != str(target_list_id)]
+            source_lists = [list_item for list_item in all_lists if str(list_item['id']) != str(target_list_id)]
 
             if not source_lists:
                 return DialogResponse(success=False, message="No other lists available to merge")
 
             # Build list options
-            list_options = [f"{l['name']} ({l['item_count']} items)" for l in source_lists]
+            list_options = [f"{list_item['name']} ({list_item['item_count']} items)" for list_item in source_lists]
 
             # Show list selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(L(36028), list_options)  # "Select list to merge:"
+            selected_index = dialog.select(L(36028), list(list_options))  # "Select list to merge:"
 
             if selected_index < 0:
                 return DialogResponse(success=False)
@@ -435,7 +447,7 @@ class ToolsHandler:
 
             # Show folder selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select("Select parent folder:", folder_options)
+            selected_index = dialog.select("Select parent folder:", list(folder_options))
 
             if selected_index < 0:
                 return DialogResponse(success=False)
@@ -549,10 +561,16 @@ class ToolsHandler:
                 file_format="json"
             )
 
-            if result.get("success"):
+            if result["success"]:
+                message = (
+                    f"Export completed:\n"
+                    f"File: {result.get('filename', 'unknown')}\n"
+                    f"Items: {result.get('total_items', 0)}\n"
+                    f"Size: {self._format_file_size(result.get('file_size', 0))}"
+                )
                 return DialogResponse(
                     success=True,
-                    message=f"Exported '{list_info['name']}' to {result['filename']}",
+                    message=message,
                     refresh_needed=False
                 )
             else:
@@ -604,10 +622,10 @@ class ToolsHandler:
                 file_format="json"
             )
 
-            if result.get("success"):
+            if result["success"]:
                 return DialogResponse(
                     success=True,
-                    message=f"Exported {list_count} lists from '{folder_info['name']}' to {result['filename']}",
+                    message=f"Exported {list_count} lists from '{folder_info['name']}' to {result.get('filename', 'export file')}",
                     refresh_needed=False
                 )
             else:
@@ -654,10 +672,9 @@ class ToolsHandler:
     def _show_favorites_stats(self) -> DialogResponse:
         """Show favorites statistics"""
         try:
-            from ..kodi.favorites_manager import get_favorites_manager
-            favorites_manager = get_favorites_manager()
+            favorites_manager = get_phase4_favorites_manager()
 
-            stats = favorites_manager.get_statistics()
+            stats = favorites_manager.get_favorites_stats()
 
             message = (
                 f"Favorites Stats:\n"
@@ -694,7 +711,7 @@ class ToolsHandler:
                 message = f"Backup configuration test failed:\n{result['error']}"
 
             return DialogResponse(
-                success=result["success"],
+                success=result.get("success", False),
                 message=message
             )
 
@@ -725,7 +742,7 @@ class ToolsHandler:
                 message = f"Manual backup failed: {result['error']}"
 
             return DialogResponse(
-                success=result["success"],
+                success=result.get("success", False),
                 message=message
             )
 
@@ -744,32 +761,57 @@ class ToolsHandler:
 
             backups = backup_manager.list_backups()
 
-            # Build list items for backup files
-            list_items = []
+            # Build backup list for display - return simple dialog with backup info
+            if not backups:
+                return DialogResponse(
+                    success=True,
+                    message="No backups found. Create a backup using the manual backup option."
+                )
 
+            # Show backup selection dialog
+            backup_options = []
             for backup in backups[:10]:  # Show last 10 backups
                 age_text = f"{backup['age_days']} days ago" if backup['age_days'] > 0 else "Today"
                 size_mb = round(backup['file_size'] / 1024 / 1024, 2)
+                backup_options.append(f"{backup['filename']} - {age_text} • {size_mb} MB • {backup['storage_type']}")
 
-                list_item = self.listitem_builder.build_action_item(
-                    title=backup['filename'],
-                    action=f"restore_backup",
-                    action_params={"backup_info": backup},
-                    secondary_label=f"{age_text} • {size_mb} MB • {backup['storage_type']}"
-                )
-                list_items.append(list_item)
+            import xbmcgui
+            dialog = xbmcgui.Dialog()
+            selected_index = dialog.select("Select backup to restore:", backup_options)
 
-            if not list_items:
-                list_item = self.listitem_builder.build_info_item(
-                    title="No backups found",
-                    description="Create a backup using the manual backup option"
-                )
-                list_items.append(list_item)
+            if selected_index < 0:
+                return DialogResponse(success=False, message="No backup selected")
 
-            return DialogResponse(
-                success=True,
-                message="Backup manager loaded successfully"
-            )
+            selected_backup = backups[selected_index]
+
+            # Confirm restore
+            if dialog.yesno(
+                "Confirm Restore",
+                f"Restore backup: {selected_backup['filename']}?",
+                f"This will restore data from {selected_backup['age_days']} days ago.",
+                "Current data will be backed up first."
+            ):
+                # Restore backup
+                restore_result = backup_manager.restore_backup(selected_backup['filename'])
+
+                if restore_result["success"]:
+                    total_restored = sum([
+                        restore_result.get("lists_restored", 0),
+                        restore_result.get("items_restored", 0)
+                    ])
+
+                    message = (
+                        f"Backup restored successfully:\n"
+                        f"Lists: {restore_result.get('lists_restored', 0)}\n"
+                        f"Items: {restore_result.get('items_restored', 0)}\n"
+                        f"Total restored: {total_restored}"
+                    )
+                    return DialogResponse(success=True, message=message, refresh_needed=True)
+                else:
+                    message = f"Backup restore failed: {restore_result.get('error', 'Unknown error')}"
+                    return DialogResponse(success=False, message=message)
+            else:
+                return DialogResponse(success=False, message="Restore cancelled")
 
         except Exception as e:
             self.logger.error(f"Error showing backup manager: {e}")
@@ -822,25 +864,25 @@ class ToolsHandler:
                 f"[COLOR lightgreen]{L(36019)}[/COLOR]",  # "Create New List"
                 f"[COLOR lightgreen]{L(36020)}[/COLOR]",  # "Create New Folder"
                 # Import operations
-                f"[COLOR white]Import Lists[/COLOR]",
+                "[COLOR white]Import Lists[/COLOR]",
                 # Export operations
-                f"[COLOR white]Export All Lists[/COLOR]",
+                "[COLOR white]Export All Lists[/COLOR]",
                 # Backup operations
-                f"[COLOR white]Manual Backup[/COLOR]",
-                f"[COLOR white]Backup Manager[/COLOR]",
-                f"[COLOR white]Test Backup Config[/COLOR]",
+                "[COLOR white]Manual Backup[/COLOR]",
+                "[COLOR white]Backup Manager[/COLOR]",
+                "[COLOR white]Test Backup Config[/COLOR]",
                 # Management operations
-                f"[COLOR yellow]Library Statistics[/COLOR]",
-                f"[COLOR yellow]Force Library Rescan[/COLOR]",
-                f"[COLOR yellow]Clear Search History[/COLOR]",
-                f"[COLOR yellow]Reset Preferences[/COLOR]",
+                "[COLOR yellow]Library Statistics[/COLOR]",
+                "[COLOR yellow]Force Library Rescan[/COLOR]",
+                "[COLOR yellow]Clear Search History[/COLOR]",
+                "[COLOR yellow]Reset Preferences[/COLOR]",
                 # Cancel
-                f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
+                "[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
             ]
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(L(36021), options)  # "Lists Tools & Options"
+            selected_index = dialog.select(L(36021), list(options))  # "Lists Tools & Options"
 
             if selected_index < 0 or selected_index == 11:  # Cancel
                 return DialogResponse(success=False)
@@ -903,15 +945,20 @@ class ToolsHandler:
             if not file_path:
                 return DialogResponse(success=False)
 
+            # Ensure file_path is a string (dialog.browse can return list in some cases)
+            if isinstance(file_path, list):
+                if not file_path:
+                    return DialogResponse(success=False)
+                file_path = file_path[0]  # Take the first file if multiple selected
+
             # Run import
             result = import_engine.import_data(file_path)
-
-            if result.get("success"):
+            if result.success:
                 message = (
                     f"Import completed:\n"
-                    f"Lists: {result.get('lists_imported', 0)}\n"
-                    f"Items: {result.get('items_imported', 0)}\n"
-                    f"Folders: {result.get('folders_imported', 0)}"
+                    f"Lists: {result.lists_created}\n"
+                    f"Items: {result.items_added}\n"
+                    f"Folders: {getattr(result, 'folders_imported', 0)}"
                 )
                 return DialogResponse(
                     success=True,
@@ -919,9 +966,10 @@ class ToolsHandler:
                     refresh_needed=True
                 )
             else:
+                error_message = result.errors[0] if result.errors else "Unknown error"
                 return DialogResponse(
                     success=False,
-                    message=f"Import failed: {result.get('error', 'Unknown error')}"
+                    message=f"Import failed: {error_message}"
                 )
 
         except Exception as e:
@@ -955,10 +1003,10 @@ class ToolsHandler:
                 file_format="json"
             )
 
-            if result.get("success"):
+            if result["success"]:
                 return DialogResponse(
                     success=True,
-                    message=f"Exported all lists to {result['filename']}",
+                    message=f"Exported all lists to {result.get('filename', 'export file')}",
                     refresh_needed=False
                 )
             else:
@@ -1018,6 +1066,24 @@ class ToolsHandler:
         except Exception as e:
             self.logger.error(f"Error clearing search history folder: {e}")
             return DialogResponse(success=False, message="Error clearing search history")
+
+    def _format_file_size(self, size_bytes: int) -> str:
+        """Format file size to be human-readable"""
+        if size_bytes == 0:
+            return "0 B"
+
+        size_names = ["B", "KB", "MB", "GB", "TB"]
+        i = 0
+        size = float(size_bytes)
+
+        while size >= 1024.0 and i < len(size_names) - 1:
+            size /= 1024.0
+            i += 1
+
+        if i == 0:
+            return f"{int(size)} {size_names[i]}"
+        else:
+            return f"{size:.1f} {size_names[i]}"
 
     def _copy_search_history_to_list(self, context: PluginContext, search_list_id: str) -> DialogResponse:
         """Copy a search history list to a new regular list"""

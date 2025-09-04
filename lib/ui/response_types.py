@@ -6,7 +6,7 @@ LibraryGenie - Response Types
 Standardized response objects for UI handlers
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from dataclasses import dataclass
 
 
@@ -20,15 +20,16 @@ class DirectoryResponse:
     sort_methods: Optional[List[int]] = None
     content_type: str = "movies"
 
-    def to_kodi_params(self) -> Dict[str, Any]:
+    def to_kodi_params(self) -> Dict[str, Union[bool, List[int], None]]:
         """Convert to parameters for xbmcplugin.endOfDirectory"""
-        params = {
+        params: Dict[str, Union[bool, List[int], None]] = {
             'succeeded': self.success,
             'cacheToDisc': self.cache_to_disc,
-            'updateListing': self.update_listing
+            'updateListing': self.update_listing,
+            'sortMethods': None
         }
         if self.sort_methods:
-            params['sortMethod'] = self.sort_methods
+            params['sortMethods'] = self.sort_methods
         return params
 
 
@@ -37,9 +38,9 @@ class DialogResponse:
     """Response type for dialog operations"""
 
     def __init__(self, success: bool = False, message: str = "", refresh_needed: bool = False,
-                 navigate_to_lists: bool = False, navigate_to_folder: int = None,
+                 navigate_to_lists: bool = False, navigate_to_folder: Optional[int] = None,
                  navigate_to_main: bool = False, navigate_to_favorites: bool = False,
-                 navigate_on_failure: str = None):
+                 navigate_on_failure: Optional[str] = None):
         self.success = success
         self.message = message
         self.refresh_needed = refresh_needed

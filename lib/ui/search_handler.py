@@ -275,7 +275,7 @@ class SearchHandler:
             return 'local'
 
         options = ["Local Library Search", "Remote Search", "Remote with Local Fallback"]
-        idx = xbmcgui.Dialog().select("Choose Search Type", options)
+        idx = xbmcgui.Dialog().select("Choose Search Type", list(options))
         if idx == 0:
             return 'local'
         if idx == 1:

@@ -7,10 +7,9 @@ Safely imports and merges JSON/CSV data with validation and preview
 """
 
 import json
-import csv
 from datetime import datetime
 from typing import Dict, Any, Optional, List, Set, Tuple
-from .data_schemas import ExportEnvelope, ExportSchema, ImportPreview, ImportResult
+from .data_schemas import ExportSchema, ImportPreview, ImportResult
 from .storage_manager import get_storage_manager
 from ..data.connection_manager import get_connection_manager
 from ..data import QueryManager
@@ -217,6 +216,16 @@ class ImportEngine:
 
             # Load and parse file
             content = self.storage_manager.read_file_safe(file_path)
+            if content is None:
+                return ImportPreview(
+                    lists_to_create=[],
+                    lists_to_update=[],
+                    items_to_add=0,
+                    items_already_present=0,
+                    items_unmatched=0,
+                    total_operations=0,
+                    warnings=["Could not read file content"]
+                )
             data = json.loads(content)
             payload = data.get("payload", {})
 
@@ -306,6 +315,18 @@ class ImportEngine:
 
             # Load data
             content = self.storage_manager.read_file_safe(file_path)
+            if content is None:
+                return ImportResult(
+                    success=False,
+                    lists_created=0,
+                    lists_updated=0,
+                    items_added=0,
+                    items_skipped=0,
+                    items_unmatched=0,
+                    unmatched_items=[],
+                    errors=["Could not read file content"],
+                    duration_ms=int((datetime.now() - start_time).total_seconds() * 1000)
+                )
             data = json.loads(content)
             payload = data.get("payload", {})
 
@@ -376,7 +397,7 @@ class ImportEngine:
         try:
             lists = self.conn_manager.execute_query("SELECT name FROM lists")
             return {list_row[0] if hasattr(list_row, '__getitem__') else list_row.get('name') for list_row in lists or []}
-        except:
+        except Exception:
             return set()
 
     def _is_item_in_list(self, library_movie_id: int, list_id: int) -> bool:
@@ -387,7 +408,7 @@ class ImportEngine:
                 [library_movie_id, list_id]
             )
             return result is not None
-        except:
+        except Exception:
             return False
 
     def _import_lists(self, lists_data: List[Dict]) -> Tuple[int, int, List[str]]:

@@ -66,15 +66,16 @@ class ResponseHandler:
             if hasattr(response, 'content_type') and response.content_type:
                 xbmcplugin.setContent(context.addon_handle, response.content_type)
 
-            # Handle caching
-            cache_to_disc = getattr(response, 'cache_to_disc', True)
-
-            # End directory
+            # Get all parameters from the response
+            kodi_params = response.to_kodi_params()
+            
+            # End directory with proper parameters
             xbmcplugin.endOfDirectory(
                 context.addon_handle,
-                succeeded=response.success,
-                updateListing=getattr(response, 'update_listing', False),
-                cacheToDisc=cache_to_disc
+                succeeded=kodi_params.get('succeeded', True),
+                updateListing=kodi_params.get('updateListing', False),
+                cacheToDisc=kodi_params.get('cacheToDisc', True),
+                sortMethods=kodi_params.get('sortMethods', None)
             )
 
             return response.success
@@ -207,18 +208,6 @@ class ResponseHandler:
 
 
 # Factory function
-_response_handler_instance = None
-
-
-def get_response_handler() -> ResponseHandler:
-    """Get singleton ResponseHandler instance"""
-    global _response_handler_instance
-    if _response_handler_instance is None:
-        _response_handler_instance = ResponseHandler()
-    return _response_handler_instance
-
-
-# Global response handler instance
 _response_handler_instance = None
 
 

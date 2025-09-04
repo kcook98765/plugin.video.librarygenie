@@ -55,7 +55,7 @@ class MenuBuilder:
         self.logger.debug(f"MENU BUILD: Added {successful_items} menu items successfully, {failed_items} failed")
         self.logger.debug(f"MENU BUILD: Calling endOfDirectory(handle={addon_handle}, cacheToDisc=True)")
         xbmcplugin.endOfDirectory(addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
-        self.logger.debug(f"MENU BUILD: Completed endOfDirectory for menu with caching enabled")
+        self.logger.debug("MENU BUILD: Completed endOfDirectory for menu with caching enabled")
 
     def _add_directory_item(self, item, addon_handle, base_url):
         """Add a single directory item with context menu support"""
@@ -104,12 +104,17 @@ class MenuBuilder:
             list_item = self.renderer.create_simple_listitem(title, description, action, icon=item.get("icon"))
 
             # Ensure non-folder action items are not marked as playable to prevent info dialog
-            if not is_folder and action:
+            if not is_folder and action and list_item is not None:
                 list_item.setProperty('IsPlayable', 'false')
+
+        # Check if list_item was created successfully
+        if list_item is None:
+            self.logger.error(f"MENU ITEM: Failed to create list item for '{title}' - skipping")
+            return
 
         # Add context menu if provided
         context_items_added = 0
-        if context_menu:
+        if context_menu and list_item is not None:
             list_item.addContextMenuItems(context_menu)
             context_items_added += len(context_menu)
             self.logger.debug(f"MENU ITEM: Added {len(context_menu)} base context menu items for '{title}'")
@@ -149,7 +154,7 @@ class MenuBuilder:
                 list_item = context_manager.add_list_item_context_menu(
                     list_item, item["list_id"], item["list_item_id"]
                 )
-                self.logger.logger.debug(f"MENU ITEM: Added list item context menu for '{title}' (list_id: {item['list_id']}, item_id: {item['list_item_id']})")
+                self.logger.debug(f"MENU ITEM: Added list item context menu for '{title}' (list_id: {item['list_id']}, item_id: {item['list_item_id']})")
                 context_items_added += 2  # Approximate
             except ImportError:
                 self.logger.warning(f"MENU ITEM: Failed to import context_menu for list item '{title}'")
@@ -251,17 +256,34 @@ class MenuBuilder:
 
         # Add additional context menu items if specified
         extra_context = options.get('extra_context_menu', [])
-        if extra_context:
+        if extra_context and list_item is not None:
+            # Get existing context menu items (should be tuples)
             current_context = list_item.getProperty('ContextMenuItems') or []
             if isinstance(current_context, str):
-                current_context = [current_context]
-            current_context.extend(extra_context)
+                # Convert single string to tuple format
+                current_context = [(current_context, f'RunPlugin({current_context})')]
+            elif current_context and isinstance(current_context[0], str):
+                # Convert list of strings to list of tuples
+                current_context = [(item, f'RunPlugin({item})') for item in current_context]
+            
+            # Ensure extra_context is in tuple format
+            if extra_context:
+                if isinstance(extra_context[0], str):
+                    # Convert strings to tuples
+                    extra_context = [(item, f'RunPlugin({item})') for item in extra_context]
+                current_context.extend(extra_context)
+            
             list_item.addContextMenuItems(current_context)
 
-        # Set as playable item
-        list_item.setProperty('IsPlayable', 'true')
-
-        # Add to directory
-        xbmcplugin.addDirectoryItem(
-            handle=addon_handle, url=url, listitem=list_item, isFolder=False
-        )
+        # Set as playable item and add to directory only if list_item is valid
+        if list_item is not None:
+            list_item.setProperty('IsPlayable', 'true')
+            
+            # Add to directory
+            xbmcplugin.addDirectoryItem(
+                handle=addon_handle, url=url, listitem=list_item, isFolder=False
+            )
+        else:
+            # Log error if list_item creation failed
+            movie_title = movie_data.get('title', 'Unknown')
+            self.logger.error(f"MOVIE MENU: Failed to create list item for movie '{movie_title}' - skipping")

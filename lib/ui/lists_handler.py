@@ -8,9 +8,8 @@ Handles lists display, creation, deletion, and management
 
 import xbmcplugin
 import xbmcgui
-from typing import List, Dict, Any
 from .plugin_context import PluginContext
-from .response_types import DirectoryResponse, DialogResponse, ActionResponse
+from .response_types import DirectoryResponse, DialogResponse
 from ..data.query_manager import get_query_manager
 
 # --- Localization Optimization ---
@@ -201,7 +200,12 @@ class ListsHandler:
             L(35002),
             "No lists found. Create your first list?"
         ):
-            return self.create_list(context)
+            create_response = self.create_list(context)
+            # Convert DialogResponse to DirectoryResponse
+            return DirectoryResponse(
+                items=[],
+                success=create_response.success
+            )
 
         return DirectoryResponse(items=[], success=True)
 
@@ -418,8 +422,8 @@ class ListsHandler:
             # Remove the item
             result = query_manager.delete_item_from_list(list_id, item_id)
 
-            if result.get("success"):
-                context.logger.info(f"Successfully removed item from list")
+            if result:
+                context.logger.info("Successfully removed item from list")
                 return DialogResponse(
                     success=True,
                     message=f"Removed '{item_info['title']}' from list",
@@ -985,7 +989,7 @@ class ListsHandler:
 
             # Get list name for confirmation message
             selected_list_name = list_options[selected_index].split(' (')[0] if selected_index < len(list_options) - 1 else "newly created list"
-            
+
             context.logger.info(f"Set default quick-add list to: {selected_list_name}")
             return DialogResponse(
                 success=True,
@@ -1061,7 +1065,7 @@ class ListsHandler:
             # Add item to selected list
             result = query_manager.add_item_to_list(target_list_id, media_item_id)
 
-            if result.get("success"):
+            if result is not None and result.get("success"):
                 list_name = all_lists[selected_index]['name'] if selected_index < len(all_lists) else "new list"
                 xbmcgui.Dialog().notification(
                     "LibraryGenie",
@@ -1070,7 +1074,7 @@ class ListsHandler:
                 )
                 return True
             else:
-                error_msg = result.get("error", "Unknown error")
+                error_msg = result.get("error", "Unknown error") if result else "Query manager returned None"
                 if error_msg == "duplicate":
                     xbmcgui.Dialog().notification(
                         "LibraryGenie",
@@ -1080,7 +1084,7 @@ class ListsHandler:
                 else:
                     xbmcgui.Dialog().notification(
                         "LibraryGenie",
-                        "Failed to add to list",
+                        f"Failed to add to list: {error_msg}",
                         xbmcgui.NOTIFICATION_ERROR
                     )
                 return False
@@ -1159,7 +1163,7 @@ class ListsHandler:
             # Add item to selected list
             result = query_manager.add_item_to_list(target_list_id, media_item_id)
 
-            if result.get("success"):
+            if result is not None and result.get("success"):
                 list_name = all_lists[selected_index]['name'] if selected_index < len(all_lists) else "new list"
                 xbmcgui.Dialog().notification(
                     "LibraryGenie",
@@ -1168,7 +1172,7 @@ class ListsHandler:
                 )
                 return True
             else:
-                error_msg = result.get("error", "Unknown error")
+                error_msg = result.get("error", "Unknown error") if result else "Query manager returned None"
                 if error_msg == "duplicate":
                     xbmcgui.Dialog().notification(
                         "LibraryGenie",
@@ -1178,7 +1182,7 @@ class ListsHandler:
                 else:
                     xbmcgui.Dialog().notification(
                         "LibraryGenie",
-                        "Failed to add to list",
+                        f"Failed to add to list: {error_msg}",
                         xbmcgui.NOTIFICATION_ERROR
                     )
                 return False
@@ -1222,8 +1226,8 @@ class ListsHandler:
             }
 
             # Add to default list
-            result = query_manager.add_external_item_to_list(default_list_id, external_item)
-            return result.get('success', False)
+            result = query_manager.add_library_item_to_list(default_list_id, external_item)
+            return result is not None
 
         except Exception as e:
             context.logger.error(f"Error quick adding to list from context: {e}")
@@ -1324,7 +1328,8 @@ class ListsHandler:
             selected_list_name = list_options[selected_index]
 
             # Add the external item to the selected list
-            success = query_manager.add_external_item_to_list(selected_list_id, media_item)
+            result = query_manager.add_item_to_list(selected_list_id, media_item)
+            success = result is not None and result.get("success", False)
 
             if success:
                 xbmcgui.Dialog().notification(

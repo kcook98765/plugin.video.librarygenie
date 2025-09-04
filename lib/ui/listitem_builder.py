@@ -8,8 +8,6 @@ Builds ListItems with proper metadata and resume information
 
 import json
 from typing import List, Dict, Any, Optional
-
-import xbmc
 import xbmcgui
 import xbmcplugin
 from ..utils.logger import get_logger

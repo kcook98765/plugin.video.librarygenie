@@ -7,7 +7,6 @@ Renders list items with proper Kodi integration
 """
 
 from typing import List, Dict, Any, Optional
-import xbmc
 import xbmcgui
 import xbmcplugin
 from .listitem_builder import ListItemBuilder
@@ -93,7 +92,7 @@ class ListItemRenderer:
         try:
             self.logger.info(f"RENDERER: Starting render_media_items with {len(items)} items (content_type='{content_type}')")
             if context_menu_callback:
-                self.logger.info(f"RENDERER: Context menu callback provided - will apply to each item")
+                self.logger.info("RENDERER: Context menu callback provided - will apply to each item")
 
             # Use the ListItemBuilder to handle the rendering
             builder = ListItemBuilder(self.addon_handle, self.addon_id)
@@ -102,7 +101,7 @@ class ListItemRenderer:
             if success:
                 self.logger.info(f"RENDERER: Successfully rendered {len(items)} items")
             else:
-                self.logger.error(f"RENDERER: Failed to render items")
+                self.logger.error("RENDERER: Failed to render items")
 
             return success
 
@@ -276,7 +275,7 @@ class ListItemRenderer:
 
         list_item.addContextMenuItems(context_items)
 
-    def create_simple_listitem(self, title: str, description: str = None, action: str = None, icon: str = None) -> xbmcgui.ListItem:
+    def create_simple_listitem(self, title: str, description: Optional[str] = None, action: Optional[str] = None, icon: Optional[str] = None) -> xbmcgui.ListItem:
         """Create a simple ListItem for menu items (compatibility method for MenuBuilder)"""
         try:
             self.logger.debug(f"SIMPLE LISTITEM: Creating for '{title}'")
@@ -438,7 +437,7 @@ class ListItemRenderer:
 _listitem_renderer_instance = None
 
 
-def get_listitem_renderer(addon_handle: int = None, addon_id: str = None):
+def get_listitem_renderer(addon_handle: Optional[int] = None, addon_id: Optional[str] = None):
     """Get global listitem renderer instance"""
     global _listitem_renderer_instance
     if _listitem_renderer_instance is None:
@@ -450,7 +449,7 @@ def get_listitem_renderer(addon_handle: int = None, addon_id: str = None):
                 addon = xbmcaddon.Addon()
                 addon_id = addon.getAddonInfo('id')
                 addon_handle = int(sys.argv[1]) if len(sys.argv) > 1 else 0
-            except:
+            except (ImportError, IndexError, ValueError):
                 addon_handle = 0
                 addon_id = 'plugin.video.librarygenie'
         _listitem_renderer_instance = ListItemRenderer(addon_handle, addon_id)

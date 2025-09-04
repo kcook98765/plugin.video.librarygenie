@@ -7,9 +7,8 @@ Enhanced backup manager with automated timestamps and flexible storage
 """
 
 import os
-import json
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional
 from .export_engine import get_export_engine
 from .storage_manager import get_storage_manager
 from ..config import get_config
