@@ -28,7 +28,7 @@ class DirectoryResponse:
             'updateListing': self.update_listing
         }
         if self.sort_methods:
-            params['sortMethod'] = self.sort_methods
+            params['sortMethods'] = self.sort_methods
         return params
 
 
