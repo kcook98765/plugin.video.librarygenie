@@ -183,7 +183,15 @@ Files used only for development (excluded from addon package):
 - `requirements-dev.txt` - Development dependencies
 - `.flake8`, `mypy.ini`, `pyproject.toml` - Tool configurations
 - `Makefile` - Development task shortcuts
-- `tests/` - Test suite and Kodi stubs
+- `tests/` - Test suite with Kodi API stubs
+
+### Plugin Architecture
+
+The plugin uses a modular handler-based architecture:
+- **Router**: Central request dispatcher (`lib/ui/router.py`)
+- **Handlers**: Specialized UI handlers for different functionality
+- **Response Types**: Structured response objects for consistent UI handling
+- **Context**: Request context object for parameter accessts/` - Test suite and Kodi stubs
 
 ### Quality Gates
 

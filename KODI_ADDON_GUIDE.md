@@ -73,7 +73,7 @@
 ---
 
 ## 8) File Structure & Organization
-- **Entry points**: `plugin.py` for main plugin functionality, `service.py` for background service.
+- **Entry points**: `plugin.py` for main plugin functionality using modular handlers, `service.py` for background service.
 - **Modular architecture**: Organize code into logical modules (ui/, data/, kodi/, search/, etc.).
 - **Separation of concerns**: Keep UI logic, data access, and business logic in separate modules.
 - **Resource management**: Store language files, settings XML, and assets in `resources/` folder.

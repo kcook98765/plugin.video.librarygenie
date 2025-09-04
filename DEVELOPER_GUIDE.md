@@ -111,9 +111,9 @@ LibraryGenie consists of three main layers:
 
 ## File Structure
 
-- `plugin.py`: main plugin entry point (routes to `lib/ui/router.py`)
+- `plugin.py`: main plugin entry point using modular architecture with handlers and router
 - `service.py`: background service for periodic tasks (library scanning, favorites sync, token refresh)
-- `lib/ui/`: UI layer - routing, handlers, builders, context menus, session management
+- `lib/ui/`: UI layer - modular handlers, router, response types, builders, context menus, session management
 - `lib/data/`: Data layer - database connection, queries, migrations, storage management
 - `lib/import_export/`: Unified import/export/backup engines, timestamp management, storage handling
 - `lib/library/`: Library scanning and indexing with favorites integration
