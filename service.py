@@ -245,6 +245,11 @@ class BackgroundService:
             if xbmc.Player().isPlaying():
                 return
 
+            # Check if library scanner is available
+            if self._library_scanner is None:
+                self.logger.warning("Library scanner is not initialized")
+                return
+
             # Use delta scan which should be cheap
             result = self._library_scanner.perform_delta_scan()
 
