@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: LibraryGenie\n"
-"Report-Msgid-Bugs-To: support@movielist.com\n"
+"Report-Id-Bugs-To: support@movielist.com\n"
 "POT-Creation-Date: 2025-01-01 12:00+0000\n"
 "PO-Revision-Date: 2025-01-01 12:00+0000\n"
 "Last-Translator: LibraryGenie Team\n"
@@ -1517,7 +1517,7 @@ msgid "Include Kodi favorites"
 msgstr ""
 
 msgctxt "#30522"
-msgid "Include library metadata"
+msgid "Include Non Library Metadata"
 msgstr ""
 
 msgctxt "#30523"

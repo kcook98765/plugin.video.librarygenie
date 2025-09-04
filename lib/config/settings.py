@@ -233,7 +233,7 @@ class SettingsManager:
             'storage_path': config.get('backup_storage_location', ''),
             'storage_type': config.get('backup_storage_type', 'local'),
             'include_settings': config.get_bool('backup_include_settings', True),
-            'include_favorites': config.get_bool('backup_include_favorites', True)
+            'include_non_library': config.get_bool('backup_include_non_library', False)
         }
 
     def get_phase12_remote_settings(self) -> Dict[str, Any]:

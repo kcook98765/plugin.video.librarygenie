@@ -43,7 +43,7 @@
     <setting id="backup_interval" type="select" label="30512" default="weekly" values="hourly|daily|weekly|monthly" enable="eq(-1,true)"/>
     <setting id="backup_retention_count" type="slider" label="30513" default="5" range="1,1,50" option="int" enable="eq(-2,true)"/>
     <setting label="30520" type="lsep"/>
-    <setting id="backup_include_library" type="bool" label="30522" default="false" enable="eq(-4,true)"/>
+    <setting id="backup_include_non_library" type="bool" label="30522" default="false" enable="eq(-4,true)"/>
     <setting id="backup_include_folders" type="bool" label="30523" default="true" enable="eq(-5,true)"/>
     <setting label="30530" type="lsep"/>
     <setting id="backup_storage_type" type="select" label="30531" default="local" values="local|custom" enable="eq(-8,true)"/>
