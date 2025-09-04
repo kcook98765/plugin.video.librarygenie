@@ -82,6 +82,9 @@ class BackgroundService:
 
         # Main loop using proper Monitor.waitForAbort
         while not self.monitor.abortRequested():
+            # Initialize current_interval with a default value before try block
+            current_interval = self.interval
+            
             try:
                 cycle_start = time.time()
 
@@ -156,9 +159,8 @@ class BackgroundService:
 
                 # Show notification that initial scan is starting
                 try:
-                    addon = xbmcaddon.Addon() # Ensure addon is initialized here
                     xbmcgui.Dialog().notification(
-                        addon.getLocalizedString(35002),  # "LibraryGenie"
+                        self.addon.getLocalizedString(35002),  # "LibraryGenie"
                         "Initial library scan starting...",
                         xbmcgui.NOTIFICATION_INFO,
                         5000
@@ -173,7 +175,7 @@ class BackgroundService:
                         # Show completion notification
                         try:
                             xbmcgui.Dialog().notification(
-                                addon.getLocalizedString(35002),  # "LibraryGenie"
+                                self.addon.getLocalizedString(35002),  # "LibraryGenie"
                                 f"Initial scan complete: {result.get('items_added', 0)} movies indexed",
                                 xbmcgui.NOTIFICATION_INFO,
                                 5000
@@ -185,7 +187,7 @@ class BackgroundService:
                         # Show error notification
                         try:
                             xbmcgui.Dialog().notification(
-                                addon.getLocalizedString(35002),  # "LibraryGenie"
+                                self.addon.getLocalizedString(35002),  # "LibraryGenie"
                                 "Initial library scan failed",
                                 xbmcgui.NOTIFICATION_ERROR,
                                 5000
@@ -197,7 +199,7 @@ class BackgroundService:
                     # Show error notification on exception during scan
                     try:
                         xbmcgui.Dialog().notification(
-                            addon.getLocalizedString(35002),  # "LibraryGenie"
+                            self.addon.getLocalizedString(35002),  # "LibraryGenie"
                             "Initial library scan failed",
                             xbmcgui.NOTIFICATION_ERROR,
                             5000
