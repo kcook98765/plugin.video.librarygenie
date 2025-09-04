@@ -211,12 +211,12 @@ def _handle_test_backup(context: PluginContext):
     """Handle backup configuration test from settings"""
     try:
         logger.info("Testing backup configuration from settings")
-        
+
         from lib.import_export import get_timestamp_backup_manager
         backup_manager = get_timestamp_backup_manager()
-        
+
         result = backup_manager.test_backup_configuration()
-        
+
         if result["success"]:
             message = f"Backup test successful:\n{result.get('message', '')}"
             if 'path' in result:
@@ -225,11 +225,11 @@ def _handle_test_backup(context: PluginContext):
         else:
             error_msg = result.get("error", "Unknown error")
             xbmcgui.Dialog().ok("Backup Test Failed", f"Test failed:\n{error_msg}")
-            
+
     except Exception as e:
         logger.error(f"Error in test backup handler: {e}")
         xbmcgui.Dialog().ok("Backup Test Error", f"Test error: {str(e)}")
-    
+
     # Don't render directory for settings actions
     try:
         if context.addon_handle >= 0:
@@ -242,12 +242,12 @@ def _handle_manual_backup(context: PluginContext):
     """Handle manual backup from settings"""
     try:
         logger.info("Running manual backup from settings")
-        
+
         from lib.import_export import get_timestamp_backup_manager
         backup_manager = get_timestamp_backup_manager()
-        
+
         result = backup_manager.run_manual_backup()
-        
+
         if result["success"]:
             size_mb = round(result.get('file_size', 0) / 1024 / 1024, 2) if result.get('file_size') else 0
             message = (
@@ -261,11 +261,11 @@ def _handle_manual_backup(context: PluginContext):
         else:
             error_msg = result.get("error", "Unknown error")
             xbmcgui.Dialog().ok("Manual Backup Failed", f"Backup failed:\n{error_msg}")
-            
+
     except Exception as e:
         logger.error(f"Error in manual backup handler: {e}")
         xbmcgui.Dialog().ok("Manual Backup Error", f"Backup error: {str(e)}")
-    
+
     # Don't render directory for settings actions
     try:
         if context.addon_handle >= 0:
@@ -434,20 +434,20 @@ def _register_all_handlers(router: Router):
     router.register_handler('search', search_handler.prompt_and_search)
     router.register_handler('lists', lists_handler.show_lists_menu)
     router.register_handler('kodi_favorites', favorites_handler.show_favorites_menu)
-    
+
     # Register ListsHandler methods that expect specific parameters
     router.register_handler('create_list_execute', lambda ctx: _handle_dialog_response(ctx, lists_handler.create_list(ctx)))
     router.register_handler('create_folder_execute', lambda ctx: _handle_dialog_response(ctx, lists_handler.create_folder(ctx)))
-    
+
     # Register list and folder view handlers
     router.register_handler('show_list', lambda ctx: lists_handler.view_list(ctx, ctx.get_param('list_id')))
     router.register_handler('show_folder', lambda ctx: lists_handler.show_folder(ctx, ctx.get_param('folder_id')))
-    
+
     # Register parameter-based handlers
     router.register_handler('delete_list', lambda ctx: _handle_dialog_response(ctx, lists_handler.delete_list(ctx, ctx.get_param('list_id'))))
     router.register_handler('rename_list', lambda ctx: _handle_dialog_response(ctx, lists_handler.rename_list(ctx, ctx.get_param('list_id'))))
     router.register_handler('remove_from_list', lambda ctx: _handle_dialog_response(ctx, lists_handler.remove_from_list(ctx, ctx.get_param('list_id'), ctx.get_param('item_id'))))
-    
+
     router.register_handler('rename_folder', lambda ctx: _handle_dialog_response(ctx, lists_handler.rename_folder(ctx, ctx.get_param('folder_id'))))
     router.register_handler('delete_folder', lambda ctx: _handle_dialog_response(ctx, lists_handler.delete_folder(ctx, ctx.get_param('folder_id'))))
 
@@ -473,11 +473,11 @@ def _handle_dialog_response(context: PluginContext, response):
     """Handle DialogResponse objects from handler methods"""
     from lib.ui.response_types import DialogResponse
     from lib.ui.response_handler import get_response_handler
-    
+
     if isinstance(response, DialogResponse):
         response_handler = get_response_handler()
         return response_handler.handle_dialog_response(response, context)
-    
+
     return response
 
 
