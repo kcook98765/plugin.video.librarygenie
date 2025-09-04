@@ -213,17 +213,13 @@ class PlaybackActionHandler:
         
         self.logger.error(f"Playback error for movie {kodi_id}: {error_message}")
         
-        if KODI_AVAILABLE:
-            # Show user-friendly error dialog
-            dialog = xbmcgui.Dialog()
-            dialog.ok(self._get_string(35001) if hasattr(self, '_get_string') else "Playback Error", 
-                     f"Unable to play movie.\n{error_message}\n\nPlease check that the file exists and is accessible.")
+        # Show user-friendly error dialog
+        dialog = xbmcgui.Dialog()
+        dialog.ok(self._get_string(35001) if hasattr(self, '_get_string') else "Playback Error", 
+                 f"Unable to play movie.\n{error_message}\n\nPlease check that the file exists and is accessible.")
         
     def get_movie_file_path(self, kodi_id: int) -> Optional[str]:
         """Get the file path for a movie"""
-        
-        if not KODI_AVAILABLE:
-            return f"/mock/path/movie_{kodi_id}.mkv"
         
         try:
             request = {
