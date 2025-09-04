@@ -16,3 +16,26 @@ deploymentTarget = "cloudrun"
 
 [agent]
 expertMode = true
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "LibraryGenie Development"
+
+[[workflows.workflow]]
+name = "LibraryGenie Development"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python -c \"print('LibraryGenie Kodi Addon - Development Environment Ready'); print('This is a Kodi addon - cannot run standalone'); print('Use this environment for code development and testing')\""
+
+[workflows.workflow.metadata]
+outputType = "console"
