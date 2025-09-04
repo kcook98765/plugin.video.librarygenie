@@ -365,7 +365,7 @@ class ToolsHandler:
             target_folder_id = None if selected_index == 0 else all_folders[selected_index - 1]['id']
             result = query_manager.move_list_to_folder(list_id, target_folder_id)
 
-            if result.get("success"):
+            if result.success:
                 folder_name = L(36032) if target_folder_id is None else folder_options[selected_index]  # "root level"
                 return DialogResponse(
                     success=True,
@@ -417,7 +417,7 @@ class ToolsHandler:
             # Perform merge
             result = query_manager.merge_lists(source_list['id'], target_list_id)
 
-            if result.get("success"):
+            if result.success:
                 return DialogResponse(
                     success=True,
                     message=L(36025) % result.get('items_added', 0),  # "Merged %d new items"
@@ -456,7 +456,7 @@ class ToolsHandler:
             target_parent_id = None if selected_index == 0 else all_folders[selected_index - 1]['id']
             result = query_manager.move_folder(folder_id, target_parent_id)
 
-            if result.get("success"):
+            if result.success:
                 parent_name = "root level" if target_parent_id is None else folder_options[selected_index]
                 return DialogResponse(
                     success=True,
@@ -561,7 +561,7 @@ class ToolsHandler:
                 file_format="json"
             )
 
-            if result.get("success"):
+            if result.success:
                 return DialogResponse(
                     success=True,
                     message=f"Exported '{list_info['name']}' to {result.get('filename', 'export file')}",
@@ -570,7 +570,7 @@ class ToolsHandler:
             else:
                 return DialogResponse(
                     success=False,
-                    message=f"Export failed: {result.get('error', 'Unknown error')}"
+                    message=f"Export failed: {getattr(result, 'error', 'Unknown error')}"
                 )
 
         except Exception as e:
@@ -616,7 +616,7 @@ class ToolsHandler:
                 file_format="json"
             )
 
-            if result.get("success"):
+            if result.success:
                 return DialogResponse(
                     success=True,
                     message=f"Exported {list_count} lists from '{folder_info['name']}' to {result.get('filename', 'export file')}",
@@ -699,13 +699,13 @@ class ToolsHandler:
 
             result = backup_manager.test_backup_configuration()
 
-            if result["success"]:
+            if result.success:
                 message = f"Backup configuration test successful:\n{result['message']}"
             else:
                 message = f"Backup configuration test failed:\n{result['error']}"
 
             return DialogResponse(
-                success=result["success"],
+                success=result.success,
                 message=message
             )
 
@@ -724,7 +724,7 @@ class ToolsHandler:
 
             result = backup_manager.run_manual_backup()
 
-            if result["success"]:
+            if result.success:
                 message = (
                     f"Manual backup completed:\n"
                     f"File: {result['filename']}\n"
@@ -736,7 +736,7 @@ class ToolsHandler:
                 message = f"Manual backup failed: {result['error']}"
 
             return DialogResponse(
-                success=result["success"],
+                success=result.success,
                 message=message
             )
 
@@ -777,7 +777,7 @@ class ToolsHandler:
                 return DialogResponse(success=False, message="No backup selected")
 
             selected_backup = backups[selected_index]
-            
+
             # Confirm restore
             if dialog.yesno(
                 "Confirm Restore",
@@ -934,7 +934,7 @@ class ToolsHandler:
             # Run import
             result = import_engine.import_data(file_path)
 
-            if result.get("success"):
+            if result.success:
                 message = (
                     f"Import completed:\n"
                     f"Lists: {result.get('lists_imported', 0)}\n"
@@ -983,7 +983,7 @@ class ToolsHandler:
                 file_format="json"
             )
 
-            if result.get("success"):
+            if result.success:
                 return DialogResponse(
                     success=True,
                     message=f"Exported all lists to {result.get('filename', 'export file')}",
@@ -1028,7 +1028,7 @@ class ToolsHandler:
             deleted_count = 0
             for search_list in search_lists:
                 result = query_manager.delete_list(search_list['id'])
-                if result.get("success"):
+                if result.success:
                     deleted_count += 1
 
             if deleted_count > 0:
