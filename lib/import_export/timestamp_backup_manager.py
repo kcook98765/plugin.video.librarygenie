@@ -70,14 +70,14 @@ class TimestampBackupManager:
             timestamp = datetime.now().strftime(timestamp_format)
 
             # Determine what to backup based on settings
-            export_types = ["lists", "list_items"]
+            export_types = ["lists", "list_items", "media_items"]  # Always include media_items with list_items
 
             # Only add optional types if they're explicitly enabled or if config is unavailable
             try:
                 if self.config.get("backup_include_non_library", False):
                     export_types.append("non_library_snapshot")
 
-                if self.config.get("backup_include_folders", False):  # Changed default to False for safety
+                if self.config.get("backup_include_folders", True):  # Default to True for complete backups
                     export_types.append("folders")
             except Exception as e:
                 self.logger.warning(f"Error reading backup config, using defaults: {e}")
