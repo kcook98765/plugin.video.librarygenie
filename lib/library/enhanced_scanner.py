@@ -69,7 +69,10 @@ class Phase3LibraryScanner:
                 self._log_scan_complete(scan_id, scan_start, 0, 0, 0, 0, error=error_msg)
                 return {"success": False, "error": error_msg}
 
-            total_movies = count_response.data.get("limits", {}).get("total", 0)
+            if count_response.data:
+                total_movies = count_response.data.get("limits", {}).get("total", 0)
+            else:
+                total_movies = 0
             self.logger.info(f"Full scan: {total_movies} movies to process")
 
             if total_movies == 0:
@@ -118,7 +121,7 @@ class Phase3LibraryScanner:
                     self._log_scan_complete(scan_id, scan_start, offset, total_added, 0, 0, error=error_msg)
                     return {"success": False, "error": error_msg, "items_added": total_added}
 
-                movies = page_response.data.get("movies", [])
+                movies = page_response.data.get("movies", []) if page_response.data else []
 
                 if not movies:
                     self.logger.warning(f"Page {page_num} returned no movies, stopping")
@@ -279,6 +282,9 @@ class Phase3LibraryScanner:
                 self.logger.error(error_msg)
                 return None
 
+            if not response.data:
+                break
+                
             movies = response.data.get("movies", [])
             if not movies:
                 break
