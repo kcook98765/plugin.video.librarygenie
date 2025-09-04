@@ -56,7 +56,7 @@ class MainMenuHandler:
         if context.addon.getSettingBool("favorites_integration_enabled"):
             menu_items.append({
                 'label': context.addon.getLocalizedString(32000),  # "Kodi Favorites (read-only)"
-                'url': context.build_url('favorites'),
+                'url': context.build_url('kodi_favorites'),
                 'is_folder': True,
                 'icon': "DefaultFavourites.png",
                 'description': context.addon.getLocalizedString(32001)  # "Browse Kodi Favorites"

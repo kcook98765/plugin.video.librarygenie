@@ -118,7 +118,7 @@ class ResponseHandler:
 
             # Navigate to favorites view
             elif hasattr(response, 'navigate_to_favorites') and response.navigate_to_favorites:
-                xbmc.executebuiltin(f'Container.Update({context.build_url("favorites")},replace)')
+                xbmc.executebuiltin(f'Container.Update({context.build_url("kodi_favorites")},replace)')
                 xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
                 return True
 
