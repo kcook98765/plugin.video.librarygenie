@@ -41,8 +41,8 @@ try:
     from .plugin_context import PluginContext
     from .response_types import DirectoryResponse
 except Exception:  # pragma: no cover
-    PluginContext = Any = object  # type: ignore
-    DirectoryResponse = None       # type: ignore
+    PluginContext = Any  # type: ignore
+    DirectoryResponse = None  # type: ignore
 
 
 class SearchHandler:
