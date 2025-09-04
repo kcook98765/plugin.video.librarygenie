@@ -36,8 +36,6 @@ class ConfigManager:
             "favorites_integration_enabled": False,
             "favorites_scan_interval_minutes": 30,
             "show_unmapped_favorites": False,
-            "search_remember_scope": True,
-            "search_include_file_path": False,
             "search_page_size": 50,
             "search_history_days": 30,
             # Remote service settings
@@ -112,8 +110,6 @@ class ConfigManager:
             "show_missing_indicators",
             "favorites_integration_enabled",
             "show_unmapped_favorites",
-            "search_remember_scope",
-            "search_include_file_path",
         ]
         int_settings = [
             "background_interval_seconds", "favorites_scan_interval_minutes",
