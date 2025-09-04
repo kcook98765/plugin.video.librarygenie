@@ -10,7 +10,7 @@ import xbmc
 import xbmcgui
 
 import json
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 
 from ..utils.logger import get_logger
 from .localization import L
