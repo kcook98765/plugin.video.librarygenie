@@ -388,13 +388,13 @@ class ToolsHandler:
 
             # Get all lists except the target
             all_lists = query_manager.get_all_lists_with_folders()
-            source_lists = [l for l in all_lists if str(l['id']) != str(target_list_id)]
+            source_lists = [list_item for list_item in all_lists if str(list_item['id']) != str(target_list_id)]
 
             if not source_lists:
                 return DialogResponse(success=False, message="No other lists available to merge")
 
             # Build list options
-            list_options = [f"{l['name']} ({l['item_count']} items)" for l in source_lists]
+            list_options = [f"{list_item['name']} ({list_item['item_count']} items)" for list_item in source_lists]
 
             # Show list selection dialog
             dialog = xbmcgui.Dialog()
