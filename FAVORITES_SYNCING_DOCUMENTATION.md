@@ -200,7 +200,7 @@ Favorites are classified by their target type:
 
 **Media Items Query:**
 ```python
-# Get library movies for path matching
+# Get library movies for path matching (data stored in media_items table)
 request = {
     "jsonrpc": "2.0",
     "method": "VideoLibrary.GetMovies",

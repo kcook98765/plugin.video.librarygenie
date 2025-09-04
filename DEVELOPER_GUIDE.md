@@ -23,7 +23,7 @@ LibraryGenie consists of three main layers:
    - Query abstraction and CRUD operations (`query_manager.py`)
    - List and library management (`list_library_manager.py`)
    - Storage utilities (`storage_manager.py`)
-   - Schema includes `lists`, `folders`, `media_items`, `list_items`, `kodi_favorite`, `search_history`, `search_preferences`, `ui_preferences`, `library_scan_log`, auth/sync tables, and various cache tables
+   - Schema centers around `media_items` as the unified media table, with supporting tables: `lists`, `folders`, `list_items`, `kodi_favorite`, `search_history`, `search_preferences`, `ui_preferences`, `library_scan_log`, auth/sync tables, and various cache tables
 
 3. **Feature Layer**
    - **Import/Export** (`lib/import_export/`): NDJSON format engines, backup management, ShortList integration

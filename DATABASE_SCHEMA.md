@@ -116,7 +116,7 @@ Maps Kodi favorites to library items for integration.
 | `target_raw` | TEXT | Raw target command |
 | `target_classification` | TEXT | Classification of target |
 | `normalized_key` | TEXT UNIQUE | Unique key for deduplication |
-| `library_movie_id` | INTEGER FK | Reference to media_items.id |
+| `media_item_id` | INTEGER FK | Reference to media_items.id |
 | `is_mapped` | INTEGER | Whether favorite is mapped (0/1) |
 | `is_missing` | INTEGER | Whether favorite target is missing (0/1) |
 | `present` | INTEGER | Whether favorite is present in current scan (0/1) |
@@ -127,15 +127,15 @@ Maps Kodi favorites to library items for integration.
 | `updated_at` | TEXT | Last update timestamp |
 
 Constraints:
-- FOREIGN KEY (library_movie_id) REFERENCES media_items (id)
+- FOREIGN KEY (media_item_id) REFERENCES media_items (id)
 
 Indexes:
 - INDEX on `normalized_key`.
-- INDEX on `library_movie_id`.
+- INDEX on `media_item_id`.
 - INDEX on `is_mapped`.
 - INDEX on `present`.
 
-**Note**: Kodi Favorites are also integrated into the unified lists system. A special list named "Kodi Favorites" is created in the `lists` table, and mapped favorites are added as `list_items` pointing to `media_items`. The favorites handler is registered with the router using the action name "kodi_favoritesorites".
+**Note**: Kodi Favorites are also integrated into the unified lists system. A special list named "Kodi Favorites" is created in the `lists` table, and mapped favorites are added as `list_items` pointing to `media_items`. The favorites handler is registered with the router using the action name "kodi_favorites".
 
 ---
 
@@ -413,7 +413,7 @@ The auth and sync tables support optional external service integration:
 - One-to-many: folders → lists.  
 - One-to-many: lists → list_items → media_items.  
 - One-to-one/many: media_items ↔ movie_heavy_meta.  
-- One-to-many: media_items ← kodi_favorite (via library_movie_id).
+- One-to-many: media_items ← kodi_favorite (via media_item_id).
 - Many-to-many mapping: imdb_to_kodi.  
 - Special relationship: kodi_favorite entries can also appear as list_items in the "Kodi Favorites" list.
 
@@ -424,7 +424,7 @@ The auth and sync tables support optional external service integration:
 - IMDb is the primary identifier for portability (`imdbnumber` field in `media_items`).  
 - All fallbacks (TMDb, title/year, season/episode, artist/track) are secondary.  
 - Schema designed for **resilience** (recovery after Kodi crash, portable export/import).
-- Kodi favorites are mapped to media_items via library_movie_id for integration with lists.
+- Kodi favorites are mapped to media_items via media_item_id for integration with lists.
 - The main table for media storage is `media_items`, not `library_movie`.
 - Database is created fresh on first startup with complete schema.
 - Migration framework preserved for future incremental updates.
