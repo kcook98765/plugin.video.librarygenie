@@ -1593,6 +1593,41 @@ class QueryManager:
             self.logger.error(f"Error getting folder info for {folder_id}: {e}")
             return None
 
+    def move_list_to_folder(self, list_id: str, target_folder_id: Optional[str]) -> Dict[str, Any]:
+        """Move a list to a different folder"""
+        try:
+            self.logger.debug(f"Moving list {list_id} to folder {target_folder_id}")
+
+            # Check if list exists
+            existing_list = self.connection_manager.execute_single("""
+                SELECT id, name FROM lists WHERE id = ?
+            """, [int(list_id)])
+
+            if not existing_list:
+                return {"success": False, "error": "list_not_found"}
+
+            # If target_folder_id is provided, verify the folder exists
+            if target_folder_id is not None:
+                existing_folder = self.connection_manager.execute_single("""
+                    SELECT id FROM folders WHERE id = ?
+                """, [int(target_folder_id)])
+
+                if not existing_folder:
+                    return {"success": False, "error": "folder_not_found"}
+
+            # Update the list's folder_id
+            with self.connection_manager.transaction() as conn:
+                conn.execute("""
+                    UPDATE lists SET folder_id = ? WHERE id = ?
+                """, [int(target_folder_id) if target_folder_id is not None else None, int(list_id)])
+
+            self.logger.debug(f"Successfully moved list {list_id} to folder {target_folder_id}")
+            return {"success": True}
+
+        except Exception as e:
+            self.logger.error(f"Failed to move list {list_id} to folder {target_folder_id}: {e}")
+            return {"success": False, "error": "database_error"}
+
 
 # Global query manager instance
 _query_manager_instance = None
