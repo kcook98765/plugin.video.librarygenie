@@ -110,8 +110,7 @@ class BackupManager:
             'retention_days': self.config.get_int('backup_retention_count', 5),
             'storage_path': settings.get_backup_storage_location(),
             'storage_type': settings.get_backup_storage_type(),
-            'include_settings': self.config.get_bool('backup_include_settings', True),
-            'include_favorites': self.config.get_bool('backup_include_favorites', True)
+            'include_settings': self.config.get_bool('backup_include_settings', True)
         }
         return backup_preferences
 
