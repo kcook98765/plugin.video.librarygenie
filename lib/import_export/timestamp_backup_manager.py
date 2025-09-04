@@ -392,7 +392,7 @@ class TimestampBackupManager:
             if backups:
                 return backups[0]["backup_time"]  # Most recent backup
             return None
-        except:
+        except Exception:
             return None
 
     def _update_last_backup_time(self):
