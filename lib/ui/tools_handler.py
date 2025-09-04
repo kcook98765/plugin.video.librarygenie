@@ -365,7 +365,7 @@ class ToolsHandler:
             target_folder_id = None if selected_index == 0 else all_folders[selected_index - 1]['id']
             result = query_manager.move_list_to_folder(list_id, target_folder_id)
 
-            if result.success:
+            if result.get("success"):
                 folder_name = L(36032) if target_folder_id is None else folder_options[selected_index]  # "root level"
                 return DialogResponse(
                     success=True,
