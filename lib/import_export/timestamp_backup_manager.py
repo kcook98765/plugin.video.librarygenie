@@ -404,7 +404,7 @@ class TimestampBackupManager:
                 except Exception as e:
                     self.logger.warning(f"Error creating safety backup: {e}")
 
-            result = import_engine.import_from_content(content, filename)
+            result = import_engine.import_from_content(content, filename, replace_mode=replace_mode)
             return result
 
         except Exception as e:
