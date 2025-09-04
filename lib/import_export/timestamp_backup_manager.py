@@ -407,6 +407,12 @@ class TimestampBackupManager:
         """Clean up old backup files based on retention policy"""
         try:
             retention_count = self.config.get("backup_retention_count", 5)
+            try:
+                retention_count = int(retention_count)
+            except (ValueError, TypeError):
+                self.logger.warning(f"Invalid retention count: {retention_count}, defaulting to 5")
+                retention_count = 5
+            
             backups = self.list_backups()
 
             if len(backups) <= retention_count:
