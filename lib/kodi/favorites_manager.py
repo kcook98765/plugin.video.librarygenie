@@ -13,6 +13,7 @@ from typing import List, Dict, Any, Optional
 from ..data import get_connection_manager
 from ..utils.logger import get_logger
 from .favorites_parser import get_phase4_favorites_parser
+from .json_rpc_client import get_kodi_client
 
 
 class Phase4FavoritesManager:
@@ -556,8 +557,7 @@ class Phase4FavoritesManager:
     def _fetch_artwork_from_kodi(self, kodi_id: int, media_type: str) -> Dict[str, str]:
         """Fetch artwork for library item from Kodi JSON-RPC"""
         try:
-            from .json_rpc_client import get_json_rpc_client
-            json_rpc = get_json_rpc_client()
+            json_rpc = get_kodi_client()
 
             if media_type == 'movie':
                 # Get movie details with artwork
