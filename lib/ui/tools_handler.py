@@ -20,7 +20,7 @@ from ..import_export.export_engine import get_export_engine
 class ToolsHandler:
     """Modular tools and options handler"""
 
-    def __init__(self, context: PluginContext = None):
+    def __init__(self, context: Optional[PluginContext] = None):
         self.logger = get_logger(__name__)
         try:
             from .listitem_builder import ListItemBuilder
