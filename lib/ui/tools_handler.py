@@ -8,7 +8,7 @@ Modular tools and options handler for different list types
 
 import xbmcgui
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from .plugin_context import PluginContext
 from .response_types import DialogResponse
 from .localization_helper import L
@@ -22,6 +22,11 @@ class ToolsHandler:
 
     def __init__(self):
         self.logger = get_logger(__name__)
+        try:
+            from .listitem_builder import ListItemBuilder
+            self.listitem_builder = ListItemBuilder()
+        except ImportError:
+            self.listitem_builder = None
 
     def show_list_tools(self, context: PluginContext, list_type: str, list_id: Optional[str] = None) -> DialogResponse:
         """Show tools & options modal for different list types"""
@@ -744,6 +749,12 @@ class ToolsHandler:
 
             backups = backup_manager.list_backups()
 
+            if not self.listitem_builder:
+                return DialogResponse(
+                    success=False,
+                    message="ListItemBuilder not available"
+                )
+
             # Build list items for backup files
             list_items = []
 
@@ -753,7 +764,7 @@ class ToolsHandler:
 
                 list_item = self.listitem_builder.build_action_item(
                     title=backup['filename'],
-                    action=f"restore_backup",
+                    action="restore_backup",
                     action_params={"backup_info": backup},
                     secondary_label=f"{age_text} • {size_mb} MB • {backup['storage_type']}"
                 )
