@@ -74,8 +74,8 @@ class MainMenuHandler:
         from .menu_builder import MenuBuilder
         menu_builder = MenuBuilder()
         menu_builder.build_menu(
-            menu_items, 
-            context.addon_handle, 
+            menu_items,
+            context.addon_handle,
             context.base_url,
             breadcrumb_path=None  # No breadcrumb for root menu
         )

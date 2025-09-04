@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -18,11 +17,11 @@ class ContextMenuFactory:
     def __init__(self):
         self.logger = get_logger(__name__)
 
-    def create_list_item_context_menu(self, item: Dict[str, Any], context: PluginContext, 
+    def create_list_item_context_menu(self, item: Dict[str, Any], context: PluginContext,
                                     list_id: Optional[str] = None) -> List[Tuple[str, str]]:
         """Create context menu for regular list items"""
         context_menu = []
-        
+
         try:
             # Add to List option
             media_item_id = item.get('media_item_id') or item.get('id')
@@ -54,7 +53,7 @@ class ContextMenuFactory:
     def create_favorites_context_menu(self, item: Dict[str, Any], context: PluginContext) -> List[Tuple[str, str]]:
         """Create context menu for favorites items"""
         context_menu = []
-        
+
         try:
             # Remove from Favorites option
             item_id = item.get('id') or item.get('media_item_id') or item.get('kodi_id', '')
@@ -80,7 +79,7 @@ class ContextMenuFactory:
     def create_search_result_context_menu(self, item: Dict[str, Any], context: PluginContext) -> List[Tuple[str, str]]:
         """Create context menu for search result items"""
         context_menu = []
-        
+
         try:
             # Add to List option
             media_item_id = item.get('media_item_id') or item.get('id')
@@ -105,7 +104,7 @@ class ContextMenuFactory:
     def create_folder_context_menu(self, folder: Dict[str, Any], context: PluginContext) -> List[Tuple[str, str]]:
         """Create context menu for folder items"""
         context_menu = []
-        
+
         try:
             folder_id = folder.get('id')
             if folder_id:
@@ -129,7 +128,7 @@ class ContextMenuFactory:
     def create_list_context_menu(self, list_item: Dict[str, Any], context: PluginContext) -> List[Tuple[str, str]]:
         """Create context menu for list items in lists view"""
         context_menu = []
-        
+
         try:
             list_id = list_item.get('id')
             if list_id:
@@ -153,7 +152,7 @@ class ContextMenuFactory:
     def create_tools_context_menu(self, item_type: str, item_id: str, context: PluginContext) -> List[Tuple[str, str]]:
         """Create context menu for tools and options"""
         context_menu = []
-        
+
         try:
             # Tools & Options entry
             context_menu.append((
