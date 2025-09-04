@@ -84,7 +84,7 @@ class BackgroundService:
         while not self.monitor.abortRequested():
             # Initialize current_interval with a default value before try block
             current_interval = self.interval
-            
+
             try:
                 cycle_start = time.time()
 
@@ -310,15 +310,41 @@ class BackgroundService:
         except Exception as e:
             self.logger.error(f"Error checking scheduled backups: {e}")
 
-
+# The `run` function was modified to include database initialization.
 def run():
-    """Service entry point"""
+    """Main background service entry point"""
+    logger = get_logger(__name__)
+
     try:
-        service = BackgroundService()
+        # Force database initialization first
+        try:
+            from lib.data.migrations import initialize_database
+            initialize_database()
+            logger.info("Database initialization completed")
+        except Exception as db_error:
+            logger.error(f"Database initialization failed: {db_error}")
+            # Continue anyway - some features might still work
+
+        config = get_config()
+
+        # Check if background service is enabled
+        enabled = config.get_bool("background_task_enabled", True)
+        if not enabled:
+            logger.info("Background service disabled in settings")
+            return
+
+        interval = config.get_background_interval_seconds()
+        track_library = config.get_bool("track_library_changes", True)
+
+        logger.info(f"Background service starting (interval: {interval}s, library_tracking: {track_library})")
+
+        # Initialize services
+        service = BackgroundService() # Removed interval argument as it's handled in __init__
         service.run()
+
     except Exception as e:
-        logger = get_logger(__name__)
-        logger.error(f"Background service crashed: {e}")
+        logger.error(f"Background service failed to start: {e}")
+        # Don't raise - let Kodi continue
 
 
 if __name__ == '__main__':
