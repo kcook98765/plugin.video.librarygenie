@@ -145,8 +145,7 @@ class Phase3LibraryScanner:
                         self.logger.warning(f"Progress callback error: {e}")
 
                 # Yield briefly to allow abort checking
-                if 'KODI_AVAILABLE' in globals() and KODI_AVAILABLE:
-                    time.sleep(0.1)
+                time.sleep(0.1)
 
             scan_end = datetime.now().isoformat()
             self._log_scan_complete(scan_id, scan_start, total_movies, total_added, 0, 0, scan_end)
