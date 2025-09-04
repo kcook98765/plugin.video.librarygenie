@@ -115,44 +115,7 @@ msgctxt "#30059"
 msgid "Favorites (Unmapped)"
 msgstr ""
 
-# Search Settings
-msgctxt "#30060"
-msgid "Search Settings"
-msgstr ""
-
-msgctxt "#30061"
-msgid "Match mode"
-msgstr ""
-
-msgctxt "#30062"
-msgid "Include file path in search"
-msgstr ""
-
-msgctxt "#30063"
-msgid "Search results per page"
-msgstr ""
-
-msgctxt "#30064"
-msgid "Enable decade shorthand (e.g., '90s)"
-msgstr ""
-
-msgctxt "#30065"
-msgid "Remember last search scope"
-msgstr ""
-
-msgctxt "#30066"
-msgid "Keep search history (days)"
-msgstr ""
-
-# Phase 5 Search UI Strings
-msgctxt "#30068"
-msgid "Results"
-msgstr ""
-
-msgctxt "#30069"
-msgid "Page"
-msgstr ""
-
+# ShortList Integration
 msgctxt "#30070"
 msgid "ShortList Integration"
 msgstr ""
@@ -163,38 +126,6 @@ msgstr ""
 
 msgctxt "#30072"
 msgid "Clear list before importing new data"
-msgstr ""
-
-msgctxt "#30073"
-msgid "Previous page..."
-msgstr ""
-
-msgctxt "#30074"
-msgid "Contains"
-msgstr ""
-
-msgctxt "#30075"
-msgid "Starts with"
-msgstr ""
-
-msgctxt "#30076"
-msgid "All library"
-msgstr ""
-
-msgctxt "#30077"
-msgid "List"
-msgstr ""
-
-msgctxt "#30078"
-msgid "No matches found"
-msgstr ""
-
-msgctxt "#30079"
-msgid "Try fewer words or remove the year filter"
-msgstr ""
-
-msgctxt "#30080"
-msgid "Enter search terms to find movies"
 msgstr ""
 
 # Background Settings
