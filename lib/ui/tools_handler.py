@@ -14,6 +14,7 @@ from .response_types import DialogResponse
 from .localization_helper import L
 from ..utils.logger import get_logger
 from ..import_export.export_engine import get_export_engine
+from ..kodi.favorites_manager import get_phase4_favorites_manager
 
 
 
@@ -665,8 +666,7 @@ class ToolsHandler:
     def _show_favorites_stats(self) -> DialogResponse:
         """Show favorites statistics"""
         try:
-            from ..kodi.favorites_manager import get_favorites_manager
-            favorites_manager = get_favorites_manager()
+            favorites_manager = get_phase4_favorites_manager()
 
             stats = favorites_manager.get_statistics()
 
