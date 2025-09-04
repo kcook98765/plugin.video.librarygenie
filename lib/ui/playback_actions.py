@@ -10,9 +10,10 @@ import xbmc
 import xbmcgui
 
 import json
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 
 from ..utils.logger import get_logger
+from .localization import L
 
 
 class PlaybackActionHandler:
@@ -213,17 +214,13 @@ class PlaybackActionHandler:
         
         self.logger.error(f"Playback error for movie {kodi_id}: {error_message}")
         
-        if KODI_AVAILABLE:
-            # Show user-friendly error dialog
-            dialog = xbmcgui.Dialog()
-            dialog.ok(self._get_string(35001) if hasattr(self, '_get_string') else "Playback Error", 
-                     f"Unable to play movie.\n{error_message}\n\nPlease check that the file exists and is accessible.")
+        # Show user-friendly error dialog
+        dialog = xbmcgui.Dialog()
+        dialog.ok(L(35001) or "Playback Error", 
+                 f"Unable to play movie.\n{error_message}\n\nPlease check that the file exists and is accessible.")
         
     def get_movie_file_path(self, kodi_id: int) -> Optional[str]:
         """Get the file path for a movie"""
-        
-        if not KODI_AVAILABLE:
-            return f"/mock/path/movie_{kodi_id}.mkv"
         
         try:
             request = {
@@ -284,8 +281,8 @@ class PlaybackContextMenuHandler:
             success = self.playback_handler.queue_movie(kodi_id)
             if success:
                 # Show confirmation
-                xbmcgui.Dialog().notification(self._get_string(35002) if hasattr(self, '_get_string') else "LibraryGenie", 
-                                            self._get_string(35010) if hasattr(self, '_get_string') else "Movie added to playlist", 
+                xbmcgui.Dialog().notification(L(35002) or "LibraryGenie", 
+                                            L(35010) or "Movie added to playlist", 
                                             xbmcgui.NOTIFICATION_INFO, 2000)
         
         elif action == "show_info":

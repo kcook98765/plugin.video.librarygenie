@@ -110,7 +110,7 @@ class LocalSearchEngine:
                 params.extend([word_pattern, word_pattern])
 
                 # Track title matches for prioritization
-                title_conditions.append(f"LOWER(title) LIKE ?")
+                title_conditions.append("LOWER(title) LIKE ?")
                 params.append(word_pattern)
 
             # All words must match somewhere across title/plot fields (AND condition)
@@ -380,6 +380,8 @@ class LocalSearchEngine:
             "method": method,
             "params": params or {}
         }
+
+        raw_response = ""  # Initialize to prevent unbound variable error
 
         try:
             self.logger.debug(f"JSON-RPC payload: {json.dumps(payload, indent=2)}")
