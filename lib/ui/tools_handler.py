@@ -563,7 +563,7 @@ class ToolsHandler:
             if result.get("success"):
                 return DialogResponse(
                     success=True,
-                    message=f"Exported '{list_info['name']}' to {result.filename}",
+                    message=f"Exported '{list_info['name']}' to {result.get('filename', 'export file')}",
                     refresh_needed=False
                 )
             else:
@@ -618,7 +618,7 @@ class ToolsHandler:
             if result.get("success"):
                 return DialogResponse(
                     success=True,
-                    message=f"Exported {list_count} lists from '{folder_info['name']}' to {result.filename}",
+                    message=f"Exported {list_count} lists from '{folder_info['name']}' to {result.get('filename', 'export file')}",
                     refresh_needed=False
                 )
             else:
@@ -923,12 +923,12 @@ class ToolsHandler:
             # Run import
             result = import_engine.import_data(file_path)
 
-            if result.success:
+            if result.get("success"):
                 message = (
                     f"Import completed:\n"
-                    f"Lists: {getattr(result, 'lists_imported', 0)}\n"
-                    f"Items: {getattr(result, 'items_imported', 0)}\n"
-                    f"Folders: {getattr(result, 'folders_imported', 0)}"
+                    f"Lists: {result.get('lists_imported', 0)}\n"
+                    f"Items: {result.get('items_imported', 0)}\n"
+                    f"Folders: {result.get('folders_imported', 0)}"
                 )
                 return DialogResponse(
                     success=True,
@@ -938,7 +938,7 @@ class ToolsHandler:
             else:
                 return DialogResponse(
                     success=False,
-                    message=f"Import failed: {getattr(result, 'error', 'Unknown error')}"
+                    message=f"Import failed: {result.get('error', 'Unknown error')}"
                 )
 
         except Exception as e:
@@ -972,16 +972,16 @@ class ToolsHandler:
                 file_format="json"
             )
 
-            if result.success:
+            if result.get("success"):
                 return DialogResponse(
                     success=True,
-                    message=f"Exported all lists to {result.filename}",
+                    message=f"Exported all lists to {result.get('filename', 'export file')}",
                     refresh_needed=False
                 )
             else:
                 return DialogResponse(
                     success=False,
-                    message=f"Export failed: {getattr(result, 'error', 'Unknown error')}"
+                    message=f"Export failed: {result.get('error', 'Unknown error')}"
                 )
 
         except Exception as e:
