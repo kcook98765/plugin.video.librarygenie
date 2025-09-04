@@ -1513,11 +1513,11 @@ msgid "Backup Content"
 msgstr ""
 
 msgctxt "#30521"
-msgid "Include Kodi favorites"
+msgid "Include addon settings"
 msgstr ""
 
 msgctxt "#30522"
-msgid "Include Non Library Metadata"
+msgid "Include non-library items"
 msgstr ""
 
 msgctxt "#30523"
@@ -1529,11 +1529,11 @@ msgid "Storage Settings"
 msgstr ""
 
 msgctxt "#30531"
-msgid "Backup storage type"
+msgid "Storage type"
 msgstr ""
 
 msgctxt "#30532"
-msgid "Custom backup path"
+msgid "Backup location"
 msgstr ""
 
 msgctxt "#30533"
@@ -1559,6 +1559,28 @@ msgstr ""
 
 msgctxt "#30543"
 msgid "Restore Backup"
+msgstr ""
+
+# Backup Interval Options
+msgctxt "#30561"
+msgid "Hourly"
+msgstr ""
+
+msgctxt "#30562"
+msgid "Daily"
+msgstr ""
+
+msgctxt "#30563"
+msgid "Weekly"
+msgstr ""
+
+msgctxt "#30564"
+msgid "Monthly"
+msgstr ""
+
+# Backup Storage Types
+msgctxt "#30565"
+msgid "Local"
 msgstr ""
 
 # Background Service Settings
