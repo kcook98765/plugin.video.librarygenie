@@ -381,6 +381,8 @@ class LocalSearchEngine:
             "params": params or {}
         }
 
+        raw_response = ""  # Initialize to prevent unbound variable error
+
         try:
             self.logger.debug(f"JSON-RPC payload: {json.dumps(payload, indent=2)}")
             raw_response = xbmc.executeJSONRPC(json.dumps(payload))
