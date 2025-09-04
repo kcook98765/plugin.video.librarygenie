@@ -1562,10 +1562,6 @@ msgid "Restore Backup"
 msgstr ""
 
 # Backup Interval Options
-msgctxt "#30561"
-msgid "Hourly"
-msgstr ""
-
 msgctxt "#30562"
 msgid "Daily"
 msgstr ""

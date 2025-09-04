@@ -42,7 +42,7 @@
   <category label="30500">
     <setting label="30510" type="lsep"/>
     <setting id="backup_enabled" type="bool" label="30511" default="false"/>
-    <setting id="backup_interval" type="select" label="30512" default="2" lvalues="30561|30562|30563|30564" enable="eq(-1,true)"/>
+    <setting id="backup_interval" type="select" label="30512" default="0" lvalues="30562|30563|30564" enable="eq(-1,true)"/>
     <setting id="backup_retention_count" type="slider" label="30513" default="5" range="1,1,50" option="int" enable="eq(-2,true)"/>
     <setting label="30520" type="lsep"/>
     <setting id="backup_include_settings" type="bool" label="30521" default="true" enable="eq(-4,true)"/>
