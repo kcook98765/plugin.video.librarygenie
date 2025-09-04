@@ -434,6 +434,7 @@ def _register_all_handlers(router: Router):
     router.register_handler('search', search_handler.prompt_and_search)
     router.register_handler('lists', lists_handler.show_lists_menu)
     router.register_handler('favorites', lambda ctx: _handle_directory_response(ctx, favorites_handler.show_favorites_menu(ctx)))
+    router.register_handler('kodi_favorites', lambda ctx: _handle_directory_response(ctx, favorites_handler.show_favorites_menu(ctx)))
 
     # Register ListsHandler methods that expect specific parameters
     router.register_handler('create_list_execute', lambda ctx: _handle_dialog_response(ctx, lists_handler.create_list(ctx)))
