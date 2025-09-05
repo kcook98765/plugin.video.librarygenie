@@ -12,6 +12,7 @@ import xbmcplugin
 from .listitem_builder import ListItemBuilder
 from ..utils.logger import get_logger
 from .localization import L
+from ..utils.kodi_version import get_kodi_major_version
 
 
 class ListItemRenderer:
@@ -157,7 +158,6 @@ class ListItemRenderer:
             list_item = xbmcgui.ListItem(label=name)
 
             # Set basic info - guard setInfo() for v20+
-            from ..utils.kodi_version import get_kodi_major_version
             if get_kodi_major_version() >= 20:
                 # v20+: Use InfoTagVideo setters
                 try:
@@ -197,7 +197,6 @@ class ListItemRenderer:
             list_item = xbmcgui.ListItem(label=name)
 
             # Set basic info - guard setInfo() for v20+
-            from ..utils.kodi_version import get_kodi_major_version
             if get_kodi_major_version() >= 20:
                 # v20+: Use InfoTagVideo setters
                 try:
@@ -284,7 +283,6 @@ class ListItemRenderer:
             list_item = xbmcgui.ListItem(label=title)
 
             # Set basic info - guard setInfo() for v20+
-            from ..utils.kodi_version import get_kodi_major_version
             if get_kodi_major_version() >= 20:
                 # v20+: Use InfoTagVideo setters
                 try:
