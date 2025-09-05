@@ -85,10 +85,6 @@ msgctxt "#30051"
 msgid "Enable Kodi favorites integration"
 msgstr ""
 
-msgctxt "#30052"
-msgid "Favorites scan interval (minutes)"
-msgstr ""
-
 msgctxt "#30053"
 msgid "Show unmapped favorites"
 msgstr ""
