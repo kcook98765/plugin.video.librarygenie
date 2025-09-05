@@ -55,6 +55,11 @@ class Router:
                 from .lists_handler import ListsHandler
                 handler = ListsHandler()
                 return handler.show_lists_menu(context)
+            elif action == 'prompt_and_search':
+                from .search_handler import SearchHandler
+                search_handler = SearchHandler()
+                search_handler.prompt_and_search(context)
+                return True
             else:
                 # Check for registered handlers
                 handler = self._handlers.get(action)
