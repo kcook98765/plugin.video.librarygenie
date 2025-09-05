@@ -176,22 +176,22 @@ class ToolsHandler:
                 # Special options for search history lists
                 options = [
                     "[COLOR lightgreen]📋 Copy to New List[/COLOR]",
-                    f"[COLOR white]Export {short_name}[/COLOR]",
-                    f"[COLOR red]Delete {short_name}[/COLOR]",
+                    f"[COLOR white]{L(36053) % short_name}[/COLOR]",  # "Export %s"
+                    f"[COLOR red]{L(36054) % short_name}[/COLOR]",  # "Delete %s"
                     f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
                 ]
             else:
                 # Standard list options
                 options = [
                     # Additive operations
-                    f"[COLOR lightgreen]Merge Into {short_name}[/COLOR]",
+                    f"[COLOR lightgreen]{L(36004) % short_name}[/COLOR]",  # "Merge Into %s"
                     # Modify operations
-                    f"[COLOR yellow]Rename {short_name}[/COLOR]",
-                    f"[COLOR yellow]Move {short_name} to Folder[/COLOR]",
+                    f"[COLOR yellow]{L(36051) % short_name}[/COLOR]",  # "Rename %s"
+                    f"[COLOR yellow]{L(36052) % short_name}[/COLOR]",  # "Move %s to Folder"
                     # Export operations
-                    f"[COLOR white]Export {short_name}[/COLOR]",
+                    f"[COLOR white]{L(36053) % short_name}[/COLOR]",  # "Export %s"
                     # Destructive operations
-                    f"[COLOR red]Delete {short_name}[/COLOR]",
+                    f"[COLOR red]{L(36054) % short_name}[/COLOR]",  # "Delete %s"
                     # Cancel
                     f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
                 ]
@@ -492,30 +492,30 @@ class ToolsHandler:
         """Create a new list in the specified folder"""
         try:
             # Get list name from user
-            list_name = xbmcgui.Dialog().input(
-                "Enter list name:",
+            new_name = xbmcgui.Dialog().input(
+                L(36056),  # "Enter name for new list:"
                 type=xbmcgui.INPUT_ALPHANUM
             )
 
-            if not list_name or not list_name.strip():
+            if not new_name or not new_name.strip():
                 return DialogResponse(success=False)
 
             query_manager = context.query_manager
             if not query_manager:
                 return DialogResponse(success=False, message="Database error")
 
-            result = query_manager.create_list(list_name.strip(), folder_id)
+            result = query_manager.create_list(new_name.strip(), folder_id)
 
             if result.get("error"):
                 if result["error"] == "duplicate_name":
-                    message = f"List '{list_name}' already exists in this folder"
+                    message = f"List '{new_name}' already exists in this folder"
                 else:
                     message = "Failed to create list"
                 return DialogResponse(success=False, message=message)
             else:
                 return DialogResponse(
                     success=True,
-                    message=f"Created list: {list_name}",
+                    message=f"Created list: {new_name}",
                     refresh_needed=True
                 )
 
@@ -798,10 +798,10 @@ class ToolsHandler:
 
             import xbmcgui
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select("Select backup to restore:", backup_options)
+            selected_index = dialog.select(L(36060), backup_options)  # "Select backup to restore:"
 
             if selected_index < 0:
-                return DialogResponse(success=False, message="No backup selected")
+                return DialogResponse(success=False, message=L(36062))  # "Restore cancelled"
 
             selected_backup = backups[selected_index]
 
@@ -836,7 +836,7 @@ class ToolsHandler:
                     message = f"Backup restore failed: {restore_result.get('error', 'Unknown error')}"
                     return DialogResponse(success=False, message=message)
             else:
-                return DialogResponse(success=False, message="Restore cancelled")
+                return DialogResponse(success=False, message=L(36062))  # "Restore cancelled"
 
         except Exception as e:
             self.logger.error(f"Error showing backup manager: {e}")
@@ -855,11 +855,11 @@ class ToolsHandler:
             dialog = xbmcgui.Dialog()
 
             # Prompt for replace or append
-            options = ["Replace Existing", "Append to Existing"]
-            selected_option = dialog.select("Restore Backup Options", options)
+            options = [L(36071), L(36072)] # "Replace Existing", "Append to Existing"
+            selected_option = dialog.select(L(36073), options) # "Restore Backup Options"
 
             if selected_option == -1:  # User cancelled
-                return DialogResponse(success=False, message="Restore cancelled")
+                return DialogResponse(success=False, message=L(36062))  # "Restore cancelled"
 
             replace_mode = options[selected_option].startswith("Replace")
 
@@ -868,7 +868,7 @@ class ToolsHandler:
 
             if not available_backups:
                 return DialogResponse(
-                    success=False, 
+                    success=False,
                     message="No backups found."
                 )
 
@@ -879,10 +879,10 @@ class ToolsHandler:
                 size_mb = round(backup['file_size'] / 1024 / 1024, 2)
                 backup_options.append(f"{backup['filename']} - {age_text} • {size_mb} MB")
 
-            backup_index = dialog.select("Select Backup File", backup_options)
+            backup_index = dialog.select(L(36060), backup_options)  # "Select Backup File"
 
             if backup_index == -1:  # User cancelled
-                return DialogResponse(success=False, message="No backup selected")
+                return DialogResponse(success=False, message=L(36062))  # "Restore cancelled"
 
             selected_backup = available_backups[backup_index]
 
@@ -977,7 +977,7 @@ class ToolsHandler:
                 "[COLOR yellow]Clear Search History[/COLOR]",
                 "[COLOR yellow]Reset Preferences[/COLOR]",
                 # Cancel
-                "[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
+                f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
             ]
 
             # Show selection dialog
@@ -1207,7 +1207,7 @@ class ToolsHandler:
                 suggested_name = suggested_name[1:-1]
 
             new_name = xbmcgui.Dialog().input(
-                "Enter name for new list:",
+                L(36056),  # "Enter name for new list:"
                 defaultt=suggested_name,
                 type=xbmcgui.INPUT_ALPHANUM
             )

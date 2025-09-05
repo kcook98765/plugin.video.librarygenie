@@ -1567,3 +1567,137 @@ msgstr ""
 msgctxt "#34605"
 msgid "Operation confirmed"
 msgstr ""
+
+# Context menu strings
+msgctxt "#31020"
+msgid "Rename"
+msgstr ""
+
+msgctxt "#31021"
+msgid "Delete"
+msgstr ""
+
+msgctxt "#31022"
+msgid "Export"
+msgstr ""
+
+# Main menu strings
+msgctxt "#32900"
+msgid "Search History"
+msgstr ""
+
+msgctxt "#32901"
+msgid "Browse %d saved searches"
+msgstr ""
+
+# Tools dialog strings
+msgctxt "#36040"
+msgid "Import Lists"
+msgstr ""
+
+msgctxt "#36041"
+msgid "Export All Lists"
+msgstr ""
+
+msgctxt "#36042"
+msgid "Manual Backup"
+msgstr ""
+
+msgctxt "#36043"
+msgid "Backup Manager"
+msgstr ""
+
+msgctxt "#36044"
+msgid "Test Backup Config"
+msgstr ""
+
+msgctxt "#36045"
+msgid "Library Statistics"
+msgstr ""
+
+msgctxt "#36046"
+msgid "Force Library Rescan"
+msgstr ""
+
+msgctxt "#36047"
+msgid "Clear Search History"
+msgstr ""
+
+msgctxt "#36048"
+msgid "Reset Preferences"
+msgstr ""
+
+msgctxt "#36049"
+msgid "📋 Copy to New List"
+msgstr ""
+
+msgctxt "#36050"
+msgid "Merge Into %s"
+msgstr ""
+
+msgctxt "#36051"
+msgid "Rename %s"
+msgstr ""
+
+msgctxt "#36052"
+msgid "Move %s to Folder"
+msgstr ""
+
+msgctxt "#36053"
+msgid "Export %s"
+msgstr ""
+
+msgctxt "#36054"
+msgid "Delete %s"
+msgstr ""
+
+msgctxt "#36055"
+msgid "Clear All Search History"
+msgstr ""
+
+# Input dialog strings
+msgctxt "#36056"
+msgid "Enter name for new list:"
+msgstr ""
+
+msgctxt "#36057"
+msgid "Enter list name:"
+msgstr ""
+
+msgctxt "#36058"
+msgid "Enter folder name:"
+msgstr ""
+
+msgctxt "#36059"
+msgid "Select parent folder:"
+msgstr ""
+
+msgctxt "#36060"
+msgid "Select backup to restore:"
+msgstr ""
+
+msgctxt "#36061"
+msgid "No backup selected"
+msgstr ""
+
+msgctxt "#36062"
+msgid "Restore cancelled"
+msgstr ""
+
+# Backup restore options
+msgctxt "#36071"
+msgid "Replace Existing"
+msgstr ""
+
+msgctxt "#36072"
+msgid "Append to Existing"
+msgstr ""
+
+msgctxt "#36073"
+msgid "Restore Backup Options"
+msgstr ""
+
+# Additional placeholder entries for future use
+msgctxt "#36999"
+msgid "Reserved for future use"
+msgstr ""

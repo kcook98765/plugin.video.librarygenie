@@ -14,6 +14,7 @@ import xbmcplugin
 
 from ..utils.logger import get_logger
 from .listitem_renderer import get_listitem_renderer
+from .localization import L
 
 
 class MenuBuilder:
@@ -125,11 +126,7 @@ class MenuBuilder:
                 from .context_menu import get_context_menu_manager
                 # Dummy string getter for menu builder
                 def get_string(string_id):
-                    strings = {
-                        31000: "Add to List...",
-                        31001: "Quick Add to Default"
-                    }
-                    return strings.get(string_id, f"String {string_id}")
+                    return L(string_id)
 
                 context_manager = get_context_menu_manager(get_string)
                 list_item = context_manager.add_library_item_context_menu(
@@ -144,11 +141,7 @@ class MenuBuilder:
                 from .context_menu import get_context_menu_manager
                 # Dummy string getter for menu builder
                 def get_string(string_id):
-                    strings = {
-                        31010: "Remove from List",
-                        31011: "Move to Another List..."
-                    }
-                    return strings.get(string_id, f"String {string_id}")
+                    return L(string_id)
 
                 context_manager = get_context_menu_manager(get_string)
                 list_item = context_manager.add_list_item_context_menu(

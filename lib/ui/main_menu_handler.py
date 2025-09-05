@@ -8,6 +8,7 @@ Handles the main menu display and navigation
 
 from .plugin_context import PluginContext
 from .response_types import DirectoryResponse
+from .localization import L
 
 
 class MainMenuHandler:
@@ -43,11 +44,11 @@ class MainMenuHandler:
                 search_lists = query_manager.get_lists_in_folder(search_folder_id)
                 if search_lists:
                     menu_items.append({
-                        'label': "Search History",
+                        'label': L(32900),  # "Search History"
                         'url': context.build_url('show_folder', folder_id=search_folder_id),
                         'is_folder': True,
                         'icon': "DefaultAddonProgram.png",
-                        'description': f"Browse {len(search_lists)} saved searches"
+                        'description': L(32901) % len(search_lists)  # "Browse %d saved searches"
                     })
         except Exception as e:
             context.logger.debug(f"Could not check search history: {e}")

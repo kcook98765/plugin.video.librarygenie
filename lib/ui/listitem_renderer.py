@@ -11,6 +11,7 @@ import xbmcgui
 import xbmcplugin
 from .listitem_builder import ListItemBuilder
 from ..utils.logger import get_logger
+from .localization import L
 
 
 class ListItemRenderer:
@@ -235,19 +236,19 @@ class ListItemRenderer:
 
         # Rename list
         context_items.append((
-            "Rename",
+            L(31020),  # "Rename"
             f"RunPlugin(plugin://{self.addon_id}/?action=rename_list&list_id={list_id})"
         ))
 
         # Delete list
         context_items.append((
-            "Delete",
+            L(31021),  # "Delete"
             f"RunPlugin(plugin://{self.addon_id}/?action=delete_list&list_id={list_id})"
         ))
 
         # Export list
         context_items.append((
-            "Export",
+            L(31022),  # "Export"
             f"RunPlugin(plugin://{self.addon_id}/?action=export_list&list_id={list_id})"
         ))
 
@@ -263,13 +264,13 @@ class ListItemRenderer:
         if folder_name != "Search History":
             # Rename folder
             context_items.append((
-                "Rename",
+                L(31020),  # "Rename"
                 f"RunPlugin(plugin://{self.addon_id}/?action=rename_folder&folder_id={folder_id})"
             ))
 
             # Delete folder
             context_items.append((
-                "Delete",
+                L(31021),  # "Delete"
                 f"RunPlugin(plugin://{self.addon_id}/?action=delete_folder&folder_id={folder_id})"
             ))
 
