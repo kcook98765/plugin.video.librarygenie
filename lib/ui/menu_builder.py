@@ -7,12 +7,13 @@ Builds Kodi directory listings and menus
 """
 
 from urllib.parse import urlencode
-from typing import List, Dict, Any, Optional, Callable
+from typing import List, Tuple, Dict, Any, Optional, Callable
 
 import xbmcgui
 import xbmcplugin
 
 from ..utils.logger import get_logger
+from ..utils.kodi_version import get_kodi_major_version
 from .listitem_renderer import get_listitem_renderer
 from .localization import L
 
@@ -131,15 +132,47 @@ class MenuBuilder:
         )
         self.logger.debug(f"MENU ITEM: Successfully added '{title}' to directory")
 
-    def _add_breadcrumb_item(self, breadcrumb_path, addon_handle, base_url):
-        """Add breadcrumb navigation item at the top of the menu"""
-        breadcrumb_item = xbmcgui.ListItem(label=f"[COLOR gray]> {breadcrumb_path}[/COLOR]")
-        breadcrumb_item.setInfo('video', {'plot': f'Current location: {breadcrumb_path}'})
-        breadcrumb_item.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
+    def _add_breadcrumb_item(self, breadcrumb_path: str, addon_handle: int, base_url: str):
+        """Add breadcrumb item at top of directory"""
+        try:
+            kodi_major = get_kodi_major_version()
+            self.logger.info(f"BREADCRUMB: Adding breadcrumb '{breadcrumb_path}' on Kodi v{kodi_major}")
 
-        # Make breadcrumb non-selectable by using a noop URL
-        noop_url = f"{base_url}?action=noop"
-        xbmcplugin.addDirectoryItem(addon_handle, noop_url, breadcrumb_item, False)
+            # Add stack trace to identify caller
+            import traceback
+            stack_info = traceback.extract_stack()
+            caller_info = stack_info[-2] if len(stack_info) > 1 else "unknown"
+            self.logger.info(f"BREADCRUMB CALLER: {caller_info.filename}:{caller_info.lineno} in {caller_info.name}")
+
+            breadcrumb_item = xbmcgui.ListItem(label=f"[COLOR gray]📍 {breadcrumb_path}[/COLOR]")
+
+            # Version-specific metadata setting
+            if kodi_major >= 20:
+                try:
+                    self.logger.info(f"BREADCRUMB v{kodi_major}: Using InfoTagVideo for breadcrumb")
+                    video_info_tag = breadcrumb_item.getVideoInfoTag()
+                    video_info_tag.setPlot('Current location')
+                    self.logger.info(f"BREADCRUMB v{kodi_major}: Successfully set metadata via InfoTagVideo")
+                except Exception as e:
+                    self.logger.error(f"BREADCRUMB v{kodi_major}: InfoTagVideo FAILED: {e}")
+            else:
+                self.logger.info(f"BREADCRUMB v{kodi_major}: Using setInfo() for breadcrumb")
+                breadcrumb_item.setInfo('video', {'plot': 'Current location'})
+                self.logger.info(f"BREADCRUMB v{kodi_major}: Successfully set metadata via setInfo")
+
+            breadcrumb_item.setArt({'icon': "DefaultFolder.png", 'thumb': "DefaultFolder.png"})
+
+            # Add as non-clickable item (no URL)
+            xbmcplugin.addDirectoryItem(
+                addon_handle,
+                f"{base_url}?action=noop",  # No-op action
+                breadcrumb_item,
+                False
+            )
+            self.logger.info(f"BREADCRUMB: Successfully added breadcrumb item")
+
+        except Exception as e:
+            self.logger.error(f"BREADCRUMB: Failed to add breadcrumb item: {e}")
 
     def build_movie_menu(self, movies: List[Dict[str, Any]], addon_handle, base_url, **options):
         """Build a menu specifically for movie items with enhanced ListItems"""
@@ -228,20 +261,20 @@ class MenuBuilder:
             elif current_context and isinstance(current_context[0], str):
                 # Convert list of strings to list of tuples
                 current_context = [(item, f'RunPlugin({item})') for item in current_context]
-            
+
             # Ensure extra_context is in tuple format
             if extra_context:
                 if isinstance(extra_context[0], str):
                     # Convert strings to tuples
                     extra_context = [(item, f'RunPlugin({item})') for item in extra_context]
                 current_context.extend(extra_context)
-            
+
             list_item.addContextMenuItems(current_context)
 
         # Set as playable item and add to directory only if list_item is valid
         if list_item is not None:
             list_item.setProperty('IsPlayable', 'true')
-            
+
             # Add to directory
             xbmcplugin.addDirectoryItem(
                 handle=addon_handle, url=url, listitem=list_item, isFolder=False
@@ -250,3 +283,34 @@ class MenuBuilder:
             # Log error if list_item creation failed
             movie_title = movie_data.get('title', 'Unknown')
             self.logger.error(f"MOVIE MENU: Failed to create list item for movie '{movie_title}' - skipping")
+
+    def create_menu_item(self, label: str, action: str, description: Optional[str] = None, icon: Optional[str] = None, **params) -> Tuple[str, xbmcgui.ListItem]:
+        """Create a menu item with URL and ListItem"""
+        try:
+            kodi_major = get_kodi_major_version()
+            self.logger.info(f"MENU BUILDER: Creating menu item '{label}' (action={action}) on Kodi v{kodi_major}")
+
+            # Add stack trace to identify caller
+            import traceback
+            stack_info = traceback.extract_stack()
+            caller_info = stack_info[-2] if len(stack_info) > 1 else "unknown"
+            self.logger.info(f"MENU BUILDER CALLER: {caller_info.filename}:{caller_info.lineno} in {caller_info.name}")
+
+            # Build URL
+            url_params = [f"action={action}"]
+            for key, value in params.items():
+                if value is not None:
+                    url_params.append(f"{key}={value}")
+            url = f"{self.base_url}?{'&'.join(url_params)}"
+
+            # Create ListItem using renderer's method
+            self.logger.info(f"MENU BUILDER: Calling renderer.create_simple_listitem for '{label}'")
+            list_item = self.renderer.create_simple_listitem(label, description, action, icon)
+
+            self.logger.info(f"MENU BUILDER: Successfully created menu item '{label}' -> {url}")
+            return url, list_item
+
+        except Exception as e:
+            self.logger.error(f"MENU BUILDER: Failed to create menu item '{label}': {e}")
+            # Return fallback
+            return f"{self.base_url}?action={action}", xbmcgui.ListItem(label=label)
