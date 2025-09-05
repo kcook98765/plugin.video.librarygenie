@@ -455,8 +455,14 @@ class ListItemBuilder:
                         video_info_tag.setPlot(description)
                 except Exception as e:
                     self.logger.debug(f"ACTION ITEM v20+: InfoTagVideo failed for folder '{title}': {e}")
+                    # On v21+, avoid setInfo() fallback to prevent deprecation warnings
+                    if kodi_major < 21:
+                        info_dict = {'title': title}
+                        if description:
+                            info_dict['plot'] = description
+                        li.setInfo('video', info_dict)
             else:
-                # v19: Basic folder info
+                # v19: Use setInfo()
                 info_dict = {'title': title}
                 if description:
                     info_dict['plot'] = description
@@ -507,6 +513,10 @@ class ListItemBuilder:
                     self._set_infotag_metadata(video_info_tag, item, title)
                 except Exception as e:
                     self.logger.warning(f"EXT ITEM v20+: InfoTagVideo setup failed for '{title}': {e}")
+                    # On v21+, avoid setInfo() fallback to prevent deprecation warnings
+                    if kodi_major < 21:
+                        info = self._build_lightweight_info(item)
+                        li.setInfo('video', info)
             else:
                 # v19: Use setInfo()
                 info = self._build_lightweight_info(item)
