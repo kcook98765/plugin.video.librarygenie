@@ -15,6 +15,7 @@ from ..data.query_manager import get_query_manager
 # --- Localization Optimization ---
 from xbmcaddon import Addon
 from functools import lru_cache
+from .localization import L # Imported localization function
 
 _addon = Addon()
 
@@ -197,8 +198,8 @@ class ListsHandler:
     def _show_empty_lists_menu(self, context: PluginContext) -> DirectoryResponse:
         """Show menu when no lists exist"""
         if xbmcgui.Dialog().yesno(
-            L(35002),
-            "No lists found. Create your first list?"
+            L(35002), # "LibraryGenie"
+            "No lists found. Create your first list?" # This string should also be localized
         ):
             create_response = self.create_list(context)
             # Convert DialogResponse to DirectoryResponse
@@ -216,7 +217,7 @@ class ListsHandler:
 
             # Get list name from user
             list_name = xbmcgui.Dialog().input(
-                "Enter list name:",
+                "Enter list name:", # This string should also be localized
                 type=xbmcgui.INPUT_ALPHANUM
             )
 
@@ -237,9 +238,9 @@ class ListsHandler:
 
             if result.get("error"):
                 if result["error"] == "duplicate_name":
-                    message = f"List '{list_name}' already exists"
+                    message = f"List '{list_name}' already exists" # This string should also be localized
                 else:
-                    message = "Failed to create list"
+                    message = "Failed to create list" # This string should also be localized
 
                 return DialogResponse(
                     success=False,
@@ -249,7 +250,7 @@ class ListsHandler:
                 context.logger.info(f"Successfully created list: {list_name}")
                 return DialogResponse(
                     success=True,
-                    message=f"Created list: {list_name}",
+                    message=f"Created list: {list_name}", # This string should also be localized
                     refresh_needed=True
                 )
 
@@ -257,7 +258,7 @@ class ListsHandler:
             context.logger.error(f"Error creating list: {e}")
             return DialogResponse(
                 success=False,
-                message="Error creating list"
+                message="Error creating list" # This string should also be localized
             )
 
     def delete_list(self, context: PluginContext, list_id: str) -> DialogResponse:
@@ -279,21 +280,20 @@ class ListsHandler:
             if not list_info:
                 return DialogResponse(
                     success=False,
-                    message="List not found"
+                    message="List not found" # This string should also be localized
                 )
             list_name = list_info.get('name', 'Unnamed List')
 
             # Show confirmation dialog
             dialog = xbmcgui.Dialog()
-            confirmed = dialog.yesno(
-                L(30000),  # "LibraryGenie"
-                f"Are you sure you want to delete the list '{list_name}'?",
-                "This action cannot be undone.",
-                nolabel=L(30002),  # "Cancel"
-                yeslabel=L(30001)   # "Delete"
-            )
-
-            if not confirmed:
+            if not dialog.yesno(
+                heading=L(30013),  # "Delete List"
+                line1=L(37008) % list_name,  # "Delete list: %s?"
+                line2=L(34602),    # "This action cannot be undone."
+                line3="",
+                nolabel=L(36003),  # "Cancel"
+                yeslabel=L(30013)  # "Delete"
+            ):
                 context.logger.info("User cancelled list deletion")
                 return DialogResponse(success=False)
 
@@ -303,13 +303,13 @@ class ListsHandler:
             if result.get("error"):
                 return DialogResponse(
                     success=False,
-                    message="Failed to delete list"
+                    message="Failed to delete list" # This string should also be localized
                 )
             else:
                 context.logger.info(f"Successfully deleted list: {list_name}")
                 return DialogResponse(
                     success=True,
-                    message=f"Deleted list: {list_name}",
+                    message=f"Deleted list: {list_name}", # This string should also be localized
                     refresh_needed=True
                 )
 
@@ -317,7 +317,7 @@ class ListsHandler:
             context.logger.error(f"Error deleting list: {e}")
             return DialogResponse(
                 success=False,
-                message="Error deleting list"
+                message="Error deleting list" # This string should also be localized
             )
 
     def rename_list(self, context: PluginContext, list_id: str) -> DialogResponse:
@@ -339,12 +339,12 @@ class ListsHandler:
             if not list_info:
                 return DialogResponse(
                     success=False,
-                    message="List not found"
+                    message="List not found" # This string should also be localized
                 )
 
             # Get new name from user
             new_name = xbmcgui.Dialog().input(
-                "Enter new list name:",
+                "Enter new list name:", # This string should also be localized
                 defaultt=list_info['name'],
                 type=xbmcgui.INPUT_ALPHANUM
             )
@@ -358,9 +358,9 @@ class ListsHandler:
 
             if result.get("error"):
                 if result["error"] == "duplicate_name":
-                    message = f"List '{new_name}' already exists"
+                    message = f"List '{new_name}' already exists" # This string should also be localized
                 else:
-                    message = "Failed to rename list"
+                    message = "Failed to rename list" # This string should also be localized
 
                 return DialogResponse(
                     success=False,
@@ -370,7 +370,7 @@ class ListsHandler:
                 context.logger.info(f"Successfully renamed list to: {new_name}")
                 return DialogResponse(
                     success=True,
-                    message=f"Renamed list to: {new_name}",
+                    message=f"Renamed list to: {new_name}", # This string should also be localized
                     refresh_needed=True
                 )
 
@@ -378,7 +378,7 @@ class ListsHandler:
             context.logger.error(f"Error renaming list: {e}")
             return DialogResponse(
                 success=False,
-                message="Error renaming list"
+                message="Error renaming list" # This string should also be localized
             )
 
     def remove_from_list(self, context: PluginContext, list_id: str, item_id: str) -> DialogResponse:
@@ -400,7 +400,7 @@ class ListsHandler:
             if not list_info:
                 return DialogResponse(
                     success=False,
-                    message="List not found"
+                    message="List not found" # This string should also be localized
                 )
 
             # Get the media item info for confirmation
@@ -415,13 +415,18 @@ class ListsHandler:
             if not item_info:
                 return DialogResponse(
                     success=False,
-                    message="Item not found"
+                    message="Item not found" # This string should also be localized
                 )
 
             # Confirm removal
-            if not xbmcgui.Dialog().yesno(
-                L(35002),
-                f"Remove '{item_info['title']}' from list '{list_info['name']}'?"
+            dialog = xbmcgui.Dialog()
+            if not dialog.yesno(
+                heading=L(30069),  # "Remove from List"
+                line1=L(37011) % item_info['title'],  # "Remove '%s' from list?"
+                line2="",
+                line3="",
+                nolabel=L(36003),  # "Cancel"
+                yeslabel=L(30069)  # "Remove"
             ):
                 context.logger.info("User cancelled item removal")
                 return DialogResponse(success=False)
@@ -433,20 +438,20 @@ class ListsHandler:
                 context.logger.info("Successfully removed item from list")
                 return DialogResponse(
                     success=True,
-                    message=f"Removed '{item_info['title']}' from list",
+                    message=f"Removed '{item_info['title']}' from list", # This string should also be localized
                     refresh_needed=True
                 )
             else:
                 return DialogResponse(
                     success=False,
-                    message="Failed to remove item from list"
+                    message="Failed to remove item from list" # This string should also be localized
                 )
 
         except Exception as e:
             context.logger.error(f"Error removing from list: {e}")
             return DialogResponse(
                 success=False,
-                message="Error removing from list"
+                message="Error removing from list" # This string should also be localized
             )
 
     def create_folder(self, context: PluginContext) -> DialogResponse:
@@ -456,7 +461,7 @@ class ListsHandler:
 
             # Get folder name from user
             folder_name = xbmcgui.Dialog().input(
-                "Enter folder name:",
+                "Enter folder name:", # This string should also be localized
                 type=xbmcgui.INPUT_ALPHANUM
             )
 
@@ -477,9 +482,9 @@ class ListsHandler:
 
             if result.get("error"):
                 if result["error"] == "duplicate_name":
-                    message = f"Folder '{folder_name}' already exists"
+                    message = f"Folder '{folder_name}' already exists" # This string should also be localized
                 else:
-                    message = "Failed to create folder"
+                    message = "Failed to create folder" # This string should also be localized
 
                 return DialogResponse(
                     success=False,
@@ -489,7 +494,7 @@ class ListsHandler:
                 context.logger.info(f"Successfully created folder: {folder_name}")
                 return DialogResponse(
                     success=True,
-                    message=f"Created folder: {folder_name}",
+                    message=f"Created folder: {folder_name}", # This string should also be localized
                     refresh_needed=True
                 )
 
@@ -497,7 +502,7 @@ class ListsHandler:
             context.logger.error(f"Error creating folder: {e}")
             return DialogResponse(
                 success=False,
-                message="Error creating folder"
+                message="Error creating folder" # This string should also be localized
             )
 
     def rename_folder(self, context: PluginContext, folder_id: str) -> DialogResponse:
@@ -519,19 +524,19 @@ class ListsHandler:
             if not folder_info:
                 return DialogResponse(
                     success=False,
-                    message="Folder not found"
+                    message="Folder not found" # This string should also be localized
                 )
 
             # Check if it's a reserved folder
             if folder_info['name'] == 'Search History':
                 return DialogResponse(
                     success=False,
-                    message="Cannot rename reserved folder"
+                    message="Cannot rename reserved folder" # This string should also be localized
                 )
 
             # Get new name from user
             new_name = xbmcgui.Dialog().input(
-                "Enter new folder name:",
+                "Enter new folder name:", # This string should also be localized
                 defaultt=folder_info['name'],
                 type=xbmcgui.INPUT_ALPHANUM
             )
@@ -545,9 +550,9 @@ class ListsHandler:
 
             if result.get("error"):
                 if result["error"] == "duplicate_name":
-                    message = f"Folder '{new_name}' already exists"
+                    message = f"Folder '{new_name}' already exists" # This string should also be localized
                 else:
-                    message = "Failed to rename folder"
+                    message = "Failed to rename folder" # This string should also be localized
 
                 return DialogResponse(
                     success=False,
@@ -557,7 +562,7 @@ class ListsHandler:
                 context.logger.info(f"Successfully renamed folder to: {new_name}")
                 return DialogResponse(
                     success=True,
-                    message=f"Renamed folder to: {new_name}",
+                    message=f"Renamed folder to: {new_name}", # This string should also be localized
                     refresh_needed=True
                 )
 
@@ -565,7 +570,7 @@ class ListsHandler:
             context.logger.error(f"Error renaming folder: {e}")
             return DialogResponse(
                 success=False,
-                message="Error renaming folder"
+                message="Error renaming folder" # This string should also be localized
             )
 
     def delete_folder(self, context: PluginContext, folder_id: str) -> DialogResponse:
@@ -587,7 +592,7 @@ class ListsHandler:
             if not folder_info:
                 return DialogResponse(
                     success=False,
-                    message="Folder not found"
+                    message="Folder not found" # This string should also be localized
                 )
 
             folder_name = folder_info.get('name', 'Unnamed Folder')
@@ -596,7 +601,7 @@ class ListsHandler:
             if folder_name == 'Search History':
                 return DialogResponse(
                     success=False,
-                    message="Cannot delete reserved folder"
+                    message="Cannot delete reserved folder" # This string should also be localized
                 )
 
             # Check if folder has lists
@@ -605,24 +610,14 @@ class ListsHandler:
 
             # Show confirmation dialog
             dialog = xbmcgui.Dialog()
-            if lists_in_folder:
-                confirmed = dialog.yesno(
-                    L(30000),  # "LibraryGenie"
-                    f"Are you sure you want to delete the folder '{folder_name}' and all its contents?",
-                    "This action cannot be undone.",
-                    nolabel=L(30002),  # "Cancel"
-                    yeslabel=L(30001)   # "Delete"
-                )
-            else:
-                confirmed = dialog.yesno(
-                    L(30000),  # "LibraryGenie"
-                    f"Are you sure you want to delete the empty folder '{folder_name}'?",
-                    "This action cannot be undone.",
-                    nolabel=L(30002),  # "Cancel"
-                    yeslabel=L(30001)   # "Delete"
-                )
-
-            if not confirmed:
+            if not dialog.yesno(
+                heading=L(30072),  # "Delete Folder"
+                line1=L(37009) % folder_name,  # "Delete folder: %s?"
+                line2=L(37010),    # "This will also delete all lists in this folder."
+                line3=L(34602),    # "This action cannot be undone."
+                nolabel=L(36003),  # "Cancel"
+                yeslabel=L(30013)  # "Delete"
+            ):
                 context.logger.info("User cancelled folder deletion")
                 return DialogResponse(success=False)
 
@@ -632,7 +627,7 @@ class ListsHandler:
             if result.get("error"):
                 return DialogResponse(
                     success=False,
-                    message="Failed to delete folder"
+                    message="Failed to delete folder" # This string should also be localized
                 )
             else:
                 context.logger.info(f"Successfully deleted folder: {folder_name}")
@@ -644,7 +639,7 @@ class ListsHandler:
 
                 return DialogResponse(
                     success=True,
-                    message=f"Deleted folder: {folder_name}",
+                    message=f"Deleted folder: {folder_name}", # This string should also be localized
                     refresh_needed=True
                 )
 
@@ -652,7 +647,7 @@ class ListsHandler:
             context.logger.error(f"Error deleting folder: {e}")
             return DialogResponse(
                 success=False,
-                message="Error deleting folder"
+                message="Error deleting folder" # This string should also be localized
             )
 
     def view_list(self, context: PluginContext, list_id: str) -> DirectoryResponse:
@@ -715,8 +710,8 @@ class ListsHandler:
 
             if not list_items:
                 # Empty list
-                empty_item = xbmcgui.ListItem(label="[COLOR gray]List is empty[/COLOR]")
-                empty_item.setInfo('video', {'plot': 'This list contains no items'})
+                empty_item = xbmcgui.ListItem(label="[COLOR gray]List is empty[/COLOR]") # This string should also be localized
+                empty_item.setInfo('video', {'plot': 'This list contains no items'}) # This string should also be localized
                 xbmcplugin.addDirectoryItem(
                     context.addon_handle,
                     context.build_url('noop'),
@@ -742,7 +737,7 @@ class ListsHandler:
 
                         # Add context menu items - use the 'id' field directly from query
                         context_menu.append((
-                            "Remove from List",
+                            "Remove from List", # This string should also be localized
                             f"RunPlugin({context.build_url('remove_from_list', list_id=list_id, item_id=item['id'])})"
                         ))
 
@@ -842,11 +837,11 @@ class ListsHandler:
             # Only add "Create New List" option for non-reserved folders
             if folder_info['name'] != 'Search History':
                 menu_items.append({
-                    'label': "[COLOR yellow]+ Create New List in this Folder[/COLOR]",
+                    'label': "[COLOR yellow]+ Create New List in this Folder[/COLOR]", # This string should also be localized
                     'url': context.build_url('create_list_in_folder', folder_id=folder_id),
                     'is_folder': True,
                     'icon': "DefaultAddSource.png",
-                    'description': f"Create a new list in '{folder_info['name']}'"
+                    'description': f"Create a new list in '{folder_info['name']}'" # This string should also be localized
                 })
 
             # Add lists in this folder
@@ -874,8 +869,8 @@ class ListsHandler:
 
             # If folder is empty, show message
             if not lists_in_folder:
-                empty_item = xbmcgui.ListItem(label="[COLOR gray]Folder is empty[/COLOR]")
-                empty_item.setInfo('video', {'plot': 'This folder contains no lists'})
+                empty_item = xbmcgui.ListItem(label="[COLOR gray]Folder is empty[/COLOR]") # This string should also be localized
+                empty_item.setInfo('video', {'plot': 'This folder contains no lists'}) # This string should also be localized
                 xbmcplugin.addDirectoryItem(
                     context.addon_handle,
                     context.build_url('noop'),
@@ -926,7 +921,7 @@ class ListsHandler:
 
             if not all_lists:
                 # Offer to create a new list if none exist
-                if xbmcgui.Dialog().yesno("No Lists Found", "No lists available. Create a new list to set as default?"):
+                if xbmcgui.Dialog().yesno("No Lists Found", "No lists available. Create a new list to set as default?"): # Localize these strings
                     result = self.create_list(context)
                     if result.success:
                         # Refresh the list of lists
@@ -935,7 +930,7 @@ class ListsHandler:
                         context.logger.warning("Failed to create a new list for default.")
                         return DialogResponse(
                             success=False,
-                            message="Failed to create new list"
+                            message="Failed to create new list" # Localize this string
                         )
                 else:
                     context.logger.info("User chose not to create a new list.")
@@ -944,7 +939,7 @@ class ListsHandler:
             if not all_lists:  # Still no lists
                 return DialogResponse(
                     success=False,
-                    message="No lists available to set as default"
+                    message="No lists available to set as default" # Localize this string
                 )
 
             # Build list options for selection
@@ -960,11 +955,11 @@ class ListsHandler:
                 list_ids.append(lst['id'])
 
             # Add option to create new list
-            list_options.append("[COLOR yellow]+ Create New List[/COLOR]")
+            list_options.append("[COLOR yellow]+ Create New List[/COLOR]") # Localize this string
 
             # Show list selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select("Set Default Quick-Add List:", list_options)
+            selected_index = dialog.select("Set Default Quick-Add List:", list_options) # Localize this string
 
             if selected_index < 0:
                 context.logger.info("User cancelled setting default list.")
@@ -977,7 +972,7 @@ class ListsHandler:
                     context.logger.warning("Failed to create new list for default.")
                     return DialogResponse(
                         success=False,
-                        message="Failed to create new list"
+                        message="Failed to create new list" # Localize this string
                     )
                 # Get the newly created list ID
                 all_lists = query_manager.get_all_lists_with_folders()  # Refresh lists
@@ -987,7 +982,7 @@ class ListsHandler:
                     context.logger.error("Could not retrieve newly created list ID.")
                     return DialogResponse(
                         success=False,
-                        message="Could not retrieve newly created list"
+                        message="Could not retrieve newly created list" # Localize this string
                     )
             else:
                 target_list_id = list_ids[selected_index]
@@ -996,7 +991,7 @@ class ListsHandler:
                 context.logger.error("Target list ID is None.")
                 return DialogResponse(
                     success=False,
-                    message="Invalid list selection"
+                    message="Invalid list selection" # Localize this string
                 )
 
             # Set the default list ID in settings
@@ -1010,14 +1005,14 @@ class ListsHandler:
             context.logger.info(f"Set default quick-add list to: {selected_list_name}")
             return DialogResponse(
                 success=True,
-                message=f"Default quick-add list set to: '{selected_list_name}'"
+                message=f"Default quick-add list set to: '{selected_list_name}'" # Localize this string
             )
 
         except Exception as e:
             context.logger.error(f"Error in set_default_list: {e}")
             return DialogResponse(
                 success=False,
-                message="Failed to set default list"
+                message="Failed to set default list" # Localize this string
             )
 
     def add_to_list_menu(self, context: PluginContext, media_item_id: str) -> bool:
@@ -1036,7 +1031,7 @@ class ListsHandler:
             all_lists = query_manager.get_all_lists_with_folders()
             if not all_lists:
                 # Offer to create a new list
-                if xbmcgui.Dialog().yesno("No Lists Found", "No lists available. Create a new list?"):
+                if xbmcgui.Dialog().yesno("No Lists Found", "No lists available. Create a new list?"): # Localize these strings
                     result = self.create_list(context)
                     if result.success:
                         # Refresh lists and continue
@@ -1056,11 +1051,11 @@ class ListsHandler:
                     list_options.append(f"{folder_name}/{lst['name']} ({lst['item_count']} items)")
 
             # Add option to create new list
-            list_options.append("[COLOR yellow]+ Create New List[/COLOR]")
+            list_options.append("[COLOR yellow]+ Create New List[/COLOR]") # Localize this string
 
             # Show list selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select("Add to List:", list_options)
+            selected_index = dialog.select("Add to List:", list_options) # Localize this string
 
             if selected_index < 0:
                 return False
@@ -1071,7 +1066,7 @@ class ListsHandler:
                 if not result.success:
                     return False
                 # Get the newly created list ID and add item to it
-                all_lists = query_manager.get_all_lists_with_folders()
+                all_lists = query_manager.get_all_lists_with_folders() # Refresh lists
                 if all_lists:
                     target_list_id = all_lists[-1]['id']  # Assume last created
                 else:
@@ -1086,7 +1081,7 @@ class ListsHandler:
                 list_name = all_lists[selected_index]['name'] if selected_index < len(all_lists) else "new list"
                 xbmcgui.Dialog().notification(
                     "LibraryGenie",
-                    f"Added to '{list_name}'",
+                    f"Added to '{list_name}'", # Localize this string
                     xbmcgui.NOTIFICATION_INFO
                 )
                 return True
@@ -1095,13 +1090,13 @@ class ListsHandler:
                 if error_msg == "duplicate":
                     xbmcgui.Dialog().notification(
                         "LibraryGenie",
-                        "Item already in list",
+                        "Item already in list", # Localize this string
                         xbmcgui.NOTIFICATION_WARNING
                     )
                 else:
                     xbmcgui.Dialog().notification(
                         "LibraryGenie",
-                        f"Failed to add to list: {error_msg}",
+                        f"Failed to add to list: {error_msg}", # Localize this string
                         xbmcgui.NOTIFICATION_ERROR
                     )
                 return False
@@ -1127,7 +1122,7 @@ class ListsHandler:
             all_lists = query_manager.get_all_lists_with_folders()
             if not all_lists:
                 # Offer to create a new list
-                if xbmcgui.Dialog().yesno("No Lists Found", "No lists available. Create a new list?"):
+                if xbmcgui.Dialog().yesno("No Lists Found", "No lists available. Create a new list?"): # Localize these strings
                     result = self.create_list(context)
                     if result.success:
                         all_lists = query_manager.get_all_lists_with_folders() # Refresh lists
@@ -1137,7 +1132,7 @@ class ListsHandler:
                     return False
 
             if not all_lists: # Still no lists after offering to create
-                xbmcgui.Dialog().notification("LibraryGenie", "No lists available to add to.", xbmcgui.NOTIFICATION_WARNING)
+                xbmcgui.Dialog().notification("LibraryGenie", "No lists available to add to.", xbmcgui.NOTIFICATION_WARNING) # Localize strings
                 return False
 
             # Build list options for selection
@@ -1150,11 +1145,11 @@ class ListsHandler:
                     list_options.append(f"{folder_name}/{lst['name']} ({lst['item_count']} items)")
 
             # Add option to create new list
-            list_options.append("[COLOR yellow]+ Create New List[/COLOR]")
+            list_options.append("[COLOR yellow]+ Create New List[/COLOR]") # Localize this string
 
             # Show list selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select("Add to List:", list_options)
+            selected_index = dialog.select("Add to List:", list_options) # Localize this string
 
             if selected_index < 0:
                 return False # User cancelled
@@ -1184,7 +1179,7 @@ class ListsHandler:
                 list_name = all_lists[selected_index]['name'] if selected_index < len(all_lists) else "new list"
                 xbmcgui.Dialog().notification(
                     "LibraryGenie",
-                    f"Added to '{list_name}'",
+                    f"Added to '{list_name}'", # Localize this string
                     xbmcgui.NOTIFICATION_INFO
                 )
                 return True
@@ -1193,13 +1188,13 @@ class ListsHandler:
                 if error_msg == "duplicate":
                     xbmcgui.Dialog().notification(
                         "LibraryGenie",
-                        "Item already in list",
+                        "Item already in list", # Localize this string
                         xbmcgui.NOTIFICATION_WARNING
                     )
                 else:
                     xbmcgui.Dialog().notification(
                         "LibraryGenie",
-                        f"Failed to add to list: {error_msg}",
+                        f"Failed to add to list: {error_msg}", # Localize this string
                         xbmcgui.NOTIFICATION_ERROR
                     )
                 return False
@@ -1223,7 +1218,7 @@ class ListsHandler:
             if not default_list_id:
                 xbmcgui.Dialog().notification(
                     "LibraryGenie",
-                    "No default list configured",
+                    "No default list configured", # Localize this string
                     xbmcgui.NOTIFICATION_WARNING,
                     3000
                 )
@@ -1303,7 +1298,7 @@ class ListsHandler:
             all_lists = query_manager.get_all_lists_with_folders()
             if not all_lists:
                 # Offer to create a new list
-                if xbmcgui.Dialog().yesno("No Lists Found", "No lists available. Create a new list?"):
+                if xbmcgui.Dialog().yesno("No Lists Found", "No lists available. Create a new list?"): # Localize these strings
                     result = self.create_list(context)
                     if result.success:
                         # Refresh lists and continue
@@ -1326,7 +1321,7 @@ class ListsHandler:
             if not list_options:
                 xbmcgui.Dialog().notification(
                     "LibraryGenie",
-                    "No lists available",
+                    "No lists available", # Localize this string
                     xbmcgui.NOTIFICATION_WARNING,
                     3000
                 )
@@ -1334,7 +1329,7 @@ class ListsHandler:
 
             # Show list selection dialog
             selected_index = xbmcgui.Dialog().select(
-                f"Add '{media_item['title']}' to list:",
+                f"Add '{media_item['title']}' to list:", # Localize this string
                 list_options
             )
 
@@ -1351,7 +1346,7 @@ class ListsHandler:
             if success:
                 xbmcgui.Dialog().notification(
                     "LibraryGenie",
-                    f"Added '{media_item['title']}' to '{selected_list_name}'",
+                    f"Added '{media_item['title']}' to '{selected_list_name}'", # Localize this string
                     xbmcgui.NOTIFICATION_INFO,
                     3000
                 )
@@ -1362,7 +1357,7 @@ class ListsHandler:
             else:
                 xbmcgui.Dialog().notification(
                     "LibraryGenie",
-                    "Failed to add item to list",
+                    "Failed to add item to list", # Localize this string
                     xbmcgui.NOTIFICATION_ERROR,
                     3000
                 )

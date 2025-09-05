@@ -807,36 +807,34 @@ class ToolsHandler:
 
             # Confirm restore
             dialog = xbmcgui.Dialog()
-            confirmed = dialog.yesno(
-                L(36063),  # "LibraryGenie Restore"
-                L(36064),  # "Restore from backup:"
-                f"{selected_backup['filename']}",
-                L(36065),  # "This will replace all current data."
+            if not dialog.yesno(
+                heading=L(34007),  # "Restore from Backup"
+                line1=L(37007) % selected_backup['display_name'],  # "Restore from: %s"
+                line2=L(34014),    # "This will replace all current lists and data."
+                line3=L(34602),    # "This action cannot be undone."
                 nolabel=L(36003),  # "Cancel"
-                yeslabel=L(36066)   # "Restore"
-            )
+                yeslabel=L(34007)  # "Restore from Backup"
+            ):
+                return DialogResponse(success=False)
 
-            if confirmed:
-                # Restore backup
-                restore_result = backup_manager.restore_backup(selected_backup['filename'])
+            # Restore backup
+            restore_result = backup_manager.restore_backup(selected_backup['filename'])
 
-                if restore_result["success"]:
-                    total_restored = sum([
-                        restore_result.get("lists_restored", 0),
-                        restore_result.get("items_restored", 0)
-                    ])
-                    message = (
-                        f"Backup restored successfully:\n"
-                        f"Lists: {restore_result.get('lists_restored', 0)}\n"
-                        f"Items: {restore_result.get('items_restored', 0)}\n"
-                        f"Total restored: {total_restored}"
-                    )
-                    return DialogResponse(success=True, message=message, refresh_needed=True)
-                else:
-                    message = f"Backup restore failed: {restore_result.get('error', 'Unknown error')}"
-                    return DialogResponse(success=False, message=message)
+            if restore_result["success"]:
+                total_restored = sum([
+                    restore_result.get("lists_restored", 0),
+                    restore_result.get("items_restored", 0)
+                ])
+                message = (
+                    f"Backup restored successfully:\n"
+                    f"Lists: {restore_result.get('lists_restored', 0)}\n"
+                    f"Items: {restore_result.get('items_restored', 0)}\n"
+                    f"Total restored: {total_restored}"
+                )
+                return DialogResponse(success=True, message=message, refresh_needed=True)
             else:
-                return DialogResponse(success=False, message=L(36062))  # "Restore cancelled"
+                message = f"Backup restore failed: {restore_result.get('error', 'Unknown error')}"
+                return DialogResponse(success=False, message=message)
 
         except Exception as e:
             self.logger.error(f"Error showing backup manager: {e}")

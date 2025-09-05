@@ -17,6 +17,7 @@ import xbmcgui # Added for notifications
 from lib.config import get_config
 from lib.auth.refresh import maybe_refresh
 from lib.utils.logger import get_logger
+from lib.ui.localization import L
 
 
 class BackgroundService:
@@ -160,7 +161,7 @@ class BackgroundService:
                 # Show notification that initial scan is starting
                 try:
                     xbmcgui.Dialog().notification(
-                        self.addon.getLocalizedString(35002),  # "LibraryGenie"
+                        L(35002),  # "LibraryGenie"
                         "Initial library scan starting...",
                         xbmcgui.NOTIFICATION_INFO,
                         5000
@@ -175,7 +176,7 @@ class BackgroundService:
                         # Show completion notification
                         try:
                             xbmcgui.Dialog().notification(
-                                self.addon.getLocalizedString(35002),  # "LibraryGenie"
+                                L(35002),  # "LibraryGenie"
                                 f"Initial scan complete: {result.get('items_added', 0)} movies indexed",
                                 xbmcgui.NOTIFICATION_INFO,
                                 5000
@@ -187,7 +188,7 @@ class BackgroundService:
                         # Show error notification
                         try:
                             xbmcgui.Dialog().notification(
-                                self.addon.getLocalizedString(35002),  # "LibraryGenie"
+                                L(35002),  # "LibraryGenie"
                                 "Initial library scan failed",
                                 xbmcgui.NOTIFICATION_ERROR,
                                 5000
@@ -199,7 +200,7 @@ class BackgroundService:
                     # Show error notification on exception during scan
                     try:
                         xbmcgui.Dialog().notification(
-                            self.addon.getLocalizedString(35002),  # "LibraryGenie"
+                            L(35002),  # "LibraryGenie"
                             "Initial library scan failed",
                             xbmcgui.NOTIFICATION_ERROR,
                             5000
