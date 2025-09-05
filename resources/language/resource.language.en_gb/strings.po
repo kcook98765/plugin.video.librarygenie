@@ -73,6 +73,30 @@ msgctxt "#30043"
 msgid "Show missing movie indicators"
 msgstr ""
 
+msgctxt "#30044"
+msgid "Default list ID (internal)"
+msgstr ""
+
+msgctxt "#30050"
+msgid "Kodi Favorites Integration"
+msgstr ""
+
+msgctxt "#30051"
+msgid "Enable Kodi favorites integration"
+msgstr ""
+
+msgctxt "#30052"
+msgid "Favorites scan interval (minutes)"
+msgstr ""
+
+msgctxt "#30053"
+msgid "Show unmapped favorites"
+msgstr ""
+
+msgctxt "#30054"
+msgid "Enable favorites batch processing"
+msgstr ""
+
 # ShortList Integration
 msgctxt "#30070"
 msgid "ShortList Integration"
