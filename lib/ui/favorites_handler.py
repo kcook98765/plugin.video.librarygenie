@@ -126,25 +126,16 @@ class FavoritesHandler:
                 # Then use existing list building infrastructure for favorites
                 context.logger.info(f"Using ListItemRenderer to build {len(favorites_items)} favorites")
 
-                # Add context menu callback for removing from favorites
-                def add_favorites_context_menu(listitem, item):
-                    """Add favorites-specific context menu items"""
-                    try:
-                        from .context_menu_factory import get_context_menu_factory
-                        factory = get_context_menu_factory()
-                        context_menu = factory.create_favorites_context_menu(item, context)
-                        listitem.addContextMenuItems(context_menu)
-                    except Exception as e:
-                        context.logger.warning(f"Failed to add favorites context menu: {e}")
+                # Context menus now handled by global context.py
 
-                # Use the existing renderer with our context menu callback
+                # Build favorites items
                 from .listitem_renderer import get_listitem_renderer
                 renderer = get_listitem_renderer(context.addon_handle, context.addon.getAddonInfo('id'))
 
                 success = renderer.render_media_items(
                     favorites_items,
                     content_type="movies",
-                    context_menu_callback=add_favorites_context_menu
+                    context_menu_callback=None # Context menus are now handled globally
                 )
 
                 # Return based on renderer success
@@ -257,7 +248,7 @@ class FavoritesHandler:
 
             # Add item to the selected list
             result = query_manager.add_item_to_list(
-                selected_list['id'], 
+                selected_list['id'],
                 title="Unknown",  # Will be resolved by IMDb ID
                 imdb_id=imdb_id
             )
