@@ -98,10 +98,11 @@ class InfoHijackManager:
         intent_detected = self._is_info_intent_detected()
         self._logger.info(f"HIJACK: Intent detected: {intent_detected}")
         
-        # TEMPORARY: Allow all armed items for testing
-        # TODO: Re-enable intent detection once hijack is working
-        # if not intent_detected:
-        #     return
+        # For now, don't hijack at all unless dialog is already open
+        # This prevents false triggers while we implement proper intent detection
+        if not intent_detected:
+            self._logger.debug("HIJACK: No intent detected, skipping hijack to avoid false triggers")
+            return
 
         dbid = hijack_dbid_prop or native_dbid
         dbtype = (hijack_dbtype_prop or native_dbtype or '').lower()
@@ -185,36 +186,27 @@ class InfoHijackManager:
         This prevents false triggers when just navigating lists.
         
         We only trigger when:
-        1. Context menu is active (user might select "Information")
-        2. Video info dialog is already open (user opened it through other means)
-        3. We detect a recent action that suggests info intent
-        """
-        # Check if we're in a context menu (user might select "Information")
-        context_menu_active = xbmc.getCondVisibility('Window.IsActive(DialogContextMenu.xml)')
-        if context_menu_active:
-            self._logger.debug("HIJACK: Context menu active, user may select info")
-            return True
+        1. Video info dialog is already open (user opened it somehow and we need to hijack it)
+        2. A very specific sequence of events that indicates info was requested
         
+        For now, we're being extremely conservative to avoid false positives.
+        """
         # Check if video info dialog is already open (user opened it somehow)
         info_dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
         if info_dialog_active:
-            self._logger.debug("HIJACK: Video info dialog already open")
+            self._logger.debug("HIJACK: Video info dialog already open, hijacking it")
             return True
         
-        # Check for recent timing that suggests user action
-        # If we just had a navigation change, don't hijack immediately
-        current_time = time.time()
-        time_since_last_hijack = current_time - self._last_hijack_time
+        # For now, don't trigger on any other conditions
+        # We need to implement proper action monitoring to detect when:
+        # - User presses 'i' key (Info action)
+        # - User selects "Information" from context menu
+        # - User uses remote control info button
         
-        # Prevent rapid-fire hijacks when just navigating
-        if time_since_last_hijack < 2.0:
-            self._logger.debug(f"HIJACK: Too soon since last hijack ({time_since_last_hijack:.1f}s), avoiding false trigger")
-            return False
+        # TODO: Implement action monitoring or window focus change detection
+        # For now, only hijack when dialog is already open
         
-        # For now, be very conservative - only allow hijack in specific scenarios
-        # We can relax this later once we have better intent detection
-        
-        self._logger.debug("HIJACK: No clear info intent detected, skipping hijack")
+        self._logger.debug("HIJACK: No confirmed info intent detected, being conservative")
         return False
 
     def _handle_native_info_closed(self):
