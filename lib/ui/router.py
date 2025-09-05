@@ -51,6 +51,10 @@ class Router:
                 return self._handle_list_tools(context, params)
             elif action == "noop":
                 return self._handle_noop(context)
+            elif action == 'lists' or action == 'show_lists_menu':
+                from .lists_handler import ListsHandler
+                handler = ListsHandler()
+                return handler.show_lists_menu(context)
             else:
                 # Check for registered handlers
                 handler = self._handlers.get(action)
