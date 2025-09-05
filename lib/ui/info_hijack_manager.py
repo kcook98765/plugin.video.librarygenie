@@ -60,12 +60,20 @@ class InfoHijackManager:
         # Check for tagged items
         armed = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)') == '1'
         if not armed:
+            # Log periodically to help debug why hijack isn't triggered
+            if int(current_time) % 5 == 0:  # Every 5 seconds
+                self._logger.debug(f"HIJACK: No armed items detected in container: {xbmc.getInfoLabel('Container.FolderPath')}")
             return
 
         # Add intent detection - only hijack if user is actually trying to open info
         # Check if the Info action was recently triggered
-        if not self._is_info_intent_detected():
-            return
+        intent_detected = self._is_info_intent_detected()
+        self._logger.debug(f"HIJACK: Armed item found, intent detected: {intent_detected}")
+        
+        # TEMPORARY: Allow all armed items for testing
+        # TODO: Re-enable intent detection once hijack is working
+        # if not intent_detected:
+        #     return
 
         dbid = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBID)') or xbmc.getInfoLabel('ListItem.DBID')
         dbtype = (xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBType)') or xbmc.getInfoLabel('ListItem.DBTYPE') or '').lower()
@@ -126,13 +134,25 @@ class InfoHijackManager:
             self._logger.debug("HIJACK: Context menu active, allowing potential info intent")
             return True
         
-        # Check if the user recently pressed the Info key/button
-        # We can detect this by checking if an Info action was attempted recently
-        # This is imperfect but helps reduce false positives
+        # Check if we're in a library list (our plugin or native library views)
+        # This allows direct item selection (Enter/OK) to trigger hijack
+        container_content = xbmc.getInfoLabel('Container.Content')
+        container_path = xbmc.getInfoLabel('Container.FolderPath')
         
-        # For now, be more conservative and only trigger on context menu
-        # This should prevent the false triggers you're experiencing
-        return context_menu_active
+        # Allow hijack in these scenarios:
+        # 1. Our plugin lists (LibraryGenie content)
+        # 2. Native library views (movies, tvshows, episodes)
+        # 3. When viewing media content specifically
+        
+        is_plugin_content = 'plugin.video.librarygenie' in container_path
+        is_media_content = container_content in ['movies', 'tvshows', 'episodes', 'musicvideos']
+        
+        if is_plugin_content or is_media_content:
+            self._logger.debug(f"HIJACK: Media content detected - path: {container_path}, content: {container_content}")
+            return True
+        
+        # Still allow context menu for other scenarios
+        return False
 
     def _handle_native_info_closed(self):
         """Handle the native info dialog being closed - restore container"""
