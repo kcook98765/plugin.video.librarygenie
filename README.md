@@ -1,3 +1,4 @@
+
 # LibraryGenie — Robust List Management for Kodi
 
 LibraryGenie is a Kodi addon that provides advanced, flexible list and folder management with disaster recovery, portability, and intelligent media matching. It supports mixed content types, portable exports, and optional integration with external services.
@@ -77,8 +78,8 @@ All export/backup files use a versioned JSON envelope containing:
 
 ## Export/Import Specification
 
-### NDJSON Format
-Each line = one item. Universal fields:
+### JSON Format
+Uses versioned JSON envelope format with the following structure:
 
 | Field           | Type    | Required | Notes                                      |
 |-----------------|---------|----------|--------------------------------------------|
@@ -87,7 +88,7 @@ Each line = one item. Universal fields:
 | title           | string  | yes      | Title of item                              |
 | year            | integer | no       | Release or air year                        |
 | list_name       | string  | yes      | Context list name                          |
-| schema_version  | integer | yes      | Current schema version (2)                 |
+| schema_version  | integer | yes      | Current schema version                     |
 
 #### Movies
 - `tmdb_id`, `runtime_minutes`.
@@ -129,8 +130,59 @@ Confidence scoring: 100% (IMDb) → 95% (TMDb) → 75–90% (title/year) → fal
 - Disabled by default; requires user authorization.
 - **Remote Search**: Free-text queries → IMDb ID lists returned.
 - **Similarity**: Given IMDb, request server for similar items → IMDb IDs.
-- **Sync**: Optional mirroring of user’s list with server (IMDb only).
+- **Sync**: Optional mirroring of user's list with server (IMDb only).
 - **Privacy**: Only IMDb IDs and user queries transmitted; no file paths or playback data.
+
+---
+
+## Search Features
+
+LibraryGenie provides powerful local search capabilities:
+
+### Search Features
+
+- **Database-Backed Search**: Uses SQLite index for fast queries against local library
+- **Keyword-Based Matching**: Simple, predictable keyword search across title and plot fields
+- **Intelligent Ranking**: Prioritizes title matches over plot matches for better relevance
+- **Text Normalization**: Handles diacritics, punctuation, case, and Unicode consistently
+- **Flexible Search Scope**: Search titles only, plots only, or both fields
+- **Match Logic Options**: "All keywords" or "any keyword" matching
+- **Search History**: Automatic saving of search results to browsable lists
+
+### Search Configuration
+
+| Parameter | Values | Default | Description |
+|-----------|--------|---------|-------------|
+| `search_scope` | `"title"`, `"plot"`, `"both"` | `"both"` | Fields to search |
+| `match_logic` | `"all"`, `"any"` | `"all"` | Keyword matching logic |
+| `page_size` | `int` | `50` | Results per page |
+
+---
+
+## Favorites Integration (Manual Operation)
+
+LibraryGenie provides manual integration with Kodi's built-in Favorites system:
+
+- **Scan on Demand**: Manually scan favorites via Tools menu or context actions
+- **View Mapped Favorites**: Display favorites that map to your movie library
+- **Quick Add**: Add mapped favorites to your custom lists
+- **Smart Filtering**: Option to show/hide unmapped favorites
+- **Robust Parsing**: Handles various favorites.xml formats and edge cases
+
+**Manual Operation**: All favorites scanning is user-initiated. No background processing ensures optimal performance and gives you full control over when favorites are processed.
+
+### Supported Target Types
+
+- **File Paths**: Local files, network shares (SMB/NFS), archives (ZIP/RAR)
+- **Kodi Database**: videodb:// URLs linking to library movies
+- **Stack Files**: Multi-part movies defined as stack:// entries
+
+### Privacy & Safety
+
+- **Read-Only**: Never modifies your Kodi favorites file
+- **Local Processing**: All parsing and mapping happens locally
+- **No Data Collection**: No favorite names, paths, or metadata transmitted externally
+- **Path Privacy**: Credentials stripped from network paths during processing
 
 ---
 
@@ -176,21 +228,13 @@ Confidence scoring: 100% (IMDb) → 95% (TMDb) → 75–90% (title/year) → fal
 - **Smoke Tests**: Basic functionality tests for plugin/service entry points and routing.
 - **Clean Testing**: Stubs are excluded from the packaged addon and exist only for development.
 
-### Development Files
-
-Files used only for development (excluded from addon package):
-- `requirements-dev.txt` - Development dependencies
-- `.flake8`, `mypy.ini`, `pyproject.toml` - Tool configurations
-- `Makefile` - Development task shortcuts
-- `tests/` - Test suite with Kodi API stubs
-
 ### Plugin Architecture
 
 The plugin uses a modular handler-based architecture:
 - **Router**: Central request dispatcher (`lib/ui/router.py`)
 - **Handlers**: Specialized UI handlers for different functionality
 - **Response Types**: Structured response objects for consistent UI handling
-- **Context**: Request context object for parameter accessts/` - Test suite and Kodi stubs
+- **Context**: Request context object for parameter access
 
 ### Quality Gates
 
@@ -199,76 +243,6 @@ All changes must pass:
 - **Type Checking**: Gradual typing with warnings (ignores missing Kodi types)
 - **Import Safety**: All modules import without Kodi runtime
 - **Smoke Tests**: Core functionality works in test environment
-
-## Favorites Integration (Manual Operation)
-
-LibraryGenie provides manual integration with Kodi's built-in Favorites system, allowing you to:
-
-- **Scan on Demand**: Manually scan favorites via Tools menu or context actions (registered as "favorites" action)
-- **View Mapped Favorites**: Display favorites that map to your movie library
-- **Quick Add**: Add mapped favorites to your custom lists
-- **Smart Filtering**: Option to show/hide unmapped favorites
-- **Robust Parsing**: Handles various favorites.xml formats and edge cases
-
-**Manual Operation**: All favorites scanning is user-initiated. No background processing ensures optimal performance and gives you full control over when favorites are processed.
-
-### Supported Target Types
-
-- **File Paths**: Local files, network shares (SMB/NFS), archives (ZIP/RAR)
-- **Kodi Database**: videodb:// URLs linking to library movies
-- **Stack Files**: Multi-part movies defined as stack:// entries
-
-### Privacy & Safety
-
-- **Read-Only**: Never modifies your Kodi favorites file
-- **Local Processing**: All parsing and mapping happens locally
-- **No Data Collection**: No favorite names, paths, or metadata transmitted externally
-- **Path Privacy**: Credentials stripped from network paths during processing
-
-### Unmapped Favorites
-
-Favorites that don't map to your library (plugins, scripts, missing files) can be optionally displayed with:
-
-- Clear "Not in library" badges
-- Limited actions (no Play/Add to List)
-- Separate "Unmapped" section in favorites view
-
-## Search
-
-LibraryGenie provides powerful local search with precision and predictability:
-
-### Search Features
-
-- **Smart Text Matching**: Advanced normalization handles diacritics, punctuation, and case automatically
-- **Match Modes**: Choose between "Contains" (all words anywhere) or "Starts With" (first word at beginning)
-- **Robust Year Filtering**: Explicit prefixes (`y:1999`, `year:2010-2015`) prevent accidental title filtering
-- **File Path Search**: Optional inclusion of file paths in search (disabled by default)
-- **Efficient Paging**: Clean navigation with "Next/Previous" and state preservation
-
-### Year Filter Syntax
-
-**Explicit Prefixes** (always treated as filters):
-- `y:1999` or `year:1999` - Movies from 1999
-- `year:1990-2000` - Movies from 1990 to 2000
-- `year>=2010` - Movies from 2010 onwards
-- `year<=2005` - Movies up to 2005
-
-**Decade Shorthand** (when enabled in settings):
-- `'90s` or `1990s` - Movies from 1990-1999
-
-**Title Protection**: Numbers in movie titles like "2001: A Space Odyssey" or "Fahrenheit 451" are never treated as year filters unless explicitly prefixed.
-
-### Match Modes
-
-- **Contains** (default): All search words must appear somewhere in the title
-- **Starts With**: First word must start the title, remaining words can appear anywhere
-
-### Search Settings
-
-- **Match Mode**: Choose between Contains/Starts With
-- **Page Size**: 25-200 results per page (default: 50)
-- **Include File Path**: Search within file paths (off by default)
-- **Decade Shorthand**: Enable '90s style shortcuts (off by default)
 
 ---
 
@@ -279,6 +253,8 @@ LibraryGenie provides powerful local search with precision and predictability:
 1. Download the latest `plugin.video.library.genie-[version].zip` from releases
 2. Install via Kodi: Settings → Add-ons → Install from zip file
 3. The addon will be available in Videos → Video add-ons
+
+---
 
 ## Troubleshooting
 
@@ -315,7 +291,6 @@ If you experience slow scans or timeouts with large movie libraries (1000+ movie
 - Enable debug logging and check logs for details
 - Backup userdata and reinstall addon if issues persist
 
-
 ### Debug Information
 
 Enable debug logging in addon settings → General → Debug & Logging to get detailed information for troubleshooting. Debug logs will show:
@@ -324,7 +299,6 @@ Enable debug logging in addon settings → General → Debug & Logging to get de
 - Database operation performance metrics
 - Library scan progress and error details
 - Configuration validation and fallback behavior
-
 
 ### Reset and Recovery
 
@@ -348,10 +322,8 @@ Times may vary significantly based on network storage, system performance, and l
 
 ## Status
 
-## What works now
+**Phase 5 - Full List Management**: Complete local-only list management functionality with CRUD operations, user interface flows, and persistent SQLite storage. Create, rename, and delete lists with confirmation dialogs and item counts. All operations are fully localized and work both in Kodi and standalone testing environments.
 
-**Phase 5 - Full List Management**: Complete local-only list management functionality with CRUD operations, user interface flows, and persistent SQLite storage. Create, rename, and delete lists with confirmation dialogs and item counts. All operations are fully localized and work both in Kodi and standalone testing environments. No external services yet.
-
-- **Stable Core**: Local lists, folders, import/export.
+- **Stable Core**: Local lists, folders, import/export, search, favorites integration.
 - **Alpha**: External server search/similarity/sync (invite-only, opt-in).
 - **Optional**: TMDb enrichment with user-supplied API key.
