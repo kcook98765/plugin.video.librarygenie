@@ -33,7 +33,7 @@ class MainMenuHandler:
 
             # Get all lists and folders
             context.logger.info("Displaying lists menu")
-            lists = query_manager.get_all_lists()
+            lists = query_manager.get_user_lists()
             folders = query_manager.get_all_folders()
 
             context.logger.info(f"Found {len(lists)} total lists")
