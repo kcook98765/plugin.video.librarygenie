@@ -189,6 +189,71 @@ def _get_file_for_dbitem(dbtype: str, dbid: int) -> Optional[str]:
         return None
     return None
 
+def _create_xsp_for_dbitem(db_type: str, db_id: int) -> Optional[str]:
+    """
+    Create XSP file that filters to a specific database item by ID.
+    This creates a native Kodi list containing just the target item.
+    """
+    try:
+        _log(f"Creating XSP for database item {db_type} {db_id}")
+        
+        name = f"LG Hijack {db_type} {db_id}"
+        
+        if db_type.lower() == 'movie':
+            # Create XSP that filters movies by database ID
+            xsp = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<smartplaylist type="movies">
+  <name>{html.escape(name)}</name>
+  <match>all</match>
+  <rule field="dbid" operator="is">
+    <value>{db_id}</value>
+  </rule>
+  <order direction="ascending">title</order>
+</smartplaylist>"""
+        elif db_type.lower() == 'episode':
+            # Create XSP that filters episodes by database ID
+            xsp = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<smartplaylist type="episodes">
+  <name>{html.escape(name)}</name>
+  <match>all</match>
+  <rule field="dbid" operator="is">
+    <value>{db_id}</value>
+  </rule>
+  <order direction="ascending">title</order>
+</smartplaylist>"""
+        else:
+            _log(f"Unsupported db_type for XSP creation: {db_type}", xbmc.LOGWARNING)
+            return None
+        
+        # Use profile playlists path
+        playlists_dir = "special://profile/playlists/video/"
+        xsp_filename = f"lg_hijack_{db_type}_{db_id}.xsp"
+        path = playlists_dir + xsp_filename
+        
+        # Ensure playlists directory exists
+        try:
+            if not xbmcvfs.exists(playlists_dir):
+                _log(f"Creating playlists directory: {playlists_dir}")
+                xbmcvfs.mkdirs(playlists_dir)
+        except Exception as e:
+            _log(f"Failed to create playlists directory: {e}", xbmc.LOGWARNING)
+            # Fallback to temp
+            path = f"special://temp/{xsp_filename}"
+        
+        # Log the XSP content for debugging
+        _log(f"XSP content for {db_type} {db_id}:\n{xsp}")
+        
+        if _write_text(path, xsp):
+            _log(f"XSP created successfully: {path}")
+            return path
+        else:
+            _log(f"Failed to write XSP file: {path}", xbmc.LOGWARNING)
+            return None
+            
+    except Exception as e:
+        _log(f"Exception creating XSP for {db_type} {db_id}: {e}", xbmc.LOGERROR)
+        return None
+
 def _create_xsp_for_file(dbtype: str, dbid: int) -> Optional[str]:
     fp = _get_file_for_dbitem(dbtype, dbid)
     if not fp:
@@ -299,44 +364,63 @@ def _wait_videos_on(path: str, timeout_ms=6000) -> bool:
 
 def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
     """
-    Open native Kodi info dialog using direct JSON-RPC calls.
+    Proper hijack flow: Close current info dialog, navigate to native list, then open info.
+    This ensures the video info gets full Kodi metadata population from native library.
     """
     try:
-        _log(f"Opening native info for {db_type} {db_id}")
+        _log(f"Starting hijack process for {db_type} {db_id}")
         
-        # Use JSON-RPC to show video info instead of ActivateWindow
-        # This avoids window name translation issues in different Kodi versions
-        if db_type.lower() == 'movie':
-            result = jsonrpc("GUI.ActivateWindow", {
-                "window": "videoinformation",
-                "parameters": [f"videodb://movies/titles/{db_id}"]
-            })
-        elif db_type.lower() == 'episode':
-            result = jsonrpc("GUI.ActivateWindow", {
-                "window": "videoinformation", 
-                "parameters": [f"videodb://episodes/{db_id}"]
-            })
-        elif db_type.lower() == 'tvshow':
-            result = jsonrpc("GUI.ActivateWindow", {
-                "window": "videoinformation",
-                "parameters": [f"videodb://tvshows/titles/{db_id}"]
-            })
-        else:
-            logger.warning(f"Unsupported db_type for info hijack: {db_type}")
+        # Step 1: Close any open dialog first
+        current_dialog_id = xbmcgui.getCurrentWindowDialogId()
+        if current_dialog_id in (12003, 10147):  # DialogVideoInfo or similar
+            _log(f"Closing current video info dialog (ID: {current_dialog_id})")
+            xbmc.executebuiltin('Action(Back)')
+            # Wait for dialog to close
+            xbmc.sleep(200)
+        
+        # Step 2: Create XSP file for single item to create a native list
+        _log(f"Creating XSP file for {db_type} {db_id}")
+        xsp_path = _create_xsp_for_dbitem(db_type, db_id)
+        if not xsp_path:
+            _log(f"Failed to create XSP for {db_type} {db_id}", xbmc.LOGWARNING)
             return False
-
-        _log(f"Executed JSON-RPC GUI.ActivateWindow for {db_type} {db_id}, result: {result}")
         
-        # Wait for the dialog to appear
-        success = _wait_for_info_dialog()
+        # Step 3: Navigate to the XSP (creates native Kodi list with single item)
+        _log(f"Navigating to native list: {xsp_path}")
+        xbmc.executebuiltin(f'ActivateWindow(Videos,"{xsp_path}",return)')
+        
+        # Step 4: Wait for the Videos window to load with our item
+        if not _wait_videos_on(xsp_path, timeout_ms=4000):
+            _log(f"Failed to load Videos window with XSP: {xsp_path}", xbmc.LOGWARNING)
+            return False
+        
+        # Step 5: Focus the list and find our item
+        _log(f"Focusing list to locate {db_type} {db_id}")
+        if not focus_list():
+            _log(f"Failed to focus list control", xbmc.LOGWARNING)
+            return False
+        
+        # Step 6: Find the correct item index in the directory
+        target_index = _find_index_in_dir_by_file(xsp_path, None)
+        if target_index > 0:
+            _log(f"Selecting item at index {target_index}")
+            xbmc.executebuiltin(f'Action(SelectItem,{target_index})')
+            xbmc.sleep(100)
+        
+        # Step 7: Open info from the native list (this gets full metadata population)
+        _log(f"Opening video info from native list")
+        xbmc.executebuiltin('Action(Info)')
+        
+        # Step 8: Wait for the native info dialog to appear
+        success = _wait_for_info_dialog(timeout=6.0)
         if success:
-            _log(f"✅ Native info dialog opened successfully for {db_type} {db_id}")
+            _log(f"✅ Native info hijack completed successfully for {db_type} {db_id}")
         else:
-            _log(f"❌ Failed to detect native info dialog for {db_type} {db_id}", xbmc.LOGWARNING)
+            _log(f"❌ Failed to open native info after hijack for {db_type} {db_id}", xbmc.LOGWARNING)
             
         return success
     except Exception as e:
-        logger.error(f"Failed to open native info dialog: {e}")
+        logger.error(f"Failed hijack process for {db_type} {db_id}: {e}")
         return False
 
 def restore_container_after_close(orig_path: str, position_str: str, logger) -> bool:
