@@ -114,14 +114,16 @@ class MenuBuilder:
             return
 
         # Add context menu if provided
+        context_items_added = 0
         if context_menu and list_item is not None:
             list_item.addContextMenuItems(context_menu)
-            self.logger.debug(f"MENU ITEM: Added {len(context_menu)} base context menu items for '{title}'")
+            context_items_added = len(context_menu)
+            self.logger.debug(f"MENU ITEM: Added {context_items_added} base context menu items for '{title}'")
 
         # Context menus now handled globally via addon.xml and context.py
 
         if context_items_added > 0:
-            self.logger.debug(f"MENU ITEM: Total context menu items for '{title}': ~{context_items_added}")
+            self.logger.debug(f"MENU ITEM: Total context menu items for '{title}': {context_items_added}")
 
         # Add to directory
         xbmcplugin.addDirectoryItem(
