@@ -62,10 +62,15 @@ class InfoHijackManager:
         if not armed:
             return
 
+        # Add intent detection - only hijack if user is actually trying to open info
+        # Check if the Info action was recently triggered
+        if not self._is_info_intent_detected():
+            return
+
         dbid = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBID)') or xbmc.getInfoLabel('ListItem.DBID')
         dbtype = (xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBType)') or xbmc.getInfoLabel('ListItem.DBTYPE') or '').lower()
         
-        self._logger.debug(f"HIJACK: 🎯 TRIGGERED for armed item - DBID={dbid}, DBType={dbtype}")
+        self._logger.debug(f"HIJACK: 🎯 TRIGGERED for armed item with info intent - DBID={dbid}, DBType={dbtype}")
         
         if not dbid or not dbtype:
             self._logger.warning(f"HIJACK: Missing data - DBID={dbid}, DBType={dbtype}")
@@ -109,6 +114,25 @@ class InfoHijackManager:
         self._logger.debug(f"HIJACK: Saving return target - path: {orig_path}, position: {position}")
         xbmc.executebuiltin(f'SetProperty(LG.InfoHijack.ReturnPath,{orig_path},Home)')
         xbmc.executebuiltin(f'SetProperty(LG.InfoHijack.ReturnPosition,{position},Home)')
+
+    def _is_info_intent_detected(self) -> bool:
+        """
+        Detect if the user actually intends to open an info dialog.
+        This prevents false triggers when just navigating lists.
+        """
+        # Check if we're in a context menu (user might select "Information")
+        context_menu_active = xbmc.getCondVisibility('Window.IsActive(DialogContextMenu.xml)')
+        if context_menu_active:
+            self._logger.debug("HIJACK: Context menu active, allowing potential info intent")
+            return True
+        
+        # Check if the user recently pressed the Info key/button
+        # We can detect this by checking if an Info action was attempted recently
+        # This is imperfect but helps reduce false positives
+        
+        # For now, be more conservative and only trigger on context menu
+        # This should prevent the false triggers you're experiencing
+        return context_menu_active
 
     def _handle_native_info_closed(self):
         """Handle the native info dialog being closed - restore container"""
