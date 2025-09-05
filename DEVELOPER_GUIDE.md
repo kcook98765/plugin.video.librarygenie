@@ -97,6 +97,8 @@ LibraryGenie consists of three main layers:
 - **Backup Management**: Automated timestamp-based backups with configurable scheduling.
 - **Guardrails**: Check auth state, playback status, and recent run timestamps before proceeding.
 - **No Favorites Processing**: Favorites scanning removed from background service for performance and user control.
+- **Background services**: Respect playback state - never perform heavy operations during video playback.
+- **Info hijack**: Decouple heavy operations from dialog opening - save state, open dialog immediately, restore after close.
 
 ### UI/UX Guidelines
 - **Tools & Options**: Use centralized tools menu for context-aware actions.
