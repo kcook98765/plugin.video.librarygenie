@@ -7,11 +7,11 @@ Builds ListItems with proper metadata and resume information
 """
 
 import json
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import xbmcgui
 import xbmcplugin
 from ..utils.logger import get_logger
-from ..utils.kodi_version import is_kodi_v20_plus
+from ..utils.kodi_version import get_kodi_major_version
 
 
 class ListItemBuilder:
