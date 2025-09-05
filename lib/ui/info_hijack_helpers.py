@@ -299,29 +299,42 @@ def _wait_videos_on(path: str, timeout_ms=6000) -> bool:
 
 def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
     """
-    Open native Kodi info dialog using JSON-RPC for direct database access.
+    Open native Kodi info dialog using direct JSON-RPC calls.
     """
     try:
         _log(f"Opening native info for {db_type} {db_id}")
         
+        # Use JSON-RPC to show video info instead of ActivateWindow
+        # This avoids window name translation issues in different Kodi versions
         if db_type.lower() == 'movie':
-            # Use ActivateWindow with videodb URL for movies
-            videodb_url = f"videodb://movies/titles/{db_id}"
-            xbmc.executebuiltin(f'ActivateWindow(VideoInfo,{videodb_url})')
+            result = jsonrpc("GUI.ActivateWindow", {
+                "window": "videoinformation",
+                "parameters": [f"videodb://movies/titles/{db_id}"]
+            })
         elif db_type.lower() == 'episode':
-            # Use ActivateWindow with videodb URL for episodes
-            videodb_url = f"videodb://episodes/{db_id}"
-            xbmc.executebuiltin(f'ActivateWindow(VideoInfo,{videodb_url})')
+            result = jsonrpc("GUI.ActivateWindow", {
+                "window": "videoinformation", 
+                "parameters": [f"videodb://episodes/{db_id}"]
+            })
         elif db_type.lower() == 'tvshow':
-            # Use ActivateWindow with videodb URL for TV shows
-            videodb_url = f"videodb://tvshows/titles/{db_id}"
-            xbmc.executebuiltin(f'ActivateWindow(VideoInfo,{videodb_url})')
+            result = jsonrpc("GUI.ActivateWindow", {
+                "window": "videoinformation",
+                "parameters": [f"videodb://tvshows/titles/{db_id}"]
+            })
         else:
             logger.warning(f"Unsupported db_type for info hijack: {db_type}")
             return False
 
-        _log(f"Executed ActivateWindow for {db_type} {db_id}, waiting for dialog...")
-        return _wait_for_info_dialog()
+        _log(f"Executed JSON-RPC GUI.ActivateWindow for {db_type} {db_id}, result: {result}")
+        
+        # Wait for the dialog to appear
+        success = _wait_for_info_dialog()
+        if success:
+            _log(f"✅ Native info dialog opened successfully for {db_type} {db_id}")
+        else:
+            _log(f"❌ Failed to detect native info dialog for {db_type} {db_id}", xbmc.LOGWARNING)
+            
+        return success
     except Exception as e:
         logger.error(f"Failed to open native info dialog: {e}")
         return False
