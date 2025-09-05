@@ -1717,6 +1717,35 @@ msgctxt "#36073"
 msgid "Restore Backup Options"
 msgstr ""
 
+# ShortList Import strings
+msgctxt "#37000"
+msgid "This will import all items from ShortList addon into a 'ShortList Import' list."
+msgstr ""
+
+msgctxt "#37001"
+msgid "Only items that match movies in your Kodi library will be imported."
+msgstr ""
+
+msgctxt "#37002"
+msgid "Continue"
+msgstr ""
+
+msgctxt "#37003"
+msgid "The %s requires authorization with the remote server."
+msgstr ""
+
+msgctxt "#37004"
+msgid "Would you like to authorize this device now?"
+msgstr ""
+
+msgctxt "#37005"
+msgid "Device is not authorized for remote services."
+msgstr ""
+
+msgctxt "#37006"
+msgid "Would you like to authorize now?"
+msgstr ""
+
 # Additional placeholder entries for future use
 msgctxt "#36999"
 msgid "Reserved for future use"

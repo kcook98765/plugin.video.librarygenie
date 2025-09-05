@@ -35,13 +35,15 @@ class AuthorizationHelper:
         # Show authorization prompt
         dialog = xbmcgui.Dialog()
 
+        from ..ui.localization import L
+        
         result = dialog.yesno(
-            heading="Authorization Required",
-            line1=f"The {feature_name} requires authorization with the remote server.",
-            line2="Would you like to authorize this device now?",
+            heading=L(34106),  # "Authentication required"
+            line1=L(37003) % feature_name,  # "The %s requires authorization with the remote server."
+            line2=L(37004),    # "Would you like to authorize this device now?"
             line3="",
-            nolabel="Cancel",
-            yeslabel="Authorize"
+            nolabel=L(36003),  # "Cancel"
+            yeslabel=L(35028)  # "Authorize device"
         )
 
         if not result:
@@ -76,13 +78,15 @@ class AuthorizationHelper:
                 "Device is currently authorized for remote services."
             )
         else:
+            from ..ui.localization import L
+            
             result = dialog.yesno(
-                heading="Authorization Status",
-                line1="Device is not authorized for remote services.",
-                line2="Would you like to authorize now?",
+                heading=L(34100),  # "Sync Status" 
+                line1=L(37005),    # "Device is not authorized for remote services."
+                line2=L(37006),    # "Would you like to authorize now?"
                 line3="",
-                nolabel="Cancel",
-                yeslabel="Authorize"
+                nolabel=L(36003),  # "Cancel"
+                yeslabel=L(35028)  # "Authorize device"
             )
 
             if result:

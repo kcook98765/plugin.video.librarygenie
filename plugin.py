@@ -41,15 +41,17 @@ def handle_signout():
 
     addon = xbmcaddon.Addon()
 
+    from lib.ui.localization import L
+    
     # Confirm sign out
     dialog = xbmcgui.Dialog()
     if dialog.yesno(
-        heading=addon.getLocalizedString(35002),  # "LibraryGenie"
-        line1=addon.getLocalizedString(35029),  # "Sign out"
-        line2=addon.getLocalizedString(35030),  # "Are you sure you want to sign out?"
+        heading=L(35002),  # "LibraryGenie"
+        line1=L(35029),    # "Sign out"
+        line2=L(35030),    # "Are you sure you want to sign out?"
         line3="",
-        nolabel="Cancel",
-        yeslabel="Sign Out"
+        nolabel=L(36003),  # "Cancel"
+        yeslabel=L(35029)  # "Sign out"
     ):
         if clear_tokens():
             xbmcgui.Dialog().notification(
@@ -316,13 +318,15 @@ def handle_shortlist_import():
         # Show confirmation dialog
         dialog = xbmcgui.Dialog()
 
+        from lib.ui.localization import L
+        
         if not dialog.yesno(
-            heading="ShortList Import",
-            line1="This will import all items from ShortList addon into a 'ShortList Import' list.",
-            line2="Only items that match movies in your Kodi library will be imported.",
+            heading=L(30071),  # "Import from ShortList addon"
+            line1=L(37000),    # "This will import all items from ShortList addon into a 'ShortList Import' list."
+            line2=L(37001),    # "Only items that match movies in your Kodi library will be imported."
             line3="",
-            nolabel="Cancel",
-            yeslabel="Continue"
+            nolabel=L(36003),  # "Cancel"
+            yeslabel=L(37002)  # "Continue"
         ):
             return
 
