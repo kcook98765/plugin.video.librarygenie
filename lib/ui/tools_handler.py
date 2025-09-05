@@ -158,7 +158,7 @@ class ToolsHandler:
             def shorten_name_for_menu(name: str, max_length: int = 30) -> str:
                 if len(name) <= max_length:
                     return name
-                
+
                 # For search history, extract just the search terms
                 if name.startswith("Search: '") and "' (" in name:
                     search_part = name.split("' (")[0].replace("Search: '", "")
@@ -166,12 +166,12 @@ class ToolsHandler:
                         return f"'{search_part}'"
                     else:
                         return f"'{search_part[:max_length-6]}...'"
-                
+
                 # For regular names, just truncate
                 return f"{name[:max_length-3]}..."
-            
+
             short_name = shorten_name_for_menu(list_info['name'])
-            
+
             if is_search_history:
                 # Special options for search history lists
                 options = [
@@ -803,12 +803,17 @@ class ToolsHandler:
             selected_backup = backups[selected_index]
 
             # Confirm restore
-            if dialog.yesno(
-                "Confirm Restore",
-                f"Restore backup: {selected_backup['filename']}?",
-                f"This will restore data from {selected_backup['age_days']} days ago.",
-                "Current data will be backed up first."
-            ):
+            dialog = xbmcgui.Dialog()
+            confirmed = dialog.yesno(
+                "LibraryGenie Restore",
+                "Restore from backup:",
+                f"{selected_backup['filename']}",
+                "This will replace all current data.",
+                nolabel="Cancel",
+                yeslabel="Restore"
+            )
+
+            if confirmed:
                 # Restore backup
                 restore_result = backup_manager.restore_backup(selected_backup['filename'])
 

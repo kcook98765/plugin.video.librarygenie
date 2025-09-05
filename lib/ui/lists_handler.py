@@ -281,12 +281,19 @@ class ListsHandler:
                     success=False,
                     message="List not found"
                 )
+            list_name = list_info.get('name', 'Unnamed List')
 
-            # Confirm deletion
-            if not xbmcgui.Dialog().yesno(
-                L(35002),
-                f"Delete list '{list_info['name']}'?\n\nThis will remove {list_info['item_count']} items from the list."
-            ):
+            # Show confirmation dialog
+            dialog = xbmcgui.Dialog()
+            confirmed = dialog.yesno(
+                self._get_string(30000),  # "LibraryGenie"
+                f"Are you sure you want to delete the list '{list_name}'?",
+                "This action cannot be undone.",
+                nolabel=self._get_string(30002),  # "Cancel"
+                yeslabel=self._get_string(30001)   # "Delete"
+            )
+
+            if not confirmed:
                 context.logger.info("User cancelled list deletion")
                 return DialogResponse(success=False)
 
@@ -299,10 +306,10 @@ class ListsHandler:
                     message="Failed to delete list"
                 )
             else:
-                context.logger.info(f"Successfully deleted list: {list_info['name']}")
+                context.logger.info(f"Successfully deleted list: {list_name}")
                 return DialogResponse(
                     success=True,
-                    message=f"Deleted list: {list_info['name']}",
+                    message=f"Deleted list: {list_name}",
                     refresh_needed=True
                 )
 
@@ -583,8 +590,10 @@ class ListsHandler:
                     message="Folder not found"
                 )
 
+            folder_name = folder_info.get('name', 'Unnamed Folder')
+
             # Check if it's a reserved folder
-            if folder_info['name'] == 'Search History':
+            if folder_name == 'Search History':
                 return DialogResponse(
                     success=False,
                     message="Cannot delete reserved folder"
@@ -592,22 +601,30 @@ class ListsHandler:
 
             # Check if folder has lists
             lists_in_folder = query_manager.get_lists_in_folder(folder_id)
+            num_lists = len(lists_in_folder)
 
-            # Confirm deletion
+            # Show confirmation dialog
+            dialog = xbmcgui.Dialog()
             if lists_in_folder:
-                if not xbmcgui.Dialog().yesno(
-                    L(35002),
-                    f"Delete folder '{folder_info['name']}'?\n\nThis folder contains {len(lists_in_folder)} lists.\nAll lists will be moved to the root level."
-                ):
-                    context.logger.info("User cancelled folder deletion")
-                    return DialogResponse(success=False)
+                confirmed = dialog.yesno(
+                    self._get_string(30000),  # "LibraryGenie"
+                    f"Are you sure you want to delete the folder '{folder_name}' and all its contents?",
+                    "This action cannot be undone.",
+                    nolabel=self._get_string(30002),  # "Cancel"
+                    yeslabel=self._get_string(30001)   # "Delete"
+                )
             else:
-                if not xbmcgui.Dialog().yesno(
-                    L(35002),
-                    f"Delete empty folder '{folder_info['name']}'?"
-                ):
-                    context.logger.info("User cancelled folder deletion")
-                    return DialogResponse(success=False)
+                confirmed = dialog.yesno(
+                    self._get_string(30000),  # "LibraryGenie"
+                    f"Are you sure you want to delete the empty folder '{folder_name}'?",
+                    "This action cannot be undone.",
+                    nolabel=self._get_string(30002),  # "Cancel"
+                    yeslabel=self._get_string(30001)   # "Delete"
+                )
+
+            if not confirmed:
+                context.logger.info("User cancelled folder deletion")
+                return DialogResponse(success=False)
 
             # Delete the folder
             result = query_manager.delete_folder(folder_id)
@@ -618,7 +635,7 @@ class ListsHandler:
                     message="Failed to delete folder"
                 )
             else:
-                context.logger.info(f"Successfully deleted folder: {folder_info['name']}")
+                context.logger.info(f"Successfully deleted folder: {folder_name}")
 
                 # If deletion was successful, navigate back to lists menu
                 # since the current folder no longer exists
@@ -627,7 +644,7 @@ class ListsHandler:
 
                 return DialogResponse(
                     success=True,
-                    message=f"Deleted folder: {folder_info['name']}",
+                    message=f"Deleted folder: {folder_name}",
                     refresh_needed=True
                 )
 
