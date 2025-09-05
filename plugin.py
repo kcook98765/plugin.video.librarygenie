@@ -325,10 +325,8 @@ def handle_shortlist_import():
         
         logger.info("Showing confirmation dialog")
         if not dialog.yesno(
-            heading=L(30071),  # "Import from ShortList addon"
-            line1=L(37000),    # "This will import all items from ShortList addon into a 'ShortList Import' list."
-            line2=L(37001),    # "Only items that match movies in your Kodi library will be imported."
-            line3="",
+            L(30071),  # "Import from ShortList addon"
+            L(37000) + "\n" + L(37001),  # Combined message
             nolabel=L(36003),  # "Cancel"
             yeslabel=L(37002)  # "Continue"
         ):
