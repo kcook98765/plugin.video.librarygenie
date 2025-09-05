@@ -183,37 +183,38 @@ class InfoHijackManager:
         """
         Detect if the user actually intends to open an info dialog.
         This prevents false triggers when just navigating lists.
+        
+        We only trigger when:
+        1. Context menu is active (user might select "Information")
+        2. Video info dialog is already open (user opened it through other means)
+        3. We detect a recent action that suggests info intent
         """
         # Check if we're in a context menu (user might select "Information")
         context_menu_active = xbmc.getCondVisibility('Window.IsActive(DialogContextMenu.xml)')
         if context_menu_active:
-            self._logger.debug("HIJACK: Context menu active, allowing potential info intent")
+            self._logger.debug("HIJACK: Context menu active, user may select info")
             return True
         
-        # Check if we're in a library list (our plugin or native library views)
-        # This allows direct item selection (Enter/OK) to trigger hijack
-        container_content = xbmc.getInfoLabel('Container.Content')
-        container_path = xbmc.getInfoLabel('Container.FolderPath')
-        
-        # Allow hijack in these scenarios:
-        # 1. Our plugin lists (LibraryGenie content)
-        # 2. Native library views (movies, tvshows, episodes)
-        # 3. When viewing media content specifically
-        
-        is_plugin_content = 'plugin.video.librarygenie' in container_path
-        is_media_content = container_content in ['movies', 'tvshows', 'episodes', 'musicvideos']
-        
-        if is_plugin_content or is_media_content:
-            self._logger.debug(f"HIJACK: Media content detected - path: {container_path}, content: {container_content}")
+        # Check if video info dialog is already open (user opened it somehow)
+        info_dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+        if info_dialog_active:
+            self._logger.debug("HIJACK: Video info dialog already open")
             return True
         
-        # For debugging: Be more permissive - allow hijack if we have an armed item
-        # This helps with testing and ensures hijack works when expected
-        armed = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)') == '1'
-        if armed:
-            self._logger.debug("HIJACK: Armed item detected, allowing hijack for testing")
-            return True
+        # Check for recent timing that suggests user action
+        # If we just had a navigation change, don't hijack immediately
+        current_time = time.time()
+        time_since_last_hijack = current_time - self._last_hijack_time
         
+        # Prevent rapid-fire hijacks when just navigating
+        if time_since_last_hijack < 2.0:
+            self._logger.debug(f"HIJACK: Too soon since last hijack ({time_since_last_hijack:.1f}s), avoiding false trigger")
+            return False
+        
+        # For now, be very conservative - only allow hijack in specific scenarios
+        # We can relax this later once we have better intent detection
+        
+        self._logger.debug("HIJACK: No clear info intent detected, skipping hijack")
         return False
 
     def _handle_native_info_closed(self):
