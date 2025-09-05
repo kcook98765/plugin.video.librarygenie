@@ -543,13 +543,13 @@ msgid "Missing from library"
 msgstr ""
 
 msgctxt "#32181"
-msgstr "Integrate with Kodi's built-in favorites for seamless list management"
+msgid "Integrate with Kodi's built-in favorites for seamless list management"
 
 msgctxt "#32200"
-msgstr "Add to LibraryGenie List..."
+msgid "Add to LibraryGenie List..."
 
 msgctxt "#32201"
-msgstr "Add this item to a LibraryGenie list"
+msgid "Add this item to a LibraryGenie list"
 
 # Search UI and Operations
 msgctxt "#33000"
@@ -1475,13 +1475,13 @@ msgid "Backup location"
 msgstr ""
 
 msgctxt "#30533"
-msgstr "Storage Location"
+msgid "Storage Location"
 
 msgctxt "#30534"
-msgstr "Default (Addon Data)"
+msgid "Default (Addon Data)"
 
 msgctxt "#30535"
-msgstr "Custom Location"
+msgid "Custom Location"
 
 msgctxt "#30540"
 msgid "Backup Actions"
@@ -1772,6 +1772,34 @@ msgstr ""
 
 msgctxt "#37020"
 msgid "Enter new list name"
+msgstr ""
+
+msgctxt "#37021"
+msgid "Please configure the Remote API Base URL in addon settings before authorizing."
+msgstr ""
+
+msgctxt "#37022"
+msgid "Could not contact server:"
+msgstr ""
+
+msgctxt "#37023"
+msgid "Authorization in progress"
+msgstr ""
+
+msgctxt "#37024"
+msgid "Visit the authorization URL to complete setup"
+msgstr ""
+
+msgctxt "#37025"
+msgid "Waiting for authorization..."
+msgstr ""
+
+msgctxt "#37026"
+msgid "Authorization timeout"
+msgstr ""
+
+msgctxt "#37027"
+msgid "Please try the authorization process again"
 msgstr ""
 
 # Additional placeholder entries for future use

@@ -3,14 +3,16 @@
 
 """
 LibraryGenie - Device Code Authorization
-Implements OAuth2 device code flow for server authorization
+Handles OAuth2 device code flow for remote API authorization
 """
 
+import urllib.request
+import urllib.parse
 import json
 import time
-import urllib.request
-import urllib.error
+import xbmc
 import xbmcgui
+from ..ui.localization import L
 from ..config import get_config
 from ..utils.logger import get_logger
 from .state import save_tokens
@@ -248,9 +250,6 @@ def run_authorize_flow():
 def test_authorization():
     """Test if the current authorization is working"""
     try:
-        from ..ui.localization import L
-        from .state import get_access_token
-
         token = get_access_token()
         if not token:
             return False, L(34106)  # "Authentication required"

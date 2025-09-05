@@ -22,6 +22,8 @@ class RemoteError(Exception):
     pass
 
 
+from ..ui.localization import L
+
 def search_remote(query, page=1, page_size=100):
     """
     Search remote server for movies/shows

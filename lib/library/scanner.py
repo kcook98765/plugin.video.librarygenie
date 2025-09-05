@@ -15,6 +15,8 @@ from ..kodi.json_rpc_client import get_kodi_client
 from ..utils.logger import get_logger
 
 
+from ..ui.localization import L
+
 class LibraryScanner:
     """Scans and indexes Kodi's video library"""
 
