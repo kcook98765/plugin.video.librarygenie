@@ -853,57 +853,32 @@ class TimestampBackupManager:
     def _validate_backup_worthiness(self) -> Dict[str, Any]:
         """Check if there's meaningful user data worth backing up"""
         try:
-            self.logger.debug("BACKUP_DEBUG: Starting backup worthiness validation")
-            from ..data.query_manager import get_query_manager
-
-            self.logger.debug("BACKUP_DEBUG: Getting query manager instance")
-            query_manager = get_query_manager()
-            self.logger.debug(f"BACKUP_DEBUG: Query manager type: {type(query_manager)}")
-            self.logger.debug(f"BACKUP_DEBUG: Query manager attributes: {dir(query_manager)}")
-
-            if not hasattr(query_manager, 'conn_manager'):
-                self.logger.error("BACKUP_DEBUG: QueryManager missing conn_manager attribute")
-                # Use the existing connection manager from this class instead
-                self.logger.debug("BACKUP_DEBUG: Using backup manager's conn_manager")
-                conn_manager = self.conn_manager
-            else:
-                self.logger.debug("BACKUP_DEBUG: QueryManager has conn_manager, initializing")
-                if not query_manager.initialize():
-                    self.logger.error("BACKUP_DEBUG: Query manager initialization failed")
-                    return {"worthy": False, "reason": "Database not accessible"}
-                conn_manager = query_manager.conn_manager
-
-            self.logger.debug(f"BACKUP_DEBUG: Using conn_manager: {type(conn_manager)}")
-
+            # Use the connection manager directly for database queries
+            # This follows the standard pattern used throughout the codebase
+            
             # Count user lists (excluding system folders)
-            self.logger.debug("BACKUP_DEBUG: Counting user lists")
-            lists_count = conn_manager.execute_single("""
+            lists_count = self.conn_manager.execute_single("""
                 SELECT COUNT(*) as count FROM lists l
                 LEFT JOIN folders f ON l.folder_id = f.id
                 WHERE f.name != 'Search History' OR f.name IS NULL
             """)
 
             user_lists = lists_count.get('count', 0) if lists_count else 0
-            self.logger.debug(f"BACKUP_DEBUG: Found {user_lists} user lists")
 
             # Count total list items
-            self.logger.debug("BACKUP_DEBUG: Counting list items")
-            items_count = conn_manager.execute_single("""
+            items_count = self.conn_manager.execute_single("""
                 SELECT COUNT(*) as count FROM list_items
             """)
 
             total_items = items_count.get('count', 0) if items_count else 0
-            self.logger.debug(f"BACKUP_DEBUG: Found {total_items} list items")
 
             # Count user-created folders (excluding Search History)
-            self.logger.debug("BACKUP_DEBUG: Counting user folders")
-            folders_count = conn_manager.execute_single("""
+            folders_count = self.conn_manager.execute_single("""
                 SELECT COUNT(*) as count FROM folders 
                 WHERE name != 'Search History'
             """)
 
             user_folders = folders_count.get('count', 0) if folders_count else 0
-            self.logger.debug(f"BACKUP_DEBUG: Found {user_folders} user folders")
 
             self.logger.debug(f"Backup worthiness check: {user_lists} lists, {total_items} items, {user_folders} folders")
 
@@ -920,9 +895,9 @@ class TimestampBackupManager:
                 }
 
         except Exception as e:
-            self.logger.error(f"BACKUP_DEBUG: Error validating backup worthiness: {type(e).__name__}: {e}")
+            self.logger.error(f"Error validating backup worthiness: {type(e).__name__}: {e}")
             import traceback
-            self.logger.error(f"BACKUP_DEBUG: Traceback: {traceback.format_exc()}")
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
             # If we can't validate, err on the side of allowing backup
             return {"worthy": True, "reason": "Validation failed, allowing backup"}
 
