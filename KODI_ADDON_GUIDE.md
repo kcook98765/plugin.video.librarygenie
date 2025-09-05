@@ -116,7 +116,7 @@ lib/
 
 ## 11) Specific Tips for LibraryGenie
 - **Local-first**: Lists/folders and import/export work entirely offline. External search/similarity disabled until user authorizes (OTP workflow).
-- **Universal context menus**: Context menu script (`context.py`) handles all playable media types including plugin content from any addon.
+- **Global context menus**: Context menu script (`context.py`) handles all playable media types including plugin content from any addon via global addon.xml registration.
 - **Plugin item support**: Gather appropriate metadata from focused plugin items for external type storage.
 - **Quick save functionality**: Optional streamlined workflow with dual context menu options when configured.
 - **Settings integration**: Context menu behavior adapts based on user settings (quick save enabled, default list configured).
