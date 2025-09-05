@@ -274,6 +274,35 @@ def _handle_manual_backup(context: PluginContext):
         pass
 
 
+def _handle_restore_backup(context: PluginContext):
+    """Handle restore backup from settings - delegated to tools handler"""
+    try:
+        from lib.ui.tools_handler import ToolsHandler
+        tools_handler = ToolsHandler()
+        
+        # Call the restore backup method from tools handler
+        response = tools_handler.restore_backup_from_settings()
+        
+        # Handle the response appropriately
+        from lib.ui.response_types import DialogResponse
+        from lib.ui.response_handler import get_response_handler
+        
+        if isinstance(response, DialogResponse):
+            response_handler = get_response_handler()
+            response_handler.handle_dialog_response(response, context)
+
+    except Exception as e:
+        logger.error(f"Error in restore backup handler: {e}")
+        xbmcgui.Dialog().ok("Restore Backup Error", f"An error occurred: {str(e)}")
+
+    # Don't render directory for settings actions
+    try:
+        if context.addon_handle >= 0:
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+    except Exception:
+        pass
+
+
 def handle_shortlist_import():
     """Handle ShortList import action from settings"""
     import xbmcgui
@@ -464,6 +493,7 @@ def _register_all_handlers(router: Router):
         'import_shortlist': lambda ctx: handle_shortlist_import(),
         'test_backup': lambda ctx: _handle_test_backup(ctx),
         'manual_backup': lambda ctx: _handle_manual_backup(ctx),
+        'restore_backup': lambda ctx: _handle_restore_backup(ctx),
         'noop': lambda ctx: handle_noop(),
         'settings': lambda ctx: handle_settings(),
     })

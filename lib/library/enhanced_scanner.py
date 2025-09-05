@@ -330,36 +330,31 @@ class Phase3LibraryScanner:
                             continue
 
                         conn.execute("""
-                            INSERT OR REPLACE INTO library_movie
-                            (kodi_id, title, year, imdb_id, tmdb_id, file_path, date_added, last_seen,
-                             poster, fanart, thumb, plot, plotoutline, runtime, rating, genre,
-                             mpaa, director, country, studio, playcount, resume_time)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'),
-                                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            INSERT OR REPLACE INTO media_items
+                            (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, created_at, updated_at,
+                             poster, fanart, plot, rating, duration, genre, mpaa, director, country, studio)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'),
+                                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, [
+                            'movie',
                             normalized_movie["kodi_id"],
                             normalized_movie["title"],
                             normalized_movie.get("year"),
                             normalized_movie.get("imdb_id"),
                             normalized_movie.get("tmdb_id"),
                             normalized_movie["file_path"],
-                            normalized_movie.get("date_added"),
                             # Artwork
                             normalized_movie.get("poster", ""),
                             normalized_movie.get("fanart", ""),
-                            normalized_movie.get("thumb", ""),
                             # Metadata
                             normalized_movie.get("plot", ""),
-                            normalized_movie.get("plotoutline", ""),
-                            normalized_movie.get("runtime", 0),
                             normalized_movie.get("rating", 0.0),
+                            normalized_movie.get("runtime", 0),
                             normalized_movie.get("genre", ""),
                             normalized_movie.get("mpaa", ""),
                             normalized_movie.get("director", ""),
                             str(normalized_movie.get("country", [])),
-                            str(normalized_movie.get("studio", [])),
-                            normalized_movie.get("playcount", 0),
-                            normalized_movie.get("resume_time", 0)
+                            str(normalized_movie.get("studio", []))
                         ])
                         inserted_count += 1
 
@@ -409,7 +404,7 @@ class Phase3LibraryScanner:
         """Clear the existing library index (enhanced with batching)"""
         try:
             with self.conn_manager.transaction() as conn:
-                conn.execute("DELETE FROM library_movie")
+                conn.execute("DELETE FROM media_items WHERE media_type = 'movie'")
             self.logger.debug("Library index cleared for full scan")
         except Exception as e:
             self.logger.error(f"Failed to clear library index: {e}")
@@ -419,9 +414,9 @@ class Phase3LibraryScanner:
         """Get indexed movie IDs (lightweight query)"""
         try:
             movies = self.conn_manager.execute_query("""
-                SELECT kodi_id, title, file_path, is_removed
-                FROM library_movie
-                WHERE is_removed = 0
+                SELECT kodi_id, title, play as file_path, is_removed
+                FROM media_items
+                WHERE media_type = 'movie' AND is_removed = 0
             """)
             return movies or []
         except Exception as e:
@@ -442,9 +437,9 @@ class Phase3LibraryScanner:
                         break
 
                     result = conn.execute("""
-                        UPDATE library_movie
-                        SET is_removed = 1, last_seen = datetime('now')
-                        WHERE kodi_id = ? AND is_removed = 0
+                        UPDATE media_items
+                        SET is_removed = 1, updated_at = datetime('now')
+                        WHERE kodi_id = ? AND media_type = 'movie' AND is_removed = 0
                     """, [kodi_id])
 
                     if result.rowcount > 0:
@@ -471,9 +466,9 @@ class Phase3LibraryScanner:
                         break
 
                     result = conn.execute("""
-                        UPDATE library_movie
-                        SET last_seen = datetime('now')
-                        WHERE kodi_id = ? AND is_removed = 0
+                        UPDATE media_items
+                        SET updated_at = datetime('now')
+                        WHERE kodi_id = ? AND media_type = 'movie' AND is_removed = 0
                     """, [kodi_id])
 
                     if result.rowcount > 0:

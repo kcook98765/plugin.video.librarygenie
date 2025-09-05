@@ -46,8 +46,8 @@ class QueryManager:
         canonical["year"] = int(item.get("year", 0)) if item.get("year") else 0
         canonical["genre"] = str(item.get("genre", ""))
         canonical["plot"] = str(item.get("plot", item.get("plotoutline", "")))
-        canonical["rating"] = float(item.get("rating", 0.0))
-        canonical["votes"] = int(item.get("votes", 0))
+        canonical["rating"] = float(item.get("rating") or 0.0)
+        canonical["votes"] = int(item.get("votes") or 0)
         canonical["mpaa"] = str(item.get("mpaa", ""))
         canonical["studio"] = str(item.get("studio", ""))
         canonical["country"] = str(item.get("country", ""))
@@ -434,17 +434,16 @@ class QueryManager:
     def get_list_by_id(self, list_id):
         """Get list information by ID"""
         try:
-            with self.connection_manager.transaction() as conn:
-                result = conn.execute("""
-                    SELECT l.id, l.name, l.folder_id, l.created_at,
-                           f.name as folder_name,
-                           COUNT(li.id) as item_count
-                    FROM lists l
-                    LEFT JOIN folders f ON l.folder_id = f.id
-                    LEFT JOIN list_items li ON l.id = li.list_id
-                    WHERE l.id = ?
-                    GROUP BY l.id, l.name, l.folder_id, l.created_at, f.name
-                """, [int(list_id)]).fetchone()
+            result = self.connection_manager.execute_single("""
+                SELECT l.id, l.name, l.folder_id, l.created_at,
+                       f.name as folder_name,
+                       COUNT(li.id) as item_count
+                FROM lists l
+                LEFT JOIN folders f ON l.folder_id = f.id
+                LEFT JOIN list_items li ON l.id = li.list_id
+                WHERE l.id = ?
+                GROUP BY l.id, l.name, l.folder_id, l.created_at, f.name
+            """, [int(list_id)])
 
                 if result:
                     folder_context = f" ({result['folder_name']})" if result['folder_name'] else ""
@@ -466,17 +465,16 @@ class QueryManager:
     def get_list_by_name(self, list_name):
         """Get list information by name"""
         try:
-            with self.connection_manager.transaction() as conn:
-                result = conn.execute("""
-                    SELECT l.id, l.name, l.folder_id, l.created_at,
-                           f.name as folder_name,
-                           COUNT(li.id) as item_count
-                    FROM lists l
-                    LEFT JOIN folders f ON l.folder_id = f.id
-                    LEFT JOIN list_items li ON l.id = li.list_id
-                    WHERE l.name = ?
-                    GROUP BY l.id, l.name, l.folder_id, l.created_at, f.name
-                """, [list_name]).fetchone()
+            result = self.connection_manager.execute_single("""
+                SELECT l.id, l.name, l.folder_id, l.created_at,
+                       f.name as folder_name,
+                       COUNT(li.id) as item_count
+                FROM lists l
+                LEFT JOIN folders f ON l.folder_id = f.id
+                LEFT JOIN list_items li ON l.id = li.list_id
+                WHERE l.name = ?
+                GROUP BY l.id, l.name, l.folder_id, l.created_at, f.name
+            """, [list_name])
 
                 if result:
                     folder_context = f" ({result['folder_name']})" if result['folder_name'] else ""
@@ -1537,26 +1535,24 @@ class QueryManager:
     def get_list_info(self, list_id: int) -> Optional[Dict[str, Any]]:
         """Get information about a specific list"""
         try:
-            with self.connection_manager.get_connection() as conn:
-                cursor = conn.execute("""
-                    SELECT l.id, l.name, l.folder_id, l.created_at,
-                           COUNT(li.id) as item_count
-                    FROM lists l
-                    LEFT JOIN list_items li ON l.id = li.list_id
-                    WHERE l.id = ?
-                    GROUP BY l.id, l.name, l.folder_id, l.created_at
-                """, (list_id,))
+            result = self.connection_manager.execute_single("""
+                SELECT l.id, l.name, l.folder_id, l.created_at,
+                       COUNT(li.id) as item_count
+                FROM lists l
+                LEFT JOIN list_items li ON l.id = li.list_id
+                WHERE l.id = ?
+                GROUP BY l.id, l.name, l.folder_id, l.created_at
+            """, [list_id])
 
-                row = cursor.fetchone()
-                if row:
-                    return {
-                        'id': row[0],
-                        'name': row[1],
-                        'folder_id': row[2],
-                        'created_at': row[3],
-                        'item_count': row[4]
-                    }
-                return None
+            if result:
+                return {
+                    'id': result['id'],
+                    'name': result['name'],
+                    'folder_id': result['folder_id'],
+                    'created_at': result['created_at'],
+                    'item_count': result['item_count']
+                }
+            return None
 
         except Exception as e:
             self.logger.error(f"Error getting list info for {list_id}: {e}")
@@ -1565,29 +1561,27 @@ class QueryManager:
     def get_folder_info(self, folder_id: int) -> Optional[Dict[str, Any]]:
         """Get information about a specific folder"""
         try:
-            with self.connection_manager.get_connection() as conn:
-                cursor = conn.execute("""
-                    SELECT f.id, f.name, f.parent_id, f.created_at,
-                           COUNT(DISTINCT l.id) as list_count,
-                           COUNT(DISTINCT sf.id) as subfolder_count
-                    FROM folders f
-                    LEFT JOIN lists l ON f.id = l.folder_id
-                    LEFT JOIN folders sf ON f.id = sf.parent_id
-                    WHERE f.id = ?
-                    GROUP BY f.id, f.name, f.parent_id, f.created_at
-                """, (folder_id,))
+            result = self.connection_manager.execute_single("""
+                SELECT f.id, f.name, f.parent_id, f.created_at,
+                       COUNT(DISTINCT l.id) as list_count,
+                       COUNT(DISTINCT sf.id) as subfolder_count
+                FROM folders f
+                LEFT JOIN lists l ON f.id = l.folder_id
+                LEFT JOIN folders sf ON f.id = sf.parent_id
+                WHERE f.id = ?
+                GROUP BY f.id, f.name, f.parent_id, f.created_at
+            """, [folder_id])
 
-                row = cursor.fetchone()
-                if row:
-                    return {
-                        'id': row[0],
-                        'name': row[1],
-                        'parent_id': row[2],
-                        'created_at': row[3],
-                        'list_count': row[4],
-                        'subfolder_count': row[5]
-                    }
-                return None
+            if result:
+                return {
+                    'id': result['id'],
+                    'name': result['name'],
+                    'parent_id': result['parent_id'],
+                    'created_at': result['created_at'],
+                    'list_count': result['list_count'],
+                    'subfolder_count': result['subfolder_count']
+                }
+            return None
 
         except Exception as e:
             self.logger.error(f"Error getting folder info for {folder_id}: {e}")

@@ -38,9 +38,9 @@ class ListLibraryManager:
             
             # Get movie details for the list item
             movie = self.conn_manager.execute_single("""
-                SELECT title, year, imdb_id, tmdb_id, is_removed
-                FROM library_movie 
-                WHERE id = ?
+                SELECT title, year, imdbnumber as imdb_id, tmdb_id, is_removed
+                FROM media_items 
+                WHERE id = ? AND media_type = 'movie'
             """, [library_movie_id])
             
             # Convert SQLite Row to dict if needed
@@ -260,9 +260,9 @@ class ListLibraryManager:
             items = self.conn_manager.execute_query("""
                 SELECT li.id as list_item_id, li.title, li.year, li.imdb_id, li.tmdb_id,
                        li.library_movie_id, li.created_at,
-                       lm.is_removed, lm.last_seen, lm.file_path
+                       mi.is_removed, mi.updated_at as last_seen, mi.play as file_path
                 FROM list_item li
-                LEFT JOIN library_movie lm ON li.library_movie_id = lm.id
+                LEFT JOIN media_items mi ON li.library_movie_id = mi.id AND mi.media_type = 'movie'
                 WHERE li.list_id = ?
                 ORDER BY li.created_at DESC
             """, [list_id])

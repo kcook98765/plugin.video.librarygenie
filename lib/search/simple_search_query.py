@@ -45,13 +45,5 @@ class SimpleSearchQuery:
         if not self.keywords:
             return "Empty search"
         
-        scope_text = {
-            "title": "titles only",
-            "plot": "plots only", 
-            "both": "titles and plots"
-        }.get(self.search_scope, "titles and plots")
-        
-        logic_text = "ALL" if self.match_logic == "all" else "ANY"
         keywords_text = f"'{' '.join(self.keywords)}'"
-        
-        return f"Find {logic_text} keywords {keywords_text} in {scope_text}"
+        return f"Search for {keywords_text}"

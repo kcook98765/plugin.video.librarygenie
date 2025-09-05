@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: LibraryGenie\n"
-"Report-Msgid-Bugs-To: support@movielist.com\n"
+"Report-Id-Bugs-To: support@movielist.com\n"
 "POT-Creation-Date: 2025-01-01 12:00+0000\n"
 "PO-Revision-Date: 2025-01-01 12:00+0000\n"
 "Last-Translator: LibraryGenie Team\n"
@@ -73,86 +73,7 @@ msgctxt "#30043"
 msgid "Show missing movie indicators"
 msgstr ""
 
-# Kodi Favorites Integration
-msgctxt "#30050"
-msgid "Kodi Favorites Integration"
-msgstr ""
-
-msgctxt "#30051"
-msgid "Show Kodi Favorites folder"
-msgstr ""
-
-msgctxt "#30052"
-msgid "Favorites scan interval (minutes)"
-msgstr ""
-
-msgctxt "#30053"
-msgid "Show unmapped favorites"
-msgstr ""
-
-msgctxt "#30054"
-msgid "Enable batch processing for large favorites files"
-msgstr ""
-
-# Phase 4 Favorites Messages
-msgctxt "#30055"
-msgid "Favorites file not found"
-msgstr ""
-
-msgctxt "#30056"
-msgid "No favorites found"
-msgstr ""
-
-msgctxt "#30057"
-msgid "Not in library"
-msgstr ""
-
-msgctxt "#30058"
-msgid "Unmapped"
-msgstr ""
-
-msgctxt "#30059"
-msgid "Favorites (Unmapped)"
-msgstr ""
-
-# Search Settings
-msgctxt "#30060"
-msgid "Search Settings"
-msgstr ""
-
-msgctxt "#30061"
-msgid "Match mode"
-msgstr ""
-
-msgctxt "#30062"
-msgid "Include file path in search"
-msgstr ""
-
-msgctxt "#30063"
-msgid "Search results per page"
-msgstr ""
-
-msgctxt "#30064"
-msgid "Enable decade shorthand (e.g., '90s)"
-msgstr ""
-
-msgctxt "#30065"
-msgid "Remember last search scope"
-msgstr ""
-
-msgctxt "#30066"
-msgid "Keep search history (days)"
-msgstr ""
-
-# Phase 5 Search UI Strings
-msgctxt "#30068"
-msgid "Results"
-msgstr ""
-
-msgctxt "#30069"
-msgid "Page"
-msgstr ""
-
+# ShortList Integration
 msgctxt "#30070"
 msgid "ShortList Integration"
 msgstr ""
@@ -163,38 +84,6 @@ msgstr ""
 
 msgctxt "#30072"
 msgid "Clear list before importing new data"
-msgstr ""
-
-msgctxt "#30073"
-msgid "Previous page..."
-msgstr ""
-
-msgctxt "#30074"
-msgid "Contains"
-msgstr ""
-
-msgctxt "#30075"
-msgid "Starts with"
-msgstr ""
-
-msgctxt "#30076"
-msgid "All library"
-msgstr ""
-
-msgctxt "#30077"
-msgid "List"
-msgstr ""
-
-msgctxt "#30078"
-msgid "No matches found"
-msgstr ""
-
-msgctxt "#30079"
-msgid "Try fewer words or remove the year filter"
-msgstr ""
-
-msgctxt "#30080"
-msgid "Enter search terms to find movies"
 msgstr ""
 
 # Background Settings
@@ -1624,11 +1513,11 @@ msgid "Backup Content"
 msgstr ""
 
 msgctxt "#30521"
-msgid "Include Kodi favorites"
+msgid "Include addon settings"
 msgstr ""
 
 msgctxt "#30522"
-msgid "Include library metadata"
+msgid "Include non-library items"
 msgstr ""
 
 msgctxt "#30523"
@@ -1640,11 +1529,11 @@ msgid "Storage Settings"
 msgstr ""
 
 msgctxt "#30531"
-msgid "Backup storage type"
+msgid "Storage type"
 msgstr ""
 
 msgctxt "#30532"
-msgid "Custom backup path"
+msgid "Backup location"
 msgstr ""
 
 msgctxt "#30533"
@@ -1665,7 +1554,29 @@ msgid "Test backup configuration"
 msgstr ""
 
 msgctxt "#30542"
-msgid "Create manual backup"
+msgid "Manual Backup"
+msgstr ""
+
+msgctxt "#30543"
+msgid "Restore Backup"
+msgstr ""
+
+# Backup Interval Options
+msgctxt "#30562"
+msgid "Daily"
+msgstr ""
+
+msgctxt "#30563"
+msgid "Weekly"
+msgstr ""
+
+msgctxt "#30564"
+msgid "Monthly"
+msgstr ""
+
+# Backup Storage Types
+msgctxt "#30565"
+msgid "Local"
 msgstr ""
 
 # Background Service Settings

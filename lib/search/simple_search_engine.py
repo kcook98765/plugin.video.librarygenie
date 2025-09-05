@@ -58,6 +58,10 @@ class SimpleSearchEngine:
             # Build SQL query with ranking
             sql_query, params = self._build_ranked_sql_query(query)
 
+            # Log the actual SQL query being executed
+            self.logger.debug(f"Executing search SQL: {sql_query}")
+            self.logger.debug(f"Search SQL parameters: {params}")
+
             # Execute search
             items = self.conn_manager.execute_query(sql_query, params)
             result.items = [dict(item) if hasattr(item, 'keys') else item for item in items or []]

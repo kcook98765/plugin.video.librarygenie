@@ -6,18 +6,13 @@
     <setting id="debug_logging" type="bool" label="30011" default="false"/>
     <setting label="30020" type="lsep"/>
     <setting id="confirm_destructive_actions" type="bool" label="30021" default="true"/>
+    <setting id="show_item_counts" type="bool" label="30022" default="true"/>
     <setting id="show_missing_indicators" type="bool" label="30043" default="true"/>
     <setting id="select_action" type="select" label="35100" lvalues="35101|35102" default="0"/>
     <setting label="30030" type="lsep"/>
     <setting id="track_library_changes" type="bool" label="30031" default="true"/>
     <setting id="soft_delete_removed_items" type="bool" label="30032" default="true"/>
-    <setting label="30060" type="lsep"/>
-    <setting id="search_match_mode" type="select" label="30061" default="contains" values="contains|starts_with"/>
-    <setting id="search_include_file_path" type="bool" label="30062" default="false"/>
-    <setting id="search_page_size" type="slider" label="30063" default="50" range="25,5,200" option="int"/>
-    <setting id="search_enable_decade_shorthand" type="bool" label="30064" default="false"/>
-    <setting id="search_remember_scope" type="bool" label="30065" default="true"/>
-    <setting id="search_history_days" type="slider" label="30066" default="30" range="7,7,365" option="int"/>
+
   </category>
 
   <!-- Lists Settings -->
@@ -28,8 +23,9 @@
     <setting id="default_list_id" type="text" label="30044" default="" visible="false"/>
     <setting label="30050" type="lsep"/>
     <setting id="favorites_integration_enabled" type="bool" label="30051" default="false"/>
-    <setting id="show_unmapped_favorites" type="bool" label="30053" default="false" enable="eq(-1,true)"/>
-    <setting id="favorites_batch_processing" type="bool" label="30054" default="true" enable="eq(-2,true)"/>
+    <setting id="favorites_scan_interval_minutes" type="slider" label="30052" default="30" range="5,5,1440" option="int" enable="eq(-1,true)"/>
+    <setting id="show_unmapped_favorites" type="bool" label="30053" default="false" enable="eq(-2,true)"/>
+    <setting id="favorites_batch_processing" type="bool" label="30054" default="true" enable="eq(-3,true)"/>
     <setting label="30070" type="lsep"/>
     <setting id="shortlist_import_action" type="action" label="30071" action="RunPlugin(plugin://plugin.video.librarygenie/?action=import_shortlist)"/>
     <setting id="shortlist_clear_before_import" type="bool" label="30072" default="true"/>
@@ -46,18 +42,20 @@
   <category label="30500">
     <setting label="30510" type="lsep"/>
     <setting id="backup_enabled" type="bool" label="30511" default="false"/>
-    <setting id="backup_interval" type="select" label="30512" default="weekly" values="hourly|daily|weekly|monthly" enable="eq(-1,true)"/>
-    <setting id="backup_retention_count" type="slider" label="30513" default="5" range="1,1,50" option="int" enable="eq(-2,true)"/>
+    <setting id="backup_interval" type="select" label="30512" default="0" lvalues="30562|30563|30564" enable="eq(-1,true)"/>
+    <setting id="backup_retention_count" type="slider" label="30513" default="5" range="1,1,50" option="int"/>
     <setting label="30520" type="lsep"/>
-    <setting id="backup_include_favorites" type="bool" label="30521" default="true" enable="eq(-4,true)"/>
-    <setting id="backup_include_library" type="bool" label="30522" default="false" enable="eq(-5,true)"/>
-    <setting id="backup_include_folders" type="bool" label="30523" default="true" enable="eq(-6,true)"/>
+    <setting id="backup_include_settings" type="bool" label="30521" default="true"/>
+    <setting id="backup_include_non_library" type="bool" label="30522" default="false"/>
+    <setting id="backup_include_folders" type="bool" label="30523" default="true"/>
     <setting label="30530" type="lsep"/>
-    <setting id="backup_storage_type" type="select" label="30531" default="local" values="local|custom" enable="eq(-8,true)"/>
-    <setting id="backup_local_path" type="folder" label="30532" default="" enable="eq(-9,true)+eq(-1,custom)"/>
+    <setting id="backup_storage_type" type="select" label="30531" default="0" lvalues="30565"/>
+    <setting id="backup_storage_location" type="folder" label="30532" default="special://userdata/addon_data/plugin.video.librarygenie/backups/"/>
     <setting label="30540" type="lsep"/>
-    <setting id="backup_test_action" type="action" label="30541" action="RunPlugin(plugin://plugin.video.librarygenie/?action=test_backup)" enable="eq(-11,true)"/>
-    <setting id="backup_manual_action" type="action" label="30542" action="RunPlugin(plugin://plugin.video.librarygenie/?action=manual_backup)" enable="eq(-12,true)"/>
+    <setting id="last_backup_time" type="text" label="" default="" visible="false"/>
+    <setting id="backup_test_action" type="action" label="30541" action="RunPlugin(plugin://plugin.video.librarygenie/?action=test_backup)"/>
+    <setting id="backup_manual_action" type="action" label="30542" action="RunPlugin(plugin://plugin.video.librarygenie/?action=manual_backup)"/>
+    <setting id="backup_restore_action" type="action" label="30543" action="RunPlugin(plugin://plugin.video.librarygenie/?action=restore_backup)"/>
   </category>
 
   <!-- Advanced Settings -->

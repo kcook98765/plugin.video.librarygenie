@@ -58,11 +58,11 @@ class BackupManager:
         """Run scheduled automatic backup - DEPRECATED: Use TimestampBackupManager instead"""
         try:
             self.logger.info("DEPRECATED: BackupManager.run_automatic_backup - redirecting to TimestampBackupManager")
-            
+
             # Redirect to the new timestamp backup manager
             from . import get_timestamp_backup_manager
             timestamp_backup_manager = get_timestamp_backup_manager()
-            
+
             return timestamp_backup_manager.run_automatic_backup()
 
         except Exception as e:
@@ -73,12 +73,19 @@ class BackupManager:
         """List available backup files - DEPRECATED: Use TimestampBackupManager instead"""
         try:
             self.logger.info("DEPRECATED: BackupManager.list_backups - redirecting to TimestampBackupManager")
-            
+
             # Redirect to the new timestamp backup manager
-            from . import get_timestamp_backup_manager
-            timestamp_backup_manager = get_timestamp_backup_manager()
-            
-            return timestamp_backup_manager.list_backups()
+            try:
+                from . import get_timestamp_backup_manager
+                timestamp_backup_manager = get_timestamp_backup_manager()
+                if timestamp_backup_manager and hasattr(timestamp_backup_manager, 'list_backups'):
+                    return timestamp_backup_manager.list_backups()
+                else:
+                    self.logger.warning("TimestampBackupManager not available or missing list_backups method")
+                    return []
+            except ImportError:
+                self.logger.warning("TimestampBackupManager not available, using fallback")
+                return []
 
         except Exception as e:
             self.logger.error(f"Error listing backups: {e}")
@@ -102,18 +109,29 @@ class BackupManager:
 
     def get_backup_settings(self) -> Dict[str, Any]:
         """Get current backup settings"""
-        settings = SettingsManager()
+        try:
+            settings = SettingsManager()
 
-        backup_preferences = {
-            'enabled': self.config.get_bool('backup_enabled', False),
-            'schedule_interval': self.config.get('backup_interval', 'weekly'),
-            'retention_days': self.config.get_int('backup_retention_count', 5),
-            'storage_path': settings.get_backup_storage_location(),
-            'storage_type': settings.get_backup_storage_type(),
-            'include_settings': self.config.get_bool('backup_include_settings', True),
-            'include_favorites': self.config.get_bool('backup_include_favorites', True)
-        }
-        return backup_preferences
+            backup_preferences = {
+                'enabled': settings.get_backup_enabled(),
+                'schedule_interval': self.config.get('backup_interval', 'weekly'),
+                'retention_days': settings.get_backup_retention_count(),
+                'storage_path': settings.get_backup_storage_location(),
+                'storage_type': settings.get_backup_storage_type(),
+                'include_settings': self.config.get_bool('backup_include_settings', True)
+            }
+            return backup_preferences
+        except Exception as e:
+            self.logger.error(f"Error getting backup settings: {e}")
+            # Return safe defaults
+            return {
+                'enabled': False,
+                'schedule_interval': 'weekly',
+                'retention_days': 5,
+                'storage_path': "special://userdata/addon_data/plugin.video.librarygenie/backups/",
+                'storage_type': 'local',
+                'include_settings': True
+            }
 
 
     def _get_last_backup_time(self) -> Optional[datetime]:
@@ -174,6 +192,93 @@ class BackupManager:
         except Exception as e:
             self.logger.error(f"Error estimating backup size: {e}")
             return {"export_types": export_types, "estimated_items": 0, "estimated_size_kb": 0}
+
+    def get_backup_preferences(self) -> Dict[str, Any]:
+        """Get backup-related preferences with defaults"""
+        try:
+            self.logger.debug("BACKUP_DEBUG: Starting get_backup_preferences")
+
+            # Get each setting individually with error handling
+            enabled = None
+            try:
+                enabled = self.config.get_bool('backup_enabled', False)
+                self.logger.debug(f"BACKUP_DEBUG: backup_enabled = {enabled}")
+            except Exception as e:
+                self.logger.error(f"BACKUP_DEBUG: Error getting backup_enabled: {e}")
+                enabled = False
+
+            schedule_interval = None
+            try:
+                schedule_interval = self.config.get('backup_interval', 'weekly')
+                self.logger.debug(f"BACKUP_DEBUG: backup_interval = {schedule_interval}")
+            except Exception as e:
+                self.logger.error(f"BACKUP_DEBUG: Error getting backup_interval: {e}")
+                schedule_interval = 'weekly'
+
+            retention_days = None
+            try:
+                retention_days = self.config.get_int('backup_retention_count', 5)
+                self.logger.debug(f"BACKUP_DEBUG: backup_retention_count = {retention_days}")
+            except Exception as e:
+                self.logger.error(f"BACKUP_DEBUG: Error getting backup_retention_count: {e}")
+                retention_days = 5
+
+            storage_path = None
+            try:
+                storage_path = self.config.get_backup_storage_location()
+                self.logger.debug(f"BACKUP_DEBUG: storage_path = {storage_path}")
+            except Exception as e:
+                self.logger.error(f"BACKUP_DEBUG: Error getting storage_path: {e}")
+                storage_path = "special://userdata/addon_data/plugin.video.librarygenie/backups/"
+
+            storage_type = None
+            try:
+                storage_type = self.config.get('backup_storage_type', 'local')
+                self.logger.debug(f"BACKUP_DEBUG: backup_storage_type = {storage_type}")
+            except Exception as e:
+                self.logger.error(f"BACKUP_DEBUG: Error getting backup_storage_type: {e}")
+                storage_type = 'local'
+
+            include_settings = None
+            try:
+                include_settings = self.config.get_bool('backup_include_settings', True)
+                self.logger.debug(f"BACKUP_DEBUG: backup_include_settings = {include_settings}")
+            except Exception as e:
+                self.logger.error(f"BACKUP_DEBUG: Error getting backup_include_settings: {e}")
+                include_settings = True
+
+            include_non_library = None
+            try:
+                include_non_library = self.config.get_bool('backup_include_non_library', False)
+                self.logger.debug(f"BACKUP_DEBUG: backup_include_non_library = {include_non_library}")
+            except Exception as e:
+                self.logger.error(f"BACKUP_DEBUG: Error getting backup_include_non_library: {e}")
+                include_non_library = False
+
+            result = {
+                'enabled': enabled,
+                'schedule_interval': schedule_interval,
+                'retention_days': retention_days,
+                'storage_path': storage_path,
+                'storage_type': storage_type,
+                'include_settings': include_settings,
+                'include_non_library': include_non_library
+            }
+
+            self.logger.debug(f"BACKUP_DEBUG: Final backup preferences: {result}")
+            return result
+
+        except Exception as e:
+            self.logger.error(f"BACKUP_DEBUG: Exception in get_backup_preferences: {e}")
+            return {
+                'enabled': False,
+                'schedule_interval': 'weekly',
+                'retention_days': 5,
+                'storage_path': "special://userdata/addon_data/plugin.video.librarygenie/backups/",
+                'storage_type': 'local',
+                'include_settings': True,
+                'include_non_library': False
+            }
 
 
 # Global backup manager instance

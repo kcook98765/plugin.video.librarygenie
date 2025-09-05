@@ -33,9 +33,9 @@ class SimpleQueryInterpreter:
             query.page_size = max(25, min(kwargs.get("page_size", 50), 200))
             query.page_offset = max(kwargs.get("page_offset", 0), 0)
             
-            # Set search options
-            query.search_scope = kwargs.get("search_scope", "both")  # title, plot, both
-            query.match_logic = kwargs.get("match_logic", "all")     # any, all
+            # Always search both title and plot with all keywords
+            query.search_scope = "both"
+            query.match_logic = "all"
 
             # Extract and normalize keywords
             if user_input and user_input.strip():
@@ -62,10 +62,7 @@ class SimpleQueryInterpreter:
 
     def get_no_results_hint(self, query: SimpleSearchQuery) -> str:
         """Get hint text for no results"""
-        if query.match_logic == "all":
-            return "Try fewer keywords or use 'Find ANY keywords' option"
-        else:
-            return "Try different keywords or check spelling"
+        return "Try fewer keywords or different search terms"
 
 
 # Global simple query interpreter instance

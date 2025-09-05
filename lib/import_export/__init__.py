@@ -11,6 +11,7 @@ from .import_engine import get_import_engine
 from .backup_manager import get_backup_manager
 from .timestamp_backup_manager import get_timestamp_backup_manager
 from .storage_manager import get_storage_manager
+from .shortlist_importer import get_shortlist_importer
 from .data_schemas import ExportSchema, ImportResult
 
 __all__ = [

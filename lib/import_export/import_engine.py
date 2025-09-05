@@ -65,8 +65,9 @@ class DataMatcher:
         conditions = []
         params = []
 
+        # Primary match by IMDb ID (most reliable for backup/restore)
         if item_data.get("imdb_id"):
-            conditions.append("imdb_id = ?")
+            conditions.append("imdbnumber = ?")
             params.append(item_data["imdb_id"])
 
         if item_data.get("tmdb_id"):
@@ -411,7 +412,7 @@ class ImportEngine:
         except Exception:
             return False
 
-    def _import_lists(self, lists_data: List[Dict]) -> Tuple[int, int, List[str]]:
+    def _import_lists(self, lists_data: List[Dict], replace_mode: bool = False) -> Tuple[int, int, List[str]]:
         """Import lists, return (created_count, updated_count, errors)"""
         created = 0
         updated = 0
@@ -426,32 +427,40 @@ class ImportEngine:
                     errors.append("List missing name, skipped")
                     continue
 
-                # Check if list exists
-                existing = self.conn_manager.execute_single(
-                    "SELECT id FROM lists WHERE name = ?", [name]
-                )
-
-                if existing:
-                    # Update existing list description if different
-                    self.conn_manager.execute_single(
-                        "UPDATE lists SET description = ?, updated_at = datetime('now') WHERE name = ?",
-                        [description, name]
-                    )
-                    updated += 1
-                else:
-                    # Create new list
+                if replace_mode:
+                    # In replace mode, always create new lists
                     result = self.query_manager.create_list(name, description)
                     if result and result.get("success"):
                         created += 1
                     else:
                         errors.append(f"Failed to create list: {name}")
+                else:
+                    # In append mode, check if list exists
+                    existing = self.conn_manager.execute_single(
+                        "SELECT id FROM lists WHERE name = ?", [name]
+                    )
+
+                    if existing:
+                        # Update existing list description if different
+                        self.conn_manager.execute_single(
+                            "UPDATE lists SET description = ?, updated_at = datetime('now') WHERE name = ?",
+                            [description, name]
+                        )
+                        updated += 1
+                    else:
+                        # Create new list
+                        result = self.query_manager.create_list(name, description)
+                        if result and result.get("success"):
+                            created += 1
+                        else:
+                            errors.append(f"Failed to create list: {name}")
 
             except Exception as e:
                 errors.append(f"Error importing list {list_data.get('name', 'unknown')}: {e}")
 
         return created, updated, errors
 
-    def _import_list_items(self, items_data: List[Dict]) -> Tuple[int, int, int, List[Dict], List[str]]:
+    def _import_list_items(self, items_data: List[Dict], replace_mode: bool = False) -> Tuple[int, int, int, List[Dict], List[str]]:
         """Import list items, return (added, skipped, unmatched, unmatched_data, errors)"""
         added = 0
         skipped = 0
@@ -478,44 +487,62 @@ class ImportEngine:
                     })
                     continue
 
-                # Check if already in list
-                if self._is_item_in_list(movie_id, list_id):
-                    skipped += 1
-                    continue
-
-                # Add to list
-                success = self.conn_manager.execute_single(
-                    "INSERT OR IGNORE INTO list_items (list_id, media_item_id, created_at) VALUES (?, ?, datetime('now'))",
-                    [list_id, movie_id]
-                )
-
-                if success is not None:
-                    added += 1
+                if replace_mode:
+                    # In replace mode, add all items without checking for duplicates
+                    # (existing items were already cleared)
+                    success = self.conn_manager.execute_single(
+                        "INSERT INTO list_items (list_id, media_item_id, created_at) VALUES (?, ?, datetime('now'))",
+                        [list_id, movie_id]
+                    )
+                    if success is not None:
+                        added += 1
+                    else:
+                        errors.append(f"Failed to add item to list: {item_data.get('title', 'unknown')}")
                 else:
-                    errors.append(f"Failed to add item to list: {item_data.get('title', 'unknown')}")
+                    # In append mode, check if already in list to avoid duplicates
+                    if self._is_item_in_list(movie_id, list_id):
+                        skipped += 1
+                        continue
+
+                    # Add to list
+                    success = self.conn_manager.execute_single(
+                        "INSERT OR IGNORE INTO list_items (list_id, media_item_id, created_at) VALUES (?, ?, datetime('now'))",
+                        [list_id, movie_id]
+                    )
+
+                    if success is not None:
+                        added += 1
+                    else:
+                        errors.append(f"Failed to add item to list: {item_data.get('title', 'unknown')}")
 
             except Exception as e:
                 errors.append(f"Error importing item {item_data.get('title', 'unknown')}: {e}")
 
         return added, skipped, unmatched, unmatched_items, errors
 
-    def import_from_content(self, content: str, filename: str) -> Dict[str, Any]:
+    def import_from_content(self, content: str, filename: str, replace_mode: bool = False) -> Dict[str, Any]:
         """Import data from file content string (used by backup restoration)"""
         start_time = datetime.now()
 
         try:
+            self.logger.info(f"RESTORE_DEBUG: Starting import from content, filename: {filename}, replace_mode: {replace_mode}")
+
             # Parse content
             try:
                 data = json.loads(content)
+                self.logger.debug(f"RESTORE_DEBUG: Successfully parsed JSON, keys: {list(data.keys())}")
             except json.JSONDecodeError as e:
+                self.logger.error(f"RESTORE_DEBUG: JSON decode error: {e}")
                 return {"success": False, "error": f"Invalid JSON in {filename}: {e}"}
 
             # Validate envelope structure
             envelope_errors = ExportSchema.validate_envelope(data)
             if envelope_errors:
+                self.logger.error(f"RESTORE_DEBUG: Envelope validation errors: {envelope_errors}")
                 return {"success": False, "error": f"Invalid backup format: {envelope_errors[0]}"}
 
             payload = data.get("payload", {})
+            self.logger.debug(f"RESTORE_DEBUG: Payload keys: {list(payload.keys())}")
 
             # Initialize counters
             lists_created = 0
@@ -528,16 +555,32 @@ class ImportEngine:
             # Initialize database
             self.query_manager.initialize()
 
+            # Handle replace mode - clear existing lists/folders but preserve media_items
+            if replace_mode:
+                try:
+                    self.logger.info("Replace mode enabled - clearing existing lists and folders only")
+                    # Delete all list items first (foreign key constraints)
+                    self.conn_manager.execute_single("DELETE FROM list_items")
+                    # Delete all lists except those in system folders
+                    self.conn_manager.execute_single("DELETE FROM lists WHERE folder_id IS NULL OR folder_id NOT IN (SELECT id FROM folders WHERE name = 'Search History')")
+                    # Delete non-system folders
+                    self.conn_manager.execute_single("DELETE FROM folders WHERE name != 'Search History'")
+                    # NOTE: media_items are preserved - they contain the addon's library index
+                    self.logger.info("Existing lists and folders cleared for replace mode (media_items preserved)")
+                except Exception as e:
+                    self.logger.error(f"Error clearing data for replace mode: {e}")
+                    errors.append(f"Failed to clear existing data: {e}")
+
             # Import lists first
             if "lists" in payload:
-                created, updated, list_errors = self._import_lists(payload["lists"])
+                created, updated, list_errors = self._import_lists(payload["lists"], replace_mode)
                 lists_created += created
                 lists_updated += updated
                 errors.extend(list_errors)
 
             # Import list items
             if "list_items" in payload:
-                added, skipped, unmatched, unmatch_data, item_errors = self._import_list_items(payload["list_items"])
+                added, skipped, unmatched, unmatch_data, item_errors = self._import_list_items(payload["list_items"], replace_mode)
                 items_added += added
                 items_skipped += skipped
                 items_unmatched += unmatched

@@ -88,30 +88,7 @@ class SettingsManager:
         """Get enable batch processing for large favorites files"""
         return self.addon.getSettingBool('enable_batch_processing')
 
-    # Search Settings
-    def get_search_match_mode(self) -> str:
-        """Get search match mode (contains/starts_with)"""
-        return self.addon.getSetting('search_match_mode')
 
-    def get_include_file_path_search(self) -> bool:
-        """Get include file path in search setting"""
-        return self.addon.getSettingBool('include_file_path_search')
-
-    def get_search_results_per_page(self) -> int:
-        """Get search results per page"""
-        return max(10, min(100, self.addon.getSettingInt('search_results_per_page')))
-
-    def get_enable_decade_shorthand(self) -> bool:
-        """Get enable decade shorthand setting"""
-        return self.addon.getSettingBool('enable_decade_shorthand')
-
-    def get_remember_last_search_scope(self) -> bool:
-        """Get remember last search scope setting"""
-        return self.addon.getSettingBool('remember_last_search_scope')
-
-    def get_search_history_days(self) -> int:
-        """Get search history retention in days"""
-        return max(0, min(365, self.addon.getSettingInt('search_history_days')))
 
     # Advanced Settings
     def get_jsonrpc_page_size(self) -> int:
@@ -167,21 +144,58 @@ class SettingsManager:
         return self.addon.getSetting('backup_interval')
 
     def get_backup_storage_location(self) -> str:
-        """Get backup storage location"""
-        storage_type = self.addon.getSetting('backup_storage_type')
-        
-        if storage_type == "custom":
-            # Use custom path set by user
-            custom_path = self.addon.getSetting('backup_local_path')
-            if custom_path and custom_path.strip():
-                return custom_path.strip()
-        
-        # Default to addon data directory
-        return "special://userdata/addon_data/plugin.video.librarygenie/backups/"
-    
+        """Get backup storage location with safe fallbacks"""
+        try:
+            storage_type = self.addon.getSetting('backup_storage_type')
+
+            if storage_type == "custom":
+                # Use custom path set by user
+                custom_path = self.addon.getSetting('backup_local_path')
+                if custom_path and custom_path.strip():
+                    return custom_path.strip()
+
+            # Default to addon data directory
+            return "special://userdata/addon_data/plugin.video.librarygenie/backups/"
+        except Exception as e:
+            self.logger.warning(f"Error reading backup storage location: {e}")
+            return "special://userdata/addon_data/plugin.video.librarygenie/backups/"
+
     def get_backup_storage_type(self) -> str:
-        """Get backup storage type"""
-        return self.addon.getSetting('backup_storage_type')
+        """Get backup storage type with safe fallback"""
+        try:
+            return self.addon.getSetting('backup_storage_type') or 'local'
+        except Exception as e:
+            self.logger.warning(f"Error reading backup storage type: {e}")
+            return 'local'
+
+    def get_backup_enabled(self) -> bool:
+        """Get backup enabled setting with safe fallback"""
+        try:
+            return self.addon.getSettingBool('backup_enabled')
+        except Exception as e:
+            try:
+                # Try as string fallback
+                str_val = self.addon.getSettingString('backup_enabled')
+                return str_val.lower() in ('true', '1', 'yes')
+            except Exception:
+                self.logger.warning(f"Error reading backup_enabled setting: {e}")
+                return False
+
+    def get_backup_retention_count(self) -> int:
+        """Get backup retention count with safe fallback"""
+        try:
+            return max(1, min(50, self.addon.getSettingInt('backup_retention_count')))
+        except Exception as e:
+            try:
+                # Try as string fallback
+                str_val = self.addon.getSettingString('backup_retention_count')
+                if str_val and str_val.strip():
+                    return max(1, min(50, int(str_val.strip())))
+                else:
+                    return 5
+            except (ValueError, TypeError):
+                self.logger.warning(f"Error reading backup retention count: {e}")
+                return 5
 
     def get_backup_retention_policy(self) -> str:
         """Get backup retention policy"""
@@ -247,17 +261,29 @@ class SettingsManager:
 
     def get_backup_preferences(self) -> Dict[str, Any]:
         """Get backup-related preferences with defaults"""
-        config = get_config()
+        try:
+            config = get_config()
 
-        return {
-            'enabled': config.get_bool('backup_enabled', False),
-            'schedule_interval': config.get('backup_interval', 'weekly'),
-            'retention_days': config.get_int('backup_retention_count', 5),
-            'storage_path': config.get('backup_storage_location', ''),
-            'storage_type': config.get('backup_storage_type', 'local'),
-            'include_settings': config.get_bool('backup_include_settings', True),
-            'include_favorites': config.get_bool('backup_include_favorites', True)
-        }
+            return {
+                'enabled': config.get_bool('backup_enabled', False),
+                'schedule_interval': config.get('backup_interval', 'weekly'),
+                'retention_days': config.get_int('backup_retention_count', 5),
+                'storage_path': config.get('backup_storage_location', ''),
+                'storage_type': config.get('backup_storage_type', 'local'),
+                'include_settings': config.get_bool('backup_include_settings', True),
+                'include_non_library': config.get_bool('backup_include_non_library', False)
+            }
+        except Exception as e:
+            self.logger.warning(f"Error reading backup preferences: {e}")
+            return {
+                'enabled': False,
+                'schedule_interval': 'weekly',
+                'retention_days': 5,
+                'storage_path': "special://userdata/addon_data/plugin.video.librarygenie/backups/",
+                'storage_type': 'local',
+                'include_settings': True,
+                'include_non_library': False
+            }
 
     def get_phase12_remote_settings(self) -> Dict[str, Any]:
         """Get remote service settings for Phase 1.2 integration"""

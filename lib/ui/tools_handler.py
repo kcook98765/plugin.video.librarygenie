@@ -799,7 +799,6 @@ class ToolsHandler:
                         restore_result.get("lists_restored", 0),
                         restore_result.get("items_restored", 0)
                     ])
-
                     message = (
                         f"Backup restored successfully:\n"
                         f"Lists: {restore_result.get('lists_restored', 0)}\n"
@@ -819,6 +818,81 @@ class ToolsHandler:
                 success=False,
                 message=f"Error showing backup manager: {e}"
             )
+
+    def restore_backup_from_settings(self) -> DialogResponse:
+        """Handle restore backup from settings menu"""
+        try:
+            from ..import_export import get_timestamp_backup_manager
+            backup_manager = get_timestamp_backup_manager()
+
+            import xbmcgui
+            dialog = xbmcgui.Dialog()
+
+            # Prompt for replace or append
+            options = ["Replace Existing", "Append to Existing"]
+            selected_option = dialog.select("Restore Backup Options", options)
+
+            if selected_option == -1:  # User cancelled
+                return DialogResponse(success=False, message="Restore cancelled")
+
+            replace_mode = options[selected_option].startswith("Replace")
+
+            # Get list of available backups
+            available_backups = backup_manager.list_backups()
+
+            if not available_backups:
+                return DialogResponse(
+                    success=False, 
+                    message="No backups found."
+                )
+
+            # Present backup selection dialog
+            backup_options = []
+            for backup in available_backups[:20]:  # Show last 20 backups
+                age_text = f"{backup['age_days']} days ago" if backup['age_days'] > 0 else "Today"
+                size_mb = round(backup['file_size'] / 1024 / 1024, 2)
+                backup_options.append(f"{backup['filename']} - {age_text} • {size_mb} MB")
+
+            backup_index = dialog.select("Select Backup File", backup_options)
+
+            if backup_index == -1:  # User cancelled
+                return DialogResponse(success=False, message="No backup selected")
+
+            selected_backup = available_backups[backup_index]
+
+            # Perform the restore operation with progress dialog
+            progress = xbmcgui.DialogProgress()
+            progress.create("Restoring Backup", f"Restoring from: {selected_backup['filename']}...")
+            progress.update(0)
+
+            try:
+                result = backup_manager.restore_backup(selected_backup, replace_mode=replace_mode)
+
+                progress.update(100, "Restore complete!")
+                progress.close()
+
+                if result.get("success"):
+                    message = (
+                        f"Restore completed successfully!\n\n"
+                        f"Filename: {selected_backup['filename']}\n"
+                        f"Items restored: {result.get('items_added', 0)}\n"
+                        f"Items skipped: {result.get('items_skipped', 0)}\n"
+                        f"Lists created: {result.get('lists_created', 0)}"
+                    )
+                    return DialogResponse(success=True, message=message, refresh_needed=True)
+                else:
+                    error_msg = result.get("error", "Unknown error")
+                    return DialogResponse(success=False, message=f"Restore failed:\n{error_msg}")
+
+            except Exception as e:
+                progress.update(100, "Restore failed!")
+                progress.close()
+                self.logger.error(f"Error during restore_backup execution: {e}")
+                return DialogResponse(success=False, message=f"An error occurred during restore: {str(e)}")
+
+        except Exception as e:
+            self.logger.error(f"Error in restore backup from settings: {e}")
+            return DialogResponse(success=False, message=f"An error occurred: {str(e)}")
 
     def _show_tools_menu(self, params: Dict[str, Any]) -> DialogResponse:
         """Show main tools menu"""

@@ -33,7 +33,7 @@ class ExportEngine:
             start_time = datetime.now()
 
             # Validate export types
-            valid_types = {"lists", "list_items", "favorites", "library_snapshot", "folders"}
+            valid_types = {"lists", "list_items", "library_snapshot", "non_library_snapshot", "folders"}
             invalid_types = set(export_types) - valid_types
             if invalid_types:
                 return {"success": False, "error": f"Invalid export types: {invalid_types}"}
@@ -100,10 +100,10 @@ class ExportEngine:
                 return self._collect_lists_data()
             elif export_type == "list_items":
                 return self._collect_list_items_data()
-            elif export_type == "favorites":
-                return self._collect_favorites_data()
             elif export_type == "library_snapshot":
                 return self._collect_library_snapshot_data()
+            elif export_type == "non_library_snapshot":
+                return self._collect_non_library_snapshot_data()
             elif export_type == "folders":
                 return self._collect_folders_data()
             else:
@@ -190,43 +190,7 @@ class ExportEngine:
 
         return items_data, len(items_data)
 
-    def _collect_favorites_data(self) -> Tuple[List[Dict], int]:
-        """Collect favorites mirror data (mapped items only)"""
-        favorites_data = []
-
-        query = """
-                SELECT name, normalized_path, original_path, favorite_type,
-                       target_raw, target_classification, library_movie_id,
-                       is_mapped, thumb_ref, created_at
-                FROM kodi_favorite
-                WHERE present = 1
-                ORDER BY name
-            """
-        params = () # Placeholder for potential future parameters
-
-        favorites = self.conn_manager.execute_query(query, params)
-
-        for fav_row in favorites or []:
-            if hasattr(fav_row, 'keys'):
-                fav_dict = dict(fav_row)
-            else:
-                # Handle tuple/list format
-                fav_dict = {
-                    'name': fav_row[0],
-                    'normalized_path': fav_row[1],
-                    'original_path': fav_row[2],
-                    'favorite_type': fav_row[3],
-                    'target_raw': fav_row[4],
-                    'target_classification': fav_row[5],
-                    'library_movie_id': fav_row[6],
-                    'is_mapped': fav_row[7],
-                    'thumb_ref': fav_row[8],
-                    'created_at': fav_row[9]
-                }
-
-            favorites_data.append(fav_dict)
-
-        return favorites_data, len(favorites_data)
+    
 
     def _collect_library_snapshot_data(self) -> Tuple[List[Dict], int]:
         """Collect library snapshot data"""
@@ -271,6 +235,51 @@ class ExportEngine:
             library_data.append(movie_dict)
 
         return library_data, len(library_data)
+
+    def _collect_non_library_snapshot_data(self) -> Tuple[List[Dict], int]:
+        """Collect non-library media items data (items not currently in Kodi library)"""
+        non_library_data = []
+
+        # Query for media items that are marked as removed or not in current library
+        query = """
+                SELECT kodi_id, title, year, file_path, imdbnumber as imdb_id, tmdb_id,
+                       media_type, created_at, updated_at
+                FROM media_items
+                WHERE is_removed = 1 OR kodi_id IS NULL OR kodi_id = 0
+                ORDER BY title
+            """
+        params = ()
+
+        items = self.conn_manager.execute_query(query, params)
+
+        for item_row in items or []:
+            if hasattr(item_row, 'keys'):
+                item_dict = dict(item_row)
+            else:
+                # Handle tuple/list format
+                item_dict = {
+                    'kodi_id': item_row[0],
+                    'title': item_row[1],
+                    'year': item_row[2],
+                    'file_path': item_row[3],
+                    'imdb_id': item_row[4],
+                    'tmdb_id': item_row[5],
+                    'media_type': item_row[6],
+                    'added_at': item_row[7],
+                    'updated_at': item_row[8]
+                }
+
+            # Add external IDs
+            external_ids = {}
+            if item_dict.get('imdb_id'):
+                external_ids['imdb'] = item_dict['imdb_id']
+            if item_dict.get('tmdb_id'):
+                external_ids['tmdb'] = item_dict['tmdb_id']
+
+            item_dict['external_ids'] = external_ids
+            non_library_data.append(item_dict)
+
+        return non_library_data, len(non_library_data)
 
     def _collect_folders_data(self) -> Tuple[List[Dict], int]:
         """Collect folders data"""
