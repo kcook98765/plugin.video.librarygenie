@@ -1,4 +1,5 @@
 
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -118,3 +119,4 @@ class MainMenuHandler:
             context.logger.error(f"MAIN MENU: Traceback: {traceback.format_exc()}")
             xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
             return False
+
