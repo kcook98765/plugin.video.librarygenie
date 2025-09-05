@@ -11,6 +11,7 @@ import xbmcgui
 from .plugin_context import PluginContext
 from .response_types import DirectoryResponse, DialogResponse
 from ..data.query_manager import get_query_manager
+from .listitem_renderer import get_listitem_renderer
 
 # --- Localization Optimization ---
 from xbmcaddon import Addon
@@ -698,7 +699,6 @@ class ListsHandler:
                     context.logger.error(f"Failed to add breadcrumb to list view: {e}")
 
             # Add Tools & Options at the top of the list view using version-aware renderer
-            from .listitem_renderer import get_listitem_renderer
             renderer = get_listitem_renderer()
             tools_item = renderer.create_simple_listitem(
                 title=f"[COLOR yellow]⚙️ {L(36000)}[/COLOR]",  # "Tools & Options"
@@ -715,7 +715,6 @@ class ListsHandler:
 
             if not list_items:
                 # Empty list - use version-aware renderer
-                from .listitem_renderer import get_listitem_renderer
                 renderer = get_listitem_renderer()
                 empty_item = renderer.create_simple_listitem(
                     title="[COLOR gray]List is empty[/COLOR]",  # This string should also be localized
@@ -879,7 +878,6 @@ class ListsHandler:
 
             # If folder is empty, show message using version-aware renderer
             if not lists_in_folder:
-                from .listitem_renderer import get_listitem_renderer
                 renderer = get_listitem_renderer()
                 empty_item = renderer.create_simple_listitem(
                     title="[COLOR gray]Folder is empty[/COLOR]",  # This string should also be localized
