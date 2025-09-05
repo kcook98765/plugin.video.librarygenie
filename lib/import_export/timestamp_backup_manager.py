@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -31,19 +30,19 @@ class TimestampBackupManager:
         """List available backup files"""
         try:
             backups = []
-            
+
             # Get backup storage location
             storage_path = self.config.get_backup_storage_location()
-            
+
             # Handle special:// paths
             if storage_path.startswith('special://'):
                 import xbmcvfs
                 storage_path = xbmcvfs.translatePath(storage_path)
-            
+
             if not os.path.exists(storage_path):
                 self.logger.debug(f"Backup storage path does not exist: {storage_path}")
                 return []
-            
+
             # List backup files
             for filename in os.listdir(storage_path):
                 if filename.startswith('plugin.video.library.genie_') and filename.endswith('.json'):
@@ -53,7 +52,7 @@ class TimestampBackupManager:
                         file_size = file_stat.st_size
                         modified_time = datetime.fromtimestamp(file_stat.st_mtime)
                         age_days = (datetime.now() - modified_time).days
-                        
+
                         backups.append({
                             'filename': filename,
                             'file_path': file_path,
@@ -64,13 +63,13 @@ class TimestampBackupManager:
                     except (OSError, ValueError) as e:
                         self.logger.warning(f"Error getting stats for backup file {filename}: {e}")
                         continue
-            
+
             # Sort by modification time, newest first
             backups.sort(key=lambda x: x['modified_time'], reverse=True)
-            
+
             self.logger.debug(f"Found {len(backups)} backup files")
             return backups
-            
+
         except Exception as e:
             self.logger.error(f"Error listing backups: {e}")
             return []
@@ -79,50 +78,50 @@ class TimestampBackupManager:
         """Run automatic timestamped backup"""
         try:
             self.logger.info("Starting automatic timestamped backup")
-            
+
             # Check if backup is worthy
             worthiness = self._validate_backup_worthiness()
             if not worthiness["worthy"]:
                 self.logger.info(f"Skipping backup: {worthiness['reason']}")
                 return {"success": False, "reason": "not_worthy", "message": worthiness["reason"]}
-            
+
             # Run export
             export_types = ["lists", "list_items", "folders"]
             result = self.export_engine.export_data(export_types, file_format="json")
-            
+
             if not result["success"]:
                 return {"success": False, "error": result.get("error", "Export failed")}
-            
+
             # Move to backup location
             temp_file = result["file_path"]
             backup_filename = os.path.basename(temp_file)
             backup_path = self._get_backup_file_path(backup_filename)
-            
+
             # Ensure backup directory exists
             backup_dir = os.path.dirname(backup_path)
             os.makedirs(backup_dir, exist_ok=True)
-            
+
             # Move file to backup location
             import shutil
             shutil.move(temp_file, backup_path)
-            
+
             self.logger.info(f"Backup stored in settings location: {backup_path}")
-            
+
             # Log to database
             self._log_backup_to_database("automatic", backup_filename, backup_path, result)
-            
+
             # Cleanup old backups
             self._cleanup_old_backups()
-            
+
             self.logger.info(f"Automatic backup completed: {backup_filename}")
-            
+
             return {
                 "success": True,
                 "filename": backup_filename,
                 "file_path": backup_path,
                 "items_exported": result.get("items_exported", 0)
             }
-            
+
         except Exception as e:
             self.logger.error(f"Error in automatic backup: {e}")
             return {"success": False, "error": str(e)}
@@ -132,17 +131,17 @@ class TimestampBackupManager:
         try:
             from .import_engine import get_import_engine
             import_engine = get_import_engine()
-            
+
             # Restore the backup
             result = import_engine.restore_backup(file_path, replace_mode)
-            
+
             if result["success"]:
                 self.logger.info(f"Backup restored successfully from {file_path}")
             else:
                 self.logger.error(f"Backup restore failed from {file_path}: {result.get('errors', [])}")
-            
+
             return result
-            
+
         except Exception as e:
             self.logger.error(f"Error restoring backup: {e}")
             return {"success": False, "error": str(e)}
@@ -150,12 +149,12 @@ class TimestampBackupManager:
     def _get_backup_file_path(self, filename: str) -> str:
         """Get full path for backup file"""
         storage_path = self.config.get_backup_storage_location()
-        
+
         # Handle special:// paths
         if storage_path.startswith('special://'):
             import xbmcvfs
             storage_path = xbmcvfs.translatePath(storage_path)
-        
+
         return os.path.join(storage_path, filename)
 
     def _log_backup_to_database(self, backup_type: str, filename: str, file_path: str, export_result: Dict[str, Any]):
@@ -178,7 +177,7 @@ class TimestampBackupManager:
                     1,
                     datetime.now().isoformat()
                 ])
-                
+
         except Exception as e:
             self.logger.warning(f"Failed to log backup to database: {e}")
 
@@ -186,14 +185,14 @@ class TimestampBackupManager:
         """Clean up old backup files based on retention policy"""
         try:
             retention_count = self.config.get_int("backup_retention_count", 5)
-            
+
             backups = self.list_backups()
             if len(backups) <= retention_count:
                 return
-            
+
             backups_to_delete = backups[retention_count:]
             deleted_count = 0
-            
+
             for backup in backups_to_delete:
                 try:
                     os.remove(backup["file_path"])
@@ -201,10 +200,10 @@ class TimestampBackupManager:
                     self.logger.debug(f"Deleted old backup: {backup['filename']}")
                 except OSError as e:
                     self.logger.warning(f"Failed to delete backup {backup['filename']}: {e}")
-            
+
             if deleted_count > 0:
                 self.logger.info(f"Cleaned up {deleted_count} old backup files")
-                
+
         except Exception as e:
             self.logger.error(f"Error cleaning up old backups: {e}")
 
@@ -220,14 +219,14 @@ class TimestampBackupManager:
                 SELECT COUNT(*) as count FROM lists 
                 WHERE name NOT IN ('Search History', 'Kodi Favorites')
             """)
-            
+
             user_lists = lists_count.get('count', 0) if lists_count else 0
 
             # Count total list items
             items_count = self.conn_manager.execute_single("""
                 SELECT COUNT(*) as count FROM list_items
             """)
-            
+
             total_items = items_count.get('count', 0) if items_count else 0
 
             # Count user-created folders (excluding Search History)
@@ -235,7 +234,7 @@ class TimestampBackupManager:
                 SELECT COUNT(*) as count FROM folders 
                 WHERE name != 'Search History'
             """)
-            
+
             user_folders = folders_count.get('count', 0) if folders_count else 0
 
             self.logger.debug(f"Backup worthiness check: {user_lists} lists, {total_items} items, {user_folders} folders")
@@ -294,6 +293,7 @@ class TimestampBackupManager:
         self.export_engine = get_export_engine()
         self.storage_manager = get_storage_manager()
         self.config = get_config()
+        self.conn_manager = get_connection_manager()
 
     def should_run_backup(self) -> bool:
         """Check if backup should run based on schedule"""
@@ -433,7 +433,7 @@ class TimestampBackupManager:
             original_method = self._validate_backup_worthiness
             if force:
                 self._validate_backup_worthiness = lambda: {"worthy": True, "reason": "forced"}
-            
+
             try:
                 result = self.run_automatic_backup()
                 result["manual"] = True
@@ -527,17 +527,17 @@ class TimestampBackupManager:
                     backup_dir = settings.get_backup_storage_location()
             except Exception as settings_error:
                 self.logger.warning(f"Error getting backup directory from SettingsManager: {settings_error}")
-            
+
             # Fallback to config manager if settings manager fails
             if not backup_dir:
                 try:
                     backup_dir = self.config.get_backup_storage_location()
                 except Exception as config_error:
                     self.logger.warning(f"Error getting backup directory from config: {config_error}")
-            
+
             # Ultimate fallback to default location
             if not backup_dir:
-                backup_dir = "special://userdata/addon_data/plugin.video.librarygenie/backups/"
+                backup_dir = "special://userdata/addon_data/plugin.video.library.genie/backups/"
                 self.logger.info(f"Using fallback backup directory: {backup_dir}")
 
             # Handle special:// paths
@@ -595,17 +595,17 @@ class TimestampBackupManager:
                     storage_location = settings.get_backup_storage_location()
             except Exception as settings_error:
                 self.logger.warning(f"Error getting storage location from SettingsManager: {settings_error}")
-            
+
             # Fallback to config manager if settings manager fails
             if not storage_location:
                 try:
                     storage_location = self.config.get_backup_storage_location()
                 except Exception as config_error:
                     self.logger.warning(f"Error getting storage location from config: {config_error}")
-            
+
             # Ultimate fallback to default location
             if not storage_location:
-                storage_location = "special://userdata/addon_data/plugin.video.librarygenie/backups/"
+                storage_location = "special://userdata/addon_data/plugin.video.library.genie/backups/"
                 self.logger.info(f"Using fallback storage location: {storage_location}")
 
             # Handle special:// paths
@@ -650,17 +650,17 @@ class TimestampBackupManager:
                     backup_dir = settings.get_backup_storage_location()
             except Exception as settings_error:
                 self.logger.warning(f"Error getting backup directory from SettingsManager: {settings_error}")
-            
+
             # Fallback to config manager if settings manager fails
             if not backup_dir:
                 try:
                     backup_dir = self.config.get_backup_storage_location()
                 except Exception as config_error:
                     self.logger.warning(f"Error getting backup directory from config: {config_error}")
-            
+
             # Ultimate fallback to default location
             if not backup_dir:
-                backup_dir = "special://userdata/addon_data/plugin.video.librarygenie/backups/"
+                backup_dir = "special://userdata/addon_data/plugin.video.library.genie/backups/"
                 self.logger.info(f"Using fallback backup directory: {backup_dir}")
 
             # Handle special:// paths
@@ -828,7 +828,7 @@ class TimestampBackupManager:
         """Check if there's meaningful user data worth backing up"""
         try:
             from ..data.query_manager import get_query_manager
-            
+
             query_manager = get_query_manager()
             if not query_manager.initialize():
                 return {"worthy": False, "reason": "Database not accessible"}
@@ -839,14 +839,14 @@ class TimestampBackupManager:
                 LEFT JOIN folders f ON l.folder_id = f.id
                 WHERE f.name != 'Search History' OR f.name IS NULL
             """)
-            
+
             user_lists = lists_count.get('count', 0) if lists_count else 0
 
             # Count total list items
             items_count = query_manager.conn_manager.execute_single("""
                 SELECT COUNT(*) as count FROM list_items
             """)
-            
+
             total_items = items_count.get('count', 0) if items_count else 0
 
             # Count user-created folders (excluding Search History)
@@ -854,7 +854,7 @@ class TimestampBackupManager:
                 SELECT COUNT(*) as count FROM folders 
                 WHERE name != 'Search History'
             """)
-            
+
             user_folders = folders_count.get('count', 0) if folders_count else 0
 
             self.logger.debug(f"Backup worthiness check: {user_lists} lists, {total_items} items, {user_folders} folders")
