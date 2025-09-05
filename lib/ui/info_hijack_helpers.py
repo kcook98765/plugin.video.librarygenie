@@ -12,6 +12,7 @@ import xbmcvfs
 
 from ..utils.logger import get_logger
 from ..utils.kodi_version import get_version_specific_control_id
+from .localization import L
 
 logger = get_logger(__name__)
 
@@ -306,13 +307,11 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         elif db_type.lower() in ['episode', 'tvshow']:
             xbmc.executebuiltin(f'Action(Info,{db_id})')
         else:
-            from .localization import L
             logger.warning(L(32200) % db_type)  # "Unsupported db_type for info hijack: %s"
             return False
 
         return _wait_for_info_dialog()
     except Exception as e:
-        from .localization import L
         logger.error(L(32201) % str(e))  # "Failed to open native info dialog: %s"
         return False
 

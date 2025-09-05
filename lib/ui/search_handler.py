@@ -23,6 +23,7 @@ from ..data.query_manager import get_query_manager
 from ..data.connection_manager import get_connection_manager
 from ..search.simple_search_engine import SimpleSearchEngine
 from ..utils.logger import get_logger
+from .localization import L
 
 try:
     from .response_types import DirectoryResponse
@@ -74,7 +75,6 @@ class SearchHandler:
     def _prompt_for_search_terms(self) -> Optional[str]:
         """Prompt user for search keywords"""
         try:
-            from .localization import L
             terms = xbmcgui.Dialog().input(
                 L(32100),  # "Enter keywords to search for:"
                 type=xbmcgui.INPUT_ALPHANUM
@@ -135,7 +135,6 @@ class SearchHandler:
                 search_results = {"items": results.items}
                 added = self.query_manager.add_search_results_to_list(list_id, search_results)
                 if added > 0:
-                    from .localization import L
                     self._notify_info(L(32102) % added, ms=3000)  # "Search saved: %d items"
 
         except Exception as e:
@@ -165,7 +164,6 @@ class SearchHandler:
 
     def _show_no_results_message(self, search_terms: str):
         """Show message when no results found"""
-        from .localization import L
         self._notify_info(L(32101) % search_terms)  # "No results found for '%s'"
 
     # Helper methods

@@ -8,6 +8,7 @@ Standardized response objects for UI handlers
 
 from typing import List, Dict, Any, Optional, Union
 from dataclasses import dataclass
+from .localization import L
 
 
 @dataclass
@@ -55,7 +56,6 @@ class DialogResponse:
         if self.message:
             try:
                 import xbmcgui
-                from .localization import L
                 title = default_title or L(32300)  # "LibraryGenie"
                 xbmcgui.Dialog().notification(
                     title,
