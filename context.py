@@ -12,6 +12,9 @@ import xbmcgui
 import urllib.parse
 from typing import List, Union
 
+# Import localization module
+from resources.lib.common import L
+
 
 def main():
     """Main context menu handler"""
@@ -31,12 +34,12 @@ def main():
                 if quick_add_enabled and default_list_id:
                     # Show context menu with both quick-add and regular add options
                     options = [
-                        "Quick Add to Default List",
-                        "Add to List..."
+                        L(37007),  # "Quick Add to Default List"
+                        L(30012)   # "Add to List..."
                     ]
 
                     dialog = xbmcgui.Dialog()
-                    selected = dialog.select("Add to List", list(options))
+                    selected = dialog.select(L(30012), list(options))  # "Add to List"
 
                     if selected == 0:  # Quick add
                         plugin_url = f"plugin://plugin.video.librarygenie/?action=quick_add&dbtype={dbtype}&dbid={dbid}"
@@ -67,12 +70,12 @@ def main():
                 if quick_add_enabled and default_list_id:
                     # Show context menu with both quick-add and regular add options
                     options = [
-                        "Quick Add to Default List",
-                        "Add to List..."
+                        L(37007),  # "Quick Add to Default List"
+                        L(30012)   # "Add to List..."
                     ]
 
                     dialog = xbmcgui.Dialog()
-                    selected = dialog.select("Add to List", list(options))
+                    selected = dialog.select(L(30012), list(options))  # "Add to List"
 
                     if selected == 0:  # Quick add
                         plugin_url = f"plugin://plugin.video.librarygenie/?action=quick_add&dbtype={dbtype}&dbid={dbid}"
@@ -103,12 +106,12 @@ def main():
                 if quick_add_enabled and default_list_id:
                     # Show context menu with both quick-add and regular add options
                     options = [
-                        "Quick Add to Default List",
-                        "Add to List..."
+                        L(37007),  # "Quick Add to Default List"
+                        L(30012)   # "Add to List..."
                     ]
 
                     dialog = xbmcgui.Dialog()
-                    selected = dialog.select("Add to List", list(options))
+                    selected = dialog.select(L(30012), list(options))  # "Add to List"
 
                     if selected == 0:  # Quick add
                         plugin_url = f"plugin://plugin.video.librarygenie/?action=quick_add&dbtype={dbtype}&dbid={dbid}"
@@ -140,12 +143,12 @@ def main():
                     if quick_add_enabled and default_list_id:
                         # Show context menu with both quick-add and regular add options
                         options = [
-                            "Quick Add to Default List",
-                            "Add to List..."
+                            L(37007),  # "Quick Add to Default List"
+                            L(30012)   # "Add to List..."
                         ]
 
                         dialog = xbmcgui.Dialog()
-                        selected = dialog.select("Add to List", list(options))
+                        selected = dialog.select(L(30012), list(options))  # "Add to List"
 
                         if selected == 0:  # Quick add
                             plugin_url = f"plugin://plugin.video.librarygenie/?action=quick_add&dbtype={dbtype}&dbid={dbid}"
@@ -173,8 +176,8 @@ def main():
 
             # No supported item found
             xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "No supported media item found",
+                L(30001),  # "LibraryGenie"
+                L(30002),  # "No supported media item found"
                 xbmcgui.NOTIFICATION_WARNING,
                 3000
             )
@@ -183,8 +186,8 @@ def main():
     except Exception as e:
         xbmc.log(f"LibraryGenie context menu error: {str(e)}", xbmc.LOGERROR)
         xbmcgui.Dialog().notification(
-            "LibraryGenie",
-            "Context menu error occurred",
+            L(30001),  # "LibraryGenie"
+            L(30003),  # "Context menu error occurred"
             xbmcgui.NOTIFICATION_ERROR,
             3000
         )
@@ -200,8 +203,8 @@ def _handle_librarygenie_item(addon):
 
         if not media_item_id:
             xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "No item ID found",
+                L(30001),  # "LibraryGenie"
+                L(30004),  # "No item ID found"
                 xbmcgui.NOTIFICATION_WARNING,
                 3000
             )
@@ -216,31 +219,31 @@ def _handle_librarygenie_item(addon):
         default_list_id = addon.getSetting('default_list_id')
 
         # Add to List option (always available)
-        options.append("Add to List...")
+        options.append(L(30012))  # "Add to List..."
         actions.append(f"plugin://plugin.video.librarygenie/?action=add_to_list&media_item_id={media_item_id}")
 
         # Quick Add option (if configured)
         if quick_add_enabled and default_list_id:
-            options.append("Quick Add to Default List")
+            options.append(L(37007))  # "Quick Add to Default List"
             actions.append(f"plugin://plugin.video.librarygenie/?action=quick_add&media_item_id={media_item_id}")
 
         # Remove from List option (if we're in a list context)
         if list_id:
-            options.append(f"Remove from List")
+            options.append(L(30013))  # "Remove from List"
             actions.append(f"plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={list_id}&item_id={media_item_id}")
 
         # Show context menu if we have options
         if options:
             dialog = xbmcgui.Dialog()
-            selected = dialog.select("LibraryGenie", options)
+            selected = dialog.select(L(30001), options)  # "LibraryGenie"
 
             if selected >= 0:
                 plugin_url = actions[selected]
                 xbmc.executebuiltin(f"RunPlugin({plugin_url})")
         else:
             xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "No actions available for this item",
+                L(30001),  # "LibraryGenie"
+                L(30005),  # "No actions available for this item"
                 xbmcgui.NOTIFICATION_INFO,
                 3000
             )
@@ -248,8 +251,8 @@ def _handle_librarygenie_item(addon):
     except Exception as e:
         xbmc.log(f"LibraryGenie item context error: {str(e)}", xbmc.LOGERROR)
         xbmcgui.Dialog().notification(
-            "LibraryGenie",
-            "Failed to process LibraryGenie item",
+            L(30001),  # "LibraryGenie"
+            L(30006),  # "Failed to process LibraryGenie item"
             xbmcgui.NOTIFICATION_ERROR,
             3000
         )
@@ -321,8 +324,8 @@ def _handle_external_item(addon):
         # Validate we have minimum required data
         if not cleaned_data.get('title'):
             xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "Unable to identify item title",
+                L(30001),  # "LibraryGenie"
+                L(30007),  # "Unable to identify item title"
                 xbmcgui.NOTIFICATION_WARNING,
                 3000
             )
@@ -343,8 +346,8 @@ def _handle_external_item(addon):
     except Exception as e:
         xbmc.log(f"LibraryGenie external item context error: {str(e)}", xbmc.LOGERROR)
         xbmcgui.Dialog().notification(
-            "LibraryGenie",
-            "Failed to process external item",
+            L(30001),  # "LibraryGenie"
+            L(30008),  # "Failed to process external item"
             xbmcgui.NOTIFICATION_ERROR,
             3000
         )

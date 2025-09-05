@@ -1746,6 +1746,35 @@ msgctxt "#37006"
 msgid "Would you like to authorize now?"
 msgstr ""
 
+# Context menu strings
+msgctxt "#37007"
+msgid "Quick Add to Default List"
+msgstr ""
+
+msgctxt "#37008"
+msgid "No supported media item found"
+msgstr ""
+
+msgctxt "#37009"
+msgid "No item ID found"
+msgstr ""
+
+msgctxt "#37010"
+msgid "No actions available for this item"
+msgstr ""
+
+msgctxt "#37011"
+msgid "Failed to process item"
+msgstr ""
+
+msgctxt "#37012"
+msgid "Unable to identify item title"
+msgstr ""
+
+msgctxt "#37013"
+msgid "Failed to process external item"
+msgstr ""
+
 # Additional placeholder entries for future use
 msgctxt "#36999"
 msgid "Reserved for future use"
