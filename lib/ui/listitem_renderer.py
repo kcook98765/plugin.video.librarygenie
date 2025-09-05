@@ -17,11 +17,12 @@ from .localization import L
 class ListItemRenderer:
     """Renders ListItems with proper Kodi integration"""
 
-    def __init__(self, addon_handle: int, addon_id: str):
+    def __init__(self, addon_handle: int, addon_id: str, context=None):
+        """Initialize ListItemRenderer"""
         self.addon_handle = addon_handle
         self.addon_id = addon_id
         self.logger = get_logger(__name__)
-        self.builder = ListItemBuilder(addon_handle, addon_id)
+        self.builder = ListItemBuilder(addon_handle, addon_id, context)
 
     def render_lists(self, lists: List[Dict[str, Any]], folder_id: Optional[int] = None) -> bool:
         """
@@ -438,20 +439,16 @@ class ListItemRenderer:
 _listitem_renderer_instance = None
 
 
-def get_listitem_renderer(addon_handle: Optional[int] = None, addon_id: Optional[str] = None):
+def get_listitem_renderer(addon_handle: Optional[int] = None, addon_id: Optional[str] = None, context=None):
     """Get global listitem renderer instance"""
     global _listitem_renderer_instance
     if _listitem_renderer_instance is None:
+        # Use provided parameters or get from current context
         if addon_handle is None or addon_id is None:
-            # Try to get from current context
-            try:
-                import sys
-                import xbmcaddon
-                addon = xbmcaddon.Addon()
-                addon_id = addon.getAddonInfo('id')
-                addon_handle = int(sys.argv[1]) if len(sys.argv) > 1 else 0
-            except (ImportError, IndexError, ValueError):
-                addon_handle = 0
-                addon_id = 'plugin.video.librarygenie'
-        _listitem_renderer_instance = ListItemRenderer(addon_handle, addon_id)
+            import sys
+            addon_handle = int(sys.argv[1]) if len(sys.argv) > 1 else -1
+            addon_id = "plugin.video.librarygenie"
+
+        _listitem_renderer_instance = ListItemRenderer(addon_handle, addon_id, context)
+
     return _listitem_renderer_instance
