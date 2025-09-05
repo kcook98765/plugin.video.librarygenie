@@ -157,10 +157,10 @@ class ListItemRenderer:
             name = list_data.get('name', 'Unnamed List')
             list_item = xbmcgui.ListItem(label=name)
 
-            # Set basic info - guard setInfo() for v20+
+            # Set basic info - version-specific approach
             kodi_major = get_kodi_major_version()
             if kodi_major >= 20:
-                # v20+: Use InfoTagVideo setters
+                # v20+: Use InfoTagVideo setters only, no setInfo() fallback
                 try:
                     video_info_tag = list_item.getVideoInfoTag()
                     video_info_tag.setTitle(name)
@@ -168,15 +168,9 @@ class ListItemRenderer:
                     self.logger.debug(f"LIST ITEM v20+: Set metadata via InfoTagVideo for '{name}'")
                 except Exception as e:
                     self.logger.warning(f"LIST ITEM v20+: InfoTagVideo failed for '{name}': {e}")
-                    # On v21+, completely avoid setInfo() to prevent deprecation warnings
-                    # Only use setInfo() on v19/v20 where InfoTagVideo may not be fully reliable
-                    if kodi_major < 21:
-                        list_item.setInfo('video', {
-                            'title': name,
-                            'plot': f"User list: {name}"
-                        })
+                    # Do not fallback to setInfo() on v20+ to avoid deprecation warnings
             else:
-                # v19: Use setInfo()
+                # v19: Use setInfo() only
                 list_item.setInfo('video', {
                     'title': name,
                     'plot': f"User list: {name}"
@@ -204,10 +198,10 @@ class ListItemRenderer:
             name = folder_data.get('name', 'Unnamed Folder')
             list_item = xbmcgui.ListItem(label=name)
 
-            # Set basic info - guard setInfo() for v20+
+            # Set basic info - version-specific approach
             kodi_major = get_kodi_major_version()
             if kodi_major >= 20:
-                # v20+: Use InfoTagVideo setters
+                # v20+: Use InfoTagVideo setters only, no setInfo() fallback
                 try:
                     video_info_tag = list_item.getVideoInfoTag()
                     video_info_tag.setTitle(name)
@@ -215,15 +209,9 @@ class ListItemRenderer:
                     self.logger.debug(f"FOLDER ITEM v20+: Set metadata via InfoTagVideo for '{name}'")
                 except Exception as e:
                     self.logger.warning(f"FOLDER ITEM v20+: InfoTagVideo failed for '{name}': {e}")
-                    # On v21+, completely avoid setInfo() to prevent deprecation warnings
-                    # Only use setInfo() on v19/v20 where InfoTagVideo may not be fully reliable
-                    if kodi_major < 21:
-                        list_item.setInfo('video', {
-                            'title': name,
-                            'plot': f"Folder: {name}"
-                        })
+                    # Do not fallback to setInfo() on v20+ to avoid deprecation warnings
             else:
-                # v19: Use setInfo()
+                # v19: Use setInfo() only
                 list_item.setInfo('video', {
                     'title': name,
                     'plot': f"Folder: {name}"
@@ -298,10 +286,10 @@ class ListItemRenderer:
             self.logger.debug(f"SIMPLE LISTITEM: Creating for '{title}'")
             list_item = xbmcgui.ListItem(label=title)
 
-            # Set basic info - guard setInfo() for v20+
+            # Set basic info - version-specific approach
             kodi_major = get_kodi_major_version()
             if kodi_major >= 20:
-                # v20+: Use InfoTagVideo setters
+                # v20+: Use InfoTagVideo setters only, no setInfo() fallback
                 try:
                     video_info_tag = list_item.getVideoInfoTag()
                     video_info_tag.setTitle(title)
@@ -310,15 +298,9 @@ class ListItemRenderer:
                     self.logger.debug(f"SIMPLE LISTITEM v20+: Set metadata via InfoTagVideo for '{title}'")
                 except Exception as e:
                     self.logger.warning(f"SIMPLE LISTITEM v20+: InfoTagVideo failed for '{title}': {e}")
-                    # On v21+, completely avoid setInfo() to prevent deprecation warnings
-                    # Only use setInfo() on v19/v20 where InfoTagVideo may not be fully reliable
-                    if kodi_major < 21:
-                        info = {'title': title}
-                        if description:
-                            info['plot'] = description
-                        list_item.setInfo('video', info)
+                    # Do not fallback to setInfo() on v20+ to avoid deprecation warnings
             else:
-                # v19: Use setInfo()
+                # v19: Use setInfo() only
                 info = {'title': title}
                 if description:
                     info['plot'] = description
