@@ -287,12 +287,12 @@ class ListsHandler:
             # Show confirmation dialog
             dialog = xbmcgui.Dialog()
             if not dialog.yesno(
-                heading=L(30013),  # "Delete List"
-                line1=L(37008) % list_name,  # "Delete list: %s?"
-                line2=L(34602),    # "This action cannot be undone."
+                heading=L(34600),  # "Confirm Action"
+                line1=L(30501),    # "Are you sure you want to delete this list?"
+                line2=L(30502),    # "This will permanently remove the list and all its items."
                 line3="",
                 nolabel=L(36003),  # "Cancel"
-                yeslabel=L(30013)  # "Delete"
+                yeslabel=L(37017)  # "Delete"
             ):
                 context.logger.info("User cancelled list deletion")
                 return DialogResponse(success=False)

@@ -798,7 +798,7 @@ class ToolsHandler:
 
             import xbmcgui
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(L(36060), backup_options)  # "Select backup to restore:"
+            selected_index = dialog.select(L(37014), backup_options)  # "Select backup to restore"
 
             if selected_index < 0:
                 return DialogResponse(success=False, message=L(36062))  # "Restore cancelled"
@@ -853,7 +853,7 @@ class ToolsHandler:
             dialog = xbmcgui.Dialog()
 
             # Prompt for replace or append
-            options = [L(36071), L(36072)] # "Replace Existing", "Append to Existing"
+            options = [L(37015), L(37016)] # "Replace existing data", "Append to existing data"
             selected_option = dialog.select(L(36073), options) # "Restore Backup Options"
 
             if selected_option == -1:  # User cancelled
