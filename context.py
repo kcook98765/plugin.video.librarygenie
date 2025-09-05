@@ -19,8 +19,16 @@ from resources.lib.common import L
 def main():
     """Main context menu handler"""
     try:
+        # Debug: Log that context menu was triggered
+        xbmc.log("LibraryGenie: Context menu script triggered", xbmc.LOGINFO)
+        
         addon = xbmcaddon.Addon()
 
+        # Debug: Log current item info
+        dbtype = xbmc.getInfoLabel('ListItem.DBTYPE')
+        file_path = xbmc.getInfoLabel('ListItem.FileNameAndPath')
+        xbmc.log(f"LibraryGenie: Context - DBTYPE={dbtype}, FilePath={file_path}", xbmc.LOGINFO)
+        
         # Get the currently playing/selected item info
         if xbmc.getCondVisibility('Container.Content(movies)'):
             dbid = xbmc.getInfoLabel('ListItem.DBID')
