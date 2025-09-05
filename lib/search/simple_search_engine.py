@@ -85,7 +85,7 @@ class SimpleSearchEngine:
     def _build_ranked_sql_query(self, query: SimpleSearchQuery) -> Tuple[str, List[Any]]:
         """Build SQL query with ranking logic"""
         params = []
-        
+
         # Base SELECT with ranking calculation
         if query.scope_type == "list":
             select_clause = """
@@ -121,9 +121,9 @@ class SimpleSearchEngine:
         # Build final query with ranking-based ordering
         where_clause = " AND ".join(where_clauses)
         order_clause = "search_rank ASC, LOWER(mi.title) ASC"
-        
+
         full_query = f"{select_clause} WHERE {where_clause} ORDER BY {order_clause}"
-        
+
         # Add pagination
         if query.page_size > 0:
             full_query += f" LIMIT {query.page_size}"
@@ -136,31 +136,31 @@ class SimpleSearchEngine:
         """Build search WHERE conditions and ranking expression"""
         conditions = []
         params = []
-        
+
         # Build conditions based on search scope
         title_conditions = []
         plot_conditions = []
-        
+
         for keyword in query.keywords:
             normalized_keyword = self.normalizer.normalize(keyword)
-            
+
             if query.search_scope in ["title", "both"]:
                 title_conditions.append("LOWER(mi.title) LIKE ?")
                 params.append(f"%{normalized_keyword}%")
-            
+
             if query.search_scope in ["plot", "both"]:
                 plot_conditions.append("LOWER(mi.plot) LIKE ?")
                 params.append(f"%{normalized_keyword}%")
 
         # Combine conditions based on match logic
         field_conditions = []
-        
+
         if title_conditions:
             if query.match_logic == "all":
                 field_conditions.append(f"({' AND '.join(title_conditions)})")
             else:  # any
                 field_conditions.append(f"({' OR '.join(title_conditions)})")
-        
+
         if plot_conditions:
             if query.match_logic == "all":
                 field_conditions.append(f"({' AND '.join(plot_conditions)})")
@@ -184,20 +184,20 @@ class SimpleSearchEngine:
         """Build SQL ranking expression that prioritizes title matches"""
         if not query.keywords:
             return "999"  # Default low rank
-        
+
         # Count keyword matches in title and plot
         title_matches = []
         plot_matches = []
-        
+
         for i, keyword in enumerate(query.keywords):
             # Using CASE WHEN for each keyword
             title_matches.append(f"CASE WHEN LOWER(mi.title) LIKE '%{self.normalizer.normalize(keyword)}%' THEN 1 ELSE 0 END")
             plot_matches.append(f"CASE WHEN LOWER(mi.plot) LIKE '%{self.normalizer.normalize(keyword)}%' THEN 1 ELSE 0 END")
-        
+
         title_count = " + ".join(title_matches)
         plot_count = " + ".join(plot_matches)
         total_keywords = len(query.keywords)
-        
+
         # Ranking logic:
         # 1. All keywords in title
         # 2. Some keywords in title  
@@ -212,7 +212,7 @@ class SimpleSearchEngine:
                 ELSE 5
             END
         """
-        
+
         return ranking_expr
 
 

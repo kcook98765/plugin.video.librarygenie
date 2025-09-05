@@ -20,6 +20,8 @@ import xbmcplugin
 
 from ..search import get_simple_search_engine, get_simple_query_interpreter
 from ..data.query_manager import get_query_manager
+from ..data.connection_manager import get_connection_manager
+from ..search.simple_search_engine import SimpleSearchEngine
 from ..utils.logger import get_logger
 
 try:
@@ -34,16 +36,17 @@ class SearchHandler:
     def __init__(self, addon_handle: Optional[int] = None):
         self.addon_handle = addon_handle
         self.logger = get_logger(__name__)
-        self.search_engine = get_simple_search_engine()
-        self.query_interpreter = get_simple_query_interpreter()
         self.query_manager = get_query_manager()
+        self.conn_manager = get_connection_manager()
+        self.search_engine = SimpleSearchEngine()
+        self.query_interpreter = get_simple_query_interpreter()
         self.addon = xbmcaddon.Addon()
         self.addon_id = self.addon.getAddonInfo('id')
 
     def prompt_and_search(self, context=None) -> Optional[Any]:
         """Main entry point for simple search"""
         self._ensure_handle_from_context(context)
-        
+
         # Step 1: Get search keywords
         search_terms = self._prompt_for_search_terms()
         if not search_terms:
@@ -55,7 +58,7 @@ class SearchHandler:
 
         # Step 3: Execute search
         results = self._execute_simple_search(search_terms, search_options, context)
-        
+
         # Step 4: Save results and redirect
         if results.total_count > 0:
             self._save_search_history(search_terms, search_options, results)
@@ -80,7 +83,7 @@ class SearchHandler:
             self._warn(f"Search terms input failed: {e}")
             return None
 
-    
+
 
     def _execute_simple_search(self, search_terms: str, options: Dict[str, str], context=None):
         """Execute the simplified search"""
@@ -90,20 +93,20 @@ class SearchHandler:
                 "search_scope": options["search_scope"],
                 "match_logic": options["match_logic"]
             }
-            
+
             # Add scope info if searching within a list
             if context and hasattr(context, 'scope_type'):
                 query_params["scope_type"] = context.scope_type
                 query_params["scope_id"] = context.scope_id
-            
+
             query = self.query_interpreter.parse_query(search_terms, **query_params)
-            
+
             # Execute search
             results = self.search_engine.search(query)
-            
+
             self._info(f"Simple search completed: {results.total_count} results for '{search_terms}'")
             return results
-            
+
         except Exception as e:
             self._error(f"Simple search execution failed: {e}")
             from ..search.simple_search_engine import SimpleSearchResult
@@ -116,23 +119,23 @@ class SearchHandler:
         try:
             if results.total_count == 0:
                 return
-                
+
             # Create search history list with simplified description
             query_desc = f"{search_terms}"
-            
+
             list_id = self.query_manager.create_search_history_list(
                 query=query_desc, 
                 search_type="simple", 
                 result_count=results.total_count
             )
-            
+
             if list_id:
                 # Convert results to format expected by query manager
                 search_results = {"items": results.items}
                 added = self.query_manager.add_search_results_to_list(list_id, search_results)
                 if added > 0:
                     self._notify_info(f"Search saved: {added} items", ms=3000)
-                    
+
         except Exception as e:
             self._warn(f"Failed to save search history: {e}")
 
@@ -153,7 +156,7 @@ class SearchHandler:
             xbmc.executebuiltin(f'Container.Update("{list_url}",replace)')
             self._end_directory(succeeded=True, update=True)
             return True
-            
+
         except Exception as e:
             self._warn(f"Redirect to saved search list failed: {e}")
             return False
