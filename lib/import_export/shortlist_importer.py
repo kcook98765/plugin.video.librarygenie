@@ -229,8 +229,8 @@ class ShortListImporter:
             # Create new list using query_manager
             with self.conn_manager.transaction() as conn:
                 cursor = conn.execute("""
-                    INSERT INTO lists (folder_id)
-                    VALUES (NULL)
+                    INSERT INTO lists (name, folder_id)
+                    VALUES (?, NULL)
                 """, ["ShortList Import"])
                 list_id = cursor.lastrowid
 
