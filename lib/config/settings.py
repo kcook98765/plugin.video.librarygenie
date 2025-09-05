@@ -74,7 +74,7 @@ class SettingsManager:
     # Favorites Settings
     def get_enable_favorites_integration(self) -> bool:
         """Get enable favorites integration setting"""
-        return self.addon.getSettingBool('enable_favorites_integration')
+        return self.addon.getSettingBool('favorites_integration_enabled')
 
     def get_favorites_scan_interval(self) -> int:
         """Get favorites scan interval in minutes"""

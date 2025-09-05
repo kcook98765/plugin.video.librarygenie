@@ -76,7 +76,7 @@ class MainMenuHandler:
 
             # 4. Kodi Favorites (conditional - check if favorites integration is enabled)
             addon = xbmcaddon.Addon()
-            favorites_enabled = addon.getSettingBool('enable_favorites_integration')
+            favorites_enabled = addon.getSettingBool('favorites_integration_enabled')
             
             if favorites_enabled:
                 context.logger.info("Kodi Favorites integration is enabled - adding to main menu")
