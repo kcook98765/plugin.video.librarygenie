@@ -29,7 +29,7 @@
       <item library="context.py">
         <label>32200</label>
         <description>32201</description>
-        <visible>String.IsEqual(ListItem.DBTYPE,movie) | String.IsEqual(ListItem.DBTYPE,episode) | String.IsEqual(ListItem.DBTYPE,musicvideo) | String.StartsWith(ListItem.FileNameAndPath,plugin://plugin.video.librarygenie/) | String.StartsWith(ListItem.FileNameAndPath,plugin://)</visible>
+        <visible>String.IsEqual(ListItem.DBTYPE,movie) | String.IsEqual(ListItem.DBTYPE,episode) | String.IsEqual(ListItem.DBTYPE,musicvideo) | String.StartsWith(ListItem.FileNameAndPath,plugin://)</visible>
       </item>
     </contextmenu>
   </extension>
