@@ -43,9 +43,10 @@ class InfoHijackManager:
         
         # Handle dialog close detection
         if not dialog_active and self._native_info_was_open:
-            self._logger.debug("HIJACK: Native info dialog closed, initiating container restore")
+            self._logger.info("🔄 HIJACK STEP 5: NATIVE INFO DIALOG CLOSED - initiating container restore")
             self._handle_native_info_closed()
             self._native_info_was_open = False
+            self._logger.info("✅ HIJACK STEP 5 COMPLETE: Container restoration initiated")
             return
             
         # Handle dialog open detection
@@ -54,7 +55,11 @@ class InfoHijackManager:
                 # Check if this is our native info (has readiness indicators)
                 if self._is_native_info_hydrated():
                     self._native_info_was_open = True
-                    self._logger.debug("HIJACK: Native info dialog detected and hydrated")
+                    current_dialog_id = xbmcgui.getCurrentWindowDialogId()
+                    listitem_title = xbmc.getInfoLabel('ListItem.Title')
+                    listitem_duration = xbmc.getInfoLabel('ListItem.Duration')
+                    self._logger.info(f"🎯 HIJACK: NATIVE INFO DIALOG DETECTED AND HYDRATED")
+                    self._logger.info(f"HIJACK: Dialog ID: {current_dialog_id}, Title: '{listitem_title}', Duration: {listitem_duration}")
             return
 
         # Only attempt new hijacks when no dialog is active
@@ -73,6 +78,9 @@ class InfoHijackManager:
                 self._logger.info(f"HIJACK DEBUG: No armed items - container: {container_path}, item: {current_item}/{num_items}, label: '{list_item_label}'")
             return
 
+        # 🔍 STEP 1: ORIGINAL VIDEO INFO DETECTION
+        self._logger.info(f"🔍 HIJACK STEP 1: ORIGINAL VIDEO INFO DETECTED")
+        
         # Debug: Log all armed item properties
         listitem_label = xbmc.getInfoLabel('ListItem.Label')
         hijack_dbid_prop = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBID)')
@@ -103,16 +111,21 @@ class InfoHijackManager:
             self._logger.warning(f"HIJACK: Missing data - DBID={dbid}, DBType={dbtype}")
             return
 
+        # 🔄 STEP 2: HIJACK PROCESS INITIATED
+        self._logger.info(f"🔄 HIJACK STEP 2: HIJACK PROCESS INITIATED for {dbtype} {dbid}")
+        
         self._in_progress = True
         self._last_hijack_time = current_time
         
         try:
-            # Save return target before opening native info
+            # 💾 STEP 3: SAVE RETURN TARGET
+            self._logger.info(f"💾 HIJACK STEP 3: SAVING RETURN TARGET")
             orig_path = xbmc.getInfoLabel('Container.FolderPath') or ''
             current_position = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
             
-            self._logger.debug(f"HIJACK: Saving return target - path: {orig_path}, position: {current_position}")
+            self._logger.info(f"HIJACK: Saving return target - path: {orig_path}, position: {current_position}")
             self._save_return_target(orig_path, current_position)
+            self._logger.info(f"✅ HIJACK STEP 3 COMPLETE: Return target saved")
             
             # Convert dbid to int safely
             try:
@@ -121,19 +134,28 @@ class InfoHijackManager:
                 self._logger.error(f"HIJACK: Invalid DBID '{dbid}' - cannot convert to integer")
                 return
             
-            # Open native info WITHOUT directory rebuild
-            self._logger.info(f"HIJACK: Attempting to open native info for {dbtype} {dbid_int}")
+            # 🚀 STEP 4: OPEN NATIVE INFO
+            self._logger.info(f"🚀 HIJACK STEP 4: OPENING NATIVE INFO for {dbtype} {dbid_int}")
+            self._logger.info(f"HIJACK: About to call open_native_info_fast({dbtype}, {dbid_int})")
+            
+            start_time = time.time()
             ok = open_native_info_fast(dbtype, dbid_int, self._logger)
+            end_time = time.time()
+            
             if ok:
-                self._logger.info(f"HIJACK: ✅ Successfully opened native info for {dbtype} {dbid_int}")
+                self._logger.info(f"✅ HIJACK STEP 4 COMPLETE: Successfully opened native info for {dbtype} {dbid_int} in {end_time - start_time:.3f}s")
                 # Set cooldown based on how long the operation took
                 operation_time = time.time() - current_time
                 self._cooldown_until = time.time() + max(0.5, operation_time * 2)
+                
+                # 🎉 HIJACK PROCESS COMPLETE
+                self._logger.info(f"🎉 HIJACK PROCESS COMPLETE: Full hijack successful for {dbtype} {dbid_int}")
             else:
-                self._logger.warning(f"HIJACK: ❌ Failed to open native info for {dbtype} {dbid_int}")
+                self._logger.error(f"❌ HIJACK STEP 4 FAILED: Failed to open native info for {dbtype} {dbid_int} after {end_time - start_time:.3f}s")
                 # Check what went wrong
                 dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
-                self._logger.warning(f"HIJACK: Dialog active after failure: {dialog_active}")
+                current_window_id = xbmcgui.getCurrentWindowDialogId()
+                self._logger.error(f"HIJACK: Dialog active after failure: {dialog_active}, current dialog ID: {current_window_id}")
         except Exception as e:
             self._logger.error(f"HIJACK: 💥 Exception during hijack: {e}")
             import traceback

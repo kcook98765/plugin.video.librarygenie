@@ -368,59 +368,105 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
     This ensures the video info gets full Kodi metadata population from native library.
     """
     try:
-        _log(f"Starting hijack process for {db_type} {db_id}")
+        _log(f"🎬 HIJACK HELPERS: Starting hijack process for {db_type} {db_id}")
         
-        # Step 1: Close any open dialog first
+        # 🔒 SUBSTEP 1: Close any open dialog first
+        _log(f"🔒 SUBSTEP 1: Checking for open dialogs to close")
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
         if current_dialog_id in (12003, 10147):  # DialogVideoInfo or similar
-            _log(f"Closing current video info dialog (ID: {current_dialog_id})")
+            _log(f"SUBSTEP 1: Found open dialog ID {current_dialog_id}, closing it")
             xbmc.executebuiltin('Action(Back)')
             # Wait for dialog to close
             xbmc.sleep(200)
+            # Verify dialog closed
+            after_close_id = xbmcgui.getCurrentWindowDialogId()
+            _log(f"✅ SUBSTEP 1 COMPLETE: Dialog closed (was {current_dialog_id}, now {after_close_id})")
+        else:
+            _log(f"✅ SUBSTEP 1 COMPLETE: No dialog to close (current dialog ID: {current_dialog_id})")
         
-        # Step 2: Create XSP file for single item to create a native list
-        _log(f"Creating XSP file for {db_type} {db_id}")
+        # 📝 SUBSTEP 2: Create XSP file for single item to create a native list
+        _log(f"📝 SUBSTEP 2: Creating XSP file for {db_type} {db_id}")
+        start_xsp_time = time.perf_counter()
         xsp_path = _create_xsp_for_dbitem(db_type, db_id)
-        if not xsp_path:
-            _log(f"Failed to create XSP for {db_type} {db_id}", xbmc.LOGWARNING)
-            return False
+        end_xsp_time = time.perf_counter()
         
-        # Step 3: Navigate to the XSP (creates native Kodi list with single item)
-        _log(f"Navigating to native list: {xsp_path}")
+        if not xsp_path:
+            _log(f"❌ SUBSTEP 2 FAILED: Failed to create XSP for {db_type} {db_id}", xbmc.LOGWARNING)
+            return False
+        _log(f"✅ SUBSTEP 2 COMPLETE: XSP created at {xsp_path} in {end_xsp_time - start_xsp_time:.3f}s")
+        
+        # 🧭 SUBSTEP 3: Navigate to the XSP (creates native Kodi list with single item)
+        _log(f"🧭 SUBSTEP 3: Navigating to native list: {xsp_path}")
+        current_window_before = xbmcgui.getCurrentWindowId()
+        start_nav_time = time.perf_counter()
         xbmc.executebuiltin(f'ActivateWindow(Videos,"{xsp_path}",return)')
         
-        # Step 4: Wait for the Videos window to load with our item
+        # ⏳ SUBSTEP 4: Wait for the Videos window to load with our item
+        _log(f"⏳ SUBSTEP 4: Waiting for Videos window to load with XSP content")
         if not _wait_videos_on(xsp_path, timeout_ms=4000):
-            _log(f"Failed to load Videos window with XSP: {xsp_path}", xbmc.LOGWARNING)
+            end_nav_time = time.perf_counter()
+            current_window_after = xbmcgui.getCurrentWindowId()
+            current_path = xbmc.getInfoLabel("Container.FolderPath")
+            _log(f"❌ SUBSTEP 4 FAILED: Failed to load Videos window with XSP: {xsp_path} after {end_nav_time - start_nav_time:.3f}s", xbmc.LOGWARNING)
+            _log(f"SUBSTEP 4 DEBUG: Window before={current_window_before}, after={current_window_after}, current_path='{current_path}'", xbmc.LOGWARNING)
             return False
+        end_nav_time = time.perf_counter()
+        current_window_after = xbmcgui.getCurrentWindowId()
+        current_path = xbmc.getInfoLabel("Container.FolderPath")
+        num_items = int(xbmc.getInfoLabel("Container.NumItems") or "0")
+        _log(f"✅ SUBSTEP 4 COMPLETE: Videos window loaded in {end_nav_time - start_nav_time:.3f}s")
+        _log(f"SUBSTEP 4 STATUS: Window {current_window_before}→{current_window_after}, path='{current_path}', items={num_items}")
         
-        # Step 5: Focus the list and find our item
-        _log(f"Focusing list to locate {db_type} {db_id}")
+        # 🎯 SUBSTEP 5: Focus the list and find our item
+        _log(f"🎯 SUBSTEP 5: Focusing list to locate {db_type} {db_id}")
+        start_focus_time = time.perf_counter()
         if not focus_list():
-            _log(f"Failed to focus list control", xbmc.LOGWARNING)
+            end_focus_time = time.perf_counter()
+            _log(f"❌ SUBSTEP 5 FAILED: Failed to focus list control after {end_focus_time - start_focus_time:.3f}s", xbmc.LOGWARNING)
             return False
+        end_focus_time = time.perf_counter()
+        _log(f"✅ SUBSTEP 5 COMPLETE: List focused in {end_focus_time - start_focus_time:.3f}s")
         
-        # Step 6: Find the correct item index in the directory
+        # 📍 SUBSTEP 6: Find the correct item index in the directory
+        _log(f"📍 SUBSTEP 6: Finding correct item index")
         target_index = _find_index_in_dir_by_file(xsp_path, None)
+        current_item_before = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
         if target_index > 0:
-            _log(f"Selecting item at index {target_index}")
+            _log(f"SUBSTEP 6: Moving from item {current_item_before} to index {target_index}")
             xbmc.executebuiltin(f'Action(SelectItem,{target_index})')
             xbmc.sleep(100)
+            current_item_after = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
+            _log(f"SUBSTEP 6: Item position: {current_item_before} → {current_item_after}")
+        current_item_label = xbmc.getInfoLabel('ListItem.Label')
+        current_item_dbid = xbmc.getInfoLabel('ListItem.DBID')
+        _log(f"✅ SUBSTEP 6 COMPLETE: Target item selected - Label: '{current_item_label}', DBID: {current_item_dbid}")
         
-        # Step 7: Open info from the native list (this gets full metadata population)
-        _log(f"Opening video info from native list")
+        # 🎬 SUBSTEP 7: Open info from the native list (this gets full metadata population)
+        _log(f"🎬 SUBSTEP 7: Opening video info from native list")
+        pre_info_dialog_id = xbmcgui.getCurrentWindowDialogId()
+        start_info_time = time.perf_counter()
         xbmc.executebuiltin('Action(Info)')
         
-        # Step 8: Wait for the native info dialog to appear
+        # ⌛ SUBSTEP 8: Wait for the native info dialog to appear
+        _log(f"⌛ SUBSTEP 8: Waiting for native info dialog to appear")
         success = _wait_for_info_dialog(timeout=6.0)
+        end_info_time = time.perf_counter()
+        post_info_dialog_id = xbmcgui.getCurrentWindowDialogId()
+        
         if success:
-            _log(f"✅ Native info hijack completed successfully for {db_type} {db_id}")
+            _log(f"✅ SUBSTEP 8 COMPLETE: Native info dialog opened in {end_info_time - start_info_time:.3f}s")
+            _log(f"SUBSTEP 8 STATUS: Dialog ID changed from {pre_info_dialog_id} to {post_info_dialog_id}")
+            _log(f"🎉 HIJACK HELPERS: ✅ Native info hijack completed successfully for {db_type} {db_id}")
         else:
-            _log(f"❌ Failed to open native info after hijack for {db_type} {db_id}", xbmc.LOGWARNING)
+            _log(f"❌ SUBSTEP 8 FAILED: Failed to open native info after {end_info_time - start_info_time:.3f}s", xbmc.LOGWARNING)
+            _log(f"SUBSTEP 8 DEBUG: Dialog ID remains {post_info_dialog_id} (was {pre_info_dialog_id})", xbmc.LOGWARNING)
+            _log(f"💥 HIJACK HELPERS: ❌ Failed to open native info after hijack for {db_type} {db_id}", xbmc.LOGWARNING)
             
         return success
     except Exception as e:
-        logger.error(f"Failed hijack process for {db_type} {db_id}: {e}")
+        logger.error(f"💥 HIJACK HELPERS: Exception in hijack process for {db_type} {db_id}: {e}")
+        import traceback
+        logger.error(f"HIJACK HELPERS: Traceback: {traceback.format_exc()}")
         return False
 
 def restore_container_after_close(orig_path: str, position_str: str, logger) -> bool:
