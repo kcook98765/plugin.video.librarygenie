@@ -33,8 +33,8 @@ class MainMenuHandler:
 
             # Get all lists and folders
             context.logger.info("Displaying lists menu")
-            lists = query_manager.get_lists()
-            folders = query_manager.get_folders()
+            lists = query_manager.get_all_lists()
+            folders = query_manager.get_all_folders()
 
             context.logger.info(f"Found {len(lists)} total lists")
             context.logger.info(f"Found {len([l for l in lists if l['name'] != 'Kodi Favorites'])} user lists (excluding Kodi Favorites)")
