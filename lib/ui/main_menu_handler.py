@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -12,6 +13,7 @@ from .plugin_context import PluginContext
 from ..utils.logger import get_logger
 from ..utils.kodi_version import get_kodi_major_version
 import xbmcplugin
+import xbmcaddon
 
 
 class MainMenuHandler:
@@ -21,7 +23,7 @@ class MainMenuHandler:
         pass
 
     def show_main_menu(self, context: PluginContext) -> bool:
-        """Show main menu with lists and folders"""
+        """Show main menu with top-level navigation items"""
         try:
             kodi_major = get_kodi_major_version()
             context.logger.info(f"MAIN MENU: Starting main menu display on Kodi v{kodi_major}")
@@ -31,55 +33,75 @@ class MainMenuHandler:
                 context.logger.error("Query manager not available")
                 return False
 
-            # Get all lists and folders
-            context.logger.info("Displaying lists menu")
-            lists = query_manager.get_user_lists()
-            folders = query_manager.get_all_folders()
-
-            context.logger.info(f"Found {len(lists)} total lists")
-            context.logger.info(f"Found {len([l for l in lists if l['name'] != 'Kodi Favorites'])} user lists (excluding Kodi Favorites)")
-
-            # Build menu using MenuBuilder
-            context.logger.info("MAIN MENU: Creating MenuBuilder instance")
-            menu_builder = MenuBuilder()
-
-            # Build menu items for lists and folders
+            # Build root-level menu items
+            context.logger.info("Building root-level main menu")
             menu_items = []
-            
-            # Add folders first
-            for folder in folders:
-                menu_items.append({
-                    'label': f"📁 {folder['name']}",
-                    'action': 'show_folder',
-                    'folder_id': folder['id'],
-                    'is_folder': True,
-                    'icon': 'DefaultFolder.png',
-                    'description': f"Folder: {folder['name']}"
-                })
-            
-            # Add lists
-            for list_item in lists:
-                menu_items.append({
-                    'label': f"📋 {list_item['name']}",
-                    'action': 'show_list',
-                    'list_id': list_item['id'],
-                    'is_folder': True,
-                    'icon': 'DefaultPlaylist.png',
-                    'description': f"List: {list_item['name']}"
-                })
-            
-            # Add tools and options
+
+            # 1. Search
             menu_items.append({
-                'label': f"[COLOR yellow]🔧 Tools & Options[/COLOR]",
-                'action': 'show_list_tools',
-                'list_type': 'lists_main',
+                'label': f"🔍 Search",
+                'action': 'prompt_and_search',
                 'is_folder': True,
-                'icon': 'DefaultAddonProgram.png',
-                'description': 'Access lists tools and options'
+                'icon': 'DefaultAddonsSearch.png',
+                'description': 'Search your library'
             })
+
+            # 2. Search History (only if there are search history items)
+            search_folder_id = query_manager.get_or_create_search_history_folder()
+            search_lists = query_manager.get_lists_in_folder(search_folder_id)
+            if search_lists:
+                context.logger.info(f"Found {len(search_lists)} search history items")
+                menu_items.append({
+                    'label': f"📊 Search History",
+                    'action': 'show_folder',
+                    'folder_id': search_folder_id,
+                    'is_folder': True,
+                    'icon': 'DefaultRecentlyAdded.png',
+                    'description': f'Recent searches ({len(search_lists)} items)'
+                })
+
+            # 3. Lists
+            all_lists = query_manager.get_all_lists_with_folders()
+            user_lists = [item for item in all_lists if item.get('name') != 'Kodi Favorites']
+            context.logger.info(f"Found {len(user_lists)} user lists")
+            
+            menu_items.append({
+                'label': f"📋 Lists",
+                'action': 'show_lists_menu',
+                'is_folder': True,
+                'icon': 'DefaultPlaylist.png',
+                'description': f'Manage your lists ({len(user_lists)} lists)'
+            })
+
+            # 4. Kodi Favorites (conditional - check if favorites integration is enabled)
+            addon = xbmcaddon.Addon()
+            favorites_enabled = addon.getSettingBool('enable_favorites_integration')
+            
+            if favorites_enabled:
+                context.logger.info("Kodi Favorites integration is enabled - adding to main menu")
+                
+                # Check if there are any favorites
+                favorites_manager = context.favorites_manager
+                if favorites_manager:
+                    favorites = favorites_manager.get_mapped_favorites(show_unmapped=True)
+                    favorites_count = len(favorites)
+                    
+                    menu_items.append({
+                        'label': f"⭐ Kodi Favorites",
+                        'action': 'kodi_favorites',
+                        'is_folder': True,
+                        'icon': 'DefaultShortcut.png',
+                        'description': f'Your Kodi favorites ({favorites_count} items)'
+                    })
+                    context.logger.info(f"Added Kodi Favorites to main menu ({favorites_count} items)")
+                else:
+                    context.logger.warning("Favorites manager not available")
+            else:
+                context.logger.info("Kodi Favorites integration is disabled - not showing in main menu")
 
             # Use MenuBuilder to create the menu
             context.logger.info("MAIN MENU: Building menu with MenuBuilder")
+            menu_builder = MenuBuilder()
             menu_builder.build_menu(
                 menu_items, 
                 context.addon_handle, 
