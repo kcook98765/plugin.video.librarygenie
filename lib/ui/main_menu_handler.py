@@ -41,7 +41,7 @@ class MainMenuHandler:
 
             # Build menu using MenuBuilder
             context.logger.info("MAIN MENU: Creating MenuBuilder instance")
-            menu_builder = MenuBuilder(context.addon_handle, context.base_url)
+            menu_builder = MenuBuilder(context)
 
             # Add breadcrumb if available
             if context.breadcrumb_path:
