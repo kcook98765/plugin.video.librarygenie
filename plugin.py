@@ -350,8 +350,21 @@ def handle_shortlist_import():
 
         progress.update(30, "Scanning ShortList data...")
 
+        logger.info("About to call importer.import_shortlist_items()")
+        logger.info(f"Importer type: {type(importer)}")
+        logger.info(f"import_shortlist_items method: {importer.import_shortlist_items}")
+        logger.info(f"import_shortlist_items callable: {callable(importer.import_shortlist_items)}")
+
         # Perform the import
-        result = importer.import_shortlist_items()()
+        try:
+            logger.info("Calling import_shortlist_items method...")
+            result = importer.import_shortlist_items()
+            logger.info(f"Import result: {result}")
+        except Exception as e:
+            logger.error(f"Error calling import_shortlist_items: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            raise
 
         progress.update(100, "Import complete!")
         progress.close()
