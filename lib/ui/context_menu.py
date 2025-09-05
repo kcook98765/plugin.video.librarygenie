@@ -16,6 +16,12 @@ class ContextMenuManager:
     def __init__(self, string_getter):
         self.logger = get_logger(__name__)
         self._get_string = string_getter
+    
+    def _shorten_for_context_menu(self, text: str, max_length: int = 25) -> str:
+        """Shorten text for context menu display"""
+        if len(text) <= max_length:
+            return text
+        return f"{text[:max_length-3]}..."
 
     def add_library_item_context_menu(self, list_item, library_movie_id):
         """Add context menu for library items"""

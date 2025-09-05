@@ -544,14 +544,18 @@ class QueryManager:
                 self.logger.error("Could not get/create Search History folder")
                 return None
 
-            # Generate list name with timestamp
+            # Generate list name with timestamp - keep it shorter for better UI display
             from datetime import datetime
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-            list_name = f"Search: '{query}' ({search_type}) - {timestamp}"
+            timestamp = datetime.now().strftime("%m/%d %H:%M")
+            
+            # Shorten query if needed for display
+            display_query = query if len(query) <= 20 else f"{query[:17]}..."
+            
+            list_name = f"Search: '{display_query}' ({timestamp})"
 
             # Truncate if too long
-            if len(list_name) > 100:
-                list_name = list_name[:97] + "..."
+            if len(list_name) > 60:
+                list_name = list_name[:57] + "..."
 
             # Create the list
             with self.connection_manager.transaction() as conn:

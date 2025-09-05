@@ -12,10 +12,26 @@ from ..utils.logger import get_logger
 
 
 class ContextMenuFactory:
-    """Factory class for generating context menu items"""
+    """Factory for creating context menus for different item types"""
 
     def __init__(self):
         self.logger = get_logger(__name__)
+
+    def _shorten_menu_text(self, text: str, max_length: int = 30) -> str:
+        """Shorten text for context menu display"""
+        if len(text) <= max_length:
+            return text
+
+        # For search history items, extract just the search terms
+        if text.startswith("Search: '") and "' (" in text:
+            search_part = text.split("' (")[0].replace("Search: '", "")
+            if len(search_part) <= max_length - 3:
+                return f"'{search_part}'"
+            else:
+                return f"'{search_part[:max_length-6]}...'"
+
+        # For regular text, just truncate
+        return f"{text[:max_length-3]}..."
 
     def create_list_item_context_menu(self, item: Dict[str, Any], context: PluginContext,
                                     list_id: Optional[str] = None) -> List[Tuple[str, str]]:
@@ -25,23 +41,24 @@ class ContextMenuFactory:
         try:
             # Add to List option
             media_item_id = item.get('media_item_id') or item.get('id')
+            item_title = item.get('title', '')
             if media_item_id:
                 context_menu.append((
-                    "Add to List",
+                    self._shorten_menu_text(f"Add to List: {item_title}"),
                     f"RunPlugin({context.build_url('add_to_list', media_item_id=media_item_id)})"
                 ))
 
             # Remove from List option (if list_id provided)
             if list_id and media_item_id:
                 context_menu.append((
-                    "Remove from List",
+                    self._shorten_menu_text(f"Remove from List: {item_title}"),
                     f"RunPlugin({context.build_url('remove_from_list', list_id=list_id, item_id=media_item_id)})"
                 ))
 
             # Quick Add to Default List option
             if media_item_id:
                 context_menu.append((
-                    "Quick Add to Default",
+                    self._shorten_menu_text(f"Quick Add to Default: {item_title}"),
                     f"RunPlugin({context.build_url('quick_add', media_item_id=media_item_id)})"
                 ))
 
@@ -57,9 +74,10 @@ class ContextMenuFactory:
         try:
             # Remove from Favorites option
             item_id = item.get('id') or item.get('media_item_id') or item.get('kodi_id', '')
+            item_title = item.get('title', '')
             if item_id:
                 context_menu.append((
-                    "Remove from Favorites",
+                    self._shorten_menu_text(f"Remove from Favorites: {item_title}"),
                     f"RunPlugin({context.build_url('remove_from_favorites', item_id=item_id)})"
                 ))
 
@@ -67,7 +85,7 @@ class ContextMenuFactory:
             if item.get('imdb_id') or item.get('media_item_id'):
                 media_item_id = item.get('media_item_id') or item.get('id')
                 context_menu.append((
-                    "Add to List",
+                    self._shorten_menu_text(f"Add to List: {item_title}"),
                     f"RunPlugin({context.build_url('add_to_list_menu', media_item_id=media_item_id)})"
                 ))
 
@@ -83,16 +101,17 @@ class ContextMenuFactory:
         try:
             # Add to List option
             media_item_id = item.get('media_item_id') or item.get('id')
+            item_title = item.get('title', '')
             if media_item_id:
                 context_menu.append((
-                    "Add to List",
+                    self._shorten_menu_text(f"Add to List: {item_title}"),
                     f"RunPlugin({context.build_url('add_to_list', media_item_id=media_item_id)})"
                 ))
 
             # Quick Add to Default List option
             if media_item_id:
                 context_menu.append((
-                    "Quick Add to Default",
+                    self._shorten_menu_text(f"Quick Add to Default: {item_title}"),
                     f"RunPlugin({context.build_url('quick_add', media_item_id=media_item_id)})"
                 ))
 
@@ -107,16 +126,17 @@ class ContextMenuFactory:
 
         try:
             folder_id = folder.get('id')
+            folder_name = folder.get('name', '')
             if folder_id:
                 # Rename Folder option
                 context_menu.append((
-                    "Rename Folder",
+                    self._shorten_menu_text(f"Rename Folder: {folder_name}"),
                     f"RunPlugin({context.build_url('rename_folder', folder_id=folder_id)})"
                 ))
 
                 # Delete Folder option
                 context_menu.append((
-                    "Delete Folder",
+                    self._shorten_menu_text(f"Delete Folder: {folder_name}"),
                     f"RunPlugin({context.build_url('delete_folder', folder_id=folder_id)})"
                 ))
 
@@ -131,16 +151,17 @@ class ContextMenuFactory:
 
         try:
             list_id = list_item.get('id')
+            list_name = list_item.get('name', '')
             if list_id:
                 # Rename List option
                 context_menu.append((
-                    "Rename List",
+                    self._shorten_menu_text(f"Rename List: {list_name}"),
                     f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"
                 ))
 
                 # Delete List option
                 context_menu.append((
-                    "Delete List",
+                    self._shorten_menu_text(f"Delete List: {list_name}"),
                     f"RunPlugin({context.build_url('delete_list', list_id=list_id)})"
                 ))
 

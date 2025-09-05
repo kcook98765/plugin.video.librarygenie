@@ -154,26 +154,44 @@ class ToolsHandler:
             # Check if this is a search history list
             is_search_history = list_info.get('folder_name') == 'Search History'
 
+            # Helper function to shorten names for context menus
+            def shorten_name_for_menu(name: str, max_length: int = 30) -> str:
+                if len(name) <= max_length:
+                    return name
+                
+                # For search history, extract just the search terms
+                if name.startswith("Search: '") and "' (" in name:
+                    search_part = name.split("' (")[0].replace("Search: '", "")
+                    if len(search_part) <= max_length - 3:
+                        return f"'{search_part}'"
+                    else:
+                        return f"'{search_part[:max_length-6]}...'"
+                
+                # For regular names, just truncate
+                return f"{name[:max_length-3]}..."
+            
+            short_name = shorten_name_for_menu(list_info['name'])
+            
             if is_search_history:
                 # Special options for search history lists
                 options = [
                     "[COLOR lightgreen]📋 Copy to New List[/COLOR]",
-                    f"[COLOR white]{L(36007) % list_info['name']}[/COLOR]",  # "Export '%s'"
-                    f"[COLOR red]{L(36008) % list_info['name']}[/COLOR]",  # "Delete '%s'"
+                    f"[COLOR white]Export {short_name}[/COLOR]",
+                    f"[COLOR red]Delete {short_name}[/COLOR]",
                     f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
                 ]
             else:
                 # Standard list options
                 options = [
                     # Additive operations
-                    f"[COLOR lightgreen]{L(36004) % list_info['name']}[/COLOR]",  # "Merge Another List Into '%s'"
+                    f"[COLOR lightgreen]Merge Into {short_name}[/COLOR]",
                     # Modify operations
-                    f"[COLOR yellow]{L(36005) % list_info['name']}[/COLOR]",  # "Rename '%s'"
-                    f"[COLOR yellow]{L(36006) % list_info['name']}[/COLOR]",  # "Move '%s' to Folder"
+                    f"[COLOR yellow]Rename {short_name}[/COLOR]",
+                    f"[COLOR yellow]Move {short_name} to Folder[/COLOR]",
                     # Export operations
-                    f"[COLOR white]{L(36007) % list_info['name']}[/COLOR]",  # "Export '%s'"
+                    f"[COLOR white]Export {short_name}[/COLOR]",
                     # Destructive operations
-                    f"[COLOR red]{L(36008) % list_info['name']}[/COLOR]",  # "Delete '%s'"
+                    f"[COLOR red]Delete {short_name}[/COLOR]",
                     # Cancel
                     f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
                 ]
