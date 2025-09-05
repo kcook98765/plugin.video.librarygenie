@@ -13,6 +13,13 @@
   <extension point="xbmc.python.script" library="context.py">
     <provides>executable</provides>
   </extension>
+  <extension point="xbmc.addon.contextmenu">
+    <item library="context.py">
+      <label>32200</label>
+      <description>32201</description>
+      <visible>Container.Content(movies) | Container.Content(episodes) | Container.Content(musicvideos) | String.StartsWith(ListItem.FileNameAndPath,plugin://)</visible>
+    </item>
+  </extension>
   <extension point="xbmc.addon.metadata">
     <platform>all</platform>
     <license>GPL-2.0-or-later</license>
@@ -25,12 +32,5 @@
       <icon>icon.png</icon>
       <fanart>fanart.png</fanart>
     </assets>
-    <contextmenu>
-      <item library="context.py">
-        <label>32200</label>
-        <description>32201</description>
-        <visible>true</visible>
-      </item>
-    </contextmenu>
   </extension>
 </addon>
