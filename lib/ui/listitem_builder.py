@@ -11,7 +11,7 @@ from typing import List, Dict, Any, Optional, Tuple
 import xbmcgui
 import xbmcplugin
 from ..utils.logger import get_logger
-from ..utils.kodi_version import get_kodi_major_version
+from ..utils.kodi_version import get_kodi_major_version, is_kodi_v20_plus
 
 
 class ListItemBuilder:
@@ -455,7 +455,8 @@ class ListItemBuilder:
                         video_info_tag.setPlot(description)
                 except Exception as e:
                     self.logger.debug(f"ACTION ITEM v20+: InfoTagVideo failed for folder '{title}': {e}")
-                    # On v21+, avoid setInfo() fallback to prevent deprecation warnings
+                    # On v21+, completely avoid setInfo() to prevent deprecation warnings
+                    # Only use setInfo() on v19/v20 where InfoTagVideo may not be fully reliable
                     if kodi_major < 21:
                         info_dict = {'title': title}
                         if description:
@@ -513,7 +514,8 @@ class ListItemBuilder:
                     self._set_infotag_metadata(video_info_tag, item, title)
                 except Exception as e:
                     self.logger.warning(f"EXT ITEM v20+: InfoTagVideo setup failed for '{title}': {e}")
-                    # On v21+, avoid setInfo() fallback to prevent deprecation warnings
+                    # On v21+, completely avoid setInfo() to prevent deprecation warnings
+                    # Only use setInfo() on v19/v20 where InfoTagVideo may not be fully reliable
                     if kodi_major < 21:
                         info = self._build_lightweight_info(item)
                         li.setInfo('video', info)
