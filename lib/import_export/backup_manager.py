@@ -14,6 +14,8 @@ from .storage_manager import get_storage_manager
 from ..config import get_config
 from ..utils.logger import get_logger
 from ..config.settings import SettingsManager
+from ..data import get_query_manager
+from ..data.connection_manager import get_connection_manager
 
 
 class BackupManager:
@@ -24,6 +26,7 @@ class BackupManager:
         self.export_engine = get_export_engine()
         self.storage_manager = get_storage_manager()
         self.config = get_config()
+        self.conn_manager = None # Initialize connection manager
 
     def should_run_backup(self) -> bool:
         """Check if backup should run based on schedule"""

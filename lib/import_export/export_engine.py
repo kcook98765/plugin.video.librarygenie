@@ -54,7 +54,7 @@ class ExportEngine:
 
             # Generate filename and path
             export_name = "-".join(export_types)
-            
+
             # Use custom path if provided, otherwise use temporary directory
             if custom_path:
                 file_path = custom_path
@@ -190,7 +190,7 @@ class ExportEngine:
 
         return items_data, len(items_data)
 
-    
+
 
     def _collect_library_snapshot_data(self) -> Tuple[List[Dict], int]:
         """Collect library snapshot data"""
