@@ -445,18 +445,18 @@ class QueryManager:
                 GROUP BY l.id, l.name, l.folder_id, l.created_at, f.name
             """, [int(list_id)])
 
-                if result:
-                    folder_context = f" ({result['folder_name']})" if result['folder_name'] else ""
-                    return {
-                        "id": str(result['id']),
-                        "name": result['name'],
-                        "description": f"{result['item_count']} items{folder_context}",
-                        "item_count": result['item_count'],
-                        "created": result['created_at'][:10] if result['created_at'] else '',
-                        "modified": result['created_at'][:10] if result['created_at'] else '',
-                        "folder_name": result['folder_name']
-                    }
-                return None
+            if result:
+                folder_context = f" ({result['folder_name']})" if result['folder_name'] else ""
+                return {
+                    "id": str(result['id']),
+                    "name": result['name'],
+                    "description": f"{result['item_count']} items{folder_context}",
+                    "item_count": result['item_count'],
+                    "created": result['created_at'][:10] if result['created_at'] else '',
+                    "modified": result['created_at'][:10] if result['created_at'] else '',
+                    "folder_name": result['folder_name']
+                }
+            return None
 
         except Exception as e:
             self.logger.error(f"Error getting list by ID {list_id}: {e}")
@@ -476,18 +476,18 @@ class QueryManager:
                 GROUP BY l.id, l.name, l.folder_id, l.created_at, f.name
             """, [list_name])
 
-                if result:
-                    folder_context = f" ({result['folder_name']})" if result['folder_name'] else ""
-                    return {
-                        "id": str(result['id']),
-                        "name": result['name'],
-                        "description": f"{result['item_count']} items{folder_context}",
-                        "item_count": result['item_count'],
-                        "created": result['created_at'][:10] if result['created_at'] else '',
-                        "modified": result['created_at'][:10] if result['created_at'] else '',
-                        "folder_name": result['folder_name']
-                    }
-                return None
+            if result:
+                folder_context = f" ({result['folder_name']})" if result['folder_name'] else ""
+                return {
+                    "id": str(result['id']),
+                    "name": result['name'],
+                    "description": f"{result['item_count']} items{folder_context}",
+                    "item_count": result['item_count'],
+                    "created": result['created_at'][:10] if result['created_at'] else '',
+                    "modified": result['created_at'][:10] if result['created_at'] else '',
+                    "folder_name": result['folder_name']
+                }
+            return None
 
         except Exception as e:
             self.logger.error(f"Error getting list by name '{list_name}': {e}")
