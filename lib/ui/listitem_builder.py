@@ -11,7 +11,7 @@ from typing import List, Dict, Any, Optional
 import xbmcgui
 import xbmcplugin
 from ..utils.logger import get_logger
-from ..utils.kodi_version import is_kodi_v20_plus, get_kodi_major_version
+from ..utils.kodi_version import is_kodi_v20_plus
 
 
 class ListItemBuilder:
