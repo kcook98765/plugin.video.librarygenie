@@ -72,7 +72,7 @@ def wait_until(cond, timeout_ms=2000, step_ms=30) -> bool:
     end = time.time() + (timeout_ms / 1000.0)
     mon = xbmc.Monitor()
     check_count = 0
-    
+
     while time.time() < end and not mon.abortRequested():
         check_count += 1
         if cond():
@@ -80,7 +80,7 @@ def wait_until(cond, timeout_ms=2000, step_ms=30) -> bool:
             _log(f"wait_until: SUCCESS after {check_count} checks ({t_end - t_start:.3f}s, timeout was {timeout_ms}ms)")
             return True
         xbmc.sleep(step_ms)
-    
+
     t_end = time.perf_counter()
     _log(f"wait_until: TIMEOUT after {check_count} checks ({t_end - t_start:.3f}s, timeout was {timeout_ms}ms)", xbmc.LOGWARNING)
     return False
@@ -92,22 +92,22 @@ def _wait_for_info_dialog(timeout=6.0):
     t_start = time.perf_counter()
     end = time.time() + timeout
     check_count = 0
-    
+
     while time.time() < end:
         check_count += 1
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
-        
+
         # Log every 20 checks (roughly every second)
         if check_count % 20 == 0:
             elapsed = time.perf_counter() - t_start
             _log(f"_wait_for_info_dialog: check #{check_count} ({elapsed:.1f}s) - current_dialog_id={current_dialog_id}")
-        
+
         if current_dialog_id in (12003, 10147):  # DialogVideoInfo / Fallback
             t_end = time.perf_counter()
             _log(f"_wait_for_info_dialog: SUCCESS after {check_count} checks ({t_end - t_start:.3f}s) - dialog_id={current_dialog_id}")
             return True
         xbmc.sleep(50)
-    
+
     t_end = time.perf_counter()
     final_dialog_id = xbmcgui.getCurrentWindowDialogId()
     _log(f"_wait_for_info_dialog: TIMEOUT after {check_count} checks ({t_end - t_start:.3f}s) - final_dialog_id={final_dialog_id}", xbmc.LOGWARNING)
@@ -116,7 +116,7 @@ def _wait_for_info_dialog(timeout=6.0):
 def focus_list(control_id: Optional[int] = None, tries: int = 20, step_ms: int = 30) -> bool:
     """Focus the main list control, trying version-specific control IDs"""
     t_focus_start = time.perf_counter()
-    
+
     if control_id is None:
         control_id = get_version_specific_control_id()
 
@@ -133,23 +133,23 @@ def focus_list(control_id: Optional[int] = None, tries: int = 20, step_ms: int =
 
     # Calculate how many complete rounds we can do
     max_rounds = max(1, tries // len(control_ids_to_try))
-    
+
     _log(f"Will try control IDs {control_ids_to_try} for up to {max_rounds} rounds")
 
     for round_num in range(max_rounds):
         _log(f"Starting round {round_num + 1}/{max_rounds}")
-        
+
         for cid in control_ids_to_try:
             _log(f"Trying control ID {cid}")
             xbmc.executebuiltin(f"SetFocus({cid})")
-            
+
             if xbmc.getCondVisibility(f"Control.HasFocus({cid})"):
                 t_focus_end = time.perf_counter()
                 _log(f"Successfully focused control {cid} on round {round_num + 1} (took {t_focus_end - t_focus_start:.3f}s)")
                 return True
-            
+
             xbmc.sleep(step_ms)
-    
+
     t_focus_end = time.perf_counter()
     _log(f"Failed to focus any control after {max_rounds} rounds (tried {control_ids_to_try}) - total time: {t_focus_end - t_focus_start:.3f}s", xbmc.LOGWARNING)
     return False
@@ -265,24 +265,24 @@ def _find_index_in_dir_by_file(directory: str, target_file: Optional[str]) -> in
 def _wait_videos_on(path: str, timeout_ms=6000) -> bool:
     t_start = time.perf_counter()
     t_norm = (path or "").rstrip('/')
-    
+
     def check_condition():
         window_active = xbmc.getCondVisibility(f"Window.IsActive({VIDEOS_WINDOW})")
         folder_path = (xbmc.getInfoLabel("Container.FolderPath") or "").rstrip('/')
         path_match = folder_path == t_norm
         num_items = int(xbmc.getInfoLabel("Container.NumItems") or "0")
         not_busy = not xbmc.getCondVisibility("Window.IsActive(DialogBusy.xml)")
-        
+
         # Log detailed status every 500ms for debugging
         elapsed = time.perf_counter() - t_start
         if int(elapsed * 2) % 1 == 0:  # Every 500ms
             _log(f"_wait_videos_on check ({elapsed:.1f}s): window_active={window_active}, path_match={path_match} ('{folder_path}' vs '{t_norm}'), items={num_items}, not_busy={not_busy}")
-        
+
         return window_active and path_match and num_items > 0 and not_busy
-    
+
     result = wait_until(check_condition, timeout_ms=timeout_ms, step_ms=100)
     t_end = time.perf_counter()
-    
+
     if result:
         _log(f"_wait_videos_on SUCCESS after {t_end - t_start:.3f}s")
     else:
@@ -293,57 +293,28 @@ def _wait_videos_on(path: str, timeout_ms=6000) -> bool:
         final_items = int(xbmc.getInfoLabel("Container.NumItems") or "0")
         final_busy = xbmc.getCondVisibility("Window.IsActive(DialogBusy.xml)")
         _log(f"_wait_videos_on FINAL STATE: window={final_window}, path='{final_path}', items={final_items}, busy={final_busy}", xbmc.LOGWARNING)
-    
+
     return result
 
-def open_native_info_fast(dbtype: str, dbid: int, logger) -> bool:
+def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
     """
-    Open native info dialog WITHOUT doing directory rebuild.
-    This is the fast path that doesn't compete with Kodi's dialog rendering.
+    Open native Kodi info dialog without heavy operations.
     """
-    # 1) Close the plugin's Info dialog
-    xbmc.executebuiltin("Action(Back)")
-    # Brief delay to allow window state to stabilize
-    xbmc.sleep(50)
-    closed = wait_until(lambda: not xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)"), 1200, 30)
-    if not closed:
-        return False
-
-    # Path preparation
-    path_to_open = None
-
-    if dbtype == "tvshow":
-        path_to_open = f"videodb://tvshows/titles/{int(dbid)}"
-    else:
-        # Use XSP for items with files
-        xsp = _create_xsp_for_file(dbtype, dbid)
-        if not xsp:
+    try:
+        if db_type.lower() == 'movie':
+            xbmc.executebuiltin(f'Action(Info,{db_id})')
+        elif db_type.lower() in ['episode', 'tvshow']:
+            xbmc.executebuiltin(f'Action(Info,{db_id})')
+        else:
+            from .localization import L
+            logger.warning(L(32200) % db_type)  # "Unsupported db_type for info hijack: %s"
             return False
-        path_to_open = xsp
 
-    # 2) Show the directory in Videos (minimal approach)
-    xbmc.executebuiltin(f'ActivateWindow(Videos,"{path_to_open}",return)')
-    xbmc.sleep(100)
-
-    if not _wait_videos_on(path_to_open, timeout_ms=6000):
+        return _wait_for_info_dialog()
+    except Exception as e:
+        from .localization import L
+        logger.error(L(32201) % str(e))  # "Failed to open native info dialog: %s"
         return False
-
-    # 3) Focus list and navigate to item
-    if not focus_list():
-        return False
-
-    if path_to_open.endswith(".xsp"):
-        # For XSP: navigate away from parent if needed
-        current_label = xbmc.getInfoLabel('ListItem.Label')
-        if current_label == "..":
-            xbmc.executebuiltin("Action(Down)")
-            xbmc.sleep(50)
-
-    # 4) Open native Info - this is now the only heavy operation
-    xbmc.executebuiltin("Action(Info)")
-    xbmc.sleep(50)
-    
-    return wait_until(lambda: xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)"), timeout_ms=1500, step_ms=50)
 
 def restore_container_after_close(orig_path: str, position_str: str, logger) -> bool:
     """
@@ -353,37 +324,37 @@ def restore_container_after_close(orig_path: str, position_str: str, logger) -> 
     if not orig_path:
         _log("No original path to restore to")
         return False
-        
+
     try:
         position = int(position_str) if position_str else 0
     except (ValueError, TypeError):
         position = 0
-    
+
     _log(f"Restoring container to: {orig_path} (position: {position})")
-    
+
     # Wait a brief moment to ensure dialog is fully closed
     xbmc.sleep(100)
-    
+
     # Restore the container
     xbmc.executebuiltin(f'Container.Update("{orig_path}",replace)')
-    
+
     # Wait for container to update
     t_start = time.perf_counter()
     updated = wait_until(
         lambda: (xbmc.getInfoLabel("Container.FolderPath") or "").rstrip('/') == orig_path.rstrip('/'),
-        timeout_ms=3000, 
+        timeout_ms=3000,
         step_ms=100
     )
-    
+
     if updated and position > 0:
         # Restore position
         _log(f"Restoring list position to: {position}")
         xbmc.sleep(50)  # Brief delay before position restore
         xbmc.executebuiltin(f'Action(SelectItem,{position})')
-    
+
     t_end = time.perf_counter()
     _log(f"Container restore completed in {t_end - t_start:.3f}s, success: {updated}")
-    
+
     return updated
 
 def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
@@ -393,18 +364,18 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
     """
     # Save current position
     current_position = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
-    
+
     # Use fast native info opening
     ok = open_native_info_fast(dbtype, dbid, logger)
     if not ok:
         return False
-        
+
     # Immediately restore container (legacy behavior)
     if orig_path:
         # Brief delay to allow native info to fully open
         xbmc.sleep(200)
         return restore_container_after_close(orig_path, str(current_position), logger)
-    
+
     return True
 
 def open_movie_info(dbid: int, movie_url: Optional[str] = None, xsp_path: Optional[str] = None) -> bool:
@@ -459,7 +430,7 @@ def open_movie_info(dbid: int, movie_url: Optional[str] = None, xsp_path: Option
         else:
             _log(f"❌ Failed to open native info for movie {dbid} "
                  f"(open_window {(t_focus0 - t1):.3f}s, focus {(t_focus1 - t_focus0):.3f}s, "
-                 f"dialog_wait {(t_dialog1 - t_dialog0):.3f}s, total {(t_dialog1 - t_total0):.3f}s)", 
+                 f"dialog_wait {(t_dialog1 - t_dialog0):.3f}s, total {(t_dialog1 - t_total0):.3f}s)",
                  xbmc.LOGWARNING)
             return False
 

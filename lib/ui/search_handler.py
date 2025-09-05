@@ -74,8 +74,9 @@ class SearchHandler:
     def _prompt_for_search_terms(self) -> Optional[str]:
         """Prompt user for search keywords"""
         try:
+            from .localization import L
             terms = xbmcgui.Dialog().input(
-                "Enter keywords to search for:",
+                L(32100),  # "Enter keywords to search for:"
                 type=xbmcgui.INPUT_ALPHANUM
             )
             return terms.strip() if terms and terms.strip() else None
@@ -134,7 +135,8 @@ class SearchHandler:
                 search_results = {"items": results.items}
                 added = self.query_manager.add_search_results_to_list(list_id, search_results)
                 if added > 0:
-                    self._notify_info(f"Search saved: {added} items", ms=3000)
+                    from .localization import L
+                    self._notify_info(L(32102) % added, ms=3000)  # "Search saved: %d items"
 
         except Exception as e:
             self._warn(f"Failed to save search history: {e}")
@@ -163,7 +165,8 @@ class SearchHandler:
 
     def _show_no_results_message(self, search_terms: str):
         """Show message when no results found"""
-        self._notify_info(f"No results found for '{search_terms}'")
+        from .localization import L
+        self._notify_info(L(32101) % search_terms)  # "No results found for '%s'"
 
     # Helper methods
     def _ensure_handle_from_context(self, context):
