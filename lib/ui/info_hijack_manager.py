@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 import xbmc
+import xbmcgui
 import time
 
 from .info_hijack_helpers import open_native_info_fast, restore_container_after_close, _log

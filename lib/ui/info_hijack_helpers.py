@@ -201,23 +201,26 @@ def _create_xsp_for_dbitem(db_type: str, db_id: int) -> Optional[str]:
         
         if db_type.lower() == 'movie':
             # Create XSP that filters movies by database ID
+            # Use 'path' field with videodb URL as Kodi's dbid field may not work in XSP
+            videodb_url = f"videodb://movies/titles/{db_id}/"
             xsp = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <smartplaylist type="movies">
   <name>{html.escape(name)}</name>
   <match>all</match>
-  <rule field="dbid" operator="is">
-    <value>{db_id}</value>
+  <rule field="path" operator="is">
+    <value>{html.escape(videodb_url)}</value>
   </rule>
   <order direction="ascending">title</order>
 </smartplaylist>"""
         elif db_type.lower() == 'episode':
             # Create XSP that filters episodes by database ID
+            videodb_url = f"videodb://tvshows/titles/-1/-1/{db_id}/"
             xsp = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <smartplaylist type="episodes">
   <name>{html.escape(name)}</name>
   <match>all</match>
-  <rule field="dbid" operator="is">
-    <value>{db_id}</value>
+  <rule field="path" operator="is">
+    <value>{html.escape(videodb_url)}</value>
   </rule>
   <order direction="ascending">title</order>
 </smartplaylist>"""
