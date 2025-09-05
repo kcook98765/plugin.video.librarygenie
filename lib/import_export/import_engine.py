@@ -525,18 +525,24 @@ class ImportEngine:
         start_time = datetime.now()
 
         try:
+            self.logger.info(f"RESTORE_DEBUG: Starting import from content, filename: {filename}, replace_mode: {replace_mode}")
+            
             # Parse content
             try:
                 data = json.loads(content)
+                self.logger.debug(f"RESTORE_DEBUG: Successfully parsed JSON, keys: {list(data.keys())}")
             except json.JSONDecodeError as e:
+                self.logger.error(f"RESTORE_DEBUG: JSON decode error: {e}")
                 return {"success": False, "error": f"Invalid JSON in {filename}: {e}"}
 
             # Validate envelope structure
             envelope_errors = ExportSchema.validate_envelope(data)
             if envelope_errors:
+                self.logger.error(f"RESTORE_DEBUG: Envelope validation errors: {envelope_errors}")
                 return {"success": False, "error": f"Invalid backup format: {envelope_errors[0]}"}
 
             payload = data.get("payload", {})
+            self.logger.debug(f"RESTORE_DEBUG: Payload keys: {list(payload.keys())}")
 
             # Initialize counters
             lists_created = 0

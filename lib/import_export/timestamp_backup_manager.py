@@ -641,34 +641,50 @@ class TimestampBackupManager:
     def _list_local_backups(self) -> List[Dict[str, Any]]:
         """List local backup files from settings-configured location"""
         try:
+            self.logger.debug("BACKUP_DEBUG: Starting local backup listing")
+            
             # Get backup directory from settings with fallback
             backup_dir = None
             try:
+                self.logger.debug("BACKUP_DEBUG: Trying SettingsManager for backup directory")
                 from ..config.settings import SettingsManager
                 settings = SettingsManager()
+                self.logger.debug(f"BACKUP_DEBUG: SettingsManager instance: {settings}")
                 if settings:
                     backup_dir = settings.get_backup_storage_location()
+                    self.logger.debug(f"BACKUP_DEBUG: Got backup_dir from settings: {backup_dir}")
             except Exception as settings_error:
-                self.logger.warning(f"Error getting backup directory from SettingsManager: {settings_error}")
+                self.logger.warning(f"BACKUP_DEBUG: Error getting backup directory from SettingsManager: {settings_error}")
 
             # Fallback to config manager if settings manager fails
             if not backup_dir:
                 try:
+                    self.logger.debug("BACKUP_DEBUG: Trying config manager for backup directory")
                     backup_dir = self.config.get_backup_storage_location()
+                    self.logger.debug(f"BACKUP_DEBUG: Got backup_dir from config: {backup_dir}")
                 except Exception as config_error:
-                    self.logger.warning(f"Error getting backup directory from config: {config_error}")
+                    self.logger.warning(f"BACKUP_DEBUG: Error getting backup directory from config: {config_error}")
 
             # Ultimate fallback to default location
             if not backup_dir:
                 backup_dir = "special://userdata/addon_data/plugin.video.library.genie/backups/"
-                self.logger.info(f"Using fallback backup directory: {backup_dir}")
+                self.logger.info(f"BACKUP_DEBUG: Using fallback backup directory: {backup_dir}")
 
             # Handle special:// paths
             if backup_dir.startswith("special://"):
+                self.logger.debug(f"BACKUP_DEBUG: Translating special path: {backup_dir}")
                 import xbmcvfs
-                backup_dir = xbmcvfs.translatePath(backup_dir)
+                if hasattr(xbmcvfs, 'translatePath') and callable(xbmcvfs.translatePath):
+                    backup_dir = xbmcvfs.translatePath(backup_dir)
+                    self.logger.debug(f"BACKUP_DEBUG: Translated to: {backup_dir}")
+                else:
+                    self.logger.error("BACKUP_DEBUG: xbmcvfs.translatePath is not callable")
+                    return []
+
+            self.logger.debug(f"BACKUP_DEBUG: Final backup directory: {backup_dir}")
 
             if not os.path.exists(backup_dir):
+                self.logger.debug(f"BACKUP_DEBUG: Backup directory does not exist: {backup_dir}")
                 return []
 
             # Look for backup files from both old and new naming schemes
@@ -679,10 +695,14 @@ class TimestampBackupManager:
                 "plugin.video.library.genie_*_*.json"  # Current export format
             ]
 
+            self.logger.debug(f"BACKUP_DEBUG: Searching for backup files with patterns: {patterns}")
+            
             from pathlib import Path
             for pattern in patterns:
+                self.logger.debug(f"BACKUP_DEBUG: Searching pattern: {pattern}")
                 for file_path in Path(backup_dir).glob(pattern):
                     if file_path.is_file():
+                        self.logger.debug(f"BACKUP_DEBUG: Found backup file: {file_path}")
                         # Parse filename to extract timestamp
                         filename = file_path.name
 
@@ -696,6 +716,7 @@ class TimestampBackupManager:
                             if len(parts) >= 2:
                                 timestamp_str = parts[-1]
                             else:
+                                self.logger.debug(f"BACKUP_DEBUG: Skipping file with invalid format: {filename}")
                                 continue
 
                         try:
@@ -711,8 +732,10 @@ class TimestampBackupManager:
                                 "age_days": (datetime.now() - backup_time).days,
                                 "storage_type": "local"
                             })
-                        except ValueError:
+                            self.logger.debug(f"BACKUP_DEBUG: Added backup: {filename}")
+                        except ValueError as ve:
                             # Skip files with invalid timestamp format
+                            self.logger.debug(f"BACKUP_DEBUG: Skipping file with invalid timestamp: {filename}, error: {ve}")
                             continue
 
             # Remove duplicates (same timestamp) and sort by backup time, newest first
@@ -724,10 +747,13 @@ class TimestampBackupManager:
                     seen_timestamps.add(timestamp_key)
                     unique_backups.append(backup)
 
+            self.logger.debug(f"BACKUP_DEBUG: Returning {len(unique_backups)} unique backups")
             return unique_backups
 
         except Exception as e:
-            self.logger.error(f"Error listing local backups: {e}")
+            self.logger.error(f"BACKUP_DEBUG: Error listing local backups: {type(e).__name__}: {e}")
+            import traceback
+            self.logger.error(f"BACKUP_DEBUG: Traceback: {traceback.format_exc()}")
             return []
 
     def _restore_local_backup(self, backup_info: Dict[str, Any], replace_mode: bool = True) -> Dict[str, Any]:
@@ -827,35 +853,57 @@ class TimestampBackupManager:
     def _validate_backup_worthiness(self) -> Dict[str, Any]:
         """Check if there's meaningful user data worth backing up"""
         try:
+            self.logger.debug("BACKUP_DEBUG: Starting backup worthiness validation")
             from ..data.query_manager import get_query_manager
 
+            self.logger.debug("BACKUP_DEBUG: Getting query manager instance")
             query_manager = get_query_manager()
-            if not query_manager.initialize():
-                return {"worthy": False, "reason": "Database not accessible"}
+            self.logger.debug(f"BACKUP_DEBUG: Query manager type: {type(query_manager)}")
+            self.logger.debug(f"BACKUP_DEBUG: Query manager attributes: {dir(query_manager)}")
+
+            if not hasattr(query_manager, 'conn_manager'):
+                self.logger.error("BACKUP_DEBUG: QueryManager missing conn_manager attribute")
+                # Use the existing connection manager from this class instead
+                self.logger.debug("BACKUP_DEBUG: Using backup manager's conn_manager")
+                conn_manager = self.conn_manager
+            else:
+                self.logger.debug("BACKUP_DEBUG: QueryManager has conn_manager, initializing")
+                if not query_manager.initialize():
+                    self.logger.error("BACKUP_DEBUG: Query manager initialization failed")
+                    return {"worthy": False, "reason": "Database not accessible"}
+                conn_manager = query_manager.conn_manager
+
+            self.logger.debug(f"BACKUP_DEBUG: Using conn_manager: {type(conn_manager)}")
 
             # Count user lists (excluding system folders)
-            lists_count = query_manager.conn_manager.execute_single("""
+            self.logger.debug("BACKUP_DEBUG: Counting user lists")
+            lists_count = conn_manager.execute_single("""
                 SELECT COUNT(*) as count FROM lists l
                 LEFT JOIN folders f ON l.folder_id = f.id
                 WHERE f.name != 'Search History' OR f.name IS NULL
             """)
 
             user_lists = lists_count.get('count', 0) if lists_count else 0
+            self.logger.debug(f"BACKUP_DEBUG: Found {user_lists} user lists")
 
             # Count total list items
-            items_count = query_manager.conn_manager.execute_single("""
+            self.logger.debug("BACKUP_DEBUG: Counting list items")
+            items_count = conn_manager.execute_single("""
                 SELECT COUNT(*) as count FROM list_items
             """)
 
             total_items = items_count.get('count', 0) if items_count else 0
+            self.logger.debug(f"BACKUP_DEBUG: Found {total_items} list items")
 
             # Count user-created folders (excluding Search History)
-            folders_count = query_manager.conn_manager.execute_single("""
+            self.logger.debug("BACKUP_DEBUG: Counting user folders")
+            folders_count = conn_manager.execute_single("""
                 SELECT COUNT(*) as count FROM folders 
                 WHERE name != 'Search History'
             """)
 
             user_folders = folders_count.get('count', 0) if folders_count else 0
+            self.logger.debug(f"BACKUP_DEBUG: Found {user_folders} user folders")
 
             self.logger.debug(f"Backup worthiness check: {user_lists} lists, {total_items} items, {user_folders} folders")
 
@@ -872,7 +920,9 @@ class TimestampBackupManager:
                 }
 
         except Exception as e:
-            self.logger.warning(f"Error validating backup worthiness: {e}")
+            self.logger.error(f"BACKUP_DEBUG: Error validating backup worthiness: {type(e).__name__}: {e}")
+            import traceback
+            self.logger.error(f"BACKUP_DEBUG: Traceback: {traceback.format_exc()}")
             # If we can't validate, err on the side of allowing backup
             return {"worthy": True, "reason": "Validation failed, allowing backup"}
 
