@@ -312,14 +312,18 @@ def _handle_restore_backup(context: PluginContext):
 def handle_shortlist_import():
     """Handle ShortList import action from settings"""
     import xbmcgui
-    from lib.import_export.shortlist_importer import get_shortlist_importer
-
+    
+    logger.info("=== SHORTLIST IMPORT HANDLER CALLED ===")
+    
     try:
+        logger.info("Starting ShortList import process")
+        
         # Show confirmation dialog
         dialog = xbmcgui.Dialog()
 
         from lib.ui.localization import L
         
+        logger.info("Showing confirmation dialog")
         if not dialog.yesno(
             heading=L(30071),  # "Import from ShortList addon"
             line1=L(37000),    # "This will import all items from ShortList addon into a 'ShortList Import' list."
@@ -328,22 +332,61 @@ def handle_shortlist_import():
             nolabel=L(36003),  # "Cancel"
             yeslabel=L(37002)  # "Continue"
         ):
+            logger.info("User cancelled ShortList import")
             return
 
+        logger.info("User confirmed import, proceeding...")
+        
         # Show progress dialog
         progress = xbmcgui.DialogProgress()
         progress.create("ShortList Import", "Checking ShortList addon...")
         progress.update(10)
 
-        importer = get_shortlist_importer()
-
-        # Check if ShortList is available
-        if not importer.is_shortlist_installed():
+        logger.info("Attempting to get ShortList importer instance...")
+        try:
+            from lib.import_export.shortlist_importer import get_shortlist_importer
+            logger.info("Successfully imported get_shortlist_importer function")
+            
+            importer = get_shortlist_importer()
+            logger.info(f"Successfully got importer instance: {type(importer)}")
+            
+        except Exception as import_e:
+            logger.error(f"Error importing or getting ShortList importer: {import_e}")
+            import traceback
+            logger.error(f"Import error traceback: {traceback.format_exc()}")
             progress.close()
             dialog.notification(
                 "LibraryGenie",
-                "ShortList addon not found or not enabled",
-                xbmcgui.NOTIFICATION_WARNING,
+                "Failed to load ShortList importer",
+                xbmcgui.NOTIFICATION_ERROR,
+                5000
+            )
+            return
+
+        # Check if ShortList is available
+        logger.info("Checking if ShortList addon is installed...")
+        try:
+            is_installed = importer.is_shortlist_installed()
+            logger.info(f"ShortList installed check result: {is_installed}")
+            
+            if not is_installed:
+                progress.close()
+                dialog.notification(
+                    "LibraryGenie",
+                    "ShortList addon not found or not enabled",
+                    xbmcgui.NOTIFICATION_WARNING,
+                    5000
+                )
+                return
+        except Exception as check_e:
+            logger.error(f"Error checking ShortList installation: {check_e}")
+            import traceback
+            logger.error(f"Check error traceback: {traceback.format_exc()}")
+            progress.close()
+            dialog.notification(
+                "LibraryGenie",
+                "Error checking ShortList addon",
+                xbmcgui.NOTIFICATION_ERROR,
                 5000
             )
             return
@@ -352,23 +395,57 @@ def handle_shortlist_import():
 
         logger.info("About to call importer.import_shortlist_items()")
         logger.info(f"Importer type: {type(importer)}")
-        logger.info(f"import_shortlist_items method: {importer.import_shortlist_items}")
-        logger.info(f"import_shortlist_items callable: {callable(importer.import_shortlist_items)}")
+        logger.info(f"Importer instance: {importer}")
+        
+        # Check if the method exists
+        if hasattr(importer, 'import_shortlist_items'):
+            logger.info(f"import_shortlist_items method exists: {importer.import_shortlist_items}")
+            logger.info(f"import_shortlist_items callable: {callable(importer.import_shortlist_items)}")
+        else:
+            logger.error("import_shortlist_items method does not exist on importer!")
+            progress.close()
+            dialog.notification(
+                "LibraryGenie",
+                "ShortList importer missing method",
+                xbmcgui.NOTIFICATION_ERROR,
+                5000
+            )
+            return
 
         # Perform the import
+        logger.info("=== CALLING IMPORT METHOD ===")
         try:
             logger.info("Calling import_shortlist_items method...")
             result = importer.import_shortlist_items()
+            logger.info(f"=== IMPORT METHOD COMPLETED ===")
+            logger.info(f"Import result type: {type(result)}")
             logger.info(f"Import result: {result}")
+        except TypeError as te:
+            logger.error(f"=== IMPORT METHOD TYPEERROR ===")
+            logger.error(f"TypeError calling import_shortlist_items: {te}")
+            import traceback
+            logger.error(f"TypeError traceback: {traceback.format_exc()}")
+            
+            # Try to get more info about the method signature
+            import inspect
+            try:
+                sig = inspect.signature(importer.import_shortlist_items)
+                logger.error(f"Method signature: {sig}")
+            except Exception as sig_e:
+                logger.error(f"Could not get method signature: {sig_e}")
+            
+            raise
         except Exception as e:
+            logger.error(f"=== IMPORT METHOD ERROR ===")
             logger.error(f"Error calling import_shortlist_items: {e}")
             import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
+            logger.error(f"Import method traceback: {traceback.format_exc()}")
             raise
 
         progress.update(100, "Import complete!")
         progress.close()
 
+        logger.info("Processing import results...")
         if result.get("success"):
             message = (
                 f"Import completed!\n"
@@ -377,12 +454,23 @@ def handle_shortlist_import():
                 f"Unmapped: {result.get('items_unmapped', 0)} items"
             )
             dialog.ok("ShortList Import", message)
+            logger.info("ShortList import completed successfully")
         else:
             error_msg = result.get("error", "Unknown error occurred")
             dialog.ok("ShortList Import", f"Import failed: {error_msg}")
+            logger.error(f"ShortList import failed: {error_msg}")
 
     except Exception as e:
+        logger.error(f"=== SHORTLIST HANDLER EXCEPTION ===")
         logger.error(f"ShortList import handler error: {e}")
+        import traceback
+        logger.error(f"Handler exception traceback: {traceback.format_exc()}")
+        
+        try:
+            progress.close()
+        except:
+            pass
+            
         xbmcgui.Dialog().notification(
             "LibraryGenie",
             "Import failed with error",

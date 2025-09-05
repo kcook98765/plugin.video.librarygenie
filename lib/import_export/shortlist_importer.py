@@ -243,9 +243,14 @@ class ShortListImporter:
 
     def import_shortlist_items(self) -> Dict[str, Any]:
         """Import all ShortList items into LibraryGenie"""
+        self.logger.info("=== IMPORT_SHORTLIST_ITEMS METHOD CALLED ===")
+        self.logger.info(f"Method signature check - self: {type(self)}")
+        
         start_time = datetime.now()
+        self.logger.info(f"Import started at: {start_time}")
 
         try:
+            self.logger.info("Starting ShortList import process...")
             # Check if ShortList is installed
             if not self.is_shortlist_installed():
                 return {
