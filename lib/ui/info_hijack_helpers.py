@@ -197,30 +197,37 @@ def _create_xsp_for_dbitem(db_type: str, db_id: int) -> Optional[str]:
     try:
         _log(f"Creating XSP for database item {db_type} {db_id}")
         
+        # Get the actual file path from the database item
+        file_path = _get_file_for_dbitem(db_type, db_id)
+        if not file_path:
+            _log(f"No file path found for {db_type} {db_id}", xbmc.LOGWARNING)
+            return None
+        
+        filename = os.path.basename(file_path)
+        filename_no_ext = os.path.splitext(filename)[0]
+        _log(f"Creating XSP for {db_type} {db_id}: filename='{filename}', no_ext='{filename_no_ext}'")
+        
         name = f"LG Hijack {db_type} {db_id}"
         
         if db_type.lower() == 'movie':
-            # Create XSP that filters movies by database ID
-            # Use 'path' field with videodb URL as Kodi's dbid field may not work in XSP
-            videodb_url = f"videodb://movies/titles/{db_id}/"
+            # Create XSP that filters movies by filename
             xsp = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <smartplaylist type="movies">
   <name>{html.escape(name)}</name>
   <match>all</match>
-  <rule field="path" operator="is">
-    <value>{html.escape(videodb_url)}</value>
+  <rule field="filename" operator="contains">
+    <value>{html.escape(filename_no_ext)}</value>
   </rule>
   <order direction="ascending">title</order>
 </smartplaylist>"""
         elif db_type.lower() == 'episode':
-            # Create XSP that filters episodes by database ID
-            videodb_url = f"videodb://tvshows/titles/-1/-1/{db_id}/"
+            # Create XSP that filters episodes by filename
             xsp = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <smartplaylist type="episodes">
   <name>{html.escape(name)}</name>
   <match>all</match>
-  <rule field="path" operator="is">
-    <value>{html.escape(videodb_url)}</value>
+  <rule field="filename" operator="contains">
+    <value>{html.escape(filename_no_ext)}</value>
   </rule>
   <order direction="ascending">title</order>
 </smartplaylist>"""
