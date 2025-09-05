@@ -311,6 +311,7 @@ def handle_shortlist_import():
     try:
         # Show confirmation dialog
         dialog = xbmcgui.Dialog()
+
         if not dialog.yesno(
             "ShortList Import",
             "This will import all items from ShortList addon into a 'ShortList Import' list.",
