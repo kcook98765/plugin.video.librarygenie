@@ -437,19 +437,32 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         end_focus_time = time.perf_counter()
         _log(f"✅ SUBSTEP 5 COMPLETE: List focused in {end_focus_time - start_focus_time:.3f}s")
         
-        # 📍 SUBSTEP 6: Find the correct item index in the directory
-        _log(f"📍 SUBSTEP 6: Finding correct item index")
-        target_index = _find_index_in_dir_by_file(xsp_path, None)
+        # 📍 SUBSTEP 6: Check current item and navigate away from parent if needed
+        _log(f"📍 SUBSTEP 6: Checking current item and navigating to movie")
         current_item_before = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
-        if target_index > 0:
-            _log(f"SUBSTEP 6: Moving from item {current_item_before} to index {target_index}")
-            xbmc.executebuiltin(f'Action(SelectItem,{target_index})')
-            xbmc.sleep(100)
-            current_item_after = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
-            _log(f"SUBSTEP 6: Item position: {current_item_before} → {current_item_after}")
         current_item_label = xbmc.getInfoLabel('ListItem.Label')
-        current_item_dbid = xbmc.getInfoLabel('ListItem.DBID')
-        _log(f"✅ SUBSTEP 6 COMPLETE: Target item selected - Label: '{current_item_label}', DBID: {current_item_dbid}")
+        
+        # Check if we're focused on the parent item ".."
+        if current_item_label == ".." or current_item_label.strip() == "..":
+            _log(f"SUBSTEP 6: Currently on parent item '{current_item_label}', navigating to next item")
+            xbmc.executebuiltin('Action(Down)')  # Move to next item
+            xbmc.sleep(150)  # Wait for navigation
+            current_item_after = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
+            new_label = xbmc.getInfoLabel('ListItem.Label')
+            _log(f"SUBSTEP 6: Moved from parent item {current_item_before} to item {current_item_after}, new label: '{new_label}'")
+        else:
+            _log(f"SUBSTEP 6: Already on target item '{current_item_label}' at position {current_item_before}")
+        
+        # Verify we're now on the correct item
+        final_item_label = xbmc.getInfoLabel('ListItem.Label')
+        final_item_dbid = xbmc.getInfoLabel('ListItem.DBID')
+        final_item_position = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
+        
+        if final_item_label == ".." or final_item_label.strip() == "..":
+            _log(f"❌ SUBSTEP 6 FAILED: Still on parent item after navigation attempt", xbmc.LOGWARNING)
+            return False
+        
+        _log(f"✅ SUBSTEP 6 COMPLETE: On target item - Position: {final_item_position}, Label: '{final_item_label}', DBID: {final_item_dbid}")
         
         # 🎬 SUBSTEP 7: Open info from the native list (this gets full metadata population)
         _log(f"🎬 SUBSTEP 7: Opening video info from native list")
