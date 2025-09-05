@@ -7,17 +7,17 @@ This document provides detailed documentation on LibraryGenie's local search fun
 
 ## Overview
 
-LibraryGenie's local search system provides fast, offline search capabilities across the user's Kodi video library. The search is powered by a SQLite database index and includes advanced text normalization, year filtering, and intelligent matching algorithms.
+LibraryGenie's local search system provides fast, offline search capabilities across the user's Kodi video library. The search is powered by a SQLite database index with keyword-based matching and intelligent result ranking.
 
 ### Key Features
 
 - **Database-Backed Search**: Uses SQLite index for fast queries against local library
-- **Advanced Text Normalization**: Handles diacritics, punctuation, case, and Unicode
-- **Intelligent Year Parsing**: Robust year filter detection with title protection
-- **Multiple Match Modes**: Contains and "starts with" search modes
-- **Cross-Field Matching**: Searches across title, plot, and optionally file paths
-- **Efficient Pagination**: Smart paging with "has next page" detection
-- **Search Analytics**: Performance tracking and query logging
+- **Keyword-Based Matching**: Simple, predictable keyword search across title and plot fields
+- **Intelligent Ranking**: Prioritizes title matches over plot matches for better relevance
+- **Text Normalization**: Handles diacritics, punctuation, case, and Unicode consistently
+- **Flexible Search Scope**: Search titles only, plots only, or both fields
+- **Match Logic Options**: "All keywords" or "any keyword" matching
+- **Search History**: Automatic saving of search results to browsable lists
 
 ---
 
@@ -25,30 +25,30 @@ LibraryGenie's local search system provides fast, offline search capabilities ac
 
 ### Components
 
-1. **LocalSearchEngine** (`lib/search/local_engine.py`)
-   - Main search orchestrator
-   - Handles movie and episode searches
-   - Formats results for UI consumption
+1. **SimpleSearchEngine** (`lib/search/simple_search_engine.py`)
+   - Main search orchestrator with ranking-based results
+   - Handles keyword matching across title and plot fields
+   - Implements SQL-based ranking for result prioritization
 
-2. **EnhancedSearchEngine** (`lib/search/enhanced_search_engine.py`)
-   - Advanced search with complex query building
-   - Sophisticated pagination and performance optimization
-   - Integrated search logging and analytics
+2. **SimpleSearchQuery** (`lib/search/simple_search_query.py`)
+   - Represents a search query with keywords and options
+   - Supports scope (library/list) and field selection
+   - Includes pagination parameters
 
 3. **TextNormalizer** (`lib/search/normalizer.py`)
    - Unified text normalization for consistent matching
    - Unicode handling and diacritic removal
-   - Token extraction and cleaning
+   - Deterministic, language-agnostic normalization rules
 
-4. **YearParser** (`lib/search/year_parser.py`)
-   - Robust year filter extraction
-   - Title protection to avoid false positives
-   - Support for ranges, comparisons, and decade shorthand
-
-5. **QueryInterpreter** (`lib/search/enhanced_query_interpreter.py`)
+4. **SimpleQueryInterpreter** (`lib/search/simple_query_interpreter.py`)
    - Parses user input into structured search queries
-   - Handles settings integration and defaults
-   - Validates and sanitizes input
+   - Tokenizes input text into searchable keywords
+   - Applies search settings and scope configuration
+
+5. **SearchHandler** (`lib/ui/search_handler.py`)
+   - UI integration for search functionality
+   - Manages user prompts and result display
+   - Handles search history creation and navigation
 
 ---
 
@@ -58,43 +58,48 @@ LibraryGenie's local search system provides fast, offline search capabilities ac
 
 1. **Input Processing**
    ```
-   User Input → QueryInterpreter → SearchQuery Object
+   User Input → SimpleQueryInterpreter → SimpleSearchQuery
    ```
 
 2. **Query Execution**
    ```
-   SearchQuery → EnhancedSearchEngine → SQL Generation → Database Query
+   SimpleSearchQuery → SimpleSearchEngine → SQL with Ranking → Database Query
    ```
 
-3. **Result Formatting**
+3. **Result Display**
    ```
-   Raw Results → Result Formatting → UI-Ready Items
+   Ranked Results → Search History List → UI Navigation
    ```
 
 ### Example Search Flow
 
 ```python
-# User searches for "batman 2008"
-user_input = "batman 2008"
+# User searches for "batman dark"
+user_input = "batman dark"
 
 # QueryInterpreter processes input
 query = interpreter.parse_query(user_input)
-# query.tokens = ["batman"]
-# query.year_filter = 2008
+# query.keywords = ["batman", "dark"]
+# query.search_scope = "both"
+# query.match_logic = "all"
 
-# EnhancedSearchEngine builds SQL
-sql = "SELECT ... FROM media_items WHERE 
-       LOWER(title) LIKE '%batman%' AND year = 2008"
+# SimpleSearchEngine builds ranked SQL
+sql = """
+SELECT ..., 
+  CASE 
+    WHEN (title_matches) = 2 THEN 1  -- All keywords in title
+    WHEN (title_matches) > 0 THEN 2  -- Some keywords in title
+    WHEN (plot_matches) = 2 THEN 3   -- All keywords in plot
+    WHEN (plot_matches) > 0 THEN 4   -- Some keywords in plot
+    ELSE 5
+  END as search_rank
+FROM media_items 
+WHERE (title LIKE '%batman%' OR plot LIKE '%batman%') 
+  AND (title LIKE '%dark%' OR plot LIKE '%dark%')
+ORDER BY search_rank ASC, title ASC
+"""
 
-# Results formatted for UI
-results = [
-    {
-        'label': 'The Dark Knight (2008)',
-        'type': 'movie',
-        'ids': {'imdb': 'tt0468569', 'kodi_id': 123},
-        # ... additional metadata
-    }
-]
+# Results saved to search history and displayed
 ```
 
 ---
@@ -103,14 +108,12 @@ results = [
 
 ### Primary Table: `media_items`
 
-The search operates primarily on the `media_items` table:
+The search operates on the `media_items` table:
 
 | Field | Purpose in Search |
 |-------|------------------|
 | `title` | Primary text matching field |
 | `plot` | Secondary text matching field |
-| `year` | Year filtering |
-| `play` | File path search (optional) |
 | `media_type` | Filter movies vs episodes |
 | `kodi_id` | Link to Kodi library |
 | `imdbnumber` | Universal identifier |
@@ -119,8 +122,7 @@ The search operates primarily on the `media_items` table:
 
 Key indexes for search performance:
 - `media_type` for filtering movies/episodes
-- `year` for year-based queries
-- Text search relies on SQLite's built-in string matching
+- Text search relies on SQLite's built-in LIKE operations
 
 ---
 
@@ -160,128 +162,113 @@ def normalize(text: str) -> str:
 
 ---
 
-## Year Filtering
-
-### Year Filter Types
-
-1. **Explicit Prefixes** (highest priority)
-   - `y:1999` or `year:1999` - Exact year
-   - `year:1990-2000` - Year range
-   - `year>=2010` - Comparison operators
-
-2. **Decade Shorthand** (when enabled)
-   - `'90s` or `1990s` - Decade ranges
-
-3. **Isolated Years** (with protection)
-   - Single 4-digit years (1900-2099)
-   - Protected if part of known titles
-
-### Title Protection
-
-Prevents false year detection in movie titles:
-
-```python
-protected_patterns = [
-    '2001: a space odyssey',
-    'fahrenheit 451',
-    'area 51',
-    'apollo 13',
-    # ... more patterns
-]
-```
-
-### Year Parsing Examples
-
-| Input | Parsed Year Filter | Remaining Text |
-|-------|-------------------|----------------|
-| `"batman year:2008"` | `2008` | `"batman"` |
-| `"movies from 1990-2000"` | `(1990, 2000)` | `"movies from"` |
-| `"2001: A Space Odyssey"` | `None` | `"2001: A Space Odyssey"` |
-
----
-
 ## Search Algorithms
 
-### Cross-Field Word Matching
+### Keyword Matching
 
-Each search word must match in at least one field (title OR plot):
+Each keyword must match in at least one configured field:
 
+**Search Scope "both" with Match Logic "all":**
 ```sql
--- For query "dark knight"
-WHERE (LOWER(title) LIKE '%dark%' OR LOWER(plot) LIKE '%dark%')
-  AND (LOWER(title) LIKE '%knight%' OR LOWER(plot) LIKE '%knight%')
+WHERE (LOWER(title) LIKE '%keyword1%' OR LOWER(plot) LIKE '%keyword1%')
+  AND (LOWER(title) LIKE '%keyword2%' OR LOWER(plot) LIKE '%keyword2%')
 ```
 
-### Result Prioritization
+**Search Scope "title" with Match Logic "any":**
+```sql
+WHERE (LOWER(title) LIKE '%keyword1%' OR LOWER(title) LIKE '%keyword2%')
+```
 
-Results are ordered by:
-1. **Title Match Count** - How many words match in title
-2. **Alphabetical** - Secondary sort by title
+### Result Ranking
+
+Results are ranked by match quality using SQL CASE expressions:
+
+1. **Rank 1**: All keywords match in title
+2. **Rank 2**: Some keywords match in title
+3. **Rank 3**: All keywords match in plot
+4. **Rank 4**: Some keywords match in plot
+5. **Rank 5**: Default (should not occur with proper WHERE clauses)
 
 ```sql
 ORDER BY 
-    (CASE WHEN LOWER(title) LIKE '%word1%' THEN 1 ELSE 0 END +
-     CASE WHEN LOWER(title) LIKE '%word2%' THEN 1 ELSE 0 END) DESC,
-    title ASC
+    CASE 
+        WHEN (title_match_count) = total_keywords THEN 1
+        WHEN (title_match_count) > 0 THEN 2
+        WHEN (plot_match_count) = total_keywords THEN 3
+        WHEN (plot_match_count) > 0 THEN 4
+        ELSE 5
+    END ASC,
+    LOWER(title) ASC
 ```
-
-### Match Modes
-
-1. **Contains Mode** (default)
-   - All words can appear anywhere in title/plot
-   - Most flexible matching
-
-2. **Starts With Mode**
-   - First word must start the title
-   - Remaining words can appear anywhere
-   - More precise for known titles
 
 ---
 
-## Pagination and Performance
+## Search Configuration
 
-### Efficient Pagination
+### Query Parameters
 
-Uses "page size + 1" technique to avoid expensive COUNT(*) queries:
+| Parameter | Values | Default | Description |
+|-----------|--------|---------|-------------|
+| `search_scope` | `"title"`, `"plot"`, `"both"` | `"both"` | Fields to search |
+| `match_logic` | `"all"`, `"any"` | `"all"` | Keyword matching logic |
+| `scope_type` | `"library"`, `"list"` | `"library"` | Search within library or specific list |
+| `scope_id` | `int` | `None` | List ID when scope_type is "list" |
+| `page_size` | `int` | `50` | Results per page |
+| `page_offset` | `int` | `0` | Pagination offset |
 
-```python
-# Request one extra item to detect if there are more pages
-limit = page_size + 1
-results = execute_query(sql + " LIMIT ? OFFSET ?", [limit, offset])
+### Search Scope Options
 
-has_more = len(results) > page_size
-if has_more:
-    results = results[:-1]  # Remove extra item
-```
+- **"title"**: Search only in movie/episode titles
+- **"plot"**: Search only in plot summaries
+- **"both"**: Search across both title and plot fields (default)
 
-### Performance Optimizations
+### Match Logic Options
 
-1. **Batch Processing**: Handles large result sets efficiently
-2. **Index Usage**: Leverages SQLite indexes for filtering
-3. **Minimal Field Selection**: Only fetches needed fields
-4. **Result Caching**: Session-level caching for repeated queries
+- **"all"**: All keywords must be found (AND logic)
+- **"any"**: Any keyword can match (OR logic)
 
 ---
 
-## Search Analytics
+## Search History
 
-### Query Logging
+### Automatic History Creation
 
-Every search is logged to `search_history` table:
+All successful searches are automatically saved to search history:
 
-```sql
-INSERT INTO search_history 
-(query_text, scope_type, scope_id, year_filter, sort_method, 
- include_file_path, result_count, search_duration_ms)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-```
+1. **Search Execution**: User performs search with results
+2. **History List Creation**: New list created in "Search History" folder
+3. **Result Population**: Search results added to the history list
+4. **Navigation**: User redirected to view the search history list
 
-### Performance Metrics
+### History List Naming
 
-- **Search Duration**: Time from query to results
-- **Result Count**: Number of matches found
-- **Query Patterns**: Most common search terms
-- **Performance Trends**: Search speed over time
+Search history lists are named with the search terms:
+- Format: `"Search: {keywords}"`
+- Example: `"Search: batman dark"`
+
+### Search History Folder
+
+All search history is organized under a dedicated folder:
+- **Folder Name**: "Search History"
+- **Auto-Creation**: Created automatically on first search
+- **Organization**: Lists sorted by creation date (newest first)
+
+---
+
+## Performance Considerations
+
+### Query Optimization
+
+- **Parameterized Queries**: All user input safely parameterized
+- **Efficient LIKE Operations**: Uses SQLite's optimized string matching
+- **Ranking in SQL**: Ranking calculated at database level for performance
+- **Limited Result Sets**: Pagination prevents large result set issues
+
+### Memory Management
+
+- **Lightweight Results**: Only essential fields returned in search results
+- **Streaming Results**: Results processed as returned from database
+- **Connection Reuse**: Database connections managed by connection pool
 
 ---
 
@@ -292,57 +279,21 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 The search integrates with UI components:
 
 1. **SearchHandler** (`lib/ui/search_handler.py`)
-   - Bridges search engines with UI
-   - Handles local vs remote search selection
-   - Manages error states and notifications
+   - Provides search dialog and user interaction
+   - Manages search execution and result navigation
+   - Handles error states and user notifications
 
-2. **ListItemBuilder** (`lib/ui/listitem_builder.py`)
-   - Formats search results for Kodi UI
-   - Handles artwork and metadata display
+2. **Router Integration**
+   - Search accessible via `action=search` parameter
+   - Results displayed through standard list navigation
+   - Search history accessible via normal list browsing
 
-### Remote Search Fallback
+### List Integration
 
-When local search fails or is insufficient:
-
-```python
-def search(self, query, limit=200):
-    # Try local search first
-    local_results = self._search_local(query, limit)
-    
-    if local_results['total'] > 0:
-        return local_results
-    
-    # Fallback to remote if authorized
-    if is_authorized():
-        return self._search_remote(query, limit)
-    
-    return local_results
-```
-
----
-
-## Configuration
-
-### Search Settings
-
-Users can configure search behavior:
-
-| Setting | Default | Purpose |
-|---------|---------|---------|
-| `search_include_file_path` | `false` | Include file paths in search |
-| `search_match_mode` | `"contains"` | Match mode (contains/starts_with) |
-| `search_page_size` | `50` | Results per page (25-200) |
-| `search_enable_decade_shorthand` | `false` | Enable '90s syntax |
-
-### Runtime Configuration
-
-```python
-# Settings are loaded at runtime with fallbacks
-query.include_file_path = kwargs.get("include_file_path",
-    self._get_setting_bool("search_include_file_path", False))
-query.match_mode = kwargs.get("match_mode",
-    self._get_setting_string("search_match_mode", "contains"))
-```
+Search results are seamlessly integrated with the list system:
+- **Search History Lists**: Standard lists containing search results
+- **Context Menus**: Full context menu support on search results
+- **List Management**: Search history lists can be renamed, deleted, etc.
 
 ---
 
@@ -352,9 +303,9 @@ query.match_mode = kwargs.get("match_mode",
 
 Search handles errors gracefully:
 
-1. **Database Errors**: Falls back to empty results
-2. **Malformed Queries**: Sanitizes and continues
-3. **Performance Issues**: Times out long queries
+1. **Database Errors**: Returns empty results with error logging
+2. **Malformed Input**: Sanitizes input and continues with valid portions
+3. **No Results**: Shows appropriate user message
 
 ### Error Recovery
 
@@ -364,8 +315,32 @@ try:
     results = conn_manager.execute_query(sql, params)
 except Exception as e:
     logger.error(f"Search failed: {e}")
-    return {'items': [], 'total': 0, 'used_remote': False}
+    result = SimpleSearchResult()
+    result.query_summary = "Search error"
+    return result
 ```
+
+---
+
+## Current Limitations
+
+### Removed Features
+
+The following features were present in earlier versions but have been removed for simplification:
+
+- **Year Filtering**: No special year parsing or filtering
+- **File Path Search**: No searching within file paths
+- **Advanced Query Syntax**: No special operators or prefixes
+- **Pagination Controls**: Results are saved to lists instead of paginated views
+- **Search Analytics**: No detailed search performance tracking
+- **Multiple Search Engines**: Only the simplified engine is available
+
+### Design Decisions
+
+- **Simplicity Over Features**: Focus on reliable, predictable keyword search
+- **List-Based Results**: Search results saved as browsable lists rather than temporary views
+- **Automatic History**: All searches automatically saved for later browsing
+- **Fixed Configuration**: Minimal user configuration options
 
 ---
 
@@ -373,22 +348,23 @@ except Exception as e:
 
 ### Debug Logging
 
-Comprehensive logging for troubleshooting:
+Search operations include comprehensive logging:
 
 ```python
-self.logger.debug(f"Executing SQL query: {sql}")
-self.logger.debug(f"Query parameters: {params}")
-self.logger.debug(f"Search returned {len(results)} results")
+self.logger.debug(f"Executing search SQL: {sql}")
+self.logger.debug(f"Search SQL parameters: {params}")
+self.logger.debug(f"Simple search completed: {result.total_count} results in {result.search_duration_ms}ms")
 ```
 
-### Test Cases
+### Test Scenarios
 
 Key scenarios to test:
 
 1. **Unicode Handling**: Movies with accented characters
-2. **Year Parsing**: Complex year expressions
-3. **Edge Cases**: Empty queries, special characters
-4. **Pagination**: Boundary conditions
+2. **Keyword Combinations**: Multiple keyword searches
+3. **Empty Results**: Searches that return no matches
+4. **Large Libraries**: Performance with thousands of movies
+5. **Special Characters**: Searches containing punctuation
 
 ---
 
@@ -396,30 +372,17 @@ Key scenarios to test:
 
 ### For Users
 
-1. **Use Explicit Years**: Prefix with `year:` for precise filtering
-2. **Keep Queries Simple**: Fewer words often work better
-3. **Use Quotes**: For exact phrase matching (future feature)
+1. **Use Simple Keywords**: Enter movie titles or plot keywords directly
+2. **Try Different Combinations**: If no results, try fewer or different keywords
+3. **Browse Search History**: Previous searches are saved as browsable lists
 
 ### For Developers
 
-1. **Parameterized Queries**: Always use parameter binding
-2. **Index Optimization**: Ensure proper database indexes
-3. **Error Handling**: Fail gracefully with useful messages
-4. **Performance Monitoring**: Track search times and optimize
+1. **Parameterized Queries**: Always use parameter binding for user input
+2. **Error Handling**: Fail gracefully with useful error messages
+3. **Performance Monitoring**: Log search execution times
+4. **Input Validation**: Sanitize user input before processing
 
 ---
 
-## Future Enhancements
-
-### Planned Features
-
-1. **Weighted Results**: Boost results by popularity/rating
-2. **Saved Searches**: Store and recall common queries
-
-### Performance Improvements
-
-1. **Caching Layer**: In-memory result caching
-
----
-
-This documentation provides a comprehensive overview of LibraryGenie's local search functionality. For implementation details, refer to the source code in the `lib/search/` directory.
+This documentation reflects the current simplified search implementation in LibraryGenie. The search system prioritizes reliability and simplicity over advanced features.
