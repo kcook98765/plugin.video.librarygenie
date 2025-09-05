@@ -697,10 +697,15 @@ class ListsHandler:
                 except Exception as e:
                     context.logger.error(f"Failed to add breadcrumb to list view: {e}")
 
-            # Add Tools & Options at the top of the list view
-            tools_item = xbmcgui.ListItem(label=f"[COLOR yellow]⚙️ {L(36000)}[/COLOR]")  # "Tools & Options"
-            tools_item.setInfo('video', {'plot': L(36016)})  # "Access list tools and options"
-            tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
+            # Add Tools & Options at the top of the list view using version-aware renderer
+            from .listitem_renderer import get_listitem_renderer
+            renderer = get_listitem_renderer()
+            tools_item = renderer.create_simple_listitem(
+                title=f"[COLOR yellow]⚙️ {L(36000)}[/COLOR]",  # "Tools & Options"
+                description=L(36016),  # "Access list tools and options"
+                action='show_list_tools',
+                icon="DefaultAddonProgram.png"
+            )
             xbmcplugin.addDirectoryItem(
                 context.addon_handle,
                 context.build_url('show_list_tools', list_type='user_list', list_id=list_id),
@@ -709,9 +714,14 @@ class ListsHandler:
             )
 
             if not list_items:
-                # Empty list
-                empty_item = xbmcgui.ListItem(label="[COLOR gray]List is empty[/COLOR]") # This string should also be localized
-                empty_item.setInfo('video', {'plot': 'This list contains no items'}) # This string should also be localized
+                # Empty list - use version-aware renderer
+                from .listitem_renderer import get_listitem_renderer
+                renderer = get_listitem_renderer()
+                empty_item = renderer.create_simple_listitem(
+                    title="[COLOR gray]List is empty[/COLOR]",  # This string should also be localized
+                    description='This list contains no items',  # This string should also be localized
+                    action='noop'
+                )
                 xbmcplugin.addDirectoryItem(
                     context.addon_handle,
                     context.build_url('noop'),
@@ -867,10 +877,15 @@ class ListsHandler:
                     'context_menu': context_menu
                 })
 
-            # If folder is empty, show message
+            # If folder is empty, show message using version-aware renderer
             if not lists_in_folder:
-                empty_item = xbmcgui.ListItem(label="[COLOR gray]Folder is empty[/COLOR]") # This string should also be localized
-                empty_item.setInfo('video', {'plot': 'This folder contains no lists'}) # This string should also be localized
+                from .listitem_renderer import get_listitem_renderer
+                renderer = get_listitem_renderer()
+                empty_item = renderer.create_simple_listitem(
+                    title="[COLOR gray]Folder is empty[/COLOR]",  # This string should also be localized
+                    description='This folder contains no lists',  # This string should also be localized
+                    action='noop'
+                )
                 xbmcplugin.addDirectoryItem(
                     context.addon_handle,
                     context.build_url('noop'),
