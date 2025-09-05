@@ -50,120 +50,101 @@ class InfoHijackManager:
             self._logger.info("✅ HIJACK STEP 5 COMPLETE: Container restoration initiated")
             return
             
-        # Handle dialog open detection
+        # Handle dialog open detection - this is where we trigger hijack
         if dialog_active:
             if not self._native_info_was_open and not self._in_progress:
-                # Check if this is our native info (has readiness indicators)
-                if self._is_native_info_hydrated():
-                    self._native_info_was_open = True
-                    current_dialog_id = xbmcgui.getCurrentWindowDialogId()
-                    listitem_title = xbmc.getInfoLabel('ListItem.Title')
-                    listitem_duration = xbmc.getInfoLabel('ListItem.Duration')
-                    self._logger.info(f"🎯 HIJACK: NATIVE INFO DIALOG DETECTED AND HYDRATED")
-                    self._logger.info(f"HIJACK: Dialog ID: {current_dialog_id}, Title: '{listitem_title}', Duration: {listitem_duration}")
-            return
-
-        # Only attempt new hijacks when no dialog is active
-        if self._in_progress:
-            return
-
-        # Check for tagged items
-        armed = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)') == '1'
-        if not armed:
-            # Log more frequently for debugging - check container info
-            if int(current_time * 2) % 5 == 0:  # Every 2.5 seconds, more frequent
-                container_path = xbmc.getInfoLabel('Container.FolderPath')
-                current_item = xbmc.getInfoLabel('Container.CurrentItem')
-                num_items = xbmc.getInfoLabel('Container.NumItems')
-                list_item_label = xbmc.getInfoLabel('ListItem.Label')
-                self._logger.info(f"HIJACK DEBUG: No armed items - container: {container_path}, item: {current_item}/{num_items}, label: '{list_item_label}'")
-            return
-
-        # 🔍 STEP 1: ORIGINAL VIDEO INFO DETECTION
-        self._logger.info(f"🔍 HIJACK STEP 1: ORIGINAL VIDEO INFO DETECTED")
-        
-        # Debug: Log all armed item properties
-        listitem_label = xbmc.getInfoLabel('ListItem.Label')
-        hijack_dbid_prop = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBID)')
-        hijack_dbtype_prop = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBType)')
-        native_dbid = xbmc.getInfoLabel('ListItem.DBID')
-        native_dbtype = xbmc.getInfoLabel('ListItem.DBTYPE')
-        
-        self._logger.info(f"HIJACK: ✅ ARMED ITEM FOUND - Label: '{listitem_label}'")
-        self._logger.info(f"HIJACK: Properties - LG.DBID: '{hijack_dbid_prop}', LG.DBType: '{hijack_dbtype_prop}'")
-        self._logger.info(f"HIJACK: Native - DBID: '{native_dbid}', DBType: '{native_dbtype}'")
-        
-        # Add intent detection - only hijack if user is actually trying to open info
-        # Check if the Info action was recently triggered
-        intent_detected = self._is_info_intent_detected()
-        self._logger.info(f"HIJACK: Intent detected: {intent_detected}")
-        
-        # For now, don't hijack at all unless dialog is already open
-        # This prevents false triggers while we implement proper intent detection
-        if not intent_detected:
-            self._logger.debug("HIJACK: No intent detected, skipping hijack to avoid false triggers")
-            return
-
-        dbid = hijack_dbid_prop or native_dbid
-        dbtype = (hijack_dbtype_prop or native_dbtype or '').lower()
-        
-        self._logger.info(f"HIJACK: 🎯 TRIGGERED for armed item - DBID={dbid}, DBType={dbtype}")
-        
-        if not dbid or not dbtype:
-            self._logger.warning(f"HIJACK: Missing data - DBID={dbid}, DBType={dbtype}")
-            return
-
-        # 🔄 STEP 2: HIJACK PROCESS INITIATED
-        self._logger.info(f"🔄 HIJACK STEP 2: HIJACK PROCESS INITIATED for {dbtype} {dbid}")
-        
-        self._in_progress = True
-        self._last_hijack_time = current_time
-        
-        try:
-            # 💾 STEP 3: SAVE RETURN TARGET
-            self._logger.info(f"💾 HIJACK STEP 3: SAVING RETURN TARGET")
-            orig_path = xbmc.getInfoLabel('Container.FolderPath') or ''
-            current_position = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
-            
-            self._logger.info(f"HIJACK: Saving return target - path: {orig_path}, position: {current_position}")
-            self._save_return_target(orig_path, current_position)
-            self._logger.info(f"✅ HIJACK STEP 3 COMPLETE: Return target saved")
-            
-            # Convert dbid to int safely
-            try:
-                dbid_int = int(dbid)
-            except (ValueError, TypeError):
-                self._logger.error(f"HIJACK: Invalid DBID '{dbid}' - cannot convert to integer")
-                return
-            
-            # 🚀 STEP 4: OPEN NATIVE INFO
-            self._logger.info(f"🚀 HIJACK STEP 4: OPENING NATIVE INFO for {dbtype} {dbid_int}")
-            self._logger.info(f"HIJACK: About to call open_native_info_fast({dbtype}, {dbid_int})")
-            
-            start_time = time.time()
-            ok = open_native_info_fast(dbtype, dbid_int, self._logger)
-            end_time = time.time()
-            
-            if ok:
-                self._logger.info(f"✅ HIJACK STEP 4 COMPLETE: Successfully opened native info for {dbtype} {dbid_int} in {end_time - start_time:.3f}s")
-                # Set cooldown based on how long the operation took
-                operation_time = time.time() - current_time
-                self._cooldown_until = time.time() + max(0.5, operation_time * 2)
+                # Check if this is a hijackable dialog with armed item
+                armed = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)') == '1'
                 
-                # 🎉 HIJACK PROCESS COMPLETE
-                self._logger.info(f"🎉 HIJACK PROCESS COMPLETE: Full hijack successful for {dbtype} {dbid_int}")
-            else:
-                self._logger.error(f"❌ HIJACK STEP 4 FAILED: Failed to open native info for {dbtype} {dbid_int} after {end_time - start_time:.3f}s")
-                # Check what went wrong
-                dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
-                current_window_id = xbmcgui.getCurrentWindowDialogId()
-                self._logger.error(f"HIJACK: Dialog active after failure: {dialog_active}, current dialog ID: {current_window_id}")
-        except Exception as e:
-            self._logger.error(f"HIJACK: 💥 Exception during hijack: {e}")
-            import traceback
-            self._logger.error(f"HIJACK: Traceback: {traceback.format_exc()}")
-        finally:
-            self._in_progress = False
+                if armed:
+                    self._logger.info(f"🎯 HIJACK: NATIVE INFO DIALOG DETECTED ON ARMED ITEM - starting hijack process")
+                    
+                    # Get hijack data
+                    listitem_label = xbmc.getInfoLabel('ListItem.Label')
+                    hijack_dbid_prop = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBID)')
+                    hijack_dbtype_prop = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBType)')
+                    native_dbid = xbmc.getInfoLabel('ListItem.DBID')
+                    native_dbtype = xbmc.getInfoLabel('ListItem.DBTYPE')
+                    
+                    dbid = hijack_dbid_prop or native_dbid
+                    dbtype = (hijack_dbtype_prop or native_dbtype or '').lower()
+                    
+                    if dbid and dbtype:
+                        self._logger.info(f"HIJACK: Target - DBID={dbid}, DBType={dbtype}, Label='{listitem_label}'")
+                        
+                        # Mark as in progress to prevent re-entry
+                        self._in_progress = True
+                        self._last_hijack_time = current_time
+                        
+                        try:
+                            # 💾 STEP 1: SAVE RETURN TARGET
+                            self._logger.info(f"💾 HIJACK STEP 1: SAVING RETURN TARGET")
+                            orig_path = xbmc.getInfoLabel('Container.FolderPath') or ''
+                            current_position = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
+                            
+                            self._save_return_target(orig_path, current_position)
+                            self._logger.info(f"✅ HIJACK STEP 1 COMPLETE: Return target saved")
+                            
+                            # 🚪 STEP 2: CLOSE CURRENT DIALOG
+                            self._logger.info(f"🚪 HIJACK STEP 2: CLOSING CURRENT DIALOG")
+                            xbmc.executebuiltin('Action(Back)')
+                            xbmc.sleep(200)  # Wait for dialog to close
+                            self._logger.info(f"✅ HIJACK STEP 2 COMPLETE: Dialog closed")
+                            
+                            # Convert dbid to int safely
+                            try:
+                                dbid_int = int(dbid)
+                            except (ValueError, TypeError):
+                                self._logger.error(f"HIJACK: Invalid DBID '{dbid}' - cannot convert to integer")
+                                return
+                            
+                            # 🚀 STEP 3: OPEN NATIVE INFO VIA XSP
+                            self._logger.info(f"🚀 HIJACK STEP 3: OPENING NATIVE INFO for {dbtype} {dbid_int}")
+                            
+                            start_time = time.time()
+                            ok = open_native_info_fast(dbtype, dbid_int, self._logger)
+                            end_time = time.time()
+                            
+                            if ok:
+                                self._logger.info(f"✅ HIJACK STEP 3 COMPLETE: Successfully opened native info for {dbtype} {dbid_int} in {end_time - start_time:.3f}s")
+                                self._native_info_was_open = True  # Mark for close detection
+                                
+                                # Set cooldown
+                                operation_time = time.time() - current_time
+                                self._cooldown_until = time.time() + max(0.5, operation_time * 2)
+                                
+                                # 🎉 HIJACK PROCESS COMPLETE
+                                self._logger.info(f"🎉 HIJACK PROCESS COMPLETE: Full hijack successful for {dbtype} {dbid_int}")
+                            else:
+                                self._logger.error(f"❌ HIJACK STEP 3 FAILED: Failed to open native info for {dbtype} {dbid_int}")
+                        except Exception as e:
+                            self._logger.error(f"HIJACK: 💥 Exception during hijack: {e}")
+                            import traceback
+                            self._logger.error(f"HIJACK: Traceback: {traceback.format_exc()}")
+                        finally:
+                            self._in_progress = False
+                    else:
+                        self._logger.warning(f"HIJACK: Armed item missing DBID/DBType - DBID={dbid}, DBType={dbtype}")
+                else:
+                    # Non-armed dialog, just mark as seen
+                    if self._is_native_info_hydrated():
+                        self._native_info_was_open = True
+                        current_dialog_id = xbmcgui.getCurrentWindowDialogId()
+                        listitem_title = xbmc.getInfoLabel('ListItem.Title')
+                        self._logger.debug(f"HIJACK: Non-armed native info detected - Dialog ID: {current_dialog_id}, Title: '{listitem_title}'")
+            return
+
+        # Only log container info when no dialog is active
+        if not self._in_progress:
+            # Debug: Periodically check for armed items in container
+            if int(current_time * 2) % 10 == 0:  # Every 5 seconds
+                container_path = xbmc.getInfoLabel('Container.FolderPath')
+                if 'plugin.video.librarygenie' in container_path:
+                    current_item = xbmc.getInfoLabel('Container.CurrentItem')
+                    num_items = xbmc.getInfoLabel('Container.NumItems')
+                    list_item_label = xbmc.getInfoLabel('ListItem.Label')
+                    armed = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)') == '1'
+                    self._logger.debug(f"HIJACK DEBUG: Container scan - item: {current_item}/{num_items}, label: '{list_item_label}', armed: {armed}")
 
     def _is_native_info_hydrated(self) -> bool:
         """Check if native info dialog has native-only labels populated"""
@@ -180,47 +161,7 @@ class InfoHijackManager:
         xbmc.executebuiltin(f'SetProperty(LG.InfoHijack.ReturnPath,{orig_path},Home)')
         xbmc.executebuiltin(f'SetProperty(LG.InfoHijack.ReturnPosition,{position},Home)')
 
-    def _is_info_intent_detected(self) -> bool:
-        """
-        Detect if the user actually intends to open an info dialog.
-        This prevents false triggers when just navigating lists.
-        
-        We trigger when:
-        1. Context menu is active (user might select "Information")
-        2. Video info dialog is already open but we can still hijack it
-        3. Recent focus changes that suggest info action
-        
-        For testing, we'll be more permissive to see hijack behavior.
-        """
-        # Check if video info dialog is already open
-        info_dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
-        if info_dialog_active:
-            self._logger.debug("HIJACK: Video info dialog already open - too late to hijack")
-            return False  # Too late to hijack, dialog already showing native content
-        
-        # Check if context menu is active (user might select "Information")
-        context_menu_active = xbmc.getCondVisibility('Window.IsActive(DialogContextMenu.xml)')
-        if context_menu_active:
-            self._logger.debug("HIJACK: Context menu active, user may select info")
-            return True
-        
-        # Check for recent timing that suggests user action
-        current_time = time.time()
-        time_since_last_hijack = current_time - self._last_hijack_time
-        
-        # Prevent rapid-fire hijacks when just navigating
-        if time_since_last_hijack < 1.0:
-            self._logger.debug(f"HIJACK: Too soon since last hijack ({time_since_last_hijack:.1f}s), avoiding false trigger")
-            return False
-        
-        # For testing: Allow hijack periodically to test functionality
-        # This is temporary - remove once we have proper action detection
-        if int(current_time * 2) % 20 == 0:  # Every 10 seconds
-            self._logger.debug("HIJACK: Testing trigger - allowing hijack for testing")
-            return True
-        
-        self._logger.debug("HIJACK: No confirmed info intent detected")
-        return False
+    
 
     def _handle_native_info_closed(self):
         """Handle the native info dialog being closed - restore container"""
