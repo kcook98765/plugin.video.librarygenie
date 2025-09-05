@@ -351,7 +351,7 @@ def handle_shortlist_import():
         progress.update(30, "Scanning ShortList data...")
 
         # Perform the import
-        result = importer.import_shortlist_items()
+        result = importer.import_shortlist_items()()
 
         progress.update(100, "Import complete!")
         progress.close()
