@@ -111,19 +111,33 @@ class InfoHijackManager:
             orig_path = xbmc.getInfoLabel('Container.FolderPath') or ''
             current_position = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
             
+            self._logger.debug(f"HIJACK: Saving return target - path: {orig_path}, position: {current_position}")
             self._save_return_target(orig_path, current_position)
             
+            # Convert dbid to int safely
+            try:
+                dbid_int = int(dbid)
+            except (ValueError, TypeError):
+                self._logger.error(f"HIJACK: Invalid DBID '{dbid}' - cannot convert to integer")
+                return
+            
             # Open native info WITHOUT directory rebuild
-            ok = open_native_info_fast(dbtype, int(dbid), self._logger)
+            self._logger.info(f"HIJACK: Attempting to open native info for {dbtype} {dbid_int}")
+            ok = open_native_info_fast(dbtype, dbid_int, self._logger)
             if ok:
-                self._logger.debug(f"HIJACK: ✅ Successfully opened native info for {dbtype} {dbid}")
+                self._logger.info(f"HIJACK: ✅ Successfully opened native info for {dbtype} {dbid_int}")
                 # Set cooldown based on how long the operation took
                 operation_time = time.time() - current_time
                 self._cooldown_until = time.time() + max(0.5, operation_time * 2)
             else:
-                self._logger.warning(f"HIJACK: ❌ Failed to open native info for {dbtype} {dbid}")
+                self._logger.warning(f"HIJACK: ❌ Failed to open native info for {dbtype} {dbid_int}")
+                # Check what went wrong
+                dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+                self._logger.warning(f"HIJACK: Dialog active after failure: {dialog_active}")
         except Exception as e:
             self._logger.error(f"HIJACK: 💥 Exception during hijack: {e}")
+            import traceback
+            self._logger.error(f"HIJACK: Traceback: {traceback.format_exc()}")
         finally:
             self._in_progress = False
 
@@ -170,7 +184,13 @@ class InfoHijackManager:
             self._logger.debug(f"HIJACK: Media content detected - path: {container_path}, content: {container_content}")
             return True
         
-        # Still allow context menu for other scenarios
+        # For debugging: Be more permissive - allow hijack if we have an armed item
+        # This helps with testing and ensures hijack works when expected
+        armed = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)') == '1'
+        if armed:
+            self._logger.debug("HIJACK: Armed item detected, allowing hijack for testing")
+            return True
+        
         return False
 
     def _handle_native_info_closed(self):

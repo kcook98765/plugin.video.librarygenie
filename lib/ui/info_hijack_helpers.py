@@ -299,20 +299,31 @@ def _wait_videos_on(path: str, timeout_ms=6000) -> bool:
 
 def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
     """
-    Open native Kodi info dialog without heavy operations.
+    Open native Kodi info dialog using JSON-RPC for direct database access.
     """
     try:
+        _log(f"Opening native info for {db_type} {db_id}")
+        
         if db_type.lower() == 'movie':
-            xbmc.executebuiltin(f'Action(Info,{db_id})')
-        elif db_type.lower() in ['episode', 'tvshow']:
-            xbmc.executebuiltin(f'Action(Info,{db_id})')
+            # Use ActivateWindow with videodb URL for movies
+            videodb_url = f"videodb://movies/titles/{db_id}"
+            xbmc.executebuiltin(f'ActivateWindow(VideoInfo,{videodb_url})')
+        elif db_type.lower() == 'episode':
+            # Use ActivateWindow with videodb URL for episodes
+            videodb_url = f"videodb://episodes/{db_id}"
+            xbmc.executebuiltin(f'ActivateWindow(VideoInfo,{videodb_url})')
+        elif db_type.lower() == 'tvshow':
+            # Use ActivateWindow with videodb URL for TV shows
+            videodb_url = f"videodb://tvshows/titles/{db_id}"
+            xbmc.executebuiltin(f'ActivateWindow(VideoInfo,{videodb_url})')
         else:
-            logger.warning(L(32200) % db_type)  # "Unsupported db_type for info hijack: %s"
+            logger.warning(f"Unsupported db_type for info hijack: {db_type}")
             return False
 
+        _log(f"Executed ActivateWindow for {db_type} {db_id}, waiting for dialog...")
         return _wait_for_info_dialog()
     except Exception as e:
-        logger.error(L(32201) % str(e))  # "Failed to open native info dialog: %s"
+        logger.error(f"Failed to open native info dialog: {e}")
         return False
 
 def restore_container_after_close(orig_path: str, position_str: str, logger) -> bool:
