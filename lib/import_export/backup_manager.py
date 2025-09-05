@@ -26,7 +26,6 @@ class BackupManager:
         self.export_engine = get_export_engine()
         self.storage_manager = get_storage_manager()
         self.config = get_config()
-        self.conn_manager = None # Initialize connection manager
 
     def should_run_backup(self) -> bool:
         """Check if backup should run based on schedule"""
