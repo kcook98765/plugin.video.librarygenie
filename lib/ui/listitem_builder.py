@@ -18,20 +18,20 @@ class ListItemBuilder:
     """Builds ListItems with proper separation between Kodi library and external items"""
 
     # -------- lifecycle --------
-    def __init__(self, addon_handle: int, addon_id: str):
+    def __init__(self, addon_handle: int, addon_id: str, context):
         self.addon_handle = addon_handle
         self.addon_id = addon_id
+        self.context = context
         self.logger = get_logger(__name__)
 
     # -------- public API --------
-    def build_directory(self, items: List[Dict[str, Any]], content_type: str = "movies", context_menu_callback=None) -> bool:
+    def build_directory(self, items: List[Dict[str, Any]], content_type: str = "movies") -> bool:
         """
         Build a directory with proper content type and ListItems.
 
         Args:
             items: list of (possibly mixed) media item dicts
             content_type: "movies", "tvshows", or "episodes"
-            context_menu_callback: Optional callback function to add custom context menu items
 
         Returns:
             bool: success
@@ -77,14 +77,15 @@ class ListItemBuilder:
             self.logger.debug(f"DIRECTORY BUILD: Adding {len(tuples)} directory items to Kodi")
             for idx, (url, li, is_folder, item) in enumerate(tuples, start=1):
 
-                # Apply custom context menu immediately before addDirectoryItem for proper timing
-                if context_menu_callback:
-                    try:
-                        self.logger.debug(f"DIRECTORY BUILD: Applying context menu callback for item #{idx} at optimal timing")
-                        context_menu_callback(li, item)
-                        self.logger.debug(f"DIRECTORY BUILD: Context menu callback completed for item #{idx}")
-                    except Exception as e:
-                        self.logger.warning(f"DIRECTORY BUILD: Context menu callback failed for item #{idx}: {e}")
+                # Set properties for global context menu detection
+                media_item_id = item.get('media_item_id') or item.get('id')
+                if media_item_id:
+                    li.setProperty('media_item_id', str(media_item_id))
+
+                # Set list context if available
+                list_id = item.get('list_id') or self.context.get_param('list_id')
+                if list_id:
+                    li.setProperty('list_id', str(list_id))
 
                 # Add to directory immediately after context menu is applied
                 xbmcplugin.addDirectoryItem(
@@ -320,6 +321,11 @@ class ListItemBuilder:
         # preserve action for action items
         if src.get('action'):
             out['action'] = src['action']
+
+        # preserve ids for context menu
+        out['id'] = src.get('id')
+        out['media_item_id'] = src.get('media_item_id')
+        out['list_id'] = src.get('list_id')
 
         return out
 

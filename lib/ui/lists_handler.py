@@ -174,8 +174,8 @@ class ListsHandler:
             from .menu_builder import MenuBuilder
             menu_builder = MenuBuilder()
             menu_builder.build_menu(
-                menu_items, 
-                context.addon_handle, 
+                menu_items,
+                context.addon_handle,
                 context.base_url,
                 breadcrumb_path=context.breadcrumb_path
             )
@@ -281,12 +281,19 @@ class ListsHandler:
                     success=False,
                     message="List not found"
                 )
+            list_name = list_info.get('name', 'Unnamed List')
 
-            # Confirm deletion
-            if not xbmcgui.Dialog().yesno(
-                L(35002),
-                f"Delete list '{list_info['name']}'?\n\nThis will remove {list_info['item_count']} items from the list."
-            ):
+            # Show confirmation dialog
+            dialog = xbmcgui.Dialog()
+            confirmed = dialog.yesno(
+                L(30000),  # "LibraryGenie"
+                f"Are you sure you want to delete the list '{list_name}'?",
+                "This action cannot be undone.",
+                nolabel=L(30002),  # "Cancel"
+                yeslabel=L(30001)   # "Delete"
+            )
+
+            if not confirmed:
                 context.logger.info("User cancelled list deletion")
                 return DialogResponse(success=False)
 
@@ -299,10 +306,10 @@ class ListsHandler:
                     message="Failed to delete list"
                 )
             else:
-                context.logger.info(f"Successfully deleted list: {list_info['name']}")
+                context.logger.info(f"Successfully deleted list: {list_name}")
                 return DialogResponse(
                     success=True,
-                    message=f"Deleted list: {list_info['name']}",
+                    message=f"Deleted list: {list_name}",
                     refresh_needed=True
                 )
 
@@ -583,8 +590,10 @@ class ListsHandler:
                     message="Folder not found"
                 )
 
+            folder_name = folder_info.get('name', 'Unnamed Folder')
+
             # Check if it's a reserved folder
-            if folder_info['name'] == 'Search History':
+            if folder_name == 'Search History':
                 return DialogResponse(
                     success=False,
                     message="Cannot delete reserved folder"
@@ -592,22 +601,30 @@ class ListsHandler:
 
             # Check if folder has lists
             lists_in_folder = query_manager.get_lists_in_folder(folder_id)
+            num_lists = len(lists_in_folder)
 
-            # Confirm deletion
+            # Show confirmation dialog
+            dialog = xbmcgui.Dialog()
             if lists_in_folder:
-                if not xbmcgui.Dialog().yesno(
-                    L(35002),
-                    f"Delete folder '{folder_info['name']}'?\n\nThis folder contains {len(lists_in_folder)} lists.\nAll lists will be moved to the root level."
-                ):
-                    context.logger.info("User cancelled folder deletion")
-                    return DialogResponse(success=False)
+                confirmed = dialog.yesno(
+                    L(30000),  # "LibraryGenie"
+                    f"Are you sure you want to delete the folder '{folder_name}' and all its contents?",
+                    "This action cannot be undone.",
+                    nolabel=L(30002),  # "Cancel"
+                    yeslabel=L(30001)   # "Delete"
+                )
             else:
-                if not xbmcgui.Dialog().yesno(
-                    L(35002),
-                    f"Delete empty folder '{folder_info['name']}'?"
-                ):
-                    context.logger.info("User cancelled folder deletion")
-                    return DialogResponse(success=False)
+                confirmed = dialog.yesno(
+                    L(30000),  # "LibraryGenie"
+                    f"Are you sure you want to delete the empty folder '{folder_name}'?",
+                    "This action cannot be undone.",
+                    nolabel=L(30002),  # "Cancel"
+                    yeslabel=L(30001)   # "Delete"
+                )
+
+            if not confirmed:
+                context.logger.info("User cancelled folder deletion")
+                return DialogResponse(success=False)
 
             # Delete the folder
             result = query_manager.delete_folder(folder_id)
@@ -618,7 +635,7 @@ class ListsHandler:
                     message="Failed to delete folder"
                 )
             else:
-                context.logger.info(f"Successfully deleted folder: {folder_info['name']}")
+                context.logger.info(f"Successfully deleted folder: {folder_name}")
 
                 # If deletion was successful, navigate back to lists menu
                 # since the current folder no longer exists
@@ -627,7 +644,7 @@ class ListsHandler:
 
                 return DialogResponse(
                     success=True,
-                    message=f"Deleted folder: {folder_info['name']}",
+                    message=f"Deleted folder: {folder_name}",
                     refresh_needed=True
                 )
 
@@ -709,7 +726,7 @@ class ListsHandler:
             else:
                 # Build list items
                 from lib.ui.listitem_builder import ListItemBuilder
-                builder = ListItemBuilder(context.addon_handle, context.addon.getAddonInfo('id'))
+                builder = ListItemBuilder(context.addon_handle, context.addon.getAddonInfo('id'), context)
 
                 for item_idx, item in enumerate(list_items):
                     try:
@@ -870,8 +887,8 @@ class ListsHandler:
             from .menu_builder import MenuBuilder
             menu_builder = MenuBuilder()
             menu_builder.build_menu(
-                menu_items, 
-                context.addon_handle, 
+                menu_items,
+                context.addon_handle,
                 context.base_url,
                 breadcrumb_path=context.breadcrumb_path
             )
@@ -1205,8 +1222,8 @@ class ListsHandler:
 
             if not default_list_id:
                 xbmcgui.Dialog().notification(
-                    "LibraryGenie", 
-                    "No default list configured", 
+                    "LibraryGenie",
+                    "No default list configured",
                     xbmcgui.NOTIFICATION_WARNING,
                     3000
                 )
@@ -1255,9 +1272,9 @@ class ListsHandler:
             }
 
             # Copy over all the gathered metadata
-            for key in ['originaltitle', 'year', 'plot', 'rating', 'votes', 'genre', 
+            for key in ['originaltitle', 'year', 'plot', 'rating', 'votes', 'genre',
                        'director', 'studio', 'country', 'mpaa', 'runtime', 'premiered',
-                       'playcount', 'lastplayed', 'poster', 'fanart', 'thumb', 
+                       'playcount', 'lastplayed', 'poster', 'fanart', 'thumb',
                        'banner', 'clearlogo', 'imdbnumber', 'file_path']:
                 if key in external_data:
                     media_item[key] = external_data[key]
@@ -1308,8 +1325,8 @@ class ListsHandler:
 
             if not list_options:
                 xbmcgui.Dialog().notification(
-                    "LibraryGenie", 
-                    "No lists available", 
+                    "LibraryGenie",
+                    "No lists available",
                     xbmcgui.NOTIFICATION_WARNING,
                     3000
                 )
@@ -1333,8 +1350,8 @@ class ListsHandler:
 
             if success:
                 xbmcgui.Dialog().notification(
-                    "LibraryGenie", 
-                    f"Added '{media_item['title']}' to '{selected_list_name}'", 
+                    "LibraryGenie",
+                    f"Added '{media_item['title']}' to '{selected_list_name}'",
                     xbmcgui.NOTIFICATION_INFO,
                     3000
                 )
@@ -1344,8 +1361,8 @@ class ListsHandler:
                 return True
             else:
                 xbmcgui.Dialog().notification(
-                    "LibraryGenie", 
-                    "Failed to add item to list", 
+                    "LibraryGenie",
+                    "Failed to add item to list",
                     xbmcgui.NOTIFICATION_ERROR,
                     3000
                 )

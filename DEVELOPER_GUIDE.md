@@ -12,7 +12,7 @@ LibraryGenie consists of three main layers:
    - Plugin routing and action handling (`router.py`, `plugin_context.py`)
    - Directory views and list building (`listitem_builder.py`, `listitem_renderer.py`, `menu_builder.py`)
    - Handler modules for specific features (`lists_handler.py`, `search_handler.py`, `favorites_handler.py`, `main_menu_handler.py`, `tools_handler.py`)
-   - Context menu integration (`context_menu.py`) with universal media type support and quick save functionality
+   - Global context menu integration (`context.py`) with universal media type support and quick save functionality
    - Localization with caching (`localization.py`)
    - Playback actions and info dialog hijacking (`playback_actions.py`, `info_hijack_manager.py`)
    - Session state management (`session_state.py`)
@@ -39,8 +39,11 @@ LibraryGenie consists of three main layers:
 ## Development Guidelines
 
 ### Database Access
+- Use **ConnectionManager** for all database operations (`get_connection_manager()`).
+- Use **standard methods**: `execute_query()`, `execute_single()`, `transaction()` context manager.
+- **No direct cursor access** - all queries go through the connection manager interface.
 - Use **parameterized queries** only (no f-strings).  
-- Wrap inserts/updates in **transactions**.  
+- Wrap inserts/updates in **transactions** using `with conn_manager.transaction() as conn:`.
 - Add proper **indexes** for high-frequency queries.  
 - Use `WAL` mode and tuned `PRAGMAs` for performance.
 
@@ -94,6 +97,8 @@ LibraryGenie consists of three main layers:
 - **Backup Management**: Automated timestamp-based backups with configurable scheduling.
 - **Guardrails**: Check auth state, playback status, and recent run timestamps before proceeding.
 - **No Favorites Processing**: Favorites scanning removed from background service for performance and user control.
+- **Background services**: Respect playback state - never perform heavy operations during video playback.
+- **Info hijack**: Decouple heavy operations from dialog opening - save state, open dialog immediately, restore after close.
 
 ### UI/UX Guidelines
 - **Tools & Options**: Use centralized tools menu for context-aware actions.

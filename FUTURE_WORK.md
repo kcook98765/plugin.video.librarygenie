@@ -8,11 +8,11 @@ This document outlines potential future enhancements and features for LibraryGen
 ## High Priority Features to Pursue
 
 ### 1. Info Hijack System
-**Status**: Framework exists but minimal implementation  
+**Status**: Core implementation complete with performance optimizations  
 **Files**: `lib/ui/info_hijack_manager.py`, `lib/ui/info_hijack_helpers.py`  
-**Description**: Intercept movie info dialogs to add custom "Add to List" buttons  
-**Benefits**: Seamless integration with Kodi's native movie info experience  
-**Effort**: Medium - Framework present, needs integration with new modular handler system  
+**Description**: Intercepts movie info dialogs with decoupled approach - native info opens immediately, directory rebuild happens after close  
+**Benefits**: Fast native info dialog opening without performance issues from competing operations  
+**Effort**: Low - Core system implemented, optional enhancements for custom buttons  
 
 ### 2. Music Video Support  
 **Status**: Database schema complete, missing UI and scanning  

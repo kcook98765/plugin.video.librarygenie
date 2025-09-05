@@ -1,3 +1,4 @@
+
 # Kodi Add-on Compliance Guide (For Official Repository Submission)
 
 > This document summarizes common **requirements and best practices** for designing a Kodi add-on that is **eligible for inclusion** in the official Kodi repository. It is not a substitute for the official rules; always verify against the current Kodi submission guidelines and PR review feedback.
@@ -106,27 +107,71 @@ lib/
 
 ---
 
-## 9) Logging & Error Handling
+## 10) Logging & Error Handling
 - Use Kodi logging APIs consistently; **no excessive logging** at INFO level.
 - Do not log secrets or personal data. Redact tokens/URLs with embedded credentials.
 - Fail gracefully: **clear error dialogs** or notifications on user actions; continue when safe.
 
 ---
 
-## 10) Specific Tips for LibraryGenie
+## 11) Specific Tips for LibraryGenie
 - **Local-first**: Lists/folders and import/export work entirely offline. External search/similarity disabled until user authorizes (OTP workflow).
-- **Universal context menus**: Context menu script (`context.py`) handles all playable media types including plugin content from any addon.
+- **Global context menus**: Context menu script (`context.py`) handles all playable media types including plugin content from any addon via global addon.xml registration.
 - **Plugin item support**: Gather appropriate metadata from focused plugin items for external type storage.
 - **Quick save functionality**: Optional streamlined workflow with dual context menu options when configured.
 - **Settings integration**: Context menu behavior adapts based on user settings (quick save enabled, default list configured).
-- **Privacy**: Only IMDb IDs, minimal non private data (and user-entered search text) are sent during optional external operations.
+- **Privacy**: Only IMDb IDs, minimal non-private data (and user-entered search text) are sent during optional external operations.
 - **Compatibility**: Handle `uniqueid.imdb` vs `imdbnumber` differences in Kodi 19/20; guard property sets accordingly.
-- **NDJSON export**: Keep schema versioned; include a `schema_version` field and migration notes in the README.
+- **JSON export**: Keep schema versioned; include a `schema_version` field and migration notes in the README.
 - **Accessibility**: Ensure labels are localized; avoid hard-coded strings.
 - **Graceful degradation**: If network features are unavailable, hide/disable related menu items without breaking core features.
 - **Differential sync**: Use client-side diff computation and version checking to minimize server requests.
 - **Service constraints**: Background sync must respect playback state and include generous rate limiting.
 - **State management**: Persist local snapshots, server metadata, and pending operations across addon restarts.
+
+### LibraryGenie Architecture Specifics
+
+#### Router-Based Action Handling
+- **Centralized routing**: All URL actions handled through `lib/ui/router.py`
+- **Handler delegation**: Router dispatches to specialized handlers (ListsHandler, SearchHandler, FavoritesHandler, etc.)
+- **Response types**: Structured response objects for consistent UI handling
+- **Context objects**: Request context for parameter access and state management
+
+#### Database Integration
+- **SQLite with WAL mode**: Optimized for performance on low-power devices
+- **Connection management**: Singleton pattern via `connection_manager.py`
+- **Schema migrations**: Versioned schema updates in `migrations.py`
+- **Transaction safety**: Proper rollback handling for data integrity
+
+#### Search Implementation
+- **Simple search engine**: Keyword-based matching with intelligent ranking
+- **Text normalization**: Unicode handling and diacritic removal
+- **Search history**: Automatic saving of results to browsable lists
+- **Result ranking**: Title matches prioritized over plot matches
+
+#### Import/Export System
+- **Unified JSON format**: Single format for backup, export, and import operations
+- **IMDb-first matching**: Highest-confidence mapping with multiple fallbacks
+- **Batch operations**: Efficient chunked processing for large libraries
+- **Safe import**: Validation and preview before import execution
+
+#### Favorites Integration
+- **Read-only access**: Never modifies Kodi's favorites.xml
+- **Manual operation**: All scanning is user-initiated
+- **Smart parsing**: Handles various XML formats and edge cases
+- **Library mapping**: Maps favorites to library items via path matching
+
+#### ListItem Builder Pattern
+- **Version-safe handling**: Compatibility across Kodi v19 and v20+
+- **Lightweight rendering**: Avoids heavy metadata in list views
+- **Library integration**: Direct videodb:// URLs for library items
+- **External item support**: Plugin URL handling for non-library content
+
+#### Context Menu Integration
+- **Universal support**: Works with all media types including plugin content
+- **Quick save feature**: Optional streamlined workflow with dual menu options
+- **Settings-aware**: Menu options adapt based on user configuration
+- **Plugin compatibility**: Handles various plugin item formats gracefully
 
 ---
 
@@ -147,8 +192,25 @@ lib/
 - [ ] Modular architecture with proper separation of concerns.
 - [ ] Router-based action handling for maintainable URL routing.
 - [ ] Favorites integration tested with various XML formats and edge cases.
-- [ ] Info hijack functionality (if enabled) tested across Kodi versions.
 - [ ] ListItem builder handles both library and external items correctly.
 - [ ] Authentication flow tested with proper token refresh handling.
+- [ ] Search functionality tested with Unicode input and special characters.
+- [ ] Import/export tested with large libraries and various media types.
+- [ ] Context menu integration works across different Kodi skins.
+- [ ] Quick save functionality tested with and without default list configuration.
+
+### LibraryGenie-Specific Quality Gates
+- [ ] All handlers properly implement error handling and user feedback.
+- [ ] Database operations use transactions and proper rollback on failure.
+- [ ] Text normalization handles diacritics and Unicode consistently.
+- [ ] Export format maintains schema versioning for future compatibility.
+- [ ] Plugin item support works with popular Kodi addons.
+- [ ] Search history lists are properly organized and named.
+- [ ] Backup/restore functionality tested with network storage paths.
+- [ ] External service integration properly handles authorization flow.
+- [ ] Connection pooling prevents database lock issues.
+- [ ] Memory usage remains reasonable with large libraries (10k+ items).
 
 ---
+
+This guide reflects the requirements for Kodi addon submission with specific implementation details from LibraryGenie's production-ready codebase. The addon demonstrates best practices in modular architecture, performance optimization, and user experience design suitable for the official Kodi repository.

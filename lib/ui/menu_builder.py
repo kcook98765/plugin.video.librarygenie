@@ -14,6 +14,7 @@ import xbmcplugin
 
 from ..utils.logger import get_logger
 from .listitem_renderer import get_listitem_renderer
+from .localization import L
 
 
 class MenuBuilder:
@@ -116,51 +117,13 @@ class MenuBuilder:
         context_items_added = 0
         if context_menu and list_item is not None:
             list_item.addContextMenuItems(context_menu)
-            context_items_added += len(context_menu)
-            self.logger.debug(f"MENU ITEM: Added {len(context_menu)} base context menu items for '{title}'")
+            context_items_added = len(context_menu)
+            self.logger.debug(f"MENU ITEM: Added {context_items_added} base context menu items for '{title}'")
 
-        # Add context menu based on item type
-        if item.get("context_menu_type") == "library_item" and item.get("library_movie_id"):
-            try:
-                from .context_menu import get_context_menu_manager
-                # Dummy string getter for menu builder
-                def get_string(string_id):
-                    strings = {
-                        31000: "Add to List...",
-                        31001: "Quick Add to Default"
-                    }
-                    return strings.get(string_id, f"String {string_id}")
-
-                context_manager = get_context_menu_manager(get_string)
-                list_item = context_manager.add_library_item_context_menu(
-                    list_item, item["library_movie_id"]
-                )
-                self.logger.debug(f"MENU ITEM: Added library item context menu for '{title}' (movie_id: {item['library_movie_id']})")
-                context_items_added += 2  # Approximate
-            except ImportError:
-                self.logger.warning(f"MENU ITEM: Failed to import context_menu for library item '{title}'")
-        elif item.get("context_menu_type") == "list_item" and item.get("list_id") and item.get("list_item_id"):
-            try:
-                from .context_menu import get_context_menu_manager
-                # Dummy string getter for menu builder
-                def get_string(string_id):
-                    strings = {
-                        31010: "Remove from List",
-                        31011: "Move to Another List..."
-                    }
-                    return strings.get(string_id, f"String {string_id}")
-
-                context_manager = get_context_menu_manager(get_string)
-                list_item = context_manager.add_list_item_context_menu(
-                    list_item, item["list_id"], item["list_item_id"]
-                )
-                self.logger.debug(f"MENU ITEM: Added list item context menu for '{title}' (list_id: {item['list_id']}, item_id: {item['list_item_id']})")
-                context_items_added += 2  # Approximate
-            except ImportError:
-                self.logger.warning(f"MENU ITEM: Failed to import context_menu for list item '{title}'")
+        # Context menus now handled globally via addon.xml and context.py
 
         if context_items_added > 0:
-            self.logger.debug(f"MENU ITEM: Total context menu items for '{title}': ~{context_items_added}")
+            self.logger.debug(f"MENU ITEM: Total context menu items for '{title}': {context_items_added}")
 
         # Add to directory
         xbmcplugin.addDirectoryItem(

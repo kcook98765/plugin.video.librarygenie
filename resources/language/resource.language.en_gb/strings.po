@@ -73,6 +73,26 @@ msgctxt "#30043"
 msgid "Show missing movie indicators"
 msgstr ""
 
+msgctxt "#30044"
+msgid "Default list ID (internal)"
+msgstr ""
+
+msgctxt "#30050"
+msgid "Kodi Favorites Integration"
+msgstr ""
+
+msgctxt "#30051"
+msgid "Enable Kodi favorites integration"
+msgstr ""
+
+msgctxt "#30053"
+msgid "Show unmapped favorites"
+msgstr ""
+
+msgctxt "#30054"
+msgid "Enable favorites batch processing"
+msgstr ""
+
 # ShortList Integration
 msgctxt "#30070"
 msgid "ShortList Integration"
@@ -1116,7 +1136,7 @@ msgid "Restore completed successfully"
 msgstr ""
 
 msgctxt "#34012"
-msgid "Restore failed"
+msgid "Restore from Backup"
 msgstr ""
 
 msgctxt "#34013"
@@ -1274,6 +1294,64 @@ msgctxt "#34301"
 msgid "Operation failed"
 msgstr ""
 
+# Dialog Messages - Delete Operations
+msgctxt "#30501"
+msgid "Are you sure you want to delete the list '%s'?"
+msgstr ""
+
+msgctxt "#30509"
+msgid "Delete"
+msgstr ""
+
+# Additional Dialog Messages
+msgctxt "#36060"
+msgid "Are you sure you want to delete the folder '%s' and all its contents?"
+msgstr ""
+
+msgctxt "#36061"
+msgid "Are you sure you want to delete the empty folder '%s'?"
+msgstr ""
+
+msgctxt "#36062"
+msgid "Remove '%s' from list '%s'?"
+msgstr ""
+
+msgctxt "#36063"
+msgid "LibraryGenie Restore"
+msgstr ""
+
+msgctxt "#36064"
+msgid "Restore from backup:"
+msgstr ""
+
+msgctxt "#36065"
+msgid "This will replace all current data."
+msgstr ""
+
+msgctxt "#36066"
+msgid "Restore"
+msgstr ""
+
+msgctxt "#36067"
+msgid "Clear Search History"
+msgstr ""
+
+msgctxt "#36068"
+msgid "Delete all %d search history lists?"
+msgstr ""
+
+msgctxt "#36069"
+msgid "Clear"
+msgstr ""
+
+msgctxt "#36070"
+msgid "Export all %d lists and folders?"
+msgstr ""
+
+msgctxt "#36071"
+msgid "No lists found. Create a new list first?"
+msgstr ""
+
 msgctxt "#34302"
 msgid "Please try again"
 msgstr ""
@@ -1311,117 +1389,6 @@ msgid "Service unavailable"
 msgstr ""
 
 # Progress Messages
-msgctxt "#34400"
-msgid "Initializing..."
-msgstr ""
-
-msgctxt "#34401"
-msgid "Processing..."
-msgstr ""
-
-msgctxt "#34402"
-msgid "Finalizing..."
-msgstr ""
-
-msgctxt "#34403"
-msgid "Please wait..."
-msgstr ""
-
-msgctxt "#34404"
-msgid "Operation in progress"
-msgstr ""
-
-msgctxt "#34405"
-msgid "Scanning library..."
-msgstr ""
-
-msgctxt "#34406"
-msgid "Updating database..."
-msgstr ""
-
-msgctxt "#34407"
-msgid "Validating data..."
-msgstr ""
-
-msgctxt "#34408"
-msgid "Connecting to server..."
-msgstr ""
-
-msgctxt "#34409"
-msgid "Loading..."
-msgstr ""
-
-# Confirmation Dialog Messages
-msgctxt "#34600"
-msgid "Confirm Action"
-msgstr ""
-
-msgctxt "#34601"
-msgid "Are you sure?"
-msgstr ""
-
-msgctxt "#34602"
-msgid "This action cannot be undone"
-msgstr ""
-
-msgctxt "#34603"
-msgid "Continue anyway?"
-msgstr ""
-
-msgctxt "#34604"
-msgid "Operation cancelled"
-msgstr ""
-
-msgctxt "#34605"
-msgid "Operation confirmed"
-msgstr ""
-
-# Additional Error Messages
-msgctxt "#34300"
-msgid "Operation completed"
-msgstr ""
-
-msgctxt "#34301"
-msgid "Operation failed"
-msgstr ""
-
-msgctxt "#34302"
-msgid "Please try again"
-msgstr ""
-
-msgctxt "#34303"
-msgid "Network error"
-msgstr ""
-
-msgctxt "#34304"
-msgid "Timeout error"
-msgstr ""
-
-msgctxt "#34305"
-msgid "Configuration error"
-msgstr ""
-
-msgctxt "#34306"
-msgid "Database error"
-msgstr ""
-
-msgctxt "#34307"
-msgid "File not accessible"
-msgstr ""
-
-msgctxt "#34308"
-msgid "Permission denied"
-msgstr ""
-
-msgctxt "#34309"
-msgid "Invalid format"
-msgstr ""
-
-msgctxt "#34310"
-msgid "Service unavailable"
-msgstr ""
-
-# Progress and Status Messages
 msgctxt "#34400"
 msgid "Initializing..."
 msgstr ""
@@ -1619,4 +1586,138 @@ msgstr ""
 
 msgctxt "#34605"
 msgid "Operation confirmed"
+msgstr ""
+
+# Context menu strings
+msgctxt "#31020"
+msgid "Rename"
+msgstr ""
+
+msgctxt "#31021"
+msgid "Delete"
+msgstr ""
+
+msgctxt "#31022"
+msgid "Export"
+msgstr ""
+
+# Main menu strings
+msgctxt "#32900"
+msgid "Search History"
+msgstr ""
+
+msgctxt "#32901"
+msgid "Browse %d saved searches"
+msgstr ""
+
+# Tools dialog strings
+msgctxt "#36040"
+msgid "Import Lists"
+msgstr ""
+
+msgctxt "#36041"
+msgid "Export All Lists"
+msgstr ""
+
+msgctxt "#36042"
+msgid "Manual Backup"
+msgstr ""
+
+msgctxt "#36043"
+msgid "Backup Manager"
+msgstr ""
+
+msgctxt "#36044"
+msgid "Test Backup Config"
+msgstr ""
+
+msgctxt "#36045"
+msgid "Library Statistics"
+msgstr ""
+
+msgctxt "#36046"
+msgid "Force Library Rescan"
+msgstr ""
+
+msgctxt "#36047"
+msgid "Clear Search History"
+msgstr ""
+
+msgctxt "#36048"
+msgid "Reset Preferences"
+msgstr ""
+
+msgctxt "#36049"
+msgid "📋 Copy to New List"
+msgstr ""
+
+msgctxt "#36050"
+msgid "Merge Into %s"
+msgstr ""
+
+msgctxt "#36051"
+msgid "Rename %s"
+msgstr ""
+
+msgctxt "#36052"
+msgid "Move %s to Folder"
+msgstr ""
+
+msgctxt "#36053"
+msgid "Export %s"
+msgstr ""
+
+msgctxt "#36054"
+msgid "Delete %s"
+msgstr ""
+
+msgctxt "#36055"
+msgid "Clear All Search History"
+msgstr ""
+
+# Input dialog strings
+msgctxt "#36056"
+msgid "Enter name for new list:"
+msgstr ""
+
+msgctxt "#36057"
+msgid "Enter list name:"
+msgstr ""
+
+msgctxt "#36058"
+msgid "Enter folder name:"
+msgstr ""
+
+msgctxt "#36059"
+msgid "Select parent folder:"
+msgstr ""
+
+msgctxt "#36060"
+msgid "Select backup to restore:"
+msgstr ""
+
+msgctxt "#36061"
+msgid "No backup selected"
+msgstr ""
+
+msgctxt "#36062"
+msgid "Restore cancelled"
+msgstr ""
+
+# Backup restore options
+msgctxt "#36071"
+msgid "Replace Existing"
+msgstr ""
+
+msgctxt "#36072"
+msgid "Append to Existing"
+msgstr ""
+
+msgctxt "#36073"
+msgid "Restore Backup Options"
+msgstr ""
+
+# Additional placeholder entries for future use
+msgctxt "#36999"
+msgid "Reserved for future use"
 msgstr ""

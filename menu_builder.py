@@ -1,0 +1,1 @@
+# Context menus now handled globally via addon.xml and context.py

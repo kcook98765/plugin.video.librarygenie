@@ -10,9 +10,12 @@ import re
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
-from ..data import get_connection_manager
+from ..data import get_query_manager
+from ..data.connection_manager import get_connection_manager
 from ..utils.logger import get_logger
-from .favorites_parser import get_phase4_favorites_parser
+from ..config import get_config
+from .favorites_parser import Phase4FavoritesParser
+from ..data.list_library_manager import get_list_library_manager
 
 
 class Phase4FavoritesManager:
@@ -20,8 +23,11 @@ class Phase4FavoritesManager:
 
     def __init__(self):
         self.logger = get_logger(__name__)
+        self.query_manager = get_query_manager()
         self.conn_manager = get_connection_manager()
-        self.parser = get_phase4_favorites_parser()
+        self.config = get_config()
+        self.parser = Phase4FavoritesParser()
+        self.library_manager = get_list_library_manager()
 
     def scan_favorites(self, file_path: Optional[str] = None, force_refresh: bool = False) -> Dict[str, Any]:
         """Scan and import favorites with mtime checking and batch processing"""
@@ -411,22 +417,22 @@ class Phase4FavoritesManager:
             # Use the standard query manager to get list items - same as any other list
             from ..data.query_manager import get_query_manager
             query_manager = get_query_manager()
-            
+
             # Get the Kodi Favorites list ID
             with self.conn_manager.transaction() as conn:
                 kodi_list = conn.execute("""
                     SELECT id FROM lists WHERE name = 'Kodi Favorites'
                 """).fetchone()
-                
+
                 if not kodi_list:
                     self.logger.info("No 'Kodi Favorites' list found")
                     return []
-                
+
                 kodi_list_id = kodi_list["id"]
-            
+
             # Use the standard list items query - same as other lists use
             favorites = query_manager.get_list_items(kodi_list_id)
-            
+
             self.logger.info(f"Retrieved {len(favorites)} favorites using standard list query approach")
             return favorites
 
@@ -572,22 +578,22 @@ class Phase4FavoritesManager:
                 }
                 response_str = xbmc.executeJSONRPC(json.dumps(request))
                 response = json.loads(response_str)
-                
+
                 if response and "moviedetails" in response:
                     movie_details = response["moviedetails"]
                     artwork = {}
-                    
+
                     # Extract art dictionary
                     if "art" in movie_details and isinstance(movie_details["art"], dict):
                         artwork.update(movie_details["art"])
-                    
+
                     # Add top-level fields
                     if "thumbnail" in movie_details:
                         artwork["thumb"] = movie_details["thumbnail"]
                         artwork["poster"] = movie_details["thumbnail"]
                     if "fanart" in movie_details:
                         artwork["fanart"] = movie_details["fanart"]
-                    
+
                     self.logger.debug(f"ARTWORK: Retrieved {len(artwork)} art items for movie {kodi_id}")
                     return artwork
 
@@ -604,22 +610,22 @@ class Phase4FavoritesManager:
                 }
                 response_str = xbmc.executeJSONRPC(json.dumps(request))
                 response = json.loads(response_str)
-                
+
                 if response and "episodedetails" in response:
                     episode_details = response["episodedetails"]
                     artwork = {}
-                    
+
                     # Extract art dictionary
                     if "art" in episode_details and isinstance(episode_details["art"], dict):
                         artwork.update(episode_details["art"])
-                    
+
                     # Add top-level fields
                     if "thumbnail" in episode_details:
                         artwork["thumb"] = episode_details["thumbnail"]
                         artwork["poster"] = episode_details["thumbnail"]
                     if "fanart" in episode_details:
                         artwork["fanart"] = episode_details["fanart"]
-                    
+
                     self.logger.debug(f"ARTWORK: Retrieved {len(artwork)} art items for episode {kodi_id}")
                     return artwork
 

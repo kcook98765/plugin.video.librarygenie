@@ -14,6 +14,8 @@ from .storage_manager import get_storage_manager
 from ..config import get_config
 from ..utils.logger import get_logger
 from ..config.settings import SettingsManager
+from ..data import get_query_manager
+from ..data.connection_manager import get_connection_manager
 
 
 class BackupManager:

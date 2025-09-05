@@ -445,18 +445,18 @@ class QueryManager:
                 GROUP BY l.id, l.name, l.folder_id, l.created_at, f.name
             """, [int(list_id)])
 
-                if result:
-                    folder_context = f" ({result['folder_name']})" if result['folder_name'] else ""
-                    return {
-                        "id": str(result['id']),
-                        "name": result['name'],
-                        "description": f"{result['item_count']} items{folder_context}",
-                        "item_count": result['item_count'],
-                        "created": result['created_at'][:10] if result['created_at'] else '',
-                        "modified": result['created_at'][:10] if result['created_at'] else '',
-                        "folder_name": result['folder_name']
-                    }
-                return None
+            if result:
+                folder_context = f" ({result['folder_name']})" if result['folder_name'] else ""
+                return {
+                    "id": str(result['id']),
+                    "name": result['name'],
+                    "description": f"{result['item_count']} items{folder_context}",
+                    "item_count": result['item_count'],
+                    "created": result['created_at'][:10] if result['created_at'] else '',
+                    "modified": result['created_at'][:10] if result['created_at'] else '',
+                    "folder_name": result['folder_name']
+                }
+            return None
 
         except Exception as e:
             self.logger.error(f"Error getting list by ID {list_id}: {e}")
@@ -476,18 +476,18 @@ class QueryManager:
                 GROUP BY l.id, l.name, l.folder_id, l.created_at, f.name
             """, [list_name])
 
-                if result:
-                    folder_context = f" ({result['folder_name']})" if result['folder_name'] else ""
-                    return {
-                        "id": str(result['id']),
-                        "name": result['name'],
-                        "description": f"{result['item_count']} items{folder_context}",
-                        "item_count": result['item_count'],
-                        "created": result['created_at'][:10] if result['created_at'] else '',
-                        "modified": result['created_at'][:10] if result['created_at'] else '',
-                        "folder_name": result['folder_name']
-                    }
-                return None
+            if result:
+                folder_context = f" ({result['folder_name']})" if result['folder_name'] else ""
+                return {
+                    "id": str(result['id']),
+                    "name": result['name'],
+                    "description": f"{result['item_count']} items{folder_context}",
+                    "item_count": result['item_count'],
+                    "created": result['created_at'][:10] if result['created_at'] else '',
+                    "modified": result['created_at'][:10] if result['created_at'] else '',
+                    "folder_name": result['folder_name']
+                }
+            return None
 
         except Exception as e:
             self.logger.error(f"Error getting list by name '{list_name}': {e}")
@@ -544,14 +544,18 @@ class QueryManager:
                 self.logger.error("Could not get/create Search History folder")
                 return None
 
-            # Generate list name with timestamp
+            # Generate list name with timestamp - keep it shorter for better UI display
             from datetime import datetime
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-            list_name = f"Search: '{query}' ({search_type}) - {timestamp}"
+            timestamp = datetime.now().strftime("%m/%d %H:%M")
+            
+            # Shorten query if needed for display
+            display_query = query if len(query) <= 20 else f"{query[:17]}..."
+            
+            list_name = f"Search: '{display_query}' ({timestamp})"
 
             # Truncate if too long
-            if len(list_name) > 100:
-                list_name = list_name[:97] + "..."
+            if len(list_name) > 60:
+                list_name = list_name[:57] + "..."
 
             # Create the list
             with self.connection_manager.transaction() as conn:

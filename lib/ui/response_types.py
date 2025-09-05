@@ -8,6 +8,7 @@ Standardized response objects for UI handlers
 
 from typing import List, Dict, Any, Optional, Union
 from dataclasses import dataclass
+from .localization import L
 
 
 @dataclass
@@ -50,13 +51,14 @@ class DialogResponse:
         self.navigate_to_favorites = navigate_to_favorites
         self.navigate_on_failure = navigate_on_failure
 
-    def show_notification(self, addon, default_title: str = "LibraryGenie"):
+    def show_notification(self, addon, default_title: str = None):
         """Show notification to user if message is provided"""
         if self.message:
             try:
                 import xbmcgui
+                title = default_title or L(32300)  # "LibraryGenie"
                 xbmcgui.Dialog().notification(
-                    default_title,
+                    title,
                     self.message,
                     xbmcgui.NOTIFICATION_INFO if self.success else xbmcgui.NOTIFICATION_ERROR
                 )

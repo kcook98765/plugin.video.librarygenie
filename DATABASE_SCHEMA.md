@@ -1,4 +1,3 @@
-
 # LibraryGenie Database Schema
 
 This document describes the SQLite database schema used by LibraryGenie for storing lists, folders, media references, and Kodi favorites.
@@ -135,7 +134,7 @@ Indexes:
 - INDEX on `is_mapped`.
 - INDEX on `present`.
 
-**Note**: Kodi Favorites are also integrated into the unified lists system. A special list named "Kodi Favorites" is created in the `lists` table, and mapped favorites are added as `list_items` pointing to `media_items`. The favorites handler is registered with the router using the action name "kodi_favorites".
+**Note**: Kodi Favorites are also integrated into the unified lists system. A special list named "Kodi Favorites" is created in the `lists` table, and mapped favorites are added as `list_items` pointing to `media_items`. The favorites handler is registered with the router using the action name "kodi_favorites". Context menus are handled globally via addon.xml registration instead of per-item context menu generation.
 
 ---
 
