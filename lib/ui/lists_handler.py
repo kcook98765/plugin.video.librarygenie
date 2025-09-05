@@ -174,8 +174,8 @@ class ListsHandler:
             from .menu_builder import MenuBuilder
             menu_builder = MenuBuilder()
             menu_builder.build_menu(
-                menu_items, 
-                context.addon_handle, 
+                menu_items,
+                context.addon_handle,
                 context.base_url,
                 breadcrumb_path=context.breadcrumb_path
             )
@@ -286,11 +286,11 @@ class ListsHandler:
             # Show confirmation dialog
             dialog = xbmcgui.Dialog()
             confirmed = dialog.yesno(
-                self._get_string(30000),  # "LibraryGenie"
+                L(30000),  # "LibraryGenie"
                 f"Are you sure you want to delete the list '{list_name}'?",
                 "This action cannot be undone.",
-                nolabel=self._get_string(30002),  # "Cancel"
-                yeslabel=self._get_string(30001)   # "Delete"
+                nolabel=L(30002),  # "Cancel"
+                yeslabel=L(30001)   # "Delete"
             )
 
             if not confirmed:
@@ -607,19 +607,19 @@ class ListsHandler:
             dialog = xbmcgui.Dialog()
             if lists_in_folder:
                 confirmed = dialog.yesno(
-                    self._get_string(30000),  # "LibraryGenie"
+                    L(30000),  # "LibraryGenie"
                     f"Are you sure you want to delete the folder '{folder_name}' and all its contents?",
                     "This action cannot be undone.",
-                    nolabel=self._get_string(30002),  # "Cancel"
-                    yeslabel=self._get_string(30001)   # "Delete"
+                    nolabel=L(30002),  # "Cancel"
+                    yeslabel=L(30001)   # "Delete"
                 )
             else:
                 confirmed = dialog.yesno(
-                    self._get_string(30000),  # "LibraryGenie"
+                    L(30000),  # "LibraryGenie"
                     f"Are you sure you want to delete the empty folder '{folder_name}'?",
                     "This action cannot be undone.",
-                    nolabel=self._get_string(30002),  # "Cancel"
-                    yeslabel=self._get_string(30001)   # "Delete"
+                    nolabel=L(30002),  # "Cancel"
+                    yeslabel=L(30001)   # "Delete"
                 )
 
             if not confirmed:
@@ -887,8 +887,8 @@ class ListsHandler:
             from .menu_builder import MenuBuilder
             menu_builder = MenuBuilder()
             menu_builder.build_menu(
-                menu_items, 
-                context.addon_handle, 
+                menu_items,
+                context.addon_handle,
                 context.base_url,
                 breadcrumb_path=context.breadcrumb_path
             )
@@ -1222,8 +1222,8 @@ class ListsHandler:
 
             if not default_list_id:
                 xbmcgui.Dialog().notification(
-                    "LibraryGenie", 
-                    "No default list configured", 
+                    "LibraryGenie",
+                    "No default list configured",
                     xbmcgui.NOTIFICATION_WARNING,
                     3000
                 )
@@ -1272,9 +1272,9 @@ class ListsHandler:
             }
 
             # Copy over all the gathered metadata
-            for key in ['originaltitle', 'year', 'plot', 'rating', 'votes', 'genre', 
+            for key in ['originaltitle', 'year', 'plot', 'rating', 'votes', 'genre',
                        'director', 'studio', 'country', 'mpaa', 'runtime', 'premiered',
-                       'playcount', 'lastplayed', 'poster', 'fanart', 'thumb', 
+                       'playcount', 'lastplayed', 'poster', 'fanart', 'thumb',
                        'banner', 'clearlogo', 'imdbnumber', 'file_path']:
                 if key in external_data:
                     media_item[key] = external_data[key]
@@ -1325,8 +1325,8 @@ class ListsHandler:
 
             if not list_options:
                 xbmcgui.Dialog().notification(
-                    "LibraryGenie", 
-                    "No lists available", 
+                    "LibraryGenie",
+                    "No lists available",
                     xbmcgui.NOTIFICATION_WARNING,
                     3000
                 )
@@ -1350,8 +1350,8 @@ class ListsHandler:
 
             if success:
                 xbmcgui.Dialog().notification(
-                    "LibraryGenie", 
-                    f"Added '{media_item['title']}' to '{selected_list_name}'", 
+                    "LibraryGenie",
+                    f"Added '{media_item['title']}' to '{selected_list_name}'",
                     xbmcgui.NOTIFICATION_INFO,
                     3000
                 )
@@ -1361,8 +1361,8 @@ class ListsHandler:
                 return True
             else:
                 xbmcgui.Dialog().notification(
-                    "LibraryGenie", 
-                    "Failed to add item to list", 
+                    "LibraryGenie",
+                    "Failed to add item to list",
                     xbmcgui.NOTIFICATION_ERROR,
                     3000
                 )

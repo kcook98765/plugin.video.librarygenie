@@ -232,8 +232,11 @@ class FavoritesHandler:
             if not user_lists:
                 # No lists available, offer to create one
                 if xbmcgui.Dialog().yesno(
-                    context.addon.getLocalizedString(35002),
-                    "No lists found. Create a new list first?"
+                    L(35002),  # "LibraryGenie"
+                    L(36071),  # "No lists found. Create a new list first?"
+                    "",
+                    nolabel=L(36003),  # "Cancel"
+                    yeslabel=L(31101)   # "Create New List"
                 ):
                     # Redirect to create list
                     from .lists_handler import ListsHandler

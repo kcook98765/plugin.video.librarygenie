@@ -626,8 +626,11 @@ class ToolsHandler:
             # Confirm export
             dialog = xbmcgui.Dialog()
             if not dialog.yesno(
-                "Confirm Export",
-                f"Export all {list_count} lists from '{folder_info['name']}'?\n\nThis will include all list items and metadata."
+                L(36037),  # "Confirm Export"
+                L(36038) % (list_count, folder_info['name']),  # "Export all %d lists from '%s'?"
+                L(36039),  # "This will include all list items and metadata."
+                nolabel=L(36003),  # "Cancel"
+                yeslabel=L(36007)   # "Export"
             ):
                 return DialogResponse(success=False)
 
@@ -805,12 +808,12 @@ class ToolsHandler:
             # Confirm restore
             dialog = xbmcgui.Dialog()
             confirmed = dialog.yesno(
-                "LibraryGenie Restore",
-                "Restore from backup:",
+                L(36063),  # "LibraryGenie Restore"
+                L(36064),  # "Restore from backup:"
                 f"{selected_backup['filename']}",
-                "This will replace all current data.",
-                nolabel="Cancel",
-                yeslabel="Restore"
+                L(36065),  # "This will replace all current data."
+                nolabel=L(36003),  # "Cancel"
+                yeslabel=L(36066)   # "Restore"
             )
 
             if confirmed:
@@ -1088,9 +1091,11 @@ class ToolsHandler:
                 # Confirm export
                 dialog = xbmcgui.Dialog()
                 if not dialog.yesno(
-                    "Confirm Export",
-                    f"Export all {list_count} lists and folders?",
-                    "This will include all list items and metadata."
+                    L(36037),  # "Confirm Export"
+                    L(36070) % list_count,  # "Export all %d lists and folders?"
+                    L(36039),  # "This will include all list items and metadata."
+                    nolabel=L(36003),  # "Cancel"
+                    yeslabel=L(36007)   # "Export"
                 ):
                     return DialogResponse(success=False)
 
@@ -1135,9 +1140,11 @@ class ToolsHandler:
             # Confirm deletion
             dialog = xbmcgui.Dialog()
             if not dialog.yesno(
-                "Clear Search History",
-                f"Delete all {len(search_lists)} search history lists?",
-                "This action cannot be undone."
+                L(36067),  # "Clear Search History"
+                L(36068) % len(search_lists),  # "Delete all %d search history lists?"
+                L(30502),  # "This action cannot be undone."
+                nolabel=L(36003),  # "Cancel"
+                yeslabel=L(36069)   # "Clear"
             ):
                 return DialogResponse(success=False)
 
