@@ -34,6 +34,10 @@ class InfoHijackManager:
         if xbmc.getCondVisibility('Window.IsActive(DialogBusy.xml)'):
             self._logger.debug("HIJACK: Addon busy, skipping hijack logic")
             return
+        
+        # Debug: Periodically scan container for armed items
+        if int(current_time * 4) % 10 == 0:  # Every 2.5 seconds
+            self._debug_scan_container()
 
         dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
         
@@ -60,25 +64,40 @@ class InfoHijackManager:
         # Check for tagged items
         armed = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)') == '1'
         if not armed:
-            # Log periodically to help debug why hijack isn't triggered
-            if int(current_time) % 5 == 0:  # Every 5 seconds
-                self._logger.debug(f"HIJACK: No armed items detected in container: {xbmc.getInfoLabel('Container.FolderPath')}")
+            # Log more frequently for debugging - check container info
+            if int(current_time * 2) % 5 == 0:  # Every 2.5 seconds, more frequent
+                container_path = xbmc.getInfoLabel('Container.FolderPath')
+                current_item = xbmc.getInfoLabel('Container.CurrentItem')
+                num_items = xbmc.getInfoLabel('Container.NumItems')
+                list_item_label = xbmc.getInfoLabel('ListItem.Label')
+                self._logger.info(f"HIJACK DEBUG: No armed items - container: {container_path}, item: {current_item}/{num_items}, label: '{list_item_label}'")
             return
 
+        # Debug: Log all armed item properties
+        listitem_label = xbmc.getInfoLabel('ListItem.Label')
+        hijack_dbid_prop = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBID)')
+        hijack_dbtype_prop = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBType)')
+        native_dbid = xbmc.getInfoLabel('ListItem.DBID')
+        native_dbtype = xbmc.getInfoLabel('ListItem.DBTYPE')
+        
+        self._logger.info(f"HIJACK: ✅ ARMED ITEM FOUND - Label: '{listitem_label}'")
+        self._logger.info(f"HIJACK: Properties - LG.DBID: '{hijack_dbid_prop}', LG.DBType: '{hijack_dbtype_prop}'")
+        self._logger.info(f"HIJACK: Native - DBID: '{native_dbid}', DBType: '{native_dbtype}'")
+        
         # Add intent detection - only hijack if user is actually trying to open info
         # Check if the Info action was recently triggered
         intent_detected = self._is_info_intent_detected()
-        self._logger.debug(f"HIJACK: Armed item found, intent detected: {intent_detected}")
+        self._logger.info(f"HIJACK: Intent detected: {intent_detected}")
         
         # TEMPORARY: Allow all armed items for testing
         # TODO: Re-enable intent detection once hijack is working
         # if not intent_detected:
         #     return
 
-        dbid = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBID)') or xbmc.getInfoLabel('ListItem.DBID')
-        dbtype = (xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBType)') or xbmc.getInfoLabel('ListItem.DBTYPE') or '').lower()
+        dbid = hijack_dbid_prop or native_dbid
+        dbtype = (hijack_dbtype_prop or native_dbtype or '').lower()
         
-        self._logger.debug(f"HIJACK: 🎯 TRIGGERED for armed item with info intent - DBID={dbid}, DBType={dbtype}")
+        self._logger.info(f"HIJACK: 🎯 TRIGGERED for armed item - DBID={dbid}, DBType={dbtype}")
         
         if not dbid or not dbtype:
             self._logger.warning(f"HIJACK: Missing data - DBID={dbid}, DBType={dbtype}")
@@ -173,3 +192,27 @@ class InfoHijackManager:
                 
         except Exception as e:
             self._logger.error(f"HIJACK: Error during container restore: {e}")
+
+    def _debug_scan_container(self):
+        """Debug method to scan container for armed items"""
+        try:
+            container_path = xbmc.getInfoLabel('Container.FolderPath')
+            if 'plugin.video.librarygenie' not in container_path:
+                return  # Only scan our plugin content
+                
+            num_items = int(xbmc.getInfoLabel('Container.NumItems') or '0')
+            current_item = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
+            
+            if num_items > 0:
+                self._logger.info(f"HIJACK DEBUG: Container scan - {container_path}, item {current_item}/{num_items}")
+                
+                # Check current item properties
+                current_armed = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)')
+                current_label = xbmc.getInfoLabel('ListItem.Label')
+                if current_armed == '1':
+                    self._logger.info(f"HIJACK DEBUG: Current item '{current_label}' IS ARMED!")
+                else:
+                    self._logger.info(f"HIJACK DEBUG: Current item '{current_label}' is not armed (value: '{current_armed}')")
+                    
+        except Exception as e:
+            self._logger.debug(f"HIJACK DEBUG: Container scan error: {e}")
