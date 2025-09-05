@@ -296,11 +296,10 @@ def _wait_videos_on(path: str, timeout_ms=6000) -> bool:
     
     return result
 
-def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
+def open_native_info_fast(dbtype: str, dbid: int, logger) -> bool:
     """
-    Close current dialog (already open on plugin item), navigate to a native
-    library context (XSP by file for items with a file; videodb node for tvshow),
-    focus row, open Info, then immediately restore underlying container to orig_path.
+    Open native info dialog WITHOUT doing directory rebuild.
+    This is the fast path that doesn't compete with Kodi's dialog rendering.
     """
     # 1) Close the plugin's Info dialog
     xbmc.executebuiltin("Action(Back)")
@@ -315,53 +314,96 @@ def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
 
     if dbtype == "tvshow":
         path_to_open = f"videodb://tvshows/titles/{int(dbid)}"
-        target_file = None
     else:
-        # Use XSP for items with files (no fallbacks)
+        # Use XSP for items with files
         xsp = _create_xsp_for_file(dbtype, dbid)
         if not xsp:
             return False
-
         path_to_open = xsp
-        target_file = _get_file_for_dbitem(dbtype, dbid)
 
-    # 2) Show the directory in Videos
+    # 2) Show the directory in Videos (minimal approach)
     xbmc.executebuiltin(f'ActivateWindow(Videos,"{path_to_open}",return)')
-    # Small delay to allow window activation to begin processing
     xbmc.sleep(100)
 
-    if not _wait_videos_on(path_to_open, timeout_ms=8000):
+    if not _wait_videos_on(path_to_open, timeout_ms=6000):
         return False
 
-    # 3) Focus list, jump to the correct row if we can infer it
-    if not focus_list():  # Let focus_list determine the correct control ID
+    # 3) Focus list and navigate to item
+    if not focus_list():
         return False
 
     if path_to_open.endswith(".xsp"):
-        # For XSP: check focused item and navigate only if needed
+        # For XSP: navigate away from parent if needed
         current_label = xbmc.getInfoLabel('ListItem.Label')
-        current_dbid = xbmc.getInfoLabel('ListItem.DBID')
-
-        # Only navigate if we're on the parent ".." item
-        if current_label == ".." or not current_dbid or current_dbid == "0":
+        if current_label == "..":
             xbmc.executebuiltin("Action(Down)")
-            xbmc.sleep(75)  # Minimal delay
+            xbmc.sleep(50)
 
-    # 4) Open native Info
+    # 4) Open native Info - this is now the only heavy operation
     xbmc.executebuiltin("Action(Info)")
-    # Brief delay to allow Info action to be processed
     xbmc.sleep(50)
     
-    ok = wait_until(lambda: xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)"), timeout_ms=1500, step_ms=50)
+    return wait_until(lambda: xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)"), timeout_ms=1500, step_ms=50)
+
+def restore_container_after_close(orig_path: str, position_str: str, logger) -> bool:
+    """
+    Restore the container to the original plugin path after native info closes.
+    This happens AFTER the dialog closes to avoid competing with Kodi.
+    """
+    if not orig_path:
+        _log("No original path to restore to")
+        return False
+        
+    try:
+        position = int(position_str) if position_str else 0
+    except (ValueError, TypeError):
+        position = 0
+    
+    _log(f"Restoring container to: {orig_path} (position: {position})")
+    
+    # Wait a brief moment to ensure dialog is fully closed
+    xbmc.sleep(100)
+    
+    # Restore the container
+    xbmc.executebuiltin(f'Container.Update("{orig_path}",replace)')
+    
+    # Wait for container to update
+    t_start = time.perf_counter()
+    updated = wait_until(
+        lambda: (xbmc.getInfoLabel("Container.FolderPath") or "").rstrip('/') == orig_path.rstrip('/'),
+        timeout_ms=3000, 
+        step_ms=100
+    )
+    
+    if updated and position > 0:
+        # Restore position
+        _log(f"Restoring list position to: {position}")
+        xbmc.sleep(50)  # Brief delay before position restore
+        xbmc.executebuiltin(f'Action(SelectItem,{position})')
+    
+    t_end = time.perf_counter()
+    _log(f"Container restore completed in {t_end - t_start:.3f}s, success: {updated}")
+    
+    return updated
+
+def open_native_info(dbtype: str, dbid: int, logger, orig_path: str) -> bool:
+    """
+    Legacy function - now uses the fast approach for consistency.
+    Close current dialog, open native info fast, then restore container immediately.
+    """
+    # Save current position
+    current_position = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
+    
+    # Use fast native info opening
+    ok = open_native_info_fast(dbtype, dbid, logger)
     if not ok:
         return False
-
-    # 5) Replace underlying container back to the original path (so Back works)
+        
+    # Immediately restore container (legacy behavior)
     if orig_path:
-        # Always restore to original path to maintain proper navigation flow
-        # The search blocking mechanism will prevent overlay issues
-        _log(f"Restoring original container path: '{orig_path}'")
-        xbmc.executebuiltin(f'Container.Update("{orig_path}",replace)')
+        # Brief delay to allow native info to fully open
+        xbmc.sleep(200)
+        return restore_container_after_close(orig_path, str(current_position), logger)
     
     return True
 
