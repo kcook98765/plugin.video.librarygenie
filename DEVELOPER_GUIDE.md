@@ -39,8 +39,11 @@ LibraryGenie consists of three main layers:
 ## Development Guidelines
 
 ### Database Access
+- Use **ConnectionManager** for all database operations (`get_connection_manager()`).
+- Use **standard methods**: `execute_query()`, `execute_single()`, `transaction()` context manager.
+- **No direct cursor access** - all queries go through the connection manager interface.
 - Use **parameterized queries** only (no f-strings).  
-- Wrap inserts/updates in **transactions**.  
+- Wrap inserts/updates in **transactions** using `with conn_manager.transaction() as conn:`.
 - Add proper **indexes** for high-frequency queries.  
 - Use `WAL` mode and tuned `PRAGMAs` for performance.
 

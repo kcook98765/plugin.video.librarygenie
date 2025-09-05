@@ -71,7 +71,7 @@ Stores all favorite metadata and mapping information:
 | `target_raw` | TEXT | Raw target command |
 | `target_classification` | TEXT | Classification of target |
 | `normalized_key` | TEXT UNIQUE | Unique key for deduplication |
-| `library_movie_id` | INTEGER FK | Reference to media_items.id |
+| `media_item_id` | INTEGER FK | Reference to media_items.id |
 | `is_mapped` | INTEGER | Whether favorite is mapped (0/1) |
 | `is_missing` | INTEGER | Whether favorite target is missing (0/1) |
 | `present` | INTEGER | Whether favorite is present in current scan (0/1) |
@@ -84,7 +84,7 @@ Stores all favorite metadata and mapping information:
 **Indexes:**
 ```sql
 CREATE INDEX idx_kodi_favorite_normalized_key ON kodi_favorite(normalized_key)
-CREATE INDEX idx_kodi_favorite_library_movie_id ON kodi_favorite(library_movie_id)
+CREATE INDEX idx_kodi_favorite_media_item_id ON kodi_favorite(media_item_id)
 CREATE INDEX idx_kodi_favorite_is_mapped ON kodi_favorite(is_mapped)
 CREATE INDEX idx_kodi_favorite_present ON kodi_favorite(present)
 ```
@@ -230,10 +230,14 @@ request = {
 
 ### 1. Atomic Operations
 
-All database operations use transactions:
+All database operations use the standard connection manager interface:
 
 ```python
-with self.conn_manager.transaction() as conn:
+from ..data.connection_manager import get_connection_manager
+
+conn_manager = get_connection_manager()
+
+with conn_manager.transaction() as conn:
     # Mark all as not present
     conn.execute("UPDATE kodi_favorite SET present = 0")
     

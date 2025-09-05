@@ -1,4 +1,3 @@
-
 # LibraryGenie Database Schema
 
 This document describes the SQLite database schema used by LibraryGenie for storing lists, folders, media references, and Kodi favorites.

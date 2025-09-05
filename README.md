@@ -37,7 +37,7 @@ LibraryGenie is a Kodi addon that provides advanced, flexible list and folder ma
 ### Import & Export
 - **Unified Format**: Backup, export, and import all use the same JSON envelope format with versioned schemas.
 - **Universal Compatibility**: Single format supports manual export, automated backup, and restore operations.
-- **Automated Backups**: Configurable timestamp-based backups (hourly, daily, weekly, monthly).
+- **Manual Backups**: On-demand backup creation via Tools menu with timestamp-based naming.
 - **Local & Network Storage**: Support for local paths and network shares configured in Kodi.
 - **Tools Integration**: Export and backup accessible via Tools & Options menu with context-aware options.
 - **IMDb-First Matching**: Highest-confidence mapping across systems for import/restore operations.
@@ -60,8 +60,7 @@ All export/backup files use a versioned JSON envelope containing:
 - **External Items**: Plugin identifiers and routes.
 
 ### Backup & Recovery
-- **Automated Backups**: Scheduled timestamp-based backups with configurable intervals.
-- **Manual Backups**: On-demand backup creation via Tools menu.
+- **Manual Backups**: On-demand backup creation via Tools menu with timestamp-based naming.
 - **Flexible Storage**: Local paths or network shares (SMB/NFS) configured in Kodi settings.
 - **Backup Management**: List, restore, and delete backups through the Tools interface.
 - **Comprehensive Coverage**: Backup lists, folders, favorites, and optionally library snapshots.
@@ -120,7 +119,7 @@ Confidence scoring: 100% (IMDb) → 95% (TMDb) → 75–90% (title/year) → fal
 - **Set Default List**: Button-style action opens list picker when lists exist, shows helpful message when none available.
 - **Quick Save**: Enable quick-add functionality to bypass list selection dialog and add directly to default list.
 - **Background Tasks**: Configurable interval (5-720 minutes) with safe defaults and clamping.
-- **Backup Settings**: Automated backup scheduling, storage location, and retention policies.
+- **Backup Settings**: Storage location configuration for manual backup operations.
 - **Storage Configuration**: Local paths and network share support via Kodi file settings.
 - **Organized Categories**: Settings grouped into General, Lists, Background, and Backup sections.
 - **Privacy-First**: External features disabled by default, require explicit user authorization.
