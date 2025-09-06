@@ -1802,6 +1802,15 @@ msgctxt "#37027"
 msgid "Please try the authorization process again"
 msgstr ""
 
+# Context Menu Actions
+msgctxt "#37028"
+msgid "LibraryGenie"
+msgstr ""
+
+msgctxt "#37029"
+msgid "Search Movies and Lists"
+msgstr ""
+
 # Additional placeholder entries for future use
 msgctxt "#36999"
 msgid "Reserved for future use"
