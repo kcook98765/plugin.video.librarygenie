@@ -127,6 +127,13 @@ def _wait_for_listitem_hydration(timeout_ms=800, logger=None) -> bool:
     
     end_time = time.time() + (timeout_ms / 1000.0)
     
+    # Track initial state to detect changes
+    initial_dbid = xbmc.getInfoLabel('ListItem.DBID')
+    initial_genre = xbmc.getInfoLabel('ListItem.Genre')
+    initial_duration = xbmc.getInfoLabel('ListItem.Duration')
+    
+    log_msg(f"Initial state: DBID='{initial_dbid}', Genre='{initial_genre}', Duration='{initial_duration}'")
+    
     while time.time() < end_time:
         check_count += 1
         
@@ -142,25 +149,36 @@ def _wait_for_listitem_hydration(timeout_ms=800, logger=None) -> bool:
         
         elapsed = time.perf_counter() - start_time
         
-        # Log every 5th check or when we see changes
-        if check_count % 5 == 0 or check_count <= 3:
-            log_msg(f"Check #{check_count} ({elapsed:.3f}s): DBID='{current_dbid}', Genre='{current_genre}', DBType='{current_dbtype}', Duration='{current_duration}'")
+        # Log every check for the first few, then every 5th check
+        if check_count <= 5 or check_count % 5 == 0:
+            log_msg(f"Check #{check_count} ({elapsed:.3f}s): DBID='{current_dbid}', Genre='{current_genre}', DBType='{current_dbtype}', Duration='{current_duration}', Title='{current_title}'")
         
-        # Consider hydration successful when we have both DBID and Genre
-        # (Genre is the key field that was showing up blank in the original issue)
+        # Enhanced validation - Genre is REQUIRED for complete hydration
         has_dbid = current_dbid and current_dbid != "0" and current_dbid.strip()
-        has_genre = current_genre and current_genre.strip()
+        has_genre = current_genre and current_genre.strip() and current_genre != "None"
         has_dbtype = current_dbtype and current_dbtype.strip()
+        has_duration = current_duration and current_duration.strip()
+        has_title = current_title and current_title.strip()
         
-        # We need at minimum DBID and one metadata field (Genre is preferred)
-        # Duration can also indicate database population
-        has_metadata = has_genre or current_duration
-        
-        if has_dbid and has_metadata and has_dbtype:
+        # Strict requirement: we MUST have Genre populated (this is the key missing field)
+        # Also require DBID and DBType as basic database connection indicators
+        if has_dbid and has_genre and has_dbtype:
             elapsed_final = time.perf_counter() - start_time
-            log_msg(f"SUCCESS: Hydration complete after {check_count} checks ({elapsed_final:.3f}s)")
-            log_msg(f"Final metadata: DBID={current_dbid}, Genre='{current_genre}', DBType='{current_dbtype}', Duration='{current_duration}'")
+            log_msg(f"SUCCESS: Complete hydration after {check_count} checks ({elapsed_final:.3f}s)")
+            log_msg(f"Final metadata: DBID={current_dbid}, Genre='{current_genre}', DBType='{current_dbtype}', Duration='{current_duration}', Title='{current_title}'")
             return True
+        
+        # Log what we're still missing
+        if check_count <= 3 or check_count % 10 == 0:
+            missing = []
+            if not has_dbid:
+                missing.append("DBID")
+            if not has_genre:
+                missing.append("Genre")
+            if not has_dbtype:
+                missing.append("DBType")
+            if missing:
+                log_msg(f"Still waiting for: {', '.join(missing)} (check #{check_count})")
         
         # Short sleep between checks
         xbmc.sleep(int(check_interval * 1000))
@@ -168,16 +186,21 @@ def _wait_for_listitem_hydration(timeout_ms=800, logger=None) -> bool:
     # Timeout reached
     elapsed_final = time.perf_counter() - start_time
     log_msg(f"TIMEOUT after {check_count} checks ({elapsed_final:.3f}s)", "warning")
-    log_msg(f"Final state: DBID='{current_dbid}', Genre='{current_genre}', DBType='{current_dbtype}', Duration='{current_duration}'", "warning")
+    log_msg(f"Final state: DBID='{current_dbid}', Genre='{current_genre}', DBType='{current_dbtype}', Duration='{current_duration}', Title='{current_title}'", "warning")
     
-    # Even on timeout, log what we did find for debugging
-    if current_dbid:
-        log_msg(f"DBID was populated: {current_dbid}")
-    if current_genre:
-        log_msg(f"Genre was populated: '{current_genre}'")
-    if current_duration:
-        log_msg(f"Duration was populated: '{current_duration}'")
+    # Detailed analysis of what we have vs what we need
+    has_dbid = current_dbid and current_dbid != "0" and current_dbid.strip()
+    has_genre = current_genre and current_genre.strip() and current_genre != "None"
+    has_dbtype = current_dbtype and current_dbtype.strip()
     
+    if has_dbid and has_dbtype and not has_genre:
+        log_msg(f"CRITICAL: DBID and DBType present but Genre missing - this will cause blank Genre in native dialog!", "warning")
+    elif not has_dbid:
+        log_msg(f"DBID missing or invalid: '{current_dbid}'", "warning")
+    elif not has_dbtype:
+        log_msg(f"DBType missing: '{current_dbtype}'", "warning")
+    
+    # Even on timeout, we should NOT proceed if Genre is missing as this was the original issue
     return False
 
 def _wait_for_info_dialog(timeout=10.0):
