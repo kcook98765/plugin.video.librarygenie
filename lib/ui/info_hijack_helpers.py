@@ -633,11 +633,16 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         
         logger.info(f"SUBSTEP 2: Attempting direct navigation to: {direct_url}")
         
-        # Try direct video info activation - this should open info immediately if URL is valid
+        # Try direct video info activation using valid approaches
         try:
-            # Method 1: Direct DialogVideoInfo activation (Kodi v20+)
-            logger.info(f"SUBSTEP 2: Trying ActivateWindow(DialogVideoInfo) method")
-            xbmc.executebuiltin(f'ActivateWindow(DialogVideoInfo,"{direct_url}",return)')
+            # Method 1: Use JSON-RPC to open info dialog directly (most reliable)
+            logger.info(f"SUBSTEP 2: Trying JSON-RPC GUI.ActivateWindow method")
+            
+            # Use proper JSON-RPC method to activate info dialog
+            result = jsonrpc("GUI.ActivateWindow", {
+                "window": "videoinfo",
+                "parameters": [f"videodb://movies/titles/{db_id}/"]
+            })
             
             # Wait briefly to see if dialog opens
             xbmc.sleep(300)
@@ -645,7 +650,7 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
             
             if dialog_id_after in (12003, 10147):
                 substep2_end = time.perf_counter()
-                logger.info(f"✅ SUBSTEP 2 SUCCESS: Direct dialog activation worked! Dialog ID: {dialog_id_after} in {substep2_end - substep2_start:.3f}s")
+                logger.info(f"✅ SUBSTEP 2 SUCCESS: JSON-RPC dialog activation worked! Dialog ID: {dialog_id_after} in {substep2_end - substep2_start:.3f}s")
                 
                 # Brief verification that we have the right content
                 xbmc.sleep(200)
@@ -657,40 +662,78 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
                 logger.info(f"🎉 HIJACK HELPERS: ✅ DIRECT hijack completed successfully for {db_type} {db_id} in {overall_end_time - overall_start_time:.3f}s")
                 return True
             else:
-                logger.info(f"SUBSTEP 2: Direct dialog method didn't work (dialog ID: {dialog_id_after}), trying navigation method")
+                logger.info(f"SUBSTEP 2: JSON-RPC method didn't work (dialog ID: {dialog_id_after}), trying library navigation method")
         except Exception as e:
-            logger.info(f"SUBSTEP 2: Direct dialog method failed with exception: {e}, trying navigation method")
+            logger.info(f"SUBSTEP 2: JSON-RPC method failed with exception: {e}, trying library navigation method")
         
-        # Method 2: Navigate to direct URL then open info
+        # Method 2: Navigate to library section then focus specific item
         try:
-            logger.info(f"SUBSTEP 2: Trying ActivateWindow(Videos) with direct URL method")
-            xbmc.executebuiltin(f'ActivateWindow(Videos,"{direct_url}",return)')
+            logger.info(f"SUBSTEP 2: Trying library section navigation method")
+            
+            # Navigate to the appropriate library section first
+            if db_type.lower() == 'movie':
+                section_url = "videodb://movies/titles/"
+            elif db_type.lower() == 'episode':
+                section_url = "videodb://tvshows/titles/"
+            elif db_type.lower() == 'tvshow':
+                section_url = "videodb://tvshows/titles/"
+            else:
+                logger.warning(f"SUBSTEP 2: Unsupported db_type for library navigation: {db_type}")
+                raise ValueError(f"Unsupported db_type: {db_type}")
+            
+            logger.info(f"SUBSTEP 2: Navigating to library section: {section_url}")
+            xbmc.executebuiltin(f'ActivateWindow(Videos,"{section_url}",return)')
             
             # Wait for navigation to complete
-            if _wait_videos_on(direct_url, timeout_ms=3000):
-                # Item should now be focused, open info
-                logger.info(f"SUBSTEP 2: Direct URL navigation succeeded, opening info")
-                xbmc.executebuiltin('Action(Info)')
+            if _wait_videos_on(section_url, timeout_ms=4000):
+                logger.info(f"SUBSTEP 2: Library section loaded, attempting to find and focus item {db_id}")
                 
-                if _wait_for_info_dialog(timeout=5.0):
-                    substep2_end = time.perf_counter()
-                    logger.info(f"✅ SUBSTEP 2 SUCCESS: Direct URL navigation method worked in {substep2_end - substep2_start:.3f}s")
+                # Focus the list control
+                if focus_list():
+                    # Try to find the item by DBID in the current list
+                    found_item = False
+                    max_items = int(xbmc.getInfoLabel("Container.NumItems") or "0")
+                    logger.info(f"SUBSTEP 2: Scanning {max_items} items for DBID {db_id}")
                     
-                    # Brief verification
-                    xbmc.sleep(200)
-                    dialog_title = xbmc.getInfoLabel('ListItem.Title')
-                    dialog_dbid = xbmc.getInfoLabel('ListItem.DBID')
-                    logger.info(f"🎯 NAVIGATION SUCCESS VERIFICATION: Title='{dialog_title}', DBID='{dialog_dbid}'")
+                    for i in range(min(max_items, 200)):  # Limit search to first 200 items
+                        xbmc.executebuiltin(f'Action(SelectItem,{i})')
+                        xbmc.sleep(50)  # Brief pause for focus to update
+                        
+                        current_dbid = xbmc.getInfoLabel('ListItem.DBID')
+                        if current_dbid == str(db_id):
+                            logger.info(f"SUBSTEP 2: Found target item at position {i}")
+                            found_item = True
+                            break
                     
-                    overall_end_time = time.perf_counter()
-                    logger.info(f"🎉 HIJACK HELPERS: ✅ DIRECT hijack completed successfully for {db_type} {db_id} in {overall_end_time - overall_start_time:.3f}s")
-                    return True
+                    if found_item:
+                        # Wait for metadata hydration and open info
+                        _wait_for_listitem_hydration(timeout_ms=1000, logger=logger)
+                        logger.info(f"SUBSTEP 2: Opening info dialog")
+                        xbmc.executebuiltin('Action(Info)')
+                        
+                        if _wait_for_info_dialog(timeout=5.0):
+                            substep2_end = time.perf_counter()
+                            logger.info(f"✅ SUBSTEP 2 SUCCESS: Library navigation method worked in {substep2_end - substep2_start:.3f}s")
+                            
+                            # Brief verification
+                            xbmc.sleep(200)
+                            dialog_title = xbmc.getInfoLabel('ListItem.Title')
+                            dialog_dbid = xbmc.getInfoLabel('ListItem.DBID')
+                            logger.info(f"🎯 NAVIGATION SUCCESS VERIFICATION: Title='{dialog_title}', DBID='{dialog_dbid}'")
+                            
+                            overall_end_time = time.perf_counter()
+                            logger.info(f"🎉 HIJACK HELPERS: ✅ DIRECT hijack completed successfully for {db_type} {db_id} in {overall_end_time - overall_start_time:.3f}s")
+                            return True
+                        else:
+                            logger.info(f"SUBSTEP 2: Info dialog didn't open after library navigation")
+                    else:
+                        logger.info(f"SUBSTEP 2: Could not find item {db_id} in library section")
                 else:
-                    logger.info(f"SUBSTEP 2: Info dialog didn't open after direct navigation")
+                    logger.info(f"SUBSTEP 2: Could not focus list in library section")
             else:
-                logger.info(f"SUBSTEP 2: Direct URL navigation failed or timed out")
+                logger.info(f"SUBSTEP 2: Library section navigation failed or timed out")
         except Exception as e:
-            logger.info(f"SUBSTEP 2: Direct URL navigation failed with exception: {e}")
+            logger.info(f"SUBSTEP 2: Library navigation method failed with exception: {e}")
         
         substep2_end = time.perf_counter()
         logger.warning(f"⚠️ SUBSTEP 2: Direct methods failed after {substep2_end - substep2_start:.3f}s, falling back to XSP method")
