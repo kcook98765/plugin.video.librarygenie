@@ -31,26 +31,32 @@ class KodiJsonRpcClient:
             "params": {
                 "properties": [
                     "title",
-                    "year",
+                    "year", 
                     "imdbnumber",
                     "uniqueid",
                     "file",
                     "dateadded",
                     "art",
                     "plot",
-                    "plotoutline",
+                    "plotoutline", 
                     "runtime",
                     "rating",
+                    "votes",
                     "genre",
                     "mpaa",
                     "director",
                     "country",
                     "studio",
+                    "writer",
+                    "premiered",
+                    "originaltitle",
+                    "sorttitle",
                     # NOTE: DO NOT REQUEST "cast" HERE - Cast data should not be requested
                     # when building ListItems as it can cause performance issues and
                     # is not needed for list display. Kodi will populate cast data
                     # automatically when dbid is set on the ListItem.
                     "playcount",
+                    "lastplayed",
                     "resume"
                 ],
                 "limits": {
@@ -255,6 +261,25 @@ class KodiJsonRpcClient:
             # as it causes performance issues. Kodi will handle cast population automatically
             # when the ListItem has a proper dbid set.
 
+            # Handle additional fields for comprehensive storage
+            writer = movie.get("writer", [])
+            if isinstance(writer, list):
+                writer_str = ", ".join(writer)
+            else:
+                writer_str = str(writer)
+
+            country = movie.get("country", [])
+            if isinstance(country, list):
+                country_str = ", ".join(country)
+            else:
+                country_str = str(country)
+
+            studio = movie.get("studio", [])
+            if isinstance(studio, list):
+                studio_str = ", ".join(studio)
+            else:
+                studio_str = str(studio)
+
             return {
                 "kodi_id": movie.get("movieid"),
                 "title": movie.get("title", "Unknown Title"),
@@ -263,22 +288,31 @@ class KodiJsonRpcClient:
                 "tmdb_id": tmdb_id,
                 "file_path": movie.get("file", ""),
                 "date_added": movie.get("dateadded", ""),
-                # Phase 11: Artwork URLs
+                # Artwork URLs
                 "poster": poster,
                 "fanart": fanart,
                 "thumb": thumb,
-                # Phase 11: Extended metadata
+                "art": art,  # Full art dictionary
+                # Extended metadata
                 "plot": movie.get("plot", ""),
                 "plotoutline": movie.get("plotoutline", ""),
                 "runtime": movie.get("runtime", 0),
                 "rating": movie.get("rating", 0.0),
+                "votes": movie.get("votes", 0),
                 "genre": genre_str,
                 "mpaa": movie.get("mpaa", ""),
                 "director": director_str,
-                "country": movie.get("country", []),
-                "studio": movie.get("studio", []),
+                "country": country_str,
+                "studio": studio_str,
+                "writer": writer_str,
+                "premiered": movie.get("premiered", ""),
+                "originaltitle": movie.get("originaltitle", ""),
+                "sorttitle": movie.get("sorttitle", ""),
                 "playcount": movie.get("playcount", 0),
-                "resume_time": resume_time
+                "lastplayed": movie.get("lastplayed", ""),
+                "resume_time": resume_time,
+                "resume": resume_data,  # Full resume data
+                "uniqueid": uniqueid  # Full uniqueid dictionary
             }
 
         except Exception as e:

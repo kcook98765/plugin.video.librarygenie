@@ -180,7 +180,7 @@ class QueryManager:
             connection = self.connection_manager.get_connection()
             cursor = connection.cursor()
 
-            # Use unified lists/list_items structure
+            # Use unified lists/list_items structure with comprehensive fields
             query = """
                 SELECT 
                     li.media_item_id as id,
@@ -191,7 +191,24 @@ class QueryManager:
                     mi.title,
                     mi.year,
                     mi.imdbnumber as imdb_id,
-                    mi.art as data_json
+                    mi.tmdb_id,
+                    mi.poster,
+                    mi.fanart,
+                    mi.plot,
+                    mi.rating,
+                    mi.votes,
+                    mi.duration,
+                    mi.mpaa,
+                    mi.genre,
+                    mi.director,
+                    mi.studio,
+                    mi.country,
+                    mi.writer,
+                    mi.art,
+                    mi.play as file_path,
+                    mi.source,
+                    mi.created_at,
+                    mi.updated_at
                 FROM list_items li
                 JOIN media_items mi ON li.media_item_id = mi.id
                 WHERE li.list_id = ?
@@ -222,16 +239,16 @@ class QueryManager:
                     except json.JSONDecodeError as e:
                         self.logger.warning(f"Failed to parse JSON data: {e}")
 
-                # Enrich with Kodi data if available
-                if item.get('kodi_id') and item.get('media_type') in ['movie', 'episode']:
-                    # Enrich with Kodi data
-                    enriched_item = self._enrich_with_kodi_data([item])[0]
+                # Use stored data from media_items - no more JSON-RPC enrichment needed
+                # Parse additional data from stored fields
+                if item.get('art') and isinstance(item['art'], str):
+                    try:
+                        item['art'] = json.loads(item['art'])
+                    except json.JSONDecodeError:
+                        item['art'] = {}
 
-                    # Normalize to canonical format
-                    canonical_item = self._normalize_to_canonical(enriched_item)
-                else:
-                    # Normalize to canonical format
-                    canonical_item = self._normalize_to_canonical(item)
+                # Normalize to canonical format using stored data
+                canonical_item = self._normalize_to_canonical(item)
 
                 items.append(canonical_item)
 
@@ -1030,42 +1047,10 @@ class QueryManager:
             return {}
 
     def _enrich_with_kodi_data(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Enrich items with data from Kodi JSON-RPC if kodi_id is available"""
-        if not items:
-            return []
-
-        # Separate movie and episode IDs, removing duplicates
-        movie_ids = list(set([item['kodi_id'] for item in items if item.get('kodi_id') and item.get('media_type') == 'movie']))
-        episode_ids = list(set([item['kodi_id'] for item in items if item.get('kodi_id') and item.get('media_type') == 'episode']))
-
-        enriched_data = {}
-
-        # Only fetch if we have IDs to process
-        if movie_ids:
-            movie_data = self._get_kodi_enrichment_data_batch(movie_ids)
-            enriched_data.update(movie_data)
-
-        if episode_ids:
-            episode_data = self._get_kodi_episode_enrichment_data_batch(episode_ids)
-            enriched_data.update(episode_data)
-
-        # Apply enriched data to items
-        enriched_items = []
-        for item in items:
-            kodi_id = item.get('kodi_id')
-            if kodi_id and kodi_id in enriched_data:
-                # Merge enriched data, prioritizing enriched fields
-                enriched_item = enriched_data[kodi_id].copy()
-                # Update item with enriched data, but keep original if enriched value is empty/default
-                for key, value in enriched_item.items():
-                    if value is not None and value != "" and value != 0 and value != 0.0:
-                         item[key] = value
-                item['source'] = 'lib'  # Mark as library item
-                enriched_items.append(item)
-            else:
-                enriched_items.append(item) # Keep original item if no enrichment found
-
-        return enriched_items
+        """Legacy method - enrichment no longer needed as data is stored in media_items"""
+        # All enrichment data is now stored in media_items table during scan
+        # This method is kept for backward compatibility but does nothing
+        return items
 
 
     def _match_items_to_kodi_library(self, items_to_match: List[tuple]) -> Dict[int, Optional[int]]:

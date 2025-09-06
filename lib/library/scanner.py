@@ -6,6 +6,7 @@ LibraryGenie - Library Scanner
 Handles full scans and delta detection of Kodi's video library
 """
 
+import json
 from datetime import datetime
 from typing import List, Dict, Set, Any, Optional
 
@@ -247,7 +248,7 @@ class LibraryScanner:
             raise
 
     def _batch_insert_movies(self, movies: List[Dict[str, Any]]) -> int:
-        """Insert movies in batches"""
+        """Insert movies in batches with full metadata"""
         if not movies:
             return 0
 
@@ -257,24 +258,53 @@ class LibraryScanner:
             with self.conn_manager.transaction() as conn:
                 for movie in movies:
                     try:
-                        # For Kodi library items, store core identification fields plus plot
-                        # Rich metadata will be fetched via JSON-RPC when needed
-                        plot_data = movie.get("plot", "")
+                        # Store comprehensive movie data from JSON-RPC
+                        # Art data as JSON string for artwork URLs
+                        art_json = json.dumps(movie.get("art", {})) if movie.get("art") else ""
+                        
+                        # Extract unique IDs
+                        uniqueid = movie.get("uniqueid", {})
+                        tmdb_id = uniqueid.get("tmdb", "") if uniqueid else ""
+                        
+                        # Handle resume data
+                        resume_data = movie.get("resume", {})
+                        resume_json = json.dumps(resume_data) if resume_data else ""
 
                         conn.execute("""
-                            INSERT INTO media_items
-                            (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, plot, source, created_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                            INSERT OR REPLACE INTO media_items
+                            (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, source, created_at, updated_at,
+                             poster, fanart, plot, rating, votes, duration, mpaa, genre, director, studio, country, 
+                             writer, art, file_path, normalized_path, is_removed)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'),
+                                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
                         """, [
                             'movie',
                             movie["kodi_id"],
                             movie["title"],
                             movie.get("year"),
                             movie.get("imdb_id"),
-                            movie.get("tmdb_id"),
+                            tmdb_id,
                             movie["file_path"],
-                            plot_data,
-                            'lib'  # Mark as Kodi library item
+                            'lib',  # Mark as Kodi library item
+                            # Artwork
+                            movie.get("poster", ""),
+                            movie.get("fanart", ""), 
+                            # Metadata
+                            movie.get("plot", ""),
+                            movie.get("rating", 0.0),
+                            movie.get("votes", 0),
+                            movie.get("runtime", 0),  # Duration in minutes
+                            movie.get("mpaa", ""),
+                            movie.get("genre", ""),
+                            movie.get("director", ""),
+                            movie.get("studio", ""),
+                            movie.get("country", ""),
+                            movie.get("writer", ""),
+                            # JSON fields
+                            art_json,
+                            # File paths
+                            movie["file_path"],
+                            movie["file_path"].lower() if movie.get("file_path") else "",
                         ])
                         inserted_count += 1
                     except Exception as e:
