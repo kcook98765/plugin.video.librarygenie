@@ -140,9 +140,7 @@ def _show_librarygenie_menu(addon):
             _add_librarygenie_item_options(options, actions, addon, item_info)
 
         # Check if we're in a LibraryGenie container (even without explicit file_path)
-        elif (item_info['container_content'] == 'movies' and 
-              not file_path and not dbtype and
-              xbmc.getInfoLabel('Container.FolderPath').startswith('plugin://plugin.video.librarygenie/')):
+        elif xbmc.getInfoLabel('Container.FolderPath').startswith('plugin://plugin.video.librarygenie/'):
             # We're in LibraryGenie but the item doesn't have explicit plugin path
             # This happens for items displayed in LibraryGenie lists
             _add_librarygenie_item_options(options, actions, addon, item_info)
@@ -273,27 +271,38 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
     # If we have dbtype but no media_item_id, we can still offer some options
     elif dbtype in ('movie', 'episode', 'musicvideo'):
         # Check if we can determine if it's a library item
-        if dbid and dbid != '0':
+        if dbid and dbid != '0' and dbid != '':
             # Library item - add library-specific options
-            _add_library_movie_options(options, actions, addon, dbtype, dbid)
+            if dbtype == 'movie':
+                _add_library_movie_options(options, actions, addon, dbtype, dbid)
+            elif dbtype == 'episode':
+                _add_library_episode_options(options, actions, addon, dbtype, dbid)
+            elif dbtype == 'musicvideo':
+                _add_library_musicvideo_options(options, actions, addon, dbtype, dbid)
         else:
             # External item or library item without dbid - add external options
             _add_external_item_options(options, actions, addon)
     
-    # If we're in a list context but don't have specific item info, try to get the current list
-    elif not media_item_id and not dbtype:
-        # Try to extract list_id from container path
+    # Special handling for LibraryGenie items that have a title but no other identifying info
+    elif item_info.get('title') and not media_item_id:
+        # We're in LibraryGenie and have a title - offer add to list functionality
+        add_to_list_label = L(31000) if L(31000) else "Add to List..."
+        options.append(add_to_list_label)
+        actions.append("add_external_item")
+        
+        # If we can extract list_id from container path, also offer remove option
         container_path = xbmc.getInfoLabel('Container.FolderPath')
         if 'list_id=' in container_path:
             try:
                 import re
                 list_id_match = re.search(r'list_id=(\d+)', container_path)
                 if list_id_match:
-                    list_id = list_id_match.group(1)
-                    # Add general list management options
-                    add_to_list_label = L(31000) if L(31000) else "Add to List..."
-                    options.append(add_to_list_label)
-                    actions.append("add_external_item")
+                    extracted_list_id = list_id_match.group(1)
+                    remove_label = L(31010) if L(31010) else "Remove from List"
+                    options.append(remove_label)
+                    # We need to figure out the item ID - for now use title as identifier
+                    title = item_info.get('title', '')
+                    actions.append(f"remove_from_list&list_id={extracted_list_id}&item_title={title}")
             except Exception:
                 pass
 
