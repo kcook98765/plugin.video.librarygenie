@@ -28,7 +28,7 @@ LibraryGenie consists of three main layers:
 3. **Feature Layer**
    - **Import/Export** (`lib/import_export/`): NDJSON format engines, backup management, ShortList integration
    - **Library Management** (`lib/library/`): Enhanced scanning with favorites integration (`enhanced_scanner.py`, `scanner.py`)
-   - **Search** (`lib/search/`): Local search engines, query interpretation, text normalization, year parsing
+   - **Search** (`lib/search/`): Simplified keyword-based search engine, query interpretation, text normalization
    - **Kodi Integration** (`lib/kodi/`): JSON-RPC client, favorites parsing and management
    - **Remote Services** (`lib/remote/`): External API clients, caching, search/similarity services
    - **Authentication** (`lib/auth/`): Device code OAuth2 flow, token management, refresh handling
@@ -132,7 +132,7 @@ LibraryGenie consists of three main layers:
 - `lib/data/`: Data layer - database connection, queries, migrations, storage management
 - `lib/import_export/`: Unified import/export/backup engines, timestamp management, storage handling
 - `lib/library/`: Library scanning and indexing with favorites integration
-- `lib/search/`: Local search engines, query parsing, text normalization
+- `lib/search/`: Simplified keyword-based search engine, query interpretation, text normalization
 - `lib/kodi/`: Kodi-specific integration - JSON-RPC, favorites parsing
 - `lib/remote/`: External service integration - API clients, caching, search services
 - `lib/auth/`: Authentication flow - device code OAuth2, token management

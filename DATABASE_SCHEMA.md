@@ -366,6 +366,21 @@ Indexes:
 - INDEX on `created_at`.
 - INDEX on `storage_type`.
 
+### `backup_preferences`
+Stores backup configuration and preferences.
+
+| Column                | Type    | Notes |
+|-----------------------|---------|-------|
+| `id`                  | INTEGER | PRIMARY KEY |
+| `auto_backup_enabled` | INTEGER | NOT NULL DEFAULT 0 |
+| `backup_interval_days`| INTEGER | NOT NULL DEFAULT 7 |
+| `max_backups_to_keep` | INTEGER | NOT NULL DEFAULT 5 |
+| `backup_location`     | TEXT    | NOT NULL DEFAULT 'special://userdata/addon_data/script.librarygenie/backups/' |
+| `last_auto_backup`    | TEXT    | Last automatic backup timestamp |
+| `updated_at`          | TEXT    | NOT NULL DEFAULT (datetime('now')) |
+
+**Note**: This table uses a fixed ID of 1 for a single-row configuration pattern.
+
 ### `schema_version`
 Tracks database schema version for migrations.
 
