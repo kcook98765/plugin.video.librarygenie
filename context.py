@@ -158,6 +158,12 @@ def _show_librarygenie_menu(addon):
             # LibraryGenie item with explicit plugin path
             _add_librarygenie_item_options(options, actions, addon, item_info)
 
+        # Also check if we have hijack properties indicating we're in a LibraryGenie context
+        elif item_info.get('hijack_armed') == '1' and item_info.get('hijack_dbid'):
+            # We're likely in a LibraryGenie list view with InfoHijack active
+            xbmc.log(f"LibraryGenie: Detected InfoHijack context - dbtype={dbtype}, dbid={dbid}", xbmc.LOGINFO)
+            _add_librarygenie_item_options(options, actions, addon, item_info)
+
         elif file_path and file_path.startswith('plugin://'):
             # Other plugin item - add external item options
             _add_external_item_options(options, actions, addon)
@@ -259,6 +265,7 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
     list_id = item_info['list_id']
     dbtype = item_info['dbtype']
     dbid = item_info['dbid']
+    container_path = xbmc.getInfoLabel('Container.FolderPath')
     
     # Use hijack properties as fallback
     if not dbid and item_info.get('hijack_dbid'):
@@ -267,6 +274,19 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
         dbtype = item_info['hijack_dbtype']
     
     xbmc.log(f"LibraryGenie: _add_librarygenie_item_options - dbtype={dbtype}, dbid={dbid}, media_item_id={media_item_id}", xbmc.LOGINFO)
+    xbmc.log(f"LibraryGenie: Container path: {container_path}", xbmc.LOGINFO)
+
+    # Extract list_id from container path if we're viewing a list
+    extracted_list_id = None
+    if 'list_id=' in container_path:
+        try:
+            import re
+            list_id_match = re.search(r'list_id=(\d+)', container_path)
+            if list_id_match:
+                extracted_list_id = list_id_match.group(1)
+                xbmc.log(f"LibraryGenie: Extracted list_id from container: {extracted_list_id}", xbmc.LOGINFO)
+        except Exception as e:
+            xbmc.log(f"LibraryGenie: Failed to extract list_id: {e}", xbmc.LOGINFO)
 
     # First priority: items with media_item_id (existing LibraryGenie items)
     if media_item_id and media_item_id != '':
@@ -285,15 +305,27 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
         actions.append(f"add_to_list&media_item_id={media_item_id}")
 
         # If we're in a list context, add remove option
-        if list_id and list_id != '':
+        target_list_id = list_id if list_id and list_id != '' else extracted_list_id
+        if target_list_id:
             remove_label = L(31010) if L(31010) else "Remove from List"
             options.append(remove_label)
-            actions.append(f"remove_from_list&list_id={list_id}&item_id={media_item_id}")
+            actions.append(f"remove_from_list&list_id={target_list_id}&item_id={media_item_id}")
+            xbmc.log(f"LibraryGenie: Added remove option for list {target_list_id}", xbmc.LOGINFO)
 
-    # Second priority: library items with valid dbtype and dbid
+    # Second priority: library items with valid dbtype and dbid in LibraryGenie context
     elif dbtype in ('movie', 'episode', 'musicvideo') and dbid and dbid not in ('0', ''):
         xbmc.log(f"LibraryGenie: Using library item path for {dbtype} {dbid}", xbmc.LOGINFO)
-        # Library item - add library-specific options
+        
+        # If we're in a LibraryGenie list view, offer remove option first
+        if extracted_list_id and item_info.get('title'):
+            remove_label = L(31010) if L(31010) else "Remove from List"
+            options.append(remove_label)
+            # For library items in lists without media_item_id, we need to identify by title/dbid
+            title = item_info.get('title', '')
+            actions.append(f"remove_from_list&list_id={extracted_list_id}&dbtype={dbtype}&dbid={dbid}&title={title}")
+            xbmc.log(f"LibraryGenie: Added remove option for library item {dbtype} {dbid} in list {extracted_list_id}", xbmc.LOGINFO)
+        
+        # Add standard library item options
         if dbtype == 'movie':
             _add_library_movie_options(options, actions, addon, dbtype, dbid)
         elif dbtype == 'episode':
@@ -304,27 +336,29 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
     # Third priority: items in movie container (but without library metadata)
     elif item_info.get('is_movies') and item_info.get('title'):
         xbmc.log(f"LibraryGenie: Using external item path for movie container item", xbmc.LOGINFO)
-        _add_external_item_options(options, actions, addon)
         
-        # If we can extract list_id from container path, also offer remove option
-        container_path = xbmc.getInfoLabel('Container.FolderPath')
-        if 'list_id=' in container_path:
-            try:
-                import re
-                list_id_match = re.search(r'list_id=(\d+)', container_path)
-                if list_id_match:
-                    extracted_list_id = list_id_match.group(1)
-                    remove_label = L(31010) if L(31010) else "Remove from List"
-                    options.append(remove_label)
-                    # We need to figure out the item ID - for now use title as identifier
-                    title = item_info.get('title', '')
-                    actions.append(f"remove_from_list&list_id={extracted_list_id}&item_title={title}")
-            except Exception:
-                pass
+        # If we're in a list context, add remove option first
+        if extracted_list_id:
+            remove_label = L(31010) if L(31010) else "Remove from List"
+            options.append(remove_label)
+            title = item_info.get('title', '')
+            actions.append(f"remove_from_list&list_id={extracted_list_id}&item_title={title}")
+            xbmc.log(f"LibraryGenie: Added remove option for external item in list {extracted_list_id}", xbmc.LOGINFO)
+        
+        _add_external_item_options(options, actions, addon)
     
     # Fallback: any item with a title in LibraryGenie context
     elif item_info.get('title'):
         xbmc.log(f"LibraryGenie: Using fallback path for titled item", xbmc.LOGINFO)
+        
+        # If we're in a list context, add remove option first
+        if extracted_list_id:
+            remove_label = L(31010) if L(31010) else "Remove from List"
+            options.append(remove_label)
+            title = item_info.get('title', '')
+            actions.append(f"remove_from_list&list_id={extracted_list_id}&item_title={title}")
+            xbmc.log(f"LibraryGenie: Added remove option for fallback item in list {extracted_list_id}", xbmc.LOGINFO)
+        
         _add_external_item_options(options, actions, addon)
 
 
