@@ -449,14 +449,15 @@ def open_native_info_fast(dbtype: str, dbid: int, logger) -> bool:
         logger.debug(f"HIJACK XSP: Step 3.1 - Content type determination completed in {time.time() - step_start:.3f}s")
         step_start = time.time()
 
-        # Create XSP content
+        # Create XSP content with proper XML escaping
         xsp_content = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <smartplaylist type="{content_type}">
     <name>lg_hijack_{dbtype}_{dbid}</name>
     <match>one</match>
     <rule field="{filter_field}" operator="is">
-        <value>{dbid}</value>
+        <value>{html.escape(str(dbid))}</value>
     </rule>
+    <order direction="ascending">sorttitle</order>
 </smartplaylist>'''
 
         logger.debug(f"HIJACK XSP: Step 3.2 - XSP content generation completed in {time.time() - step_start:.3f}s")
