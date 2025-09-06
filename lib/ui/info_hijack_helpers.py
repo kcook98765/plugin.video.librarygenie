@@ -489,25 +489,40 @@ def _create_xsp_for_dbitem(db_type: str, db_id: int) -> Optional[str]:
 # XSP cleanup removed - using persistent generic filename for debugging
 
 def _find_index_in_dir_by_file(directory: str, target_file: Optional[str]) -> int:
-    """Simplified: assume movie is only match, just skip parent if present"""
-    data = jsonrpc("Files.GetDirectory", {
-        "directory": directory, "media": "video",
-        "properties": ["file", "title", "thumbnail"]
-    })
-    items = (data.get("result") or {}).get("files") or []
-    _log(f"XSP directory items count: {len(items)}")
+    """Find the target movie index in XSP, skipping parent directory"""
+    try:
+        data = jsonrpc("Files.GetDirectory", {
+            "directory": directory, "media": "video",
+            "properties": ["file", "title", "filetype"]
+        })
+        items = (data.get("result") or {}).get("files") or []
+        _log(f"XSP directory items count: {len(items)}")
 
-    if not items:
-        _log("No items found in XSP directory", xbmc.LOGWARNING)
-        return 0
+        if not items:
+            _log("No items found in XSP directory", xbmc.LOGWARNING)
+            return 0
 
-    # Simple logic: if first item is ".." parent, use index 1 (the movie)
-    # Otherwise use index 0
-    if len(items) >= 2 and items[0].get("file", "").endswith(".."):
-        _log("XSP has parent item, using index 1 for movie")
+        # Find first non-directory item (actual movie)
+        for i, item in enumerate(items):
+            file_path = item.get("file", "")
+            file_type = item.get("filetype", "")
+            title = item.get("title", "")
+            
+            _log(f"XSP item {i}: type='{file_type}', file='{file_path}', title='{title}'")
+            
+            # Skip parent directory entries
+            if file_path.endswith("..") or file_type == "directory":
+                continue
+                
+            # Found the actual movie
+            _log(f"XSP found movie at index {i}: '{title}'")
+            return i
+
+        # Fallback: if all items are directories, try index 1
+        _log("XSP fallback: using index 1")
         return 1
-    else:
-        _log("XSP has no parent item, using index 0 for movie")
+    except Exception as e:
+        _log(f"Error finding XSP index: {e}", xbmc.LOGWARNING)
         return 0
 
 def _wait_videos_on(path: str, timeout_ms=8000) -> bool:
@@ -638,11 +653,19 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
             # Method 1: Use JSON-RPC to open info dialog directly (most reliable)
             logger.info(f"SUBSTEP 2: Trying JSON-RPC GUI.ActivateWindow method")
             
-            # Use proper JSON-RPC method to activate info dialog
-            result = jsonrpc("GUI.ActivateWindow", {
-                "window": "videoinfo",
-                "parameters": [f"videodb://movies/titles/{db_id}/"]
-            })
+            # Try direct videodb URL navigation using ActivateWindow builtin instead
+            logger.info(f"SUBSTEP 2: Trying ActivateWindow builtin method")
+            xbmc.executebuiltin(f'ActivateWindow(Videos,"{direct_url}",return)')
+            
+            # Wait briefly for navigation
+            xbmc.sleep(500)
+            
+            # Check if we're in the right place and try to open info directly
+            current_path = xbmc.getInfoLabel("Container.FolderPath")
+            if current_path and direct_url in current_path:
+                logger.info(f"SUBSTEP 2: Direct URL navigation successful, trying Info action")
+                xbmc.executebuiltin('Action(Info)')
+                xbmc.sleep(200)
             
             # Wait briefly to see if dialog opens
             xbmc.sleep(300)
@@ -712,7 +735,11 @@ def _open_native_info_via_xsp(db_type: str, db_id: int, logger, overall_start_ti
         # In XSP, our target item should be the first real item (after potential parent "..")
         target_index = _find_index_in_dir_by_file(xsp_path, None)
         if target_index >= 0:
-            xbmc.executebuiltin(f'Action(SelectItem,{target_index})')
+            logger.info(f"XSP FALLBACK: Moving to item index {target_index}")
+            # Use Control.Move instead of SelectItem which has keymapping issues
+            for i in range(target_index):
+                xbmc.executebuiltin('Action(Down)')
+                xbmc.sleep(50)
             xbmc.sleep(100)
         
         # Verify we have the right item
