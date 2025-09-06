@@ -97,43 +97,25 @@ def _check_and_trigger_initial_scan():
             import threading
 
             def run_initial_scan():
-                # Create progress dialog
-                progress_dialog = None
-                try:
-                    progress_dialog = xbmcgui.DialogProgress()
-                    progress_dialog.create(addon.getLocalizedString(35002), "Scanning library...")
-                except Exception as e:
-                    logger.warning(f"Failed to create progress dialog: {e}")
-
-                # Progress callback function
-                def progress_callback(page_num, total_pages, items_processed):
-                    if progress_dialog:
-                        try:
-                            percentage = int((page_num / total_pages) * 100) if total_pages > 0 else 0
-                            progress_dialog.update(
-                                percentage,
-                                f"Processing page {page_num} of {total_pages}",
-                                f"{items_processed} movies scanned"
+                # Progress callback function - use notification-style progress
+                def progress_callback(page_num, total_pages):
+                    try:
+                        percentage = int((page_num / total_pages) * 100) if total_pages > 0 else 0
+                        
+                        # Show notification-style progress every 10% or every 5 pages
+                        if percentage % 10 == 0 or page_num % 5 == 0:
+                            xbmcgui.Dialog().notification(
+                                addon.getLocalizedString(35002),  # "LibraryGenie"
+                                f"Library scan: {percentage}% complete ({page_num}/{total_pages} pages)",
+                                xbmcgui.NOTIFICATION_INFO,
+                                2000  # Show for 2 seconds
                             )
                             
-                            # Check if user cancelled
-                            if progress_dialog.iscanceled():
-                                logger.info("User cancelled library scan")
-                                # Request abort from scanner
-                                if hasattr(scanner, 'request_abort'):
-                                    scanner.request_abort()
-                        except Exception as e:
-                            logger.warning(f"Progress callback error: {e}")
+                    except Exception as e:
+                        logger.warning(f"Progress callback error: {e}")
 
                 try:
                     result = scanner.perform_full_scan(progress_callback=progress_callback)
-                    
-                    # Close progress dialog
-                    if progress_dialog:
-                        try:
-                            progress_dialog.close()
-                        except Exception:
-                            pass
                     
                     if result.get("success"):
                         logger.info(f"Initial library scan completed: {result.get('items_added', 0)} movies indexed")
@@ -165,13 +147,6 @@ def _check_and_trigger_initial_scan():
                                 5000
                             )
                 except Exception as e:
-                    # Close progress dialog on exception
-                    if progress_dialog:
-                        try:
-                            progress_dialog.close()
-                        except Exception:
-                            pass
-                    
                     logger.error(f"Initial library scan thread failed: {e}")
                     # Show error notification
                     xbmcgui.Dialog().notification(
