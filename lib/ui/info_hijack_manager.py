@@ -170,18 +170,24 @@ class InfoHijackManager:
             
             self._logger.debug(f"HIJACK: Initial state - Path: '{initial_path}', Window: '{initial_window}'")
             
-            # Check if we're already back in plugin content (Kodi auto-navigated)
-            if initial_path and 'plugin.video.librarygenie' in initial_path:
-                self._logger.info("HIJACK: Already back in plugin content, no navigation needed")
-                self._cleanup_properties()
-                return
-            
             # Wait for dialog close animation to complete (shorter wait)
             if not self._wait_for_gui_ready("after dialog close", max_wait=1.0):
                 self._logger.warning("HIJACK: GUI not ready after 1s, proceeding anyway")
             
+            # Check current state after GUI stabilizes
+            current_path = xbmc.getInfoLabel("Container.FolderPath")
+            current_window = xbmc.getInfoLabel("System.CurrentWindow")
+            
+            self._logger.debug(f"HIJACK: Current state after GUI ready - Path: '{current_path}', Window: '{current_window}'")
+            
+            # Check if we're already back in plugin content (Kodi auto-navigated)
+            if current_path and 'plugin.video.librarygenie' in current_path:
+                self._logger.info(f"HIJACK: Already back in plugin content: '{current_path}' - no navigation needed")
+                self._cleanup_properties()
+                return
+            
             # Determine if we need one back or two backs based on current state
-            is_on_xsp = self._is_currently_on_xsp(initial_path, initial_window)
+            is_on_xsp = self._is_currently_on_xsp(current_path, current_window)
             
             if is_on_xsp:
                 self._logger.debug(f"HIJACK: Currently on XSP, need two back commands")
