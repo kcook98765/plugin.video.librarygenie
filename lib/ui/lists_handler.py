@@ -1118,6 +1118,116 @@ class ListsHandler:
             context.logger.error(f"Error adding to list: {e}")
             return False
 
+    def add_library_item_to_list_context(self, context: PluginContext) -> bool:
+        """Handle adding library item to a list from context menu"""
+        try:
+            # Get library item parameters
+            dbtype = context.get_param('dbtype')
+            dbid = context.get_param('dbid')
+            
+            if not dbtype or not dbid:
+                context.logger.error("Missing dbtype or dbid for library item")
+                return False
+
+            context.logger.info(f"Adding library item to list: dbtype={dbtype}, dbid={dbid}")
+
+            query_manager = get_query_manager()
+            if not query_manager.initialize():
+                context.logger.error("Failed to initialize query manager for library item add")
+                return False
+
+            # Get all available lists
+            all_lists = query_manager.get_all_lists_with_folders()
+            if not all_lists:
+                # Offer to create a new list
+                if xbmcgui.Dialog().yesno("No Lists Found", "No lists available. Create a new list?"): # Localize these strings
+                    result = self.create_list(context)
+                    if result.success:
+                        all_lists = query_manager.get_all_lists_with_folders() # Refresh lists
+                    else:
+                        return False
+                else:
+                    return False
+
+            if not all_lists: # Still no lists after offering to create
+                xbmcgui.Dialog().notification("LibraryGenie", "No lists available to add to.", xbmcgui.NOTIFICATION_WARNING) # Localize strings
+                return False
+
+            # Build list options for selection
+            list_options = []
+            for lst in all_lists:
+                folder_name = lst.get('folder_name', 'Root')
+                if folder_name == 'Root' or not folder_name:
+                    list_options.append(f"{lst['name']} ({lst['item_count']} items)")
+                else:
+                    list_options.append(f"{folder_name}/{lst['name']} ({lst['item_count']} items)")
+
+            # Add option to create new list
+            list_options.append("[COLOR yellow]+ Create New List[/COLOR]") # Localize this string
+
+            # Show list selection dialog
+            dialog = xbmcgui.Dialog()
+            selected_index = dialog.select("Add to List:", list_options) # Localize this string
+
+            if selected_index < 0:
+                return False # User cancelled
+
+            # Handle selection
+            target_list_id = None
+            if selected_index == len(list_options) - 1:  # Create new list
+                result = self.create_list(context)
+                if not result.success:
+                    return False
+                # Get the newly created list ID and add item to it
+                all_lists = query_manager.get_all_lists_with_folders() # Refresh lists
+                if all_lists:
+                    target_list_id = all_lists[-1]['id']  # Assume last created
+                else:
+                    return False # Should not happen if create_list succeeded
+            else:
+                target_list_id = all_lists[selected_index]['id']
+
+            if target_list_id is None:
+                return False
+
+            # Create library item data for the query manager
+            library_item_data = {
+                'dbtype': dbtype,
+                'dbid': int(dbid),
+                'source': 'library'
+            }
+
+            # Add library item to selected list
+            result = query_manager.add_library_item_to_list(target_list_id, library_item_data)
+
+            if result is not None and result.get("success"):
+                list_name = all_lists[selected_index]['name'] if selected_index < len(all_lists) else "new list"
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    f"Added to '{list_name}'", # Localize this string
+                    xbmcgui.NOTIFICATION_INFO
+                )
+                return True
+            else:
+                error_msg = result.get("error", "Unknown error") if result else "Query manager returned None"
+                if error_msg == "duplicate":
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        "Item already in list", # Localize this string
+                        xbmcgui.NOTIFICATION_WARNING
+                    )
+                else:
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        f"Failed to add to list: {error_msg}", # Localize this string
+                        xbmcgui.NOTIFICATION_ERROR
+                    )
+                return False
+
+        except Exception as e:
+            context.logger.error(f"Error adding library item to list from context: {e}")
+            return False
+
     def add_to_list_context(self, context: PluginContext) -> bool:
         """Handle adding media item to a list from context menu"""
         try:

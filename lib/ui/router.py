@@ -60,6 +60,29 @@ class Router:
                 search_handler = SearchHandler()
                 search_handler.prompt_and_search(context)
                 return True
+            elif action == 'add_to_list':
+                media_item_id = context.get_param('media_item_id')
+                dbtype = context.get_param('dbtype')
+                dbid = context.get_param('dbid')
+
+                if media_item_id:
+                    # Handle adding existing media item to list
+                    from .lists_handler import ListsHandler
+                    lists_handler = ListsHandler()
+                    success = lists_handler.add_to_list_context(context)
+                    return success
+                elif dbtype and dbid:
+                    # Handle adding library item to list
+                    from .lists_handler import ListsHandler
+                    lists_handler = ListsHandler()
+                    success = lists_handler.add_library_item_to_list_context(context)
+                    return success
+                else:
+                    # Handle adding external item to list
+                    from .lists_handler import ListsHandler
+                    lists_handler = ListsHandler()
+                    success = lists_handler.add_external_item_to_list(context)
+                    return success
             else:
                 # Check for registered handlers
                 handler = self._handlers.get(action)
