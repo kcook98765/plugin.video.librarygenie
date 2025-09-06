@@ -13,11 +13,12 @@
   <extension point="xbmc.python.script" library="context.py">
     <provides>executable</provides>
   </extension>
-  <extension point="xbmc.addon.contextmenu">
-    <item library="context.py">
+  <extension point="xbmc.addon.contextmenu" library="context.py">
+    <provides>contextmenu</provides>
+    <item>
       <label>32200</label>
       <description>32201</description>
-      <visible>Container.Content(movies) | Container.Content(episodes) | Container.Content(musicvideos) | String.StartsWith(ListItem.FileNameAndPath,plugin://)</visible>
+      <visible>true</visible>
     </item>
   </extension>
   <extension point="xbmc.addon.metadata">
