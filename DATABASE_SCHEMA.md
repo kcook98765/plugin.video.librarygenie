@@ -80,11 +80,7 @@ The unified table for storing all media content metadata.
 | `normalized_path` | TEXT | Normalized file path for matching |
 | `is_removed` | INTEGER | Flag indicating if item was removed (0/1) |
 | `display_title` | TEXT | Pre-computed display title with year |
-| `formatted_genre` | TEXT | Pre-computed formatted genre string (v19 setInfo) |
 | `duration_seconds` | INTEGER | Duration in seconds (pre-computed) |
-| `genre_array_json` | TEXT | Pre-computed genre array JSON (v20+ InfoTagVideo) |
-| `director_array_json` | TEXT | Pre-computed director array JSON (v20+ InfoTagVideo) |
-| `plot_summary` | TEXT | Pre-computed truncated plot (500 chars max) |
 | `created_at` | TEXT | Creation timestamp |
 | `updated_at` | TEXT | Last update timestamp |
 

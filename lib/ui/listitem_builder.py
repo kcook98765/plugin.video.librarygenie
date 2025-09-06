@@ -622,10 +622,11 @@ class ListItemBuilder:
         if item.get('mpaa'):
             info['mpaa'] = item['mpaa']
 
-        # Genre handling - use pre-computed formatted string for v19 setInfo()
-        formatted_genre = item.get('formatted_genre') or item.get('genre', '')
-        if formatted_genre:
-            info['genre'] = formatted_genre
+        # Genre handling - data stored in version-appropriate format
+        genre_data = item.get('genre', '')
+        if genre_data:
+            # Data is already in the correct format for this Kodi version
+            info['genre'] = genre_data
 
         # Duration handling - Kodi expects duration in seconds for info dict
         runtime_minutes = item.get('runtime', 0)
@@ -846,18 +847,18 @@ class ListItemBuilder:
             if plot_text:
                 video_info_tag.setPlot(plot_text)
 
-            # Use pre-computed genre array for v20+ InfoTagVideo efficiency
-            genre_array_json = item.get('genre_array_json')
-            if genre_array_json:
+            # Use stored genre data (format depends on Kodi version during scan)
+            genre_data = item.get('genre', '')
+            if genre_data:
                 try:
-                    genres = json.loads(genre_array_json)
-                    if genres:
+                    # Try to parse as JSON array first (v20+ format)
+                    genres = json.loads(genre_data)
+                    if isinstance(genres, list) and genres:
                         video_info_tag.setGenres(genres)
                 except (json.JSONDecodeError, TypeError):
-                    # Fallback to formatted_genre string processing
-                    formatted_genre = item.get('formatted_genre', '')
-                    if formatted_genre:
-                        genres = [g.strip() for g in formatted_genre.split(',') if g.strip()]
+                    # Fallback to string format (v19 format or direct string)
+                    if isinstance(genre_data, str):
+                        genres = [g.strip() for g in genre_data.split(',') if g.strip()]
                         if genres:
                             video_info_tag.setGenres(genres)
 

@@ -14,7 +14,7 @@ from ..data import QueryManager
 from ..data.connection_manager import get_connection_manager
 from ..kodi.json_rpc_client import get_kodi_client
 from ..utils.logger import get_logger
-
+from ..utils.kodi_version import get_kodi_major_version
 
 from ..ui.localization import L
 
@@ -270,40 +270,49 @@ class LibraryScanner:
                         resume_data = movie.get("resume", {})
                         resume_json = json.dumps(resume_data) if resume_data else ""
 
+                        # Detect Kodi version once and store appropriate format
+                        kodi_major = get_kodi_major_version()
+                        
                         # Pre-compute display fields for faster list building
                         display_title = f"{movie['title']} ({movie.get('year', '')})" if movie.get('year') else movie['title']
                         
-                        # Pre-compute genre handling for both v19 setInfo() and v20+ InfoTagVideo
+                        # Store genre in version-appropriate format
                         genre_list = movie.get('genre', '').split(',') if isinstance(movie.get('genre'), str) else movie.get('genre', [])
-                        formatted_genre = ', '.join([g.strip() for g in genre_list if g.strip()]) if genre_list else ''
-                        genre_array_json = json.dumps([g.strip() for g in genre_list if g.strip()]) if genre_list else "[]"
+                        if kodi_major >= 20:
+                            # v20+: Store as JSON array for InfoTagVideo.setGenres()
+                            genre_data = json.dumps([g.strip() for g in genre_list if g.strip()]) if genre_list else "[]"
+                        else:
+                            # v19: Store as comma-separated string for setInfo()
+                            genre_data = ', '.join([g.strip() for g in genre_list if g.strip()]) if genre_list else ''
                         
-                        # Pre-compute duration in both formats for version compatibility
-                        duration_minutes = movie.get("runtime", 0)
-                        duration_seconds = duration_minutes * 60 if duration_minutes else 0
-                        
-                        # Pre-compute director/studio as both string and array for InfoTagVideo compatibility
+                        # Store director in version-appropriate format
                         director_str = movie.get("director", "")
                         if isinstance(director_str, list):
                             director_str = ", ".join(director_str) if director_str else ""
-                        director_array_json = json.dumps([director_str]) if director_str else "[]"
                         
+                        if kodi_major >= 20:
+                            # v20+: Store as JSON array for InfoTagVideo.setDirectors()
+                            director_data = json.dumps([director_str]) if director_str else "[]"
+                        else:
+                            # v19: Store as string for setInfo()
+                            director_data = director_str
+                        
+                        # Duration: always store in seconds (can convert to minutes for v19 if needed)
+                        duration_minutes = movie.get("runtime", 0)
+                        duration_seconds = duration_minutes * 60 if duration_minutes else 0
+                        
+                        # Studio handling
                         studio_str = movie.get("studio", "")
                         if isinstance(studio_str, list):
                             studio_str = studio_str[0] if studio_str else ""
-                        
-                        # Pre-compute common metadata strings to avoid repeated processing
-                        plot_summary = movie.get("plot", "")  # Keep full plot text without truncation
-                        mpaa_rating = movie.get("mpaa", "")
 
                         conn.execute("""
                             INSERT OR REPLACE INTO media_items
                             (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, source, created_at, updated_at,
                              poster, fanart, plot, rating, votes, duration, mpaa, genre, director, studio, country, 
-                             writer, art, file_path, normalized_path, is_removed, display_title, formatted_genre, duration_seconds,
-                             genre_array_json, director_array_json, plot_summary)
+                             writer, art, file_path, normalized_path, is_removed, display_title, duration_seconds)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'),
-                                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)
+                                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
                         """, [
                             'movie',
                             movie["kodi_id"],
@@ -322,9 +331,9 @@ class LibraryScanner:
                             movie.get("votes", 0),
                             movie.get("runtime", 0),  # Duration in minutes
                             movie.get("mpaa", ""),
-                            movie.get("genre", ""),
-                            movie.get("director", ""),
-                            movie.get("studio", ""),
+                            genre_data,  # Version-appropriate genre format
+                            director_data,  # Version-appropriate director format
+                            studio_str,
                             movie.get("country", ""),
                             movie.get("writer", ""),
                             # JSON fields
@@ -334,12 +343,7 @@ class LibraryScanner:
                             movie["file_path"].lower() if movie.get("file_path") else "",
                             # Pre-computed fields
                             display_title,
-                            formatted_genre,
-                            duration_seconds,
-                            # Version-specific pre-computed fields
-                            genre_array_json,
-                            director_array_json,
-                            plot_summary
+                            duration_seconds
                         ])
                         inserted_count += 1
                     except Exception as e:
