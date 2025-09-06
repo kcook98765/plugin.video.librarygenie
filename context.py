@@ -210,7 +210,7 @@ def _add_library_movie_options(dbtype, dbid, options, actions):
     # Check if quick-add is enabled and we have a default list
     from lib.config.settings import SettingsManager
     settings = SettingsManager()
-    quick_add_enabled = settings.is_quick_add_enabled()
+    quick_add_enabled = settings.get_enable_quick_add()
     default_list_id = settings.get_default_list_id()
 
     # Add remove from list option if we're in a list context
