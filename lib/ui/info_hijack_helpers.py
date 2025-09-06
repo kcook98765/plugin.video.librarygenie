@@ -114,12 +114,12 @@ def _wait_for_listitem_hydration(timeout_ms=2000, logger=None) -> bool:
     check_count = 0
     
     # Log function for consistent formatting
-    def log_msg(message, level="debug"):
+    def log_msg(message, level="info"):
         if logger:
             if level == "warning":
                 logger.warning(f"HYDRATION WAIT: {message}")
             else:
-                logger.debug(f"HYDRATION WAIT: {message}")
+                logger.info(f"HYDRATION WAIT: {message}")
         else:
             _log(f"HYDRATION WAIT: {message}")
     
