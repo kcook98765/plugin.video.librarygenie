@@ -293,7 +293,7 @@ class LibraryScanner:
                             studio_str = studio_str[0] if studio_str else ""
                         
                         # Pre-compute common metadata strings to avoid repeated processing
-                        plot_summary = movie.get("plot", "")[:500] + "..." if len(movie.get("plot", "")) > 500 else movie.get("plot", "")
+                        plot_summary = movie.get("plot", "")  # Keep full plot text without truncation
                         mpaa_rating = movie.get("mpaa", "")
 
                         conn.execute("""

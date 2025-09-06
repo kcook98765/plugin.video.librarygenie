@@ -599,8 +599,8 @@ class ListItemBuilder:
         if item.get('premiered'):
             info['premiered'] = item['premiered']
 
-        # Content description - use pre-computed summary for performance
-        plot_text = item.get('plot_summary') or item.get('plot', '')
+        # Content description - use full plot text for complete information
+        plot_text = item.get('plot', '')
         if plot_text:
             info['plot'] = plot_text
         if item.get('plotoutline'):
@@ -841,8 +841,8 @@ class ListItemBuilder:
                 except (ValueError, TypeError):
                     pass
 
-            # Use pre-computed plot summary to avoid processing overhead
-            plot_text = item.get('plot_summary') or item.get('plot', '')
+            # Use full plot text for complete information
+            plot_text = item.get('plot', '')
             if plot_text:
                 video_info_tag.setPlot(plot_text)
 
