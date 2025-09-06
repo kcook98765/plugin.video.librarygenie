@@ -130,17 +130,17 @@ class InfoHijackManager:
                         self._logger.debug(f"HIJACK: Non-armed native info detected - Dialog ID: {current_dialog_id}, Title: '{listitem_title}'")
             return
 
-        # Only log container info when no dialog is active
+        # Only log container info when no dialog is active (reduced frequency)
         if not self._in_progress:
-            # Debug: Periodically check for armed items in container
-            if int(current_time * 2) % 10 == 0:  # Every 5 seconds
+            # Debug: Periodically check for armed items in container (less frequent)
+            if int(current_time * 2) % 100 == 0:  # Every 50 seconds instead of 5
                 container_path = xbmc.getInfoLabel('Container.FolderPath')
                 if 'plugin.video.librarygenie' in container_path:
                     current_item = xbmc.getInfoLabel('Container.CurrentItem')
                     num_items = xbmc.getInfoLabel('Container.NumItems')
-                    list_item_label = xbmc.getInfoLabel('ListItem.Label')
                     armed = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)') == '1'
-                    self._logger.debug(f"HIJACK DEBUG: Container scan - item: {current_item}/{num_items}, label: '{list_item_label}', armed: {armed}")
+                    if armed:  # Only log when armed items are found
+                        self._logger.debug(f"HIJACK: Armed item detected - {current_item}/{num_items}")
 
     def _is_native_info_hydrated(self) -> bool:
         """Check if native info dialog has native-only labels populated"""
@@ -478,25 +478,17 @@ class InfoHijackManager:
         return path_change_detected
 
     def _debug_scan_container(self):
-        """Debug method to scan container for armed items"""
+        """Debug method to scan container for armed items (minimal logging)"""
         try:
             container_path = xbmc.getInfoLabel('Container.FolderPath')
             if 'plugin.video.librarygenie' not in container_path:
                 return  # Only scan our plugin content
                 
-            num_items = int(xbmc.getInfoLabel('Container.NumItems') or '0')
-            current_item = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
-            
-            if num_items > 0:
-                self._logger.info(f"HIJACK DEBUG: Container scan - {container_path}, item {current_item}/{num_items}")
-                
-                # Check current item properties
-                current_armed = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)')
+            # Only log when armed items are detected
+            current_armed = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)')
+            if current_armed == '1':
                 current_label = xbmc.getInfoLabel('ListItem.Label')
-                if current_armed == '1':
-                    self._logger.info(f"HIJACK DEBUG: Current item '{current_label}' IS ARMED!")
-                else:
-                    self._logger.info(f"HIJACK DEBUG: Current item '{current_label}' is not armed (value: '{current_armed}')")
+                self._logger.debug(f"HIJACK: Armed item detected - '{current_label}'")
                     
         except Exception as e:
             self._logger.debug(f"HIJACK DEBUG: Container scan error: {e}")

@@ -382,140 +382,69 @@ class ListsHandler:
     def remove_from_list(self, context: PluginContext, list_id: str, item_id: str) -> DialogResponse:
         """Handle removing an item from a list"""
         try:
-            context.logger.info(f"DEBUG: Starting remove_from_list - list_id={list_id}, item_id={item_id}")
-            context.logger.info(f"DEBUG: Parameter types - list_id type: {type(list_id)}, item_id type: {type(item_id)}")
-
             # Initialize query manager
             query_manager = get_query_manager()
             if not query_manager.initialize():
-                context.logger.error("DEBUG: Failed to initialize query manager")
-                context.logger.info("DEBUG: About to create DialogResponse for database error")
-                try:
-                    response = DialogResponse(
-                        success=False,
-                        message="Database error"
-                    )
-                    context.logger.info(f"DEBUG: Successfully created DialogResponse: {response}")
-                    return response
-                except Exception as e:
-                    context.logger.error(f"DEBUG: Error creating DialogResponse for database error: {e}")
-                    context.logger.error(f"DEBUG: DialogResponse class: {DialogResponse}")
-                    import traceback
-                    context.logger.error(f"DEBUG: Traceback: {traceback.format_exc()}")
-                    raise
+                context.logger.error("Failed to initialize query manager")
+                return DialogResponse(
+                    success=False,
+                    message="Database error"
+                )
 
             # Get list and item info
-            context.logger.info(f"DEBUG: Getting list info for list_id={list_id}")
             list_info = query_manager.get_list_by_id(list_id)
-            context.logger.info(f"DEBUG: List info retrieved: {list_info}")
-            
             if not list_info:
-                context.logger.info("DEBUG: List not found, creating DialogResponse")
-                try:
-                    response = DialogResponse(
-                        success=False,
-                        message="List not found"
-                    )
-                    context.logger.info(f"DEBUG: Successfully created DialogResponse for list not found: {response}")
-                    return response
-                except Exception as e:
-                    context.logger.error(f"DEBUG: Error creating DialogResponse for list not found: {e}")
-                    raise
+                return DialogResponse(
+                    success=False,
+                    message="List not found"
+                )
 
             # Get the media item info for confirmation
-            context.logger.info(f"DEBUG: Getting list items for list_id={list_id}")
             items = query_manager.get_list_items(list_id)
-            context.logger.info(f"DEBUG: Retrieved {len(items)} items from list")
-            
             item_info = None
-            for idx, item in enumerate(items):
-                context.logger.info(f"DEBUG: Item {idx}: id={item.get('id')}, title={item.get('title')}")
+            for item in items:
                 # Match using the 'id' field returned by the query
                 if str(item.get('id')) == str(item_id):
                     item_info = item
-                    context.logger.info(f"DEBUG: Found matching item: {item_info}")
                     break
 
             if not item_info:
-                context.logger.info(f"DEBUG: Item {item_id} not found in list, creating DialogResponse")
-                try:
-                    response = DialogResponse(
-                        success=False,
-                        message="Item not found"
-                    )
-                    context.logger.info(f"DEBUG: Successfully created DialogResponse for item not found: {response}")
-                    return response
-                except Exception as e:
-                    context.logger.error(f"DEBUG: Error creating DialogResponse for item not found: {e}")
-                    raise
+                context.logger.warning(f"Item {item_id} not found in list {list_id}")
+                return DialogResponse(
+                    success=False,
+                    message="Item not found"
+                )
 
             # Confirm removal
-            context.logger.info(f"DEBUG: Showing confirmation dialog for item: {item_info['title']}")
             dialog = xbmcgui.Dialog()
             if not dialog.yesno(
                 L(30069),  # "Remove from List"
                 f"Remove '{item_info['title']}' from list?"
             ):
-                context.logger.info("DEBUG: User cancelled item removal, creating DialogResponse")
-                try:
-                    response = DialogResponse(success=False, message="")
-                    context.logger.info(f"DEBUG: Successfully created DialogResponse for cancellation: {response}")
-                    return response
-                except Exception as e:
-                    context.logger.error(f"DEBUG: Error creating DialogResponse for cancellation: {e}")
-                    raise
+                return DialogResponse(success=False, message="")
 
             # Remove the item
-            context.logger.info(f"DEBUG: Calling delete_item_from_list with list_id={list_id}, item_id={item_id}")
             result = query_manager.delete_item_from_list(list_id, item_id)
-            context.logger.info(f"DEBUG: delete_item_from_list returned: {result}")
 
             if result:
-                context.logger.info("DEBUG: Successfully removed item from list, creating success DialogResponse")
-                try:
-                    response = DialogResponse(
-                        success=True,
-                        message=f"Removed '{item_info['title']}' from list",
-                        refresh_needed=True
-                    )
-                    context.logger.info(f"DEBUG: Successfully created success DialogResponse: {response}")
-                    return response
-                except Exception as e:
-                    context.logger.error(f"DEBUG: Error creating success DialogResponse: {e}")
-                    raise
+                context.logger.info(f"Removed '{item_info['title']}' from list '{list_info['name']}'")
+                return DialogResponse(
+                    success=True,
+                    message=f"Removed '{item_info['title']}' from list",
+                    refresh_needed=True
+                )
             else:
-                context.logger.info("DEBUG: Failed to remove item from list, creating failure DialogResponse")
-                try:
-                    response = DialogResponse(
-                        success=False,
-                        message="Failed to remove item from list"
-                    )
-                    context.logger.info(f"DEBUG: Successfully created failure DialogResponse: {response}")
-                    return response
-                except Exception as e:
-                    context.logger.error(f"DEBUG: Error creating failure DialogResponse: {e}")
-                    raise
+                return DialogResponse(
+                    success=False,
+                    message="Failed to remove item from list"
+                )
 
         except Exception as e:
-            context.logger.error(f"DEBUG: Exception in remove_from_list: {e}")
-            import traceback
-            context.logger.error(f"DEBUG: Full traceback: {traceback.format_exc()}")
-            
-            try:
-                context.logger.info("DEBUG: Creating DialogResponse for exception")
-                response = DialogResponse(
-                    success=False,
-                    message="Error removing from list"
-                )
-                context.logger.info(f"DEBUG: Successfully created exception DialogResponse: {response}")
-                return response
-            except Exception as e2:
-                context.logger.error(f"DEBUG: Error creating exception DialogResponse: {e2}")
-                context.logger.error(f"DEBUG: DialogResponse import check:")
-                from .response_types import DialogResponse as DR
-                context.logger.error(f"DEBUG: DialogResponse class from import: {DR}")
-                context.logger.error(f"DEBUG: DialogResponse class direct: {DialogResponse}")
-                raise
+            context.logger.error(f"Error removing item from list: {e}")
+            return DialogResponse(
+                success=False,
+                message="Error removing from list"
+            )
 
     def create_folder(self, context: PluginContext) -> DialogResponse:
         """Handle creating a new folder"""
@@ -1598,33 +1527,24 @@ class ListsHandler:
     def remove_library_item_from_list(self, context: PluginContext, list_id: str, dbtype: str, dbid: str) -> bool:
         """Handle removing a library item from a list using dbtype and dbid"""
         try:
-            context.logger.info(f"DEBUG: Starting remove_library_item_from_list - dbtype={dbtype}, dbid={dbid}, list_id={list_id}")
-            context.logger.info(f"DEBUG: Parameter types - dbtype: {type(dbtype)}, dbid: {type(dbid)}, list_id: {type(list_id)}")
-
             # Initialize query manager
             query_manager = get_query_manager()
             if not query_manager.initialize():
-                context.logger.error("DEBUG: Failed to initialize query manager in remove_library_item_from_list")
+                context.logger.error("Failed to initialize query manager")
                 return False
 
             # Get list items to find the matching item
-            context.logger.info(f"DEBUG: Getting list items for list_id={list_id}")
             list_items = query_manager.get_list_items(list_id)
-            context.logger.info(f"DEBUG: Retrieved {len(list_items)} items for matching")
-            
             matching_item = None
 
-            for idx, item in enumerate(list_items):
-                context.logger.info(f"DEBUG: Checking item {idx}: kodi_id={item.get('kodi_id')}, media_type={item.get('media_type')}, id={item.get('id')}")
+            for item in list_items:
                 if (item.get('kodi_id') == int(dbid) and 
                     item.get('media_type') == dbtype):
                     matching_item = item
-                    context.logger.info(f"DEBUG: Found matching item: {matching_item}")
                     break
 
             if not matching_item or 'id' not in matching_item:
-                context.logger.warning(f"DEBUG: Could not find library item {dbtype}:{dbid} in list {list_id}")
-                context.logger.warning(f"DEBUG: matching_item: {matching_item}")
+                context.logger.warning(f"Could not find library item {dbtype}:{dbid} in list {list_id}")
                 xbmcgui.Dialog().notification(
                     "LibraryGenie",
                     "Item not found in list",
@@ -1633,18 +1553,7 @@ class ListsHandler:
                 return False
 
             # Use the regular remove method with the found item ID
-            context.logger.info(f"DEBUG: About to call remove_from_list with item_id={matching_item['id']}")
-            context.logger.info(f"DEBUG: Calling self.remove_from_list(context, {list_id}, {str(matching_item['id'])})")
-            
-            try:
-                response = self.remove_from_list(context, list_id, str(matching_item['id']))
-                context.logger.info(f"DEBUG: remove_from_list returned: {response}")
-                context.logger.info(f"DEBUG: Response type: {type(response)}")
-            except Exception as e:
-                context.logger.error(f"DEBUG: Error calling remove_from_list: {e}")
-                import traceback
-                context.logger.error(f"DEBUG: Traceback: {traceback.format_exc()}")
-                raise
+            response = self.remove_from_list(context, list_id, str(matching_item['id']))
 
             # Handle the DialogResponse
             from .response_types import DialogResponse

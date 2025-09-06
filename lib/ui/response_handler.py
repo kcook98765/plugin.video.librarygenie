@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -28,10 +27,6 @@ class ResponseHandler:
         Returns True if response was handled successfully
         """
         try:
-            self.logger.info(f"DEBUG: handle_dialog_response called with response: {response}")
-            self.logger.info(f"DEBUG: Response type: {type(response)}")
-            self.logger.info(f"DEBUG: Response attributes: {vars(response) if hasattr(response, '__dict__') else 'No __dict__'}")
-            
             if not isinstance(response, DialogResponse):
                 self.logger.warning(f"DEBUG: Expected DialogResponse but got {type(response)}")
                 return False
@@ -72,13 +67,13 @@ class ResponseHandler:
 
             # Get all parameters from the response
             kodi_params = response.to_kodi_params()
-            
+
             # Handle sort methods separately if provided
             sort_methods = kodi_params.get('sortMethods')
             if sort_methods and isinstance(sort_methods, (list, tuple)):
                 for sort_method in sort_methods:
                     xbmcplugin.addSortMethod(context.addon_handle, sort_method)
-            
+
             # End directory with proper parameters
             xbmcplugin.endOfDirectory(
                 context.addon_handle,
@@ -143,7 +138,7 @@ class ResponseHandler:
         try:
             # For failed operations, we might want to stay in current view
             # or navigate back to a safe location
-            
+
             # If there are specific failure navigation flags, handle them here
             if hasattr(response, 'navigate_on_failure'):
                 navigation_target = getattr(response, 'navigate_on_failure', None)
@@ -153,7 +148,7 @@ class ResponseHandler:
                     xbmc.executebuiltin(f'Container.Update({context.build_url("main_menu")},replace)')
                 elif navigation_target == 'favorites':
                     xbmc.executebuiltin(f'Container.Update({context.build_url("kodi_favorites")},replace)')
-                
+
                 xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
                 return True
 
