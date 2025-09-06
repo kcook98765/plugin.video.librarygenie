@@ -164,24 +164,42 @@ class InfoHijackManager:
     
 
     def _handle_native_info_closed(self):
-        """Handle the native info dialog being closed - restore container"""
+        """Handle the native info dialog being closed - use fast navigation instead of container refresh"""
         try:
-            # Retrieve saved return target
-            return_path = xbmc.getInfoLabel('Window(Home).Property(LG.InfoHijack.ReturnPath)')
-            return_position_str = xbmc.getInfoLabel('Window(Home).Property(LG.InfoHijack.ReturnPosition)')
+            # Check if fast back navigation is enabled (default: yes for performance)
+            use_fast_back = True  # Could be made configurable via settings
             
-            if return_path:
-                self._logger.debug(f"HIJACK: Restoring container to: {return_path}")
-                restore_container_after_close(return_path, return_position_str, self._logger)
+            if use_fast_back:
+                self._logger.debug("HIJACK: Using fast back navigation instead of container refresh")
+                # Simple back navigation - much faster than container rebuild
+                xbmc.executebuiltin('Action(Back)')
+                # Brief delay to let navigation complete
+                xbmc.sleep(100)
                 
-                # Clear the saved properties
+                # Clear any saved properties since we're not using them
                 xbmc.executebuiltin('ClearProperty(LG.InfoHijack.ReturnPath,Home)')
                 xbmc.executebuiltin('ClearProperty(LG.InfoHijack.ReturnPosition,Home)')
+                
             else:
-                self._logger.debug("HIJACK: No return path saved, skipping container restore")
+                # Original container refresh approach (slower but preserves exact position)
+                return_path = xbmc.getInfoLabel('Window(Home).Property(LG.InfoHijack.ReturnPath)')
+                return_position_str = xbmc.getInfoLabel('Window(Home).Property(LG.InfoHijack.ReturnPosition)')
+                
+                if return_path:
+                    self._logger.debug(f"HIJACK: Restoring container to: {return_path}")
+                    restore_container_after_close(return_path, return_position_str, self._logger)
+                    
+                    # Clear the saved properties
+                    xbmc.executebuiltin('ClearProperty(LG.InfoHijack.ReturnPath,Home)')
+                    xbmc.executebuiltin('ClearProperty(LG.InfoHijack.ReturnPosition,Home)')
+                else:
+                    self._logger.debug("HIJACK: No return path saved, using fast back navigation")
+                    xbmc.executebuiltin('Action(Back)')
                 
         except Exception as e:
-            self._logger.error(f"HIJACK: Error during container restore: {e}")
+            self._logger.error(f"HIJACK: Error during navigation: {e}")
+            # Fallback to simple back action
+            xbmc.executebuiltin('Action(Back)')
 
     def _debug_scan_container(self):
         """Debug method to scan container for armed items"""
