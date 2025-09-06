@@ -172,9 +172,9 @@ class InfoHijackManager:
             self._logger.debug("HIJACK: Issuing first back command")
             xbmc.executebuiltin('Action(Back)')
             
-            # Wait for navigation to complete
-            if not self._wait_for_navigation_complete("first back", max_wait=2.0):
-                self._logger.warning("HIJACK: First navigation may not have completed")
+            # Wait for navigation to complete - XSP navigation needs more time
+            if not self._wait_for_navigation_complete("first back", max_wait=3.0):
+                self._logger.debug("HIJACK: First back navigation continuing in background")
             
             # Check if we're now on an XSP path (our temporary list)
             current_path = xbmc.getInfoLabel("Container.FolderPath")
@@ -207,8 +207,8 @@ class InfoHijackManager:
                 xbmc.executebuiltin('Action(Back)')
                 
                 # Wait for second navigation to complete
-                if not self._wait_for_navigation_complete("second back", max_wait=2.0):
-                    self._logger.warning("HIJACK: Second navigation may not have completed")
+                if not self._wait_for_navigation_complete("second back", max_wait=2.5):
+                    self._logger.debug("HIJACK: Second back navigation continuing in background")
                 
                 # Verify we're back in plugin content
                 final_path = xbmc.getInfoLabel("Container.FolderPath")
@@ -235,22 +235,28 @@ class InfoHijackManager:
         """Wait for Kodi GUI to be ready to accept actions"""
         start_time = time.time()
         check_interval = 0.05  # 50ms checks
+        consecutive_ready_checks = 0
         
         while (time.time() - start_time) < max_wait:
-            # Check if any modal dialogs are animating
-            if not xbmc.getCondVisibility('Window.IsActive(DialogBusy.xml)'):
-                # Check if window manager is busy with animations
-                # This is the key check - wait for any animations to finish
-                xbmc.sleep(int(check_interval * 1000))
-                
-                # Double check that we're still not busy
-                if not xbmc.getCondVisibility('Window.IsActive(DialogBusy.xml)'):
+            # Multiple checks for GUI readiness
+            is_ready = (
+                not xbmc.getCondVisibility('Window.IsActive(DialogBusy.xml)') and
+                not xbmc.getCondVisibility('Window.IsActive(DialogProgress.xml)') and
+                not xbmc.getCondVisibility('System.HasModalDialog')
+            )
+            
+            if is_ready:
+                consecutive_ready_checks += 1
+                # Require multiple consecutive ready checks for stability
+                if consecutive_ready_checks >= 3:
                     self._logger.debug(f"HIJACK: GUI ready {context} after {time.time() - start_time:.3f}s")
                     return True
+            else:
+                consecutive_ready_checks = 0
             
             xbmc.sleep(int(check_interval * 1000))
         
-        self._logger.warning(f"HIJACK: GUI readiness timeout {context} after {max_wait}s")
+        self._logger.warning(f"HIJACK: GUI readiness timeout {context} after {max_wait:.1f}s")
         return False
 
     def _wait_for_navigation_complete(self, context: str, max_wait: float = 2.0) -> bool:
@@ -260,27 +266,41 @@ class InfoHijackManager:
         initial_path = xbmc.getInfoLabel("Container.FolderPath")
         path_change_detected = False
         stable_count = 0
+        last_path = initial_path
+        
+        # For XSP navigation, we need more patience
+        if "first back" in context and max_wait < 3.0:
+            max_wait = 3.0  # Give XSP navigation more time
         
         while (time.time() - start_time) < max_wait:
             current_path = xbmc.getInfoLabel("Container.FolderPath")
             
-            # First detect that path has changed
-            if current_path != initial_path:
+            # First detect that path has changed from initial
+            if current_path != initial_path and current_path:
                 path_change_detected = True
             
-            # Once we've seen a change, wait for stability
+            # Check for path stability once we've detected a change
             if path_change_detected:
-                stable_count += 1
-                if stable_count >= 3:  # 150ms of stability
-                    self._logger.debug(f"HIJACK: Navigation complete {context} after {time.time() - start_time:.3f}s - Path: '{current_path}'")
-                    return True
-            else:
-                stable_count = 0
+                if current_path == last_path:
+                    stable_count += 1
+                    # Require longer stability for first back (XSP navigation)
+                    required_stability = 6 if "first back" in context else 3
+                    if stable_count >= required_stability:
+                        self._logger.debug(f"HIJACK: Navigation complete {context} after {time.time() - start_time:.3f}s - Path: '{current_path}'")
+                        return True
+                else:
+                    stable_count = 0  # Reset if path is still changing
+                    last_path = current_path
             
             xbmc.sleep(int(check_interval * 1000))
         
         final_path = xbmc.getInfoLabel("Container.FolderPath")
-        self._logger.warning(f"HIJACK: Navigation timeout {context} after {max_wait}s - Final path: '{final_path}'")
+        # Only warn if no path change was detected at all
+        if not path_change_detected:
+            self._logger.warning(f"HIJACK: Navigation timeout {context} after {max_wait:.1f}s - No path change detected. Final path: '{final_path}'")
+        else:
+            self._logger.debug(f"HIJACK: Navigation {context} took {time.time() - start_time:.3f}s (may still be completing) - Final path: '{final_path}'")
+        
         return path_change_detected
 
     def _debug_scan_container(self):
