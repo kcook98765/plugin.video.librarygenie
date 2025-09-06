@@ -170,9 +170,10 @@ class InfoHijackManager:
             
             self._logger.debug(f"HIJACK: Initial state - Path: '{initial_path}', Window: '{initial_window}'")
             
-            # Wait for dialog close animation to complete (shorter wait)
-            if not self._wait_for_gui_ready("after dialog close", max_wait=1.0):
-                self._logger.warning("HIJACK: GUI not ready after 1s, proceeding anyway")
+            # Wait for dialog close animation to complete with longer timeout
+            # The log shows animations can take 4+ seconds, so we need patience here
+            if not self._wait_for_gui_ready_extended("after dialog close", max_wait=5.0):
+                self._logger.warning("HIJACK: GUI not ready after 5s, proceeding anyway")
             
             # Check current state after GUI stabilizes
             current_path = xbmc.getInfoLabel("Container.FolderPath")
@@ -194,8 +195,8 @@ class InfoHijackManager:
                     self._cleanup_properties()
                     return
             
-            # Use conservative navigation - always try single back first, only add second if needed
-            self._logger.debug(f"HIJACK: Starting conservative navigation approach")
+            # Use conservative navigation with better timing
+            self._logger.debug(f"HIJACK: Starting conservative navigation approach with improved timing")
             
             # Strategy: Always try single back first, check result, then decide if more navigation needed
             if not self._execute_single_back_with_verification():
@@ -233,10 +234,15 @@ class InfoHijackManager:
         # Record where we are before the back command
         initial_path = xbmc.getInfoLabel("Container.FolderPath")
         
+        # Execute back command with validation that it was accepted
+        self._logger.debug("HIJACK: Executing Action(Back)")
         xbmc.executebuiltin('Action(Back)')
         
+        # Brief wait to let the action register before checking
+        xbmc.sleep(100)
+        
         # Wait for navigation to complete with more patience
-        success = self._wait_for_plugin_content("single back", max_wait=2.0)
+        success = self._wait_for_plugin_content("single back", max_wait=3.0)  # Increased timeout
         
         if success:
             final_path = xbmc.getInfoLabel("Container.FolderPath")
@@ -260,10 +266,16 @@ class InfoHijackManager:
         # Only execute additional back if we're still not in plugin content
         if current_path and 'plugin.video.librarygenie' not in current_path:
             self._logger.debug("HIJACK: Executing one additional back command")
+            
+            # Add small delay before second back command to ensure first completed
+            xbmc.sleep(150)
             xbmc.executebuiltin('Action(Back)')
             
-            # Wait for this navigation to complete
-            if self._wait_for_plugin_content("additional back", max_wait=2.0):
+            # Brief wait to let the action register
+            xbmc.sleep(100)
+            
+            # Wait for this navigation to complete with increased timeout
+            if self._wait_for_plugin_content("additional back", max_wait=3.0):
                 final_path = xbmc.getInfoLabel("Container.FolderPath")
                 self._logger.info(f"HIJACK: Additional back succeeded - Final path: '{final_path}'")
             else:
@@ -378,6 +390,47 @@ class InfoHijackManager:
             xbmc.sleep(int(check_interval * 1000))
         
         self._logger.warning(f"HIJACK: GUI readiness timeout {context} after {max_wait:.1f}s")
+        return False
+
+    def _wait_for_gui_ready_extended(self, context: str, max_wait: float = 5.0) -> bool:
+        """Wait for Kodi GUI to be ready with extended timeout for dialog animations"""
+        start_time = time.time()
+        check_interval = 0.1  # 100ms checks for longer waits
+        consecutive_ready_checks = 0
+        animation_detected = False
+        
+        while (time.time() - start_time) < max_wait:
+            # Check for dialog animation in progress (this is the key issue from the log)
+            has_modal = xbmc.getCondVisibility('System.HasModalDialog')
+            is_busy = xbmc.getCondVisibility('Window.IsActive(DialogBusy.xml)')
+            is_progress = xbmc.getCondVisibility('Window.IsActive(DialogProgress.xml)')
+            
+            # Additional check for window manager busy state
+            window_manager_busy = xbmc.getCondVisibility('Window.IsMedia') and has_modal
+            
+            is_ready = not (has_modal or is_busy or is_progress or window_manager_busy)
+            
+            # Log when we detect animation state
+            if (has_modal or window_manager_busy) and not animation_detected:
+                animation_detected = True
+                elapsed = time.time() - start_time
+                self._logger.info(f"HIJACK: Dialog animation detected at {elapsed:.3f}s - waiting for completion")
+            
+            if is_ready:
+                consecutive_ready_checks += 1
+                # Require more consecutive checks for longer waits
+                required_checks = 5 if animation_detected else 3
+                if consecutive_ready_checks >= required_checks:
+                    elapsed = time.time() - start_time
+                    self._logger.info(f"HIJACK: GUI ready {context} after {elapsed:.3f}s (animation_detected={animation_detected})")
+                    return True
+            else:
+                consecutive_ready_checks = 0
+            
+            xbmc.sleep(int(check_interval * 1000))
+        
+        elapsed = time.time() - start_time
+        self._logger.warning(f"HIJACK: GUI readiness timeout {context} after {elapsed:.1f}s (animation_detected={animation_detected})")
         return False
 
     def _wait_for_navigation_complete(self, context: str, max_wait: float = 2.0) -> bool:
