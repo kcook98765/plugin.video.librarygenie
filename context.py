@@ -13,9 +13,14 @@ import xbmcgui
 import urllib.parse
 from typing import List, Union
 
+# Add the addon lib path so we can import our modules
+addon_path = xbmcaddon.Addon().getAddonInfo('path')
+lib_path = xbmc.translatePath(addon_path + '/lib')
+sys.path.append(lib_path)
+
 # Import localization module
 try:
-    from resources.lib.ui.localization import L
+    from ui.localization import L
 except ImportError:
     # Fallback for simple string retrieval
     def L(string_id, fallback=""):
