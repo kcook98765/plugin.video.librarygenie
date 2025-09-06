@@ -97,8 +97,9 @@ def wait_until(cond, timeout_ms=2000, step_ms=30) -> bool:
 
 def _wait_for_info_dialog(timeout=10.0):
     """
-    Block until the DialogVideoInfo window is active (skin dep. but standard on Kodi 19+).
-    Extended timeout and better handling for subtitle/metadata scanning delays.
+    Block until the DialogVideoInfo window is active and usable (not fully loaded).
+    Uses earlier detection strategy - accepts dialog as soon as basic structure is present,
+    rather than waiting for all metadata/images to finish loading.
     """
     t_start = time.perf_counter()
     end = time.time() + timeout
@@ -106,8 +107,9 @@ def _wait_for_info_dialog(timeout=10.0):
     scan_detected = False
     last_dialog_id = None
     last_busy_state = None
+    dialog_first_detected = None
 
-    _log(f"_wait_for_info_dialog: Starting wait for info dialog with {timeout:.1f}s timeout")
+    _log(f"_wait_for_info_dialog: Starting EARLY DETECTION wait for info dialog with {timeout:.1f}s timeout")
 
     while time.time() < end:
         check_count += 1
@@ -139,21 +141,61 @@ def _wait_for_info_dialog(timeout=10.0):
             elapsed = time.perf_counter() - t_start
             _log(f"_wait_for_info_dialog: check #{check_count} ({elapsed:.1f}s) - dialog_id={current_dialog_id}, busy={is_busy}")
 
+        # EARLY DETECTION: Dialog structure present
         if current_dialog_id in (12003, 10147):  # DialogVideoInfo / Fallback
-            t_end = time.perf_counter()
-            _log(f"_wait_for_info_dialog: SUCCESS after {check_count} checks ({t_end - t_start:.3f}s) - dialog_id={current_dialog_id}")
-            if scan_detected:
-                _log(f"_wait_for_info_dialog: Dialog opened after file scanning completed")
-            return True
+            if dialog_first_detected is None:
+                dialog_first_detected = time.perf_counter()
+                elapsed_to_detection = dialog_first_detected - t_start
+                _log(f"_wait_for_info_dialog: EARLY DETECTION - Dialog structure detected at {elapsed_to_detection:.3f}s")
             
-        # Use adaptive sleep - shorter during scanning, longer when stable
-        sleep_time = 30 if is_busy else 50
+            # Check if dialog is "usable" rather than "fully loaded"
+            # Look for basic dialog elements being present, not complete metadata
+            basic_title = xbmc.getInfoLabel('ListItem.Title')
+            basic_label = xbmc.getInfoLabel('ListItem.Label')
+            dialog_ready = bool(basic_title or basic_label)
+            
+            # Additional usability check - dialog controls should be responsive
+            control_ready = not xbmc.getCondVisibility('System.HasModalDialog')
+            
+            elapsed_since_detected = time.perf_counter() - dialog_first_detected
+            
+            # Early acceptance criteria:
+            # 1. Dialog structure is present (dialog_id matches)
+            # 2. Basic content is available (title/label populated)
+            # 3. Dialog is interactive (no modal blocking)
+            # 4. Either not busy OR reasonable wait time has passed since detection
+            early_accept = (
+                dialog_ready and 
+                control_ready and 
+                (not is_busy or elapsed_since_detected > 0.2)  # Accept after 200ms even if still busy
+            )
+            
+            if early_accept:
+                t_end = time.perf_counter()
+                _log(f"_wait_for_info_dialog: EARLY SUCCESS after {check_count} checks ({t_end - t_start:.3f}s) - dialog_id={current_dialog_id}")
+                _log(f"_wait_for_info_dialog: Early acceptance criteria met - basic_content={dialog_ready}, interactive={control_ready}, wait_since_detect={elapsed_since_detected:.3f}s")
+                if scan_detected:
+                    _log(f"_wait_for_info_dialog: Dialog accepted while background scanning may still be active")
+                return True
+            else:
+                # Log why we're not accepting yet
+                if check_count % 10 == 0:  # Every 10th check when dialog is detected but not ready
+                    _log(f"_wait_for_info_dialog: Dialog detected but not ready - basic_content={dialog_ready}, interactive={control_ready}, busy={is_busy}, wait_time={elapsed_since_detected:.3f}s")
+            
+        # Use adaptive sleep - very short when dialog detected, normal otherwise
+        if dialog_first_detected:
+            sleep_time = 20  # Fast polling once dialog structure is detected
+        else:
+            sleep_time = 30 if is_busy else 50  # Normal polling while waiting for dialog
         xbmc.sleep(sleep_time)
 
     t_end = time.perf_counter()
     final_dialog_id = xbmcgui.getCurrentWindowDialogId()
     final_busy = xbmc.getCondVisibility('Window.IsActive(DialogBusy.xml)')
     _log(f"_wait_for_info_dialog: TIMEOUT after {check_count} checks ({t_end - t_start:.3f}s) - final_dialog_id={final_dialog_id}, still_busy={final_busy}", xbmc.LOGWARNING)
+    if dialog_first_detected:
+        elapsed_detected = t_end - dialog_first_detected
+        _log(f"_wait_for_info_dialog: Dialog was detected {elapsed_detected:.3f}s ago but never became usable", xbmc.LOGWARNING)
     if scan_detected:
         _log(f"_wait_for_info_dialog: Timeout occurred after file scanning was detected - this may indicate slow network storage", xbmc.LOGWARNING)
     return False
