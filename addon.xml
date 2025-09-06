@@ -10,8 +10,13 @@
     <provides>video</provides>
   </extension>
   <extension point="xbmc.service" library="service.py" start="login"/>
-  <extension point="xbmc.python.script" library="context.py">
-    <provides>executable</provides>
+  <extension point="kodi.context.item">
+    <menu id="kodi.core.main">
+      <item library="context.py">
+        <label>Add to LibraryGenie List...</label>
+        <visible>true</visible>
+      </item>
+    </menu>
   </extension>
   <extension point="xbmc.addon.metadata">
     <platform>all</platform>
