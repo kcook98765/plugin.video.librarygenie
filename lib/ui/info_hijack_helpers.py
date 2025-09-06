@@ -455,7 +455,7 @@ def open_native_info_fast(dbtype: str, dbid: int, logger) -> bool:
     <name>lg_hijack_{dbtype}_{dbid}</name>
     <match>one</match>
     <rule field="{filter_field}" operator="is">
-        <value>{html.escape(str(dbid))}</value>
+        <value>{dbid}</value>
     </rule>
     <order direction="ascending">sorttitle</order>
 </smartplaylist>'''
