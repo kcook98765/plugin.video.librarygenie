@@ -407,79 +407,35 @@ def _get_file_for_dbitem(dbtype: str, dbid: int) -> Optional[str]:
         return None
     return None
 
-def _create_xsp_for_dbitem(db_type: str, db_id: int) -> Optional[str]:
+def _create_videodb_url(db_type: str, db_id: int) -> Optional[str]:
     """
-    Create XSP file that filters to a specific database item by ID.
-    This creates a native Kodi list containing just the target item.
+    Create a videodb:// URL that points directly to a database item.
+    This is Kodi's native way to reference library items and ensures full metadata population.
     """
     try:
-        _log(f"Creating XSP for database item {db_type} {db_id}")
-        
-        # Get the actual file path from the database item
-        file_path = _get_file_for_dbitem(db_type, db_id)
-        if not file_path:
-            _log(f"No file path found for {db_type} {db_id}", xbmc.LOGWARNING)
-            return None
-        
-        filename = os.path.basename(file_path)
-        filename_no_ext = os.path.splitext(filename)[0]
-        _log(f"Creating XSP for {db_type} {db_id}: filename='{filename}', no_ext='{filename_no_ext}'")
-        
-        name = f"LG Hijack {db_type} {db_id}"
+        _log(f"Creating videodb URL for database item {db_type} {db_id}")
         
         if db_type.lower() == 'movie':
-            # Create XSP that filters movies by database ID (ensures full metadata population)
-            xsp = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<smartplaylist type="movies">
-  <name>{html.escape(name)}</name>
-  <match>all</match>
-  <rule field="dbid" operator="is">
-    <value>{db_id}</value>
-  </rule>
-  <order direction="ascending">title</order>
-</smartplaylist>"""
+            # Direct movie database reference
+            videodb_url = f"videodb://movies/titles/{db_id}"
+            _log(f"Created movie videodb URL: {videodb_url}")
+            return videodb_url
         elif db_type.lower() == 'episode':
-            # Create XSP that filters episodes by database ID (ensures full metadata population)
-            xsp = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<smartplaylist type="episodes">
-  <name>{html.escape(name)}</name>
-  <match>all</match>
-  <rule field="dbid" operator="is">
-    <value>{db_id}</value>
-  </rule>
-  <order direction="ascending">title</order>
-</smartplaylist>"""
+            # Direct episode database reference  
+            videodb_url = f"videodb://tvshows/titles/{db_id}/?tvshowid=-1"
+            _log(f"Created episode videodb URL: {videodb_url}")
+            return videodb_url
+        elif db_type.lower() == 'tvshow':
+            # TV show reference
+            videodb_url = f"videodb://tvshows/titles/{db_id}/"
+            _log(f"Created tvshow videodb URL: {videodb_url}")
+            return videodb_url
         else:
-            _log(f"Unsupported db_type for XSP creation: {db_type}", xbmc.LOGWARNING)
-            return None
-        
-        # Use profile playlists path
-        playlists_dir = "special://profile/playlists/video/"
-        xsp_filename = f"lg_hijack_{db_type}_{db_id}.xsp"
-        path = playlists_dir + xsp_filename
-        
-        # Ensure playlists directory exists
-        try:
-            if not xbmcvfs.exists(playlists_dir):
-                _log(f"Creating playlists directory: {playlists_dir}")
-                xbmcvfs.mkdirs(playlists_dir)
-        except Exception as e:
-            _log(f"Failed to create playlists directory: {e}", xbmc.LOGWARNING)
-            # Fallback to temp
-            path = f"special://temp/{xsp_filename}"
-        
-        # Log the XSP content for debugging
-        _log(f"XSP content for {db_type} {db_id}:\n{xsp}")
-        
-        if _write_text(path, xsp):
-            _log(f"XSP created successfully: {path}")
-            return path
-        else:
-            _log(f"Failed to write XSP file: {path}", xbmc.LOGWARNING)
+            _log(f"Unsupported db_type for videodb URL creation: {db_type}", xbmc.LOGWARNING)
             return None
             
     except Exception as e:
-        _log(f"Exception creating XSP for {db_type} {db_id}: {e}", xbmc.LOGERROR)
+        _log(f"Exception creating videodb URL for {db_type} {db_id}: {e}", xbmc.LOGERROR)
         return None
 
 def _create_xsp_for_file(dbtype: str, dbid: int) -> Optional[str]:
@@ -664,40 +620,40 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         substep1_end = time.perf_counter()
         logger.info(f"⏱️ SUBSTEP 1 TIMING: {substep1_end - substep1_start:.3f}s")
         
-        # 📝 SUBSTEP 2: Create XSP file for single item to create a native list
+        # 📝 SUBSTEP 2: Create videodb URL for direct database navigation
         substep2_start = time.perf_counter()
-        logger.info(f"📝 SUBSTEP 2: Creating XSP file for {db_type} {db_id}")
-        start_xsp_time = time.perf_counter()
-        xsp_path = _create_xsp_for_dbitem(db_type, db_id)
-        end_xsp_time = time.perf_counter()
+        logger.info(f"📝 SUBSTEP 2: Creating videodb URL for {db_type} {db_id}")
+        start_url_time = time.perf_counter()
+        videodb_url = _create_videodb_url(db_type, db_id)
+        end_url_time = time.perf_counter()
         
-        if not xsp_path:
-            logger.warning(f"❌ SUBSTEP 2 FAILED: Failed to create XSP for {db_type} {db_id}")
+        if not videodb_url:
+            logger.warning(f"❌ SUBSTEP 2 FAILED: Failed to create videodb URL for {db_type} {db_id}")
             return False
-        logger.info(f"✅ SUBSTEP 2 COMPLETE: XSP created at {xsp_path} in {end_xsp_time - start_xsp_time:.3f}s")
+        logger.info(f"✅ SUBSTEP 2 COMPLETE: VideoDB URL created: {videodb_url} in {end_url_time - start_url_time:.3f}s")
         substep2_end = time.perf_counter()
         logger.info(f"⏱️ SUBSTEP 2 TIMING: {substep2_end - substep2_start:.3f}s")
         
-        # 🧭 SUBSTEP 3: Navigate to the XSP (creates native Kodi list with single item)
+        # 🧭 SUBSTEP 3: Navigate to the videodb URL (direct database navigation)
         substep3_start = time.perf_counter()
-        logger.info(f"🧭 SUBSTEP 3: Navigating to native list: {xsp_path}")
+        logger.info(f"🧭 SUBSTEP 3: Navigating to database item: {videodb_url}")
         current_window_before = xbmcgui.getCurrentWindowId()
         start_nav_time = time.perf_counter()
         logger.info(f"SUBSTEP 3 DEBUG: About to execute ActivateWindow command at {start_nav_time - overall_start_time:.3f}s")
-        xbmc.executebuiltin(f'ActivateWindow(Videos,"{xsp_path}",return)')
+        xbmc.executebuiltin(f'ActivateWindow(Videos,"{videodb_url}",return)')
         activate_window_end = time.perf_counter()
         logger.info(f"SUBSTEP 3 DEBUG: ActivateWindow command executed in {activate_window_end - start_nav_time:.3f}s")
         
         # ⏳ SUBSTEP 4: Wait for the Videos window to load with our item
         substep4_start = time.perf_counter()
-        logger.info(f"⏳ SUBSTEP 4: Waiting for Videos window to load with XSP content")
+        logger.info(f"⏳ SUBSTEP 4: Waiting for Videos window to load with database content")
         wait_start = time.perf_counter()
-        if not _wait_videos_on(xsp_path, timeout_ms=4000):
+        if not _wait_videos_on(videodb_url, timeout_ms=4000):
             wait_end = time.perf_counter()
             end_nav_time = time.perf_counter()
             current_window_after = xbmcgui.getCurrentWindowId()
             current_path = xbmc.getInfoLabel("Container.FolderPath")
-            logger.warning(f"❌ SUBSTEP 4 FAILED: Failed to load Videos window with XSP: {xsp_path} after {end_nav_time - start_nav_time:.3f}s")
+            logger.warning(f"❌ SUBSTEP 4 FAILED: Failed to load Videos window with videodb URL: {videodb_url} after {end_nav_time - start_nav_time:.3f}s")
             logger.warning(f"SUBSTEP 4 DEBUG: Window before={current_window_before}, after={current_window_after}, current_path='{current_path}'")
             logger.warning(f"⏱️ SUBSTEP 4 WAIT TIMING: {wait_end - wait_start:.3f}s")
             return False
