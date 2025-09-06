@@ -296,26 +296,16 @@ class ListItemRenderer:
         """Create a simple ListItem for menu items (compatibility method for MenuBuilder)"""
         try:
             kodi_major = get_kodi_major_version()
-            self.logger.info(f"SIMPLE LISTITEM: Creating for '{title}' (Kodi v{kodi_major}) - caller action='{action}'")
-
-            # Add stack trace to identify caller
-            import traceback
-            stack_info = traceback.extract_stack()
-            caller_info = stack_info[-3] if len(stack_info) > 2 else "unknown"
-            self.logger.info(f"SIMPLE LISTITEM CALLER: {caller_info.filename}:{caller_info.lineno} in {caller_info.name}")
-
             list_item = xbmcgui.ListItem(label=title)
 
             # Set basic info - version-specific approach
             if kodi_major >= 20:
                 # v20+: Use InfoTagVideo setters only, no setInfo() fallback
                 try:
-                    self.logger.info(f"SIMPLE LISTITEM v{kodi_major}: Using InfoTagVideo approach for '{title}'")
                     video_info_tag = list_item.getVideoInfoTag()
                     video_info_tag.setTitle(title)
                     if description:
                         video_info_tag.setPlot(description)
-                    self.logger.info(f"SIMPLE LISTITEM v{kodi_major}: Successfully set metadata via InfoTagVideo for '{title}'")
                 except Exception as e:
                     self.logger.error(f"SIMPLE LISTITEM v{kodi_major}: InfoTagVideo FAILED for '{title}': {e}")
                     # On v21+, completely avoid setInfo() to prevent deprecation warnings
@@ -327,13 +317,11 @@ class ListItemRenderer:
                         list_item.setInfo('video', info)
             else:
                 # v19: Use setInfo() only
-                self.logger.info(f"SIMPLE LISTITEM v{kodi_major}: Using setInfo() approach for '{title}'")
                 info = {'title': title}
                 if description:
                     info['plot'] = description
 
                 list_item.setInfo('video', info)
-                self.logger.info(f"SIMPLE LISTITEM v{kodi_major}: Successfully set metadata via setInfo for '{title}'")
 
             # Set icon/artwork
             art = {}
@@ -345,7 +333,6 @@ class ListItemRenderer:
                 art['thumb'] = 'DefaultFolder.png'
 
             list_item.setArt(art)
-            self.logger.info(f"SIMPLE LISTITEM: Successfully created for '{title}' with action '{action}'")
             return list_item
 
         except Exception as e:
