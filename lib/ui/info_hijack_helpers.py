@@ -73,6 +73,10 @@ def wait_until(cond, timeout_ms=2000, step_ms=30) -> bool:
     end = time.time() + (timeout_ms / 1000.0)
     mon = xbmc.Monitor()
     check_count = 0
+    
+    # Use adaptive polling - start fast, then slow down
+    current_step_ms = min(step_ms, 30)  # Start with quick polls
+    max_step_ms = max(step_ms, 200)     # Cap at reasonable interval
 
     while time.time() < end and not mon.abortRequested():
         check_count += 1
@@ -80,7 +84,12 @@ def wait_until(cond, timeout_ms=2000, step_ms=30) -> bool:
             t_end = time.perf_counter()
             _log(f"wait_until: SUCCESS after {check_count} checks ({t_end - t_start:.3f}s, timeout was {timeout_ms}ms)")
             return True
-        xbmc.sleep(step_ms)
+        
+        xbmc.sleep(current_step_ms)
+        
+        # Gradually increase polling interval to reduce CPU overhead on slower devices
+        if check_count > 5:  # After initial quick checks
+            current_step_ms = min(current_step_ms + 10, max_step_ms)
 
     t_end = time.perf_counter()
     _log(f"wait_until: TIMEOUT after {check_count} checks ({t_end - t_start:.3f}s, timeout was {timeout_ms}ms)", xbmc.LOGWARNING)
@@ -349,14 +358,15 @@ def _wait_videos_on(path: str, timeout_ms=6000) -> bool:
         num_items = int(xbmc.getInfoLabel("Container.NumItems") or "0")
         not_busy = not xbmc.getCondVisibility("Window.IsActive(DialogBusy.xml)")
 
-        # Log detailed status every 500ms for debugging
+        # Reduced logging frequency for better performance on slower devices
         elapsed = time.perf_counter() - t_start
-        if int(elapsed * 2) % 1 == 0:  # Every 500ms
-            _log(f"_wait_videos_on check ({elapsed:.1f}s): window_active={window_active}, path_match={path_match} ('{folder_path}' vs '{t_norm}'), items={num_items}, not_busy={not_busy}")
+        if int(elapsed) % 2 == 0 and elapsed - int(elapsed) < 0.2:  # Every 2 seconds
+            _log(f"_wait_videos_on check ({elapsed:.1f}s): window_active={window_active}, path_match={path_match}, items={num_items}, not_busy={not_busy}")
 
         return window_active and path_match and num_items > 0 and not_busy
 
-    result = wait_until(check_condition, timeout_ms=timeout_ms, step_ms=100)
+    # Extended timeout but larger step size for slower devices
+    result = wait_until(check_condition, timeout_ms=max(timeout_ms, 8000), step_ms=150)
     t_end = time.perf_counter()
 
     if result:
@@ -508,24 +518,24 @@ def restore_container_after_close(orig_path: str, position_str: str, logger) -> 
 
     _log(f"Restoring container to: {orig_path} (position: {position})")
 
-    # Wait a brief moment to ensure dialog is fully closed
-    xbmc.sleep(100)
+    # Reduced delay for faster response, but still safe
+    xbmc.sleep(50)
 
     # Restore the container
     xbmc.executebuiltin(f'Container.Update("{orig_path}",replace)')
 
-    # Wait for container to update
+    # Extended timeout for slower hardware, but less frequent polling
     t_start = time.perf_counter()
     updated = wait_until(
         lambda: (xbmc.getInfoLabel("Container.FolderPath") or "").rstrip('/') == orig_path.rstrip('/'),
-        timeout_ms=3000,
-        step_ms=100
+        timeout_ms=6000,  # Extended timeout for slower devices
+        step_ms=150       # Less frequent polling to reduce overhead
     )
 
     if updated and position > 0:
-        # Restore position
+        # Restore position with minimal delay
         _log(f"Restoring list position to: {position}")
-        xbmc.sleep(50)  # Brief delay before position restore
+        xbmc.sleep(25)  # Reduced delay
         xbmc.executebuiltin(f'Action(SelectItem,{position})')
 
     t_end = time.perf_counter()
