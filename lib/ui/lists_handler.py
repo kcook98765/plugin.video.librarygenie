@@ -288,12 +288,12 @@ class ListsHandler:
             # Show confirmation dialog
             dialog = xbmcgui.Dialog()
             if not dialog.yesno(
-                heading=L(34600),  # "Confirm Action"
-                line1=L(30501),    # "Are you sure you want to delete this list?"
-                line2=L(30502),    # "This will permanently remove the list and all its items."
-                line3="",
-                nolabel=L(36003),  # "Cancel"
-                yeslabel=L(37017)  # "Delete"
+                34600,  # "Confirm Action"
+                30501,  # "Are you sure you want to delete this list?"
+                30502,  # "This will permanently remove the list and all its items."
+                "",
+                36003,  # "Cancel"
+                37017   # "Delete"
             ):
                 context.logger.info("User cancelled list deletion")
                 return DialogResponse(success=False, message="")
@@ -457,11 +457,7 @@ class ListsHandler:
             dialog = xbmcgui.Dialog()
             if not dialog.yesno(
                 L(30069),  # "Remove from List"
-                L(37011) % item_info['title'],  # "Remove '%s' from list?"
-                "",
-                "",
-                L(36003),  # "Cancel"
-                L(30069)   # "Remove"
+                f"Remove '{item_info['title']}' from list?"
             ):
                 context.logger.info("DEBUG: User cancelled item removal, creating DialogResponse")
                 try:
@@ -681,12 +677,12 @@ class ListsHandler:
             # Show confirmation dialog
             dialog = xbmcgui.Dialog()
             if not dialog.yesno(
-                heading=L(30072),  # "Delete Folder"
-                line1=L(37009) % folder_name,  # "Delete folder: %s?"
-                line2=L(37010),    # "This will also delete all lists in this folder."
-                line3=L(34602),    # "This action cannot be undone."
-                nolabel=L(36003),  # "Cancel"
-                yeslabel=L(30013)  # "Delete"
+                30072,  # "Delete Folder"
+                37009,  # "Delete folder: %s?" - Kodi will handle string formatting
+                37010,  # "This will also delete all lists in this folder."
+                34602,  # "This action cannot be undone."
+                36003,  # "Cancel"
+                30013   # "Delete"
             ):
                 context.logger.info("User cancelled folder deletion")
                 return DialogResponse(success=False, message="")
