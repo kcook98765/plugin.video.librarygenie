@@ -160,9 +160,9 @@ class InfoHijackManager:
     
 
     def _handle_native_info_closed(self):
-        """Handle the native info dialog being closed - optimized for XSP-free navigation"""
+        """Handle the native info dialog being closed - detect XSP and navigate properly"""
         try:
-            self._logger.debug("HIJACK: Native info dialog closed, starting optimized navigation")
+            self._logger.debug("HIJACK: Native info dialog closed, starting navigation")
             
             # Wait for dialog close animation to complete
             if not self._wait_for_gui_ready_extended("after dialog close", max_wait=3.0):
@@ -174,28 +174,48 @@ class InfoHijackManager:
             
             self._logger.debug(f"HIJACK: Current state - Path: '{current_path}', Window: '{current_window}'")
             
-            # Since we used ReplaceWindow, the XSP shouldn't be in navigation history
-            # Try single back which should go directly to the original plugin list
-            self._logger.info("HIJACK: Executing optimized single back navigation")
+            # Execute first back command
+            self._logger.info("HIJACK: Executing first back command")
             xbmc.executebuiltin('Action(Back)')
             
-            # Wait for navigation to complete
-            if self._wait_for_plugin_content("optimized back", max_wait=2.0):
-                final_path = xbmc.getInfoLabel("Container.FolderPath")
-                self._logger.info(f"HIJACK: Optimized back succeeded - Final path: '{final_path}'")
+            # Wait for first navigation to complete
+            if self._wait_for_navigation_complete("first back", max_wait=3.0):
+                # Check if we're now on an XSP path
+                after_back_path = xbmc.getInfoLabel("Container.FolderPath")
+                self._logger.debug(f"HIJACK: After first back - Path: '{after_back_path}'")
+                
+                # Check if we're on XSP path that needs second back
+                if self._is_currently_on_xsp(after_back_path, xbmc.getInfoLabel("System.CurrentWindow")):
+                    self._logger.info(f"HIJACK: Detected XSP path: '{after_back_path}', issuing second back")
+                    xbmc.sleep(150)  # Brief pause between back commands
+                    xbmc.executebuiltin('Action(Back)')
+                    
+                    # Wait for second navigation to complete
+                    if self._wait_for_plugin_content("second back", max_wait=2.0):
+                        final_path = xbmc.getInfoLabel("Container.FolderPath")
+                        self._logger.info(f"HIJACK: Second back succeeded - Final path: '{final_path}'")
+                    else:
+                        final_path = xbmc.getInfoLabel("Container.FolderPath")
+                        self._logger.warning(f"HIJACK: Second back timeout - Final path: '{final_path}'")
+                else:
+                    # We're already in plugin content, check if we need to navigate from folder to list
+                    if 'plugin.video.librarygenie' in after_back_path:
+                        self._logger.info(f"HIJACK: Already in plugin content: '{after_back_path}'")
+                        if 'action=show_folder' in after_back_path and 'action=show_list' not in after_back_path:
+                            self._logger.debug("HIJACK: On folder level, navigating forward to list")
+                            self._execute_forward_to_list()
+                    else:
+                        self._logger.info(f"HIJACK: Not on XSP, but not in plugin content yet: '{after_back_path}'")
+                        # Try additional back if needed
+                        self._execute_additional_back_if_needed()
             else:
-                # Fallback: if single back didn't work, try one more
-                self._logger.debug("HIJACK: Single back insufficient, trying fallback")
-                xbmc.sleep(150)
-                xbmc.executebuiltin('Action(Back)')
-                if self._wait_for_plugin_content("fallback back", max_wait=2.0):
-                    final_path = xbmc.getInfoLabel("Container.FolderPath")
-                    self._logger.info(f"HIJACK: Fallback back succeeded - Final path: '{final_path}'")
+                self._logger.warning("HIJACK: First back navigation timeout, trying fallback")
+                self._fallback_navigation()
             
             self._cleanup_properties()
                 
         except Exception as e:
-            self._logger.error(f"HIJACK: Error during optimized navigation: {e}")
+            self._logger.error(f"HIJACK: Error during navigation: {e}")
             self._fallback_navigation()
 
     def _is_currently_on_xsp(self, path: str, window: str) -> bool:
