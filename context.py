@@ -231,15 +231,20 @@ def _add_library_movie_options(options, actions, addon, dbtype, dbid):
     if list_id and 'action=show_list' in container_path:
         # Check if this is not Search History folder
         if 'Search History' not in container_path:
-            # Get the media_item_id from the ListItem property or construct it
+            # Get the media_item_id from the ListItem property
             media_item_id = xbmc.getInfoLabel('ListItem.Property(media_item_id)') or ''
-            if not media_item_id:
-                # Try to find the media item by dbid in the database
-                media_item_id = f"movie_{dbid}"  # Use a constructed ID as fallback
-
-            options.append("Remove from List")
-            actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=remove_from_list&list_id={list_id}&item_id={media_item_id})")
-            xbmc.log(f"Added remove from list option for list_id={list_id}, media_item_id={media_item_id}", level=xbmc.LOGINFO)
+            
+            if media_item_id:
+                # Use the actual media_item_id from the list item
+                options.append("Remove from List")
+                actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=remove_from_list&list_id={list_id}&item_id={media_item_id})")
+                xbmc.log(f"Added remove from list option for list_id={list_id}, media_item_id={media_item_id}", level=xbmc.LOGINFO)
+            else:
+                # Fallback: use library item identification for removal
+                title = xbmc.getInfoLabel('ListItem.Title') or xbmc.getInfoLabel('ListItem.Label')
+                options.append("Remove from List")
+                actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=remove_from_list&list_id={list_id}&dbtype={dbtype}&dbid={dbid}&title={title})")
+                xbmc.log(f"Added remove from list option (fallback) for list_id={list_id}, dbtype={dbtype}, dbid={dbid}", level=xbmc.LOGINFO)
 
     if quick_add_enabled and default_list_id:
         # Quick add option

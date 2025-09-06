@@ -83,6 +83,11 @@ class Router:
                     lists_handler = ListsHandler()
                     success = lists_handler.add_external_item_to_list(context)
                     return success
+            # Added new handler for remove_from_list
+            elif action == 'remove_from_list':
+                from .lists_handler import ListsHandler
+                lists_handler = ListsHandler()
+                return self._handle_remove_from_list(context, lists_handler)
             else:
                 # Check for registered handlers
                 handler = self._handlers.get(action)
@@ -142,3 +147,29 @@ class Router:
             self.logger.error(f"Error in noop handler: {e}")
             xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
             return False
+
+    def _handle_remove_from_list(self, context: PluginContext, lists_handler) -> bool:
+        """Handles the remove_from_list action, including fallback logic."""
+        list_id = context.get_param('list_id')
+        item_id = context.get_param('item_id')
+
+        if item_id:
+            # If item_id is directly provided, use it
+            return lists_handler.remove_from_list(context, list_id, item_id)
+        else:
+            # Fallback: try to find the item_id using library identifiers
+            dbtype = context.get_param('dbtype')
+            dbid = context.get_param('dbid')
+            if dbtype and dbid:
+                return lists_handler.remove_library_item_from_list(context, list_id, dbtype, dbid)
+            else:
+                self.logger.error("Cannot remove from list: missing item_id, dbtype, or dbid.")
+                try:
+                    xbmcgui.Dialog().notification(
+                        context.addon.getLocalizedString(35002),
+                        "Could not remove item from list.",
+                        xbmcgui.NOTIFICATION_ERROR
+                    )
+                except Exception:
+                    pass
+                return False

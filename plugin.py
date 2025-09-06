@@ -661,6 +661,59 @@ def _handle_dialog_response(context: PluginContext, response):
     return response
 
 
+def _handle_remove_from_list(context: PluginContext, lists_handler):
+    """Handle remove_from_list with fallback logic"""
+    list_id = context.get_param('list_id')
+    item_id = context.get_param('item_id')
+    
+    if item_id:
+        # Direct removal using item_id
+        response = lists_handler.remove_from_list(context, list_id, item_id)
+    else:
+        # Fallback: find item by library identifiers
+        dbtype = context.get_param('dbtype')
+        dbid = context.get_param('dbid')
+        title = context.get_param('title', '')
+        
+        if dbtype and dbid:
+            # Try to find the media_item in the list by matching library identifiers
+            try:
+                query_manager = context.query_manager
+                list_items = query_manager.get_list_items(list_id)
+                
+                # Find matching item
+                matching_item = None
+                for item in list_items:
+                    if (item.get('kodi_id') == int(dbid) and 
+                        item.get('media_type') == dbtype):
+                        matching_item = item
+                        break
+                
+                if matching_item and 'id' in matching_item:
+                    response = lists_handler.remove_from_list(context, list_id, str(matching_item['id']))
+                else:
+                    from lib.ui.response_types import DialogResponse
+                    response = DialogResponse(
+                        success=False,
+                        message="Could not find item in list"
+                    )
+            except Exception as e:
+                logger.error(f"Error finding item for removal: {e}")
+                from lib.ui.response_types import DialogResponse
+                response = DialogResponse(
+                    success=False,
+                    message="Error finding item"
+                )
+        else:
+            from lib.ui.response_types import DialogResponse
+            response = DialogResponse(
+                success=False,
+                message="Invalid remove request"
+            )
+    
+    return _handle_dialog_response(context, response)
+
+
 def _handle_directory_response(context: PluginContext, response):
     """Handle DirectoryResponse objects from handler methods"""
     from lib.ui.response_types import DirectoryResponse
