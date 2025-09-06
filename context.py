@@ -170,18 +170,27 @@ def _show_librarygenie_menu(addon):
 
 def _add_library_movie_options(options, actions, addon, dbtype, dbid):
     """Add options for library movies"""
+    xbmc.log(f"LibraryGenie: _add_library_movie_options called with dbtype={dbtype}, dbid={dbid}", xbmc.LOGINFO)
+
     # Check if quick-add is enabled and has a default list configured
     quick_add_enabled = addon.getSettingBool('quick_add_enabled')
     default_list_id = addon.getSetting('default_list_id')
+    xbmc.log(f"LibraryGenie: quick_add_enabled={quick_add_enabled}, default_list_id={default_list_id}", xbmc.LOGINFO)
 
     if quick_add_enabled and default_list_id:
         quick_add_label = L(31001)  # "Quick Add to Default"
+        if not quick_add_label:
+            quick_add_label = "Quick Add to Default"
         options.append(quick_add_label)
         actions.append(f"quick_add&dbtype={dbtype}&dbid={dbid}")
+        xbmc.log(f"LibraryGenie: Added quick add option: {quick_add_label}", xbmc.LOGINFO)
 
     add_to_list_label = L(31000)  # "Add to List..."
+    if not add_to_list_label:
+        add_to_list_label = "Add to List..."
     options.append(add_to_list_label)
     actions.append(f"add_to_list&dbtype={dbtype}&dbid={dbid}")
+    xbmc.log(f"LibraryGenie: Added add to list option: {add_to_list_label}", xbmc.LOGINFO)
 
 
 def _add_library_episode_options(options, actions, addon, dbtype, dbid):
