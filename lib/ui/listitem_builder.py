@@ -885,3 +885,113 @@ class ListItemBuilder:
 
         except Exception as e:
             self.logger.warning(f"LIB ITEM v20+: InfoTagVideo metadata setup failed for '{title}': {e}")
+
+    def _get_kodi_mediatype(self, media_type: str) -> str:
+        """Map internal media type to Kodi's expected values."""
+        if media_type == 'movie':
+            return 'movie'
+        elif media_type == 'tvshow':
+            return 'tvshow'
+        elif media_type == 'episode':
+            return 'episode'
+        elif media_type == 'musicvideo':
+            return 'musicvideo'
+        else:
+            return 'movie' # Default to movie if unknown
+
+
+    def build_media_listitem(self, media_item: Dict[str, Any]) -> xbmcgui.ListItem:
+        """Build ListItem for media content using enhanced data from media_items table"""
+        try:
+            # Use media_items data directly instead of JSON RPC calls
+            title = media_item.get('title', 'Unknown Title')
+            year = media_item.get('year')
+
+            # Format display title with year if available
+            if year:
+                display_title = f"{title} ({year})"
+            else:
+                display_title = title
+
+            listitem = xbmcgui.ListItem(label=display_title)
+
+            # Set video info using media_items data
+            info_labels = {
+                'title': title,
+                'mediatype': self._get_kodi_mediatype(media_item.get('media_type', 'movie')),
+                'plot': media_item.get('plot', ''),
+                'year': year or 0,
+                'rating': media_item.get('rating', 0.0),
+                'votes': str(media_item.get('votes', 0)),
+                'duration': media_item.get('duration', 0),
+                'mpaa': media_item.get('mpaa', ''),
+                'genre': media_item.get('genre', ''),
+                'director': media_item.get('director', ''),
+                'studio': media_item.get('studio', ''),
+                'country': media_item.get('country', ''),
+                'writer': media_item.get('writer', '')
+            }
+
+            # Add IMDb number if available
+            if media_item.get('imdbnumber'):
+                info_labels['imdbnumber'] = media_item['imdbnumber']
+
+            # Add TMDb ID if available
+            if media_item.get('tmdb_id'):
+                info_labels['tmdb'] = media_item['tmdb_id']
+
+            listitem.setInfo('video', info_labels)
+
+            # Set artwork using media_items data
+            artwork = {}
+            if media_item.get('poster'):
+                artwork['poster'] = media_item['poster']
+            if media_item.get('fanart'):
+                artwork['fanart'] = media_item['fanart']
+
+            # Parse additional art if available
+            art_data = media_item.get('art')
+            if art_data:
+                try:
+                    if isinstance(art_data, str):
+                        additional_art = json.loads(art_data)
+                        artwork.update(additional_art)
+                    elif isinstance(art_data, dict):
+                        artwork.update(art_data)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+            if artwork:
+                listitem.setArt(artwork)
+
+            # Set playable property
+            listitem.setProperty('IsPlayable', 'true')
+
+            # Build play URL using media_items play command or kodi_id
+            play_command = media_item.get('play')
+            kodi_id = media_item.get('kodi_id')
+            media_type = media_item.get('media_type', 'movie')
+
+            if play_command:
+                # Use existing play command
+                url = play_command
+            elif kodi_id and media_type:
+                # Build play URL from kodi_id
+                if media_type == 'movie':
+                    url = f"plugin://plugin.video.librarygenie/?action=play_movie&movie_id={kodi_id}"
+                elif media_type == 'episode':
+                    url = f"plugin://plugin.video.librarygenie/?action=play_episode&episode_id={kodi_id}"
+                else:
+                    url = f"plugin://plugin.video.librarygenie/?action=play_item&item_id={kodi_id}&media_type={media_type}"
+            else:
+                # Fallback - shouldn't happen with proper media_items data
+                url = "plugin://plugin.video.librarygenie/?action=error&message=No play method available"
+
+            return listitem, url
+
+        except Exception as e:
+            self.logger.error(f"Failed to build media listitem: {e}")
+            # Return error listitem
+            error_item = xbmcgui.ListItem(label="Error loading item")
+            error_url = "plugin://plugin.video.librarygenie/?action=error"
+            return error_item, error_url

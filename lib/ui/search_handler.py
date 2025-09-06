@@ -69,7 +69,7 @@ class SearchHandler:
         else:
             self._show_no_results_message(search_terms)
 
-        return self._maybe_dir_response(results.items, results.total_count > 0, 
+        return self._maybe_dir_response(results.items, results.total_count > 0,
                                       results.query_summary, content_type="movies")
 
     def _prompt_for_search_terms(self) -> Optional[str]:
@@ -125,8 +125,8 @@ class SearchHandler:
             query_desc = f"{search_terms}"
 
             list_id = self.query_manager.create_search_history_list(
-                query=query_desc, 
-                search_type="simple", 
+                query=query_desc,
+                search_type="simple",
                 result_count=results.total_count
             )
 
@@ -177,7 +177,7 @@ class SearchHandler:
         if xbmcplugin and self.addon_handle is not None:
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=succeeded, updateListing=update)
 
-    def _maybe_dir_response(self, items: List[Dict[str, Any]], success: bool, 
+    def _maybe_dir_response(self, items: List[Dict[str, Any]], success: bool,
                            message: str, content_type: str = "movies") -> Optional[Any]:
         """Return DirectoryResponse if available"""
         if DirectoryResponse is None:

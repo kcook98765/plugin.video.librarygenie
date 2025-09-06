@@ -9,7 +9,7 @@ Handles Kodi favorites integration and management
 import xbmcplugin
 import xbmcgui
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, List
 from .plugin_context import PluginContext
 from .response_types import DirectoryResponse, DialogResponse
 from .localization import L
@@ -546,3 +546,72 @@ class FavoritesHandler:
             'episodeid': favorite.get('episodeid'),
             'media_item_id': favorite.get('media_item_id')
         }
+
+    def _render_favorites_list(self, favorites: List[Dict[str, Any]]) -> None:
+        """Render favorites list efficiently using enhanced media_items data"""
+        try:
+            if not favorites:
+                # Show empty message
+                empty_item = xbmcgui.ListItem(label="No favorites found")
+                self.plugin_context.add_item(
+                    url="plugin://plugin.video.librarygenie/?action=empty",
+                    listitem=empty_item,
+                    isFolder=False
+                )
+                return
+
+            self.logger.debug(f"Rendering {len(favorites)} favorites using enhanced data")
+
+            # Group favorites by mapping status
+            mapped_favorites = []
+            unmapped_favorites = []
+
+            for fav in favorites:
+                if fav.get('is_mapped') and fav.get('media_item_id'):
+                    mapped_favorites.append(fav)
+                else:
+                    unmapped_favorites.append(fav)
+
+            # Render mapped favorites using enhanced media data
+            for fav in mapped_favorites:
+                try:
+                    # Get enhanced media item data for mapped favorite
+                    media_item = self.query_manager.get_media_item_by_id(fav['media_item_id'])
+                    if media_item:
+                        # Use enhanced media_items data - no JSON RPC calls needed
+                        listitem, url = self.listitem_builder.build_media_listitem(media_item)
+                    else:
+                        # Fallback for missing media item
+                        listitem, url = self._build_unmapped_favorite_item(fav)
+
+                    # Add to response
+                    self.plugin_context.add_item(
+                        url=url,
+                        listitem=listitem,
+                        isFolder=False
+                    )
+
+                except Exception as e:
+                    self.logger.error(f"Failed to render mapped favorite: {e}")
+                    continue
+
+            # Render unmapped favorites
+            for fav in unmapped_favorites:
+                try:
+                    listitem, url = self._build_unmapped_favorite_item(fav)
+                    self.plugin_context.add_item(
+                        url=url,
+                        listitem=listitem,
+                        isFolder=False
+                    )
+                except Exception as e:
+                    self.logger.error(f"Failed to render unmapped favorite: {e}")
+                    continue
+
+            # Set content type
+            self.plugin_context.set_content_type('files')
+
+            self.logger.debug(f"Successfully rendered {len(favorites)} favorites")
+
+        except Exception as e:
+            self.logger.error(f"Failed to render favorites list: {e}")

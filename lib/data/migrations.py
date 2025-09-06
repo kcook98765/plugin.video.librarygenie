@@ -333,7 +333,7 @@ class MigrationManager:
                     target_raw TEXT NOT NULL,
                     target_classification TEXT NOT NULL,
                     normalized_key TEXT NOT NULL UNIQUE,
-                    library_movie_id INTEGER,
+                    media_item_id INTEGER,
                     is_mapped INTEGER DEFAULT 0,
                     is_missing INTEGER DEFAULT 0,
                     present INTEGER DEFAULT 1,
@@ -342,7 +342,7 @@ class MigrationManager:
                     last_seen TEXT NOT NULL DEFAULT (datetime('now')),
                     created_at TEXT NOT NULL DEFAULT (datetime('now')),
                     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    FOREIGN KEY (library_movie_id) REFERENCES media_items (id)
+                    FOREIGN KEY (media_item_id) REFERENCES media_items (id)
                 )
             """)
 
@@ -365,7 +365,7 @@ class MigrationManager:
 
             # Favorites indexes
             conn.execute("CREATE INDEX idx_kodi_favorite_normalized_key ON kodi_favorite(normalized_key)")
-            conn.execute("CREATE INDEX idx_kodi_favorite_library_movie_id ON kodi_favorite(library_movie_id)")
+            conn.execute("CREATE INDEX idx_kodi_favorite_media_item_id ON kodi_favorite(media_item_id)")
             conn.execute("CREATE INDEX idx_kodi_favorite_is_mapped ON kodi_favorite(is_mapped)")
             conn.execute("CREATE INDEX idx_kodi_favorite_present ON kodi_favorite(present)")
             conn.execute("CREATE INDEX idx_favorites_scan_log_file_path ON favorites_scan_log(file_path)")

@@ -297,13 +297,13 @@ class ListItemRenderer:
         try:
             kodi_major = get_kodi_major_version()
             self.logger.info(f"SIMPLE LISTITEM: Creating for '{title}' (Kodi v{kodi_major}) - caller action='{action}'")
-            
+
             # Add stack trace to identify caller
             import traceback
             stack_info = traceback.extract_stack()
             caller_info = stack_info[-3] if len(stack_info) > 2 else "unknown"
             self.logger.info(f"SIMPLE LISTITEM CALLER: {caller_info.filename}:{caller_info.lineno} in {caller_info.name}")
-            
+
             list_item = xbmcgui.ListItem(label=title)
 
             # Set basic info - version-specific approach
@@ -460,6 +460,66 @@ class ListItemRenderer:
             self.logger.debug(f"RENDERER DIRECTORY: Calling endOfDirectory(handle={self.addon_handle}, succeeded=False)")
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False, updateListing=False, cacheToDisc=False)
             return False
+
+    def render_list_items(self, list_id: int, sort_method: str = None) -> None:
+        """Render items in a list with optimized performance using media_items data"""
+        try:
+            # Get list metadata
+            list_info = self.query_manager.get_list_by_id(list_id)
+            if not list_info:
+                self.logger.error(f"List not found: {list_id}")
+                return
+
+            # Get list items with enhanced media data - no JSON RPC calls needed
+            items = self.query_manager.get_list_items_with_media(list_id, sort_method)
+
+            if not items:
+                # Show empty list message
+                self.plugin_context.add_item(
+                    url="plugin://plugin.video.librarygenie/?action=empty",
+                    listitem=xbmcgui.ListItem(label="No items in this list"),
+                    isFolder=False
+                )
+                return
+
+            self.logger.debug(f"Rendering {len(items)} list items using media_items data")
+
+            # Process items efficiently using enhanced media_items data
+            for item in items:
+                try:
+                    # Build listitem using enhanced media data from media_items table
+                    # This now uses all the fields we gather in the scanner
+                    listitem, url = self.listitem_builder.build_media_listitem(item)
+
+                    # Add context menu for list management
+                    context_menu = [
+                        (
+                            "Remove from List",
+                            f"RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={list_id}&media_item_id={item['id']})"
+                        )
+                    ]
+                    listitem.addContextMenuItems(context_menu)
+
+                    # Add to plugin response
+                    self.plugin_context.add_item(
+                        url=url,
+                        listitem=listitem,
+                        isFolder=False
+                    )
+
+                except Exception as e:
+                    self.logger.error(f"Failed to render list item {item.get('id', 'unknown')}: {e}")
+                    continue
+
+            # Set content type and finish directory
+            self.plugin_context.set_content_type('movies')
+            self.plugin_context.end_directory(cacheToDisc=True)
+
+            self.logger.debug(f"Successfully rendered {len(items)} list items")
+
+        except Exception as e:
+            self.logger.error(f"Failed to render list items: {e}")
+            self.plugin_context.end_directory(succeeded=False)
 
 
 # Global renderer instance
