@@ -1130,43 +1130,70 @@ class QueryManager:
     def add_library_item_to_list(self, list_id, kodi_item):
         """Add a Kodi library item to a list using unified structure"""
         try:
-            # Normalize the item first
-            canonical_item = self._normalize_to_canonical(kodi_item)
-
-            # Extract basic fields for media_items table
-            media_data = {
-                'media_type': canonical_item['media_type'],
-                'title': canonical_item['title'],
-                'year': canonical_item['year'],
-                'imdbnumber': canonical_item.get('imdb_id', ''),
-                'tmdb_id': canonical_item.get('tmdb_id', ''),
-                'kodi_id': canonical_item.get('kodi_id'),
-                'source': 'lib',
-                'play': '',
-                'poster': canonical_item.get('poster', ''),
-                'fanart': canonical_item.get('fanart', ''),
-                'plot': canonical_item.get('plot', ''),
-                'rating': canonical_item.get('rating', 0.0),
-                'votes': canonical_item.get('votes', 0),
-                'duration': canonical_item.get('duration_minutes', 0),
-                'mpaa': canonical_item.get('mpaa', ''),
-                'genre': canonical_item.get('genre', ''),
-                'director': canonical_item.get('director', ''),
-                'studio': canonical_item.get('studio', ''),
-                'country': canonical_item.get('country', ''),
-                'writer': canonical_item.get('writer', ''),
-                'cast': '',
-                'art': json.dumps(canonical_item.get('art', {}))
-            }
-
-            self.logger.debug(f"Adding library item '{canonical_item['title']}' to list {list_id}")
+            kodi_id = kodi_item.get('kodi_id')
+            media_type = kodi_item.get('media_type', 'movie')
+            
+            self.logger.debug(f"Adding library item kodi_id={kodi_id}, media_type={media_type} to list {list_id}")
 
             with self.connection_manager.transaction() as conn:
-                # Insert or get media item
-                media_item_id = self._insert_or_get_media_item(conn, media_data)
+                # First check if this library item already exists in media_items
+                existing_item = conn.execute("""
+                    SELECT id FROM media_items WHERE kodi_id = ? AND media_type = ?
+                """, [kodi_id, media_type]).fetchone()
+
+                if existing_item:
+                    # Use existing media item
+                    media_item_id = existing_item['id']
+                    self.logger.debug(f"Found existing media_item with id={media_item_id}")
+                else:
+                    # Create new media item - normalize the item first for proper data extraction
+                    canonical_item = self._normalize_to_canonical(kodi_item)
+                    
+                    # Extract basic fields for media_items table
+                    media_data = {
+                        'media_type': canonical_item['media_type'],
+                        'title': canonical_item['title'],
+                        'year': canonical_item['year'],
+                        'imdbnumber': canonical_item.get('imdb_id', ''),
+                        'tmdb_id': canonical_item.get('tmdb_id', ''),
+                        'kodi_id': canonical_item.get('kodi_id'),
+                        'source': 'lib',
+                        'play': '',
+                        'poster': canonical_item.get('poster', ''),
+                        'fanart': canonical_item.get('fanart', ''),
+                        'plot': canonical_item.get('plot', ''),
+                        'rating': canonical_item.get('rating', 0.0),
+                        'votes': canonical_item.get('votes', 0),
+                        'duration': canonical_item.get('duration_minutes', 0),
+                        'mpaa': canonical_item.get('mpaa', ''),
+                        'genre': canonical_item.get('genre', ''),
+                        'director': canonical_item.get('director', ''),
+                        'studio': canonical_item.get('studio', ''),
+                        'country': canonical_item.get('country', ''),
+                        'writer': canonical_item.get('writer', ''),
+                        'cast': '',
+                        'art': json.dumps(canonical_item.get('art', {}))
+                    }
+                    
+                    media_item_id = self._insert_or_get_media_item(conn, media_data)
+                    self.logger.debug(f"Created new media_item with id={media_item_id}")
 
                 if not media_item_id:
                     return None
+
+                # Check if item is already in the list
+                existing_list_item = conn.execute("""
+                    SELECT id FROM list_items WHERE list_id = ? AND media_item_id = ?
+                """, [int(list_id), media_item_id]).fetchone()
+
+                if existing_list_item:
+                    self.logger.debug(f"Item already exists in list {list_id}")
+                    return {
+                        "id": str(media_item_id),
+                        "title": kodi_item.get('title', 'Unknown'),
+                        "year": kodi_item.get('year', 0),
+                        "already_exists": True
+                    }
 
                 # Get next position
                 position_result = conn.execute("""
@@ -1177,14 +1204,14 @@ class QueryManager:
 
                 # Add to list
                 conn.execute("""
-                    INSERT OR IGNORE INTO list_items (list_id, media_item_id, position)
+                    INSERT INTO list_items (list_id, media_item_id, position)
                     VALUES (?, ?, ?)
                 """, [int(list_id), media_item_id, next_position])
 
             return {
                 "id": str(media_item_id),
-                "title": canonical_item['title'],
-                "year": canonical_item['year']
+                "title": kodi_item.get('title', 'Unknown'),
+                "year": kodi_item.get('year', 0)
             }
 
         except Exception as e:

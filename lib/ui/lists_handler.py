@@ -1196,42 +1196,50 @@ class ListsHandler:
             if target_list_id is None:
                 return False
 
-            # Get library item details using Kodi JSON-RPC
-            from ..kodi.json_rpc_client import get_kodi_client
-            kodi_client = get_kodi_client()
-            
+            # Check if item already exists in media_items table
             library_item = None
+            existing_item = None
+            
             if dbtype == 'movie':
-                # Get movie details from Kodi
-                movie_data = kodi_client.get_movie_details(int(dbid))
-                if movie_data:
+                existing_item = query_manager.connection_manager.execute_single("""
+                    SELECT * FROM media_items WHERE kodi_id = ? AND media_type = 'movie'
+                """, [int(dbid)])
+                
+                if existing_item:
+                    library_item = dict(existing_item)
+                    library_item['source'] = 'library'
+                else:
+                    # Item not in database yet - create minimal entry
                     library_item = {
                         'kodi_id': int(dbid),
                         'media_type': 'movie',
-                        'title': movie_data.get('title', 'Unknown'),
-                        'year': movie_data.get('year', 0),
-                        'imdb_id': movie_data.get('imdb_id', ''),
+                        'title': f'Movie {dbid}',  # Placeholder, will be enriched later
+                        'year': 0,
                         'source': 'library'
                     }
+                    
             elif dbtype == 'episode':
-                # Get episode details from Kodi
-                episode_data = kodi_client.get_episode_details(int(dbid))
-                if episode_data:
+                existing_item = query_manager.connection_manager.execute_single("""
+                    SELECT * FROM media_items WHERE kodi_id = ? AND media_type = 'episode'
+                """, [int(dbid)])
+                
+                if existing_item:
+                    library_item = dict(existing_item)
+                    library_item['source'] = 'library'
+                else:
+                    # Item not in database yet - create minimal entry
                     library_item = {
                         'kodi_id': int(dbid),
                         'media_type': 'episode',
-                        'title': episode_data.get('title', 'Unknown'),
-                        'tvshowtitle': episode_data.get('tvshowtitle', ''),
-                        'season': episode_data.get('season', 0),
-                        'episode': episode_data.get('episode', 0),
+                        'title': f'Episode {dbid}',  # Placeholder, will be enriched later
                         'source': 'library'
                     }
 
             if not library_item:
-                context.logger.error(f"Could not get library item details for {dbtype} {dbid}")
+                context.logger.error(f"Unsupported dbtype: {dbtype}")
                 xbmcgui.Dialog().notification(
                     "LibraryGenie",
-                    "Failed to get item details", # Localize this string
+                    f"Unsupported item type: {dbtype}", # Localize this string
                     xbmcgui.NOTIFICATION_ERROR
                 )
                 return False
