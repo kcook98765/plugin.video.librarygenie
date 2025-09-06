@@ -139,6 +139,14 @@ def _show_librarygenie_menu(addon):
             # LibraryGenie item - add LibraryGenie-specific options
             _add_librarygenie_item_options(options, actions, addon, item_info)
 
+        # Check if we're in a LibraryGenie container (even without explicit file_path)
+        elif (item_info['container_content'] == 'movies' and 
+              not file_path and not dbtype and
+              xbmc.getInfoLabel('Container.FolderPath').startswith('plugin://plugin.video.librarygenie/')):
+            # We're in LibraryGenie but the item doesn't have explicit plugin path
+            # This happens for items displayed in LibraryGenie lists
+            _add_librarygenie_item_options(options, actions, addon, item_info)
+
         elif file_path and file_path.startswith('plugin://'):
             # Other plugin item - add external item options
             _add_external_item_options(options, actions, addon)
@@ -238,7 +246,10 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
     # Use cached item metadata
     media_item_id = item_info['media_item_id']
     list_id = item_info['list_id']
+    dbtype = item_info['dbtype']
+    dbid = item_info['dbid']
 
+    # If we have media_item_id, use the existing flow
     if media_item_id:
         # Check if quick-add is enabled and has a default list configured
         quick_add_enabled = addon.getSettingBool('quick_add_enabled')
@@ -258,6 +269,33 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
             remove_label = L(31010)  # "Remove from List"
             options.append(remove_label)
             actions.append(f"remove_from_list&list_id={list_id}&item_id={media_item_id}")
+    
+    # If we have dbtype but no media_item_id, we can still offer some options
+    elif dbtype in ('movie', 'episode', 'musicvideo'):
+        # Check if we can determine if it's a library item
+        if dbid and dbid != '0':
+            # Library item - add library-specific options
+            _add_library_movie_options(options, actions, addon, dbtype, dbid)
+        else:
+            # External item or library item without dbid - add external options
+            _add_external_item_options(options, actions, addon)
+    
+    # If we're in a list context but don't have specific item info, try to get the current list
+    elif not media_item_id and not dbtype:
+        # Try to extract list_id from container path
+        container_path = xbmc.getInfoLabel('Container.FolderPath')
+        if 'list_id=' in container_path:
+            try:
+                import re
+                list_id_match = re.search(r'list_id=(\d+)', container_path)
+                if list_id_match:
+                    list_id = list_id_match.group(1)
+                    # Add general list management options
+                    add_to_list_label = L(31000) if L(31000) else "Add to List..."
+                    options.append(add_to_list_label)
+                    actions.append("add_external_item")
+            except Exception:
+                pass
 
 
 def _execute_action(action_with_params, addon):
