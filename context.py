@@ -100,7 +100,8 @@ def _show_librarygenie_menu(addon):
         file_path = item_info['file_path']
 
         # Add content-specific options based on cached context
-        if item_info['is_movies'] or dbtype == 'movie':
+        # Prioritize dbtype over container context for better detection
+        if dbtype == 'movie':
             if dbid and dbid != '0':
                 # Library movie - add list management options
                 _add_library_movie_options(options, actions, addon, dbtype, dbid)
@@ -108,7 +109,7 @@ def _show_librarygenie_menu(addon):
                 # External/plugin movie - add external item options
                 _add_external_item_options(options, actions, addon)
 
-        elif item_info['is_episodes'] or dbtype == 'episode':
+        elif dbtype == 'episode':
             if dbid and dbid != '0':
                 # Library episode - add list management options
                 _add_library_episode_options(options, actions, addon, dbtype, dbid)
@@ -116,13 +117,23 @@ def _show_librarygenie_menu(addon):
                 # External/plugin episode - add external item options
                 _add_external_item_options(options, actions, addon)
 
-        elif item_info['is_musicvideos'] or dbtype == 'musicvideo':
+        elif dbtype == 'musicvideo':
             if dbid and dbid != '0':
                 # Library music video - add list management options
                 _add_library_musicvideo_options(options, actions, addon, dbtype, dbid)
             else:
                 # External/plugin music video - add external item options
                 _add_external_item_options(options, actions, addon)
+
+        # Fallback to container context checks for items without explicit dbtype
+        elif item_info['is_movies'] and not dbtype:
+            _add_external_item_options(options, actions, addon)
+
+        elif item_info['is_episodes'] and not dbtype:
+            _add_external_item_options(options, actions, addon)
+
+        elif item_info['is_musicvideos'] and not dbtype:
+            _add_external_item_options(options, actions, addon)
 
         elif file_path and file_path.startswith('plugin://plugin.video.librarygenie/'):
             # LibraryGenie item - add LibraryGenie-specific options
