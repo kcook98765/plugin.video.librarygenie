@@ -6,6 +6,7 @@ LibraryGenie - Context Menu Script
 Handles context menu actions for adding media to lists
 """
 
+import sys
 import xbmc
 import xbmcaddon
 import xbmcgui
@@ -13,7 +14,12 @@ import urllib.parse
 from typing import List, Union
 
 # Import localization module
-from resources.lib.common import L
+try:
+    from resources.lib.ui.localization import L
+except ImportError:
+    # Fallback for simple string retrieval
+    def L(string_id, fallback=""):
+        return fallback or f"String_{string_id}"
 
 
 def main():
