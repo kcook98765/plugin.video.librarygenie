@@ -21,6 +21,7 @@ def main():
     try:
         # Debug: Log that context menu was triggered
         xbmc.log("LibraryGenie: Context menu script triggered", xbmc.LOGINFO)
+        xbmc.log(f"LibraryGenie: Context script sys.argv: {sys.argv}", xbmc.LOGINFO)
         
         addon = xbmcaddon.Addon()
 

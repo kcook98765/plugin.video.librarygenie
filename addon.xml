@@ -16,7 +16,7 @@
   <extension point="kodi.context.item">
     <menu id="kodi.core.main">
       <item library="context.py">
-        <label>32200</label>
+        <label>Add to LibraryGenie List...</label>
         <visible>true</visible>
       </item>
     </menu>
