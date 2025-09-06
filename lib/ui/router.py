@@ -88,6 +88,13 @@ class Router:
                 from .lists_handler import ListsHandler
                 lists_handler = ListsHandler()
                 return self._handle_remove_from_list(context, lists_handler)
+            elif action == 'remove_library_item_from_list':
+                from .lists_handler import ListsHandler
+                lists_handler = ListsHandler()
+                list_id = context.get_param('list_id')
+                dbtype = context.get_param('dbtype')
+                dbid = context.get_param('dbid')
+                return lists_handler.remove_library_item_from_list(context, list_id, dbtype, dbid)
             else:
                 # Check for registered handlers
                 handler = self._handlers.get(action)

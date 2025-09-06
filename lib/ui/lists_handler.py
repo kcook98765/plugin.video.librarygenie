@@ -1535,3 +1535,51 @@ class ListsHandler:
         except Exception as e:
             context.logger.error(f"Error in add_external_item_to_list: {e}")
             return False
+
+    def remove_library_item_from_list(self, context: PluginContext, list_id: str, dbtype: str, dbid: str) -> bool:
+        """Handle removing a library item from a list using dbtype and dbid"""
+        try:
+            context.logger.info(f"Removing library item {dbtype}:{dbid} from list {list_id}")
+
+            # Initialize query manager
+            query_manager = get_query_manager()
+            if not query_manager.initialize():
+                context.logger.error("Failed to initialize query manager")
+                return False
+
+            # Get list items to find the matching item
+            list_items = query_manager.get_list_items(list_id)
+            matching_item = None
+            
+            for item in list_items:
+                if (item.get('kodi_id') == int(dbid) and 
+                    item.get('media_type') == dbtype):
+                    matching_item = item
+                    break
+            
+            if not matching_item or 'id' not in matching_item:
+                context.logger.warning(f"Could not find library item {dbtype}:{dbid} in list {list_id}")
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    "Item not found in list",
+                    xbmcgui.NOTIFICATION_WARNING
+                )
+                return False
+            
+            # Use the regular remove method with the found item ID
+            response = self.remove_from_list(context, list_id, str(matching_item['id']))
+            
+            # Handle the DialogResponse
+            from .response_types import DialogResponse
+            from .response_handler import get_response_handler
+            
+            if isinstance(response, DialogResponse):
+                response_handler = get_response_handler()
+                response_handler.handle_dialog_response(response, context)
+                return response.success
+            
+            return False
+
+        except Exception as e:
+            context.logger.error(f"Error removing library item from list: {e}")
+            return False
