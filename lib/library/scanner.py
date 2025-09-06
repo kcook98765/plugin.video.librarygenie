@@ -270,13 +270,22 @@ class LibraryScanner:
                         resume_data = movie.get("resume", {})
                         resume_json = json.dumps(resume_data) if resume_data else ""
 
+                        # Pre-compute display fields for faster list building
+                        display_title = f"{movie['title']} ({movie.get('year', '')})" if movie.get('year') else movie['title']
+                        genre_list = movie.get('genre', '').split(',') if isinstance(movie.get('genre'), str) else movie.get('genre', [])
+                        formatted_genre = ', '.join([g.strip() for g in genre_list if g.strip()]) if genre_list else ''
+                        
+                        # Pre-compute duration in both minutes and seconds for different contexts
+                        duration_minutes = movie.get("runtime", 0)
+                        duration_seconds = duration_minutes * 60 if duration_minutes else 0
+
                         conn.execute("""
                             INSERT OR REPLACE INTO media_items
                             (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, source, created_at, updated_at,
                              poster, fanart, plot, rating, votes, duration, mpaa, genre, director, studio, country, 
-                             writer, art, file_path, normalized_path, is_removed)
+                             writer, art, file_path, normalized_path, is_removed, display_title, formatted_genre, duration_seconds)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'),
-                                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+                                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
                         """, [
                             'movie',
                             movie["kodi_id"],
@@ -305,6 +314,10 @@ class LibraryScanner:
                             # File paths
                             movie["file_path"],
                             movie["file_path"].lower() if movie.get("file_path") else "",
+                            # Pre-computed fields
+                            display_title,
+                            formatted_genre,
+                            duration_seconds
                         ])
                         inserted_count += 1
                     except Exception as e:

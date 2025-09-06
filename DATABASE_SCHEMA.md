@@ -79,6 +79,9 @@ The unified table for storing all media content metadata.
 | `file_path` | TEXT | Original file path |
 | `normalized_path` | TEXT | Normalized file path for matching |
 | `is_removed` | INTEGER | Flag indicating if item was removed (0/1) |
+| `display_title` | TEXT | Pre-computed display title with year |
+| `formatted_genre` | TEXT | Pre-computed formatted genre string |
+| `duration_seconds` | INTEGER | Duration in seconds (pre-computed) |
 | `created_at` | TEXT | Creation timestamp |
 | `updated_at` | TEXT | Last update timestamp |
 
