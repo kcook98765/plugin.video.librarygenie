@@ -43,7 +43,7 @@ def open_native_info_direct(db_type: str, db_id: int, logger, title: str | None 
         li = xbmcgui.ListItem(title or "")
         tag = li.getVideoInfoTag()
         tag.setMediaType(db_type)          # "movie" | "episode" | "tvshow" | "musicvideo"
-        tag.setDbId(int(db_id), db_type)   # critical: tells Kodi to hydrate from DB (incl. cast)
+        tag.setDbId(int(db_id))            # critical: tells Kodi to hydrate from DB (incl. cast)
         if path_hint:
             # Optional: can help some skins, but not required for hydration
             tag.setPath(path_hint)
@@ -57,8 +57,14 @@ def open_native_info_direct(db_type: str, db_id: int, logger, title: str | None 
         last = None
         while time.perf_counter() < end:
             cur = xbmcgui.getCurrentWindowDialogId()
-            if cur in (12003, 10147):  # DialogVideoInfo (and a common fallback ID)
+            # Check for video info dialog - try multiple known IDs
+            if cur in (12003, 10147, 12002):  # DialogVideoInfo variants
                 logger.info(f"Dialog().info visible for {db_type} {db_id} (dlg={cur}) in "
+                            f"{time.perf_counter() - t0:.3f}s")
+                return True
+            # Also check if the video info condition is active
+            if xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)'):
+                logger.info(f"Dialog().info detected via condition for {db_type} {db_id} in "
                             f"{time.perf_counter() - t0:.3f}s")
                 return True
             # Log state changes sparingly for debugging
