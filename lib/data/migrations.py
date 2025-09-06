@@ -371,6 +371,190 @@ class MigrationManager:
             conn.execute("CREATE INDEX idx_favorites_scan_log_file_path ON favorites_scan_log(file_path)")
             conn.execute("CREATE INDEX idx_favorites_scan_log_created_at ON favorites_scan_log(created_at)")
 
+    def _apply_migrations(self, conn):
+        """Apply pending database migrations"""
+        version = get_current_version(conn)
+        self.logger.info(f"Current database schema version: {version}")
+
+        # Version 1: Initial schema
+        if version < 1:
+            # The schema is created in _create_complete_schema(),
+            # so we just need to update the version.
+            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (1, datetime('now'))")
+            print("Applied migration 1: Initial schema")
+
+        # Version 2: Add search_history table
+        if version < 2:
+            conn.execute("""
+                CREATE TABLE search_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    query_text TEXT NOT NULL,
+                    scope_type TEXT NOT NULL DEFAULT 'library',
+                    scope_id INTEGER,
+                    year_filter TEXT,
+                    sort_method TEXT NOT NULL DEFAULT 'title_asc',
+                    include_file_path INTEGER NOT NULL DEFAULT 0,
+                    result_count INTEGER NOT NULL DEFAULT 0,
+                    search_duration_ms INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                )
+            """)
+            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (2, datetime('now'))")
+            print("Applied migration 2: Added search_history table")
+
+        # Version 3: Add search_preferences table
+        if version < 3:
+            conn.execute("""
+                CREATE TABLE search_preferences (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    preference_key TEXT NOT NULL UNIQUE,
+                    preference_value TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                )
+            """)
+            conn.execute("""
+                INSERT INTO search_preferences (preference_key, preference_value) 
+                VALUES 
+                    ('match_mode', 'contains'),
+                    ('include_file_path', 'false'),
+                    ('page_size', '50'),
+                    ('enable_decade_shorthand', 'false')
+            """)
+            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (3, datetime('now'))")
+            print("Applied migration 3: Added search_preferences table")
+
+        # Version 4: Add ui_preferences table and default values
+        if version < 4:
+            conn.execute("""
+                CREATE TABLE ui_preferences (
+                    id INTEGER PRIMARY KEY,
+                    ui_density TEXT NOT NULL DEFAULT 'compact',
+                    artwork_preference TEXT NOT NULL DEFAULT 'poster',
+                    show_secondary_label INTEGER NOT NULL DEFAULT 1,
+                    show_plot_in_detailed INTEGER NOT NULL DEFAULT 1,
+                    fallback_icon TEXT DEFAULT 'DefaultVideo.png',
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                )
+            """)
+            conn.execute("""
+                INSERT INTO ui_preferences (id, ui_density, artwork_preference, show_secondary_label, show_plot_in_detailed)
+                VALUES (1, 'compact', 'poster', 1, 1)
+            """)
+            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (4, datetime('now'))")
+            print("Applied migration 4: Added ui_preferences table")
+
+        # Version 5: Add library_scan_log table
+        if version < 5:
+            conn.execute("""
+                CREATE TABLE library_scan_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    scan_type TEXT NOT NULL,
+                    start_time TEXT NOT NULL,
+                    end_time TEXT,
+                    total_items INTEGER DEFAULT 0,
+                    items_added INTEGER DEFAULT 0,
+                    items_updated INTEGER DEFAULT 0,
+                    items_removed INTEGER DEFAULT 0,
+                    error TEXT,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                )
+            """)
+            conn.execute("CREATE INDEX idx_library_scan_log_type_time ON library_scan_log (scan_type, start_time)")
+            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (5, datetime('now'))")
+            print("Applied migration 5: Added library_scan_log table")
+
+        # Version 6: Add reserved Search History folder
+        if version < 6:
+            conn.execute("""
+                INSERT INTO folders (name, parent_id)
+                VALUES ('Search History', NULL)
+            """)
+            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (6, datetime('now'))")
+            print("Applied migration 6: Added Search History folder")
+
+        # Version 7: Add kodi_favorite and favorites_scan_log tables
+        if version < 7:
+            conn.execute("""
+                CREATE TABLE kodi_favorite (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    normalized_path TEXT,
+                    original_path TEXT,
+                    favorite_type TEXT,
+                    target_raw TEXT NOT NULL,
+                    target_classification TEXT NOT NULL,
+                    normalized_key TEXT NOT NULL UNIQUE,
+                    media_item_id INTEGER,
+                    is_mapped INTEGER DEFAULT 0,
+                    is_missing INTEGER DEFAULT 0,
+                    present INTEGER DEFAULT 1,
+                    thumb_ref TEXT,
+                    first_seen TEXT NOT NULL DEFAULT (datetime('now')),
+                    last_seen TEXT NOT NULL DEFAULT (datetime('now')),
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    FOREIGN KEY (media_item_id) REFERENCES media_items (id)
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE favorites_scan_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    scan_type TEXT NOT NULL,
+                    file_path TEXT NOT NULL,
+                    file_modified TEXT,
+                    items_found INTEGER DEFAULT 0,
+                    items_mapped INTEGER DEFAULT 0,
+                    items_added INTEGER DEFAULT 0,
+                    items_updated INTEGER DEFAULT 0,
+                    scan_duration_ms INTEGER DEFAULT 0,
+                    success INTEGER DEFAULT 1,
+                    error_message TEXT,
+                    created_at TEXT DEFAULT (datetime('now'))
+                )
+            """)
+            conn.execute("CREATE INDEX idx_kodi_favorite_normalized_key ON kodi_favorite(normalized_key)")
+            conn.execute("CREATE INDEX idx_kodi_favorite_media_item_id ON kodi_favorite(media_item_id)")
+            conn.execute("CREATE INDEX idx_kodi_favorite_is_mapped ON kodi_favorite(is_mapped)")
+            conn.execute("CREATE INDEX idx_kodi_favorite_present ON kodi_favorite(present)")
+            conn.execute("CREATE INDEX idx_favorites_scan_log_file_path ON favorites_scan_log(file_path)")
+            conn.execute("CREATE INDEX idx_favorites_scan_log_created_at ON favorites_scan_log(created_at)")
+            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (7, datetime('now'))")
+            print("Applied migration 7: Added kodi_favorite and favorites_scan_log tables")
+
+
+        # Version 8: Add kodi_version column to library_scan_log
+        if version < 8:
+            add_kodi_version_to_scan_log(conn)
+            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (8, datetime('now'))")
+            print("Applied migration 8: Added kodi_version column to library_scan_log")
+
+        print(f"Database schema is up to date (version {get_current_version(conn)})")
+        return True
+
+
+def get_current_version(conn):
+    """Get current schema version"""
+    try:
+        result = conn.execute("SELECT version FROM schema_version ORDER BY version DESC LIMIT 1").fetchone()
+        return result[0] if result else 0
+    except Exception:
+        # schema_version table doesn't exist yet
+        return 0
+
+def add_kodi_version_to_scan_log(conn):
+    """Add kodi_version column to library_scan_log table"""
+    try:
+        # Check if column already exists
+        cursor = conn.execute("PRAGMA table_info(library_scan_log)")
+        columns = [row[1] for row in cursor.fetchall()]
+
+        if 'kodi_version' not in columns:
+            conn.execute("ALTER TABLE library_scan_log ADD COLUMN kodi_version INTEGER")
+            print("Added kodi_version column to library_scan_log table")
+    except Exception as e:
+        print(f"Failed to add kodi_version column: {e}")
+        raise
 
 # Global migration manager instance
 _migration_instance = None

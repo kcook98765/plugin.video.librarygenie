@@ -37,8 +37,12 @@ class LibraryScanner:
             self.logger.error("Failed to initialize database for full scan")
             return {"success": False, "error": "Database initialization failed"}
 
+        # Get current Kodi version for tracking
+        from ..utils.kodi_version import get_kodi_major_version
+        current_version = get_kodi_major_version()
+
         scan_start = datetime.now().isoformat()
-        scan_id = self._log_scan_start("full", scan_start)
+        scan_id = self._log_scan_start("full", scan_start, current_version)
 
         try:
             # Clear existing data (full refresh)
@@ -95,8 +99,17 @@ class LibraryScanner:
             self.logger.error("Failed to initialize database for delta scan")
             return {"success": False, "error": "Database initialization failed"}
 
+        # Get current Kodi version
+        from ..utils.kodi_version import get_kodi_major_version
+        current_version = get_kodi_major_version()
+
+        # Check if Kodi version has changed since last scan
+        if self._has_kodi_version_changed(current_version):
+            self.logger.info(f"Kodi version changed to {current_version}, forcing full scan")
+            return self.perform_full_scan()
+
         scan_start = datetime.now().isoformat()
-        scan_id = self._log_scan_start("delta", scan_start)
+        scan_id = self._log_scan_start("delta", scan_start, current_version)
 
         try:
             # Get current Kodi library state (quick check)
@@ -433,14 +446,14 @@ class LibraryScanner:
             self.logger.error(f"Failed to update last_seen: {e}")
             return 0
 
-    def _log_scan_start(self, scan_type: str, started_at: str) -> Optional[int]:
+    def _log_scan_start(self, scan_type: str, started_at: str, kodi_version: int) -> Optional[int]:
         """Log the start of a scan"""
         try:
             with self.conn_manager.transaction() as conn:
                 cursor = conn.execute("""
-                    INSERT INTO library_scan_log (scan_type, start_time)
-                    VALUES (?, ?)
-                """, [scan_type, started_at])
+                    INSERT INTO library_scan_log (scan_type, kodi_version, start_time)
+                    VALUES (?, ?, ?)
+                """, [scan_type, kodi_version, started_at])
                 return cursor.lastrowid
         except Exception as e:
             self.logger.error(f"Failed to log scan start: {e}")
@@ -465,6 +478,32 @@ class LibraryScanner:
                 """, [completed_at, items_found, items_added, items_updated, items_removed, error, scan_id])
         except Exception as e:
             self.logger.error(f"Failed to log scan completion: {e}")
+
+    def _has_kodi_version_changed(self, current_version: int) -> bool:
+        """Check if Kodi version has changed since last scan"""
+        try:
+            last_scan = self.conn_manager.execute_single("""
+                SELECT kodi_version
+                FROM library_scan_log
+                WHERE end_time IS NOT NULL AND kodi_version IS NOT NULL
+                ORDER BY id DESC LIMIT 1
+            """)
+
+            if not last_scan:
+                # No previous successful scan with version info
+                return False
+
+            last_version = last_scan.get('kodi_version')
+            if last_version != current_version:
+                self.logger.info(f"Kodi version changed from {last_version} to {current_version}")
+                return True
+
+            return False
+
+        except Exception as e:
+            self.logger.warning(f"Failed to check Kodi version change: {e}")
+            # Assume no change on error to avoid unnecessary full scans
+            return False
 
 
 # Global scanner instance

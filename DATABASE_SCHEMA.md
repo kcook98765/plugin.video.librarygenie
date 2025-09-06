@@ -274,6 +274,7 @@ Records library scan operations and their results.
 |----------------|---------|-------|
 | `id`           | INTEGER | PRIMARY KEY AUTOINCREMENT |
 | `scan_type`    | TEXT    | `full`, `delta` |
+| `kodi_version` | INTEGER | Kodi major version when scan was performed |
 | `start_time`   | TEXT    | ISO 8601 timestamp |
 | `end_time`     | TEXT    | ISO 8601 timestamp (nullable) |
 | `total_items`  | INTEGER | Items found during scan |
