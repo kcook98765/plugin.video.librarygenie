@@ -46,6 +46,15 @@ class DialogResponse:
     navigate_to_favorites: bool = False
     navigate_on_failure: Optional[str] = None
 
+    def __post_init__(self):
+        """Debug post-initialization"""
+        try:
+            from ..utils.logger import get_logger
+            logger = get_logger(__name__)
+            logger.info(f"DEBUG: DialogResponse created - success={self.success}, message='{self.message}'")
+        except Exception:
+            pass  # Don't let logging errors break the response
+
     def show_notification(self, addon, default_title: str = None):
         """Show notification to user if message is provided"""
         if self.message:

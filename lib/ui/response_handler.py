@@ -28,8 +28,12 @@ class ResponseHandler:
         Returns True if response was handled successfully
         """
         try:
+            self.logger.info(f"DEBUG: handle_dialog_response called with response: {response}")
+            self.logger.info(f"DEBUG: Response type: {type(response)}")
+            self.logger.info(f"DEBUG: Response attributes: {vars(response) if hasattr(response, '__dict__') else 'No __dict__'}")
+            
             if not isinstance(response, DialogResponse):
-                self.logger.warning("Expected DialogResponse but got different type")
+                self.logger.warning(f"DEBUG: Expected DialogResponse but got {type(response)}")
                 return False
 
             # Show notification if there's a message
