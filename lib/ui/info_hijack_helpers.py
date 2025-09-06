@@ -633,75 +633,135 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         
         # 🚀 SUBSTEP 2: Try direct videodb URL navigation first
         substep2_start = time.perf_counter()
-        logger.info(f"🚀 SUBSTEP 2: Attempting direct videodb URL approach for {db_type} {db_id}")
+        logger.info(f"🚀 SUBSTEP 2: Attempting pure RPC methods to open info dialog for {db_type} {db_id}")
         
-        # Method 1: Try direct videodb navigation with proper URL format
-        logger.info(f"SUBSTEP 2: Trying direct videodb navigation for {db_type} {db_id}")
-        
+        # Method 1: Try GUI.ShowVideoInfo JSON-RPC (most direct)
+        logger.info(f"SUBSTEP 2: Trying GUI.ShowVideoInfo RPC method")
         try:
-            # Use direct videodb URL navigation
             if db_type.lower() == 'movie':
-                videodb_url = f"videodb://movies/titles/{db_id}"
+                info_request = {
+                    "jsonrpc": "2.0",
+                    "method": "GUI.ShowVideoInfo",
+                    "params": {
+                        "item": {"movieid": int(db_id)}
+                    },
+                    "id": 1
+                }
             elif db_type.lower() == 'episode':
-                videodb_url = f"videodb://tvshows/titles/-1/-1/{db_id}"
+                info_request = {
+                    "jsonrpc": "2.0",
+                    "method": "GUI.ShowVideoInfo",
+                    "params": {
+                        "item": {"episodeid": int(db_id)}
+                    },
+                    "id": 1
+                }
             else:
-                videodb_url = f"videodb://movies/titles/{db_id}"
+                raise Exception(f"Unsupported db_type: {db_type}")
             
-            logger.info(f"SUBSTEP 2: Navigating directly to: {videodb_url}")
-            xbmc.executebuiltin(f'ActivateWindow(Videos,"{videodb_url}",return)')
-            xbmc.sleep(500)  # Wait for navigation
+            logger.info(f"SUBSTEP 2: Sending GUI.ShowVideoInfo request: {info_request}")
+            response_str = xbmc.executeJSONRPC(json.dumps(info_request))
+            response = json.loads(response_str)
             
-            # Check if we can trigger info dialog directly
-            logger.info(f"SUBSTEP 2: Trying Info action after navigation")
-            xbmc.executebuiltin('Action(Info)')
-            xbmc.sleep(300)
+            if "error" not in response:
+                logger.info(f"SUBSTEP 2: GUI.ShowVideoInfo succeeded!")
+                xbmc.sleep(300)
+                dialog_id_after = xbmcgui.getCurrentWindowDialogId()
+                
+                info_dialog_ids = [12003, 10147, 12002, 10025]
+                if dialog_id_after in info_dialog_ids:
+                    substep2_end = time.perf_counter()
+                    logger.info(f"✅ SUBSTEP 2 SUCCESS: GUI.ShowVideoInfo worked! Dialog ID: {dialog_id_after} in {substep2_end - substep2_start:.3f}s")
+                    
+                    overall_end_time = time.perf_counter()
+                    logger.info(f"🎉 HIJACK HELPERS: ✅ PURE RPC hijack completed successfully for {db_type} {db_id} in {overall_end_time - overall_start_time:.3f}s")
+                    return True
+            else:
+                logger.info(f"SUBSTEP 2: GUI.ShowVideoInfo failed: {response.get('error')}")
+                raise Exception("GUI.ShowVideoInfo failed")
                 
         except Exception as e:
-            logger.info(f"SUBSTEP 2: Direct videodb navigation failed: {e}")
+            logger.info(f"SUBSTEP 2: GUI.ShowVideoInfo method failed: {e}")
             
-            # Method 2: Try JSON-RPC GUI.ActivateWindow with specific item
-            logger.info(f"SUBSTEP 2: Trying GUI.ActivateWindow JSON-RPC approach")
+            # Method 2: Try Input.ShowInfo action directly 
+            logger.info(f"SUBSTEP 2: Trying Input.ShowInfo RPC method")
             try:
+                # First set context by opening the item's page, then show info
                 if db_type.lower() == 'movie':
-                    activate_request = {
+                    context_request = {
                         "jsonrpc": "2.0",
                         "method": "GUI.ActivateWindow",
                         "params": {
                             "window": "videos",
-                            "parameters": [f"videodb://movies/titles/{db_id}"]
+                            "parameters": [f"videodb://movies/titles/"]
                         },
                         "id": 1
                     }
-                else:
-                    activate_request = {
+                elif db_type.lower() == 'episode':
+                    context_request = {
                         "jsonrpc": "2.0",
-                        "method": "GUI.ActivateWindow", 
+                        "method": "GUI.ActivateWindow",
                         "params": {
-                            "window": "videos",
-                            "parameters": [f"videodb://tvshows/titles/-1/-1/{db_id}"]
+                            "window": "videos", 
+                            "parameters": [f"videodb://tvshows/titles/"]
                         },
                         "id": 1
                     }
                 
-                logger.info(f"SUBSTEP 2: Sending GUI.ActivateWindow request")
-                response_str = xbmc.executeJSONRPC(json.dumps(activate_request))
+                logger.info(f"SUBSTEP 2: Setting context with GUI.ActivateWindow")
+                response_str = xbmc.executeJSONRPC(json.dumps(context_request))
                 response = json.loads(response_str)
                 
                 if "error" not in response:
-                    logger.info(f"SUBSTEP 2: GUI.ActivateWindow succeeded")
                     xbmc.sleep(400)
-                    # Try info action
-                    xbmc.executebuiltin('Action(Info)')
-                    xbmc.sleep(300)
+                    
+                    # Now try to show info for the specific item
+                    show_info_request = {
+                        "jsonrpc": "2.0",
+                        "method": "Input.ShowInfo",
+                        "params": {},
+                        "id": 1
+                    }
+                    
+                    logger.info(f"SUBSTEP 2: Sending Input.ShowInfo request")
+                    response_str = xbmc.executeJSONRPC(json.dumps(show_info_request))
+                    response = json.loads(response_str)
+                    
+                    if "error" not in response:
+                        xbmc.sleep(300)
+                        # This approach requires further navigation, continue to Method 3
+                        logger.info(f"SUBSTEP 2: Input.ShowInfo sent, but need to navigate to specific item")
+                    else:
+                        logger.info(f"SUBSTEP 2: Input.ShowInfo failed: {response.get('error')}")
+                        raise Exception("Input.ShowInfo failed")
                 else:
-                    logger.info(f"SUBSTEP 2: GUI.ActivateWindow failed: {response.get('error')}")
-                    raise Exception("GUI.ActivateWindow failed")
+                    logger.info(f"SUBSTEP 2: Context setting failed: {response.get('error')}")
+                    raise Exception("Context setting failed")
                     
             except Exception as e2:
-                logger.info(f"SUBSTEP 2: GUI.ActivateWindow method failed: {e2}")
+                logger.info(f"SUBSTEP 2: Input.ShowInfo method failed: {e2}")
         
-        # Wait briefly to see if dialog opens
-            dialog_id_after = xbmcgui.getCurrentWindowDialogId()
+        # Method 3: Try direct builtin with proper navigation context
+        logger.info(f"SUBSTEP 2: Trying builtin ShowVideoInfo with navigation context")
+        try:
+            # Navigate to movies/episodes root first to establish context
+            if db_type.lower() == 'movie':
+                xbmc.executebuiltin('ActivateWindow(Videos,videodb://movies/titles/,return)')
+            elif db_type.lower() == 'episode': 
+                xbmc.executebuiltin('ActivateWindow(Videos,videodb://tvshows/titles/,return)')
+            
+            xbmc.sleep(500)  # Allow navigation to complete
+            
+            # Try the builtin with the database ID
+            logger.info(f"SUBSTEP 2: Executing ShowVideoInfo builtin for DBID {db_id}")
+            xbmc.executebuiltin(f'ShowVideoInfo({db_id})')
+            xbmc.sleep(300)
+            
+        except Exception as e3:
+            logger.info(f"SUBSTEP 2: Builtin ShowVideoInfo method failed: {e3}")
+        
+        # Check if any method succeeded
+        dialog_id_after = xbmcgui.getCurrentWindowDialogId()
             
             # Check for multiple possible info dialog IDs
             info_dialog_ids = [12003, 10147, 12002, 10025]  # Various info dialog IDs across Kodi versions
