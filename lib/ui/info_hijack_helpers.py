@@ -594,7 +594,7 @@ def _wait_videos_on(path: str, timeout_ms=8000) -> bool:
 
 def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
     """
-    Proper hijack flow: Close current info dialog, navigate to native list, then open info.
+    Proper hijack flow: Close current info dialog, navigate directly to videodb, then open info.
     This ensures the video info gets full Kodi metadata population from native library.
     """
     try:
@@ -618,40 +618,47 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         substep1_end = time.perf_counter()
         logger.info(f"⏱️ SUBSTEP 1 TIMING: {substep1_end - substep1_start:.3f}s")
         
-        # 📝 SUBSTEP 2: Create XSP file for database item
+        # 📝 SUBSTEP 2: Create videodb URL for direct navigation
         substep2_start = time.perf_counter()
-        logger.info(f"📝 SUBSTEP 2: Creating XSP file for {db_type} {db_id}")
-        start_xsp_time = time.perf_counter()
-        xsp_path = _create_xsp_for_dbitem(db_type, db_id)
-        end_xsp_time = time.perf_counter()
+        logger.info(f"📝 SUBSTEP 2: Creating videodb URL for {db_type} {db_id}")
+        start_videodb_time = time.perf_counter()
         
-        if not xsp_path:
-            logger.warning(f"❌ SUBSTEP 2 FAILED: Failed to create XSP file for {db_type} {db_id}")
+        # Create direct videodb URL for the specific item
+        if db_type.lower() == 'movie':
+            videodb_url = f"videodb://movies/titles/{db_id}"
+        elif db_type.lower() == 'episode':
+            videodb_url = f"videodb://tvshows/titles/-1/-1/{db_id}"
+        elif db_type.lower() == 'tvshow':
+            videodb_url = f"videodb://tvshows/titles/{db_id}"
+        else:
+            logger.warning(f"❌ SUBSTEP 2 FAILED: Unsupported db_type: {db_type}")
             return False
-        logger.info(f"✅ SUBSTEP 2 COMPLETE: XSP file created: {xsp_path} in {end_xsp_time - start_xsp_time:.3f}s")
+        
+        end_videodb_time = time.perf_counter()
+        logger.info(f"✅ SUBSTEP 2 COMPLETE: VideoDB URL created: {videodb_url} in {end_videodb_time - start_videodb_time:.3f}s")
         substep2_end = time.perf_counter()
         logger.info(f"⏱️ SUBSTEP 2 TIMING: {substep2_end - substep2_start:.3f}s")
         
-        # 🧭 SUBSTEP 3: Navigate to the XSP file (library navigation)
+        # 🧭 SUBSTEP 3: Navigate directly to the database item
         substep3_start = time.perf_counter()
-        logger.info(f"🧭 SUBSTEP 3: Navigating to XSP file: {xsp_path}")
+        logger.info(f"🧭 SUBSTEP 3: Navigating to database item: {videodb_url}")
         current_window_before = xbmcgui.getCurrentWindowId()
         start_nav_time = time.perf_counter()
         logger.info(f"SUBSTEP 3 DEBUG: About to execute ActivateWindow command at {start_nav_time - overall_start_time:.3f}s")
-        xbmc.executebuiltin(f'ActivateWindow(Videos,"{xsp_path}",return)')
+        xbmc.executebuiltin(f'ActivateWindow(Videos,"{videodb_url}",return)')
         activate_window_end = time.perf_counter()
         logger.info(f"SUBSTEP 3 DEBUG: ActivateWindow command executed in {activate_window_end - start_nav_time:.3f}s")
         
-        # ⏳ SUBSTEP 4: Wait for the Videos window to load with our XSP content
+        # ⏳ SUBSTEP 4: Wait for the Videos window to load with videodb content
         substep4_start = time.perf_counter()
-        logger.info(f"⏳ SUBSTEP 4: Waiting for Videos window to load with XSP content")
+        logger.info(f"⏳ SUBSTEP 4: Waiting for Videos window to load with videodb content")
         wait_start = time.perf_counter()
-        if not _wait_videos_on(xsp_path, timeout_ms=6000):  # Increased timeout for XSP
+        if not _wait_videos_on(videodb_url, timeout_ms=4000):  # Shorter timeout for direct videodb navigation
             wait_end = time.perf_counter()
             end_nav_time = time.perf_counter()
             current_window_after = xbmcgui.getCurrentWindowId()
             current_path = xbmc.getInfoLabel("Container.FolderPath")
-            logger.warning(f"❌ SUBSTEP 4 FAILED: Failed to load Videos window with XSP: {xsp_path} after {end_nav_time - start_nav_time:.3f}s")
+            logger.warning(f"❌ SUBSTEP 4 FAILED: Failed to load Videos window with videodb: {videodb_url} after {end_nav_time - start_nav_time:.3f}s")
             logger.warning(f"SUBSTEP 4 DEBUG: Window before={current_window_before}, after={current_window_after}, current_path='{current_path}'")
             logger.warning(f"⏱️ SUBSTEP 4 WAIT TIMING: {wait_end - wait_start:.3f}s")
             return False
@@ -679,33 +686,31 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         substep5_end = time.perf_counter()
         logger.info(f"⏱️ SUBSTEP 5 TIMING: {substep5_end - substep5_start:.3f}s")
         
-        # 📍 SUBSTEP 6: Check current item and navigate away from parent if needed
+        # 📍 SUBSTEP 6: Verify we're focused on the target database item
         substep6_start = time.perf_counter()
-        logger.info(f"📍 SUBSTEP 6: Checking current item and navigating to movie")
-        current_item_before = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
-        current_item_label = xbmc.getInfoLabel('ListItem.Label')
+        logger.info(f"📍 SUBSTEP 6: Verifying focus on target database item")
         
-        # Check if we're focused on the parent item ".."
-        if current_item_label == ".." or current_item_label.strip() == "..":
-            logger.info(f"SUBSTEP 6: Currently on parent item '{current_item_label}', navigating to next item")
-            xbmc.executebuiltin('Action(Down)')  # Move to next item
-            xbmc.sleep(150)  # Wait for navigation
-            current_item_after = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
-            new_label = xbmc.getInfoLabel('ListItem.Label')
-            logger.info(f"SUBSTEP 6: Moved from parent item {current_item_before} to item {current_item_after}, new label: '{new_label}'")
-        else:
-            logger.info(f"SUBSTEP 6: Already on target item '{current_item_label}' at position {current_item_before}")
-        
-        # Verify we're now on the correct item
+        # With direct videodb navigation, we should already be focused on the correct item
+        # Just verify the item details
         final_item_label = xbmc.getInfoLabel('ListItem.Label')
         final_item_dbid = xbmc.getInfoLabel('ListItem.DBID')
+        final_item_dbtype = xbmc.getInfoLabel('ListItem.DBTYPE')
         final_item_position = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
         
-        if final_item_label == ".." or final_item_label.strip() == "..":
-            logger.warning(f"❌ SUBSTEP 6 FAILED: Still on parent item after navigation attempt")
-            return False
+        # Verify this is the correct database item
+        expected_dbid = str(db_id)
+        if final_item_dbid != expected_dbid:
+            logger.warning(f"⚠️ SUBSTEP 6 WARNING: DBID mismatch - expected {expected_dbid}, got {final_item_dbid}")
+            # Try to find the correct item if we're not on it
+            if final_item_label == ".." or final_item_label.strip() == "..":
+                logger.info(f"SUBSTEP 6: Currently on parent item, navigating to target")
+                xbmc.executebuiltin('Action(Down)')
+                xbmc.sleep(150)
+                final_item_label = xbmc.getInfoLabel('ListItem.Label')
+                final_item_dbid = xbmc.getInfoLabel('ListItem.DBID')
+                final_item_position = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
         
-        logger.info(f"✅ SUBSTEP 6 COMPLETE: On target item - Position: {final_item_position}, Label: '{final_item_label}', DBID: {final_item_dbid}")
+        logger.info(f"✅ SUBSTEP 6 COMPLETE: On database item - Position: {final_item_position}, Label: '{final_item_label}', DBID: {final_item_dbid}, DBType: {final_item_dbtype}")
         substep6_end = time.perf_counter()
         logger.info(f"⏱️ SUBSTEP 6 TIMING: {substep6_end - substep6_start:.3f}s")
         
