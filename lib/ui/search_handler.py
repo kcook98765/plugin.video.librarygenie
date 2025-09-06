@@ -76,7 +76,7 @@ class SearchHandler:
         """Prompt user for search keywords"""
         try:
             terms = xbmcgui.Dialog().input(
-                L(32100),  # "Enter keywords to search for:"
+                L(33002),  # "Enter search terms"
                 type=xbmcgui.INPUT_ALPHANUM
             )
             return terms.strip() if terms and terms.strip() else None

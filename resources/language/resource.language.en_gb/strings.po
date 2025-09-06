@@ -543,7 +543,7 @@ msgid "Missing from library"
 msgstr ""
 
 msgctxt "#32100"
-msgid "Favorites Integration"
+msgid "Enter search keywords"
 msgstr ""
 
 msgctxt "#32181"
