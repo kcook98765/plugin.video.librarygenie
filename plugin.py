@@ -42,7 +42,7 @@ def handle_signout():
     addon = xbmcaddon.Addon()
 
     from lib.ui.localization import L
-    
+
     # Confirm sign out
     dialog = xbmcgui.Dialog()
     if dialog.yesno(
@@ -98,25 +98,25 @@ def _check_and_trigger_initial_scan():
 
             def run_initial_scan():
                 # Progress callback function - use notification-style progress
-                def progress_callback(page_num, total_pages):
+                def progress_callback(page_num, total_pages, items_processed):
                     try:
                         percentage = int((page_num / total_pages) * 100) if total_pages > 0 else 0
-                        
+
                         # Show notification-style progress every 10% or every 5 pages
                         if percentage % 10 == 0 or page_num % 5 == 0:
                             xbmcgui.Dialog().notification(
                                 addon.getLocalizedString(35002),  # "LibraryGenie"
-                                f"Library scan: {percentage}% complete ({page_num}/{total_pages} pages)",
+                                f"Library scan: {percentage}% complete ({items_processed} items)",
                                 xbmcgui.NOTIFICATION_INFO,
                                 2000  # Show for 2 seconds
                             )
-                            
+
                     except Exception as e:
                         logger.warning(f"Progress callback error: {e}")
 
                 try:
                     result = scanner.perform_full_scan(progress_callback=progress_callback)
-                    
+
                     if result.get("success"):
                         logger.info(f"Initial library scan completed: {result.get('items_added', 0)} movies indexed")
                         # Show completion notification
@@ -314,14 +314,14 @@ def _handle_restore_backup(context: PluginContext):
     try:
         from lib.ui.tools_handler import ToolsHandler
         tools_handler = ToolsHandler()
-        
+
         # Call the restore backup method from tools handler
         response = tools_handler.restore_backup_from_settings()
-        
+
         # Handle the response appropriately
         from lib.ui.response_types import DialogResponse
         from lib.ui.response_handler import get_response_handler
-        
+
         if isinstance(response, DialogResponse):
             response_handler = get_response_handler()
             response_handler.handle_dialog_response(response, context)
@@ -341,17 +341,17 @@ def _handle_restore_backup(context: PluginContext):
 def handle_shortlist_import():
     """Handle ShortList import action from settings"""
     import xbmcgui
-    
+
     logger.info("=== SHORTLIST IMPORT HANDLER CALLED ===")
-    
+
     try:
         logger.info("Starting ShortList import process")
-        
+
         # Show confirmation dialog
         dialog = xbmcgui.Dialog()
 
         from lib.ui.localization import L
-        
+
         logger.info("Showing confirmation dialog")
         if not dialog.yesno(
             L(30071),  # "Import from ShortList addon"
@@ -363,7 +363,7 @@ def handle_shortlist_import():
             return
 
         logger.info("User confirmed import, proceeding...")
-        
+
         # Show progress dialog
         progress = xbmcgui.DialogProgress()
         progress.create("ShortList Import", "Checking ShortList addon...")
@@ -373,10 +373,10 @@ def handle_shortlist_import():
         try:
             from lib.import_export.shortlist_importer import get_shortlist_importer
             logger.info("Successfully imported get_shortlist_importer function")
-            
+
             importer = get_shortlist_importer()
             logger.info(f"Successfully got importer instance: {type(importer)}")
-            
+
         except Exception as import_e:
             logger.error(f"Error importing or getting ShortList importer: {import_e}")
             import traceback
@@ -395,7 +395,7 @@ def handle_shortlist_import():
         try:
             is_installed = importer.is_shortlist_installed()
             logger.info(f"ShortList installed check result: {is_installed}")
-            
+
             if not is_installed:
                 progress.close()
                 dialog.notification(
@@ -423,7 +423,7 @@ def handle_shortlist_import():
         logger.info("About to call importer.import_shortlist_items()")
         logger.info(f"Importer type: {type(importer)}")
         logger.info(f"Importer instance: {importer}")
-        
+
         # Check if the method exists
         if hasattr(importer, 'import_shortlist_items'):
             logger.info(f"import_shortlist_items method exists: {importer.import_shortlist_items}")
@@ -452,7 +452,7 @@ def handle_shortlist_import():
             logger.error(f"TypeError calling import_shortlist_items: {te}")
             import traceback
             logger.error(f"TypeError traceback: {traceback.format_exc()}")
-            
+
             # Try to get more info about the method signature
             import inspect
             try:
@@ -460,7 +460,7 @@ def handle_shortlist_import():
                 logger.error(f"Method signature: {sig}")
             except Exception as sig_e:
                 logger.error(f"Could not get method signature: {sig_e}")
-            
+
             raise
         except Exception as e:
             logger.error(f"=== IMPORT METHOD ERROR ===")
@@ -492,12 +492,12 @@ def handle_shortlist_import():
         logger.error(f"ShortList import handler error: {e}")
         import traceback
         logger.error(f"Handler exception traceback: {traceback.format_exc()}")
-        
+
         try:
             progress.close()
         except:
             pass
-            
+
         xbmcgui.Dialog().notification(
             "LibraryGenie",
             "Import failed with error",

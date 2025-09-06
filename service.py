@@ -172,7 +172,7 @@ class BackgroundService:
                 # No modal progress dialog needed - using notification-style progress
 
                 # Progress callback function - use notification-style progress instead of modal
-                def progress_callback(page_num, total_pages):
+                def progress_callback(page_num, total_pages, items_processed):
                     try:
                         percentage = int((page_num / total_pages) * 100) if total_pages > 0 else 0
                         
@@ -180,7 +180,7 @@ class BackgroundService:
                         if percentage % 10 == 0 or page_num % 5 == 0:
                             xbmcgui.Dialog().notification(
                                 L(35002),  # "LibraryGenie"
-                                f"Library scan: {percentage}% complete ({page_num}/{total_pages} pages)",
+                                f"Library scan: {percentage}% complete ({items_processed} items)",
                                 xbmcgui.NOTIFICATION_INFO,
                                 2000  # Show for 2 seconds
                             )
