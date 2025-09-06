@@ -182,9 +182,17 @@ class InfoHijackManager:
             
             # Check if we're already back in plugin content (Kodi auto-navigated)
             if current_path and 'plugin.video.librarygenie' in current_path:
-                self._logger.info(f"HIJACK: Already back in plugin content: '{current_path}' - no navigation needed")
-                self._cleanup_properties()
-                return
+                # Check if we're at the correct level - list view, not folder view
+                if 'action=show_list' in current_path:
+                    self._logger.info(f"HIJACK: Already back in correct plugin list: '{current_path}' - no navigation needed")
+                    self._cleanup_properties()
+                    return
+                else:
+                    self._logger.debug(f"HIJACK: In plugin content but wrong level: '{current_path}' - need to navigate forward to list")
+                    # We're at folder level, need one forward navigation to get back to list
+                    self._execute_forward_to_list()
+                    self._cleanup_properties()
+                    return
             
             # Determine if we need one back or two backs based on current state
             is_on_xsp = self._is_currently_on_xsp(current_path, current_window)
@@ -261,6 +269,31 @@ class InfoHijackManager:
         else:
             final_path = xbmc.getInfoLabel("Container.FolderPath")
             self._logger.warning(f"HIJACK: Double back timeout - Final path: '{final_path}'")
+    
+    def _execute_forward_to_list(self):
+        """Navigate forward from folder level to list level"""
+        self._logger.debug("HIJACK: Navigating forward from folder to list level")
+        
+        # Get the current path to extract the list we were viewing
+        current_path = xbmc.getInfoLabel("Container.FolderPath")
+        
+        # Look for the list in the current container - it should be the focused item
+        current_item_label = xbmc.getInfoLabel('ListItem.Label')
+        
+        if current_item_label and 'Search:' in current_item_label:
+            self._logger.debug(f"HIJACK: Found search list '{current_item_label}', navigating to it")
+            # Navigate to the focused list item
+            xbmc.executebuiltin('Action(Select)')
+            
+            # Wait for navigation to complete
+            if self._wait_for_list_content("forward to list", max_wait=2.0):
+                final_path = xbmc.getInfoLabel("Container.FolderPath")
+                self._logger.info(f"HIJACK: Forward navigation succeeded - Final path: '{final_path}'")
+            else:
+                final_path = xbmc.getInfoLabel("Container.FolderPath")
+                self._logger.warning(f"HIJACK: Forward navigation timeout - Final path: '{final_path}'")
+        else:
+            self._logger.warning(f"HIJACK: Could not identify target list from current item: '{current_item_label}'")
 
     def _wait_for_plugin_content(self, context: str, max_wait: float = 2.0) -> bool:
         """Wait specifically for plugin content to be loaded"""
@@ -273,6 +306,23 @@ class InfoHijackManager:
             # Check if we're back in plugin content
             if current_path and 'plugin.video.librarygenie' in current_path:
                 self._logger.debug(f"HIJACK: Plugin content detected {context} after {time.time() - start_time:.3f}s")
+                return True
+                
+            xbmc.sleep(int(check_interval * 1000))
+        
+        return False
+    
+    def _wait_for_list_content(self, context: str, max_wait: float = 2.0) -> bool:
+        """Wait specifically for list-level plugin content to be loaded"""
+        start_time = time.time()
+        check_interval = 0.1  # 100ms checks for faster response
+        
+        while (time.time() - start_time) < max_wait:
+            current_path = xbmc.getInfoLabel("Container.FolderPath")
+            
+            # Check if we're back in list-level plugin content
+            if current_path and 'plugin.video.librarygenie' in current_path and 'action=show_list' in current_path:
+                self._logger.debug(f"HIJACK: Plugin list content detected {context} after {time.time() - start_time:.3f}s")
                 return True
                 
             xbmc.sleep(int(check_interval * 1000))
