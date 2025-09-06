@@ -112,9 +112,9 @@ class LibraryScanner:
                     except Exception as e:
                         self.logger.warning(f"Progress callback error: {e}")
 
-                # Brief pause to allow UI updates
+                # Brief pause to allow UI updates - reduced for better performance
                 import time
-                time.sleep(0.1)
+                time.sleep(0.05)  # Reduced from 0.1 to 0.05 seconds
 
             scan_end = datetime.now().isoformat()
             self._log_scan_complete(scan_id, scan_start, total_movies, total_added, 0, 0, scan_end)
