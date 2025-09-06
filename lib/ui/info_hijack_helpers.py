@@ -29,6 +29,51 @@ def _log(message: str, level: int = xbmc.LOGINFO) -> None:
     else:
         logger.debug(f"[InfoHijack] {message}")
 
+def open_native_info_direct(db_type: str, db_id: int, logger, title: str | None = None,
+                            path_hint: str | None = None, timeout: float = 3.0) -> bool:
+    """
+    Fast path: open DialogVideoInfo directly using a synthetic ListItem that carries the
+    library DBID + media type. This avoids XSP/window hops and keeps the user in-place.
+    Returns True if the native dialog becomes visible within `timeout` seconds.
+    """
+    try:
+        # Close any existing videoinfo instantly (no animation), so we take over cleanly.
+        xbmc.executebuiltin('Dialog.Close(videoinfo,true)')
+
+        li = xbmcgui.ListItem(title or "")
+        tag = li.getVideoInfoTag()
+        tag.setMediaType(db_type)          # "movie" | "episode" | "tvshow" | "musicvideo"
+        tag.setDbId(int(db_id), db_type)   # critical: tells Kodi to hydrate from DB (incl. cast)
+        if path_hint:
+            # Optional: can help some skins, but not required for hydration
+            tag.setPath(path_hint)
+
+        t0 = time.perf_counter()
+        xbmcgui.Dialog().info(li)
+
+        # Wait for native info dialog to become active
+        end = t0 + max(0.25, timeout)
+        cur = None
+        last = None
+        while time.perf_counter() < end:
+            cur = xbmcgui.getCurrentWindowDialogId()
+            if cur in (12003, 10147):  # DialogVideoInfo (and a common fallback ID)
+                logger.info(f"Dialog().info visible for {db_type} {db_id} (dlg={cur}) in "
+                            f"{time.perf_counter() - t0:.3f}s")
+                return True
+            # Log state changes sparingly for debugging
+            if cur != last:
+                logger.debug(f"Waiting for videoinfo: dlg={cur}")
+                last = cur
+            xbmc.sleep(50)
+
+        logger.warning(f"Dialog().info did not appear for {db_type} {db_id} within {timeout:.1f}s")
+        return False
+
+    except Exception as e:
+        logger.error(f"open_native_info_direct exception for {db_type} {db_id}: {e}")
+        return False
+
 def prewarm_smb(movie_url: Optional[str]):
     """
     Cheaply 'touch' the movie's parent SMB folder to wake disks and warm
