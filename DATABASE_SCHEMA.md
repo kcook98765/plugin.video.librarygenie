@@ -62,8 +62,6 @@ The unified table for storing all media content metadata.
 | `kodi_id` | INTEGER | Kodi database ID (movieid, episodeid, etc.) |
 | `source` | TEXT | Source classification (e.g., 'library', 'external') |
 | `play` | TEXT | Play command or URL |
-| `poster` | TEXT | Poster artwork URL |
-| `fanart` | TEXT | Fanart artwork URL |
 | `plot` | TEXT | Plot/description |
 | `rating` | REAL | Rating score |
 | `votes` | INTEGER | Number of votes |

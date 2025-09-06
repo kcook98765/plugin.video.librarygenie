@@ -64,29 +64,24 @@ class QueryManager:
         else:
             canonical["duration_minutes"] = 0
 
-        # Art normalization - flatten art dict or use direct keys AND preserve original art dict
+        # Art normalization - use version-aware art storage
+        from ..utils.kodi_version import get_kodi_major_version
+        
         art = item.get("art", {})
-        if isinstance(art, dict):
-            canonical["poster"] = art.get("poster", "")
-            canonical["fanart"] = art.get("fanart", "")
-            canonical["thumb"] = art.get("thumb", "") if art.get("thumb") else ""
-            canonical["banner"] = art.get("banner", "") if art.get("banner") else ""
-            canonical["landscape"] = art.get("landscape", "") if art.get("landscape") else ""
-            canonical["clearlogo"] = art.get("clearlogo", "") if art.get("clearlogo") else ""
-            # Preserve the original art dict for the builder
-            canonical["art"] = art
-        else:
-            canonical["poster"] = str(item.get("poster", item.get("thumbnail", "")))
-            canonical["fanart"] = str(item.get("fanart", ""))
-            canonical["thumb"] = ""
-            canonical["banner"] = ""
-            canonical["landscape"] = ""
-            canonical["clearlogo"] = ""
-            # Create art dict from individual fields
-            canonical["art"] = {
-                "poster": canonical["poster"],
-                "fanart": canonical["fanart"]
+        if not isinstance(art, dict):
+            # Handle individual art fields
+            art = {
+                "poster": str(item.get("poster", item.get("thumbnail", ""))),
+                "fanart": str(item.get("fanart", "")),
+                "thumb": str(item.get("thumb", "")),
+                "banner": str(item.get("banner", "")),
+                "landscape": str(item.get("landscape", "")),
+                "clearlogo": str(item.get("clearlogo", ""))
             }
+        
+        # Store art dict in format appropriate for current Kodi version
+        kodi_major = get_kodi_major_version()
+        canonical["art"] = self._format_art_for_kodi_version(art, kodi_major)
 
         # Resume - always present for library items, in seconds
         resume_data = item.get("resume", {})
@@ -192,8 +187,6 @@ class QueryManager:
                     mi.year,
                     mi.imdbnumber as imdb_id,
                     mi.tmdb_id,
-                    mi.poster,
-                    mi.fanart,
                     mi.plot,
                     mi.rating,
                     mi.votes,
@@ -299,7 +292,10 @@ class QueryManager:
             self.logger.debug(f"Adding '{title}' to list {list_id}")
 
             with self.connection_manager.transaction() as conn:
-                # Create media item data
+                # Create media item data with version-aware art storage
+                from ..utils.kodi_version import get_kodi_major_version
+                kodi_major = get_kodi_major_version()
+                
                 media_data = {
                     'media_type': 'movie',
                     'title': title,
@@ -309,8 +305,6 @@ class QueryManager:
                     'kodi_id': kodi_id,
                     'source': 'manual',
                     'play': '',
-                    'poster': '',
-                    'fanart': '',
                     'plot': '',
                     'rating': 0.0,
                     'votes': 0,
@@ -322,7 +316,7 @@ class QueryManager:
                     'country': '',
                     'writer': '',
                     'cast': '',
-                    'art': ''
+                    'art': json.dumps(self._format_art_for_kodi_version({}, kodi_major))
                 }
 
                 # Insert or get media item
@@ -698,18 +692,17 @@ class QueryManager:
             cursor = conn.execute("""
                 INSERT INTO media_items 
                 (media_type, title, year, imdbnumber, tmdb_id, kodi_id, source, 
-                 play, poster, fanart, plot, rating, votes, duration, mpaa, 
+                 play, plot, rating, votes, duration, mpaa, 
                  genre, director, studio, country, writer, cast, art)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, [
                 media_data['media_type'], media_data['title'], media_data['year'],
                 media_data['imdbnumber'], media_data['tmdb_id'], media_data['kodi_id'],
-                media_data['source'], media_data['play'], media_data['poster'],
-                media_data['fanart'], media_data['plot'], media_data['rating'],
-                media_data['votes'], media_data['duration'], media_data['mpaa'],
-                media_data['genre'], media_data['director'], media_data['studio'],
-                media_data['country'], media_data['writer'], media_data['cast'],
-                media_data['art']
+                media_data['source'], media_data['play'], media_data['plot'], 
+                media_data['rating'], media_data['votes'], media_data['duration'], 
+                media_data['mpaa'], media_data['genre'], media_data['director'], 
+                media_data['studio'], media_data['country'], media_data['writer'], 
+                media_data['cast'], media_data['art']
             ])
 
             return cursor.lastrowid
@@ -1134,7 +1127,10 @@ class QueryManager:
                     # Create new media item - normalize the item first for proper data extraction
                     canonical_item = self._normalize_to_canonical(kodi_item)
                     
-                    # Extract basic fields for media_items table
+                    # Extract basic fields for media_items table with version-aware art storage
+                    from ..utils.kodi_version import get_kodi_major_version
+                    kodi_major = get_kodi_major_version()
+                    
                     media_data = {
                         'media_type': canonical_item['media_type'],
                         'title': canonical_item['title'],
@@ -1144,8 +1140,6 @@ class QueryManager:
                         'kodi_id': canonical_item.get('kodi_id'),
                         'source': 'lib',
                         'play': '',
-                        'poster': canonical_item.get('poster', ''),
-                        'fanart': canonical_item.get('fanart', ''),
                         'plot': canonical_item.get('plot', ''),
                         'rating': canonical_item.get('rating', 0.0),
                         'votes': canonical_item.get('votes', 0),
@@ -1157,7 +1151,7 @@ class QueryManager:
                         'country': canonical_item.get('country', ''),
                         'writer': canonical_item.get('writer', ''),
                         'cast': '',
-                        'art': json.dumps(canonical_item.get('art', {}))
+                        'art': json.dumps(self._format_art_for_kodi_version(canonical_item.get('art', {}), kodi_major))
                     }
                     
                     media_item_id = self._insert_or_get_media_item(conn, media_data)
@@ -1239,6 +1233,23 @@ class QueryManager:
         }
 
         return self._normalize_to_canonical(item)
+
+    def _format_art_for_kodi_version(self, art_dict: Dict[str, Any], kodi_major: int) -> Dict[str, Any]:
+        """Format art dictionary for specific Kodi version compatibility"""
+        if not isinstance(art_dict, dict):
+            return {}
+        
+        # Clean up empty values
+        cleaned_art = {k: v for k, v in art_dict.items() if v and str(v).strip()}
+        
+        # Kodi v19+ all support the same art format, but ensure consistency
+        # Add fallbacks for missing common art types
+        if cleaned_art.get("poster") and not cleaned_art.get("thumb"):
+            cleaned_art["thumb"] = cleaned_art["poster"]
+        if cleaned_art.get("poster") and not cleaned_art.get("icon"):
+            cleaned_art["icon"] = cleaned_art["poster"]
+            
+        return cleaned_art
 
     def _normalize_kodi_movie_details(self, movie_details: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize Kodi JSON-RPC movie details to canonical format"""

@@ -724,10 +724,8 @@ class ListItemBuilder:
                     if art_key in item_art and item_art[art_key]:
                         art[art_key] = item_art[art_key]
 
-        # Also check top-level fields (enrichment may have flattened them)
-        for art_key in ['poster', 'fanart', 'thumb', 'banner', 'landscape', 'clearlogo']:
-            if item.get(art_key) and not art.get(art_key):
-                art[art_key] = item[art_key]
+        # No longer check top-level poster/fanart fields since they're removed
+        # All art data should be in the art JSON field
 
         # If we have poster but no thumb/icon, set them for list view compatibility
         if art.get('poster') and not art.get('thumb'):

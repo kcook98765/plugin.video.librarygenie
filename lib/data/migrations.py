@@ -102,8 +102,6 @@ class MigrationManager:
                     kodi_id INTEGER,
                     source TEXT,
                     play TEXT,
-                    poster TEXT,
-                    fanart TEXT,
                     plot TEXT,
                     rating REAL,
                     votes INTEGER,
@@ -529,6 +527,12 @@ class MigrationManager:
             conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (8, datetime('now'))")
             print("Applied migration 8: Added kodi_version column to library_scan_log")
 
+        # Version 9: Remove duplicate poster/fanart columns, keep only art JSON field
+        if version < 9:
+            remove_duplicate_art_columns(conn)
+            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (9, datetime('now'))")
+            print("Applied migration 9: Removed duplicate poster/fanart columns")
+
         print(f"Database schema is up to date (version {get_current_version(conn)})")
         return True
 
@@ -554,6 +558,96 @@ def add_kodi_version_to_scan_log(conn):
             print("Added kodi_version column to library_scan_log table")
     except Exception as e:
         print(f"Failed to add kodi_version column: {e}")
+        raise
+
+def remove_duplicate_art_columns(conn):
+    """Remove duplicate poster/fanart columns from media_items table"""
+    try:
+        # Check if columns exist
+        cursor = conn.execute("PRAGMA table_info(media_items)")
+        columns = [row[1] for row in cursor.fetchall()]
+        
+        # Migrate data from poster/fanart columns to art JSON before dropping
+        if 'poster' in columns or 'fanart' in columns:
+            # Update art JSON with poster/fanart data where art is empty or missing
+            conn.execute("""
+                UPDATE media_items 
+                SET art = json_object(
+                    'poster', COALESCE(poster, ''),
+                    'fanart', COALESCE(fanart, '')
+                )
+                WHERE art IS NULL OR art = '' OR art = '{}'
+            """)
+            
+            # For existing art JSON, merge poster/fanart if not already present
+            conn.execute("""
+                UPDATE media_items 
+                SET art = json_patch(
+                    COALESCE(art, '{}'),
+                    json_object(
+                        'poster', COALESCE(poster, json_extract(art, '$.poster'), ''),
+                        'fanart', COALESCE(fanart, json_extract(art, '$.fanart'), '')
+                    )
+                )
+                WHERE art IS NOT NULL AND art != ''
+            """)
+            
+            # Create new table without poster/fanart columns
+            conn.execute("""
+                CREATE TABLE media_items_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    media_type TEXT NOT NULL,
+                    title TEXT,
+                    year INTEGER,
+                    imdbnumber TEXT,
+                    tmdb_id TEXT,
+                    kodi_id INTEGER,
+                    source TEXT,
+                    play TEXT,
+                    plot TEXT,
+                    rating REAL,
+                    votes INTEGER,
+                    duration INTEGER,
+                    mpaa TEXT,
+                    genre TEXT,
+                    director TEXT,
+                    studio TEXT,
+                    country TEXT,
+                    writer TEXT,
+                    cast TEXT,
+                    art TEXT,
+                    file_path TEXT,
+                    normalized_path TEXT,
+                    is_removed INTEGER DEFAULT 0,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                )
+            """)
+            
+            # Copy data to new table
+            conn.execute("""
+                INSERT INTO media_items_new 
+                SELECT id, media_type, title, year, imdbnumber, tmdb_id, kodi_id, 
+                       source, play, plot, rating, votes, duration, mpaa, genre, 
+                       director, studio, country, writer, cast, art, file_path, 
+                       normalized_path, is_removed, created_at, updated_at
+                FROM media_items
+            """)
+            
+            # Drop old table and rename new one
+            conn.execute("DROP TABLE media_items")
+            conn.execute("ALTER TABLE media_items_new RENAME TO media_items")
+            
+            # Recreate indexes
+            conn.execute("CREATE INDEX idx_media_items_imdbnumber ON media_items (imdbnumber)")
+            conn.execute("CREATE INDEX idx_media_items_media_type_kodi_id ON media_items (media_type, kodi_id)")
+            conn.execute("CREATE INDEX idx_media_items_title ON media_items (title COLLATE NOCASE)")
+            conn.execute("CREATE INDEX idx_media_items_year ON media_items (year)")
+            
+            print("Removed duplicate poster/fanart columns from media_items table")
+            
+    except Exception as e:
+        print(f"Failed to remove duplicate art columns: {e}")
         raise
 
 # Global migration manager instance
