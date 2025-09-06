@@ -194,19 +194,14 @@ class InfoHijackManager:
                     self._cleanup_properties()
                     return
             
-            # Determine if we need one back or two backs based on current state
-            is_on_xsp = self._is_currently_on_xsp(current_path, current_window)
+            # Use conservative navigation - always try single back first, only add second if needed
+            self._logger.debug(f"HIJACK: Starting conservative navigation approach")
             
-            if is_on_xsp:
-                self._logger.debug(f"HIJACK: Currently on XSP, need two back commands")
-                # Strategy 1: Double back for XSP
-                self._execute_double_back_navigation()
-            else:
-                self._logger.debug(f"HIJACK: Not on XSP, trying single back first")
-                # Strategy 2: Try single back first, then double back if needed
-                if not self._execute_single_back_with_fallback():
-                    self._logger.debug("HIJACK: Single back failed, falling back to double back")
-                    self._execute_double_back_navigation()
+            # Strategy: Always try single back first, check result, then decide if more navigation needed
+            if not self._execute_single_back_with_verification():
+                self._logger.debug("HIJACK: Single back didn't reach plugin content, trying one more back")
+                # Only if single back didn't get us to plugin content, try one more
+                self._execute_additional_back_if_needed()
             
             self._cleanup_properties()
                 
@@ -231,44 +226,51 @@ class InfoHijackManager:
                 
         return False
 
-    def _execute_single_back_with_fallback(self) -> bool:
-        """Try single back and check if we end up in plugin content"""
+    def _execute_single_back_with_verification(self) -> bool:
+        """Try single back and carefully verify the result"""
         self._logger.debug("HIJACK: Attempting single back navigation")
+        
+        # Record where we are before the back command
+        initial_path = xbmc.getInfoLabel("Container.FolderPath")
         
         xbmc.executebuiltin('Action(Back)')
         
-        # Quick check if single back was sufficient (shorter timeout)
-        success = self._wait_for_plugin_content("single back", max_wait=1.5)
+        # Wait for navigation to complete with more patience
+        success = self._wait_for_plugin_content("single back", max_wait=2.0)
         
         if success:
             final_path = xbmc.getInfoLabel("Container.FolderPath")
             self._logger.info(f"HIJACK: Single back succeeded - Final path: '{final_path}'")
+            
+            # Extra verification: make sure we're not in folder view when we should be in list view
+            if 'action=show_folder' in final_path and 'action=show_list' not in final_path:
+                self._logger.debug(f"HIJACK: Single back reached folder level, need to navigate forward to list")
+                self._execute_forward_to_list()
+            
             return True
         else:
             current_path = xbmc.getInfoLabel("Container.FolderPath")
-            self._logger.debug(f"HIJACK: Single back insufficient - Current path: '{current_path}'")
+            self._logger.debug(f"HIJACK: Single back insufficient - Current path: '{current_path}' (was: '{initial_path}')")
             return False
 
-    def _execute_double_back_navigation(self):
-        """Execute the double back navigation strategy"""
-        self._logger.debug("HIJACK: Executing double back navigation")
+    def _execute_additional_back_if_needed(self):
+        """Execute one additional back command only if we're not yet in plugin content"""
+        current_path = xbmc.getInfoLabel("Container.FolderPath")
         
-        # First back
-        xbmc.executebuiltin('Action(Back)')
-        
-        # Brief wait for first navigation (shorter timeout)
-        xbmc.sleep(300)  # 300ms should be enough for most cases
-        
-        # Second back  
-        xbmc.executebuiltin('Action(Back)')
-        
-        # Wait for final navigation to complete
-        if self._wait_for_plugin_content("double back", max_wait=2.0):
-            final_path = xbmc.getInfoLabel("Container.FolderPath")
-            self._logger.info(f"HIJACK: Double back succeeded - Final path: '{final_path}'")
+        # Only execute additional back if we're still not in plugin content
+        if current_path and 'plugin.video.librarygenie' not in current_path:
+            self._logger.debug("HIJACK: Executing one additional back command")
+            xbmc.executebuiltin('Action(Back)')
+            
+            # Wait for this navigation to complete
+            if self._wait_for_plugin_content("additional back", max_wait=2.0):
+                final_path = xbmc.getInfoLabel("Container.FolderPath")
+                self._logger.info(f"HIJACK: Additional back succeeded - Final path: '{final_path}'")
+            else:
+                final_path = xbmc.getInfoLabel("Container.FolderPath")
+                self._logger.warning(f"HIJACK: Additional back timeout - Final path: '{final_path}'")
         else:
-            final_path = xbmc.getInfoLabel("Container.FolderPath")
-            self._logger.warning(f"HIJACK: Double back timeout - Final path: '{final_path}'")
+            self._logger.debug(f"HIJACK: Already in plugin content: '{current_path}' - no additional back needed")
     
     def _execute_forward_to_list(self):
         """Navigate forward from folder level to list level"""
