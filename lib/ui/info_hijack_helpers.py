@@ -647,12 +647,12 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
             return _open_native_info_via_xsp(db_type, db_id, logger, overall_start_time)
         
         # Use JSON-RPC to activate the video info dialog window
-        # Try multiple approaches: window ID, builtin command via JSON-RPC
+        # Try multiple approaches: window name, then direct builtin
         request = {
             "jsonrpc": "2.0",
             "method": "GUI.ActivateWindow",
             "params": {
-                "window": 12003,  # DialogVideoInfo window ID
+                "window": "dialogvideoinfo",  # DialogVideoInfo window name
                 "parameters": [item_param]
             },
             "id": 1
@@ -667,7 +667,7 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
             if "error" in response:
                 logger.warning(f"⚠️ SUBSTEP 2: JSON-RPC window ID failed: {response['error']} - trying builtin command")
                 
-                # Fallback: Try using builtin command via JSON-RPC
+                # Fallback: Try using direct xbmc.executebuiltin (not JSON-RPC)
                 if db_type == "movie":
                     builtin_cmd = f"ActivateWindow(DialogVideoInfo,videodb://movies/titles/{db_id})"
                 elif db_type == "episode":
@@ -678,28 +678,13 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
                     logger.warning(f"⚠️ SUBSTEP 2: Unsupported db_type for builtin: {db_type}")
                     return _open_native_info_via_xsp(db_type, db_id, logger, overall_start_time)
                 
-                builtin_request = {
-                    "jsonrpc": "2.0",
-                    "method": "GUI.ExecuteBuiltin",
-                    "params": {
-                        "command": builtin_cmd
-                    },
-                    "id": 2
-                }
-                
-                logger.info(f"SUBSTEP 2: Trying builtin command: {builtin_cmd}")
-                builtin_response_str = xbmc.executeJSONRPC(json.dumps(builtin_request))
-                logger.info(f"SUBSTEP 2: Builtin response: {builtin_response_str}")
-                
+                logger.info(f"SUBSTEP 2: Trying direct builtin command: {builtin_cmd}")
                 try:
-                    builtin_response = json.loads(builtin_response_str)
-                    if "error" in builtin_response:
-                        logger.warning(f"⚠️ SUBSTEP 2: Builtin command failed: {builtin_response['error']} - falling back to XSP method")
-                        return _open_native_info_via_xsp(db_type, db_id, logger, overall_start_time)
-                    else:
-                        logger.info(f"✅ SUBSTEP 2: Builtin command successful")
-                except json.JSONDecodeError:
-                    logger.warning(f"⚠️ SUBSTEP 2: Failed to parse builtin response - falling back to XSP method")
+                    xbmc.executebuiltin(builtin_cmd)
+                    logger.info(f"✅ SUBSTEP 2: Direct builtin command executed successfully")
+                    # No response to parse with direct builtin
+                except Exception as e:
+                    logger.warning(f"⚠️ SUBSTEP 2: Direct builtin command failed: {e} - falling back to XSP method")
                     return _open_native_info_via_xsp(db_type, db_id, logger, overall_start_time)
             else:
                 logger.info(f"✅ SUBSTEP 2: JSON-RPC window ID request successful")
