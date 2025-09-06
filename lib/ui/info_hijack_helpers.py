@@ -504,15 +504,16 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         substep2_end = time.perf_counter()
         logger.info(f"⏱️ SUBSTEP 2 TIMING: {substep2_end - substep2_start:.3f}s")
         
-        # 🧭 SUBSTEP 3: Navigate to the XSP (creates native Kodi list with single item)
+        # 🧭 SUBSTEP 3: Navigate to the XSP with replace to avoid polluting navigation history
         substep3_start = time.perf_counter()
-        logger.info(f"🧭 SUBSTEP 3: Navigating to native list: {xsp_path}")
+        logger.info(f"🧭 SUBSTEP 3: Navigating to native list (replace mode): {xsp_path}")
         current_window_before = xbmcgui.getCurrentWindowId()
         start_nav_time = time.perf_counter()
-        logger.info(f"SUBSTEP 3 DEBUG: About to execute ActivateWindow command at {start_nav_time - overall_start_time:.3f}s")
-        xbmc.executebuiltin(f'ActivateWindow(Videos,"{xsp_path}",return)')
+        logger.info(f"SUBSTEP 3 DEBUG: About to execute ActivateWindow with replace at {start_nav_time - overall_start_time:.3f}s")
+        # Use 'replace' parameter to avoid adding XSP to navigation history
+        xbmc.executebuiltin(f'ReplaceWindow(Videos,"{xsp_path}")')
         activate_window_end = time.perf_counter()
-        logger.info(f"SUBSTEP 3 DEBUG: ActivateWindow command executed in {activate_window_end - start_nav_time:.3f}s")
+        logger.info(f"SUBSTEP 3 DEBUG: ReplaceWindow command executed in {activate_window_end - start_nav_time:.3f}s")
         
         # ⏳ SUBSTEP 4: Wait for the Videos window to load with our item
         substep4_start = time.perf_counter()
