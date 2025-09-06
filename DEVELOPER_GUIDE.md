@@ -87,6 +87,8 @@ LibraryGenie consists of three main layers:
 ### Performance
 - **Database-Driven Lists**: Use stored media_items data instead of JSON-RPC calls for list operations
 - **Enhanced Scanning**: Store comprehensive lightweight metadata during library scans
+- **Version-Aware Scanning**: Automatically detect Kodi version changes and trigger appropriate scan types
+- **Pre-computed Metadata**: Store metadata in format optimized for current Kodi version (v19 setInfo vs v20+ InfoTagVideo)
 - **Batch Operations**: Batch DB writes in chunks using configurable batch sizes
 - **Memory Caching**: Cache lookups in memory where possible (e.g., IMDb→Kodi mapping via `imdb_to_kodi` table)
 - **Connection Management**: Use SQLite prepared statements and connection pooling (`connection_manager.py`)
@@ -115,7 +117,10 @@ LibraryGenie consists of three main layers:
 
 ### Compatibility
 - Support **Kodi 19 and newer**.  
-- Handle both `uniqueid.imdb` (preferred) and `imdbnumber` fields.  
+- Handle both `uniqueid.imdb` (preferred) and `imdbnumber` fields.
+- **Version Tracking**: Store Kodi major version with scan results for compatibility detection
+- **Automatic Migration**: Trigger full library scans when Kodi version changes
+- **Metadata Format**: Pre-compute metadata in format appropriate for detected Kodi version  
 
 ---
 

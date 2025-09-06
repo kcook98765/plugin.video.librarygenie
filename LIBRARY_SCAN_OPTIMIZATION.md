@@ -128,10 +128,13 @@ Library scan → Store all metadata in media_items → User opens list → Query
 ## Data Flow
 
 ### Library Scanning Process
-1. **Initial Scan**: JSON-RPC calls gather comprehensive lightweight metadata
-2. **Data Storage**: All metadata stored in media_items table with proper indexing
-3. **Heavy Metadata**: Cast and other heavy data stored separately if needed
-4. **Sync State**: Track scan timestamps and delta changes
+1. **Version Detection**: Check current Kodi major version and compare with last scan
+2. **Scan Type Selection**: Trigger full scan if version changed, otherwise delta scan
+3. **Initial Scan**: JSON-RPC calls gather comprehensive lightweight metadata
+4. **Data Storage**: All metadata stored in media_items table with proper indexing
+5. **Version Logging**: Record Kodi version with scan results for future compatibility checks
+6. **Heavy Metadata**: Cast and other heavy data stored separately if needed
+7. **Sync State**: Track scan timestamps, version changes, and delta changes
 
 ### List Building Process
 1. **Query Planning**: Determine required metadata fields for display
@@ -179,10 +182,18 @@ imdbnumber, tmdb_id, kodi_id, file_path
 - No user action required for migration
 - Database schema updates handled transparently
 
+### Kodi Version Compatibility
+- **Version Tracking**: Scanner now tracks Kodi major version in scan logs
+- **Automatic Detection**: System detects Kodi version changes between scans
+- **Full Scan Trigger**: When Kodi version changes, a full library scan is automatically triggered
+- **Metadata Compatibility**: Ensures stored metadata remains compatible with current Kodi version
+- **InfoTag Optimization**: Pre-computes metadata in format optimized for current Kodi version (v19 vs v20+)
+
 ### Backward Compatibility
 - Fallback to JSON-RPC calls if metadata missing
 - Gradual migration of existing list items
 - Preservation of user data and preferences
+- Cross-version metadata handling for Kodi upgrades/downgrades
 
 ---
 
