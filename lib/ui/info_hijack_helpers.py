@@ -618,47 +618,53 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         substep1_end = time.perf_counter()
         logger.info(f"⏱️ SUBSTEP 1 TIMING: {substep1_end - substep1_start:.3f}s")
         
-        # 📝 SUBSTEP 2: Create videodb URL for direct navigation
+        # 📝 SUBSTEP 2: Create proper library navigation path
         substep2_start = time.perf_counter()
-        logger.info(f"📝 SUBSTEP 2: Creating videodb URL for {db_type} {db_id}")
+        logger.info(f"📝 SUBSTEP 2: Creating library navigation path for {db_type} {db_id}")
         start_videodb_time = time.perf_counter()
         
-        # Create direct videodb URL for the specific item
+        # Use proper videodb directory paths that Kodi can navigate to
         if db_type.lower() == 'movie':
-            videodb_url = f"videodb://movies/titles/{db_id}"
+            # Navigate to movies root, then we'll find the specific movie
+            videodb_path = "videodb://movies/titles/"
+            target_videodb_url = f"videodb://movies/titles/{db_id}"
         elif db_type.lower() == 'episode':
-            videodb_url = f"videodb://tvshows/titles/-1/-1/{db_id}"
+            # Navigate to episodes root, then we'll find the specific episode
+            videodb_path = "videodb://episodes/"
+            target_videodb_url = f"videodb://tvshows/titles/-1/-1/{db_id}"
         elif db_type.lower() == 'tvshow':
-            videodb_url = f"videodb://tvshows/titles/{db_id}"
+            # Navigate to TV shows root, then we'll find the specific show
+            videodb_path = "videodb://tvshows/titles/"
+            target_videodb_url = f"videodb://tvshows/titles/{db_id}"
         else:
             logger.warning(f"❌ SUBSTEP 2 FAILED: Unsupported db_type: {db_type}")
             return False
         
         end_videodb_time = time.perf_counter()
-        logger.info(f"✅ SUBSTEP 2 COMPLETE: VideoDB URL created: {videodb_url} in {end_videodb_time - start_videodb_time:.3f}s")
+        logger.info(f"✅ SUBSTEP 2 COMPLETE: Library path created: {videodb_path} (target: {target_videodb_url}) in {end_videodb_time - start_videodb_time:.3f}s")
         substep2_end = time.perf_counter()
         logger.info(f"⏱️ SUBSTEP 2 TIMING: {substep2_end - substep2_start:.3f}s")
         
-        # 🧭 SUBSTEP 3: Navigate directly to the database item
+        # 🧭 SUBSTEP 3: Navigate to library section first
         substep3_start = time.perf_counter()
-        logger.info(f"🧭 SUBSTEP 3: Navigating to database item: {videodb_url}")
+        logger.info(f"🧭 SUBSTEP 3: Navigating to library section: {videodb_path}")
         current_window_before = xbmcgui.getCurrentWindowId()
         start_nav_time = time.perf_counter()
         logger.info(f"SUBSTEP 3 DEBUG: About to execute ActivateWindow command at {start_nav_time - overall_start_time:.3f}s")
-        xbmc.executebuiltin(f'ActivateWindow(Videos,"{videodb_url}",return)')
+        xbmc.executebuiltin(f'ActivateWindow(Videos,"{videodb_path}",return)')
         activate_window_end = time.perf_counter()
         logger.info(f"SUBSTEP 3 DEBUG: ActivateWindow command executed in {activate_window_end - start_nav_time:.3f}s")
         
-        # ⏳ SUBSTEP 4: Wait for the Videos window to load with videodb content
+        # ⏳ SUBSTEP 4: Wait for the Videos window to load with library content
         substep4_start = time.perf_counter()
-        logger.info(f"⏳ SUBSTEP 4: Waiting for Videos window to load with videodb content")
+        logger.info(f"⏳ SUBSTEP 4: Waiting for Videos window to load with library content")
         wait_start = time.perf_counter()
-        if not _wait_videos_on(videodb_url, timeout_ms=4000):  # Shorter timeout for direct videodb navigation
+        if not _wait_videos_on(videodb_path, timeout_ms=4000):
             wait_end = time.perf_counter()
             end_nav_time = time.perf_counter()
             current_window_after = xbmcgui.getCurrentWindowId()
             current_path = xbmc.getInfoLabel("Container.FolderPath")
-            logger.warning(f"❌ SUBSTEP 4 FAILED: Failed to load Videos window with videodb: {videodb_url} after {end_nav_time - start_nav_time:.3f}s")
+            logger.warning(f"❌ SUBSTEP 4 FAILED: Failed to load Videos window with library path: {videodb_path} after {end_nav_time - start_nav_time:.3f}s")
             logger.warning(f"SUBSTEP 4 DEBUG: Window before={current_window_before}, after={current_window_after}, current_path='{current_path}'")
             logger.warning(f"⏱️ SUBSTEP 4 WAIT TIMING: {wait_end - wait_start:.3f}s")
             return False
@@ -686,29 +692,46 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         substep5_end = time.perf_counter()
         logger.info(f"⏱️ SUBSTEP 5 TIMING: {substep5_end - substep5_start:.3f}s")
         
-        # 📍 SUBSTEP 6: Verify we're focused on the target database item
+        # 📍 SUBSTEP 6: Find and focus the target database item
         substep6_start = time.perf_counter()
-        logger.info(f"📍 SUBSTEP 6: Verifying focus on target database item")
+        logger.info(f"📍 SUBSTEP 6: Finding target database item {db_type} {db_id}")
         
-        # With direct videodb navigation, we should already be focused on the correct item
-        # Just verify the item details
-        final_item_label = xbmc.getInfoLabel('ListItem.Label')
-        final_item_dbid = xbmc.getInfoLabel('ListItem.DBID')
-        final_item_dbtype = xbmc.getInfoLabel('ListItem.DBTYPE')
-        final_item_position = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
-        
-        # Verify this is the correct database item
+        # We need to search through the library list to find our target item
+        num_items = int(xbmc.getInfoLabel("Container.NumItems") or "0")
+        target_found = False
         expected_dbid = str(db_id)
-        if final_item_dbid != expected_dbid:
-            logger.warning(f"⚠️ SUBSTEP 6 WARNING: DBID mismatch - expected {expected_dbid}, got {final_item_dbid}")
-            # Try to find the correct item if we're not on it
-            if final_item_label == ".." or final_item_label.strip() == "..":
-                logger.info(f"SUBSTEP 6: Currently on parent item, navigating to target")
-                xbmc.executebuiltin('Action(Down)')
-                xbmc.sleep(150)
-                final_item_label = xbmc.getInfoLabel('ListItem.Label')
-                final_item_dbid = xbmc.getInfoLabel('ListItem.DBID')
-                final_item_position = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
+        
+        logger.info(f"SUBSTEP 6: Searching through {num_items} items for DBID {expected_dbid}")
+        
+        # Search through the container for the target item
+        for i in range(min(num_items, 200)):  # Limit search to prevent infinite loops
+            xbmc.executebuiltin(f'Action(SelectItem,{i})')
+            xbmc.sleep(50)  # Brief pause to let Kodi update
+            
+            current_dbid = xbmc.getInfoLabel('ListItem.DBID')
+            current_label = xbmc.getInfoLabel('ListItem.Label')
+            
+            if current_dbid == expected_dbid:
+                target_found = True
+                final_item_position = i
+                final_item_label = current_label
+                final_item_dbid = current_dbid
+                final_item_dbtype = xbmc.getInfoLabel('ListItem.DBTYPE')
+                logger.info(f"🎯 SUBSTEP 6: Found target item at position {i} - Label: '{current_label}', DBID: {current_dbid}")
+                break
+            
+            # Log every 20th item during search
+            if i % 20 == 0:
+                logger.info(f"SUBSTEP 6: Search progress {i}/{num_items} - Current: '{current_label}' (DBID: {current_dbid})")
+        
+        if not target_found:
+            logger.warning(f"⚠️ SUBSTEP 6 WARNING: Target DBID {expected_dbid} not found in library listing")
+            # Use the currently focused item as fallback
+            final_item_label = xbmc.getInfoLabel('ListItem.Label')
+            final_item_dbid = xbmc.getInfoLabel('ListItem.DBID')
+            final_item_dbtype = xbmc.getInfoLabel('ListItem.DBTYPE')
+            final_item_position = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
+            logger.warning(f"SUBSTEP 6: Using fallback item - Position: {final_item_position}, Label: '{final_item_label}', DBID: {final_item_dbid}")
         
         logger.info(f"✅ SUBSTEP 6 COMPLETE: On database item - Position: {final_item_position}, Label: '{final_item_label}', DBID: {final_item_dbid}, DBType: {final_item_dbtype}")
         substep6_end = time.perf_counter()
