@@ -14,5 +14,11 @@ _addon = Addon()
 
 @lru_cache(maxsize=None)
 def L(msgid: int) -> str:
-    """Get localized string with caching"""
-    return _addon.getLocalizedString(msgid)
+    """Get localized string with caching and fallback for missing strings"""
+    localized_string = _addon.getLocalizedString(msgid)
+    
+    # If string is empty or not found, return fallback indicating missing localization
+    if not localized_string or localized_string.strip() == "":
+        return f"LocMiss_{msgid}"
+    
+    return localized_string
