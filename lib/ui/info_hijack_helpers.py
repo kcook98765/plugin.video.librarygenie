@@ -95,55 +95,32 @@ def wait_until(cond, timeout_ms=2000, step_ms=30) -> bool:
     _log(f"wait_until: TIMEOUT after {check_count} checks ({t_end - t_start:.3f}s, timeout was {timeout_ms}ms)", xbmc.LOGWARNING)
     return False
 
-def _wait_for_info_dialog(timeout=10.0):
+def _wait_for_info_dialog(timeout=6.0):
     """
     Block until the DialogVideoInfo window is active (skin dep. but standard on Kodi 19+).
-    Extended timeout and better handling for subtitle/metadata scanning delays.
     """
     t_start = time.perf_counter()
     end = time.time() + timeout
     check_count = 0
-    scan_detected = False
 
     while time.time() < end:
         check_count += 1
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
-        
-        # Check if Kodi is busy with file operations (subtitle scanning, metadata, etc.)
-        is_busy = (
-            xbmc.getCondVisibility('Window.IsActive(DialogBusy.xml)') or
-            xbmc.getCondVisibility('Window.IsActive(DialogProgress.xml)') or
-            xbmc.getCondVisibility('Player.HasMedia') or  # Sometimes media loading blocks dialog
-            xbmc.getCondVisibility('System.HasModalDialog')
-        )
-        
-        # Detect if we're in a scanning phase (helps explain delays)
-        if is_busy and not scan_detected:
-            scan_detected = True
-            _log(f"_wait_for_info_dialog: Detected Kodi busy state (likely scanning for subtitles/metadata)")
 
-        # Log every 30 checks (roughly every 1.5 seconds) or when busy state changes
-        if check_count % 30 == 0 or (is_busy and check_count % 10 == 0):
+        # Log every 20 checks (roughly every second)
+        if check_count % 20 == 0:
             elapsed = time.perf_counter() - t_start
-            _log(f"_wait_for_info_dialog: check #{check_count} ({elapsed:.1f}s) - dialog_id={current_dialog_id}, busy={is_busy}")
+            _log(f"_wait_for_info_dialog: check #{check_count} ({elapsed:.1f}s) - current_dialog_id={current_dialog_id}")
 
         if current_dialog_id in (12003, 10147):  # DialogVideoInfo / Fallback
             t_end = time.perf_counter()
             _log(f"_wait_for_info_dialog: SUCCESS after {check_count} checks ({t_end - t_start:.3f}s) - dialog_id={current_dialog_id}")
-            if scan_detected:
-                _log(f"_wait_for_info_dialog: Dialog opened after file scanning completed")
             return True
-            
-        # Use adaptive sleep - shorter during scanning, longer when stable
-        sleep_time = 30 if is_busy else 50
-        xbmc.sleep(sleep_time)
+        xbmc.sleep(50)
 
     t_end = time.perf_counter()
     final_dialog_id = xbmcgui.getCurrentWindowDialogId()
-    final_busy = xbmc.getCondVisibility('Window.IsActive(DialogBusy.xml)')
-    _log(f"_wait_for_info_dialog: TIMEOUT after {check_count} checks ({t_end - t_start:.3f}s) - final_dialog_id={final_dialog_id}, still_busy={final_busy}", xbmc.LOGWARNING)
-    if scan_detected:
-        _log(f"_wait_for_info_dialog: Timeout occurred after file scanning was detected - this may indicate slow network storage", xbmc.LOGWARNING)
+    _log(f"_wait_for_info_dialog: TIMEOUT after {check_count} checks ({t_end - t_start:.3f}s) - final_dialog_id={final_dialog_id}", xbmc.LOGWARNING)
     return False
 
 def focus_list(control_id: Optional[int] = None, tries: int = 20, step_ms: int = 30) -> bool:
@@ -370,10 +347,9 @@ def _find_index_in_dir_by_file(directory: str, target_file: Optional[str]) -> in
         _log("XSP has no parent item, using index 0 for movie")
         return 0
 
-def _wait_videos_on(path: str, timeout_ms=8000) -> bool:
+def _wait_videos_on(path: str, timeout_ms=6000) -> bool:
     t_start = time.perf_counter()
     t_norm = (path or "").rstrip('/')
-    scan_warning_shown = False
 
     def check_condition():
         window_active = xbmc.getCondVisibility(f"Window.IsActive({VIDEOS_WINDOW})")
@@ -381,32 +357,20 @@ def _wait_videos_on(path: str, timeout_ms=8000) -> bool:
         path_match = folder_path == t_norm
         num_items = int(xbmc.getInfoLabel("Container.NumItems") or "0")
         not_busy = not xbmc.getCondVisibility("Window.IsActive(DialogBusy.xml)")
-        
-        # Additional check for progress dialogs that might appear during scanning
-        not_scanning = not xbmc.getCondVisibility("Window.IsActive(DialogProgress.xml)")
 
-        elapsed = time.perf_counter() - t_start
-        
-        # Show scan warning after 3 seconds if still busy
-        nonlocal scan_warning_shown
-        if elapsed > 3.0 and (not not_busy or not not_scanning) and not scan_warning_shown:
-            _log(f"_wait_videos_on: Kodi busy for {elapsed:.1f}s - likely scanning for associated files")
-            scan_warning_shown = True
-        
         # Reduced logging frequency for better performance on slower devices
-        if int(elapsed) % 3 == 0 and elapsed - int(elapsed) < 0.2:  # Every 3 seconds
-            _log(f"_wait_videos_on check ({elapsed:.1f}s): window={window_active}, path_match={path_match}, items={num_items}, not_busy={not_busy}, not_scanning={not_scanning}")
+        elapsed = time.perf_counter() - t_start
+        if int(elapsed) % 2 == 0 and elapsed - int(elapsed) < 0.2:  # Every 2 seconds
+            _log(f"_wait_videos_on check ({elapsed:.1f}s): window_active={window_active}, path_match={path_match}, items={num_items}, not_busy={not_busy}")
 
-        return window_active and path_match and num_items > 0 and not_busy and not_scanning
+        return window_active and path_match and num_items > 0 and not_busy
 
-    # Extended timeout for network storage scenarios
-    result = wait_until(check_condition, timeout_ms=max(timeout_ms, 10000), step_ms=100)
+    # Extended timeout but larger step size for slower devices
+    result = wait_until(check_condition, timeout_ms=max(timeout_ms, 8000), step_ms=150)
     t_end = time.perf_counter()
 
     if result:
         _log(f"_wait_videos_on SUCCESS after {t_end - t_start:.3f}s")
-        if scan_warning_shown:
-            _log(f"_wait_videos_on: XSP loaded successfully after file scanning completed")
     else:
         _log(f"_wait_videos_on TIMEOUT after {t_end - t_start:.3f}s", xbmc.LOGWARNING)
         # Log final state for debugging
@@ -414,8 +378,7 @@ def _wait_videos_on(path: str, timeout_ms=8000) -> bool:
         final_path = (xbmc.getInfoLabel("Container.FolderPath") or "").rstrip('/')
         final_items = int(xbmc.getInfoLabel("Container.NumItems") or "0")
         final_busy = xbmc.getCondVisibility("Window.IsActive(DialogBusy.xml)")
-        final_progress = xbmc.getCondVisibility("Window.IsActive(DialogProgress.xml)")
-        _log(f"_wait_videos_on FINAL STATE: window={final_window}, path='{final_path}', items={final_items}, busy={final_busy}, progress={final_progress}", xbmc.LOGWARNING)
+        _log(f"_wait_videos_on FINAL STATE: window={final_window}, path='{final_path}', items={final_items}, busy={final_busy}", xbmc.LOGWARNING)
 
     return result
 
@@ -518,8 +481,8 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         xbmc.executebuiltin('Action(Info)')
         
         # ⌛ SUBSTEP 8: Wait for the native info dialog to appear
-        _log(f"⌛ SUBSTEP 8: Waiting for native info dialog to appear (extended timeout for network storage)")
-        success = _wait_for_info_dialog(timeout=10.0)
+        _log(f"⌛ SUBSTEP 8: Waiting for native info dialog to appear")
+        success = _wait_for_info_dialog(timeout=6.0)
         end_info_time = time.perf_counter()
         post_info_dialog_id = xbmcgui.getCurrentWindowDialogId()
         
