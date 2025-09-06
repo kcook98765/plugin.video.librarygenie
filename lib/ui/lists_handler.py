@@ -1199,12 +1199,12 @@ class ListsHandler:
             # Check if item already exists in media_items table
             library_item = None
             existing_item = None
-            
+
             if dbtype == 'movie':
                 existing_item = query_manager.connection_manager.execute_single("""
                     SELECT * FROM media_items WHERE kodi_id = ? AND media_type = 'movie'
                 """, [int(dbid)])
-                
+
                 if existing_item:
                     library_item = dict(existing_item)
                     library_item['source'] = 'library'
@@ -1217,12 +1217,12 @@ class ListsHandler:
                         'year': 0,
                         'source': 'library'
                     }
-                    
+
             elif dbtype == 'episode':
                 existing_item = query_manager.connection_manager.execute_single("""
                     SELECT * FROM media_items WHERE kodi_id = ? AND media_type = 'episode'
                 """, [int(dbid)])
-                
+
                 if existing_item:
                     library_item = dict(existing_item)
                     library_item['source'] = 'library'

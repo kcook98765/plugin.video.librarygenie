@@ -286,7 +286,7 @@ class QueryManager:
                 self.logger.error(f"Failed to create list '{name}': {e}")
                 return {"error": "database_error"}
 
-    def add_item_to_list(self, list_id, title, year=None, imdb_id=None, tmdb_id=None, kodi_id=None):
+    def add_item_to_list(self, list_id, title, year=None, imdb_id=None, tmdb_id=None, kodi_id=None, art_data=None):
         """Add an item to a list using unified tables structure"""
         try:
             self.logger.debug(f"Adding '{title}' to list {list_id}")
@@ -295,6 +295,9 @@ class QueryManager:
                 # Create media item data with version-aware art storage
                 from ..utils.kodi_version import get_kodi_major_version
                 kodi_major = get_kodi_major_version()
+                
+                # Use provided art_data or empty dict
+                art_dict = art_data or {}
                 
                 media_data = {
                     'media_type': 'movie',
@@ -316,7 +319,7 @@ class QueryManager:
                     'country': '',
                     'writer': '',
                     'cast': '',
-                    'art': json.dumps(self._format_art_for_kodi_version({}, kodi_major))
+                    'art': json.dumps(self._format_art_for_kodi_version(art_dict, kodi_major))
                 }
 
                 # Insert or get media item
@@ -653,13 +656,31 @@ class QueryManager:
             'imdb_id': item.get('imdb_id', ''),
             'source': item.get('source', 'search'),
             'runtime': item.get('runtime', item.get('duration', 0)),
-            'art': item.get('art', {}),
             'resume': item.get('resume', {})
         }
+        
+        # Collect all possible art data for version-aware storage
+        art_data = {}
+        
+        # Check for existing art dictionary
+        if item.get('art') and isinstance(item['art'], dict):
+            art_data.update(item['art'])
+        
+        # Collect individual art fields for comprehensive coverage
+        art_fields = ['poster', 'fanart', 'thumb', 'banner', 'landscape', 'clearlogo', 'clearart', 'discart', 'icon']
+        for field in art_fields:
+            if item.get(field):
+                art_data[field] = item[field]
+        
+        # Add thumbnail fallback
+        if item.get('thumbnail') and not art_data.get('thumb'):
+            art_data['thumb'] = item['thumbnail']
+            
+        basic_item['art'] = art_data
 
         # Add any additional fields from the original item
         for key, value in item.items():
-            if key not in basic_item:
+            if key not in basic_item and key not in art_fields and key != 'thumbnail':
                 basic_item[key] = value
 
         # Normalize to canonical format

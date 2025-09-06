@@ -425,12 +425,42 @@ def _handle_external_item_add(addon):
             item_data['artist'] = xbmc.getInfoLabel('ListItem.Artist')
             item_data['album'] = xbmc.getInfoLabel('ListItem.Album')
 
-        # Gather artwork
-        item_data['poster'] = xbmc.getInfoLabel('ListItem.Art(poster)') or xbmc.getInfoLabel('ListItem.Thumb')
-        item_data['fanart'] = xbmc.getInfoLabel('ListItem.Art(fanart)')
-        item_data['thumb'] = xbmc.getInfoLabel('ListItem.Art(thumb)')
-        item_data['banner'] = xbmc.getInfoLabel('ListItem.Art(banner)')
-        item_data['clearlogo'] = xbmc.getInfoLabel('ListItem.Art(clearlogo)')
+        # Gather comprehensive artwork for version-aware storage
+        art_data = {}
+        art_fields = {
+            'poster': 'ListItem.Art(poster)',
+            'fanart': 'ListItem.Art(fanart)', 
+            'thumb': 'ListItem.Art(thumb)',
+            'banner': 'ListItem.Art(banner)',
+            'landscape': 'ListItem.Art(landscape)',
+            'clearlogo': 'ListItem.Art(clearlogo)',
+            'clearart': 'ListItem.Art(clearart)',
+            'discart': 'ListItem.Art(discart)',
+            'icon': 'ListItem.Art(icon)'
+        }
+        
+        for art_key, info_label in art_fields.items():
+            art_value = xbmc.getInfoLabel(info_label)
+            if art_value:
+                art_data[art_key] = art_value
+        
+        # Fallback to ListItem.Thumb for poster if not available
+        if not art_data.get('poster'):
+            thumb_fallback = xbmc.getInfoLabel('ListItem.Thumb')
+            if thumb_fallback:
+                art_data['poster'] = thumb_fallback
+                if not art_data.get('thumb'):
+                    art_data['thumb'] = thumb_fallback
+        
+        # Store collected art data        
+        item_data['art_data'] = art_data
+        
+        # Also set individual fields for backward compatibility
+        item_data['poster'] = art_data.get('poster', '')
+        item_data['fanart'] = art_data.get('fanart', '')
+        item_data['thumb'] = art_data.get('thumb', '')
+        item_data['banner'] = art_data.get('banner', '')
+        item_data['clearlogo'] = art_data.get('clearlogo', '')
 
         # Try to get IMDb ID or other unique identifiers
         item_data['imdbnumber'] = xbmc.getInfoLabel('ListItem.IMDBNumber')
