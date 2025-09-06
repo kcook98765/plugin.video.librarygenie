@@ -499,7 +499,7 @@ class LibraryScanner:
                 # No previous successful scan with version info
                 return False
 
-            last_version = last_scan.get('kodi_version')
+            last_version = last_scan['kodi_version']
             if last_version != current_version:
                 self.logger.info(f"Kodi version changed from {last_version} to {current_version}")
                 return True
