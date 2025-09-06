@@ -165,20 +165,41 @@ class InfoHijackManager:
             self._logger.debug("HIJACK: Native info dialog closed, initiating double-back navigation")
             
             # First back - this should take us to the XSP list we created
+            self._logger.debug("HIJACK: Issuing first back command")
             xbmc.executebuiltin('Action(Back)')
             
-            # Brief delay to let first navigation complete
-            xbmc.sleep(150)
+            # Extended delay to ensure first navigation completes
+            xbmc.sleep(300)
             
             # Check if we're now on an XSP path (our temporary list)
             current_path = xbmc.getInfoLabel("Container.FolderPath")
-            is_xsp = current_path and ('.xsp' in current_path or 'smartplaylist' in current_path.lower())
+            current_window = xbmc.getInfoLabel("System.CurrentWindow")
+            
+            self._logger.debug(f"HIJACK: After first back - Path: '{current_path}', Window: '{current_window}'")
+            
+            # More robust XSP detection - check multiple indicators
+            is_xsp = False
+            if current_path:
+                is_xsp = ('.xsp' in current_path.lower() or 
+                         'smartplaylist' in current_path.lower() or
+                         'lg_hijack' in current_path.lower() or
+                         'playlists' in current_path.lower())
+            
+            # Additional check: if we're in Videos window and not in plugin content, likely XSP
+            if not is_xsp and current_window and 'video' in current_window.lower():
+                if current_path and 'plugin.video.librarygenie' not in current_path:
+                    is_xsp = True
+                    self._logger.debug("HIJACK: Detected XSP via window context (not in plugin)")
             
             if is_xsp:
-                self._logger.debug(f"HIJACK: Detected XSP path: {current_path}, issuing second back")
+                self._logger.debug(f"HIJACK: Detected XSP context: {current_path}, issuing second back")
                 # Second back - this should return us to the original plugin list
                 xbmc.executebuiltin('Action(Back)')
-                xbmc.sleep(100)  # Brief delay for second navigation
+                xbmc.sleep(200)  # Allow time for second navigation
+                
+                # Verify we're back in plugin content
+                final_path = xbmc.getInfoLabel("Container.FolderPath")
+                self._logger.debug(f"HIJACK: After second back - Final path: '{final_path}'")
             else:
                 self._logger.debug(f"HIJACK: Not on XSP path (current: {current_path}), single back was sufficient")
             
@@ -188,8 +209,14 @@ class InfoHijackManager:
                 
         except Exception as e:
             self._logger.error(f"HIJACK: Error during double-back navigation: {e}")
-            # Fallback to simple back action
-            xbmc.executebuiltin('Action(Back)')
+            # Enhanced fallback - try to get back to plugin content
+            try:
+                current_path = xbmc.getInfoLabel("Container.FolderPath")
+                if current_path and 'plugin.video.librarygenie' not in current_path:
+                    self._logger.debug("HIJACK: Fallback - attempting additional back to return to plugin")
+                    xbmc.executebuiltin('Action(Back)')
+            except Exception:
+                pass
 
     def _debug_scan_container(self):
         """Debug method to scan container for armed items"""
