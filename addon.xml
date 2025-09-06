@@ -13,13 +13,18 @@
   <extension point="xbmc.python.script" library="context.py">
     <provides>executable</provides>
   </extension>
-  <extension point="xbmc.addon.contextmenu" library="context.py">
-    <provides>contextmenu</provides>
-    <item>
-      <label>32200</label>
-      <description>32201</description>
-      <visible>true</visible>
-    </item>
+  <extension point="kodi.context.item">
+    <menu id="kodi.core.main">
+      <item library="context.py">
+        <label>32200</label>
+        <visible>[String.IsEqual(ListItem.DBType,movie) |
+                  String.IsEqual(ListItem.DBType,episode) |
+                  String.IsEqual(ListItem.DBType,tvshow) |
+                  String.IsEqual(ListItem.DBType,season) |
+                  String.IsEqual(ListItem.DBType,musicvideo) |
+                  String.StartsWith(ListItem.FileNameAndPath,plugin://)]</visible>
+      </item>
+    </menu>
   </extension>
   <extension point="xbmc.addon.metadata">
     <platform>all</platform>
