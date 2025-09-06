@@ -77,13 +77,9 @@ class InfoHijackManager:
                         self._last_hijack_time = current_time
                         
                         try:
-                            # 💾 STEP 1: SAVE RETURN TARGET
-                            self._logger.info(f"💾 HIJACK STEP 1: SAVING RETURN TARGET")
-                            orig_path = xbmc.getInfoLabel('Container.FolderPath') or ''
-                            current_position = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
-                            
-                            self._save_return_target(orig_path, current_position)
-                            self._logger.info(f"✅ HIJACK STEP 1 COMPLETE: Return target saved")
+                            # 💾 STEP 1: TRUST KODI NAVIGATION HISTORY
+                            self._logger.info(f"💾 HIJACK STEP 1: Using Kodi's navigation history (no saving needed)")
+                            self._logger.info(f"✅ HIJACK STEP 1 COMPLETE: Navigation history will handle return")
                             
                             # 🚪 STEP 2: CLOSE CURRENT DIALOG
                             self._logger.info(f"🚪 HIJACK STEP 2: CLOSING CURRENT DIALOG")
@@ -164,40 +160,34 @@ class InfoHijackManager:
     
 
     def _handle_native_info_closed(self):
-        """Handle the native info dialog being closed - use fast navigation instead of container refresh"""
+        """Handle the native info dialog being closed - detect XSP and issue double back"""
         try:
-            # Check if fast back navigation is enabled (default: yes for performance)
-            use_fast_back = True  # Could be made configurable via settings
+            self._logger.debug("HIJACK: Native info dialog closed, initiating double-back navigation")
             
-            if use_fast_back:
-                self._logger.debug("HIJACK: Using fast back navigation instead of container refresh")
-                # Simple back navigation - much faster than container rebuild
+            # First back - this should take us to the XSP list we created
+            xbmc.executebuiltin('Action(Back)')
+            
+            # Brief delay to let first navigation complete
+            xbmc.sleep(150)
+            
+            # Check if we're now on an XSP path (our temporary list)
+            current_path = xbmc.getInfoLabel("Container.FolderPath")
+            is_xsp = current_path and ('.xsp' in current_path or 'smartplaylist' in current_path.lower())
+            
+            if is_xsp:
+                self._logger.debug(f"HIJACK: Detected XSP path: {current_path}, issuing second back")
+                # Second back - this should return us to the original plugin list
                 xbmc.executebuiltin('Action(Back)')
-                # Brief delay to let navigation complete
-                xbmc.sleep(100)
-                
-                # Clear any saved properties since we're not using them
-                xbmc.executebuiltin('ClearProperty(LG.InfoHijack.ReturnPath,Home)')
-                xbmc.executebuiltin('ClearProperty(LG.InfoHijack.ReturnPosition,Home)')
-                
+                xbmc.sleep(100)  # Brief delay for second navigation
             else:
-                # Original container refresh approach (slower but preserves exact position)
-                return_path = xbmc.getInfoLabel('Window(Home).Property(LG.InfoHijack.ReturnPath)')
-                return_position_str = xbmc.getInfoLabel('Window(Home).Property(LG.InfoHijack.ReturnPosition)')
-                
-                if return_path:
-                    self._logger.debug(f"HIJACK: Restoring container to: {return_path}")
-                    restore_container_after_close(return_path, return_position_str, self._logger)
-                    
-                    # Clear the saved properties
-                    xbmc.executebuiltin('ClearProperty(LG.InfoHijack.ReturnPath,Home)')
-                    xbmc.executebuiltin('ClearProperty(LG.InfoHijack.ReturnPosition,Home)')
-                else:
-                    self._logger.debug("HIJACK: No return path saved, using fast back navigation")
-                    xbmc.executebuiltin('Action(Back)')
+                self._logger.debug(f"HIJACK: Not on XSP path (current: {current_path}), single back was sufficient")
+            
+            # Clear any saved properties since we don't need them with this approach
+            xbmc.executebuiltin('ClearProperty(LG.InfoHijack.ReturnPath,Home)')
+            xbmc.executebuiltin('ClearProperty(LG.InfoHijack.ReturnPosition,Home)')
                 
         except Exception as e:
-            self._logger.error(f"HIJACK: Error during navigation: {e}")
+            self._logger.error(f"HIJACK: Error during double-back navigation: {e}")
             # Fallback to simple back action
             xbmc.executebuiltin('Action(Back)')
 
