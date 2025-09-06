@@ -64,6 +64,25 @@ def main():
 def _show_librarygenie_menu(addon):
     """Show LibraryGenie submenu with conditional options"""
     try:
+        # IMPORTANT: Cache all item info BEFORE showing any dialogs
+        # This prevents losing context when the dialog opens
+        item_info = {
+            'dbtype': xbmc.getInfoLabel('ListItem.DBTYPE'),
+            'dbid': xbmc.getInfoLabel('ListItem.DBID'),
+            'file_path': xbmc.getInfoLabel('ListItem.FileNameAndPath'),
+            'title': xbmc.getInfoLabel('ListItem.Title'),
+            'label': xbmc.getInfoLabel('ListItem.Label'),
+            'media_item_id': xbmc.getInfoLabel('ListItem.Property(media_item_id)'),
+            'list_id': xbmc.getInfoLabel('ListItem.Property(list_id)'),
+            'container_content': xbmc.getInfoLabel('Container.Content'),
+            'is_movies': xbmc.getCondVisibility('Container.Content(movies)'),
+            'is_episodes': xbmc.getCondVisibility('Container.Content(episodes)'),
+            'is_musicvideos': xbmc.getCondVisibility('Container.Content(musicvideos)')
+        }
+
+        # Debug log the cached info
+        xbmc.log(f"LibraryGenie: Cached item info: {item_info}", xbmc.LOGINFO)
+
         # Build options list - Search is always available
         options = []
         actions = []
@@ -75,13 +94,13 @@ def _show_librarygenie_menu(addon):
         options.append(search_label)
         actions.append("search")
 
-        # Check what type of content we're dealing with
-        dbtype = xbmc.getInfoLabel('ListItem.DBTYPE')
-        dbid = xbmc.getInfoLabel('ListItem.DBID')
-        file_path = xbmc.getInfoLabel('ListItem.FileNameAndPath')
+        # Use cached values instead of fresh getInfoLabel calls
+        dbtype = item_info['dbtype']
+        dbid = item_info['dbid']
+        file_path = item_info['file_path']
 
-        # Add content-specific options based on context
-        if xbmc.getCondVisibility('Container.Content(movies)') or dbtype == 'movie':
+        # Add content-specific options based on cached context
+        if item_info['is_movies'] or dbtype == 'movie':
             if dbid and dbid != '0':
                 # Library movie - add list management options
                 _add_library_movie_options(options, actions, addon, dbtype, dbid)
@@ -89,7 +108,7 @@ def _show_librarygenie_menu(addon):
                 # External/plugin movie - add external item options
                 _add_external_item_options(options, actions, addon)
 
-        elif xbmc.getCondVisibility('Container.Content(episodes)') or dbtype == 'episode':
+        elif item_info['is_episodes'] or dbtype == 'episode':
             if dbid and dbid != '0':
                 # Library episode - add list management options
                 _add_library_episode_options(options, actions, addon, dbtype, dbid)
@@ -97,7 +116,7 @@ def _show_librarygenie_menu(addon):
                 # External/plugin episode - add external item options
                 _add_external_item_options(options, actions, addon)
 
-        elif xbmc.getCondVisibility('Container.Content(musicvideos)') or dbtype == 'musicvideo':
+        elif item_info['is_musicvideos'] or dbtype == 'musicvideo':
             if dbid and dbid != '0':
                 # Library music video - add list management options
                 _add_library_musicvideo_options(options, actions, addon, dbtype, dbid)
@@ -107,7 +126,7 @@ def _show_librarygenie_menu(addon):
 
         elif file_path and file_path.startswith('plugin://plugin.video.librarygenie/'):
             # LibraryGenie item - add LibraryGenie-specific options
-            _add_librarygenie_item_options(options, actions, addon)
+            _add_librarygenie_item_options(options, actions, addon, item_info)
 
         elif file_path and file_path.startswith('plugin://'):
             # Other plugin item - add external item options
@@ -194,11 +213,11 @@ def _add_external_item_options(options, actions, addon):
     actions.append("add_external_item")
 
 
-def _add_librarygenie_item_options(options, actions, addon):
+def _add_librarygenie_item_options(options, actions, addon, item_info):
     """Add options for LibraryGenie items"""
-    # Get item metadata from ListItem properties
-    media_item_id = xbmc.getInfoLabel('ListItem.Property(media_item_id)')
-    list_id = xbmc.getInfoLabel('ListItem.Property(list_id)')
+    # Use cached item metadata
+    media_item_id = item_info['media_item_id']
+    list_id = item_info['list_id']
 
     if media_item_id:
         # Check if quick-add is enabled and has a default list configured
