@@ -272,20 +272,38 @@ class LibraryScanner:
 
                         # Pre-compute display fields for faster list building
                         display_title = f"{movie['title']} ({movie.get('year', '')})" if movie.get('year') else movie['title']
+                        
+                        # Pre-compute genre handling for both v19 setInfo() and v20+ InfoTagVideo
                         genre_list = movie.get('genre', '').split(',') if isinstance(movie.get('genre'), str) else movie.get('genre', [])
                         formatted_genre = ', '.join([g.strip() for g in genre_list if g.strip()]) if genre_list else ''
+                        genre_array_json = json.dumps([g.strip() for g in genre_list if g.strip()]) if genre_list else "[]"
                         
-                        # Pre-compute duration in both minutes and seconds for different contexts
+                        # Pre-compute duration in both formats for version compatibility
                         duration_minutes = movie.get("runtime", 0)
                         duration_seconds = duration_minutes * 60 if duration_minutes else 0
+                        
+                        # Pre-compute director/studio as both string and array for InfoTagVideo compatibility
+                        director_str = movie.get("director", "")
+                        if isinstance(director_str, list):
+                            director_str = ", ".join(director_str) if director_str else ""
+                        director_array_json = json.dumps([director_str]) if director_str else "[]"
+                        
+                        studio_str = movie.get("studio", "")
+                        if isinstance(studio_str, list):
+                            studio_str = studio_str[0] if studio_str else ""
+                        
+                        # Pre-compute common metadata strings to avoid repeated processing
+                        plot_summary = movie.get("plot", "")[:500] + "..." if len(movie.get("plot", "")) > 500 else movie.get("plot", "")
+                        mpaa_rating = movie.get("mpaa", "")
 
                         conn.execute("""
                             INSERT OR REPLACE INTO media_items
                             (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, source, created_at, updated_at,
                              poster, fanart, plot, rating, votes, duration, mpaa, genre, director, studio, country, 
-                             writer, art, file_path, normalized_path, is_removed, display_title, formatted_genre, duration_seconds)
+                             writer, art, file_path, normalized_path, is_removed, display_title, formatted_genre, duration_seconds,
+                             genre_array_json, director_array_json, plot_summary)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'),
-                                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
+                                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)
                         """, [
                             'movie',
                             movie["kodi_id"],
@@ -317,7 +335,11 @@ class LibraryScanner:
                             # Pre-computed fields
                             display_title,
                             formatted_genre,
-                            duration_seconds
+                            duration_seconds,
+                            # Version-specific pre-computed fields
+                            genre_array_json,
+                            director_array_json,
+                            plot_summary
                         ])
                         inserted_count += 1
                     except Exception as e:

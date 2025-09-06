@@ -599,9 +599,10 @@ class ListItemBuilder:
         if item.get('premiered'):
             info['premiered'] = item['premiered']
 
-        # Content description
-        if item.get('plot'):
-            info['plot'] = item['plot']
+        # Content description - use pre-computed summary for performance
+        plot_text = item.get('plot_summary') or item.get('plot', '')
+        if plot_text:
+            info['plot'] = plot_text
         if item.get('plotoutline'):
             info['plotoutline'] = item['plotoutline']
 
@@ -621,9 +622,10 @@ class ListItemBuilder:
         if item.get('mpaa'):
             info['mpaa'] = item['mpaa']
 
-        # Genre handling
-        if item.get('genre'):
-            info['genre'] = item['genre']
+        # Genre handling - use pre-computed formatted string for v19 setInfo()
+        formatted_genre = item.get('formatted_genre') or item.get('genre', '')
+        if formatted_genre:
+            info['genre'] = formatted_genre
 
         # Duration handling - Kodi expects duration in seconds for info dict
         runtime_minutes = item.get('runtime', 0)
@@ -817,7 +819,7 @@ class ListItemBuilder:
     def _set_infotag_metadata(self, video_info_tag, item: Dict[str, Any], title: str):
         """
         Set metadata via InfoTagVideo setters for v20+ library items.
-        This keeps metadata lightweight while avoiding setInfo() that can suppress DB resolution.
+        Uses pre-computed fields for optimal performance.
         """
         try:
             # Ensure proper media type is set first for correct identification
@@ -827,7 +829,7 @@ class ListItemBuilder:
             except Exception as e:
                 self.logger.warning(f"LIB ITEM v20+: setMediaType() failed for '{title}': {e}")
 
-            # Core identification - but keep minimal to let DB metadata take precedence
+            # Core identification - minimal to let DB metadata take precedence
             if item.get('title'):
                 video_info_tag.setTitle(item['title'])
 
@@ -839,19 +841,25 @@ class ListItemBuilder:
                 except (ValueError, TypeError):
                     pass
 
-            if item.get('plot'):
-                video_info_tag.setPlot(item['plot'])
+            # Use pre-computed plot summary to avoid processing overhead
+            plot_text = item.get('plot_summary') or item.get('plot', '')
+            if plot_text:
+                video_info_tag.setPlot(plot_text)
 
-            # Genre handling
-            if item.get('genre'):
-                # Convert string to list for setGenres()
-                if isinstance(item['genre'], str):
-                    genres = [g.strip() for g in item['genre'].split(',') if g.strip()]
-                else:
-                    genres = item['genre'] if isinstance(item['genre'], list) else []
-
-                if genres:
-                    video_info_tag.setGenres(genres)
+            # Use pre-computed genre array for v20+ InfoTagVideo efficiency
+            genre_array_json = item.get('genre_array_json')
+            if genre_array_json:
+                try:
+                    genres = json.loads(genre_array_json)
+                    if genres:
+                        video_info_tag.setGenres(genres)
+                except (json.JSONDecodeError, TypeError):
+                    # Fallback to formatted_genre string processing
+                    formatted_genre = item.get('formatted_genre', '')
+                    if formatted_genre:
+                        genres = [g.strip() for g in formatted_genre.split(',') if g.strip()]
+                        if genres:
+                            video_info_tag.setGenres(genres)
 
             # Rating
             if item.get('rating'):
