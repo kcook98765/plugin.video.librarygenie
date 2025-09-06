@@ -428,24 +428,24 @@ def _create_xsp_for_dbitem(db_type: str, db_id: int) -> Optional[str]:
         name = f"LG Hijack {db_type} {db_id}"
         
         if db_type.lower() == 'movie':
-            # Create XSP that filters movies by filename
+            # Create XSP that filters movies by database ID (ensures full metadata population)
             xsp = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <smartplaylist type="movies">
   <name>{html.escape(name)}</name>
   <match>all</match>
-  <rule field="filename" operator="contains">
-    <value>{html.escape(filename_no_ext)}</value>
+  <rule field="dbid" operator="is">
+    <value>{db_id}</value>
   </rule>
   <order direction="ascending">title</order>
 </smartplaylist>"""
         elif db_type.lower() == 'episode':
-            # Create XSP that filters episodes by filename
+            # Create XSP that filters episodes by database ID (ensures full metadata population)
             xsp = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <smartplaylist type="episodes">
   <name>{html.escape(name)}</name>
   <match>all</match>
-  <rule field="filename" operator="contains">
-    <value>{html.escape(filename_no_ext)}</value>
+  <rule field="dbid" operator="is">
+    <value>{db_id}</value>
   </rule>
   <order direction="ascending">title</order>
 </smartplaylist>"""
