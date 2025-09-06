@@ -1196,42 +1196,74 @@ class ListsHandler:
             if target_list_id is None:
                 return False
 
-            # Create library item data for the query manager
-            library_item_data = {
-                'dbtype': dbtype,
-                'dbid': int(dbid),
-                'source': 'library'
-            }
+            # Get library item details using Kodi JSON-RPC
+            from ..kodi.json_rpc_client import get_kodi_client
+            kodi_client = get_kodi_client()
+            
+            library_item = None
+            if dbtype == 'movie':
+                # Get movie details from Kodi
+                movie_data = kodi_client.get_movie_details(int(dbid))
+                if movie_data:
+                    library_item = {
+                        'kodi_id': int(dbid),
+                        'media_type': 'movie',
+                        'title': movie_data.get('title', 'Unknown'),
+                        'year': movie_data.get('year', 0),
+                        'imdb_id': movie_data.get('imdb_id', ''),
+                        'source': 'library'
+                    }
+            elif dbtype == 'episode':
+                # Get episode details from Kodi
+                episode_data = kodi_client.get_episode_details(int(dbid))
+                if episode_data:
+                    library_item = {
+                        'kodi_id': int(dbid),
+                        'media_type': 'episode',
+                        'title': episode_data.get('title', 'Unknown'),
+                        'tvshowtitle': episode_data.get('tvshowtitle', ''),
+                        'season': episode_data.get('season', 0),
+                        'episode': episode_data.get('episode', 0),
+                        'source': 'library'
+                    }
+
+            if not library_item:
+                context.logger.error(f"Could not get library item details for {dbtype} {dbid}")
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    "Failed to get item details", # Localize this string
+                    xbmcgui.NOTIFICATION_ERROR
+                )
+                return False
 
             # Add library item to selected list
-            result = query_manager.add_library_item_to_list(target_list_id, library_item_data)
+            result = query_manager.add_library_item_to_list(target_list_id, library_item)
 
-            if result is not None and result.get("success"):
+            if result is not None:
                 list_name = available_lists[selected_index]['name'] if selected_index < len(available_lists) else "new list"
                 xbmcgui.Dialog().notification(
                     "LibraryGenie",
-                    f"Added to '{list_name}'", # Localize this string
+                    f"Added '{library_item['title']}' to '{list_name}'", # Localize this string
                     xbmcgui.NOTIFICATION_INFO
                 )
                 return True
             else:
-                error_msg = result.get("error", "Unknown error") if result else "Query manager returned None"
-                if error_msg == "duplicate":
-                    xbmcgui.Dialog().notification(
-                        "LibraryGenie",
-                        "Item already in list", # Localize this string
-                        xbmcgui.NOTIFICATION_WARNING
-                    )
-                else:
-                    xbmcgui.Dialog().notification(
-                        "LibraryGenie",
-                        f"Failed to add to list: {error_msg}", # Localize this string
-                        xbmcgui.NOTIFICATION_ERROR
-                    )
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    "Failed to add item to list", # Localize this string
+                    xbmcgui.NOTIFICATION_ERROR
+                )
                 return False
 
         except Exception as e:
             context.logger.error(f"Error adding library item to list from context: {e}")
+            import traceback
+            context.logger.error(f"Traceback: {traceback.format_exc()}")
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                f"Error: {str(e)}", # Localize this string
+                xbmcgui.NOTIFICATION_ERROR
+            )
             return False
 
     def add_to_list_context(self, context: PluginContext) -> bool:

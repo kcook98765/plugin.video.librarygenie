@@ -149,47 +149,112 @@ class KodiJsonRpcClient:
             self.logger.error(f"JSON-RPC quick check failed: {e}")
             return []
 
-    def _normalize_movie_data(self, movie: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Normalize movie data from Kodi JSON-RPC response"""
+    def get_movie_details(self, movie_id: int) -> Optional[Dict[str, Any]]:
+        """Get details for a specific movie by ID"""
         try:
-            # Extract external IDs
-            imdb_id = None
-            tmdb_id = None
+            request = {
+                "jsonrpc": "2.0",
+                "method": "VideoLibrary.GetMovieDetails",
+                "params": {
+                    "movieid": movie_id,
+                    "properties": [
+                        "title", "year", "uniqueid", "plot", "runtime", "rating",
+                        "genre", "director", "studio", "country", "art"
+                    ]
+                },
+                "id": 1
+            }
 
-            # Try the old imdbnumber field
-            if "imdbnumber" in movie and movie["imdbnumber"]:
-                if movie["imdbnumber"].startswith("tt"):
-                    imdb_id = movie["imdbnumber"]
+            response_str = xbmc.executeJSONRPC(json.dumps(request))
+            response = json.loads(response_str)
 
-            # Try the newer uniqueid structure
-            if "uniqueid" in movie and isinstance(movie["uniqueid"], dict):
-                if "imdb" in movie["uniqueid"]:
-                    imdb_id = movie["uniqueid"]["imdb"]
-                if "tmdb" in movie["uniqueid"]:
-                    tmdb_id = str(movie["uniqueid"]["tmdb"])
+            if "error" in response:
+                self.logger.error(f"JSON-RPC error getting movie {movie_id}: {response['error']}")
+                return None
 
-            # Extract artwork URLs
+            movie_details = response.get("result", {}).get("moviedetails")
+            if movie_details:
+                return self._normalize_movie_data(movie_details)
+
+            return None
+
+        except Exception as e:
+            self.logger.error(f"Error getting movie details for ID {movie_id}: {e}")
+            return None
+
+    def get_episode_details(self, episode_id: int) -> Optional[Dict[str, Any]]:
+        """Get details for a specific episode by ID"""
+        try:
+            request = {
+                "jsonrpc": "2.0",
+                "method": "VideoLibrary.GetEpisodeDetails",
+                "params": {
+                    "episodeid": episode_id,
+                    "properties": [
+                        "title", "showtitle", "season", "episode", "plot", 
+                        "runtime", "rating", "art", "uniqueid"
+                    ]
+                },
+                "id": 1
+            }
+
+            response_str = xbmc.executeJSONRPC(json.dumps(request))
+            response = json.loads(response_str)
+
+            if "error" in response:
+                self.logger.error(f"JSON-RPC error getting episode {episode_id}: {response['error']}")
+                return None
+
+            episode_details = response.get("result", {}).get("episodedetails")
+            if episode_details:
+                return self._normalize_episode_data(episode_details)
+
+            return None
+
+        except Exception as e:
+            self.logger.error(f"Error getting episode details for ID {episode_id}: {e}")
+            return None
+
+    def _normalize_movie_data(self, movie: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Normalize movie data from JSON-RPC response"""
+        try:
+            # Extract IMDb ID from uniqueid
+            imdb_id = ""
+            tmdb_id = ""
+            uniqueid = movie.get("uniqueid", {})
+            if uniqueid:
+                imdb_id = uniqueid.get("imdb", "")
+                tmdb_id = uniqueid.get("tmdb", "")
+
+            # Extract art URLs
             art = movie.get("art", {})
             poster = art.get("poster", "")
             fanart = art.get("fanart", "")
-            thumb = art.get("thumb", poster)  # Fallback to poster
+            thumb = art.get("thumb", "")
 
-            # Extract and process metadata
-            genres = movie.get("genre", [])
-            genre_str = ", ".join(genres) if isinstance(genres, list) else str(genres) if genres else ""
+            # Handle genres (can be list or string)
+            genre = movie.get("genre", [])
+            if isinstance(genre, list):
+                genre_str = ", ".join(genre)
+            else:
+                genre_str = str(genre)
 
-            directors = movie.get("director", [])
-            director_str = ", ".join(directors) if isinstance(directors, list) else str(directors) if directors else ""
+            # Handle director (can be list or string)  
+            director = movie.get("director", [])
+            if isinstance(director, list):
+                director_str = ", ".join(director)
+            else:
+                director_str = str(director)
 
             # Handle resume point
             resume_data = movie.get("resume", {})
             resume_time = resume_data.get("position", 0) if isinstance(resume_data, dict) else 0
-            
+
             # NOTE: Cast data is intentionally not processed here.
             # Cast information should not be requested in JSON-RPC calls for ListItems
             # as it causes performance issues. Kodi will handle cast population automatically
             # when the ListItem has a proper dbid set.
-            
+
             return {
                 "kodi_id": movie.get("movieid"),
                 "title": movie.get("title", "Unknown Title"),
@@ -212,13 +277,42 @@ class KodiJsonRpcClient:
                 "director": director_str,
                 "country": movie.get("country", []),
                 "studio": movie.get("studio", []),
-                # Cast data intentionally omitted - see note above
                 "playcount": movie.get("playcount", 0),
                 "resume_time": resume_time
             }
 
         except Exception as e:
             self.logger.warning(f"Failed to normalize movie data: {e}")
+            return None
+
+    def _normalize_episode_data(self, episode: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Normalize episode data from JSON-RPC response"""
+        try:
+            # Extract unique IDs
+            uniqueid = episode.get("uniqueid", {})
+            imdb_id = uniqueid.get("imdb", "") if uniqueid else ""
+            tmdb_id = uniqueid.get("tmdb", "") if uniqueid else ""
+
+            # Extract art URLs
+            art = episode.get("art", {})
+            thumb = art.get("thumb", "")
+
+            return {
+                "kodi_id": episode.get("episodeid"),
+                "title": episode.get("title", "Unknown Episode"),
+                "tvshowtitle": episode.get("showtitle", "Unknown Show"),
+                "season": episode.get("season", 0),
+                "episode": episode.get("episode", 0),
+                "plot": episode.get("plot", ""),
+                "runtime": episode.get("runtime", 0),
+                "rating": episode.get("rating", 0.0),
+                "thumb": thumb,
+                "imdb_id": imdb_id,
+                "tmdb_id": tmdb_id
+            }
+
+        except Exception as e:
+            self.logger.warning(f"Failed to normalize episode data: {e}")
             return None
 
 
