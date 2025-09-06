@@ -224,7 +224,7 @@ class ListsHandler:
 
             if not list_name or not list_name.strip():
                 context.logger.info("User cancelled list creation or entered empty name")
-                return DialogResponse(success=False)
+                return DialogResponse(success=False, message="")
 
             # Initialize query manager and create list
             query_manager = get_query_manager()
@@ -296,7 +296,7 @@ class ListsHandler:
                 yeslabel=L(37017)  # "Delete"
             ):
                 context.logger.info("User cancelled list deletion")
-                return DialogResponse(success=False)
+                return DialogResponse(success=False, message="")
 
             # Delete the list
             result = query_manager.delete_list(list_id)
@@ -352,7 +352,7 @@ class ListsHandler:
 
             if not new_name or not new_name.strip():
                 context.logger.info("User cancelled list rename or entered empty name")
-                return DialogResponse(success=False)
+                return DialogResponse(success=False, message="")
 
             # Update the list name
             result = query_manager.rename_list(list_id, new_name.strip())
@@ -430,7 +430,7 @@ class ListsHandler:
                 yeslabel=L(30069)  # "Remove"
             ):
                 context.logger.info("User cancelled item removal")
-                return DialogResponse(success=False)
+                return DialogResponse(success=False, message="")
 
             # Remove the item
             result = query_manager.delete_item_from_list(list_id, item_id)
@@ -468,7 +468,7 @@ class ListsHandler:
 
             if not folder_name or not folder_name.strip():
                 context.logger.info("User cancelled folder creation or entered empty name")
-                return DialogResponse(success=False)
+                return DialogResponse(success=False, message="")
 
             # Initialize query manager and create folder
             query_manager = get_query_manager()
@@ -544,7 +544,7 @@ class ListsHandler:
 
             if not new_name or not new_name.strip():
                 context.logger.info("User cancelled folder rename or entered empty name")
-                return DialogResponse(success=False)
+                return DialogResponse(success=False, message="")
 
             # Update the folder name
             result = query_manager.rename_folder(folder_id, new_name.strip())
@@ -620,7 +620,7 @@ class ListsHandler:
                 yeslabel=L(30013)  # "Delete"
             ):
                 context.logger.info("User cancelled folder deletion")
-                return DialogResponse(success=False)
+                return DialogResponse(success=False, message="")
 
             # Delete the folder
             result = query_manager.delete_folder(folder_id)
@@ -947,7 +947,7 @@ class ListsHandler:
                         )
                 else:
                     context.logger.info("User chose not to create a new list.")
-                    return DialogResponse(success=False)
+                    return DialogResponse(success=False, message="")
 
             if not all_lists:  # Still no lists
                 return DialogResponse(
@@ -976,7 +976,7 @@ class ListsHandler:
 
             if selected_index < 0:
                 context.logger.info("User cancelled setting default list.")
-                return DialogResponse(success=False)
+                return DialogResponse(success=False, message="")
 
             target_list_id = None
             if selected_index == len(list_options) - 1:  # User chose to create a new list
