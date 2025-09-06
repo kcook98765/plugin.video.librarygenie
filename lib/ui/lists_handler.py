@@ -729,7 +729,7 @@ class ListsHandler:
                 )
             else:
                 # Build list items
-                from lib.ui.listitem_builder import ListItemBuilder
+                from lib.listitem_builder import ListItemBuilder
                 builder = ListItemBuilder(context.addon_handle, context.addon.getAddonInfo('id'), context)
 
                 for item_idx, item in enumerate(list_items):
@@ -1040,15 +1040,17 @@ class ListsHandler:
                 context.logger.error("Failed to initialize query manager")
                 return False
 
-            # Get all available lists
+            # Get all available lists, excluding special lists
             all_lists = query_manager.get_all_lists_with_folders()
-            if not all_lists:
+            available_lists = [lst for lst in all_lists if lst.get('folder_name') != 'Search History' and lst.get('name') != 'Kodi Favorites']
+            if not available_lists:
                 # Offer to create a new list
                 if xbmcgui.Dialog().yesno("No Lists Found", "No lists available. Create a new list?"): # Localize these strings
                     result = self.create_list(context)
                     if result.success:
                         # Refresh lists and continue
                         all_lists = query_manager.get_all_lists_with_folders()
+                        available_lists = [lst for lst in all_lists if lst.get('folder_name') != 'Search History' and lst.get('name') != 'Kodi Favorites']
                     else:
                         return False
                 else:
@@ -1056,7 +1058,7 @@ class ListsHandler:
 
             # Build list options for selection
             list_options = []
-            for lst in all_lists:
+            for lst in available_lists:
                 folder_name = lst.get('folder_name', 'Root')
                 if folder_name == 'Root' or not folder_name:
                     list_options.append(f"{lst['name']} ({lst['item_count']} items)")
@@ -1080,18 +1082,19 @@ class ListsHandler:
                     return False
                 # Get the newly created list ID and add item to it
                 all_lists = query_manager.get_all_lists_with_folders() # Refresh lists
-                if all_lists:
-                    target_list_id = all_lists[-1]['id']  # Assume last created
+                available_lists = [lst for lst in all_lists if lst.get('folder_name') != 'Search History' and lst.get('name') != 'Kodi Favorites']
+                if available_lists:
+                    target_list_id = available_lists[-1]['id']  # Assume last created
                 else:
                     return False
             else:
-                target_list_id = all_lists[selected_index]['id']
+                target_list_id = available_lists[selected_index]['id']
 
             # Add item to selected list
             result = query_manager.add_item_to_list(target_list_id, media_item_id)
 
             if result is not None and result.get("success"):
-                list_name = all_lists[selected_index]['name'] if selected_index < len(all_lists) else "new list"
+                list_name = available_lists[selected_index]['name'] if selected_index < len(available_lists) else "new list"
                 xbmcgui.Dialog().notification(
                     "LibraryGenie",
                     f"Added to '{list_name}'", # Localize this string
@@ -1136,17 +1139,16 @@ class ListsHandler:
                 context.logger.error("Failed to initialize query manager for library item add")
                 return False
 
-            # Get all available lists, excluding Search History lists
+            # Get all available lists, excluding special lists
             all_lists = query_manager.get_all_lists_with_folders()
-            available_lists = [lst for lst in all_lists if lst.get('folder_name') != 'Search History']
-
+            available_lists = [lst for lst in all_lists if lst.get('folder_name') != 'Search History' and lst.get('name') != 'Kodi Favorites']
             if not available_lists:
                 # Offer to create a new list
                 if xbmcgui.Dialog().yesno("No Lists Found", "No lists available. Create a new list?"): # Localize these strings
                     result = self.create_list(context)
                     if result.success:
                         all_lists = query_manager.get_all_lists_with_folders() # Refresh lists
-                        available_lists = [lst for lst in all_lists if lst.get('folder_name') != 'Search History']
+                        available_lists = [lst for lst in all_lists if lst.get('folder_name') != 'Search History' and lst.get('name') != 'Kodi Favorites']
                     else:
                         return False
                 else:
@@ -1183,7 +1185,7 @@ class ListsHandler:
                     return False
                 # Get the newly created list ID and add item to it
                 all_lists = query_manager.get_all_lists_with_folders() # Refresh lists
-                available_lists = [lst for lst in all_lists if lst.get('folder_name') != 'Search History']
+                available_lists = [lst for lst in all_lists if lst.get('folder_name') != 'Search History' and lst.get('name') != 'Kodi Favorites']
                 if available_lists:
                     target_list_id = available_lists[-1]['id']  # Assume last created
                 else:
