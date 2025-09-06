@@ -38,8 +38,11 @@ class LibraryScanner:
             return {"success": False, "error": "Database initialization failed"}
 
         # Get current Kodi version for tracking
-        from ..utils.kodi_version import get_kodi_major_version
-        current_version = get_kodi_major_version()
+        try:
+            current_version = get_kodi_major_version()
+        except Exception as e:
+            self.logger.warning(f"Failed to get Kodi version: {e}")
+            current_version = None
 
         scan_start = datetime.now().isoformat()
         scan_id = self._log_scan_start("full", scan_start, current_version)
@@ -100,11 +103,14 @@ class LibraryScanner:
             return {"success": False, "error": "Database initialization failed"}
 
         # Get current Kodi version
-        from ..utils.kodi_version import get_kodi_major_version
-        current_version = get_kodi_major_version()
+        try:
+            current_version = get_kodi_major_version()
+        except Exception as e:
+            self.logger.warning(f"Failed to get Kodi version: {e}")
+            current_version = None
 
         # Check if Kodi version has changed since last scan
-        if self._has_kodi_version_changed(current_version):
+        if current_version and self._has_kodi_version_changed(current_version):
             self.logger.info(f"Kodi version changed to {current_version}, forcing full scan")
             return self.perform_full_scan()
 
@@ -335,9 +341,9 @@ class LibraryScanner:
                             tmdb_id,
                             movie["file_path"],
                             'lib',  # Mark as Kodi library item
-                            # Artwork
-                            movie.get("poster", ""),
-                            movie.get("fanart", ""), 
+                            # Artwork - extract from art dict
+                            movie.get("art", {}).get("poster", "") if isinstance(movie.get("art"), dict) else movie.get("poster", ""),
+                            movie.get("art", {}).get("fanart", "") if isinstance(movie.get("art"), dict) else movie.get("fanart", ""),
                             # Metadata
                             movie.get("plot", ""),
                             movie.get("rating", 0.0),
@@ -446,7 +452,7 @@ class LibraryScanner:
             self.logger.error(f"Failed to update last_seen: {e}")
             return 0
 
-    def _log_scan_start(self, scan_type: str, started_at: str, kodi_version: int) -> Optional[int]:
+    def _log_scan_start(self, scan_type: str, started_at: str, kodi_version: int = None) -> Optional[int]:
         """Log the start of a scan"""
         try:
             with self.conn_manager.transaction() as conn:

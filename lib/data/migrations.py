@@ -117,6 +117,10 @@ class MigrationManager:
                     file_path TEXT,
                     normalized_path TEXT,
                     is_removed INTEGER DEFAULT 0,
+                    display_title TEXT,
+                    duration_seconds INTEGER,
+                    poster TEXT,
+                    fanart TEXT,
                     created_at TEXT NOT NULL DEFAULT (datetime('now')),
                     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
                 )
@@ -301,6 +305,7 @@ class MigrationManager:
                 CREATE TABLE library_scan_log (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     scan_type TEXT NOT NULL,
+                    kodi_version INTEGER,
                     start_time TEXT NOT NULL,
                     end_time TEXT,
                     total_items INTEGER DEFAULT 0,
